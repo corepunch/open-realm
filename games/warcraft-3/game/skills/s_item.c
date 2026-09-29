@@ -313,6 +313,61 @@ BZ_ITEM_PROC(AbilityItemHeal) {
     return true;
 }
 
+
+static bool AbilityItemInvis_ItemUse(edict_t *clent) {
+    edict_t *target;
+    uint32_t code;
+    abilityLevel_t const *row;
+    cstring_t buff;
+    float duration;
+    bool has_status_slot;
+
+    if (!clent || !clent->client) return false;
+    code = S_SpellCurrentCode(clent, MAKEFOURCC('A','I','v','i'));
+    row = G_AbilityLevel(code, 1);
+    buff = row ? row->buffID : NULL;
+    target = G_GetMainSelectedUnit(clent->client);
+    duration = S_SpellDuration(code, 1, G_UnitIsHero(target));
+    has_status_slot = buff && strlen(buff) == 4 && unit_findstatus(target, *((uint32_t const *)buff));
+
+    if (!S_SpellIsAliveTarget(target) || duration <= 0.0f || !buff || strlen(buff) != 4)
+        return false;
+    if (!has_status_slot) {
+        FOR_LOOP(i, MAX_UNIT_STATUSES)
+            if (!target->abilstatus[i].level) { has_status_slot = true; break; }
+    }
+    if (!has_status_slot) return false;
+
+    target->s.renderfx |= RF_HIDDEN;
+    unit_addtimedstatus(target, buff, 1, duration);
+    {
+        heroabilitystatus_t *status = unit_findstatus(target, *((uint32_t const *)buff));
+        if (status) status->data = code;
+        if (status) return true;
+    }
+    if (!S_UnitHasTemporaryInvisibility(target, NULL)) {
+        fprintf(stderr, "WC3 invisibility item: authored status %.4s missing after use on unit %u\n",
+                buff,
+                target->s.number);
+        target->s.renderfx &= ~RF_HIDDEN;
+    }
+    return false;
+}
+
+BZ_ABILITY_PROC(CAbilityItemInvis) {
+    switch (msg) {
+    case A_ITEM_USE:
+        return AbilityItemInvis_ItemUse(call && call->client ? call->client : ent);
+    case A_STATUS_REMOVE:
+        if (ent && call && call->status.slot &&
+            !S_UnitHasTemporaryInvisibility(ent, call->status.slot))
+            ent->s.renderfx &= ~RF_HIDDEN;
+        return true;
+    default:
+        return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
 BZ_ITEM_PROC(AbilityItemManaRestore) {
     edict_t *target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_MANA);

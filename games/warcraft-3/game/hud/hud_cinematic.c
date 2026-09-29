@@ -108,7 +108,8 @@ static void WriteGameplayTransmissionPortrait(edict_t *ent) {
         frame.tex.index = client->ps.cinematic_portrait;
         frame.stat = client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR];
         frame.text = TransmissionTalking(client) ? "Portrait Talk" : "Portrait";
-        UI_SetFrameRect(&frame, 0.211f, 0.4865f, 0.0835f, 0.085f);
+        UI_SetFrameRect(&frame, WC3_HUD_PORTRAIT_X, WC3_HUD_PORTRAIT_Y,
+                        WC3_HUD_PORTRAIT_WIDTH, WC3_HUD_PORTRAIT_HEIGHT);
         UI_WriteProxyFrame(&frame, NULL, 0);
     }
     UI_WriteEnd(ent);

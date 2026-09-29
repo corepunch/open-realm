@@ -125,6 +125,7 @@ typedef struct {
     sStreamState_t streams[S_STREAM_COUNT];
 
     SDL_AudioDeviceID device;
+    float             user_volume;
     bool              initialized;
     uint8_t             *dbc_data;
 } sState_t;
@@ -151,6 +152,7 @@ void S_BeginLoopingSounds(void);
 void S_UpdateLoopingSound(uint32_t entity, cstring_t path, vec2_t const *origin, float volume, float attenuation);
 void S_EndLoopingSounds(void);
 void S_SetListener(vec2_t const *origin, vec2_t const *right);
+void S_SetUserVolume(float volume);
 void S_StreamStart(sStreamId_t stream);
 uint32_t S_StreamSamples(sStreamId_t stream, int16_t const *samples, uint32_t frames);
 uint32_t S_StreamBufferedFrames(sStreamId_t stream);

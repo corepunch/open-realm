@@ -116,6 +116,7 @@ typedef struct {
     uint8_t building_upgrade; /* unit-type morph command; uses target unit data/costs */
     uint32_t level; /* authored research level used for owner-specific tooltip costs */
     uint8_t active;
+    uint8_t engaged; /* ability is active; drives the command button's edge glow */
     uint8_t disabled;
     uint32_t number; /* optional command-button numeric overlay; 0 hides it */
     float cooldown; /* fraction of the ability's cooldown still remaining (0=ready, 1=just used) */

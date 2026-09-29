@@ -1525,7 +1525,7 @@ TEST(wc3_building, build_command_state_covers_available_hidden_unaffordable_and_
     memset(client->tech, 0, sizeof(client->tech));
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_UNAFFORDABLE);
-    T_STREQ(reason, "Not enough gold");
+    T_STREQ(reason, "Nogold");
 
     worker_profile.builds = "hfoo";
     T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_ABSENT);
@@ -1770,7 +1770,7 @@ TEST(wc3_building, train_command_state_reports_food_shortage) {
 
     T_ASSERT(balance->foodUsed > 0);
     T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_UNAFFORDABLE);
-    T_STREQ(reason, "Not enough food");
+    T_STREQ(reason, "Nofood");
 
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = balance->foodUsed;
     T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
@@ -1968,6 +1968,34 @@ TEST(wc3_building, command_button_serializes_secondary_autocast_command_and_stat
     T_STREQ(building_command_frame.onclick, "button Arep");
     T_STREQ(building_command_frame.text, "autocast Arep");
     T_ASSERT(building_command_frame.flagsvalue & UIFLAG_ALTERNATE_ACTIVE);
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
+TEST(wc3_building, command_button_serializes_engaged_edge_glow_without_autocast_state) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    gameCommandButton_t button = { .art = "test", .engaged = 1 };
+
+    gi.Write = building_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    building_command_frame_seen = false;
+    UI_WriteCommandButtonFrame(&button);
+
+    T_ASSERT(building_command_frame_seen);
+    T_ASSERT(building_command_frame.flagsvalue & UIFLAG_ABILITY_ENGAGED);
+    T_ASSERT(!(building_command_frame.flagsvalue & UIFLAG_ALTERNATE_ACTIVE));
+    T_ASSERT(!(building_command_frame.flagsvalue & UIFLAG_ALERT_RED_PULSE));
+
+    button.engaged = 0;
+    button.alternate_active = 0;
+    UI_WriteCommandButtonFrame(&button);
+    T_ASSERT(!(building_command_frame.flagsvalue & UIFLAG_ABILITY_ENGAGED));
+    button.engaged = 1;
+    UI_WriteCommandButtonFrame(&button);
+    T_ASSERT(building_command_frame.flagsvalue & UIFLAG_ABILITY_ENGAGED);
+    T_ASSERT(!(building_command_frame.flagsvalue & UIFLAG_ALERT_RED_PULSE));
 
     gi.Write = old_write;
     gi.ImageIndex = old_image_index;

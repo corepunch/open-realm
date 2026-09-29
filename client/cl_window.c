@@ -44,12 +44,22 @@ typedef struct clientWindow_s {
 } clientWindow_t;
 
 static struct {
-    clientWindow_t *first, *last, *focus, *drag, *scroll_drag, *edit_window;
+    clientWindow_t *first, *last, *focus, *drag, *scroll_drag, *slider_drag, *edit_window;
     uint32_t scroll_drag_frame;
+    uint32_t slider_drag_frame;
     uint32_t edit_frame;
     vec2_t drag_point, drag_offset;
     bool modal_paused;
 } cl_windows;
+
+#define CVAR_TX_MAX 32
+
+/* Cvars edited since transaction Begin, with the value each held on first edit. */
+static struct {
+    bool active;
+    uint32_t count;
+    struct { char name[64]; char value[32]; } saved[CVAR_TX_MAX];
+} cl_cvar_transaction;
 
 static rect_t CL_WindowRoot(clientWindow_t const *window);
 static bool CL_WindowIsEditBox(uiFrame_t const *frame);
@@ -57,6 +67,81 @@ static uiFrame_t *CL_WindowEditTextFrame(uiFrame_t const *edit);
 
 static bool CL_WindowDebugEnabled(void) {
     return Cvar_Integer("ui_window_debug", 0) != 0;
+}
+
+typedef struct { cstring_t name; bool slider; } windowCvar_t;
+
+/* Decode "<prefix><cvar>" from a control's action. The client knows no preference names, but it only binds
+ * cvars that their owning subsystem registered with CVAR_UI: a server cannot edit or create any other cvar. */
+static bool CL_WindowCvarBinding(uiFrame_t const *frame, windowCvar_t *out) {
+    cstring_t const action = frame ? frame->onclick : NULL;
+    size_t const check_len = sizeof(UI_WINDOW_CVAR_CHECKBOX_PREFIX) - 1;
+    size_t const slider_len = sizeof(UI_WINDOW_CVAR_SLIDER_PREFIX) - 1;
+
+    if (!action || !out) return false;
+    if (!strncmp(action, UI_WINDOW_CVAR_CHECKBOX_PREFIX, check_len)) *out = (windowCvar_t){ action + check_len, false };
+    else if (!strncmp(action, UI_WINDOW_CVAR_SLIDER_PREFIX, slider_len)) *out = (windowCvar_t){ action + slider_len, true };
+    else return false;
+    if (out->name[0] == '\0' || strlen(out->name) >= sizeof(cl_cvar_transaction.saved[0].name)) return false;
+    return (Cvar_Flags(out->name) & CVAR_UI) != 0;
+}
+
+/* Any action the client consumes as a cvar edit or transaction step, whether or not the binding is permitted. */
+static bool CL_WindowIsCvarAction(cstring_t action) {
+    static cstring_t const prefixes[] = {
+        UI_WINDOW_CVAR_CHECKBOX_PREFIX, UI_WINDOW_CVAR_SLIDER_PREFIX, UI_WINDOW_CVAR_TX_BEGIN_COMMAND_PREFIX,
+        UI_WINDOW_CVAR_TX_ACCEPT_COMMAND_PREFIX, UI_WINDOW_CVAR_TX_CANCEL_COMMAND_PREFIX,
+    };
+
+    if (!action) return false;
+    FOR_LOOP(i, sizeof(prefixes) / sizeof(*prefixes))
+        if (!strncmp(action, prefixes[i], strlen(prefixes[i]))) return true;
+    return false;
+}
+
+static bool CL_WindowCvarIsSlider(uiFrame_t const *frame) {
+    windowCvar_t binding;
+    return CL_WindowCvarBinding(frame, &binding) && binding.slider;
+}
+
+/* Remember a cvar's value the first time an open transaction edits it. */
+static void CL_WindowCvarRemember(cstring_t name) {
+    if (!cl_cvar_transaction.active) return;
+    FOR_LOOP(i, cl_cvar_transaction.count)
+        if (!strcmp(cl_cvar_transaction.saved[i].name, name)) return;
+    if (cl_cvar_transaction.count >= CVAR_TX_MAX) return;
+    snprintf(cl_cvar_transaction.saved[cl_cvar_transaction.count].name,
+             sizeof(cl_cvar_transaction.saved[0].name), "%s", name);
+    snprintf(cl_cvar_transaction.saved[cl_cvar_transaction.count].value,
+             sizeof(cl_cvar_transaction.saved[0].value), "%s", Cvar_String(name, ""));
+    cl_cvar_transaction.count++;
+}
+
+/* Convert a normalized frame value to the cvar representation. */
+static void CL_WindowSetCvar(windowCvar_t const *binding, float value) {
+    char text[32];
+
+    if (!binding) return;
+    CL_WindowCvarRemember(binding->name);
+    if (!binding->slider)
+        snprintf(text, sizeof(text), "%u", value >= 0.5f ? 1u : 0u);
+    else
+        snprintf(text, sizeof(text), "%.3f", (double)MIN(1.0f, MAX(0.0f, value)));
+    Cvar_Set(binding->name, text);
+}
+
+/* Reflect current cvar values in bound controls after parsing the transient window's wire layout. */
+static void CL_WindowApplyCvarBindings(void) {
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t *frame = SCR_Frame(i);
+        windowCvar_t binding;
+
+        if (!CL_WindowCvarBinding(frame, &binding)) continue;
+        if (!binding.slider)
+            frame->value = Cvar_Integer(binding.name, 0) != 0 ? 1.0f : 0.0f;
+        else
+            frame->value = MIN(1.0f, MAX(0.0f, Cvar_Value(binding.name, 0.0f)));
+    }
 }
 
 static cstring_t CL_WindowImageName(RESOURCE image) {
@@ -480,6 +565,68 @@ static bool CL_WindowFormatCommand(clientWindow_t *window, cstring_t src, window
     return true;
 }
 
+typedef enum {
+    CVAR_TRANSACTION_NONE,
+    CVAR_TRANSACTION_BEGIN,
+    CVAR_TRANSACTION_ACCEPT,
+    CVAR_TRANSACTION_CANCEL,
+} cvarTransactionAction_t;
+
+/* Decode transaction prefixes while keeping their server-command suffix opaque to local preference logic. */
+static cvarTransactionAction_t CL_WindowCvarTransactionAction(cstring_t action,
+                                                                           cstring_t *command) {
+    if (!action || !command) return CVAR_TRANSACTION_NONE;
+    if (!strncmp(action, UI_WINDOW_CVAR_TX_BEGIN_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_CVAR_TX_BEGIN_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_CVAR_TX_BEGIN_COMMAND_PREFIX) - 1;
+        return CVAR_TRANSACTION_BEGIN;
+    }
+    if (!strncmp(action, UI_WINDOW_CVAR_TX_ACCEPT_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_CVAR_TX_ACCEPT_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_CVAR_TX_ACCEPT_COMMAND_PREFIX) - 1;
+        return CVAR_TRANSACTION_ACCEPT;
+    }
+    if (!strncmp(action, UI_WINDOW_CVAR_TX_CANCEL_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_CVAR_TX_CANCEL_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_CVAR_TX_CANCEL_COMMAND_PREFIX) - 1;
+        return CVAR_TRANSACTION_CANCEL;
+    }
+    return CVAR_TRANSACTION_NONE;
+}
+
+/* Begin an empty edit log; cvars are captured as the page first touches them. A Begin inside an unfinished
+ * transaction keeps its log, so Cancel still restores the values from before the first Begin. */
+static void CL_WindowBeginCvarTransaction(void) {
+    if (cl_cvar_transaction.active) return;
+    cl_cvar_transaction.count = 0;
+    cl_cvar_transaction.active = true;
+}
+
+/* Accept keeps the live values; Cancel restores every cvar edited since Begin. */
+static void CL_WindowFinishCvarTransaction(bool cancel) {
+    if (!cl_cvar_transaction.active) return;
+    if (cancel)
+        FOR_LOOP(i, cl_cvar_transaction.count)
+            Cvar_Set(cl_cvar_transaction.saved[i].name, cl_cvar_transaction.saved[i].value);
+    cl_cvar_transaction.active = false;
+    cl_cvar_transaction.count = 0;
+}
+
+/* Apply the local transaction action, then forward only its authored server-command suffix. */
+static bool CL_WindowRunCvarTransactionCommand(clientWindow_t *window, cstring_t action) {
+    cstring_t source = NULL;
+    cvarTransactionAction_t transaction = CL_WindowCvarTransactionAction(action, &source);
+    char command[CMDARG_LEN * 4];
+
+    if (transaction == CVAR_TRANSACTION_NONE) return false;
+    if (!CL_WindowFormatCommand(window, source, &MAKE(windowTextOut_t, .data = command, .size = sizeof(command))))
+        return true;
+    if (transaction == CVAR_TRANSACTION_BEGIN) CL_WindowBeginCvarTransaction();
+    else CL_WindowFinishCvarTransaction(transaction == CVAR_TRANSACTION_CANCEL);
+    Cmd_ForwardToServer(command);
+    return true;
+}
+
 static void CL_WindowPrepareState(clientWindow_t *window, rect_t const *root) {
     if (!window) return;
     SCR_WindowPrepare(window->layout, root);
@@ -501,6 +648,21 @@ static void CL_WindowPrepareState(clientWindow_t *window, rect_t const *root) {
         if (frame && frame->buffer.data && frame->buffer.size >= sizeof(uiListBox_t))
             ((uiListBox_t *)frame->buffer.data)->selectedIndex = value->selected;
     }
+    CL_WindowApplyCvarBindings();
+}
+
+/* A window takes part in the open transaction when it carries bound controls or a transaction step. */
+static bool CL_WindowOwnsCvarTransaction(clientWindow_t *window) {
+    rect_t root;
+
+    if (!window || !cl_cvar_transaction.active) return false;
+    root = CL_WindowRoot(window);
+    CL_WindowPrepareState(window, &root);
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *frame = SCR_Frame(i);
+        if (frame && CL_WindowIsCvarAction(frame->onclick)) return true;
+    }
+    return false;
 }
 
 static uiFrame_t *CL_WindowScrollOwner(uiFrame_t *frame) {
@@ -644,7 +806,18 @@ static uiFrame_t const *CL_WindowClickableAt(clientWindow_t *window, vec2_t cons
 /* Consume client-owned button actions locally; ordinary layout actions remain server commands. */
 static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *frame) {
     size_t const close_command_len = sizeof(UI_WINDOW_CLOSE_COMMAND_PREFIX) - 1;
+    windowCvar_t binding;
     if (!frame) return;
+    if (CL_WindowRunCvarTransactionCommand(window, frame->onclick)) return;
+    if (CL_WindowCvarBinding(frame, &binding)) {
+        CL_WindowSetCvar(&binding, binding.slider ? frame->value : (frame->value < 0.5f ? 1.0f : 0.0f));
+        return;
+    }
+    if (CL_WindowIsCvarAction(frame->onclick)) {
+        /* A rejected binding is dropped: forwarding it would hand the server an action it never authored as a command. */
+        fprintf(stderr, "CL_WindowActivateFrame: \"%s\" names a cvar without CVAR_UI\n", frame->onclick);
+        return;
+    }
     if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION) ||
         !strcmp(frame->onclick, UI_WINDOW_CLOSE_NOTIFY_ACTION)) {
         CL_WindowClose(window->id);
@@ -670,6 +843,14 @@ static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *fram
     }
 }
 
+static void CL_WindowEndSliderDrag(void) {
+    clientWindow_t *window = cl_windows.slider_drag;
+
+    if (window && window->layout) SCR_LayoutSetPointer(window->layout, 0, false);
+    cl_windows.slider_drag = NULL;
+    cl_windows.slider_drag_frame = 0;
+}
+
 void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
     clientWindow_t *window = CL_WindowById(def->id);
     if (!window && (def->flags & UI_WINDOW_UNIQUE)) window = CL_WindowByClass(def->class_id);
@@ -682,6 +863,7 @@ void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
         cl_windows.last = window;
     } else {
         if (cl_windows.edit_window == window) CL_WindowBlurEdit();
+        if (cl_windows.slider_drag == window) CL_WindowEndSliderDrag();
         SAFE_DELETE(window->layout, MemFree);
     }
     window->id = def->id; window->class_id = def->class_id; window->flags = def->flags; window->layout = layout;
@@ -711,6 +893,7 @@ void CL_WindowClose(uint32_t id) {
         cl_windows.scroll_drag = NULL;
         cl_windows.scroll_drag_frame = 0;
     }
+    if (cl_windows.slider_drag == window) CL_WindowEndSliderDrag();
     CL_WindowUnlink(window);
     SAFE_DELETE(window->layout, MemFree);
     MemFree(window);
@@ -721,6 +904,8 @@ void CL_WindowClose(uint32_t id) {
 void CL_WindowClear(void) {
     while (cl_windows.first) CL_WindowClose(cl_windows.first->id);
     memset(&cl_windows, 0, sizeof(cl_windows));
+    /* A full client-state clear ends this edit session without restoring stale preferences. */
+    cl_cvar_transaction.active = false;
 }
 
 bool CL_WindowModalActive(void) { return CL_WindowModal() != NULL; }
@@ -748,10 +933,39 @@ void CL_WindowDraw(void) {
     }
 }
 
+static void CL_WindowSliderSetFromPoint(clientWindow_t *window, uiFrame_t *slider, vec2_t const *point) {
+    rect_t const *rect;
+    windowCvar_t binding;
+    float value;
+
+    if (!window || !slider || !point || slider->flags.type != FT_SLIDER) return;
+    if (!CL_WindowCvarBinding(slider, &binding) || !binding.slider) return;
+    rect = SCR_LayoutRect(slider);
+    if (!rect || rect->w <= 0.0f || rect->h <= 0.0f) return;
+    value = (point->x - rect->x) / rect->w;
+    value = MIN(1.0f, MAX(0.0f, value));
+    slider->value = value;
+    CL_WindowSetCvar(&binding, value);
+}
+
 bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     vec2_t point = SCR_ScreenToUI(x, y);
     clientWindow_t *modal = CL_WindowModal(), *window;
     uiFrame_t const *frame;
+
+    if (cl_windows.slider_drag) {
+        rect_t root = CL_WindowRoot(cl_windows.slider_drag);
+        CL_WindowPrepareState(cl_windows.slider_drag, &root);
+        uiFrame_t *slider = SCR_Frame(cl_windows.slider_drag_frame);
+        if (event == MENU_MOUSE_MOVE && slider && slider->flags.type == FT_SLIDER)
+            CL_WindowSliderSetFromPoint(cl_windows.slider_drag, slider, &point);
+        else if (event == MENU_MOUSE_UP && param == 1) {
+            if (slider && slider->flags.type == FT_SLIDER)
+                CL_WindowSliderSetFromPoint(cl_windows.slider_drag, slider, &point);
+            CL_WindowEndSliderDrag();
+        }
+        return true;
+    }
 
     if (cl_windows.scroll_drag) {
         rect_t root = CL_WindowRoot(cl_windows.scroll_drag);
@@ -785,7 +999,15 @@ bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
             return true;
 
         if (event == MENU_MOUSE_DOWN && param == 1) {
+            uiFrame_t *slider = CL_WindowFrameAtType(&point, FT_SLIDER);
             uiFrame_t *edit = CL_WindowFrameAtType(&point, FT_EDITBOX);
+            if (slider && CL_WindowCvarIsSlider(slider)) {
+                CL_WindowSliderSetFromPoint(window, slider, &point);
+                cl_windows.slider_drag = window;
+                cl_windows.slider_drag_frame = slider->number;
+                SCR_LayoutSetPointer(window->layout, slider->number, true);
+                return true;
+            }
             uiFrame_t *list = CL_WindowFrameAtType(&point, FT_LISTBOX);
             uiFrame_t *list_scrollbar = CL_WindowFrameAtType(&point, FT_SCROLLBAR);
             if (!edit) edit = CL_WindowFrameAtType(&point, FT_GLUEEDITBOX);
@@ -900,6 +1122,8 @@ bool CL_WindowKeyEvent(int key) {
     if (key == K_ESCAPE) {
         if (window->flags & UI_WINDOW_NO_ESCAPE)
             return (window->flags & UI_WINDOW_MODAL) != 0;
+        /* Dismissing an options page is a Cancel: live edits must not survive as a silent Accept. */
+        if (CL_WindowOwnsCvarTransaction(window)) CL_WindowFinishCvarTransaction(true);
         CL_WindowClose(window->id);
         return true;
     }

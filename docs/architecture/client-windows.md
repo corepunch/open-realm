@@ -66,6 +66,7 @@ retained arena; it does not duplicate strings.
 ## Input
 
 - Mouse-down on a window raises it and assigns keyboard focus.
+- Pointer events inside a client-managed window are consumed even when the window has no matching scrollable control; this keeps wheel bindings from also acting on the world behind the window.
 - Mouse-down on non-command background starts a drag when `UI_WINDOW_MOVABLE` is set.
 - Drag capture continues through motion and mouse-up outside the window.
 - Keyboard hotkeys are searched only in the focused window, or the topmost modal window.
@@ -96,10 +97,61 @@ retained arena; it does not duplicate strings.
 - An authored onclick may reference `{ControlId}`. Immediately before forwarding, the window client replaces that token with the
   current edit-box text or selected list value and escapes quotes/backslashes. This is a commit-time control-value handoff, not a
   per-keystroke client-to-server state stream. The WC3 named Save/Load panel is the first consumer.
+- Checkbox and slider controls may edit client cvars locally instead of sending a command; see
+  [Server-authored cvar controls](#server-authored-cvar-controls).
+
+### Server-authored cvar controls
+
+Options-style pages are authored by the game module but edit preferences that live on the client. The window client
+(`client/cl_window.c`) carries no list of preference names; three pieces cooperate instead:
+
+| Piece | Owner | Role |
+|-------|-------|------|
+| `CVAR_UI` flag | the subsystem that registers the cvar | Declares "server-authored UI may edit this". Set at `Cvar_Get` time, e.g. `s_sound`/`s_volume` in `common/cvar.c`, `s_music`/`s_musicvolume` in `CL_MusicInit`. |
+| Control table | the authoring game module | One `{ control, cvar, checkbox\|slider }` row per control. WC3 Sound page: `options_cvar_controls[]` in `games/warcraft-3/game/hud/hud_menu.c`. Each row becomes the control's `onclick`. |
+| Binding + transaction | `client/cl_window.c` | Decodes the action, checks the flag, applies the edit live, and logs previous values for Cancel. |
+
+**Actions** (all defined in `common/shared.h`, all consumed locally):
+
+| Action | Effect |
+|--------|--------|
+| `local_cvar_checkbox <cvar>` | Click toggles the cvar between `0` and `1`. |
+| `local_cvar_slider <cvar>` | Click/drag on an `FT_SLIDER` stores the normalized `0..1` position as `%.3f`. |
+| `local_cvar_begin_command <cmd>` | Opens an edit transaction, then forwards `<cmd>` to the server. |
+| `local_cvar_accept_command <cmd>` | Ends the transaction keeping the edits, then forwards `<cmd>`. |
+| `local_cvar_cancel_command <cmd>` | Restores every cvar edited since Begin, ends the transaction, then forwards `<cmd>`. |
+
+**Trust boundary.** A binding is honored only when the named cvar is already registered *and* carries `CVAR_UI`
+(`Cvar_Flags(name) & CVAR_UI`). A server therefore cannot edit renderer, network, or filesystem cvars, and cannot create new
+cvars by naming them. A rejected binding is dropped with a stderr diagnostic; it is never forwarded to the server as a
+command. To expose a new preference, add `CVAR_UI` where the cvar is registered and add a row to the authoring table; no
+change to `cl_window.c` is needed.
+
+**Display.** On every window prepare the client overwrites the `value` of each bound frame from the current cvar, so the
+control always shows the live client value regardless of what the server serialized.
+
+**Transaction lifecycle.**
+
+- Begin opens an empty log. The first edit of each cvar records the value it held before that edit (up to 32 cvars).
+  Edits apply live, so audio changes are audible while the page is open.
+- The transaction is client-global, not per window: the Options panel is re-sent as the page changes, and closing or
+  replacing an individual window by id leaves the transaction open.
+- A second Begin inside an unfinished transaction keeps the existing log. Leaving the page through a plain navigation
+  button and re-entering therefore still lets Cancel restore the values from before the first Begin.
+- Accept and Cancel end the transaction. Edits made while no transaction is open are immediate and not restorable.
+- **Escape is Cancel.** When Escape dismisses a window that carries any `local_cvar_*` action while a transaction is
+  open, the client restores the logged values before closing it. Escape on an unrelated window leaves the transaction
+  untouched. Escape sends no server command, exactly as for other windows.
+- A full `CL_WindowClear()` ends an unfinished transaction without restoring it, preventing an old log from crossing a
+  client-state/session reset.
+
+**Known limits.** Sliders only store the normalized `0..1` fraction (no authored min/max/step), checkboxes only store
+`0`/`1`, an edit past the 32-entry log is applied but not restorable, and logged values are truncated to 31 characters.
 
 ### Client-owned button actions
 
-Most authored window `onclick` strings are sent back to the game server. Four explicit action tokens are consumed locally by
+Most authored window `onclick` strings are sent back to the game server. Besides the `local_cvar_*` actions above, four explicit
+action tokens are consumed locally by
 `client/cl_window.c` instead:
 
 - `UI_WINDOW_CLOSE_ACTION` (`close_window`) closes the owning window;
@@ -138,6 +190,8 @@ select the offset-aware codec. `wc3_game.hud_authored_window_frame_uses_offset_c
 
 The standalone net tests cover text offsets, a text arena above 255 bytes, screen-pass drawing, unique-class replacement,
 linked-list raise order, keyboard focus, non-modal/modal edit-box arrow ownership, and malformed packets without a frame terminator.
+The `window_cvar_*` tests cover cvar controls: live checkbox/slider edits, rejection of unflagged and unknown cvars,
+Accept/Cancel, Escape-as-Cancel, repeated Begin, and transaction reset on `CL_WindowClear()`.
 
 ## See Also
 

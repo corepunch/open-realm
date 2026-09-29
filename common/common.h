@@ -141,6 +141,7 @@ typedef struct cvar_s {
 
 enum {
     FLAG(CVAR_ARCHIVE, 0),
+    FLAG(CVAR_UI, 1), /* preference that server-authored UI controls may edit; see docs/architecture/client-windows.md */
 };
 
 typedef struct model {
@@ -234,6 +235,7 @@ void S_Shutdown(void);
 void S_PlaySound(uint32_t kit_id);
 void S_PlaySoundByName(cstring_t name);
 void S_StopAllSounds(void);
+void S_SetUserVolume(float volume);
 void S_BeginRegistration(void);
 void S_EndRegistration(void);
 void CL_Connect(cstring_t host, unsigned short port);
@@ -314,6 +316,12 @@ static inline void player_set_lens(player_t *ps, gameCamera_t const *cam) {
 }
 
 bool CL_GameDefaultCamera(gameCamera_t *camera);
+typedef struct {
+    float minimum, default_distance, maximum;
+} gameCameraZoomPolicy_t;
+/* Optional game-specific policy for player-controlled orbit zoom. Scripted camera
+ * fields remain game-owned and are not clamped through this presentation hook. */
+bool CL_GameCameraZoomPolicy(gameCameraZoomPolicy_t *policy, float user_default, float user_maximum);
 bool CL_GameCameraUsesWorldUp(void);
 float CL_GameLerpDegrees(float a, float b, float fraction);
 cstring_t CL_GameOrderQueueReleaseCommand(void);
@@ -380,6 +388,7 @@ cvar_t *Cvar_SetValue(cstring_t name, float value);
 cstring_t Cvar_String(cstring_t name, cstring_t fallback);
 int Cvar_Integer(cstring_t name, int fallback);
 float Cvar_Value(cstring_t name, float fallback);
+uint32_t Cvar_Flags(cstring_t name);
 bool Cvar_LoadConfig(cstring_t filename);
 void Cvar_WriteConfig(cstring_t filename);
 void Cvar_ApplyConfigCommandLine(int argc, cstring_t *argv);

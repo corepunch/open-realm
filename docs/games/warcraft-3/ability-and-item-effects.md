@@ -118,6 +118,10 @@ These migrations are deliberately presentation-only. They do not change damage/h
 
 `AddSpecialEffect*` takes an explicit model path and does not consult ability data. `AddSpellEffect*` takes an ability rawcode/string plus a converted effect type and resolves the corresponding ability presentation field. A returned JASS `effect` handle points at the independent effect edict, not at the target unit. Destroying the effect therefore cannot overwrite or clear the target unit's `model2` state.
 
+The Undead01 intro trace showed two `MassTeleportCaster` effects being added, but cleanup called `DestroyEffect` only for the later handle. The earlier JASS handle was overwritten and lost. Its flagged non-looping `Stand` now stops rendering at the sequence boundary, while its edict remains live because no `DestroyEffect` can reach it.
+
+TODO: Decide whether the engine should diagnose or reclaim effects whose last JASS handle reference is overwritten. A variable reassignment alone does not prove the handle is lost; another JASS variable or array entry may still alias it. The JASS VM currently exposes global assignment names at its value-copy point, so an opt-in overwrite trace is feasible for globals; local and array assignments need additional instrumentation.
+
 Weather effects use a separate map-lifetime handle/renderer path rather than effect edicts: W3I/W3R/JASS weather is keyed by `TerrainArt\Weather.slk`, carried in the per-frame game datagram, and emitted through the shared particle pool. See [Weather](weather.md) for the implemented fields and deliberate compatibility gaps. Warcraft lightning now uses the same ownership principle with a distinct endpoint registry: game code resolves `LightningEffect` rawcodes and endpoints, the datagram carries presentation-only `LIGHTNINGEFFECT` records, and `r_lightning.c` resolves `Splats\LightningData.slk` into a generic camera-facing textured ribbon. Ability bolts retain entity pointers plus spawn-generation identities so their endpoints follow moving units safely after save/load; explicitly positioned JASS bolts remain coordinate-driven. Lightning remains separate from the MDX model-effect resolver because it has two moving endpoints rather than one model transform.
 
 ## Item Use And Charges
@@ -181,7 +185,7 @@ The following are deliberately outside this implementation slice:
 - generic binding of buff lifetime to persistent world-art ownership and non-stacking FX
   beyond explicitly owned lifecycles such as natural creep sleep;
 - ability/buff `EffectSound` and `EffectSoundLooped`;
-- broader invisibility families such as Ghost/Ghost Visible and Shadow Meld remain separate from the `Apiv`/`Binv`/`BOwk`/ward visibility paths covered here;
+- Ghost/Ghost Visible remain separate from the player-aware invisibility paths covered here; Shadow Meld now uses dedicated saved state and the same owner/shared-vision/detector visibility query as the implemented `Apiv`/`Binv`/`BOwk`/ward mechanics;
 - Earthquake Data D/final-area specialized terrain presentation remains separate from the now-implemented persistent area-art/looped-sound ownership;
 - item `cooldownID` / `ignoreCD` shared cooldown behavior;
 - automatic `powerup` acquisition/use;

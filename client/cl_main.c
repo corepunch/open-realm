@@ -1222,6 +1222,8 @@ void CL_Frame(uint32_t msec) {
     CL_MovieUpdate();
     CL_ReadPackets();
     CL_MusicUpdate();
+    S_SetUserVolume(Cvar_Integer("s_sound", 1)
+        ? Cvar_Value("s_volume", 1.0f) : 0.0f);
     CL_SendSoundEvents();
     CL_CheckTimeout();
     CL_SendCommand();

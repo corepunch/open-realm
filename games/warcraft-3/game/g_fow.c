@@ -54,6 +54,16 @@ bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner) {
            (level.alliances[owner][viewer] & (1 << ALLIANCE_SHARED_VISION_FORCED));
 }
 
+bool G_UnitSharesVisionWith(edict_t const *unit, uint32_t viewer) {
+    return unit && viewer < MAX_PLAYERS && (unit->shared_vision & (1u << viewer));
+}
+
+void G_SetUnitSharedVision(edict_t *unit, uint32_t viewer, bool share) {
+    if (!unit || viewer >= MAX_PLAYERS) return;
+    if (share) unit->shared_vision |= 1u << viewer;
+    else unit->shared_vision &= ~(1u << viewer);
+}
+
 void G_AddUnitForcedVisibility(edict_t *unit, uint32_t viewer) {
     if (unit && viewer < MAX_PLAYERS && unit->forced_visibility_count[viewer] != 0xffffu)
         unit->forced_visibility_count[viewer]++;
@@ -557,7 +567,10 @@ static bool G_FowEntityIsRevealer(edict_t const *ent) {
     if (ent->svflags & SVF_NOCLIENT) {
         return false;
     }
-    if (ent->s.renderfx & RF_HIDDEN) {
+    /* Gameplay-invisible units still provide sight to their owner. Only
+     * non-invisibility RF_HIDDEN states suppress a unit's fog reveal. */
+    if ((ent->s.renderfx & RF_HIDDEN) &&
+        S_UnitIsHiddenFromPlayer(ent, ent->s.player)) {
         return false;
     }
     if (M_IsDead((edict_t *)ent)) {
@@ -1028,12 +1041,15 @@ void G_FowUpdate(void) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t const *ent = &g_edicts[i];
         float radius;
+        uint32_t unit_viewers;
 
-        if (ent->s.player >= MAX_PLAYERS || !owner_viewers[ent->s.player] || !G_FowEntityIsRevealer(ent)) {
+        if (ent->s.player >= MAX_PLAYERS || !G_FowEntityIsRevealer(ent)) {
             continue;
         }
+        unit_viewers = owner_viewers[ent->s.player] | (ent->shared_vision & viewers);
+        if (!unit_viewers) continue;
         radius = G_FowEntitySightRadius(ent);
-        G_FowRevealForViewers(ent, radius, owner_viewers[ent->s.player]);
+        G_FowRevealForViewers(ent, radius, unit_viewers);
     }
 
     /* Timed spell reveals are not ordinary sight sources: Far Sight ignores

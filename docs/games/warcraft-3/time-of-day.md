@@ -223,3 +223,8 @@ the frozen canonical phase on expiry, and maps without DNC models retain the leg
 - [JASS Native Coverage](jass-native-coverage.md)
 - [HUD Media Lifetime](hud-media.md)
 - [Server-Authored UI Payloads](../../architecture/ui-payloads.md)
+
+
+## Shadow Meld consumer
+
+Night Elf Shadow Meld now consumes the canonical effective day/night state through `G_IsNight()`. Both stock `Ashm` and the distinct Akama `Ahid` class begin the standard 1.5-second stationary fade only at night; daylight cancels a pending fade and removes active Shadow Meld. The 1.5-second value is intentionally still a compatibility constant. Warcraft exposes `Shm1`/`Shm2`/`Shm3` as Shadow Meld Fade Duration, Day/Night Duration, and Action Duration fields, so the fade should ultimately be resolved from the concrete ability row for custom/variant compatibility. Both classes expose the `ambush` Hide order; explicit Hide suppresses voluntary acquisition, and the Akama class additionally suppresses automatic acquisition by class behavior. This deliberately follows the repository's pre-1.31 classic-data baseline; the later Cloak of Shadows daytime exception still needs dataset/item-provenance handling rather than making every Shadow Meld class daytime-capable.

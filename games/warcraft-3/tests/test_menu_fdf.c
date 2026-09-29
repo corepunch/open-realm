@@ -1772,7 +1772,7 @@ TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
     mi = saved;
 }
 
-TEST(menu_fdf, options_music_controls_update_archived_music_cvars) {
+TEST(menu_fdf, options_sound_controls_update_archived_audio_cvars) {
     cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
@@ -1781,6 +1781,8 @@ TEST(menu_fdf, options_music_controls_update_archived_music_cvars) {
     menuImport_t saved = mi;
     frameDef_t *checkbox;
     frameDef_t *slider;
+    frameDef_t *sound_checkbox;
+    frameDef_t *sound_slider;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     memset(&mi, 0, sizeof(mi));
@@ -1795,12 +1797,32 @@ TEST(menu_fdf, options_music_controls_update_archived_music_cvars) {
 
     T_ASSERT(optionsMenuScreen.load());
     optionsMenuScreen.init();
+    sound_checkbox = UI_FindFrame("SoundCheckBox");
+    sound_slider = UI_FindFrame("SoundVolumeSlider");
     checkbox = UI_FindFrame("MusicCheckBox");
     slider = UI_FindFrame("MusicVolumeSlider");
-    if (!require_not_null(checkbox) || !require_not_null(slider)) {
+    if (!require_not_null(sound_checkbox) || !require_not_null(sound_slider) ||
+        !require_not_null(checkbox) || !require_not_null(slider)) {
         mi = saved;
         return;
     }
+    T_ASSERT((sound_checkbox->ui_flags & UIFLAG_CHECKED) != 0);
+    T_FEQ(sound_slider->Slider.InitialValue, sound_slider->Slider.MaxValue, 0.001f);
+
+    captured_cvar_name[0] = captured_cvar_value[0] = '\0';
+    sound_checkbox->ui_flags &= ~UIFLAG_CHECKED;
+    sound_checkbox->CheckBox.Checked = false;
+    optionsMenuScreen.refresh(0);
+    T_STREQ(captured_cvar_name, "s_sound");
+    T_STREQ(captured_cvar_value, "0");
+
+    captured_cvar_name[0] = captured_cvar_value[0] = '\0';
+    sound_slider->Slider.InitialValue = sound_slider->Slider.MinValue +
+        0.4f * (sound_slider->Slider.MaxValue - sound_slider->Slider.MinValue);
+    optionsMenuScreen.refresh(0);
+    T_STREQ(captured_cvar_name, "s_volume");
+    T_STREQ(captured_cvar_value, "0.40");
+
     T_ASSERT((checkbox->ui_flags & UIFLAG_CHECKED) != 0);
     T_FEQ(slider->Slider.MinValue, 0.0f, 0.001f);
     T_FEQ(slider->Slider.MaxValue, 10.0f, 0.001f);

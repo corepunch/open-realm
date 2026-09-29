@@ -514,6 +514,7 @@ static void G_InitGame(void) {
     InitAbilities();
     G_ResetSelectionSoundState();
     G_ResetSoundPresentationState();
+    G_CommandErrorReset();
     G_RegisterGlobalSounds();
     UI_ResetHud();
     fprintf(stderr, "Game initialized.\n\n");
@@ -524,6 +525,7 @@ static void G_ShutdownGame(void) {
         return;
     }
     G_ResetSelectionSoundState();
+    G_CommandErrorReset();
     UI_ResetHud();
     gi.SetPaused(false);
     G_BotShutdown();
@@ -752,6 +754,7 @@ static void G_RunClients(void) {
             memset(&client->message, 0, sizeof(client->message));
             client->presentation_dirty = true;
         }
+        if (client_ent) G_UpdateCommandError(client_ent);
         if (client->connected && client->presentation_dirty && client_ent) {
             UI_WriteDialoguePresentation(client_ent);
             client->presentation_dirty = false;

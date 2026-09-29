@@ -432,7 +432,8 @@ BZ_COMMAND_PROC(AbilityMilitiaConvert) {
                 issued = true;
         }
     }
-    if (!issued) G_ShowCommandErrorText(clent,
+    if (!issued) G_ShowCommandErrorKey(clent,
+        off ? "Backtowork" : "Calltoarms",
         off ? "No Militia could be found." : "No Peasants could be found.");
 }
 

@@ -53,15 +53,32 @@ void G_WeatherInitMap(void) {
     }
 }
 
-/* Filter vertex colours by unit visibility while allowing unresolved presentation models. */
-static bool G_ClientReceivesVertexColor(edict_t *client_ent, edict_t const *unit) {
+/* Build the presentation tint for this recipient. Authoritative vertex colour
+ * remains unit state; Shadow Meld multiplies only the recipient's alpha so
+ * owner/shared-vision clients see the familiar ghosted model while hostile
+ * detector viewers retain the normal authored tint. */
+static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color32_t *out) {
     uint32_t player;
-    /* Vertex colour is authoritative unit state; publish it before model resolution too,
-     * because the client may receive the tint before the unit's presentation model. */
-    if (!unit->inuse || !unit->vertex_color_set) return false;
-    if (!client_ent || !client_ent->client) return true;
-    player = client_ent->client->ps.number;
-    return unit->s.player == player || G_FowPlayerCanSeeEntity(player, unit);
+    color32_t color;
+    float presentation_alpha = 1.0f;
+
+    if (!unit || !unit->inuse || !out) return false;
+    color = unit->vertex_color_set ? unit->vertex_color : COLOR32_WHITE;
+
+    if (client_ent && client_ent->client) {
+        player = client_ent->client->ps.number;
+        if (unit->s.player != player && !G_FowPlayerCanSeeEntity(player, unit)) return false;
+        if (unit->s.player == player || G_FowPlayersShareVision(player, unit->s.player)) {
+            presentation_alpha = S_ShadowMeldPresentationAlpha(unit);
+            if (S_UnitHasInvisibilityState(unit))
+                presentation_alpha = MIN(presentation_alpha, 0.35f);
+        }
+    }
+
+    if (!unit->vertex_color_set && presentation_alpha >= 1.0f) return false;
+    color.a = (uint8_t)MIN(255, MAX(0, (int)((float)color.a * presentation_alpha + 0.5f)));
+    *out = color;
+    return true;
 }
 
 /* Serialize authoritative weather and vertex-colour state so dropped frames converge without widening entityState_t. */
@@ -87,7 +104,10 @@ uint32_t G_WriteClientDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
         }
         lightning_count++;
     }
-    FOR_LOOP(i, globals.num_edicts) if (G_ClientReceivesVertexColor(ent, &g_edicts[i])) tint_count++;
+    FOR_LOOP(i, globals.num_edicts) {
+        color32_t color;
+        if (G_ClientVertexColor(ent, &g_edicts[i], &color)) tint_count++;
+    }
     base = sizeof(wire_count) + weather_count * sizeof(wc3WeatherEffect_t);
     lightning_need = lightning_header_size + lightning_count * sizeof(lightningEffect_t);
     mask_min = 0;
@@ -136,10 +156,11 @@ uint32_t G_WriteClientDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
         FOR_LOOP(i, globals.num_edicts) {
             edict_t *unit = &g_edicts[i];
             uint16_t number;
-            if (!G_ClientReceivesVertexColor(ent, unit)) continue;
+            color32_t color;
+            if (!G_ClientVertexColor(ent, unit, &color)) continue;
             number = (uint16_t)unit->s.number;
             memcpy(out, &number, sizeof(number)); out += sizeof(number);
-            memcpy(out, &unit->vertex_color, sizeof(unit->vertex_color)); out += sizeof(unit->vertex_color);
+            memcpy(out, &color, sizeof(color)); out += sizeof(color);
         }
     }
     if (emit_terrain_mask) {

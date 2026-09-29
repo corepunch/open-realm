@@ -178,6 +178,35 @@ void UI_WriteTextAreaFrame(float x, float y, float w, float h, cstring_t text, c
     UI_WriteProxyFrame(&frame, &textarea, sizeof(textarea));
 }
 
+void UI_WriteCommandError(edict_t *ent, cstring_t text) {
+    uiFrame_t frame;
+    uiLabel_t label;
+
+    if (!ent || !ent->client) return;
+    UI_WriteStart(WC3_LAYER_COMMAND_ERROR);
+    if (text && text[0]) {
+        memset(&frame, 0, sizeof(frame));
+        memset(&label, 0, sizeof(label));
+        frame.flags.type = FT_STRING;
+        frame.text = text;
+        frame.color = COLOR32_BLACK;
+        frame.textLength = strlen(text);
+        label.font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
+        label.textalignx = FONT_JUSTIFYLEFT;
+        label.textaligny = FONT_JUSTIFYTOP;
+        UI_SetFrameRect(&frame, WC3_HUD_PORTRAIT_X + 0.001f,
+                        WC3_HUD_IDLE_WORKER_Y + 0.001f, 0.62f, 0.035f);
+        UI_WriteProxyFrame(&frame, &label, sizeof(label));
+
+        frame.number = 0;
+        frame.color = MAKE(color32_t, 255, 204, 0, 255);
+        UI_SetFrameRect(&frame, WC3_HUD_PORTRAIT_X,
+                        WC3_HUD_IDLE_WORKER_Y, 0.62f, 0.035f);
+        UI_WriteProxyFrame(&frame, &label, sizeof(label));
+    }
+    UI_WriteEnd(ent);
+}
+
 void UI_WriteTooltipFrame(void) {
     uiFrame_t frame;
     uiTooltip_t tooltip;

@@ -535,6 +535,8 @@ static void cargo_board_cancel(edict_t *unit) {
     unit_stand(unit);
 }
 
+static umove_t cargo_board_move_walk, cargo_board_move_wait;
+
 static void ai_cargo_board_walk(edict_t *unit) {
     edict_t *transport = unit ? unit->secondarygoal : NULL;
     float distance, step;
@@ -550,7 +552,11 @@ static void ai_cargo_board_walk(edict_t *unit) {
                 G_FreeEdict(unit->goalentity);
             unit->goalentity = transport;
             unit->secondarygoal = transport;
-            unit_stand(unit);
+            move_reset_progress(unit);
+            /* Keep the boarding owner active while presenting a stand pose.
+             * The same behavior retries on the first tick after construction
+             * completes, matching rallied-Wisp automatic mine entry. */
+            unit_setmove(unit, &cargo_board_move_wait);
             return;
         }
         if (!S_CargoTryLoad(transport, unit)) cargo_board_cancel(unit);
@@ -576,11 +582,22 @@ static void ai_cargo_board_walk(edict_t *unit) {
     unit_moveindirection(unit);
 }
 
-static umove_t battlestations_move_walk = { "walk", ai_cargo_board_walk, NULL, CAbilityBattlestations };
+static umove_t cargo_board_move_walk = { "walk", ai_cargo_board_walk, NULL, CAbilityBattlestations };
+static umove_t cargo_board_move_wait = { "stand", ai_cargo_board_walk, NULL, CAbilityBattlestations };
 
 bool S_CargoOrderBoard(edict_t *unit, edict_t *transport) {
     if (!cargo_board_target_valid(unit, transport)) return false;
-    if (cargo_target_in_range(transport, unit)) return S_CargoTryLoad(transport, unit);
+    if (cargo_target_in_range(transport, unit)) {
+        if (cargo_is_entangled_mine(transport) && transport->construction.active) {
+            G_ClearUnitOrderQueue(unit);
+            unit->goalentity = transport;
+            unit->secondarygoal = transport;
+            move_reset_progress(unit);
+            unit_setmove(unit, &cargo_board_move_wait);
+            return true;
+        }
+        return S_CargoTryLoad(transport, unit);
+    }
     G_ClearUnitOrderQueue(unit);
     unit->movement.follow_target = NULL;
     unit->movement.attackmove_waypoint = NULL;
@@ -589,8 +606,25 @@ bool S_CargoOrderBoard(edict_t *unit, edict_t *transport) {
     unit->movement.patrol_target = NULL;
     unit->movement.holding_position = false;
     if (!cargo_prepare_board_approach(unit, transport)) return false;
-    unit_setmove(unit, &battlestations_move_walk);
+    unit_setmove(unit, &cargo_board_move_walk);
     return true;
+}
+
+/* The campaign scripts use autoharvestgold for Wisps. Resolve that order to
+ * the nearest owned Entangled Mine and keep all boarding checks in Cargo. */
+bool S_CargoOrderNearestEntangledMine(edict_t *unit) {
+    edict_t *best = NULL;
+    float best_distance = FLT_MAX;
+
+    if (!unit) return false;
+    FILTER_EDICTS(transport, transport != unit && cargo_is_entangled_mine(transport) &&
+                  cargo_board_target_valid(unit, transport)) {
+        float const distance = Vector2_distance(&unit->s.origin2, &transport->s.origin2);
+        if (distance >= best_distance) continue;
+        best = transport;
+        best_distance = distance;
+    }
+    return best && S_CargoOrderBoard(unit, best);
 }
 
 static bool battlestations_busy_allowed(uint32_t alias) {

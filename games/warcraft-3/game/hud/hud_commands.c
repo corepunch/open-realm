@@ -183,6 +183,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     if (state.radialEndTime != state.radialStartTime) frame.flagsvalue |= UIFLAG_RADIAL_SHADE;
     frame.hotkey = button->disabled ? 0 : (uint8_t)button->hotkey;
     if (button->alternate_active) frame.flagsvalue |= UIFLAG_ALTERNATE_ACTIVE;
+    if (button->engaged) frame.flagsvalue |= UIFLAG_ABILITY_ENGAGED;
     UI_FormatCommandTooltip(button, tooltip, sizeof(tooltip));
     frame.tooltip = tooltip;
     snprintf(onclick, sizeof(onclick), "%s %s",

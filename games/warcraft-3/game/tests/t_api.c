@@ -756,6 +756,13 @@ static cstring_t group_debug_cvar(cstring_t name, cstring_t fallback) {
 
 static uint32_t presentation_write_count;
 static uint32_t presentation_unicast_count;
+static int32_t command_error_header[2];
+static uint32_t command_error_header_count;
+static uiFrame_t command_error_frames[2];
+static uint32_t command_error_frame_count;
+static uiLabel_t command_error_labels[2];
+static uint32_t command_error_label_count;
+static edict_t *command_error_recipient;
 static pfWriteType_t indicator_types[4];
 static int32_t indicator_values[4];
 static uint32_t indicator_write_count;
@@ -1035,6 +1042,30 @@ static void capture_presentation_write(pfWriteType_t type, void const *data) {
 static void capture_presentation_unicast(edict_t *ent) {
     (void)ent;
     presentation_unicast_count++;
+}
+
+static void capture_command_error_write(pfWriteType_t type, void const *data) {
+    if (type == PF_BYTE && command_error_header_count < 2) {
+        command_error_header[command_error_header_count++] = data ? *(int32_t const *)data : -1;
+        return;
+    }
+    if (type == PF_UIFRAME && data) {
+        uiFrame_t const *frame = data;
+        if (command_error_frame_count < 2)
+            command_error_frames[command_error_frame_count++] = *frame;
+        if (frame->buffer.size == sizeof(uiLabel_t) && frame->buffer.data && command_error_label_count < 2)
+            command_error_labels[command_error_label_count++] = *(uiLabel_t const *)frame->buffer.data;
+    }
+}
+
+static void capture_command_error_unicast(edict_t *ent) {
+    command_error_recipient = ent;
+}
+
+static int capture_command_error_font(cstring_t name, uint32_t size) {
+    (void)name;
+    (void)size;
+    return 17;
 }
 
 static void capture_indicator_write(pfWriteType_t type, void const *data) {
@@ -1887,6 +1918,30 @@ TEST(wc3_api, fog_state_natives_write_masked_fogged_and_visible) {
     T_EQ(grid->explored[fogged], 1); T_EQ(grid->visible[fogged], 0);
     T_EQ(grid->explored[visible], 1); T_EQ(grid->visible[visible], 1);
     T_EQ(grid->explored[masked], 0); T_EQ(grid->visible[masked], 0);
+}
+
+TEST(wc3_api, unit_share_vision_native_updates_per_unit_recipient_mask) {
+    edict_t *unit = NULL;
+
+    setup_test_world();
+    reset_entities();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(5), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  call UnitShareVision(u, Player(0), true)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('h','p','e','a') && ent->s.player == 5) {
+            unit = ent;
+            break;
+        }
+    }
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    T_ASSERT(G_UnitSharesVisionWith(unit, 0));
+    T_ASSERT(!G_UnitSharesVisionWith(unit, 1));
 }
 
 TEST(wc3_api, fog_state_shared_vision_reaches_allied_viewer_only) {
@@ -2829,7 +2884,131 @@ TEST(wc3_api, narrator_and_hint_text_share_message_log) {
     T_EQ(gc->message_log.count, 0);
 }
 
-TEST(wc3_api, transient_command_style_text_does_not_enter_message_log) {
+TEST(wc3_api, command_error_uses_dedicated_replacing_hud_layer) {
+    gameClient_t *gc = &game.clients[0];
+    edict_t *ent = &g_edicts[0];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+
+    gc->ps.number = 0;
+    ent->client = gc;
+    G_SetClientConnected(ent, true);
+    memset(command_error_header, 0, sizeof(command_error_header));
+    memset(command_error_frames, 0, sizeof(command_error_frames));
+    memset(command_error_labels, 0, sizeof(command_error_labels));
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_label_count = 0;
+    command_error_recipient = NULL;
+    gi.Write = capture_command_error_write;
+    gi.unicast = capture_command_error_unicast;
+    gi.FontIndex = capture_command_error_font;
+
+    UI_WriteCommandError(ent, "Not enough gold.");
+
+    T_EQ(command_error_header_count, 2);
+    T_EQ(command_error_header[0], svc_layout);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 2);
+    T_EQ(command_error_frames[0].color.r, 0);
+    T_EQ(command_error_frames[0].color.g, 0);
+    T_EQ(command_error_frames[0].color.b, 0);
+    T_EQ(command_error_frames[1].color.r, 255);
+    T_EQ(command_error_frames[1].color.g, 204);
+    T_EQ(command_error_frames[1].color.b, 0);
+    T_EQ(command_error_labels[0].textalignx, FONT_JUSTIFYLEFT);
+    T_EQ(command_error_labels[1].textalignx, FONT_JUSTIFYLEFT);
+    T_EQ(command_error_frames[0].points.x[FPP_MIN].offset,
+         (int16_t)((WC3_HUD_PORTRAIT_X + 0.001f) * UI_FRAMEPOINT_SCALE));
+    T_EQ(command_error_frames[0].points.y[FPP_MIN].offset,
+         (int16_t)(-(WC3_HUD_IDLE_WORKER_Y + 0.001f) * UI_FRAMEPOINT_SCALE));
+    T_EQ(command_error_frames[1].points.x[FPP_MIN].offset,
+         (int16_t)(WC3_HUD_PORTRAIT_X * UI_FRAMEPOINT_SCALE));
+    T_EQ(command_error_frames[1].points.y[FPP_MIN].offset,
+         (int16_t)(-WC3_HUD_IDLE_WORKER_Y * UI_FRAMEPOINT_SCALE));
+    T_EQ(command_error_label_count, 2);
+    T_EQ(command_error_recipient, ent);
+
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_label_count = 0;
+    command_error_recipient = NULL;
+    UI_WriteCommandError(ent, NULL);
+    T_EQ(command_error_header_count, 2);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 0);
+    T_EQ(command_error_recipient, ent);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    G_SetClientConnected(ent, false);
+}
+
+TEST(wc3_api, command_error_expires_without_touching_message_state) {
+    gameClient_t *gc = &game.clients[0];
+    edict_t *ent = &g_edicts[0];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+    void (*old_sound)(edict_t *, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
+    __typeof__(gi.SoundPolicy) old_sound_policy = gi.SoundPolicy;
+
+    gc->ps.number = 0;
+    ent->client = gc;
+    G_SetClientConnected(ent, true);
+    snprintf(gc->message.text, sizeof(gc->message.text), "ordinary message");
+    level.time = 100;
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_recipient = NULL;
+    ui_sound_calls = 0;
+    gi.Write = capture_command_error_write;
+    gi.unicast = capture_command_error_unicast;
+    gi.FontIndex = capture_command_error_font;
+    gi.SoundPolicy = capture_ui_sound_policy;
+    gi.Sound = capture_ui_sound;
+    gi.SoundIndex = capture_ui_sound_index;
+    gi.SoundIndexAlias = capture_ui_sound_index_alias;
+
+    G_ShowCommandErrorText(ent, "OpenRealm-only failure.");
+    T_EQ(command_error_header_count, 2);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 2);
+    T_STREQ(gc->message.text, "ordinary message");
+
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_recipient = NULL;
+    level.time = 100 + 9999;
+    G_UpdateCommandError(ent);
+    T_EQ(command_error_header_count, 0);
+    T_EQ(command_error_frame_count, 0);
+    T_STREQ(gc->message.text, "ordinary message");
+
+    level.time++;
+    G_UpdateCommandError(ent);
+    T_EQ(command_error_header_count, 2);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 0);
+    T_EQ(command_error_recipient, ent);
+    T_STREQ(gc->message.text, "ordinary message");
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    gi.SoundPolicy = old_sound_policy;
+    gi.Sound = old_sound;
+    gi.SoundIndex = old_soundindex;
+    gi.SoundIndexAlias = old_sound_alias;
+    G_SetClientConnected(ent, false);
+    G_CommandErrorReset();
+}
+
+TEST(wc3_api, transient_text_does_not_enter_message_log) {
     gameClient_t *gc = &game.clients[0];
     edict_t ent = { .client = gc };
 
@@ -2843,14 +3022,65 @@ TEST(wc3_api, transient_command_style_text_does_not_enter_message_log) {
 
 TEST(wc3_api, command_error_key_resolves_commandstrings_and_race_variant) {
     gameClient_t *gc = &game.clients[0];
-    edict_t ent = { .client = gc };
+    edict_t *ent = &g_edicts[0];
+    static mapTrigStr_t trigstr;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+    void (*old_sound)(edict_t *, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
+    __typeof__(gi.SoundPolicy) old_sound_policy = gi.SoundPolicy;
 
+    InitUnitData();
+    memset(&trigstr, 0, sizeof(trigstr));
+    trigstr.id = 0;
+    snprintf(trigstr.text, sizeof(trigstr.text), "Human02");
+    ((mapInfo_t *)level.mapinfo)->strings = &trigstr;
     gc->ps.race = kPlayerRaceUndead;
-    G_ShowCommandErrorKey(&ent, "Blightringfull", "fallback");
-    T_STREQ(gc->message.text, "That gold mine can't support any more Acolytes.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Blightringfull"),
+            "That gold mine can't support any more Acolytes.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Nofood"),
+            "Summon more Ziggurats to continue unit production.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Nogold"), "Not enough gold.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Cantfindcorpse"), "There are no usable corpses nearby.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "RepairHPmaxed"), "Target is not damaged.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Outofstock"), "Out of stock.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Calltoarms"), "No Peasants could be found.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Backtowork"), "No Militia could be found.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "TestTrigstr"), "Human02");
 
-    G_ShowCommandErrorKey(&ent, "Nofood", "fallback");
-    T_STREQ(gc->message.text, "Summon more Ziggurats to continue unit production.");
+    gc->ps.number = 0;
+    ent->client = gc;
+    G_SetClientConnected(ent, true);
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_label_count = 0;
+    command_error_recipient = NULL;
+    ui_sound_calls = 0;
+    gi.Write = capture_command_error_write;
+    gi.unicast = capture_command_error_unicast;
+    gi.FontIndex = capture_command_error_font;
+    gi.SoundPolicy = capture_ui_sound_policy;
+    gi.Sound = capture_ui_sound;
+    gi.SoundIndex = capture_ui_sound_index;
+    gi.SoundIndexAlias = capture_ui_sound_index_alias;
+
+    G_ShowCommandErrorKey(ent, "Nofood", NULL);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 2);
+    T_STREQ(command_error_frames[1].text, "Summon more Ziggurats to continue unit production.");
+    T_EQ(command_error_recipient, ent);
+    T_EQ(ui_sound_calls, 1);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    gi.SoundPolicy = old_sound_policy;
+    gi.Sound = old_sound;
+    gi.SoundIndex = old_soundindex;
+    gi.SoundIndexAlias = old_sound_alias;
+    G_SetClientConnected(ent, false);
 }
 
 TEST(wc3_api, removeunit_hides_before_deferred_edict_release) {
@@ -3589,6 +3819,54 @@ TEST(wc3_api, effect_natives_return_independent_handles) {
         "endfunction\n"));
 }
 
+/* Undead01's MassTeleportCaster has only a flagged non-looping Stand sequence.
+ * Stop rendering it at that boundary but keep its JASS handle valid until the
+ * script calls DestroyEffect, even if another variable was assigned afterward. */
+TEST(wc3_api, nonlooping_effect_stand_hides_without_invalidating_handle) {
+    int effect_model;
+    uint32_t live_effects = 0;
+    setup_test_world();
+    effect_model = G_RegisterModel("TestUI\\Models\\anim_oneshot.mdx");
+    T_ASSERT(effect_model > 0);
+    animation_t const *stand = G_GetAnimation((uint32_t)effect_model, "Stand");
+    T_NOT_NULL(stand);
+    T_ASSERT(stand && (stand->flags & 1u));
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  effect retainedEffect = null\n"
+        "  effect overwrittenEffect = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set overwrittenEffect = AddSpecialEffect(\"TestUI\\\\Models\\\\anim_oneshot.mdx\", 32.0, 32.0)\n"
+        "  set retainedEffect = overwrittenEffect\n"
+        "  set overwrittenEffect = AddSpecialEffect(\"TestUI\\\\Models\\\\anim_pulse.mdx\", 64.0, 64.0)\n"
+        "endfunction\n"
+        "function DestroyRetainedEffect takes nothing returns nothing\n"
+        "  call DestroyEffect(retainedEffect)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = globals.edicts + i;
+        if (effect->inuse && effect->s.model == effect_model) live_effects++;
+    }
+    T_EQ(live_effects, 1);
+    edict_t *effect = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (globals.edicts[i].inuse && globals.edicts[i].s.model == effect_model) effect = globals.edicts + i;
+    T_NOT_NULL(effect);
+    if (!effect) return;
+    for (int i = 0; i < 12 && effect->think; i++) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
+    T_ASSERT(effect->inuse);
+    T_ASSERT(effect->s.renderfx & RF_HIDDEN);
+    T_ASSERT(effect->aiflags & AI_HOLD_FRAME);
+    jass_callbyname(level.vm, "DestroyRetainedEffect", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!effect->inuse);
+}
+
 TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
     int handle_storage = 0;
     handle_t handle = &handle_storage;
@@ -3627,6 +3905,98 @@ TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
     T_ASSERT(!playback.positioned);
     T_NULL(playback.emitter);
 
+}
+
+TEST(wc3_api, repeated_wait_for_sound_only_waits_until_voice_end_once) {
+    gameClient_t *gc = &game.clients[0];
+    gsound_t lifetime = { 0 };
+    void (*old_sound)(edict_t *, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
+
+    setup_test_world();
+    G_JassSoundRuntimeInit(&lifetime);
+    lifetime.duration = 15000;
+    T_EQ(G_JassSoundRemainingDuration(&lifetime), 15000u);
+    level.time = 1000;
+    G_JassSoundMarkStarted(&lifetime);
+    level.time = 4500;
+    T_EQ(G_JassSoundRemainingDuration(&lifetime), 11500u);
+    level.time = 16000;
+    T_EQ(G_JassSoundRemainingDuration(&lifetime), 0u);
+    G_JassSoundMarkStarted(&lifetime);
+    level.time = 17000;
+    T_EQ(G_JassSoundRemainingDuration(&lifetime), 14000u);
+    level.time = 0;
+    gc = &game.clients[0];
+    gc->ps.number = 0;
+    gc->connected = true;
+    currentplayer = &gc->ps;
+    ui_sound_calls = 0;
+    gi.Sound = capture_ui_sound;
+    gi.SoundIndex = capture_ui_sound_index;
+    gi.SoundIndexAlias = capture_ui_sound_index_alias;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  sound introVoice = null\n"
+        "  trigger introTrigger = null\n"
+        "  integer introStage = 0\n"
+        "endglobals\n"
+        "function IntroSequenceAction takes nothing returns nothing\n"
+        "  call StartSound(introVoice)\n"
+        "  call TriggerSleepAction(3.5)\n"
+        "  call TriggerWaitForSound(introVoice, 0.0)\n"
+        "  set introStage = 1\n"
+        "  call TriggerWaitForSound(introVoice, 2.0)\n"
+        "  set introStage = 2\n"
+        "endfunction\n"
+        "function AssertIntroStageZero takes nothing returns nothing\n"
+        "  call BJassAssert(introStage == 0, \"dialogue advanced before the voice duration elapsed\")\n"
+        "endfunction\n"
+        "function AssertIntroStageOne takes nothing returns nothing\n"
+        "  call BJassAssert(introStage == 1, \"positive offset did not preserve the remaining wait\")\n"
+        "endfunction\n"
+        "function AssertIntroStageDone takes nothing returns nothing\n"
+        "  call BJassAssert(introStage == 2, \"repeated wait delayed dialogue after voice ended\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set introVoice = CreateSound(\"intro.wav\", false, false, false, 0, 0, \"\")\n"
+        "  call SetSoundDuration(introVoice, 15000)\n"
+        "  set introTrigger = CreateTrigger()\n"
+        "  call TriggerAddAction(introTrigger, function IntroSequenceAction)\n"
+        "  call TriggerExecute(introTrigger)\n"
+        "endfunction\n"));
+    T_EQ(ui_sound_calls, 1);
+    T_EQ(level.time, 0u);
+
+    level.time = 3500;
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageZero", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 14999;
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageZero", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 15000;
+    jass_runevents(level.vm);
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageOne", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 16999;
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageOne", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 17000;
+    jass_runevents(level.vm);
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageDone", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+
+    gi.Sound = old_sound;
+    gi.SoundIndex = old_soundindex;
+    gi.SoundIndexAlias = old_sound_alias;
+    currentplayer = NULL;
 }
 
 TEST(wc3_api, jass_create_sound_from_label_uses_merged_ambience_table) {

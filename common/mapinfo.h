@@ -35,6 +35,12 @@ enum mapInfoFlags_t {
     map_properties_menu_opened_at_least_once_since_map_creation = 0x0400,
     show_water_waves_on_cliff_shores = 0x0800,
     show_water_waves_on_rolling_shores = 0x1000,
+    /* Reforged W3I map-property camera overrides.  The values live in
+     * defaultZoomOverride / maximumZoomOverride / minimumZoomOverride and
+     * are authoritative only when the corresponding flag is present. */
+    force_default_camera_zoom = 0x100000,
+    force_maximum_camera_zoom = 0x200000,
+    force_minimum_camera_zoom = 0x400000,
 };
 
 enum playerFlags_t {

@@ -1257,26 +1257,41 @@ bool S_EntangleCommandHidden(edict_t const *caster, uint32_t ability_code) {
     return false;
 }
 
-static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
-    edict_t *caster, *entangled;
+static bool entangle_target_valid(edict_t *target) {
+    return target && target->inuse && !M_IsDead(target) && S_GoldMineIsMine(target) &&
+        !goldmine_is_overlay_type(target) && !(target->s.renderfx & RF_HIDDEN) &&
+        !mineoverlay_parent_in_use(target, NULL);
+}
+
+static bool entangle_target_in_range(edict_t *caster, edict_t *target, float range) {
+    float footprint;
+
+    if (!caster || !target) return false;
+    range = MAX(0.0f, range);
+    if (G_UnitIsStructure(target) && target->pathtex) {
+        footprint = CM_DistanceToPathingFootprint(target, &caster->s.origin2);
+        if (footprint < FLT_MAX) return footprint <= MAX(0.0f, caster->collision) + range;
+    }
+    return Vector2_distance(&caster->s.origin2, &target->s.origin2) <=
+        range + MAX(0.0f, caster->collision) + MAX(0.0f, target->collision);
+}
+
+static void entangle_error(edict_t *clent, cstring_t key, cstring_t fallback) {
+    if (clent) G_ShowCommandErrorKey(clent, key, fallback);
+}
+
+static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool instant, edict_t *clent) {
+    edict_t *entangled;
     uint32_t alias, resulting_type;
     bool bound, started;
 
-    if (!clent || !clent->client) {
+    if (!entangle_target_valid(target)) {
+        entangle_error(clent, "Targetgoldmine", "Must target a Gold Mine.");
         return false;
     }
-    if (!target || !target->inuse || M_IsDead(target) || !S_GoldMineIsMine(target) ||
-        goldmine_is_overlay_type(target) || (target->s.renderfx & RF_HIDDEN) ||
-        mineoverlay_parent_in_use(target, NULL)) {
-        G_ShowCommandErrorKey(clent, "Targetgoldmine", "Must target a Gold Mine.");
-        return false;
-    }
-    caster = G_GetMainSelectedUnit(clent->client);
-    if (!caster) {
-        return false;
-    }
+    if (!caster || !caster->inuse || M_IsDead(caster)) return false;
     if (!S_AncientIsRooted(caster)) {
-        G_ShowCommandErrorKey(clent, "Mustroottoentangle", "Must be rooted to entangle a Gold Mine.");
+        entangle_error(clent, "Mustroottoentangle", "Must be rooted to entangle a Gold Mine.");
         return false;
     }
     if (!(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) return false;
@@ -1284,33 +1299,31 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
         AbilityData_t const *data = G_AbilityData(alias);
         if (data->id != alias || !data->level[0].unitID) {
             fprintf(stderr, "WC3 Entangle: AbilityData %08x missing UnitID\n", alias);
-            G_ShowCommandErrorKey(clent, "EntangleUnavailable", "Entangle is unavailable because its unit data is missing.");
+            entangle_error(clent, "EntangleUnavailable", "Entangle is unavailable because its unit data is missing.");
             return false;
         }
     }
     if (entangle_tree_overlay(caster)) {
-        G_ShowCommandErrorKey(clent, "AlreadyEntangled", "This Tree already entangles a Gold Mine.");
+        entangle_error(clent, "AlreadyEntangled", "This Tree already entangles a Gold Mine.");
         return false;
     }
-    if (!S_SpellTargetInRange(caster, target, MAX(0.0f, G_AbilityLevel(alias, 1)->range))) {
-        G_ShowCommandErrorKey(clent, "Mustbeclosertomine", "Must be closer to the Gold Mine.");
+    if (!entangle_target_in_range(caster, target, G_AbilityLevel(alias, 1)->range)) {
+        entangle_error(clent, "Mustbeclosertomine", "Must be closer to the Gold Mine.");
         return false;
     }
     resulting_type = G_AbilityLevel(alias, 1)->unitID;
 
     entangled = SP_SpawnAtLocation(resulting_type, caster->s.player, &target->s.origin2);
-    if (!entangled) {
-        return false;
-    }
+    if (!entangled) return false;
     bound = S_MineOverlayBind(entangled, target);
-    started = bound && G_StartNightElfOverlayConstruction(entangled);
+    started = bound && (instant || G_StartNightElfOverlayConstruction(entangled));
     if (!started) {
         S_MineOverlayRelease(entangled);
         G_FreeEdict(entangled);
         return false;
     }
     G_SetUnitFoodUsed(entangled, entangled->data.UnitBalance ? entangled->data.UnitBalance->foodUsed : 0);
-    entangled->build = entangled;
+    if (!instant) entangled->build = entangled;
     {
         bool permanent_before;
         if (!entangle_existing_permanent_state(caster, alias, &permanent_before))
@@ -1328,7 +1341,7 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
         if (client) G_InvalidateCommands(client);
     }
     CM_BakeStaticObstacles();
-    G_PublishEvent(entangled, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+    if (!instant) G_PublishEvent(entangled, EVENT_PLAYER_UNIT_CONSTRUCT_START);
     {
         edict_t *effect = G_SpawnAbilityEffectTarget(alias, WC3_EFFECT_CASTER, 0, caster, NULL, false);
         if (effect) {
@@ -1339,12 +1352,50 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
     return true;
 }
 
+static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
+    edict_t *caster;
+
+    if (!clent || !clent->client || !(caster = G_GetMainSelectedUnit(clent->client))) return false;
+    return entangle_goldmine_start(caster, target, false, clent);
+}
+
 static void entangle_goldmine_command(edict_t *clent) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_entity_selected = entangle_goldmine_selecttarget;
 }
 
+bool S_AutoEntangleNearby(edict_t *caster, bool instant) {
+    edict_t *best = NULL;
+    uint32_t alias;
+    float best_distance = FLT_MAX;
+
+    if (!caster || !caster->inuse || M_IsDead(caster) || !S_AncientIsRooted(caster) ||
+        entangle_tree_overlay(caster) ||
+        !(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) return false;
+
+    FILTER_EDICTS(target, entangle_target_valid(target)) {
+        float distance;
+        if (!entangle_target_in_range(caster, target, G_AbilityLevel(alias, 1)->range)) continue;
+        distance = Vector2_distance(&caster->s.origin2, &target->s.origin2);
+        if (!best || distance < best_distance) {
+            best = target;
+            best_distance = distance;
+        }
+    }
+    return best && entangle_goldmine_start(caster, best, instant, NULL);
+}
+
 BZ_ABILITY_PROC(CAbilityEntangle) {
+    if (msg == A_ISSUED_TARGET_ORDER && call && call->issued_target_order.order) {
+        cstring_t order = call->issued_target_order.order;
+        bool instant;
+        if (strcmp(order, "entangle") && strcmp(order, "entangleinstant") &&
+            strcmp(order, "autoentangle") && strcmp(order, "autoentangleinstant"))
+            return ABILITY_ORDER_UNHANDLED;
+        instant = !strcmp(order, "entangleinstant") || !strcmp(order, "autoentangleinstant");
+        return entangle_goldmine_start(ent, call->issued_target_order.target, instant, NULL) ?
+            ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    }
     switch (msg) {
     case A_COMMAND: entangle_goldmine_command(call && call->client ? call->client : ent); return true;
     /* The mine must retire at Tree death, before the corpse's later removal. */

@@ -501,6 +501,7 @@ typedef enum {
     LAYER_LOADING,
     LAYER_GAME_0,
     LAYER_GAME_1,
+    LAYER_GAME_2,
 } UILAYOUTLAYER;
 
 typedef enum {
@@ -512,12 +513,20 @@ typedef enum {
 #define UI_WINDOW_UNIQUE  (1u << 2) // flag bit; keeps one instance per class; used by singleton inventory and journal windows
 #define UI_WINDOW_NO_PAUSE (1u << 3) // flag bit; modal input capture without acquiring the client-owned simulation pause
 #define UI_WINDOW_NO_ESCAPE (1u << 4) // flag bit; Escape is consumed without dismissing the window; used by mandatory result/decision windows
-#define MAX_LAYOUT_LAYERS 16
+#define MAX_LAYOUT_LAYERS 17
 #define UI_WINDOW_CLOSE_ACTION "close_window" // client action; closes the owning window without a server command
 #define UI_WINDOW_CLOSE_NOTIFY_ACTION "close_window_notify" // client action; closes locally and notifies server of modal release
 #define UI_WINDOW_CLOSE_COMMAND_PREFIX "close_window_command " // client action prefix; forwards suffix then closes the owning window
 #define UI_WINDOW_DISCONNECT_ACTION "disconnect_game" // client action; leaves the current server/map and returns to the front-end
 #define UI_WINDOW_QUIT_ACTION "quit_application" // client action; exits the application after an explicit local click
+/* Server-authored controls name the client cvar they edit: "<prefix><cvar>". Checkbox rows store 0/1, slider
+ * rows store the normalized 0..1 frame value. The client never interprets which setting a cvar controls.
+ * Transaction forms also forward their suffix command; Cancel restores every cvar edited since Begin. */
+#define UI_WINDOW_CVAR_CHECKBOX_PREFIX "local_cvar_checkbox "
+#define UI_WINDOW_CVAR_SLIDER_PREFIX "local_cvar_slider "
+#define UI_WINDOW_CVAR_TX_BEGIN_COMMAND_PREFIX "local_cvar_begin_command "
+#define UI_WINDOW_CVAR_TX_ACCEPT_COMMAND_PREFIX "local_cvar_accept_command "
+#define UI_WINDOW_CVAR_TX_CANCEL_COMMAND_PREFIX "local_cvar_cancel_command "
 
 typedef struct {
     uint32_t id, class_id, flags;
@@ -971,6 +980,7 @@ typedef enum {
 #define UIFLAG_RADIAL_SHADE      (1 << 9) // FT_COMMANDBUTTON: uiCommandButton_t carries a client-clock radial timer
 #define UIFLAG_SIZE_TO_CONTENT   (1 << 10) // flag bit; uiNameTag_t measured size; ignored on a fully min+max-anchored axis
 #define UIFLAG_ALTERNATE_ACTIVE (1 << 11) // flag bit; secondary command state is active (for example an autocast toggle)
+#define UIFLAG_ABILITY_ENGAGED (1 << 17) // FT_COMMANDBUTTON: primary ability state is engaged and should glow
 #define UIFLAG_SPRITE_STAT_SEQUENCE (1 << 12) // FT_SPRITE: frame.value names a stats[] slot selecting an explicit #N sequence
 #define UIFLAG_EXTEND_WIDESCREEN_X (1 << 13) // flag bit; client expands this frame horizontally across the full UI canvas
 #define UIFLAG_SPRITE_OVERLAY (1 << 16) // flag bit; draws an authored sprite after the containing layout artwork

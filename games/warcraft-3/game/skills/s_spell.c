@@ -577,11 +577,11 @@ static bool spell_validate(edict_t *clent, edict_t *caster, uint32_t code, uint3
         return false;
     }
     if (!S_SpellCooldownReady(caster, code)) {
-        G_ShowCommandErrorText(clent, "Spell is not ready yet.");
+        G_ShowCommandErrorKey(clent, "Cooldown", NULL);
         return false;
     }
     if (!S_SpellCanPay(caster, code, level)) {
-        G_ShowCommandErrorText(clent, "Not enough mana.");
+        G_ShowCommandErrorKey(clent, "Nomana", NULL);
         return false;
     }
     if (range > 0 && target && !S_SpellTargetInRange(caster, target, range))
@@ -600,11 +600,11 @@ static bool spell_validate_point(spellPointValidateParams_t const *params) {
         return false;
     }
     if (!S_SpellCooldownReady(params->caster, params->code)) {
-        G_ShowCommandErrorText(params->clent, "Spell is not ready yet.");
+        G_ShowCommandErrorKey(params->clent, "Cooldown", NULL);
         return false;
     }
     if (!S_SpellCanPay(params->caster, params->code, params->level)) {
-        G_ShowCommandErrorText(params->clent, "Not enough mana.");
+        G_ShowCommandErrorKey(params->clent, "Nomana", NULL);
         return false;
     }
     if (params->range > 0 && Vector2_distance(&params->caster->s.origin2, params->point) > params->range)
@@ -624,12 +624,20 @@ static void spell_begin_channel(edict_t *caster, uint32_t code) {
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
 static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t *active_approach) {
+    abilityitem_t committed = S_AbilityItem(code);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &committed);
+
     spell_cancel_target_approaches(caster, active_approach);
     S_SpellCancelChannel(caster);
     S_HumanBreakInvisibility(caster);
     S_PermanentInvisibilityReveal(caster);
+    S_UnitStatusAbilityEvent(caster, A_SPELL_COMMIT, &call);
+    if (code != MAKEFOURCC('A', 's', 'h', 'm') && code != MAKEFOURCC('A', 'h', 'i', 'd'))
+        S_ShadowMeldBreak(caster);
     S_SpellSpendMana(caster, code, level);
-    S_SpellStartCooldown(caster, code, level);
+    if (!committed.ability || !(committed.ability->flags & AB_COOLDOWN_ON_STATUS_REMOVE)) {
+        S_SpellStartCooldown(caster, code, level);
+    }
     S_ManaFlareOnCast(caster, code, level);
 }
 

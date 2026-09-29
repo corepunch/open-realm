@@ -41,7 +41,7 @@ static bool ReserveTrainingFood(edict_t *producer, edict_t *unit) {
     unit->training_food_wait_notified = true;
     clent = G_GetPlayerEntityByNumber(unit->s.player);
     if (clent && client->connected) {
-        G_ShowCommandErrorText(clent, "Not enough food");
+        G_ShowCommandErrorKey(clent, G_FoodCommandErrorKey(client, cost), NULL);
     }
     return false;
 }
@@ -612,7 +612,7 @@ bool G_QueueResearch(edict_t *producer, uint32_t upgrade_id) {
     clent = G_GetPlayerEntityByNumber(producer->s.player);
     state = G_GetResearchCommandState(client, producer, upgrade_id, &level_value, reason, sizeof(reason));
     if (state != BUILD_COMMAND_AVAILABLE) {
-        if (clent && client->connected && reason[0]) G_ShowCommandErrorText(clent, reason);
+        if (clent && client->connected && reason[0]) G_ShowBuildCommandError(clent, state, reason);
         return false;
     }
 
@@ -669,7 +669,7 @@ bool SP_TrainUnit(edict_t *townhall, uint32_t class_id) {
     clent = G_GetPlayerEntityByNumber(townhall->s.player);
     state = G_GetTrainCommandState(client, townhall, class_id, reason, sizeof(reason));
     if (state != BUILD_COMMAND_AVAILABLE) {
-        if (clent && client->connected && reason[0]) G_ShowCommandErrorText(clent, reason);
+        if (clent && client->connected && reason[0]) G_ShowBuildCommandError(clent, state, reason);
         return false;
     }
     player = G_GetPlayerByNumber(townhall->s.player);

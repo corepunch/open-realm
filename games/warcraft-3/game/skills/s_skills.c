@@ -13,6 +13,10 @@ cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
 cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
+static cstring_t const hide_orders[] = { "ambush", NULL };
+static cstring_t const entangle_orders[] = {
+    "entangle", "entangleinstant", "autoentangle", "autoentangleinstant", NULL
+};
 
 static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command
@@ -171,6 +175,7 @@ static ability_t abilitylist[] = {
     { "AIim", CAbilityStrengthMod, AB_ITEM },  /* Item Intelligence Gain */
     { "AIxm", CAbilityStrengthMod, AB_ITEM },  /* Item Int/Agi/Str gain */
     { "AIhe", CAbilityItemHeal, AB_ITEM },  /* Item Healing */
+    { "AIvi", CAbilityItemInvis, AB_ITEM },  /* Item Temporary Invisibility */
     { "AIma", CAbilityItemManaRestore, AB_ITEM },  /* Item Mana Regain */
     { "AIda", CAbilityItemDefenseAoe, AB_ITEM },  /* Item Temporary Area Armor Bonus */
     { "AIco", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Command */
@@ -228,7 +233,7 @@ static ability_t abilitylist[] = {
     { "Aeat", CAbilityEatTree, AB_SPELL, SPELL_TARGET_UNIT },  /* Eat Tree */
     { "Ambt", CAbilityManaBattery, AB_SPELL | AB_AUTOCAST | AB_UPDATE, SPELL_TARGET_UNIT },  /* Replenish Mana and Life */
     { "Awha", CAbilityWispHarvest, AB_COMMAND },  /* Gather */
-    { "Aent", CAbilityEntangle, AB_COMMAND },  /* Entangle Gold Mine */
+    { "Aent", CAbilityEntangle, AB_COMMAND, SPELL_TARGET_NONE, entangle_orders },  /* Entangle Gold Mine */
     { "Aenc", CAbilityPassive, AB_PASSIVE },  /* Load */
     { "Aroo", CAbilityRoot, AB_COMMAND | AB_UPDATE, SPELL_TARGET_NONE, ancient_root_orders },  /* Root */
     { "AEmb", CAbilityManaBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Mana Burn */
@@ -256,7 +261,7 @@ static ability_t abilitylist[] = {
     { "AOvd", CAbilityVoodoo, AB_SPELL },  /* Big Bad Voodoo */
     { "Astd", CAbilityStandDown, AB_COMMAND },  /* Stand Down */
     { "Abtl", CAbilityBattlestations, AB_COMMAND },  /* Battle Stations */
-    { "AOwk", CAbilityWindWalk, AB_SPELL },  /* Wind Walk */
+    { "AOwk", CAbilityWindWalk, AB_SPELL | AB_COOLDOWN_ON_STATUS_REMOVE | AB_STATUS_EVENTS },  /* Wind Walk */
     { "AOmi", CAbilityMirrorImage, AB_SPELL },  /* Mirror Image */
     { "AOcr", CAbilityCreepAura, AB_PASSIVE },  /* Critical Strike */
     { "AOww", CAbilityWhirlwind, AB_SPELL | AB_CHANNEL },  /* Bladestorm */
@@ -317,7 +322,6 @@ static ability_t abilitylist[] = {
     // TODO: AIfo a_button  /* Item Capture The Flag */
     // TODO: AIfe a_button  /* Item Capture The Flag */
     // TODO: AIha a_item_heal_aoe  /* Item Area Healing */
-    // TODO: AIvi a_unknown  /* Item Temporary Invisibility */
     // TODO: AIvu a_item_invul  /* Item Temporary Invulnerability */
     // TODO: AImr a_item_mana_restore_aoe  /* Item Area Mana Regain */
     // TODO: AIre a_item_restore  /* Item Heal/Mana Regain */
@@ -455,8 +459,8 @@ static ability_t abilitylist[] = {
     { "Atau", CAbilityTaunt, AB_SPELL },  /* Taunt */
     { "Amgl", CAbilityMoonGlaive, AB_PASSIVE | AB_INNATE },  /* Moon Glaive */
     { "Aspo", CAbilitySlowPoison, AB_PASSIVE | AB_INNATE },  /* Slow Poison */
-    { "Ashm", CAbilityWindWalk, AB_SPELL },  /* Shadow Meld */
-    { "Ahid", CAbilityWindWalk, AB_SPELL },  /* Hide */
+    { "Ashm", CAbilityShadowMeld, AB_PASSIVE | AB_UPDATE | AB_INNATE | AB_SPELL, SPELL_TARGET_NONE, hide_orders },  /* Shadow Meld */
+    { "Ahid", CAbilityShadowMeldAkama, AB_PASSIVE | AB_UPDATE | AB_INNATE | AB_SPELL, SPELL_TARGET_NONE, hide_orders },  /* Shadow Meld (Akama) */
     { "Aesn", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentinel */
     { "Adtn", CAbilitySelfDestruct, AB_SPELL, SPELL_TARGET_NONE },  /* Detonate */
     { "Abrf", CAbilityMetamorphosis, AB_SPELL },  /* Bear Form */
@@ -641,7 +645,7 @@ static ability_t abilitylist[] = {
     { "ANrn", CAbilityReincarnation, AB_PASSIVE },  /* Mannoroth - Reincarnation */
     { "ANta", CAbilityTaunt, AB_SPELL },  /* Taunt (Creep) */
     { "ANtr", CAbilityTrueSight, AB_PASSIVE },  /* Detect (War Eagle) */
-    { "ANwk", CAbilityWindWalk, AB_SPELL },  /* Wind Walk */
+    { "ANwk", CAbilityWindWalk, AB_SPELL | AB_COOLDOWN_ON_STATUS_REMOVE | AB_STATUS_EVENTS },  /* Wind Walk */
     { "Aap1", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Abomination) */
     { "Aap2", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Plague Ward) */
     { "Aap3", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Creep) */
@@ -780,6 +784,31 @@ static intptr_t unit_dispatch_ability_code(edict_t *ent, abilityMsg_t msg, abili
     return S_AbilityMessage(ent, msg, &invoke);
 }
 
+/* Route policy notifications only to abilities that opt in. Status data is
+ * also used for numeric payloads, so it is not by itself an owner contract. */
+intptr_t S_UnitStatusAbilityEvent(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload) {
+    intptr_t result = 0;
+
+    if (!ent) return 0;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = ent->abilstatus + i;
+        abilityitem_t item;
+        abilityCall_t call;
+        intptr_t handled;
+
+        if (!status->level || !status->data) continue;
+        item = S_AbilityItem(status->data);
+        if (!item.ability || !(item.ability->flags & AB_STATUS_EVENTS)) continue;
+        call = payload ? *payload : MAKE(abilityCall_t, 0);
+        call.status.slot = status;
+        call.status.ability = status->data;
+        handled = item.ability->proc(ent, msg, &call);
+        if (msg == A_ATTACK_DAMAGE_BONUS) result += handled;
+        else result |= handled;
+    }
+    return result;
+}
+
 /* Dispatch lifecycle notifications to the unit's concrete authored abilities.
  * The active order is visited first, then innate hooks and AbilityData rows;
  * stop-first queries retain the owning procedure's result. */
@@ -849,6 +878,8 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     bool handled = false;
 
     if (!ent) return false;
+    if (msg == A_UNIT_INIT)
+        return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false,
                                                  msg != A_DEATH, msg == A_MOVE_LEAVE) != 0;
@@ -858,7 +889,7 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     FOR_LOOP(i, num_innate) {
         abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i);
         handled |= S_AbilityMessage(ent, msg, &call) != 0;
-        if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE)) break;
+        if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE || msg == A_NO_RETALIATE)) break;
     }
     return handled;
 }

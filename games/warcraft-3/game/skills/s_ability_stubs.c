@@ -60,15 +60,6 @@ BZ_SIMPLE_SPELL_PROC(AbilityStomp) {
 /* Name=Endurance Aura
  * Ubertip="Increases nearby friendly units' movement speed and attack rate."
  */
-/* Name=Wind Walk
- * Ubertip="Allows the Blademaster to become invisible and move faster until it attacks or uses an ability."
- */
-BZ_SIMPLE_SPELL_PROC(AbilityWindWalk) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    caster->s.renderfx |= RF_HIDDEN;
-    unit_addtimedstatus(caster, "BOwk", level, S_SpellDuration(spell->code, level, true));
-}
-
 /* Name=Mana Burn
  * Ubertip="Sends a bolt of negative energy that burns a target enemy unit's mana and deals damage proportional to the amount of mana burned."
  */
@@ -146,26 +137,6 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
  * Ubertip="Gives a chance that an attack will deal bonus damage and stun the target."
  * TODO: no command handler; the attack-resolution path must consume this passive.
  */
-/* Entangling Roots applies the authored timed buff; movement owns the root
- * consumer so expiry naturally restores the unit without a second cleanup path. */
-/* Name=Entangling Roots
- * Ubertip="Roots a target enemy unit in place, preventing movement for <AEer,Dur1> seconds."
- */
-BZ_SIMPLE_SPELL_PROC(AbilityEntanglingRoots) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    edict_t *target = st.entity;
-    float duration;
-
-    if (!target || !buff || strlen(buff) < 4) {
-        fprintf(stderr, "WC3: Entangling Roots has no authored BuffID\n");
-        return;
-    }
-    duration = S_SpellDuration(spell->code, level, G_UnitIsHero(target));
-    unit_addtimedstatus(target, buff, level, duration);
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
-}
-
 /* Name=Phoenix Fire
  * Ubertip="Automatically attacks nearby enemy units with flaming projectiles."
  * TODO: passive attack-resolution behavior is not implemented here.

@@ -198,24 +198,38 @@ known WC3 command error key
 ```
 
 SLK-backed immediate/queued UI sounds use their authored row volume when sent.
-The currently normalized hard-coded gameplay messages map to these external
-keys:
+Gameplay carries established Warcraft failures as external keys instead of
+English text. Resource/training/building-upgrade, spell, inventory, shop-purchase,
+known corpse, and known build-placement failures call `G_ShowCommandErrorKey`
+directly. In particular, food shortages use `Nofood`, while a shortage at the
+absolute `PLAYERSTATE_FOOD_CAP_CEILING` uses `Maxsupply`; this avoids telling a
+player to build another supply structure when additional supply cannot help.
 
-| Message | WC3 key |
-|---|---|
-| `Not enough food` | `Nofood` |
-| `Not enough gold` | `Nogold` |
-| `Not enough lumber` | `Nolumber` |
-| `Not enough mana` | `Nomana` |
-| `Spell is not ready yet.` | `Cooldown` |
-| `Unable to build there.` | `Cantplace` |
-| `Unable to build so close to the gold mine.` | `Tooclosetomine` |
-| `Inventory is full.` | `Inventoryfull` |
+`G_ShowCommandErrorKey` resolves `[Errors]` from `Units\CommandStrings.txt` for
+the local race (and through normal map-string resolution), then selects the
+matching `<key>Sound`. Because unit data is reloaded after the map archive becomes
+the priority archive, a map-provided `Units\CommandStrings.txt` at the retail
+path participates in the same lookup. `TRIGSTR_*` values are resolved through the
+map WTS by `G_LevelString`. Command-error sound fields use `Theme_PlayerString`,
+so `war3mapSkin.txt [CustomSkin]` overrides such as `NoGoldSound` win over the
+stock race skin without making `war3mapSkin.txt` the owner of error text.
 
-`G_ShowCommandErrorText` keeps the existing text presentation and adds the
-race/UI sound lookup for those known messages. Other command failures are not
-guessed into unrelated WC3 keys; they receive the generic `InterfaceError`
-sound, matching Warsmash's fallback behavior.
+Confirmed stock failures use their external keys directly: Repair at full health
+uses `RepairHPmaxed`, neutral-shop stock exhaustion uses `Outofstock`, Call to
+Arms with no eligible Peasants uses `Calltoarms`, and Back to Work with no eligible
+Militia uses `Backtowork`. There is deliberately no English-to-key reverse mapping.
+`G_ShowCommandErrorText` is retained only for OpenRealm-specific failures that do
+not have a confirmed Warcraft key; those receive `InterfaceError` rather than a
+guessed race response.
+
+Command-error text has its own `WC3_LAYER_COMMAND_ERROR` HUD slot. It is gold/yellow
+with a dark shadow, has no backdrop, and a new error replaces the previous one
+without entering the Message Log or competing with `LAYER_MESSAGE` transmissions.
+The visible text starts at the selected portrait's left edge and shares the idle-worker
+button's top alignment.
+The current compatibility lifetime is 10 seconds. Warsmash fades during its last
+second, but that exact fade timing is not treated as established retail behavior
+and is not synthesized here.
 
 For targeted spells, mana/cooldown validation stays at the actual cast attempt
 (the unit/point selection callback), not the command-button click. This preserves

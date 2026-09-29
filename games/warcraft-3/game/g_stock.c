@@ -743,22 +743,22 @@ bool G_ShopPurchaseItem(edict_t *clent, edict_t *shop, uint32_t item_id) {
     item = G_ItemData(item_id);
     if (!item || !item->file) return false;
     if (shop->stock.items[stock_index].current <= 0) {
-        G_ShowCommandErrorText(clent, "Out of stock.");
+        G_ShowCommandErrorKey(clent, "Outofstock", "Out of stock.");
         return false;
     }
     if (G_FindFreeInventorySlot(patron) < 0) {
-        G_ShowCommandErrorText(clent, "Inventory is full.");
+        G_ShowCommandErrorKey(clent, "Inventoryfull", NULL);
         return false;
     }
 
     gold = (uint32_t)MAX(0, item->goldcost);
     lumber = (uint32_t)MAX(0, item->lumbercost);
     if (client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < gold) {
-        G_ShowCommandErrorText(clent, "Not enough gold.");
+        G_ShowCommandErrorKey(clent, "Nogold", NULL);
         return false;
     }
     if (client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] < lumber) {
-        G_ShowCommandErrorText(clent, "Not enough lumber.");
+        G_ShowCommandErrorKey(clent, "Nolumber", NULL);
         return false;
     }
 
@@ -809,22 +809,22 @@ bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
     ui = G_UnitUI(unit_id);
     if (!unit || unit->id != unit_id || !ui || !ui->modelFile || !*ui->modelFile) return false;
     if (shop->stock.units[stock_index].current <= 0) {
-        G_ShowCommandErrorText(clent, "Out of stock.");
+        G_ShowCommandErrorKey(clent, "Outofstock", "Out of stock.");
         return false;
     }
 
     gold = (uint32_t)MAX(0, unit->goldCost);
     lumber = (uint32_t)MAX(0, unit->lumberCost);
     if (client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < gold) {
-        G_ShowCommandErrorText(clent, "Not enough gold.");
+        G_ShowCommandErrorKey(clent, "Nogold", NULL);
         return false;
     }
     if (client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] < lumber) {
-        G_ShowCommandErrorText(clent, "Not enough lumber.");
+        G_ShowCommandErrorKey(clent, "Nolumber", NULL);
         return false;
     }
     if (!G_PlayerHasFoodFor(client, MAX(0, unit->foodUsed))) {
-        G_ShowCommandErrorText(clent, "Not enough food.");
+        G_ShowCommandErrorKey(clent, G_FoodCommandErrorKey(client, MAX(0, unit->foodUsed)), NULL);
         return false;
     }
 

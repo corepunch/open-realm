@@ -118,6 +118,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Neutral Shops And Mercenary Camps](neutral-shops.md)
 - [Ability And Item Effects](ability-and-item-effects.md)
 - [Cyclone](cyclone.md): organic-enemy action lock, ROC BuffID fallback, TFT `organic` targs.
+- [Entangling Roots](entangling-roots.md): BEer root/disarm, channel interruption, authored Eer1 DPS, dispel/save lifecycle.
 - [Volcano](volcano.md): channeled molten-rock waves; Dur is stun length, DataB×DataC is channel length.
 - [Pocket Factory](pocket-factory.md): timed factory producer; DataB is Clockwerk unitCode via `S_SpellDataId`.
 - [Stasis Trap](stasis-trap.md): Asta ward arm/detect/detonate; DataD/HeroDur stun, BuffID `Bsta`.

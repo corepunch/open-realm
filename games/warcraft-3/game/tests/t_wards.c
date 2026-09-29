@@ -457,6 +457,65 @@ TEST(wc3_spell, sentry_ward_aliases_share_procedure) {
 	T_EQ(S_AbilityItem(BZ_APIV).ability->proc, CAbilityPermanentInvisibility);
 }
 
+TEST(wc3_spell, ghost_lifecycle_uses_player_relative_invisibility) {
+    wardFix_t fix;
+    abilityitem_t item = S_AbilityItem(MAKEFOURCC('A','g','h','o'));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    ward_setup(&fix);
+    T_EQ(item.ability->proc, CAbilityGhost);
+    T_ASSERT(S_AbilityMessage(fix.enemy, A_UNIT_INIT, &call));
+    T_ASSERT(S_GhostActive(fix.enemy));
+    T_ASSERT(S_UnitIsInvisibleToPlayer(fix.enemy, 0));
+    T_ASSERT(!S_UnitIsInvisibleToPlayer(fix.enemy, fix.enemy->s.player));
+    T_ASSERT(S_AbilityMessage(fix.enemy, A_DISABLE, &call));
+    T_ASSERT(!S_GhostActive(fix.enemy));
+    T_ASSERT(S_AbilityMessage(fix.enemy, A_ENABLE, &call));
+    T_ASSERT(S_GhostActive(fix.enemy));
+    T_ASSERT(S_AbilityMessage(fix.enemy, A_UNIT_REMOVE, &call));
+    T_ASSERT(!S_GhostActive(fix.enemy));
+    ward_done(&fix);
+}
+
+TEST(wc3_spell, authored_ghost_initializes_on_unit_spawn_event) {
+    wardFix_t fix;
+    UnitAbilities_t abilities = MAKE(UnitAbilities_t, .abilList = "Agho");
+
+    ward_setup(&fix);
+    fix.enemy->data.UnitAbilities = &abilities;
+    T_ASSERT(S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT));
+    T_ASSERT(S_GhostActive(fix.enemy));
+    T_ASSERT(S_UnitIsInvisibleToPlayer(fix.enemy, 0));
+    T_ASSERT(!S_UnitIsInvisibleToPlayer(fix.enemy, fix.enemy->s.player));
+    G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1); G_FowUpdate();
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, fix.enemy));
+    T_ASSERT(G_FowPlayerCanSeeEntity(1, fix.enemy));
+    G_FowShutdown();
+    ward_done(&fix);
+}
+
+TEST(wc3_save, ghost_runtime_invisibility_round_trips) {
+    cstring_t save = "/tmp/openwarcraft3-ghost-save.bin";
+    wardFix_t fix;
+    abilityitem_t item = S_AbilityItem(MAKEFOURCC('A','g','h','o'));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    uint32_t number;
+
+    ward_setup(&fix);
+    T_ASSERT(S_AbilityMessage(fix.enemy, A_ENABLE, &call));
+    T_ASSERT(S_GhostActive(fix.enemy));
+    number = fix.enemy->s.number;
+    T_ASSERT(WriteGame(save));
+    T_ASSERT(S_AbilityMessage(fix.enemy, A_DISABLE, &call));
+    T_ASSERT(!S_GhostActive(fix.enemy));
+    T_ASSERT(ReadGame(save));
+    fix.enemy = g_edicts + number;
+    T_ASSERT(S_GhostActive(fix.enemy));
+    T_ASSERT(S_UnitIsInvisibleToPlayer(fix.enemy, 0));
+
+    remove(save);
+    ward_done(&fix);
+}
+
 TEST(wc3_spell, sentry_ward_cast_creates_owned_timed_ward_and_detects_hidden) {
 	wardFix_t fix; vec2_t point = { 128, 128 }; edict_t *ward;
 	ward_setup(&fix);

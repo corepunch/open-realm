@@ -58,6 +58,7 @@ static void sound_test_reset(void) {
     memset(&s, 0, sizeof(s));
     sound_test_reads = 0;
     s.initialized = true;
+    s.user_volume = 1.0f;
 }
 
 TEST(sound, mp3_dialogue_loads_into_mono_cache) {
@@ -104,6 +105,47 @@ TEST(sound, stereo_wav_downmixes_to_mono_cache) {
     T_EQ(cache->length, 2);
     T_EQ(cache->data[0], 16256);
     T_EQ(cache->data[1], -16384);
+    sound_test_reset();
+}
+
+
+TEST(sound, user_volume_scales_effects_but_not_music_streams) {
+    int16_t full[2] = {0}, half[2] = {0}, muted[2] = {0}, music[2] = {0};
+    static int16_t music_samples[2] = { 12000, -8000 };
+
+    sound_test_reset();
+    S_SetUserVolume(1.0f);
+    S_PlaySoundPacket("stereo.wav", NULL, false, 0, 1.0f, 0.0f, 0.0f);
+    S_TestMix(full, 1);
+    T_ASSERT(full[0] != 0 || full[1] != 0);
+
+    sound_test_reset();
+    S_SetUserVolume(0.5f);
+    S_PlaySoundPacket("stereo.wav", NULL, false, 0, 1.0f, 0.0f, 0.0f);
+    S_TestMix(half, 1);
+    T_ASSERT(abs(full[0] - half[0] * 2) <= 1);
+    T_ASSERT(abs(full[1] - half[1] * 2) <= 1);
+
+    sound_test_reset();
+    S_SetUserVolume(-1.0f);
+    S_PlaySoundPacket("stereo.wav", NULL, false, 0, 1.0f, 0.0f, 0.0f);
+    S_TestMix(muted, 1);
+    T_EQ(muted[0], 0);
+    T_EQ(muted[1], 0);
+    T_FEQ(s.user_volume, 0.0f, 0.001f);
+    S_SetUserVolume(2.0f);
+    T_FEQ(s.user_volume, 1.0f, 0.001f);
+
+    sound_test_reset();
+    S_SetUserVolume(0.0f);
+    s.streams[S_STREAM_MUSIC] = (sStreamState_t){
+        .data = music_samples, .capacity = 1, .count = 1,
+        .volume = 1.0f, .active = true,
+    };
+    S_TestMix(music, 1);
+    T_EQ(music[0], music_samples[0]);
+    T_EQ(music[1], music_samples[1]);
+    s.streams[S_STREAM_MUSIC].data = NULL;
     sound_test_reset();
 }
 

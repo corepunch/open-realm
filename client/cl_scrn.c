@@ -602,6 +602,24 @@ void SCR_LayoutDrawScrollBar(uiFrame_t const *frame, rect_t const *screen) {
     uiFrame_t const *parent = frame->parent < SCR_NumFrames() ? SCR_Frame(frame->parent) : NULL;
     if ((!art && !sb) || screen->w <= 0 || screen->h <= 0) return;
 
+    if (frame->flags.type == FT_SLIDER) {
+        float const fraction = MIN(MAX(frame->value, 0.0f), 1.0f);
+        float const thumb_w = MIN(screen->w, MAX(screen->h * UI_PIXEL_ASPECT, 0.010f));
+        rect_t thumb = {
+            screen->x + (screen->w - thumb_w) * fraction,
+            screen->y,
+            thumb_w,
+            screen->h,
+        };
+        if (sb) {
+            SCR_LayoutDrawBackdropPart(frame, screen, &sb->background);
+            SCR_LayoutDrawBackdropPart(frame, &thumb, &sb->thumbButton);
+        } else {
+            SCR_LayoutDrawScrollImage(art->image[2], art->texcoord, &thumb);
+        }
+        return;
+    }
+
     if (parent && parent->flags.type == FT_TEXTAREA) {
         if (SCR_LayoutTextAreaMaxScroll(parent) <= 0.0f) return;
         ((uiFrame_t *)frame)->value = parent->value;
@@ -1015,6 +1033,10 @@ static float SCR_CommandButtonRadialShade(uiFrame_t const *frame) {
 
 void SCR_LayoutDrawCommandButton(uiFrame_t const *frame, rect_t const *screen) {
     entityState_t const *sel = SCR_LayoutSelectedEntity();
+    bool const alternate_active = (frame->flagsvalue & UIFLAG_ALTERNATE_ACTIVE) != 0;
+    bool const ability_match = sel && frame->stat != UINT8_MAX && sel->ability == frame->stat;
+    bool const active_glow = alternate_active || ability_match ||
+                             (frame->flagsvalue & UIFLAG_ABILITY_ENGAGED) != 0;
     rect_t const uv = get_uvrect(frame->tex.coord);
     rect_t const suv = Rect_div(&uv, 0xff);
     rect_t scrn = scale_rect(screen, SCR_LayoutFrameIsHovered(frame) && layout_left_down ? 0.875f : 0.925f);
@@ -1024,9 +1046,7 @@ void SCR_LayoutDrawCommandButton(uiFrame_t const *frame, rect_t const *screen) {
         .uv          = suv,
         .color       = SCR_CommandButtonColor(frame),
         .shader      = SHADER_COMMANDBUTTON,
-        .uActiveGlow = (frame->flagsvalue & UIFLAG_ALTERNATE_ACTIVE) ||
-                       /* 255 means no ability on both sides, so idle units must not light every build choice. */
-                       (sel && frame->stat != UINT8_MAX && sel->ability == frame->stat),
+        .uActiveGlow = active_glow,
         .uRadialShade = SCR_CommandButtonRadialShade(frame)));
 }
 
@@ -1300,6 +1320,7 @@ static drawer_t drawers[] = {
     { FT_SLASHCHATBOX,   SCR_LayoutDrawEditBox },
     { FT_LISTBOX,        SCR_LayoutDrawListBox },
     { FT_SCROLLBAR,      SCR_LayoutDrawScrollBar },
+    { FT_SLIDER,         SCR_LayoutDrawScrollBar },
     { FT_TOOLTIPTEXT,    SCR_LayoutDrawTooltip },
     { FT_MODEL,          SCR_LayoutDrawPortrait },
     { FT_SPRITE,         SCR_LayoutDrawSprite },

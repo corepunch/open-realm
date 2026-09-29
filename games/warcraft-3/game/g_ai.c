@@ -206,6 +206,12 @@ void ai_stand(edict_t *self) {
     if (!G_ShouldAcquireThisFrame(self))
         return;
 
+    /* A_NO_ACQUIRE applies both to this unit as an acquisition candidate and
+     * to its own voluntary acquisition. Explicit Hide must hold fire after the
+     * stop order leaves the unit in its ordinary idle stand behavior. */
+    if (S_UnitAbilityEvent(self, A_NO_ACQUIRE))
+        return;
+
     /* Autocast gets the first acquisition opportunity. Its ability owns target
      * policy and emits an ordinary order; only if no autocast action starts do
      * we fall through to the existing automatic attack scan. */

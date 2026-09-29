@@ -12,6 +12,7 @@
 #include "../generated/quest_dialog.h"
 #include "../generated/log_dialog.h"
 #include "../generated/esc_menu_main_panel.h"
+#include "../generated/esc_menu_options_panel.h"
 #include "../generated/esc_menu_save_game_panel.h"
 #include "../generated/map_list_box.h"
 #include "../generated/chat_dialog.h"
@@ -30,6 +31,13 @@
 /* Persistent top-edge HUD controls share these authored screen offsets. */
 #define HUD_HERO_SHORTCUT_EDGE_X 0.0060f
 #define HUD_HERO_SHORTCUT_TOP_Y  0.0350f
+#define WC3_HUD_PORTRAIT_X        0.211f
+#define WC3_HUD_PORTRAIT_Y        0.4865f
+#define WC3_HUD_PORTRAIT_WIDTH    0.0835f
+#define WC3_HUD_PORTRAIT_HEIGHT   0.0850f
+#define WC3_HUD_IDLE_WORKER_X     0.0080f
+#define WC3_HUD_IDLE_WORKER_Y     0.4145f
+#define WC3_HUD_IDLE_WORKER_SIZE  0.0340f
 #define BZ_WC3_HUD_TIMER_DIALOG_STACK_GAP 0.0040f // normalized UI units; separates a leaderboard from a visible timer
 #define WC3_MESSAGE_LOG_TEXT_SIZE \
     (WC3_MESSAGE_LOG_MAX_ENTRIES * (WC3_MESSAGE_LOG_ENTRY_SIZE + 4) + 1)
@@ -75,6 +83,7 @@ typedef struct {
     LogDialog_t log;
     char log_text[WC3_MESSAGE_LOG_TEXT_SIZE];
     EscMenuMainPanelGame_t menu;
+    EscMenuOptionsPanel_t options;
     EscMenuSaveGamePanel_t save_menu;
     MapListBox_t save_list_art;
     FRAMEDEF save_list;
@@ -170,6 +179,8 @@ void UI_WriteHoverLayout(edict_t *ent);
 /* Command buttons (hud_commands.c) */
 void UI_WriteCommandButton(cstring_t code, bool research, uint32_t level);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
+cstring_t G_CommandButtonValue(cstring_t normal, cstring_t alternate, bool toggle_on);
+bool G_CommandButtonToggleOn(edict_t *ent, abilityitem_t const *item, bool research, int toggle_state);
 void UI_FormatTooltip(cstring_t code, cstring_t tip, cstring_t ubertip, float manacost, string_t out, uint32_t out_size);
 uint32_t UI_ClassIdFromCode(cstring_t code);
 void UI_WriteBuildQueue(edict_t *ent);
@@ -202,8 +213,11 @@ void UI_AlliesToggleVictory(edict_t *ent);
 void UI_AlliesAccept(edict_t *ent);
 void UI_AlliesCancel(edict_t *ent);
 void UI_ShowMainMenu(edict_t *ent);
+void UI_SetGameMenuOptionsPage(EscMenuOptionsPanel_t *options, bool sound_page);
+void UI_ShowGameMenuOptionsSound(edict_t *ent);
 void UI_ShowGameMenuEndGame(edict_t *ent);
 void UI_ShowGameMenuConfirmExit(edict_t *ent);
+void UI_ShowGameMenuOptions(edict_t *ent);
 void UI_ShowGameMenuSave(edict_t *ent);
 void UI_ShowGameMenuLoad(edict_t *ent);
 

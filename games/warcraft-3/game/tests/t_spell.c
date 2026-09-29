@@ -7,6 +7,8 @@ uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
 void S_TestResetMoonWellEffectReleaseCalls(void);
 uint32_t S_TestMoonWellEffectReleaseCalls(void);
+void S_TestResetMoonWellMissingDataWarningCalls(void);
+uint32_t S_TestMoonWellMissingDataWarningCalls(void);
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
@@ -103,6 +105,291 @@ TEST(wc3_spell, shared_handler_uses_each_requested_rawcode) {
     T_FEQ(caster->mana.value, 164, 0.001f);
     T_ASSERT(!S_SpellCooldownReady(caster, second));
     T_FEQ(S_SpellCooldownLength(caster, second), 11, 0.001f);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_origin) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Dur1\"\n"
+        "C;Y1;X7;K\"HeroDur1\"\nC;Y1;X8;K\"DataA1\"\nC;Y1;X9;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"17\"\nC;Y2;X5;K\"13\"\nC;Y2;X6;K\"2.75\"\n"
+        "C;Y2;X7;K\"2.75\"\nC;Y2;X8;K\"33\"\nC;Y2;X9;K\"77\"\nE\n";
+    cstring_t save = "/tmp/openwarcraft3-wind-walk-save.bin";
+    UnitAbilities_t abilities = { .abilList = "AOwk" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+    edict_t *target;
+    heroabilitystatus_t *status;
+    uint32_t number;
+
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = 0;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    target->s.player = 1; target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
+    T_EQ(S_AbilityItem(MAKEFOURCC('A','O','w','k')).ability->proc, CAbilityWindWalk);
+    T_EQ(S_AbilityItem(MAKEFOURCC('A','N','w','k')).ability->proc, CAbilityWindWalk);
+    T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','O','w','k')));
+    status = unit_findstatus(caster, MAKEFOURCC('B','O','w','k'));
+    T_NOT_NULL(status);
+    T_EQ(status->duration_ms, 2750);
+    T_EQ(status->data, MAKEFOURCC('A','O','w','k'));
+    T_ASSERT(S_StatusIsUndispellable(status));
+    T_ASSERT(S_SpellCooldownReady(caster, MAKEFOURCC('A','O','w','k')));
+
+    number = caster->s.number;
+    T_ASSERT(WriteGame(save));
+    memset(caster->abilstatus, 0, sizeof(caster->abilstatus));
+    T_ASSERT(ReadGame(save));
+    caster = g_edicts + number;
+    status = unit_findstatus(caster, MAKEFOURCC('B','O','w','k'));
+    T_NOT_NULL(status);
+    T_EQ(status->data, MAKEFOURCC('A','O','w','k'));
+    T_ASSERT(S_SpellCooldownReady(caster, MAKEFOURCC('A','O','w','k')));
+
+    S_ResolveAttackHit(caster, target, 10);
+    T_NULL(unit_findstatus(caster, MAKEFOURCC('B','O','w','k')));
+    T_ASSERT(target->health.value < 100.0f);
+    T_ASSERT(!S_SpellCooldownReady(caster, MAKEFOURCC('A','O','w','k')));
+    T_FEQ(S_SpellCooldownLength(caster, MAKEFOURCC('A','O','w','k')), 13.0f, 0.001f);
+
+    remove(save);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, wind_walk_and_temporary_invisibility_keep_hidden_until_both_expire) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Dur1\"\n"
+        "C;Y1;X7;K\"HeroDur1\"\nC;Y1;X8;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"13\"\nC;Y2;X6;K\"2.75\"\n"
+        "C;Y2;X7;K\"2.75\"\nC;Y2;X8;K\"77\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AOwk" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *walk_first, *walk_second;
+    heroabilitystatus_t *wind, *invis;
+
+    setup_test_world();
+    walk_first = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+    walk_first->data.UnitAbilities = &abilities;
+    walk_first->s.player = 0;
+    T_ASSERT(S_CastNoTargetSpell(walk_first, MAKEFOURCC('A','O','w','k')));
+    unit_addtimedstatus(walk_first, "Bixx", 1, 10.0f);
+    unit_findstatus(walk_first, MAKEFOURCC('B','i','x','x'))->data = MAKEFOURCC('A','I','v','i');
+    wind = unit_findstatus(walk_first, MAKEFOURCC('B','O','w','k'));
+    invis = unit_findstatus(walk_first, MAKEFOURCC('B','i','x','x'));
+    T_NOT_NULL(wind); T_NOT_NULL(invis);
+    level.time = wind->timestamp;
+    unit_updatestatuses(walk_first);
+    T_NULL(unit_findstatus(walk_first, MAKEFOURCC('B','O','w','k')));
+    T_ASSERT(G_UnitStatusLevel(walk_first, MAKEFOURCC('B','i','x','x')));
+    T_ASSERT(walk_first->s.renderfx & RF_HIDDEN);
+
+    level.time = invis->timestamp;
+    unit_updatestatuses(walk_first);
+    T_ASSERT(!(walk_first->s.renderfx & RF_HIDDEN));
+
+    walk_second = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+    walk_second->data.UnitAbilities = &abilities;
+    walk_second->s.player = 0;
+    T_ASSERT(S_CastNoTargetSpell(walk_second, MAKEFOURCC('A','O','w','k')));
+    unit_addtimedstatus(walk_second, "Bixx", 1, 1.0f);
+    unit_findstatus(walk_second, MAKEFOURCC('B','i','x','x'))->data = MAKEFOURCC('A','I','v','i');
+    wind = unit_findstatus(walk_second, MAKEFOURCC('B','O','w','k'));
+    invis = unit_findstatus(walk_second, MAKEFOURCC('B','i','x','x'));
+    T_NOT_NULL(wind); T_NOT_NULL(invis);
+    level.time = invis->timestamp;
+    unit_updatestatuses(walk_second);
+    T_ASSERT(G_UnitStatusLevel(walk_second, MAKEFOURCC('B','O','w','k')));
+    T_ASSERT(walk_second->s.renderfx & RF_HIDDEN);
+
+    wind = unit_findstatus(walk_second, MAKEFOURCC('B','O','w','k'));
+    level.time = wind->timestamp;
+    unit_updatestatuses(walk_second);
+    T_ASSERT(!(walk_second->s.renderfx & RF_HIDDEN));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, invisibility_spell_uses_authored_buff_and_breaks_through_status_owner) {
+    char slk[1024];
+    cstring_t targs_column = atoi(gi.CvarString("fs_expansion", "0")) ? "targs1" : "targs";
+    snprintf(slk, sizeof(slk),
+        "ID;PWXL;N;EBB;Y2;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
+        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"%s\"\n"
+        "C;Y2;X1;K\"Aivs\"\nC;Y2;X2;K\"Aivs\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"600\"\n"
+        "C;Y2;X7;K\"9\"\nC;Y2;X8;K\"9\"\nC;Y2;X9;K\"Bixx\"\n"
+        "C;Y2;X10;K\"air,ground,friend\"\nE\n", targs_column);
+    UnitAbilities_t abilities = { .abilList = "Aivs" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster, *target, *enemy;
+    heroabilitystatus_t *status;
+
+    setup_test_world();
+    caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = 0;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    target->s.player = 0;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
+    target->svflags |= SVF_MONSTER;
+    enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+    enemy->s.player = 1;
+    enemy->targtype = TARG_GROUND;
+    enemy->health.value = enemy->health.max_value = 100.0f;
+    enemy->svflags |= SVF_MONSTER;
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','i','v','s'), target));
+    status = unit_findstatus(target, MAKEFOURCC('B','i','x','x'));
+    T_NOT_NULL(status);
+    if (status) T_EQ(status->data, MAKEFOURCC('A','i','v','s'));
+    T_ASSERT(target->s.renderfx & RF_HIDDEN);
+    T_ASSERT(S_UnitUsesInvisibilityRenderFlag(target));
+    T_ASSERT(S_UnitIsInvisibleToPlayer(target, 1));
+
+    S_ResolveAttackHit(target, enemy, 10);
+    T_NULL(unit_findstatus(target, MAKEFOURCC('B','i','x','x')));
+    T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, stock_invisibility_spell_applies_and_expires_binv) {
+    char slk[1024];
+    cstring_t targs_column = atoi(gi.CvarString("fs_expansion", "0")) ? "targs1" : "targs";
+    snprintf(slk, sizeof(slk),
+        "ID;PWXL;N;EBB;Y2;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
+        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"%s\"\n"
+        "C;Y2;X1;K\"Aivs\"\nC;Y2;X2;K\"Aivs\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"600\"\n"
+        "C;Y2;X7;K\"120\"\nC;Y2;X8;K\"120\"\nC;Y2;X9;K\"Binv\"\n"
+        "C;Y2;X10;K\"air,ground,friend\"\nE\n", targs_column);
+    UnitAbilities_t abilities = { .abilList = "Aivs" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster, *target;
+    heroabilitystatus_t *status;
+
+    setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = 0;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    target->s.player = 0;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
+    target->svflags |= SVF_MONSTER;
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','i','v','s'), target));
+    status = unit_findstatus(target, MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);
+    if (status) {
+        T_EQ(status->duration_ms, 120000);
+        T_EQ(status->data, MAKEFOURCC('A','i','v','s'));
+        T_ASSERT(target->s.renderfx & RF_HIDDEN);
+        level.time = status->timestamp;
+        unit_updatestatuses(target);
+        T_NULL(unit_findstatus(target, MAKEFOURCC('B','i','n','v')));
+        T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
+    }
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, invisibility_spell_breaks_on_committed_spell) {
+    char slk[1024];
+    cstring_t targs_column = atoi(gi.CvarString("fs_expansion", "0")) ? "targs1" : "targs";
+    snprintf(slk, sizeof(slk),
+        "ID;PWXL;N;EBB;Y3;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
+        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"%s\"\n"
+        "C;Y2;X1;K\"Aivs\"\nC;Y2;X2;K\"Aivs\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"600\"\n"
+        "C;Y2;X7;K\"9\"\nC;Y2;X8;K\"9\"\nC;Y2;X9;K\"Bixx\"\n"
+        "C;Y2;X10;K\"air,ground,friend\"\n"
+        "C;Y3;X1;K\"AOwk\"\nC;Y3;X2;K\"AOwk\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"13\"\nC;Y3;X7;K\"2.75\"\n"
+        "C;Y3;X8;K\"2.75\"\nE\n", targs_column);
+    UnitAbilities_t abilities = { .abilList = "Aivs" };
+    UnitAbilities_t walk_abilities = { .abilList = "AOwk,Aivs" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster, *unit;
+
+    setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    caster = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    unit->data.UnitAbilities = &walk_abilities;
+    unit->s.player = 0;
+    unit->targtype = TARG_GROUND;
+    unit->health.value = unit->health.max_value = 100.0f;
+    unit->svflags |= SVF_MONSTER;
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','i','v','s'), unit));
+    T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','i','x','x')));
+    T_ASSERT(S_CastNoTargetSpell(unit, MAKEFOURCC('A','O','w','k')));
+    T_NULL(unit_findstatus(unit, MAKEFOURCC('B','i','x','x')));
+    T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','O','w','k')));
+    T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+    T_ASSERT(S_CastUnitTargetSpell(unit, MAKEFOURCC('A','i','v','s'), unit));
+    T_NULL(unit_findstatus(unit, MAKEFOURCC('B','O','w','k')));
+    T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','i','x','x')));
+    T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+    T_ASSERT(!S_SpellCooldownReady(unit, MAKEFOURCC('A','O','w','k')));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, numeric_status_payload_is_not_dispatched_as_wind_walk_owner) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Dur1\"\n"
+        "C;Y1;X7;K\"HeroDur1\"\nC;Y1;X8;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"13\"\nC;Y2;X6;K\"10\"\n"
+        "C;Y2;X7;K\"10\"\nC;Y2;X8;K\"77\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AOwk" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+    heroabilitystatus_t *payload;
+
+    unit->data.UnitAbilities = &abilities;
+    unit->s.player = 0;
+    unit_addtimedstatus(unit, "Bams", 1, 30.0f);
+    payload = unit_findstatus(unit, MAKEFOURCC('B','a','m','s'));
+    T_NOT_NULL(payload);
+    if (payload) payload->data = MAKEFOURCC('A','O','w','k');
+    T_ASSERT(S_CastNoTargetSpell(unit, MAKEFOURCC('A','O','w','k')));
+
+    T_EQ(S_UnitStatusAbilityEvent(unit, A_ATTACK_DAMAGE_BONUS, NULL), 77);
+    T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','O','w','k')));
+    T_EQ(payload ? payload->data : 0, MAKEFOURCC('A','O','w','k'));
+
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
@@ -741,6 +1028,34 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
 
     target->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
     target->permanent_invisibility_reveal_until = 0;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+    target->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+
+    source->runtime.flags |= UNIT_BALANCE_GHOST_INVISIBLE;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+    source->runtime.flags &= ~UNIT_BALANCE_GHOST_INVISIBLE;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+
+    target->runtime.flags |= UNIT_BALANCE_GHOST_INVISIBLE;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+    target->runtime.flags &= ~UNIT_BALANCE_GHOST_INVISIBLE;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+
+    source->shadowmeld.active = true;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+    source->shadowmeld.active = false;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+
+    target->shadowmeld.active = true;
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
 
@@ -1530,6 +1845,42 @@ TEST(wc3_spell, moon_well_datae_gates_only_natural_mana_regen_to_night) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, moon_well_natural_mana_regen_starts_after_construction) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataE1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 0, 0, 0);
+    UnitBalance_t balance = *well->data.UnitBalance;
+
+    well->data.UnitAbilities = &abilities;
+    balance.manaRegen = 2.0f;
+    balance.buildTime = 1;
+    well->data.UnitBalance = &balance;
+    well->mana.max_value = 100.0f;
+    well->mana.value = 50.0f;
+    well->construction.active = true;
+    well->construction.type = CONSTRUCTION_NIGHTELF;
+
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(G_IsNight());
+
+    FOR_LOOP(tick, 9) G_RunEntity(well);
+    T_ASSERT(well->construction.active);
+    T_FEQ(well->mana.value, 50.0f, 0.001f);
+    G_RunEntity(well);
+    T_ASSERT(!well->construction.active);
+    T_FEQ(well->mana.value, 50.2f, 0.001f);
+
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, non_moon_well_updates_do_not_scan_for_effect_cleanup) {
     edict_t *unit = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
 
@@ -1573,9 +1924,14 @@ TEST(wc3_spell, moon_well_missing_ability_data_does_not_restore_natural_regen) {
     well->data.UnitBalance = &balance;
     well->mana.max_value = 100.0f;
     well->mana.value = 50.0f;
+    well->construction.active = true;
+    well->construction.paused = true;
+    well->construction.type = CONSTRUCTION_NIGHTELF;
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
+    S_TestResetMoonWellMissingDataWarningCalls();
     T_ASSERT(S_UnitAbilityEvent(well, A_NATURAL_MANA_REGEN_BLOCKED));
+    T_EQ(S_TestMoonWellMissingDataWarningCalls(), 1);
     G_RunEntity(well);
     T_FEQ(well->mana.value, 50.0f, 0.001f);
 
@@ -2219,6 +2575,198 @@ TEST(wc3_spell, entangling_roots_is_a_timed_unit_spell) {
 	T_ASSERT(roots->flags & AB_SPELL);
 	T_EQ((int)roots_item.code, (int)MAKEFOURCC('A', 'E', 'e', 'r'));
 	T_EQ((int)roots->target_type, (int)SPELL_TARGET_UNIT);
+}
+
+TEST(wc3_spell, entangling_roots_visual_resolves_from_buff_target_art) {
+	cstring_t art = G_AbilityEffectArt(MAKEFOURCC('B', 'E', 'e', 'r'), WC3_EFFECT_TARGET, 0);
+
+	T_STREQ(art, "Abilities\\Spells\\NightElf\\EntanglingRoots\\EntanglingRootsTarget.mdl");
+}
+
+TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_load) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"BuffID1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AEer\"\nC;Y2;X2;K\"AEer\"\nC;Y2;X3;K\"BEer\"\n"
+        "C;Y2;X4;K\"8\"\nC;Y2;X5;K\"8\"\nC;Y2;X6;K\"4\"\nE\n";
+    static char const buff_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"TargetArt\"\n"
+        "C;Y2;X1;K\"BEer\"\nC;Y2;X2;K\"BEer\"\n"
+        "C;Y2;X3;K\"TestUI\\\\Models\\\\anim_pulse.mdx\"\nE\n";
+    cstring_t const save_path = "/tmp/openwarcraft3-roots-visual-save.bin";
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk), *old_ability;
+    slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff;
+    edict_t *caster, *target, *effect = NULL;
+    uint32_t target_number;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
+    caster = make_hero(MAKEFOURCC('E','k','e','e'), 500, 200, 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    caster->s.player = 0; target->s.player = 1;
+    target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+
+    T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) {
+        T_NULL(effect);
+        effect = found;
+    }
+    T_NOT_NULL(effect);
+    target_number = target->s.number;
+
+    T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    T_EQ(effect->status_effect_code, MAKEFOURCC('B','E','e','r'));
+    {
+        uint32_t count = 0;
+        FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) count++;
+        T_EQ(count, 1);
+    }
+
+    T_ASSERT(WriteGame(save_path));
+    T_ASSERT(ReadGame(save_path));
+    target = g_edicts + target_number;
+    caster = g_edicts + caster->s.number;
+    {
+        uint32_t count = 0;
+        FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) {
+            effect = found;
+            count++;
+        }
+        T_EQ(count, 1);
+    }
+    unit_expirestatus(target, unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
+    T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
+    T_EQ(effect->status_effect_code, 0);
+
+    T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    effect = NULL;
+    FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) {
+        T_NULL(effect);
+        effect = found;
+    }
+    T_NOT_NULL(effect);
+    unit_statusdeath(target);
+    T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
+    T_EQ(effect->status_effect_code, 0);
+
+    remove(save_path);
+    G_SetSLKRows("AbilityBuffData", old_buff); free_slk_rows(buff_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+}
+
+TEST(wc3_spell, entangling_roots_tracks_source_interrupts_channel_and_ticks_authored_dps) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"BuffID1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y1;X7;K\"targs\"\nC;Y1;X8;K\"Rng1\"\n"
+        "C;Y2;X1;K\"AEer\"\nC;Y2;X2;K\"AEer\"\nC;Y2;X3;K\"BEer\"\n"
+        "C;Y2;X4;K\"3\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"12\"\n"
+        "C;Y2;X7;K\"ground,enemy,neutral,organic\"\nC;Y2;X8;K\"600\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster = make_hero(MAKEFOURCC('E','k','e','e'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    heroabilitystatus_t *slot;
+
+    old = G_SetSLKRows("AbilityData", rows);
+    level.time = 1000;
+    caster->s.player = 0; target->s.player = 1;
+    target->health.value = target->health.max_value = 100.0f;
+    target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    target->channel.code = MAKEFOURCC('A','H','m','t');
+
+    T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    slot = unit_findstatus(target, MAKEFOURCC('B','E','e','r'));
+    T_NOT_NULL(slot);
+    T_EQ(slot->data, MAKEFOURCC('A','E','e','r'));
+    T_EQ(slot->rank, 1);
+    T_EQ(slot->source, caster);
+    T_EQ(slot->source_spawn_time, caster->spawn_time);
+    T_EQ(target->channel.code, 0);
+    T_ASSERT(!S_UnitCanTranslate(target));
+
+    level.time += 1000;
+    unit_updatestatuses(target);
+    T_FEQ(target->health.value, 88.0f, 0.001f);
+
+    unit_expirestatus(target, slot);
+    T_ASSERT(S_UnitCanTranslate(target));
+    level.time += 1000;
+    unit_updatestatuses(target);
+    T_FEQ(target->health.value, 88.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+
+TEST(wc3_spell, entangling_roots_death_cleanup_and_failed_status_do_not_interrupt) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"BuffID1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AEer\"\nC;Y2;X2;K\"AEer\"\nC;Y2;X3;K\"BEer\"\n"
+        "C;Y2;X4;K\"3\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"12\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster = make_hero(MAKEFOURCC('E','k','e','e'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    heroabilitystatus_t *slot;
+
+    old = G_SetSLKRows("AbilityData", rows);
+    level.time = 1000; caster->s.player = 0; target->s.player = 1;
+    target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
+    T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    slot = unit_findstatus(target, MAKEFOURCC('B','E','e','r'));
+    T_NOT_NULL(slot);
+    unit_statusdeath(target);
+    T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
+
+    memset(target->abilstatus, 0, sizeof(target->abilstatus));
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        target->abilstatus[i].code = MAKEFOURCC('X','0' + (i / 10), '0' + (i % 10), 'x');
+        target->abilstatus[i].level = 1;
+        target->abilstatus[i].timestamp = G_Time() + 60000;
+    }
+    target->channel.code = MAKEFOURCC('A','H','m','t');
+    T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
+    T_EQ(target->channel.code, MAKEFOURCC('A','H','m','t'));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, entangling_roots_alias_uses_own_data_and_hero_duration) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"BuffID1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y2;X1;K\"Aenr\"\nC;Y2;X2;K\"Aenr\"\nC;Y2;X3;K\"BEer\"\n"
+        "C;Y2;X4;K\"7\"\nC;Y2;X5;K\"2\"\nC;Y2;X6;K\"19\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster = make_hero(MAKEFOURCC('E','k','e','e'), 500, 200, 0, 0);
+    edict_t *target = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 64, 0);
+    heroabilitystatus_t *slot;
+
+    old = G_SetSLKRows("AbilityData", rows);
+    level.time = 1000; caster->s.player = 0; target->s.player = 1;
+    target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
+    T_ASSERT(test_execute_code(caster, "Aenr", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    slot = unit_findstatus(target, MAKEFOURCC('B','E','e','r'));
+    T_NOT_NULL(slot);
+    T_EQ(slot->data, MAKEFOURCC('A','e','n','r'));
+    T_EQ(slot->rank, 1);
+    T_EQ(slot->duration_ms, 2000);
+    level.time += 1000; unit_updatestatuses(target);
+    T_FEQ(target->health.value, 81.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_spell, death_and_decay_uses_percentage_damage_and_enemy_filter) {
@@ -3757,7 +4305,8 @@ TEST(wc3_spell, raise_dead_uses_two_authored_summon_groups_and_marks_summons) {
 	T_EQ(G_UnitStatusLevel(warrior, MAKEFOURCC('B','r','a','i')), 1);
 	T_EQ(G_UnitStatusLevel(second, MAKEFOURCC('B','r','a','i')), 1);
 	T_ASSERT(!S_CastNoTargetSpell(caster, FS_SLKKey("Arai")));
-	T_STREQ(game.clients[0].message.text, "There are no usable corpses nearby.");
+	T_STREQ(G_ResolveCommandErrorText(&game.clients[0], "Cantfindcorpse"), "There are no usable corpses nearby.");
+	T_STREQ(game.clients[0].message.text, "");
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

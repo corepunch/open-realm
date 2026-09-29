@@ -101,9 +101,24 @@ Night Elf Entangled Mines reuse the existing `Aenc` cargo contract. Mining Wisps
 first-through-fifth secondary animation tags for occupancy. `Aegm` DataA/DataB advance a persistent round-robin slot index before
 each occupancy test; occupied turns pay from the parent's finite gold pool and empty turns do not. Parent depletion kills the
 Entangled overlay, whose normal death path ejects cargo and restores the original mine. Loading is rejected until Entangled
-construction completes. `CAbilityEntangledGoldMine` advances income through the ordinary `A_UPDATE` scheduler.
-The Tree's `CAbilityEntangle` handles death and removal, retiring the overlay immediately rather than waiting
-for corpse decay. The movement regression covers the real income scheduler and Tree-death restoration.
+construction completes, but a Wisp rallied or Smart-ordered to the incomplete overlay retains a stand-pose boarding behavior and
+retries the same cargo load as soon as construction completes. `CAbilityEntangledGoldMine` advances income through the ordinary
+`A_UPDATE` scheduler. The Tree's `CAbilityEntangle` handles death and removal, retiring the overlay immediately rather than waiting
+for corpse decay. The movement regressions cover the real income scheduler, incomplete-mine Wisp wait/retry, and Tree-death
+restoration.
+
+`Aent` has two distinct initiation paths. Normal `entangle`/`autoentangle` create the authored overlay and enter autonomous Night Elf
+construction. `entangleinstant`/`autoentangleinstant` bind the same overlay immediately without starting the construction clock; this
+is the path used by Blizzard's standard Night Elf melee-start script after it creates the Tree of Life near the starting Gold Mine.
+The script-owned mine search and starting-unit placement remain outside the C game module. Explicit target orders are routed through
+the unit's authored target-order dispatcher rather than being special-cased in JASS or melee setup.
+
+Entangle range is measured against the Gold Mine's authored pathing footprint where available. The caster's collision radius plus the
+authored `Aent` range must reach that footprint; non-footprint targets fall back to the ordinary sum-of-collision-radii unit-range
+calculation. This is required for stock-style `Aent` ranges that are much smaller than the centre-to-centre distance between the two
+large buildings. After an uprooted Ancient finishes Root, the Root lifecycle performs one deterministic nearby-mine acquisition and
+starts ordinary non-instant Entangle through the same target validation/execution owner. Initial melee creation does not use this
+auto-root path because Blizzard's melee script explicitly issues `entangleinstant`.
 
 `mineoverlay.parent` and `acolyte_mine.mine` are persistent edict references with `F_EDICT` fixups. Save format 21 adds those fields
 and the associated scalar timing/index/slot state.
@@ -118,7 +133,7 @@ The manual `Ambt` replenish cast follows Warsmash's `CAbilityMoonWell` ordering 
 - `DataA` is well-mana spent per target mana point restored;
 - one cast restores missing life first, then spends the remaining Moon Well mana on missing target mana.
 
-The fields are ratios, not per-cast caps. A full-health friendly target with missing mana is therefore still a valid replenish target. Nearest-valid autocast honors `DataC` and the authored `Area` acquisition radius; stock ROC and TFT `Ambt` have `Area=400` and `Rng=99999`, so cast range must not substitute when Area is zero. `DataE` gates the well's natural mana regeneration to night, and persistent water `EffectArt` height follows `DataD * current_mana_fraction`.
+The fields are ratios, not per-cast caps. A full-health friendly target with missing mana is therefore still a valid replenish target. Nearest-valid autocast honors `DataC` and the authored `Area` acquisition radius; stock ROC and TFT `Ambt` have `Area=400` and `Rng=99999`, so cast range must not substitute when Area is zero. `DataE` gates the well's natural mana regeneration to night, and construction suppresses that natural regeneration until the construction completion tick. External mana regeneration bonuses and auras retain their ordinary behavior. Persistent water `EffectArt` height follows `DataD * current_mana_fraction`.
 
 ## Undead defensive tower upgrades
 
@@ -166,5 +181,6 @@ Runtime checks should cover at least:
 9. Moon Well replenish heals before restoring mana; autocast honors DataC and nearest valid range, natural well regeneration is night-gated by DataE, and water height tracks remaining mana.
 10. Wisp lumber remains attached to one reserved tree, credits periodic direct lumber, retargets when its tree is unavailable, and retires TargetArt plus looped harvest sound when harvesting stops.
 11. Haunted construction hides the original mine; Acolytes occupy distinct visible ring slots, scale direct income, and free slots when retasked.
-12. Entangled Mine Wisps board through cargo, income follows occupied round-robin slots, depletion ejects Wisps/restores the parent mine, and the casting Tree's Entangle command remains hidden/permanent only for that overlay lifetime.
-13. Save/load during Haunted/Entangled mining preserves parent references, Entangle caster identity, income timing/index state, and Acolyte slot ownership.
+12. Entangled Mine Wisps board through cargo, including waiting at an incomplete mine and automatically boarding after completion; income follows occupied round-robin slots, depletion ejects Wisps/restores the parent mine, and the casting Tree's Entangle command remains hidden/permanent only for that overlay lifetime.
+13. `entangleinstant` creates a completed overlay for melee initialization, ordinary Entangle remains under construction, footprint-aware range accepts an adjacent large Gold Mine, and Root completion auto-entangles an eligible nearby mine once.
+14. Save/load during Haunted/Entangled mining preserves parent references, Entangle caster identity, income timing/index state, and Acolyte slot ownership.

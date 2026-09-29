@@ -25,8 +25,10 @@ Menu/F10 -> MainPanel
 
 Save and Load are enabled in single-player when Blizzard's authored `EscMenuSaveGamePanel` is available. The Save panel accepts a
 name in `SaveGameFileEditBox`; the Load panel enumerates `.sav` files from the writable save directory and enables Load when at least
-one file has a readable OpenRealm map header. The legacy `quick.sav` row is displayed as `Quick Save`. Options, Help, and Tips
-remain visibly disabled. OpenRealm enables the authored `RestartButton` for single-player missions, labels it `Restart Mission`, and
+one file has a readable OpenRealm map header. The legacy `quick.sav` row is displayed as `Quick Save`. Options opens the
+authored `EscMenuOptionsPanel` Sound page, whose checkboxes and sliders edit client audio cvars through
+[server-authored cvar controls](../../architecture/client-windows.md#server-authored-cvar-controls); OK accepts, while Cancel
+and Escape restore the values from before the page was opened. Help and Tips remain visibly disabled. OpenRealm enables the authored `RestartButton` for single-player missions, labels it `Restart Mission`, and
 routes it through the existing deferred current-map reload used by `RestartGame`; multiplayer keeps the button visible but disabled.
 Current Warsmash also disables `PauseButton`; OpenRealm deliberately retains its newer pause-menu behavior and labels that button
 `Resume Game`, with the same close action as Return.
@@ -145,7 +147,7 @@ from the following client frame after the callback has returned.
 ## Known Gaps
 
 - The overwrite-confirm panel remains disabled. Saving an existing name overwrites it immediately.
-- Options, Help, and Tips remain disabled.
+- Help and Tips remain disabled. Only the Sound page of Options is functional; its other pages and category toggles are disabled.
 - Restart Mission is enabled only in single-player and reloads the current `map` cvar through `G_RequestRestartGame(false)`.
 - The in-game pause button is an OpenRealm extension over the cited current Warsmash behavior: both Pause and Return resume/close.
 - F10 opens the menu through the established OpenRealm binding. Current Warsmash Java itself wires the upper menu button but not its

@@ -474,6 +474,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "move", 851986, 0 },
     { "holdposition", 851993, 0 },
     { "repair", 852024, 0 },
+    { "ambush", 852131, MAKEFOURCC('A','h','i','d') },
     { "repairon", 852025, 0 },
     { "repairoff", 852026, 0 },
 
@@ -496,6 +497,10 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "whirlwind", 852128, MAKEFOURCC('A','O','w','w') },
     { "windwalk", 852129, MAKEFOURCC('A','O','w','k') },
     { "eattree", 852146, MAKEFOURCC('A','e','a','t') },
+    { "entangle", 852147, 0 },
+    { "entangleinstant", 852148, 0 },
+    { "autoentangle", 852505, 0 },
+    { "autoentangleinstant", 852506, 0 },
     { "barkskin", 852135, MAKEFOURCC('A','b','a','r') },
     { "entanglingroots", 852171, MAKEFOURCC('A','E','e','r') },
     { "forceofnature", 852176, MAKEFOURCC('A','E','f','n') },
@@ -792,6 +797,13 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
     if (!strcmp(order, "militia") || !strcmp(order, "militiaoff")) {
         return S_MilitiaTargetOrder(self, order, target);
     }
+    /* Authored unit-target abilities own their concrete order strings. Smart
+     * dispatches here earlier so it can precede generic harvesting/following;
+     * explicit orders such as Entangle arrive here after built-in commands. */
+    {
+        abilityOrderResult_t const result = S_UnitIssuedTargetOrder(self, order, target);
+        if (result != ABILITY_ORDER_UNHANDLED) return result == ABILITY_ORDER_ACCEPTED;
+    }
     return false;
 }
 
@@ -865,9 +877,11 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             return accepted;
         }
     }
-    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
+    if (queue && strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
         strcmp(order, "repair") && strcmp(order, "harvest") && strcmp(order, "militia") && strcmp(order, "militiaoff")) {
-        return false;
+        /* Only orders with an owning ability may enter the FIFO. Generic
+         * queued replay can then dispatch their concrete target order. */
+        if (!FindAbilityByOrder(order)) return false;
     }
 
     if (queue && G_UnitHasActiveOrder(self)) {
@@ -1047,12 +1061,16 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (!strcmp(order, "stop")) {
         G_ClearUnitOrderQueue(self);
         order_stop(self);
+        S_UnitAbilityOrderAccepted(self, order);
         G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         return true;
     }
     if (!strcmp(order, "holdposition")) {
         bool const accepted = S_HoldPosition(self);
-        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        if (accepted) {
+            S_UnitAbilityOrderAccepted(self, order);
+            G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        }
         return accepted;
     }
     ability_t const *ability = FindAbilityByOrder(order);
@@ -1318,9 +1336,6 @@ void unit_updatestatuses(edict_t *ent) {
         if (now >= status->timestamp) {
             if (unit_status_timedlife(status->code)) {
                 kill = true;
-            }
-            if (status->code == MAKEFOURCC('B', 'O', 'w', 'k')) {
-                ent->s.renderfx &= ~RF_HIDDEN;
             }
             if (status->code == MAKEFOURCC('B', 'm', 'i', 'l')) {
                 militia_expired = true;

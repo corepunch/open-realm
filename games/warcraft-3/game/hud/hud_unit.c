@@ -156,6 +156,20 @@ static cstring_t G_UIArtPath(cstring_t art) {
     return Theme_String(art, art);
 }
 
+cstring_t G_CommandButtonValue(cstring_t normal, cstring_t alternate, bool toggle_on) {
+    /* Un* fields are optional in retail ability data. Keep the normal authored
+     * value while showing the active glow when no alternate value is supplied. */
+    return toggle_on && alternate && *alternate ? alternate : normal;
+}
+
+bool G_CommandButtonToggleOn(edict_t *ent, abilityitem_t const *item, bool research, int toggle_state) {
+    abilityCall_t call;
+    if (research || !ent || !item || !item->ability) return false;
+    if (toggle_state >= 0) return toggle_state != 0;
+    call = MAKE(abilityCall_t, .item = item);
+    return S_AbilityMessage(ent, A_TOGGLE_ON, &call);
+}
+
 static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool research, uint32_t level, int toggle_state, gameCommandButton_t *button) {
     char command_code[256];
     char art_level[256];
@@ -169,7 +183,6 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     cstring_t hotkey;
     ability_t const *ability;
     abilityitem_t item;
-    abilityCall_t call;
     uint32_t ability_code = 0;
     bool toggle_on = false;
     bool upgrade_research = false;
@@ -198,19 +211,22 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     }
     art_code = G_CommandArtCode(ent, code);
     item = MAKE(abilityitem_t, .code = ability_code, .ability = ability);
-    call = MAKE(abilityCall_t, .item = &item);
-    toggle_on = !research && (toggle_state >= 0 ? toggle_state != 0 :
-        ability && S_AbilityMessage(ent, A_TOGGLE_ON, &call));
-    art = FindConfigValue(art_code, toggle_on ? STR_UNART :
-                         G_ResearchField(STR_ART, research && !upgrade_research));
-    buttonpos = FindConfigValue(art_code, toggle_on ? STR_UNBUTTONPOS :
-                               G_ResearchField(STR_BUTTONPOS, research && !upgrade_research));
-    tip = FindConfigValue(art_code, toggle_on ? STR_UNTIP :
-                         G_ResearchField(STR_TIP, research && !upgrade_research));
-    ubertip = FindConfigValue(art_code, toggle_on ? STR_UNUBERTIP :
-                             G_ResearchField(STR_UBERTIP, research && !upgrade_research));
-    hotkey = FindConfigValue(art_code, toggle_on ? STR_UNHOTKEY :
-                            G_ResearchField(STR_HOTKEY, research && !upgrade_research));
+    toggle_on = G_CommandButtonToggleOn(ent, &item, research, toggle_state);
+    art = G_CommandButtonValue(
+        FindConfigValue(art_code, G_ResearchField(STR_ART, research && !upgrade_research)),
+        toggle_on ? FindConfigValue(art_code, STR_UNART) : NULL, toggle_on);
+    buttonpos = G_CommandButtonValue(
+        FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research && !upgrade_research)),
+        toggle_on ? FindConfigValue(art_code, STR_UNBUTTONPOS) : NULL, toggle_on);
+    tip = G_CommandButtonValue(
+        FindConfigValue(art_code, G_ResearchField(STR_TIP, research && !upgrade_research)),
+        toggle_on ? FindConfigValue(art_code, STR_UNTIP) : NULL, toggle_on);
+    ubertip = G_CommandButtonValue(
+        FindConfigValue(art_code, G_ResearchField(STR_UBERTIP, research && !upgrade_research)),
+        toggle_on ? FindConfigValue(art_code, STR_UNUBERTIP) : NULL, toggle_on);
+    hotkey = G_CommandButtonValue(
+        FindConfigValue(art_code, G_ResearchField(STR_HOTKEY, research && !upgrade_research)),
+        toggle_on ? FindConfigValue(art_code, STR_UNHOTKEY) : NULL, toggle_on);
     UI_CopyString(art_level, sizeof(art_level), research ? G_StringForLevel(art, level) : art);
     art_path = G_UIArtPath(art_level);
 
@@ -234,6 +250,7 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     button->research = research ? 1 : 0;
     button->level = level;
     button->active = (uint8_t)GetAbilityIndex(ability ? ability->proc : NULL);
+    button->engaged = !research && toggle_on ? 1 : 0;
     if (ability_code) {
         button->manacost = S_SpellNumber(ability_code, ABILITY_NUMBER_COST, level);
     }

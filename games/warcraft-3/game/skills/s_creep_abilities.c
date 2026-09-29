@@ -214,7 +214,25 @@ BZ_ABILITY_PROC(CAbilityDemolish) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityFactory) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityTornadoDamage) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityRevenge) { return CAbilityPassive(ent, msg, call); }
-BZ_ABILITY_PROC(CAbilityGhost) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilityGhost) {
+    switch (msg) {
+    case A_UNIT_INIT:
+    case A_ENABLE:
+    case A_LEVEL_CHANGED:
+        if (ent) ent->runtime.flags |= UNIT_BALANCE_GHOST_INVISIBLE;
+        return true;
+    case A_DISABLE:
+    case A_UNIT_REMOVE:
+        if (ent) ent->runtime.flags &= ~UNIT_BALANCE_GHOST_INVISIBLE;
+        return true;
+    default:
+        return CAbilityPassive(ent, msg, call);
+    }
+}
+
+/* Ghost (Visible) keeps its distinct Warcraft ability class.  Its exact
+ * asymmetric collision/building-blocking policy remains intentionally
+ * separate until that retail behavior is pinned down. */
 BZ_ABILITY_PROC(CAbilityGhostVisible) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityEthereal) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityScout) { return CAbilityPassive(ent, msg, call); }

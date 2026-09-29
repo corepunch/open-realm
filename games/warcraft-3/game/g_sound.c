@@ -20,23 +20,9 @@ static uint32_t sound_index_duration[MAX_SOUNDS];
 static uint8_t sound_index_volume_valid[MAX_SOUNDS];
 static uint8_t sound_index_duration_valid[MAX_SOUNDS];
 
-typedef struct {
-    cstring_t text;
-    cstring_t key;
-} commandErrorText_t;
+#define WC3_COMMAND_ERROR_LIFETIME_MS 10000u
 
-static commandErrorText_t const command_error_texts[] = {
-    { "Not enough food", "Nofood" },
-    { "Not enough gold", "Nogold" },
-    { "Not enough lumber", "Nolumber" },
-    { "Not enough mana", "Nomana" },
-    { "Spell is not ready yet", "Cooldown" },
-    { "Unable to build there", "Cantplace" },
-    { "Unable to build so close to the gold mine", "Tooclosetomine" },
-    { "That building is currently under construction", "UnderConstruction" },
-    { "There are no usable corpses nearby", "Cantfindcorpse" },
-    { "Inventory is full", "Inventoryfull" },
-};
+static uint32_t command_error_end_time[MAX_CLIENTS];
 
 void G_ResetSoundPresentationState(void) {
     memset(sound_index_policy, 0, sizeof(sound_index_policy));
@@ -64,10 +50,29 @@ void G_JassSoundRuntimeInit(handle_t handle) {
     gsound_t *state = handle;
     if (!state) return;
     state->volume = 1.0f;
+    state->start_time = 0;
+    state->started = false;
     state->position = (vec3_t){ 0 };
     state->attached_entity = -1;
     state->attached_spawn_time = 0;
     state->has_position = false;
+}
+
+void G_JassSoundMarkStarted(handle_t handle) {
+    gsound_t *state = handle;
+    if (!state) return;
+    state->start_time = G_Time();
+    state->started = true;
+}
+
+uint32_t G_JassSoundRemainingDuration(handle_t handle) {
+    gsound_t *state = handle;
+    uint32_t elapsed;
+
+    if (!state) return 0;
+    if (!state->started) return state->duration;
+    elapsed = G_Time() - state->start_time;
+    return elapsed < state->duration ? state->duration - elapsed : 0;
 }
 
 void G_JassSoundSetVolume(handle_t handle, float volume) {
@@ -412,20 +417,6 @@ void G_PlayUISoundForPlayer(edict_t *clent, cstring_t alias) {
     if (sound) G_PlaySound(NULL, clent, CHAN_OWNER | CHAN_RELIABLE, sound, G_SoundIndexVolume(sound), 0.0f, 0.0f);
 }
 
-static cstring_t G_CommandErrorKeyForText(cstring_t text) {
-    size_t len;
-
-    if (!text) return NULL;
-    len = strlen(text);
-    FOR_LOOP(i, sizeof(command_error_texts) / sizeof(command_error_texts[0])) {
-        size_t base_len = strlen(command_error_texts[i].text);
-        if (!strncmp(text, command_error_texts[i].text, base_len) &&
-            (len == base_len || (len == base_len + 1 && text[base_len] == '.')))
-            return command_error_texts[i].key;
-    }
-    return NULL;
-}
-
 static void G_PlayCommandErrorSound(edict_t *clent, cstring_t error_key) {
     gameClient_t *client;
     cstring_t alias;
@@ -454,7 +445,7 @@ static uint32_t G_CommandErrorRaceIndex(gameClient_t const *client) {
     }
 }
 
-static cstring_t G_CommandErrorString(gameClient_t const *client, cstring_t error_key) {
+cstring_t G_ResolveCommandErrorText(gameClient_t const *client, cstring_t error_key) {
     static char selected[4][MAX_GAMECACHE_STRING];
     static uint32_t cursor;
     char *out = selected[cursor++ & 3];
@@ -486,27 +477,52 @@ static cstring_t G_CommandErrorString(gameClient_t const *client, cstring_t erro
     return NULL;
 }
 
+void G_CommandErrorReset(void) {
+    memset(command_error_end_time, 0, sizeof(command_error_end_time));
+}
+
+static void G_ShowCommandErrorPresentation(edict_t *clent, cstring_t text) {
+    uint32_t player;
+
+    if (!clent || !clent->client || !text || !text[0]) return;
+    player = clent->client->ps.number;
+    if (player >= MAX_CLIENTS) return;
+    if (!clent->client->connected) {
+        command_error_end_time[player] = 0;
+        return;
+    }
+    UI_WriteCommandError(clent, text);
+    command_error_end_time[player] = G_Time() + WC3_COMMAND_ERROR_LIFETIME_MS;
+}
+
+void G_UpdateCommandError(edict_t *clent) {
+    uint32_t player;
+
+    if (!clent || !clent->client) return;
+    player = clent->client->ps.number;
+    if (player >= MAX_CLIENTS || !command_error_end_time[player]) return;
+    if (G_Time() < command_error_end_time[player]) return;
+    command_error_end_time[player] = 0;
+    if (clent->client->connected) UI_WriteCommandError(clent, NULL);
+}
+
 void G_ShowCommandErrorKey(edict_t *clent, cstring_t error_key, cstring_t fallback) {
     cstring_t text;
 
     if (!clent || !clent->client || !error_key || !error_key[0]) return;
-    text = G_CommandErrorString(clent->client, error_key);
+    text = G_ResolveCommandErrorText(clent->client, error_key);
     if (!text || !text[0]) text = fallback;
-    if (text && text[0])
-        UI_ShowTransientText(clent, &MAKE(vec2_t, 0, 0), text, 2.0f);
+    if (text && text[0]) G_ShowCommandErrorPresentation(clent, text);
     G_PlayCommandErrorSound(clent, error_key);
 }
 
 void G_ShowCommandErrorText(edict_t *clent, cstring_t text) {
-    cstring_t key;
-
     if (!clent || !text || !text[0]) return;
-    key = G_CommandErrorKeyForText(text);
-    if (key) {
-        G_ShowCommandErrorKey(clent, key, text);
-        return;
-    }
-    UI_ShowTransientText(clent, &MAKE(vec2_t, 0, 0), text, 2.0f);
+    /* Plain text remains available for OpenRealm-specific failures that do not
+     * have a Warcraft CommandStrings key. Known Warcraft failures must call
+     * G_ShowCommandErrorKey directly so simulation reasons are never recovered
+     * by reverse-matching localized English. */
+    G_ShowCommandErrorPresentation(clent, text);
     G_PlayUISoundForPlayer(clent, "InterfaceError");
 }
 

@@ -320,7 +320,9 @@ static void unit_moveindirection_policy(edict_t *self,
 }
 
 void unit_moveindirection(edict_t *self) {
-    unit_moveindirection_policy(self, MOVE_COLLIDE_UNITS);
+    unit_moveindirection_policy(self,
+        S_UnitStatusAbilityEvent(self, A_MOVE_COLLISION_QUERY, NULL) ?
+        MOVE_IGNORE_UNITS : MOVE_COLLIDE_UNITS);
 }
 
 void unit_moveindirection_ignore_units(edict_t *self) {
@@ -453,7 +455,9 @@ static float unit_worker_desired_heading(edict_t *self, float goal_angle, float 
 static float unit_desired_heading(edict_t *self, float goal_angle, float dist,
                                   moveAvoidPolicy_t policy) {
     moveCollisionPolicy_t const collision_policy =
-        policy == MOVE_AVOID_STATIC_ONLY ? MOVE_IGNORE_UNITS : MOVE_COLLIDE_UNITS;
+        (policy == MOVE_AVOID_STATIC_ONLY ||
+         S_UnitStatusAbilityEvent(self, A_MOVE_COLLISION_QUERY, NULL)) ?
+        MOVE_IGNORE_UNITS : MOVE_COLLIDE_UNITS;
     vec2_t const straight = Vector2_mad(&self->s.origin2, dist,
                                          &MAKE(vec2_t, cosf(goal_angle), sinf(goal_angle)));
     if (policy == MOVE_AVOID_RESOURCE_WORKER)
@@ -1483,15 +1487,17 @@ bool move_is_active_order_walk(edict_t const *ent) {
     return ent && ent->currentmove == &move_move_walk;
 }
 
+bool S_UnitIsEntanglingRooted(edict_t const *unit) {
+    return unit && G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r'));
+}
+
 /* Move owns translation eligibility. False means the unit cannot change
  * position this tick (immobile, Cyclone, Entangling Roots, Ensnare, Purge
- * pause). This is distinct from being unable to attack: a locked artillery
- * unit must hold its firing point and still fire in-range targets. */
+ * pause). Entangling Roots is also a disarm; attack owns that separate check. */
 bool S_UnitCanTranslate(edict_t const *unit) {
     if (!unit) return false;
     if ((unit->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(unit) ||
-        G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')) ||
-        S_UnitIsEnsnared(unit) || S_PurgeIsImmobilized(unit)) return false;
+        S_UnitIsEntanglingRooted(unit) || S_UnitIsEnsnared(unit) || S_PurgeIsImmobilized(unit)) return false;
     return true;
 }
 
@@ -1500,7 +1506,7 @@ bool S_UnitCanTranslate(edict_t const *unit) {
 void order_move(edict_t *self, edict_t *target) {
     if (S_GoldMineWorkerIsInside(self))
         return;
-    if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || G_UnitStatusLevel(self, MAKEFOURCC('B', 'E', 'e', 'r'))
+    if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || S_UnitIsEntanglingRooted(self)
         || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self))
         return;
     move_cancel_displacement(self);

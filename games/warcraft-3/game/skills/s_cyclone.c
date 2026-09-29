@@ -13,7 +13,7 @@ bool S_UnitIsCycloned(edict_t const *unit) {
 bool S_StatusIsUndispellable(heroabilitystatus_t const *status) {
     abilityitem_t item;
     if (!status || !status->level) return false;
-    if (status->code == BZ_TIMED_LIFE_BUFF) return true;
+    if (status->code == BZ_TIMED_LIFE_BUFF || status->code == MAKEFOURCC('B','O','w','k')) return true;
     if (!status->data) return false;
     item = S_AbilityItem(status->data);
     if (!item.ability || item.ability->proc != CAbilityCyclone) return false;

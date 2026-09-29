@@ -984,6 +984,122 @@ TEST(wc3_game, hud_stock_escmenu_control_parts_map_to_skin_keys) {
     T_STREQ(UI_ControlHighlightSkin("EscMenuDisabledCheckHighlightTemplate"),
             "EscMenuDisabledCheckHighlight");
 }
+TEST(wc3_game, ingame_options_only_show_sound_after_selecting_sound) {
+    frameDef_t categories = { 0 }, gameplay = { 0 }, video = { 0 }, sound = { 0 };
+    frameDef_t network = { 0 }, bottom_buttons = { 0 };
+    EscMenuOptionsPanel_t options = {
+        .OptionsPanel = &categories,
+        .BottomButtonPanel = &bottom_buttons,
+        .GameplayPanel = &gameplay,
+        .VideoPanel = &video,
+        .SoundPanel = &sound,
+        .NetworkPanel = &network,
+    };
+
+    UI_SetGameMenuOptionsPage(&options, false);
+    T_ASSERT(!categories.hidden);
+    T_ASSERT(bottom_buttons.hidden);
+    T_ASSERT(gameplay.hidden);
+    T_ASSERT(video.hidden);
+    T_ASSERT(sound.hidden);
+    T_ASSERT(network.hidden);
+
+    UI_SetGameMenuOptionsPage(&options, true);
+    T_ASSERT(categories.hidden);
+    T_ASSERT(!bottom_buttons.hidden);
+    T_ASSERT(gameplay.hidden);
+    T_ASSERT(video.hidden);
+    T_ASSERT(!sound.hidden);
+    T_ASSERT(network.hidden);
+}
+
+static uint32_t options_window_frame_count;
+static uint32_t options_window_unicast_count;
+
+static void options_window_test_write(pfWriteType_t type, void const *value) {
+    if (type != PF_UIWINDOWFRAME || !value) return;
+    options_window_frame_count++;
+}
+
+static void options_window_test_unicast(edict_t *ent) {
+    (void)ent;
+    options_window_unicast_count++;
+}
+
+TEST(wc3_game, ingame_options_commands_write_categories_then_sound_window) {
+    EscMenuMainPanelGame_t old_menu = hud.menu;
+    EscMenuOptionsPanel_t old_options = hud.options;
+    EscMenuSaveGamePanel_t old_save_menu = hud.save_menu;
+    bool old_connected = game.clients[0].connected;
+    __typeof__(gi.Write) old_write = gi.Write;
+    __typeof__(gi.unicast) old_unicast = gi.unicast;
+    edict_t *player = &g_edicts[0];
+    frameDef_t *root, *backdrop, *main_panel, *options_root;
+    frameDef_t *categories, *bottom, *gameplay, *video, *sound, *network;
+    cstring_t open_options[] = { "wc3_menu_options" };
+    uint32_t open_options_count = ARRAY_COUNT(open_options);
+    cstring_t open_sound[] = { "wc3_menu_options_sound" };
+    uint32_t open_sound_count = ARRAY_COUNT(open_sound);
+
+    setup_test_world();
+    UI_ClearTemplates();
+    memset(&hud.menu, 0, sizeof(hud.menu));
+    memset(&hud.options, 0, sizeof(hud.options));
+    memset(&hud.save_menu, 0, sizeof(hud.save_menu));
+
+    root = UI_Spawn(FT_FRAME, NULL); T_NOT_NULL(root);
+    backdrop = UI_Spawn(FT_FRAME, root); T_NOT_NULL(backdrop);
+    main_panel = UI_Spawn(FT_FRAME, backdrop); T_NOT_NULL(main_panel);
+    options_root = UI_Spawn(FT_FRAME, backdrop); T_NOT_NULL(options_root);
+    categories = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(categories);
+    bottom = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(bottom);
+    gameplay = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(gameplay);
+    video = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(video);
+    sound = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(sound);
+    network = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(network);
+
+    UI_SetSize(main_panel, 0.5f, 0.4f);
+    UI_SetSize(categories, 0.5f, 0.4f);
+    UI_SetSize(root, 0.5f, 0.4f);
+    UI_SetSize(backdrop, 0.5f, 0.4f);
+    hud.menu.EscMenuMainPanel = root;
+    hud.menu.EscMenuBackdrop = backdrop;
+    hud.menu.MainPanel = main_panel;
+    hud.options.EscMenuOptionsPanel = options_root;
+    hud.options.OptionsPanel = categories;
+    hud.options.BottomButtonPanel = bottom;
+    hud.options.GameplayPanel = gameplay;
+    hud.options.VideoPanel = video;
+    hud.options.SoundPanel = sound;
+    hud.options.NetworkPanel = network;
+    player->client = &game.clients[0];
+    player->client->connected = true;
+    player->client->ps.number = 0;
+    options_window_frame_count = options_window_unicast_count = 0;
+    gi.Write = options_window_test_write;
+    gi.unicast = options_window_test_unicast;
+
+    G_ClientCommand(player, open_options_count, open_options);
+    T_ASSERT(!categories->hidden);
+    T_ASSERT(bottom->hidden && sound->hidden && network->hidden);
+    T_ASSERT(options_window_frame_count > 0);
+    T_EQ(options_window_unicast_count, 1);
+
+    options_window_frame_count = options_window_unicast_count = 0;
+    G_ClientCommand(player, open_sound_count, open_sound);
+    T_ASSERT(categories->hidden);
+    T_ASSERT(!bottom->hidden && !sound->hidden && network->hidden);
+    T_ASSERT(options_window_frame_count > 0);
+    T_EQ(options_window_unicast_count, 1);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    UI_ClearTemplates();
+    hud.menu = old_menu;
+    hud.options = old_options;
+    hud.save_menu = old_save_menu;
+    game.clients[0].connected = old_connected;
+}
 TEST(wc3_game, hud_status_icon_keys_follow_upgrade_and_neutral_families) {
     char key[96];
 
@@ -2876,6 +2992,53 @@ TEST(wc3_game, fow_updates_only_connected_shared_viewers) {
     G_FowShutdown();
 }
 
+TEST(wc3_game, fow_unit_shared_vision_reveals_only_that_units_sight) {
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+
+    edict_t *shared = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    edict_t *private = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 512.0f, 64.0f);
+    shared->s.player = private->s.player = 5;
+    shared->runtime.sight_radius.day = private->runtime.sight_radius.day = 128.0f;
+    shared->health.value = shared->health.max_value = 1.0f;
+    private->health.value = private->health.max_value = 1.0f;
+    G_SetUnitSharedVision(shared, 0, true);
+
+    G_FowUpdate();
+    uint32_t shared_index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+    uint32_t private_index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(512.0f);
+    T_ASSERT(level.fow.players[0].visible[shared_index]);
+    T_ASSERT(!level.fow.players[0].visible[private_index]);
+    T_ASSERT(!G_FowPlayersShareVision(0, 5));
+    G_FowShutdown();
+}
+
+TEST(wc3_game, fow_unit_shared_vision_is_idempotent_and_revocable) {
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+
+    edict_t *revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    revealer->s.player = 5;
+    revealer->runtime.sight_radius.day = 128.0f;
+    revealer->health.value = revealer->health.max_value = 1.0f;
+    uint32_t index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+
+    G_SetUnitSharedVision(revealer, 0, true);
+    G_SetUnitSharedVision(revealer, 0, true);
+    T_ASSERT(G_UnitSharesVisionWith(revealer, 0));
+    G_FowUpdate();
+    T_ASSERT(level.fow.players[0].visible[index]);
+
+    G_SetUnitSharedVision(revealer, 0, false);
+    T_ASSERT(!G_UnitSharesVisionWith(revealer, 0));
+    G_FowUpdate();
+    T_ASSERT(!level.fow.players[0].visible[index]);
+    T_ASSERT(level.fow.players[0].explored[index]);
+    G_FowShutdown();
+}
+
 TEST(wc3_game, fow_visible_clears_but_explored_remains) {
     reset_entities();
     G_FowInit();
@@ -2897,6 +3060,31 @@ TEST(wc3_game, fow_visible_clears_but_explored_remains) {
     T_ASSERT(!level.fow.players[0].visible[index]);
     T_ASSERT(!level.fow.players[0].visible_rows[row]);
     T_ASSERT(level.fow.players[0].explored[index]);
+    G_FowShutdown();
+}
+
+TEST(wc3_game, invisible_friendly_unit_keeps_revealing_fog_as_it_moves) {
+    uint32_t destination;
+    edict_t *unit;
+
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    unit->s.player = 0;
+    unit->runtime.sight_radius.day = 128.0f;
+    unit->health.value = unit->health.max_value = 1.0f;
+
+    G_FowUpdate();
+    unit_addtimedstatus(unit, "Binv", 1, 120.0f);
+    unit->s.renderfx |= RF_HIDDEN;
+    unit->s.origin.x = 512.0f;
+    unit->s.origin.y = 512.0f;
+    G_FowUpdate();
+
+    destination = G_FowWorldToCellY(512.0f) * level.fow.width + G_FowWorldToCellX(512.0f);
+    T_ASSERT(level.fow.players[0].visible[destination]);
+    T_ASSERT(level.fow.players[0].explored[destination]);
     G_FowShutdown();
 }
 
@@ -3254,6 +3442,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     indicator->owner = &g_edicts[0];
     game.clients[0].rally_indicator = indicator;
     first->harvested_gold = 37;
+    first->shared_vision = (1u << 0) | (1u << 7);
     first->projectile_reflected = true;
     first->sleep.can_sleep = true;
     first->collision = 42.5f;
@@ -3345,6 +3534,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
     T_ASSERT(!strcasecmp(saved_map, level.map_path));
     first->harvested_gold = 0;
+    first->shared_vision = 0;
     first->projectile_reflected = false;
     first->sleep.can_sleep = false;
     first->sleep.sleeping = false;
@@ -3383,6 +3573,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
      * edict and is included in the raw world query after save/load. */
     T_EQ(gi.BoxEdicts(&area, found, 4, NULL), 4);
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
+    T_EQ(g_edicts[first - g_edicts].shared_vision, (1u << 0) | (1u << 7));
     T_ASSERT(g_edicts[first - g_edicts].projectile_reflected);
     T_ASSERT(g_edicts[first - g_edicts].sleep.can_sleep);
     T_ASSERT(g_edicts[first - g_edicts].sleep.sleeping);
@@ -3563,6 +3754,7 @@ SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
 SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
 SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
 SAVE_INT_FIELD_TEST(field_summon_ability_round_trip, summon_ability, MAKEFOURCC('A', 'O', 's', 'f'))
+SAVE_INT_FIELD_TEST(field_shared_vision_round_trip, shared_vision, (1u << 0) | (1u << 7))
 SAVE_INT_FIELD_TEST(field_harvested_lumber_round_trip, harvested_lumber, 37)
 SAVE_INT_FIELD_TEST(field_harvested_gold_round_trip, harvested_gold, 41)
 SAVE_INT_FIELD_TEST(field_heatmap_round_trip, heatmap2, 73)

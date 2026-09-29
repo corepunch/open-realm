@@ -58,7 +58,17 @@ current Warsmash effectively renders gameplay transmission subtitles regardless
 of that override. OpenRealm intentionally matches that behavior for now rather
 than inventing an unverified user-preference policy.
 
-When `wc3_quest_debug 1` is enabled, message/transmission entry points emit `WC3_TUTORIAL_TEXT` diagnostics before presentation state is mutated. The diagnostic records the active trigger ordinal and JASS caller plus both the raw map string token and its resolved text. Ordinary `DisplayText*` calls also record target/position/duration; `SetCinematicScene` records speaker, dialogue, portrait and scene/voice lifetimes, and `EndCinematicScene` records the clear. This is intended for campaign tutorial progression debugging and does not alter message timing or retention.
+Build with `WC3_DEBUG_TUTORIAL_FLOW=1` and enable `wc3_quest_debug 1` at runtime to emit `WC3_TUTORIAL_TEXT` diagnostics before message/transmission presentation state is mutated. Without the build option, these diagnostics are compiled out. Timestamps in the cinematic-scene diagnostics are elapsed simulation time in `HH:MM:SS.mmm`, not wall-clock time. Each record includes the active trigger ordinal and JASS caller plus both the raw map string token and its resolved text. Ordinary `DisplayText*` calls also record target/position/duration; `SetCinematicScene` records speaker, dialogue, portrait and scene/voice lifetimes, and `EndCinematicScene` records the clear. This is intended for campaign tutorial progression debugging and does not alter message timing or retention.
+
+`StartSound` records the sound handle's latest simulation start time. A later
+`TriggerWaitForSound` waits only for the remaining authored duration from that
+start, plus its offset. Waiting again after the duration has elapsed returns
+immediately; starting the same handle again begins a new duration window. A
+handle that has never started retains the previous full-duration wait behavior.
+This tracks the server's logical sound dispatch, not client audibility: a
+missing/unresolved client asset can still leave the script waiting for the
+authored duration. The regression `wc3_api.repeated_wait_for_sound_only_waits_until_voice_end_once`
+covers a 3.5-second delay, repeated wait, restarted handle, and positive offset.
 
 Prologue02 additionally traces the Burrow-completion handoff with `WC3_TUTORIAL_FLOW` for trigger ordinals 120-165 and `WC3_TUTORIAL_SOURCE` for the authored Burrow work-complete/check functions, `Trig_W2_BurrowComplete_Q`, directly referenced trigger globals, and whichever functions reference narrator sounds `T02Narrator031` through `T02Narrator035` (the lumber/War Mill teaching sequence). `WC3_TUTORIAL_COROUTINE` confirms sleep/resume boundaries for the same range. Current runtime evidence shows the nested `WaitForSoundBJ` in trigger 150 waking normally and the trigger reaching its final queue-removal call, so the remaining diagnostic focus is the earlier lumber-stage enqueue/event path. This is startup/runtime diagnostics only: it does not synthesize tutorial steps or change trigger queue, sleep, or transmission semantics.
 
@@ -145,9 +155,12 @@ history. Cutscene-mode dialogue and blank cinematic clear calls are not
 recorded. `ClearTextMessages` clears only the active ordinary message and
 leaves that historical log intact.
 
-Command errors are deliberately different: `G_ShowCommandErrorText` uses
-`UI_ShowTransientText`, which shares the transient presentation path without
-recording the text in Message Log history.
+Command errors are deliberately different: established Warcraft failures are
+resolved from their `CommandStrings` key and written to the dedicated
+`WC3_LAYER_COMMAND_ERROR` slot. That slot is independent of `LAYER_MESSAGE`, is not
+recorded in Message Log history, and is replaced by the next command failure.
+OpenRealm-specific failures without a confirmed Warcraft key use the same
+dedicated presentation through `G_ShowCommandErrorText`.
 
 During a gameplay transmission, `LAYER_MESSAGE` belongs to the transmission.
 An ordinary message started underneath it retains its own expiry time and is
@@ -223,7 +236,9 @@ Relevant in-engine tests are under `games/warcraft-3/game/tests/t_api.c`:
 
 - `wc3_api.disconnected_presentation_defers_network_write_until_connected`
 - `wc3_api.display_text_tracks_lifetime_and_clear`
-- `wc3_api.transient_command_style_text_does_not_enter_message_log`
+- `wc3_api.transient_text_does_not_enter_message_log`
+- `wc3_api.command_error_uses_dedicated_replacing_hud_layer`
+- `wc3_api.command_error_key_resolves_commandstrings_and_race_variant`
 - `wc3_api.message_log_is_bounded_and_evicts_oldest_entry`
 - `wc3_api.display_text_uses_automatic_duration`
 - `wc3_api.transmission_keeps_gameplay_ui_and_separates_voice_lifetime` (also covers portrait player-color state and expiry cleanup)

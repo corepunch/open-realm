@@ -667,6 +667,8 @@ typedef struct {
 #define AB_UPDATE       (1u << 7)  // bit 7; persistent behavior procedure; receives per-unit update messages
 #define AB_ITEM         (1u << 8)  // bit 8; inventory behavior procedure; receives item-use messages
 #define AB_INNATE       (1u << 9)  // bit 9; unit-data behavior; receives lifecycle messages without a command-card slot
+#define AB_COOLDOWN_ON_STATUS_REMOVE (1u << 10) // bit 10; defer spell cooldown until its owned status ends
+#define AB_STATUS_EVENTS (1u << 11) // bit 11; active statuses from this ability accept generic status policy events
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -748,6 +750,7 @@ typedef enum {
     A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
     A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
+    A_NO_RETALIATE,     /* Damage query: return true to suppress automatic counter-attacks. */
     A_CANCEL,           /* Explicit cancellation: return to the unit's ordinary idle behavior. */
     A_DEATH,            /* unit_die: ability-owned death behavior on the dying unit. */
     A_QUEUE_VALIDATE,   /* Train scheduler: queued item may progress this tick; return validity. Payload: call->queue.{producer,item}. */
@@ -761,6 +764,10 @@ typedef enum {
     A_STATUS_DEATH,     /* Victim died with this status active; independent of the victim's learned abilities. */
     A_ISSUED_TARGET_ORDER, /* Issuer ability gets the target/order before generic Smart fallback. */
     A_NATURAL_MANA_REGEN_BLOCKED, /* Ability query: return true to suppress UnitBalance.manaRegen. */
+    A_MOVE_COLLISION_QUERY, /* Active status ability query: true ignores dynamic unit collision for Move. */
+    A_SPELL_COMMIT,      /* Accepted spell commit notification; call->item is the spell being committed. */
+    A_ATTACK_DAMAGE_BONUS, /* Active status ability query: return additive attack damage. */
+    A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
 } abilityMsg_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call)
@@ -1162,6 +1169,7 @@ typedef struct {
 
 #define UNIT_BALANCE_BUILDING 0x1 // bit; current rooted/building mode; immutable unit-type metadata remains separate
 #define UNIT_BALANCE_PERMANENT_INVISIBLE 0x2 // bit; cached Apiv classification for hot per-viewer FOW checks
+#define UNIT_BALANCE_GHOST_INVISIBLE 0x4 // bit; Agho persistent invisibility; detection reveals without breaking it
 #define WC3_UNIT_TYPE_STRUCTURE 2 // handle value; Warcraft structure type; used by IsUnitType
 #define WC3_UNIT_TYPE_GROUND 4 // handle value; authored ground movement class; used by IsUnitType
 #define WC3_UNIT_TYPE_POLYMORPHED 22 // handle value; Warcraft Polymorphed type; used by IsUnitType
@@ -1233,7 +1241,7 @@ typedef struct heroabilitystatus_s {
     uint32_t level;
     uint32_t timestamp;
     uint32_t duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
-    uint32_t data; /* applying ability rawcode for lifecycle dispatch; legacy Anti-Magic Shell absorption payload */
+    uint32_t data; /* applying ability rawcode or ability-specific numeric payload */
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
 } heroabilitystatus_t;
@@ -1322,6 +1330,7 @@ struct edict_s {
     uint32_t build_project;
     edict_t *build_preview; /* translucent Construction Site Indicator for an accepted build order */
     bool rally_indicator;
+    uint32_t status_effect_code; /* presentation-only ownership identity; saved so removal can find effects after load */
     struct edictConstruction_s {
         bool active;
         bool paused;
@@ -1398,7 +1407,14 @@ struct edict_s {
     uint32_t spawn_time;
     uint32_t summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
     uint32_t permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
+    struct edictShadowMeld_s {
+        uint32_t fade_start; /* server time when the current uninterrupted stationary fade began */
+        bool fading;
+        bool active;
+        bool hide_order_active; /* Ahid/ambush: suppress voluntary acquisition until replaced */
+    } shadowmeld;
     uint16_t forced_visibility_count[MAX_PLAYERS]; /* active unit-specific reveals, indexed by the sight-sharing player */
+    uint32_t shared_vision; /* players that receive this unit's ordinary sight via UnitShareVision */
     uint32_t harvested_lumber;
     uint32_t harvested_gold;
     struct edictMilitia_s {
@@ -2223,11 +2239,17 @@ void G_FowSendFull(edict_t *ent);
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner);
+bool G_UnitSharesVisionWith(edict_t const *unit, uint32_t viewer);
+void G_SetUnitSharedVision(edict_t *unit, uint32_t viewer, bool share);
 void G_AddUnitForcedVisibility(edict_t *unit, uint32_t viewer);
 void G_RemoveUnitForcedVisibility(edict_t *unit, uint32_t viewer);
 bool G_UnitIsForcedVisibleToPlayer(edict_t const *unit, uint32_t viewer);
 bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player);
 bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player);
+bool S_UnitIsHiddenFromPlayer(edict_t const *unit, uint32_t player);
+bool S_ShadowMeldActive(edict_t const *unit);
+float S_ShadowMeldPresentationAlpha(edict_t const *unit);
+void S_ShadowMeldBreak(edict_t *unit);
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);
 bool S_PermanentInvisibilityActive(edict_t const *unit);
 void S_PermanentInvisibilityInitialize(edict_t *unit);
@@ -2456,6 +2478,7 @@ uint32_t G_GetPlayerUpkeepTier(gameClient_t *client);
 int32_t G_GetUpkeepGoldRateForTier(uint32_t tier);
 int32_t G_GetUpkeepLumberRateForTier(uint32_t tier);
 bool G_PlayerHasFoodFor(gameClient_t *client, int32_t food_cost);
+cstring_t G_FoodCommandErrorKey(gameClient_t *client, int32_t food_cost);
 bool G_ReserveTrainingFood(edict_t *unit);
 void G_SetUnitFoodUsed(edict_t *unit, int32_t amount);
 void G_SetUnitFoodMade(edict_t *unit, int32_t amount);
@@ -2577,6 +2600,8 @@ cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t
 edict_t *G_SpawnModelEffect(cstring_t model, vec2_t const *point, edict_t *target, cstring_t attach_point, bool temporary);
 edict_t *G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index, vec2_t const *point, bool temporary);
 edict_t *G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, uint32_t index, edict_t *target, cstring_t attach_point, bool temporary);
+edict_t *G_SpawnStatusEffectTarget(uint32_t status_id, edict_t *target, cstring_t attach_point);
+void G_DestroyStatusEffectTarget(uint32_t status_id, edict_t *target);
 void G_DestroyEffect(edict_t *effect);
 uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index);
 gLightning_t *G_LightningAdd(lightningAddParams_t const *params);
@@ -2611,6 +2636,7 @@ buildCommandState_t G_GetBuildCommandState(gameClient_t *client, edict_t *worker
 buildCommandState_t G_GetTrainCommandState(gameClient_t *client, edict_t *producer, uint32_t unit_id, string_t reason, uint32_t reason_size);
 buildCommandState_t G_GetResearchCommandState(gameClient_t *client, edict_t *producer, uint32_t upgrade_id, int32_t *next_level, string_t reason, uint32_t reason_size);
 buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParams_t const *params);
+void G_ShowBuildCommandError(edict_t *clent, buildCommandState_t state, cstring_t reason);
 int32_t G_UpgradeGoldCost(uint32_t upgrade_id, int32_t level_value);
 int32_t G_UpgradeLumberCost(uint32_t upgrade_id, int32_t level_value);
 float G_UpgradeResearchTime(uint32_t upgrade_id, int32_t level_value);
@@ -2707,6 +2733,7 @@ void UI_SetCurrentClient(gameClient_t *client);
 void UI_ShowInterface(edict_t *, bool, float);
 void UI_ShowText(edict_t *, vec2_t const *, cstring_t, float);
 void UI_ShowTransientText(edict_t *, vec2_t const *, cstring_t, float);
+void UI_WriteCommandError(edict_t *, cstring_t);
 void UI_RecordTransmissionMessage(edict_t *);
 void UI_ClearTextMessages(edict_t *);
 void UI_InvalidateDialoguePresentation(edict_t *);
@@ -2714,6 +2741,8 @@ void UI_WriteDialoguePresentation(edict_t *);
 cstring_t GetBuildCommand(unitRace_t);
 void UI_RenderRoute(edict_t *, cstring_t);
 void UI_ShowMainMenu(edict_t *);
+void UI_ShowGameMenuOptions(edict_t *);
+void UI_ShowGameMenuOptionsSound(edict_t *);
 void UI_ShowGameMenuEndGame(edict_t *);
 void UI_ShowGameMenuConfirmExit(edict_t *);
 void UI_ShowGameMenuSave(edict_t *);
@@ -2879,6 +2908,8 @@ void G_MusicSetThematicPosition(int32_t millisecs);
 int32_t G_AudioDurationFromMemory(cstring_t filename, uint8_t const *data, uint32_t size);
 int32_t G_SoundFileDuration(cstring_t filename);
 void G_JassSoundRuntimeInit(handle_t sound);
+void G_JassSoundMarkStarted(handle_t sound);
+uint32_t G_JassSoundRemainingDuration(handle_t sound);
 void G_JassSoundSetVolume(handle_t sound, float volume);
 void G_JassSoundSetPosition(handle_t sound, vec3_t const *position);
 void G_JassSoundAttach(handle_t sound, edict_t *unit);
@@ -2891,6 +2922,9 @@ void G_SendMinimapPing(gameClient_t *, vec2_t const *, float, color32_t, uint32_
 void G_SendOwnerMinimapAlert(edict_t *);
 color32_t G_SmartTargetIndicatorColor(uint32_t, edict_t const *);
 void G_SendWidgetIndicator(edict_t *, color32_t, player_t *);
+void G_CommandErrorReset(void);
+void G_UpdateCommandError(edict_t *);
+cstring_t G_ResolveCommandErrorText(gameClient_t const *, cstring_t);
 void G_ShowCommandErrorKey(edict_t *, cstring_t, cstring_t);
 void G_ShowCommandErrorText(edict_t *, cstring_t);
 extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav configstring indices */
@@ -3097,6 +3131,7 @@ bool S_AcolyteHarvestOrder(edict_t *, edict_t *);
 void S_AcolyteHarvestRelease(edict_t *);
 bool S_AcolyteHarvestIsActive(edict_t const *);
 bool S_EntangleCommandHidden(edict_t const *, uint32_t);
+bool S_AutoEntangleNearby(edict_t *, bool instant);
 bool S_HarvestCanLumber(edict_t const *);
 bool S_HarvestCanGold(edict_t const *);
 bool S_WispHarvestCanLumber(edict_t const *);
@@ -3115,6 +3150,7 @@ void S_CargoInitUnit(edict_t *);
 bool S_CargoTryLoad(edict_t *, edict_t *);
 bool S_CorpseCargoTryLoad(edict_t *, edict_t *);
 bool S_CargoOrderBoard(edict_t *, edict_t *);
+bool S_CargoOrderNearestEntangledMine(edict_t *);
 bool S_CargoAttacksEnabled(edict_t const *);
 edict_t *S_CargoTransportForUnit(edict_t const *);
 void S_CargoReleaseUnit(edict_t *);

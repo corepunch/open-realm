@@ -41,6 +41,9 @@ static cstring_t const opts_lft[] = {
 
 static OptionsMenu_t options_menu;
 static optionsPanel_t current_panel = OPTIONS_PANEL_GAMEPLAY;
+static bool sound_controls_initialized;
+static bool sound_enabled_value;
+static int sound_volume_percent;
 static bool music_controls_initialized;
 static bool music_enabled_value;
 static int music_volume_percent;
@@ -164,6 +167,55 @@ static void OptionsMenu_SetCheckBox(frameDef_t *frame, bool checked) {
 static bool OptionsMenu_CheckBoxValue(frameDef_t const *frame, bool fallback) {
     if (!frame) return fallback;
     return (frame->ui_flags & UIFLAG_CHECKED) != 0;
+}
+
+static int OptionsMenu_SliderPercent(frameDef_t const *slider, int fallback) {
+    float min_value, max_value, value;
+
+    if (!slider) return fallback;
+    min_value = slider->Slider.MinValue;
+    max_value = slider->Slider.MaxValue;
+    value = slider->Slider.InitialValue;
+    if (max_value <= min_value) return fallback;
+    return MAX(0, MIN(100, (int)floorf((value - min_value) * 100.0f /
+        (max_value - min_value) + 0.5f)));
+}
+
+static void OptionsMenu_InitSoundEffectControls(void) {
+    float slider_value = 100.0f;
+
+    sound_enabled_value = OptionsMenu_CvarInteger("s_sound", 1) != 0;
+    if (options_menu.SoundVolumeSlider &&
+        options_menu.SoundVolumeSlider->Slider.MaxValue > options_menu.SoundVolumeSlider->Slider.MinValue) {
+        float min_value = options_menu.SoundVolumeSlider->Slider.MinValue;
+        float max_value = options_menu.SoundVolumeSlider->Slider.MaxValue;
+        slider_value = min_value + OptionsMenu_CvarFloat("s_volume", 1.0f) * (max_value - min_value);
+        sound_volume_percent = MAX(0, MIN(100, (int)floorf(
+            (slider_value - min_value) * 100.0f / (max_value - min_value) + 0.5f)));
+    } else sound_volume_percent = 100;
+    OptionsMenu_SetCheckBox(options_menu.SoundCheckBox, sound_enabled_value);
+    if (options_menu.SoundVolumeSlider)
+        options_menu.SoundVolumeSlider->Slider.InitialValue = slider_value;
+    sound_controls_initialized = true;
+}
+
+static void OptionsMenu_RefreshSoundEffectControls(void) {
+    bool enabled;
+    int percent;
+    char value[32];
+
+    if (!sound_controls_initialized) return;
+    enabled = OptionsMenu_CheckBoxValue(options_menu.SoundCheckBox, sound_enabled_value);
+    percent = OptionsMenu_SliderPercent(options_menu.SoundVolumeSlider, sound_volume_percent);
+    if (enabled != sound_enabled_value) {
+        sound_enabled_value = enabled;
+        mi.Cvar_Set("s_sound", enabled ? "1" : "0");
+    }
+    if (percent != sound_volume_percent) {
+        sound_volume_percent = percent;
+        snprintf(value, sizeof(value), "%.2f", (double)percent / 100.0);
+        mi.Cvar_Set("s_volume", value);
+    }
 }
 
 static int OptionsMenu_MusicSliderPercent(void) {
@@ -380,6 +432,7 @@ static void OptionsMenu_InitSoundMenus(void) {
                               OPTIONS_ARRAY_COUNT(provider_items),
                               OptionsMenu_CvarSelection("s_provider", 1, OPTIONS_ARRAY_COUNT(provider_items)));
     OptionsMenu_SetPopupCvar(options_menu.ProviderPopupMenuMenu, "s_provider");
+    OptionsMenu_InitSoundEffectControls();
     OptionsMenu_InitMusicControls();
 }
 
@@ -400,6 +453,7 @@ static void OptionsMenu_SetPanel(optionsPanel_t panel) {
 static void OptionsMenu_Init(void) {
     mi.Printf("OptionsMenu_Init\n");
     current_panel = OPTIONS_PANEL_GAMEPLAY;
+    sound_controls_initialized = false;
     music_controls_initialized = false;
 
     UI_SetOnClick(options_menu.GameplayButton, "menu_options_gameplay");
@@ -420,6 +474,7 @@ static void OptionsMenu_Shutdown(void) {
 
 static void OptionsMenu_Refresh(int msec) {
     (void)msec;
+    OptionsMenu_RefreshSoundEffectControls();
     OptionsMenu_RefreshMusicControls();
 }
 

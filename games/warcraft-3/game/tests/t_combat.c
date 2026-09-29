@@ -3002,10 +3002,44 @@ TEST(wc3_combat, attack_ground_stop_and_replace_while_locked) {
     T_FEQ(unit->channel.origin.x, other.x, 0.001f);
 }
 
-/* Roots lock translation the same way; immobile artillery still fires in range. */
-TEST(wc3_combat, attack_ground_roots_and_immobile_cover) {
+
+TEST(wc3_combat, entangling_roots_pauses_existing_attack_without_cancelling_order) {
+    edict_t *attacker, *target;
+    heroabilitystatus_t *roots;
+    setup_test_world(); reset_entities(); level.time = 1000;
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
+    attacker->s.player = 0; target->s.player = 1;
+    attacker->attack1.type = ATK_NORMAL; attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.range = 100.0f; attacker->attack1.damageBase = 25.0f;
+    attacker->attack1.numberOfDice = 0; attacker->attack1.damagePoint = 0.1f;
+    attacker->attack1.cooldown = 1.0f; attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->targtype = TARG_GROUND; target->defense_type = 0; target->armor_value = 0.0f;
+    target->health.value = target->health.max_value = 200.0f;
+
+    T_ASSERT(S_OrderAttack(attacker, target));
+    attacker->currentmove->think(attacker); /* attack walk -> melee windup */
+    T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
+    unit_addtimedstatus(attacker, "BEer", 1, 12.0f);
+    roots = unit_findstatus(attacker, MAKEFOURCC('B','E','e','r'));
+    T_NOT_NULL(roots);
+    attacker->wait = 0.01f;
+    attacker->currentmove->think(attacker);
+    T_FEQ(target->health.value, 200.0f, 0.001f);
+    T_EQ(attacker->goalentity, target);
+    T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
+
+    unit_expirestatus(attacker, roots);
+    attacker->wait = 0.01f;
+    attacker->currentmove->think(attacker);
+    T_FEQ(target->health.value, 175.0f, 0.001f);
+}
+
+/* Roots are a disarm as well as a movement lock; ordinary immobile artillery
+ * still fires because AI_IMMOBILE alone is not an attack restriction. */
+TEST(wc3_combat, attack_ground_roots_disarm_but_immobile_artillery_fires) {
     edict_t *unit, *tower, *missile = NULL;
-    vec2_t far = { 1000, 0 }, near = { 200, 75 };
+    vec2_t near_rooted = { 50, 0 }, near = { 200, 75 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -3013,12 +3047,10 @@ TEST(wc3_combat, attack_ground_roots_and_immobile_cover) {
     unit->targtype = TARG_GROUND;
     unit_addtimedstatus(unit, "BEer", 1, 12);
     T_ASSERT(!S_UnitCanTranslate(unit));
-    S_OrderAttackGround(unit, &far);
-    FOR_LOOP(i, 10) {
-        level.time += FRAMETIME;
-        if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
-    }
+    T_ASSERT(!S_OrderAttackGround(unit, &near_rooted));
     T_FEQ(unit->s.origin2.x, 0, 0.001f);
+    FILTER_EDICTS(ent, ent->owner == unit && ent->movetype == MOVETYPE_FLYMISSILE) missile = ent;
+    T_NULL(missile);
     tower = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     tower->attack1.type = ATK_SIEGE; tower->attack1.weapon = WPN_ARTILLERY;
     tower->attack1.range = 500; tower->attack1.damageBase = 73;
