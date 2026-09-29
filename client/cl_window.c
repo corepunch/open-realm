@@ -52,27 +52,14 @@ static struct {
     bool modal_paused;
 } cl_windows;
 
-typedef enum { LOCAL_PREF_TOGGLE, LOCAL_PREF_SLIDER } localPrefType_t;
+#define CVAR_TX_MAX 32
 
-/* DDX-style row: one fixed client action bound to one client cvar. Frame values are applied live and
- * every row is snapshotted/restored by the transaction, so adding a preference is one table row. */
-typedef struct {
-    cstring_t action, cvar, fallback;
-    localPrefType_t type;
-} localPref_t;
-
-static localPref_t const local_prefs[] = {
-    { UI_WINDOW_LOCAL_SOUND_ENABLED_ACTION, "s_sound",       "1", LOCAL_PREF_TOGGLE },
-    { UI_WINDOW_LOCAL_SOUND_VOLUME_ACTION,  "s_volume",      "1", LOCAL_PREF_SLIDER },
-    { UI_WINDOW_LOCAL_MUSIC_ENABLED_ACTION, "s_music",       "1", LOCAL_PREF_TOGGLE },
-    { UI_WINDOW_LOCAL_MUSIC_VOLUME_ACTION,  "s_musicvolume", "1", LOCAL_PREF_SLIDER },
-};
-#define LOCAL_PREF_COUNT (sizeof(local_prefs) / sizeof(*local_prefs))
-
+/* Cvars edited since transaction Begin, with the value each held on first edit. */
 static struct {
     bool active;
-    char saved[LOCAL_PREF_COUNT][32];
-} cl_local_pref_transaction;
+    uint32_t count;
+    struct { char name[64]; char value[32]; } saved[CVAR_TX_MAX];
+} cl_cvar_transaction;
 
 static rect_t CL_WindowRoot(clientWindow_t const *window);
 static bool CL_WindowIsEditBox(uiFrame_t const *frame);
@@ -82,42 +69,63 @@ static bool CL_WindowDebugEnabled(void) {
     return Cvar_Integer("ui_window_debug", 0) != 0;
 }
 
-/* Local preferences stay on a fixed table instead of interpreting wire strings as cvar names. */
-static localPref_t const *CL_WindowLocalPref(uiFrame_t const *frame) {
-    if (!frame || !frame->onclick) return NULL;
-    FOR_LOOP(i, LOCAL_PREF_COUNT)
-        if (!strcmp(frame->onclick, local_prefs[i].action)) return local_prefs + i;
-    return NULL;
+typedef struct { cstring_t name; bool slider; } windowCvar_t;
+
+/* Decode "<prefix><cvar>" from a control's action. The client only edits the cvar the server named. */
+static bool CL_WindowCvarBinding(uiFrame_t const *frame, windowCvar_t *out) {
+    cstring_t const action = frame ? frame->onclick : NULL;
+    size_t const check_len = sizeof(UI_WINDOW_CVAR_CHECKBOX_PREFIX) - 1;
+    size_t const slider_len = sizeof(UI_WINDOW_CVAR_SLIDER_PREFIX) - 1;
+
+    if (!action || !out) return false;
+    if (!strncmp(action, UI_WINDOW_CVAR_CHECKBOX_PREFIX, check_len)) *out = (windowCvar_t){ action + check_len, false };
+    else if (!strncmp(action, UI_WINDOW_CVAR_SLIDER_PREFIX, slider_len)) *out = (windowCvar_t){ action + slider_len, true };
+    else return false;
+    return out->name[0] != '\0' && strlen(out->name) < sizeof(cl_cvar_transaction.saved[0].name);
 }
 
-static bool CL_WindowLocalPrefIsSlider(uiFrame_t const *frame) {
-    localPref_t const *pref = CL_WindowLocalPref(frame);
-    return pref && pref->type == LOCAL_PREF_SLIDER;
+static bool CL_WindowCvarIsSlider(uiFrame_t const *frame) {
+    windowCvar_t binding;
+    return CL_WindowCvarBinding(frame, &binding) && binding.slider;
+}
+
+/* Remember a cvar's value the first time an open transaction edits it. */
+static void CL_WindowCvarRemember(cstring_t name) {
+    if (!cl_cvar_transaction.active) return;
+    FOR_LOOP(i, cl_cvar_transaction.count)
+        if (!strcmp(cl_cvar_transaction.saved[i].name, name)) return;
+    if (cl_cvar_transaction.count >= CVAR_TX_MAX) return;
+    snprintf(cl_cvar_transaction.saved[cl_cvar_transaction.count].name,
+             sizeof(cl_cvar_transaction.saved[0].name), "%s", name);
+    snprintf(cl_cvar_transaction.saved[cl_cvar_transaction.count].value,
+             sizeof(cl_cvar_transaction.saved[0].value), "%s", Cvar_String(name, ""));
+    cl_cvar_transaction.count++;
 }
 
 /* Convert a normalized frame value to the cvar representation. */
-static void CL_WindowSetLocalPref(localPref_t const *pref, float value) {
+static void CL_WindowSetCvar(windowCvar_t const *binding, float value) {
     char text[32];
 
-    if (!pref) return;
-    if (pref->type == LOCAL_PREF_TOGGLE)
+    if (!binding) return;
+    CL_WindowCvarRemember(binding->name);
+    if (!binding->slider)
         snprintf(text, sizeof(text), "%u", value >= 0.5f ? 1u : 0u);
     else
         snprintf(text, sizeof(text), "%.3f", (double)MIN(1.0f, MAX(0.0f, value)));
-    Cvar_Set(pref->cvar, text);
+    Cvar_Set(binding->name, text);
 }
 
-/* Reapply local preferences after parsing the transient window's wire layout. */
-static void CL_WindowApplyLocalPreferences(void) {
+/* Reflect current cvar values in bound controls after parsing the transient window's wire layout. */
+static void CL_WindowApplyCvarBindings(void) {
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t *frame = SCR_Frame(i);
-        localPref_t const *pref = CL_WindowLocalPref(frame);
+        windowCvar_t binding;
 
-        if (!pref) continue;
-        if (pref->type == LOCAL_PREF_TOGGLE)
-            frame->value = Cvar_Integer(pref->cvar, 1) != 0 ? 1.0f : 0.0f;
+        if (!CL_WindowCvarBinding(frame, &binding)) continue;
+        if (!binding.slider)
+            frame->value = Cvar_Integer(binding.name, 0) != 0 ? 1.0f : 0.0f;
         else
-            frame->value = MIN(1.0f, MAX(0.0f, Cvar_Value(pref->cvar, 1.0f)));
+            frame->value = MIN(1.0f, MAX(0.0f, Cvar_Value(binding.name, 0.0f)));
     }
 }
 
@@ -543,61 +551,61 @@ static bool CL_WindowFormatCommand(clientWindow_t *window, cstring_t src, window
 }
 
 typedef enum {
-    LOCAL_AUDIO_TRANSACTION_NONE,
-    LOCAL_AUDIO_TRANSACTION_BEGIN,
-    LOCAL_AUDIO_TRANSACTION_ACCEPT,
-    LOCAL_AUDIO_TRANSACTION_CANCEL,
-} localAudioTransactionAction_t;
+    CVAR_TRANSACTION_NONE,
+    CVAR_TRANSACTION_BEGIN,
+    CVAR_TRANSACTION_ACCEPT,
+    CVAR_TRANSACTION_CANCEL,
+} cvarTransactionAction_t;
 
 /* Decode transaction prefixes while keeping their server-command suffix opaque to local preference logic. */
-static localAudioTransactionAction_t CL_WindowLocalAudioTransactionAction(cstring_t action,
+static cvarTransactionAction_t CL_WindowCvarTransactionAction(cstring_t action,
                                                                            cstring_t *command) {
-    if (!action || !command) return LOCAL_AUDIO_TRANSACTION_NONE;
-    if (!strncmp(action, UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX,
-                 sizeof(UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX) - 1)) {
-        *command = action + sizeof(UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX) - 1;
-        return LOCAL_AUDIO_TRANSACTION_BEGIN;
+    if (!action || !command) return CVAR_TRANSACTION_NONE;
+    if (!strncmp(action, UI_WINDOW_CVAR_TX_BEGIN_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_CVAR_TX_BEGIN_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_CVAR_TX_BEGIN_COMMAND_PREFIX) - 1;
+        return CVAR_TRANSACTION_BEGIN;
     }
-    if (!strncmp(action, UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX,
-                 sizeof(UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX) - 1)) {
-        *command = action + sizeof(UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX) - 1;
-        return LOCAL_AUDIO_TRANSACTION_ACCEPT;
+    if (!strncmp(action, UI_WINDOW_CVAR_TX_ACCEPT_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_CVAR_TX_ACCEPT_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_CVAR_TX_ACCEPT_COMMAND_PREFIX) - 1;
+        return CVAR_TRANSACTION_ACCEPT;
     }
-    if (!strncmp(action, UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX,
-                 sizeof(UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX) - 1)) {
-        *command = action + sizeof(UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX) - 1;
-        return LOCAL_AUDIO_TRANSACTION_CANCEL;
+    if (!strncmp(action, UI_WINDOW_CVAR_TX_CANCEL_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_CVAR_TX_CANCEL_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_CVAR_TX_CANCEL_COMMAND_PREFIX) - 1;
+        return CVAR_TRANSACTION_CANCEL;
     }
-    return LOCAL_AUDIO_TRANSACTION_NONE;
+    return CVAR_TRANSACTION_NONE;
 }
 
-/* Capture every table cvar before the page allows live edits. */
-static void CL_WindowBeginLocalAudioTransaction(void) {
-    FOR_LOOP(i, LOCAL_PREF_COUNT)
-        snprintf(cl_local_pref_transaction.saved[i], sizeof(cl_local_pref_transaction.saved[i]), "%s",
-                 Cvar_String(local_prefs[i].cvar, local_prefs[i].fallback));
-    cl_local_pref_transaction.active = true;
+/* Begin an empty edit log; cvars are captured as the page first touches them. */
+static void CL_WindowBeginCvarTransaction(void) {
+    cl_cvar_transaction.count = 0;
+    cl_cvar_transaction.active = true;
 }
 
-/* Accept keeps the live values; Cancel restores the snapshot captured on entry. */
-static void CL_WindowFinishLocalAudioTransaction(bool cancel) {
-    if (!cl_local_pref_transaction.active) return;
+/* Accept keeps the live values; Cancel restores every cvar edited since Begin. */
+static void CL_WindowFinishCvarTransaction(bool cancel) {
+    if (!cl_cvar_transaction.active) return;
     if (cancel)
-        FOR_LOOP(i, LOCAL_PREF_COUNT) Cvar_Set(local_prefs[i].cvar, cl_local_pref_transaction.saved[i]);
-    cl_local_pref_transaction.active = false;
+        FOR_LOOP(i, cl_cvar_transaction.count)
+            Cvar_Set(cl_cvar_transaction.saved[i].name, cl_cvar_transaction.saved[i].value);
+    cl_cvar_transaction.active = false;
+    cl_cvar_transaction.count = 0;
 }
 
 /* Apply the local transaction action, then forward only its authored server-command suffix. */
-static bool CL_WindowRunLocalAudioTransactionCommand(clientWindow_t *window, cstring_t action) {
+static bool CL_WindowRunCvarTransactionCommand(clientWindow_t *window, cstring_t action) {
     cstring_t source = NULL;
-    localAudioTransactionAction_t transaction = CL_WindowLocalAudioTransactionAction(action, &source);
+    cvarTransactionAction_t transaction = CL_WindowCvarTransactionAction(action, &source);
     char command[CMDARG_LEN * 4];
 
-    if (transaction == LOCAL_AUDIO_TRANSACTION_NONE) return false;
+    if (transaction == CVAR_TRANSACTION_NONE) return false;
     if (!CL_WindowFormatCommand(window, source, &MAKE(windowTextOut_t, .data = command, .size = sizeof(command))))
         return true;
-    if (transaction == LOCAL_AUDIO_TRANSACTION_BEGIN) CL_WindowBeginLocalAudioTransaction();
-    else CL_WindowFinishLocalAudioTransaction(transaction == LOCAL_AUDIO_TRANSACTION_CANCEL);
+    if (transaction == CVAR_TRANSACTION_BEGIN) CL_WindowBeginCvarTransaction();
+    else CL_WindowFinishCvarTransaction(transaction == CVAR_TRANSACTION_CANCEL);
     Cmd_ForwardToServer(command);
     return true;
 }
@@ -623,7 +631,7 @@ static void CL_WindowPrepareState(clientWindow_t *window, rect_t const *root) {
         if (frame && frame->buffer.data && frame->buffer.size >= sizeof(uiListBox_t))
             ((uiListBox_t *)frame->buffer.data)->selectedIndex = value->selected;
     }
-    CL_WindowApplyLocalPreferences();
+    CL_WindowApplyCvarBindings();
 }
 
 static uiFrame_t *CL_WindowScrollOwner(uiFrame_t *frame) {
@@ -767,12 +775,11 @@ static uiFrame_t const *CL_WindowClickableAt(clientWindow_t *window, vec2_t cons
 /* Consume client-owned button actions locally; ordinary layout actions remain server commands. */
 static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *frame) {
     size_t const close_command_len = sizeof(UI_WINDOW_CLOSE_COMMAND_PREFIX) - 1;
-    localPref_t const *pref;
+    windowCvar_t binding;
     if (!frame) return;
-    if (CL_WindowRunLocalAudioTransactionCommand(window, frame->onclick)) return;
-    if ((pref = CL_WindowLocalPref(frame))) {
-        CL_WindowSetLocalPref(pref, pref->type == LOCAL_PREF_TOGGLE ?
-                              (frame->value < 0.5f ? 1.0f : 0.0f) : frame->value);
+    if (CL_WindowRunCvarTransactionCommand(window, frame->onclick)) return;
+    if (CL_WindowCvarBinding(frame, &binding)) {
+        CL_WindowSetCvar(&binding, binding.slider ? frame->value : (frame->value < 0.5f ? 1.0f : 0.0f));
         return;
     }
     if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION) ||
@@ -862,7 +869,7 @@ void CL_WindowClear(void) {
     while (cl_windows.first) CL_WindowClose(cl_windows.first->id);
     memset(&cl_windows, 0, sizeof(cl_windows));
     /* A full client-state clear ends this edit session without restoring stale preferences. */
-    cl_local_pref_transaction.active = false;
+    cl_cvar_transaction.active = false;
 }
 
 bool CL_WindowModalActive(void) { return CL_WindowModal() != NULL; }
@@ -892,18 +899,17 @@ void CL_WindowDraw(void) {
 
 static void CL_WindowSliderSetFromPoint(clientWindow_t *window, uiFrame_t *slider, vec2_t const *point) {
     rect_t const *rect;
-    localPref_t const *pref;
+    windowCvar_t binding;
     float value;
 
     if (!window || !slider || !point || slider->flags.type != FT_SLIDER) return;
-    pref = CL_WindowLocalPref(slider);
-    if (!pref || pref->type != LOCAL_PREF_SLIDER) return;
+    if (!CL_WindowCvarBinding(slider, &binding) || !binding.slider) return;
     rect = SCR_LayoutRect(slider);
     if (!rect || rect->w <= 0.0f || rect->h <= 0.0f) return;
     value = (point->x - rect->x) / rect->w;
     value = MIN(1.0f, MAX(0.0f, value));
     slider->value = value;
-    CL_WindowSetLocalPref(pref, value);
+    CL_WindowSetCvar(&binding, value);
 }
 
 bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
@@ -959,7 +965,7 @@ bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
         if (event == MENU_MOUSE_DOWN && param == 1) {
             uiFrame_t *slider = CL_WindowFrameAtType(&point, FT_SLIDER);
             uiFrame_t *edit = CL_WindowFrameAtType(&point, FT_EDITBOX);
-            if (slider && CL_WindowLocalPrefIsSlider(slider)) {
+            if (slider && CL_WindowCvarIsSlider(slider)) {
                 CL_WindowSliderSetFromPoint(window, slider, &point);
                 cl_windows.slider_drag = window;
                 cl_windows.slider_drag_frame = slider->number;

@@ -2,6 +2,16 @@
 
 #include "hud_local.h"
 #include <time.h>
+#include <stddef.h>
+
+/* Sound page schema: { control member, client cvar, checkbox|slider }. */
+typedef struct { size_t offset; cstring_t cvar; bool slider; } optionsCvarControl_t;
+static optionsCvarControl_t const options_cvar_controls[] = {
+    { offsetof(EscMenuOptionsPanel_t, SoundCheckBox),     "s_sound",       false },
+    { offsetof(EscMenuOptionsPanel_t, SoundVolumeSlider), "s_volume",      true },
+    { offsetof(EscMenuOptionsPanel_t, MusicCheckBox),     "s_music",       false },
+    { offsetof(EscMenuOptionsPanel_t, MusicVolumeSlider), "s_musicvolume", true },
+};
 
 #define MENU_SAVE_LIST_TEXT 2048 // bytes; bounded transient list payload; used for serialized save rows
 #define MENU_SAVE_ENUM_TEXT 4096 // bytes; bounded double-NUL file list; used for save-directory enumeration
@@ -257,7 +267,7 @@ void UI_LoadHudMenu(void) {
     MenuConfigureMainSaveLoad();
     MenuSetButton(hud.menu.OptionsButton, hud.options.EscMenuOptionsPanel != NULL,
                   hud.options.EscMenuOptionsPanel
-                      ? UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX "wc3_menu_options"
+                      ? UI_WINDOW_CVAR_TX_BEGIN_COMMAND_PREFIX "wc3_menu_options"
                       : NULL);
     UI_SetEnabled(hud.menu.HelpButton, false);
     UI_SetEnabled(hud.menu.TipsButton, false);
@@ -265,9 +275,9 @@ void UI_LoadHudMenu(void) {
     if (hud.options.EscMenuOptionsPanel) {
         UI_SetOnClick(hud.options.OptionsPreviousButton, "menu");
         UI_SetOnClick(hud.options.OptionsOKButton,
-                      UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX "menu");
+                      UI_WINDOW_CVAR_TX_ACCEPT_COMMAND_PREFIX "menu");
         UI_SetOnClick(hud.options.OptionsCancelButton,
-                      UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX "menu");
+                      UI_WINDOW_CVAR_TX_CANCEL_COMMAND_PREFIX "menu");
 
         /* The Sound page is the first in-game Options page with client-owned
          * behavior. Keep unsupported pages and category toggles visible but
@@ -284,10 +294,14 @@ void UI_LoadHudMenu(void) {
         UI_SetEnabled(hud.options.EnviroCheckBox, false);
         UI_SetEnabled(hud.options.PositionalCheckBox, false);
 
-        UI_SetOnClick(hud.options.SoundCheckBox, UI_WINDOW_LOCAL_SOUND_ENABLED_ACTION);
-        UI_SetOnClick(hud.options.SoundVolumeSlider, UI_WINDOW_LOCAL_SOUND_VOLUME_ACTION);
-        UI_SetOnClick(hud.options.MusicCheckBox, UI_WINDOW_LOCAL_MUSIC_ENABLED_ACTION);
-        UI_SetOnClick(hud.options.MusicVolumeSlider, UI_WINDOW_LOCAL_MUSIC_VOLUME_ACTION);
+        /* DDX-style rows: each control names the client cvar it edits; the client applies it live and
+         * Cancel restores the previous values. */
+        FOR_LOOP(i, sizeof(options_cvar_controls) / sizeof(*options_cvar_controls)) {
+            optionsCvarControl_t const *row = options_cvar_controls + i;
+            UI_SetOnClick(*(frameDef_t **)((char *)&hud.options + row->offset), "%s%s",
+                          row->slider ? UI_WINDOW_CVAR_SLIDER_PREFIX : UI_WINDOW_CVAR_CHECKBOX_PREFIX,
+                          row->cvar);
+        }
     }
 
     UI_SetText(hud.menu.PauseButtonText, "Resume Game");
