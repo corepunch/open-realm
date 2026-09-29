@@ -147,12 +147,67 @@ TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_ori
     T_EQ(status->data, MAKEFOURCC('A','O','w','k'));
     T_ASSERT(S_SpellCooldownReady(caster, MAKEFOURCC('A','O','w','k')));
 
-    S_WindWalkEnd(caster);
+    S_UnitStatusAbilityEvent(caster, A_ATTACK_LANDED, NULL);
     T_NULL(unit_findstatus(caster, MAKEFOURCC('B','O','w','k')));
     T_ASSERT(!S_SpellCooldownReady(caster, MAKEFOURCC('A','O','w','k')));
     T_FEQ(S_SpellCooldownLength(caster, MAKEFOURCC('A','O','w','k')), 13.0f, 0.001f);
 
     remove(save);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, wind_walk_and_temporary_invisibility_keep_hidden_until_both_expire) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Dur1\"\n"
+        "C;Y1;X7;K\"HeroDur1\"\nC;Y1;X8;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"13\"\nC;Y2;X6;K\"2.75\"\n"
+        "C;Y2;X7;K\"2.75\"\nC;Y2;X8;K\"77\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AOwk" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *walk_first, *walk_second;
+    heroabilitystatus_t *wind, *invis;
+
+    setup_test_world();
+    walk_first = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+    walk_first->data.UnitAbilities = &abilities;
+    walk_first->s.player = 0;
+    T_ASSERT(S_CastNoTargetSpell(walk_first, MAKEFOURCC('A','O','w','k')));
+    unit_addtimedstatus(walk_first, "Binv", 1, 10.0f);
+    wind = unit_findstatus(walk_first, MAKEFOURCC('B','O','w','k'));
+    invis = unit_findstatus(walk_first, MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(wind); T_NOT_NULL(invis);
+    level.time = wind->timestamp;
+    unit_updatestatuses(walk_first);
+    T_NULL(unit_findstatus(walk_first, MAKEFOURCC('B','O','w','k')));
+    T_ASSERT(G_UnitStatusLevel(walk_first, MAKEFOURCC('B','i','n','v')));
+    T_ASSERT(walk_first->s.renderfx & RF_HIDDEN);
+
+    level.time = invis->timestamp;
+    unit_updatestatuses(walk_first);
+    T_ASSERT(!(walk_first->s.renderfx & RF_HIDDEN));
+
+    walk_second = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+    walk_second->data.UnitAbilities = &abilities;
+    walk_second->s.player = 0;
+    T_ASSERT(S_CastNoTargetSpell(walk_second, MAKEFOURCC('A','O','w','k')));
+    unit_addtimedstatus(walk_second, "Binv", 1, 1.0f);
+    wind = unit_findstatus(walk_second, MAKEFOURCC('B','O','w','k'));
+    invis = unit_findstatus(walk_second, MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(wind); T_NOT_NULL(invis);
+    level.time = invis->timestamp;
+    unit_updatestatuses(walk_second);
+    T_ASSERT(G_UnitStatusLevel(walk_second, MAKEFOURCC('B','O','w','k')));
+    T_ASSERT(walk_second->s.renderfx & RF_HIDDEN);
+
+    wind = unit_findstatus(walk_second, MAKEFOURCC('B','O','w','k'));
+    level.time = wind->timestamp;
+    unit_updatestatuses(walk_second);
+    T_ASSERT(!(walk_second->s.renderfx & RF_HIDDEN));
+
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }

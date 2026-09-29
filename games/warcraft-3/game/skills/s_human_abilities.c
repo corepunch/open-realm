@@ -660,14 +660,18 @@ void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage) {
 
 void S_HumanBreakInvisibility(edict_t *unit) {
     if (!unit || !human_has_status(unit, MAKEFOURCC('B','i','n','v'))) return;
-    human_remove_status(unit, MAKEFOURCC('B','i','n','v')); unit->s.renderfx &= ~RF_HIDDEN;
+    human_remove_status(unit, MAKEFOURCC('B','i','n','v'));
+    if (!G_UnitStatusLevel(unit, MAKEFOURCC('B','O','w','k')))
+        unit->s.renderfx &= ~RF_HIDDEN;
 }
 
 void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
     (void)level;
     if (!unit) return;
     if (G_AbilityCode(code) == MAKEFOURCC('A','d','e','f')) G_AddUnitAnimationProperties(unit, "defend", false);
-    if (code == MAKEFOURCC('B','i','n','v')) unit->s.renderfx &= ~RF_HIDDEN;
+    if (code == MAKEFOURCC('B','i','n','v') &&
+        !G_UnitStatusLevel(unit, MAKEFOURCC('B','O','w','k')))
+        unit->s.renderfx &= ~RF_HIDDEN;
     if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
     if (unit->polymorph.active && code == unit->polymorph.buff) S_PolymorphRemove(unit);
 }

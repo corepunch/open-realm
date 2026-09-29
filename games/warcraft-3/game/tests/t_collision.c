@@ -174,6 +174,7 @@ TEST(wc3_collision, wind_walk_mover_ignores_dynamic_unit_collision) {
     vec2_t dest = {100.0f, 0.0f};
 
     unit_addtimedstatus(mover, "BOwk", 1, 10.0f);
+    unit_findstatus(mover, MAKEFOURCC('B','O','w','k'))->data = MAKEFOURCC('A','O','w','k');
     mover->s.renderfx |= RF_HIDDEN;
     unit_issueorder(mover, "move", &dest);
     run_move_tracking_min_dist(mover, NULL, 20);

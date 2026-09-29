@@ -338,13 +338,8 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
         damage += (int)S_SpellData(bash.alias, bash.level, 3);
         unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(bash.alias, bash.level, false));
     } }
-    uint32_t wind_level = G_UnitStatusLevel(attacker, MAKEFOURCC('B', 'O', 'w', 'k'));
-    if (wind_level) {
-        heroabilitystatus_t *wind = unit_findstatus(attacker, MAKEFOURCC('B', 'O', 'w', 'k'));
-        uint32_t wind_code = wind && wind->data ? wind->data : MAKEFOURCC('A', 'O', 'w', 'k');
-        damage += (int)S_SpellData(wind_code, wind_level, 3);
-        S_WindWalkEnd(attacker);
-    }
+    damage += (int)S_UnitStatusAbilityEvent(attacker, A_ATTACK_DAMAGE_BONUS, NULL);
+    S_UnitStatusAbilityEvent(attacker, A_ATTACK_LANDED, NULL);
     damage = S_PossessionDamageTaken(target, damage);
     damage = S_HardenedSkinDamage(target, damage);
     if (damage <= 0) return;

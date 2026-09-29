@@ -12,7 +12,7 @@ See [Shadow Meld](shadowmeld.md) for the separate `Ashm`/`Ahid` night/stationary
 
 - `Apiv` Permanent Invisibility owns its authored transition/reveal window and is consumed by the shared viewer-relative visibility query.
 - `Aivs`/`Binv` temporary Invisibility uses `RF_HIDDEN` only as an invisibility presentation state; attack/ability commits remove `Binv` through the existing Human ability path.
-- `AOwk`/`ANwk` Wind Walk owns `BOwk`. Movement already reads authored Data A for the speed modifier. `BOwk.data` stores the applying ability rawcode so aliases keep their own authored Data C/cooldown and survive save/load.
+- `AOwk`/`ANwk` Wind Walk owns `BOwk`. `BOwk.data` stores the applying ability rawcode so aliases keep their own authored Data C/cooldown and survive save/load.
 - `Agho` Ghost caches persistent invisibility in `unit->runtime.flags`; detector coverage reveals it per viewer without removing the Ghost state. Like the repository's other gameplay-invisible states, Ghost is excluded by the shared aura-active predicate.
 - `AIvi` Item Temporary Invisibility is an `AB_ITEM` ability and applies the existing `Binv` state to the selected living carrier. Duration is read through `S_SpellDuration()`, including HeroDur for hero carriers.
 
@@ -24,9 +24,9 @@ Gameplay-invisible friendly units continue to reveal fog for their owner and sha
 
 ## Wind Walk lifecycle
 
-`CAbilityWindWalk` deliberately does not start cooldown during the ordinary spell-commit step. The cooldown begins when `BOwk` ends. Expiry reaches `CAbilityWindWalk` through the existing `abilstatus.data -> UnitDispatchStatus(..., A_STATUS_REMOVE)` lifecycle; attack/other-ability breaks call the same cleanup through `S_WindWalkEnd()`.
+`CAbilityWindWalk` declares cooldown-on-status-removal in its registry row. The shared spell processor reads that policy without checking Wind Walk rawcodes; cooldown begins when `BOwk` ends. Expiry and generic status queries dispatch to the owning procedure through the status's saved applying rawcode. That procedure owns movement collision policy, attack damage/break behavior, spell-commit breaks, and cleanup.
 
-While `BOwk` is active, both steering and final movement commits ignore dynamic unit collision but retain static terrain/building pathing. `S_StatusIsUndispellable()` treats `BOwk` as non-dispellable. The breaking attack reads Data C from the rawcode saved in `BOwk.data`, rather than assuming `AOwk`.
+While `BOwk` is active, both steering and final movement commits ignore dynamic unit collision but retain static terrain/building pathing. `S_StatusIsUndispellable()` treats `BOwk` as non-dispellable. The breaking attack reads Data C from the rawcode saved in `BOwk.data`, rather than assuming `AOwk`. Wind Walk and temporary Invisibility share `RF_HIDDEN`; removing either effect preserves the flag while the other remains active.
 
 ## Item invisibility data flow
 
@@ -115,7 +115,7 @@ High-confidence retail behavior remains authoritative: `Aeth` is visible Ghost-s
 
 Focused automated coverage lives in:
 
-- `games/warcraft-3/game/tests/t_spell.c`: authored Wind Walk duration/cooldown, `AOwk`/`ANwk` procedure coverage, undispellable `BOwk`, applying-rawcode save/load, and Ghost aura exclusion through the shared gameplay-invisibility contract.
+- `games/warcraft-3/game/tests/t_spell.c`: authored Wind Walk duration/cooldown, `AOwk`/`ANwk` procedure coverage, undispellable `BOwk`, applying-rawcode save/load, overlapping Wind Walk/Binv expiry, and Ghost aura exclusion through the shared gameplay-invisibility contract.
 - `games/warcraft-3/game/tests/t_collision.c`: Wind Walk movement through a live unit while retaining the normal movement order path.
 - `games/warcraft-3/game/tests/t_items.c`: non-stock `AIvi` Dur/HeroDur, selection/control while active, timed expiry/recast, and invalid dead-carrier use.
 - `games/warcraft-3/game/tests/t_shadowmeld.c`: owner ghost alpha for timed invisibility.

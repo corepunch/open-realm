@@ -258,7 +258,7 @@ static ability_t abilitylist[] = {
     { "AOvd", CAbilityVoodoo, AB_SPELL },  /* Big Bad Voodoo */
     { "Astd", CAbilityStandDown, AB_COMMAND },  /* Stand Down */
     { "Abtl", CAbilityBattlestations, AB_COMMAND },  /* Battle Stations */
-    { "AOwk", CAbilityWindWalk, AB_SPELL },  /* Wind Walk */
+    { "AOwk", CAbilityWindWalk, AB_SPELL | AB_COOLDOWN_ON_STATUS_REMOVE },  /* Wind Walk */
     { "AOmi", CAbilityMirrorImage, AB_SPELL },  /* Mirror Image */
     { "AOcr", CAbilityCreepAura, AB_PASSIVE },  /* Critical Strike */
     { "AOww", CAbilityWhirlwind, AB_SPELL | AB_CHANNEL },  /* Bladestorm */
@@ -642,7 +642,7 @@ static ability_t abilitylist[] = {
     { "ANrn", CAbilityReincarnation, AB_PASSIVE },  /* Mannoroth - Reincarnation */
     { "ANta", CAbilityTaunt, AB_SPELL },  /* Taunt (Creep) */
     { "ANtr", CAbilityTrueSight, AB_PASSIVE },  /* Detect (War Eagle) */
-    { "ANwk", CAbilityWindWalk, AB_SPELL },  /* Wind Walk */
+    { "ANwk", CAbilityWindWalk, AB_SPELL | AB_COOLDOWN_ON_STATUS_REMOVE },  /* Wind Walk */
     { "Aap1", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Abomination) */
     { "Aap2", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Plague Ward) */
     { "Aap3", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Creep) */
@@ -779,6 +779,36 @@ static intptr_t unit_dispatch_ability_code(edict_t *ent, abilityMsg_t msg, abili
     invoke = payload ? *payload : MAKE(abilityCall_t, 0);
     invoke.item = &item;
     return S_AbilityMessage(ent, msg, &invoke);
+}
+
+/* Route active-status policy notifications to each status's concrete source
+ * ability. Shared movement/combat/spell systems consume the result without
+ * knowing individual buff or ability rawcodes. */
+intptr_t S_UnitStatusAbilityEvent(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload) {
+    intptr_t result = 0;
+
+    if (!ent) return 0;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = ent->abilstatus + i;
+        abilityitem_t item;
+        abilityCall_t call;
+        intptr_t handled;
+
+        if (!status->level || !status->data) continue;
+        item = S_AbilityItem(status->data);
+        if (!item.ability || !item.ability->proc) {
+            fprintf(stderr, "WC3: unresolved status owner %08x on unit %u\n",
+                    status->data, ent->s.number);
+            continue;
+        }
+        call = payload ? *payload : MAKE(abilityCall_t, 0);
+        call.status.slot = status;
+        call.status.ability = status->data;
+        handled = item.ability->proc(ent, msg, &call);
+        if (msg == A_ATTACK_DAMAGE_BONUS) result += handled;
+        else result |= handled;
+    }
+    return result;
 }
 
 /* Dispatch lifecycle notifications to the unit's concrete authored abilities.
