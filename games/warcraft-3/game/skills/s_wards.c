@@ -307,6 +307,24 @@ bool S_PermanentInvisibilityActive(edict_t const *unit) {
 		G_Time() >= unit->permanent_invisibility_reveal_until;
 }
 
+bool S_UnitStatusIsTemporaryInvisibility(heroabilitystatus_t const *status) {
+	abilityitem_t item;
+	if (!status || !status->level) return false;
+	if (status->code == ID_BINV || status->code == ID_BOWK) return true;
+	if (!status->data) return false;
+	item = S_AbilityItem(status->data);
+	return item.ability && (item.ability->proc == CAbilityInvisibility ||
+	                        item.ability->proc == CAbilityItemInvis);
+}
+
+bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t const *except) {
+	if (!unit) return false;
+	FOR_LOOP(i, MAX_UNIT_STATUSES)
+		if (unit->abilstatus + i != except &&
+		    S_UnitStatusIsTemporaryInvisibility(unit->abilstatus + i)) return true;
+	return false;
+}
+
 void S_PermanentInvisibilityInitialize(edict_t *unit) {
     float transition;
     if (!unit || !G_UnitAbilityLevel(unit, ID_APIV)) {
@@ -365,7 +383,7 @@ void S_PermanentInvisibilityReveal(edict_t *unit) {
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit) {
 	uint32_t summon;
 	if (!unit || !unit->inuse || !(unit->s.renderfx & RF_HIDDEN)) return false;
-	if (G_UnitStatusLevel(unit, ID_BINV) || G_UnitStatusLevel(unit, ID_BOWK)) return true;
+	if (S_UnitHasTemporaryInvisibility(unit, NULL)) return true;
 	if (G_UnitAbilityLevel(unit, ID_AMIN)) return true;
 	summon = G_AbilityCode(unit->summon_ability);
 	return summon == ID_AEYE || summon == ID_ASTA;

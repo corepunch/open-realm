@@ -226,13 +226,13 @@ TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
          (int32_t)(30.0f / ((float)FRAMETIME / 1000.0f)));
 }
 
-TEST(wc3_items, invisibility_item_uses_authored_duration_and_binvisibility_status) {
+TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X6\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
         "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\n"
         "C;Y2;X1;K\"AIvi\"\nC;Y2;X2;K\"AIvi\"\nC;Y2;X3;K\"1\"\n"
-        "C;Y2;X4;K\"3.5\"\nC;Y2;X5;K\"7.25\"\nC;Y2;X6;K\"Binv\"\nE\n";
+        "C;Y2;X4;K\"3.5\"\nC;Y2;X5;K\"7.25\"\nC;Y2;X6;K\"Bixx\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *player;
     edict_t *hero;
@@ -254,7 +254,7 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_binvisibility_statu
     call = MAKE(abilityCall_t, .item = &item, .client = player);
 
     T_ASSERT(S_AbilityMessage(player, A_ITEM_USE, &call));
-    status = unit_findstatus(hero, MAKEFOURCC('B','i','n','v'));
+    status = unit_findstatus(hero, MAKEFOURCC('B','i','x','x'));
     T_NOT_NULL(status);
     if (!status) {
         G_SetSLKRows("AbilityData", old);
@@ -263,16 +263,21 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_binvisibility_statu
     }
     T_EQ(status->duration_ms, 7250);
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
+    T_ASSERT(S_UnitUsesInvisibilityRenderFlag(hero));
+    T_ASSERT(S_UnitIsInvisibleToPlayer(hero, 1));
     T_ASSERT(G_IsEntitySelected(player->client, hero));
     T_ASSERT(G_GetMainSelectedUnit(player->client) == hero);
     T_ASSERT(G_UnitCanControl(player->client, hero));
 
     level.time = status->timestamp;
     unit_updatestatuses(hero);
-    T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','n','v')));
+    T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','x','x')));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
     T_ASSERT(S_AbilityMessage(player, A_ITEM_USE, &call));
-    T_NOT_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','n','v')));
+    T_NOT_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','x','x')));
+    S_HumanBreakInvisibility(hero);
+    T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','x','x')));
+    T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
 
     memset(hero->abilstatus, 0, sizeof(hero->abilstatus));
     hero->s.renderfx &= ~RF_HIDDEN;
@@ -282,7 +287,7 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_binvisibility_statu
     }
     T_ASSERT(!S_AbilityMessage(player, A_ITEM_USE, &call));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
-    T_EQ(G_UnitStatusLevel(hero, MAKEFOURCC('B','i','n','v')), 0);
+    T_EQ(G_UnitStatusLevel(hero, MAKEFOURCC('B','i','x','x')), 0);
 
     memset(hero->abilstatus, 0, sizeof(hero->abilstatus));
     hero->s.renderfx &= ~RF_HIDDEN;

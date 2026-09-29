@@ -11,10 +11,10 @@ See [Shadow Meld](shadowmeld.md) for the separate `Ashm`/`Ahid` night/stationary
 ## Current ownership
 
 - `Apiv` Permanent Invisibility owns its authored transition/reveal window and is consumed by the shared viewer-relative visibility query.
-- `Aivs`/`Binv` temporary Invisibility uses `RF_HIDDEN` only as an invisibility presentation state; attack/ability commits remove `Binv` through the existing Human ability path.
+- `Aivs` temporary Invisibility and `AIvi` Item Temporary Invisibility apply the authored AbilityData `BuffID`; the status stores its applying ability rawcode so detection, break, expiry, and overlap cleanup recognize custom buff IDs. `RF_HIDDEN` remains its presentation state.
 - `AOwk`/`ANwk` Wind Walk owns `BOwk`. `BOwk.data` stores the applying ability rawcode so aliases keep their own authored Data C/cooldown and survive save/load.
 - `Agho` Ghost caches persistent invisibility in `unit->runtime.flags`; detector coverage reveals it per viewer without removing the Ghost state. Like the repository's other gameplay-invisible states, Ghost is excluded by the shared aura-active predicate.
-- `AIvi` Item Temporary Invisibility is an `AB_ITEM` ability and applies the existing `Binv` state to the selected living carrier. Duration is read through `S_SpellDuration()`, including HeroDur for hero carriers.
+- `AIvi` Item Temporary Invisibility is an `AB_ITEM` ability that applies its authored status to the selected living carrier. Duration is read through `S_SpellDuration()`, including HeroDur for hero carriers.
 
 Selected friendly units retain their selection focus and control while invisible. `G_IsEntitySelected()` applies the same viewer-aware invisibility rule as selection admission, so portrait, status, command, and order paths continue to resolve the selected unit. Owner/shared-vision snapshots also receive a ghosted vertex alpha (0.35 multiplied by authored alpha); hostile visibility remains governed by fog and detection. Timed status expiry clears `RF_HIDDEN`, restoring ordinary presentation automatically.
 
@@ -34,8 +34,9 @@ While `BOwk` is active, both steering and final movement commits ignore dynamic 
 AIvi registry row
     -> CAbilityItemInvis
     -> S_SpellCurrentCode()
+    -> AbilityData BuffID
     -> S_SpellDuration(code, 1, G_UnitIsHero(target))
-    -> Binv timed status
+    -> authored timed status with AIvi source identity
     -> existing temporary-invisibility break/detection rules
 ```
 
@@ -115,9 +116,10 @@ High-confidence retail behavior remains authoritative: `Aeth` is visible Ghost-s
 
 Focused automated coverage lives in:
 
-- `games/warcraft-3/game/tests/t_spell.c`: authored Wind Walk duration/cooldown, `AOwk`/`ANwk` procedure coverage, undispellable `BOwk`, applying-rawcode save/load, overlapping Wind Walk/Binv expiry, and Ghost aura exclusion through the shared gameplay-invisibility contract.
+- `games/warcraft-3/game/tests/t_spell.c`: authored Wind Walk duration/cooldown, `AOwk`/`ANwk` procedure coverage, undispellable `BOwk`, applying-rawcode save/load, overlapping Wind Walk/temporary-invisibility expiry, and Ghost aura exclusion through the shared gameplay-invisibility contract.
 - `games/warcraft-3/game/tests/t_collision.c`: Wind Walk movement through a live unit while retaining the normal movement order path.
-- `games/warcraft-3/game/tests/t_items.c`: non-stock `AIvi` Dur/HeroDur, selection/control while active, timed expiry/recast, invalid dead-carrier use, and rejection without visibility changes when the status table is full.
+- `games/warcraft-3/game/tests/t_items.c`: non-stock `AIvi` Dur/HeroDur/BuffID, selection/control while active, timed expiry/recast and break cleanup, invalid dead-carrier use, and rejection without visibility changes when the status table is full.
+- `games/warcraft-3/game/tests/t_spell.c`: non-stock `Aivs` BuffID, temporary-invisibility break/expiry ownership, and Wind Walk overlap in both expiry orders.
 - `games/warcraft-3/game/tests/t_shadowmeld.c`: owner ghost alpha for timed invisibility.
 - `games/warcraft-3/game/tests/t_game.c`: a moving Binv unit keeps revealing newly entered fog.
 - `games/warcraft-3/game/tests/t_wards.c`: Ghost lifecycle, player-relative invisibility, and save/load.

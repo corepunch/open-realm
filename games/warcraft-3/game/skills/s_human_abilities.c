@@ -180,12 +180,40 @@ static bool slow_validate(edict_t *caster, spellTarget_t st, abilityitem_t const
 }
 
 static bool invisibility_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsFriend(caster, st.entity);
+    uint32_t level;
+    cstring_t buff;
+    bool has_slot;
+
+    if (!spell || !st.entity || !S_SpellIsAliveTarget(st.entity) ||
+        !S_SpellIsFriend(caster, st.entity)) return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = human_buff(spell, level);
+    if (!buff || strlen(buff) != 4 ||
+        S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)) <= 0.0f) return false;
+    has_slot = unit_findstatus(st.entity, *((uint32_t const *)buff)) != NULL;
+    if (has_slot) return true;
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (!st.entity->abilstatus[i].level) return true;
+    return false;
 }
 
 static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    uint32_t level;
+    cstring_t buff;
+    heroabilitystatus_t *status;
+
+    if (!caster || !st.entity || !spell) return;
+    level = S_SpellLevel(caster, spell->code);
+    buff = human_buff(spell, level);
+    if (!buff || strlen(buff) != 4) return;
     human_status_execute(caster, st, spell);
+    status = unit_findstatus(st.entity, *((uint32_t const *)buff));
+    if (!status) {
+        fprintf(stderr, "WC3 Invisibility: authored status %.4s missing after cast on unit %u\n",
+                buff, st.entity->s.number);
+        return;
+    }
+    status->data = spell->code;
     st.entity->s.renderfx |= RF_HIDDEN;
 }
 
@@ -510,7 +538,25 @@ BZ_HUMAN_AUTOCAST_SPELL(AbilityHeal, heal_validate(ent, target, call ? call->ite
 /* Name=Slow; Untip="Right-click to activate auto-casting." */
 BZ_HUMAN_AUTOCAST_SPELL(AbilitySlow, slow_validate(ent, target, call ? call->item : NULL), human_status_execute, false, false)
 /* Name=Invisibility; Ubertip="Makes a unit invisible. If the unit attacks, uses an ability or casts a spell, it will become visible." */
-BZ_VALIDATED_SPELL_PROC(AbilityInvisibility, invisibility_validate, invisibility_execute)
+BZ_ABILITY_PROC(CAbilityInvisibility) {
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+
+    switch (msg) {
+    case A_VALIDATE:
+        return invisibility_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE:
+        invisibility_execute(ent, target, call ? call->item : NULL);
+        return true;
+    case A_STATUS_REMOVE:
+        if (ent && call && call->status.slot &&
+            !S_UnitHasTemporaryInvisibility(ent, call->status.slot))
+            ent->s.renderfx &= ~RF_HIDDEN;
+        return true;
+    default:
+        return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
 /* Name=Polymorph; Ubertip="Turns a target enemy unit into a sheep. Cannot be cast on Heroes. Lasts <Aply,Dur1> seconds." */
 BZ_VALIDATED_SPELL_PROC(AbilityPolymorph, polymorph_validate, polymorph_execute)
 /* Name=Avatar */
@@ -659,10 +705,13 @@ void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage) {
 }
 
 void S_HumanBreakInvisibility(edict_t *unit) {
-    if (!unit || !human_has_status(unit, MAKEFOURCC('B','i','n','v'))) return;
-    human_remove_status(unit, MAKEFOURCC('B','i','n','v'));
-    if (!G_UnitStatusLevel(unit, MAKEFOURCC('B','O','w','k')))
-        unit->s.renderfx &= ~RF_HIDDEN;
+    if (!unit) return;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = unit->abilstatus + i;
+        if (status->level && status->code != MAKEFOURCC('B','O','w','k') &&
+            S_UnitStatusIsTemporaryInvisibility(status))
+            unit_expirestatus(unit, status);
+    }
 }
 
 void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
@@ -670,7 +719,7 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
     if (!unit) return;
     if (G_AbilityCode(code) == MAKEFOURCC('A','d','e','f')) G_AddUnitAnimationProperties(unit, "defend", false);
     if (code == MAKEFOURCC('B','i','n','v') &&
-        !G_UnitStatusLevel(unit, MAKEFOURCC('B','O','w','k')))
+        !S_UnitHasTemporaryInvisibility(unit, unit_findstatus(unit, code)))
         unit->s.renderfx &= ~RF_HIDDEN;
     if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
     if (unit->polymorph.active && code == unit->polymorph.buff) S_PolymorphRemove(unit);

@@ -19,10 +19,10 @@ static void wind_walk_cleanup(edict_t *unit, heroabilitystatus_t const *status) 
     if (!status->data) {
         fprintf(stderr, "WC3 Wind Walk: status on unit %u has no applying ability rawcode\n",
                 unit->s.number);
-        if (!G_UnitStatusLevel(unit, WW_ID_BINV)) unit->s.renderfx &= ~RF_HIDDEN;
+        if (!S_UnitHasTemporaryInvisibility(unit, status)) unit->s.renderfx &= ~RF_HIDDEN;
         return;
     }
-    if (!G_UnitStatusLevel(unit, WW_ID_BINV)) unit->s.renderfx &= ~RF_HIDDEN;
+    if (!S_UnitHasTemporaryInvisibility(unit, status)) unit->s.renderfx &= ~RF_HIDDEN;
     S_SpellStartCooldown(unit, status->data, status->level);
     G_InvalidateUnitInfoPanel(unit);
 }

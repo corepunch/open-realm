@@ -176,14 +176,15 @@ TEST(wc3_spell, wind_walk_and_temporary_invisibility_keep_hidden_until_both_expi
     walk_first->data.UnitAbilities = &abilities;
     walk_first->s.player = 0;
     T_ASSERT(S_CastNoTargetSpell(walk_first, MAKEFOURCC('A','O','w','k')));
-    unit_addtimedstatus(walk_first, "Binv", 1, 10.0f);
+    unit_addtimedstatus(walk_first, "Bixx", 1, 10.0f);
+    unit_findstatus(walk_first, MAKEFOURCC('B','i','x','x'))->data = MAKEFOURCC('A','I','v','i');
     wind = unit_findstatus(walk_first, MAKEFOURCC('B','O','w','k'));
-    invis = unit_findstatus(walk_first, MAKEFOURCC('B','i','n','v'));
+    invis = unit_findstatus(walk_first, MAKEFOURCC('B','i','x','x'));
     T_NOT_NULL(wind); T_NOT_NULL(invis);
     level.time = wind->timestamp;
     unit_updatestatuses(walk_first);
     T_NULL(unit_findstatus(walk_first, MAKEFOURCC('B','O','w','k')));
-    T_ASSERT(G_UnitStatusLevel(walk_first, MAKEFOURCC('B','i','n','v')));
+    T_ASSERT(G_UnitStatusLevel(walk_first, MAKEFOURCC('B','i','x','x')));
     T_ASSERT(walk_first->s.renderfx & RF_HIDDEN);
 
     level.time = invis->timestamp;
@@ -194,9 +195,10 @@ TEST(wc3_spell, wind_walk_and_temporary_invisibility_keep_hidden_until_both_expi
     walk_second->data.UnitAbilities = &abilities;
     walk_second->s.player = 0;
     T_ASSERT(S_CastNoTargetSpell(walk_second, MAKEFOURCC('A','O','w','k')));
-    unit_addtimedstatus(walk_second, "Binv", 1, 1.0f);
+    unit_addtimedstatus(walk_second, "Bixx", 1, 1.0f);
+    unit_findstatus(walk_second, MAKEFOURCC('B','i','x','x'))->data = MAKEFOURCC('A','I','v','i');
     wind = unit_findstatus(walk_second, MAKEFOURCC('B','O','w','k'));
-    invis = unit_findstatus(walk_second, MAKEFOURCC('B','i','n','v'));
+    invis = unit_findstatus(walk_second, MAKEFOURCC('B','i','x','x'));
     T_NOT_NULL(wind); T_NOT_NULL(invis);
     level.time = invis->timestamp;
     unit_updatestatuses(walk_second);
@@ -207,6 +209,49 @@ TEST(wc3_spell, wind_walk_and_temporary_invisibility_keep_hidden_until_both_expi
     level.time = wind->timestamp;
     unit_updatestatuses(walk_second);
     T_ASSERT(!(walk_second->s.renderfx & RF_HIDDEN));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, invisibility_spell_uses_authored_buff_and_breaks_through_status_owner) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
+        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"targs\"\n"
+        "C;Y2;X1;K\"Aivs\"\nC;Y2;X2;K\"Aivs\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"600\"\n"
+        "C;Y2;X7;K\"9\"\nC;Y2;X8;K\"9\"\nC;Y2;X9;K\"Bixx\"\n"
+        "C;Y2;X10;K\"air,ground,friend\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Aivs" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster, *target;
+    heroabilitystatus_t *status;
+
+    setup_test_world();
+    caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = 0;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    target->s.player = 0;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
+    target->svflags |= SVF_MONSTER;
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','i','v','s'), target));
+    status = unit_findstatus(target, MAKEFOURCC('B','i','x','x'));
+    T_NOT_NULL(status);
+    if (status) T_EQ(status->data, MAKEFOURCC('A','i','v','s'));
+    T_ASSERT(target->s.renderfx & RF_HIDDEN);
+    T_ASSERT(S_UnitUsesInvisibilityRenderFlag(target));
+    T_ASSERT(S_UnitIsInvisibleToPlayer(target, 1));
+
+    S_HumanBreakInvisibility(target);
+    T_NULL(unit_findstatus(target, MAKEFOURCC('B','i','x','x')));
+    T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
