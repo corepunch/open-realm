@@ -578,6 +578,8 @@ struct client_s {
         edict_t *target_controller;
         vec2_t target_offset;
         bool target_inherit_orientation;
+        bool target_orient_only; /* source stays fixed while orientation tracks target */
+        vec3_t orient_eye;       /* fixed camera source captured by SetCameraOrientController */
     } camera;
     /* Info-panel cache. For single units entity/xp track static presentation;
      * HP/mana are retained for save-layout compatibility because live portrait

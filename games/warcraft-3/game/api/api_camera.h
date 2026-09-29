@@ -275,6 +275,7 @@ uint32_t SetCameraTargetController(jass_t *j) {
     gc->camera.target_controller = whichUnit;
     gc->camera.target_offset = (vec2_t){ xoffset, yoffset };
     gc->camera.target_inherit_orientation = inheritOrientation;
+    gc->camera.target_orient_only = false;
     if (whichUnit) {
         vec2_t position = { whichUnit->s.origin2.x + xoffset, whichUnit->s.origin2.y + yoffset };
         gc->camera.old_state = gc->camera.state;
@@ -292,9 +293,35 @@ uint32_t SetCameraTargetController(jass_t *j) {
     return 0;
 }
 uint32_t SetCameraOrientController(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //float xoffset = jass_checknumber(j, 2);
-    //float yoffset = jass_checknumber(j, 3);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    float xoffset = jass_checknumber(j, 2);
+    float yoffset = jass_checknumber(j, 3);
+    gameClient_t *gc = G_CurrentCameraClient("SetCameraOrientController");
+    uint32_t now;
+    camerasetup_t current;
+    vec3_t target;
+
+    if (!gc) {
+        return 0;
+    }
+    if (!whichUnit) {
+        G_ClearCameraTarget(gc, "SetCameraOrientController");
+        return 0;
+    }
+
+    /* Warcraft's orient controller rotates a stationary camera source toward
+     * the moving unit.  Sample any active scalar transition first so taking
+     * ownership does not snap to an old transition endpoint. */
+    now = G_Time();
+    current = G_CameraStateAtTime(gc, now);
+    target = G_MakeServerOrigin(current.position.x, current.position.y, current.z_offset);
+    gc->camera.old_state = gc->camera.state = current;
+    gc->camera.start_time = gc->camera.end_time = now;
+    gc->camera.target_controller = whichUnit;
+    gc->camera.target_offset = (vec2_t){ xoffset, yoffset };
+    gc->camera.target_inherit_orientation = false;
+    gc->camera.target_orient_only = true;
+    gc->camera.orient_eye = G_CameraEyePositionFromState(&target, &current.viewangles, current.target_distance);
     return 0;
 }
 uint32_t SetCameraPosition(jass_t *j) {

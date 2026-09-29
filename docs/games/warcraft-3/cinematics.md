@@ -242,6 +242,26 @@ earthquake helper. Retail's exact waveform is not documented, so OpenRealm uses
 a deterministic smooth oscillator while preserving native ownership,
 magnitude/rate inputs, and source-versus-target semantics.
 
+`SetCameraOrientController` uses the same game-owned controller slot as
+`SetCameraTargetController`, but with distinct ownership semantics. Activating
+it samples the realized in-flight camera, captures that camera's source/eye,
+and then keeps the source fixed while the unit plus X/Y offset determines the
+look direction. The authored target distance is preserved: OpenRealm moves the
+virtual orbit target along the look ray instead of moving the camera source to
+the unit. Manual camera movement, `ResetToGameCamera`, a replacement target
+controller, or removal of the controlled entity clears the controller. This is
+deliberately not implemented as
+`SetCameraTargetController(..., inheritOrientation=...)`, because that native
+moves the camera target with the unit rather than keeping the source stationary.
+
+`SetCinematicCamera` remains separate work because it requires playback of an
+authored MDX camera track. The renderer parses and samples MDX cameras for
+model/portrait views, but retail sequence selection, end-of-track behavior,
+multiple-camera selection, and interaction with subsequent scalar camera
+natives are not established enough to make the world-camera handoff
+authoritative. Keep that limitation explicit rather than inventing
+model-camera timing semantics.
+
 The current untimed `PanCameraTo` and `CameraSetupApply(..., panTimed=true)` still snap their target because OpenRealm does not yet retain Warcraft's default camera forward/strafe rates. `SetCameraField` and `AdjustCameraField` now reuse the authoritative camera-state interpolation: a new field transition starts from the sampled in-flight camera state, and `StopCamera` freezes an active timed transition at that sampled state instead of snapping to either endpoint. Setter/adjuster angular and FOV values remain in Warcraft's authored degree units; the already-implemented runtime `GetCameraField` keeps its observed retail contract and reports angular/FOV values in radians from the realized player camera. Local pitch/yaw/roll camera fields remain unsupported, matching the camera-setup path. `SetCameraOrientController` remains separate work because Warcraft keeps the camera source fixed while orienting toward a moving unit; that requires a distinct source/controller contract rather than aliasing `SetCameraTargetController`. `SetCinematicCamera` also remains separate because it requires playback of an authored MDX camera track. Keep those limitations explicit rather than inventing controller or model-camera semantics in the scalar camera path.
 
 `SetCameraQuickPosition` is not a camera movement native. It records Warcraft's spacebar/quick-position recall point for the local player. Assigning that point must leave `camera.state.position` unchanged; treating it like `SetCameraPosition` makes quest discovery and cinematic scripts unexpectedly jump the view when they only intend to set the later spacebar target.
@@ -254,7 +274,7 @@ W3I stores its four integer camera complements in **left, right, bottom, top** o
 
 Do not implement `GetCameraMargin()` as `complement * TILE_SIZE`. World Editor generated `main` functions already start from playable-area edge constants and add/subtract `GetCameraMargin()` before calling `SetCameraBounds`; using the complement width there applies the unplayable terrain border a second time. Once `SetCameraBounds` became authoritative in OpenRealm, that old approximation manifested as the camera stopping roughly a viewport too early at the map edge. Warsmash's `GameCameraManager.applyVelocity()` also clamps its camera target directly to the rectangle supplied by `SetCameraBounds`, so the correct fix is to reproduce the native margin calculation rather than expanding the runtime clamp by a guessed viewport offset.
 
-All server camera target writers use `G_ClampCameraPosition()` against `level.camera_bounds`. The client clamps predicted targets with `CM_GetWorldBounds()` — the loaded map, not a per-player snapshot. `CL_ParsePlayerInfo()` reclamps pending prediction to those world bounds before comparing it with the authoritative server origin.
+Ordinary server camera target writers use `G_ClampCameraPosition()` against `level.camera_bounds`. `SetCameraOrientController` is the deliberate exception: its `camera.state.position` is a virtual orbit target placed on the look ray so the captured camera source stays fixed, and clamping that virtual point would translate the source instead of merely constraining player panning. The client clamps predicted user-movement targets with `CM_GetWorldBounds()` — the loaded map, not a per-player snapshot. `CL_ParsePlayerInfo()` reclamps pending prediction to those world bounds before comparing it with the authoritative server origin.
 
 The camera bounds constrain the **target**, not the visible frustum. Do not widen `SetCameraBounds` to compensate for a view that appears to stop too early. WC3's world projection must instead use the actual gameplay viewport above the command console. `V_RenderView()` assigns `{0, 0.22, 1, 0.76}` to both `viewDef.viewport` and `viewDef.scissor`; `Matrix4_getCameraMatrix()` derives aspect ratio from that viewport rather than the full window. Renderer screen rays (`R_LineForScreenPoint`) and drag-selection normalization use the same viewport, so ground picking, middle-dragging, minimap camera-footprint projection, and the visible world all agree. A full-window projection followed only by scissoring narrows the horizontal ground footprint and leaves the camera target vertically off-center inside the visible WC3 world area; near map edges this can look like an over-tight camera clamp even when the JASS bounds themselves are correct.
 

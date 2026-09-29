@@ -631,6 +631,54 @@ void G_ClearCameraTarget(gameClient_t *client, cstring_t func) {
     client->camera.target_controller = NULL;
     client->camera.target_offset = (vec2_t){ 0, 0 };
     client->camera.target_inherit_orientation = false;
+    client->camera.target_orient_only = false;
+    client->camera.orient_eye = (vec3_t){ 0, 0, 0 };
+}
+
+static float G_CameraOrientPitch(float attack) {
+    return attack < 90.0f ? 90.0f + attack : -90.0f - attack;
+}
+
+static float G_CameraOrientYaw(float rotation, float pitch) {
+    return pitch < 0.0f ? 450.0f - rotation : 270.0f - rotation;
+}
+
+static void G_UpdateCameraOrientTarget(gameClient_t *client, edict_t *target) {
+    vec3_t focus = {
+        target->s.origin2.x + client->camera.target_offset.x,
+        target->s.origin2.y + client->camera.target_offset.y,
+        target->s.origin.z,
+    };
+    vec3_t direction = Vector3_sub(&focus, &client->camera.orient_eye);
+    float horizontal = sqrtf(direction.x * direction.x + direction.y * direction.y);
+    float length = sqrtf(horizontal * horizontal + direction.z * direction.z);
+    float distance = client->camera.state.target_distance;
+    float attack, rotation, pitch;
+    vec3_t camera_target;
+    float base;
+
+    if (length <= 0.0001f) {
+        return;
+    }
+
+    attack = (float)RAD2DEG(atan2f(direction.z, horizontal));
+    rotation = (float)RAD2DEG(atan2f(direction.y, direction.x));
+    pitch = G_CameraOrientPitch(attack);
+
+    /* Preserve the authored target distance.  The orbit target is a virtual
+     * point on the look ray; moving that point instead of the source keeps the
+     * source fixed while the unit can travel arbitrarily far away. */
+    camera_target = Vector3_add(&client->camera.orient_eye,
+        &(vec3_t){ direction.x * distance / length, direction.y * distance / length,
+                   direction.z * distance / length });
+    base = CM_GetHeightAtPoint(camera_target.x, camera_target.y) + CM_GetCameraHeightOffset();
+
+    client->camera.state.position = (vec2_t){ camera_target.x, camera_target.y };
+    client->camera.state.z_offset = camera_target.z - base;
+    client->camera.state.viewangles.x = pitch;
+    client->camera.state.viewangles.z = G_CameraOrientYaw(rotation, pitch);
+    client->camera.old_state = client->camera.state;
+    client->camera.start_time = client->camera.end_time = G_Time();
 }
 
 static void G_UpdateCameraTarget(gameClient_t *client) {
@@ -642,6 +690,10 @@ static void G_UpdateCameraTarget(gameClient_t *client) {
     }
     if (!target->inuse) {
         G_ClearCameraTarget(client, "G_UpdateCameraTarget");
+        return;
+    }
+    if (client->camera.target_orient_only) {
+        G_UpdateCameraOrientTarget(client, target);
         return;
     }
     position.x = target->s.origin2.x + client->camera.target_offset.x;
