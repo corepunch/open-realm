@@ -22,6 +22,7 @@ typedef struct {
     entityState_t current;
     entityState_t prev;
     uint32_t serverframe;
+    uint32_t presentation_generation;
     color32_t tint;
     bool tint_valid;
     bool selected;

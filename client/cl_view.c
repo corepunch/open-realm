@@ -294,6 +294,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.tint_valid = ent->tint_valid;
     re.tint = ent->tint_valid ? ent->tint : COLOR32_WHITE;
     re.number = ent->current.number;
+    re.generation = ent->presentation_generation;
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
 #ifndef USE_SHADOWMAPS
