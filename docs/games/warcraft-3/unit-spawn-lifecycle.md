@@ -29,11 +29,12 @@ logs a warning with the unit, player, and coordinates.
 
 Static scenery-like units preserve their authored spawn point. Warcraft III
 object data has no explicit scenery-unit flag, so the current **HACK** treats a
-unit as scenery when its movement type is `-`, its authored movement speed is
-zero, and its weapon row enables no attacks. This matches the `nfrm`
-Frostmourne pedestal data, but may also match gameplay structures or other
-non-mobile units. Validate the classification and exact-placement behavior
-against retail Warcraft III before treating this as the final rule.
+unit as scenery when its movement type is the no-movement placeholder (`-` or
+`_`), its authored movement speed is zero, and its weapon row enables no
+attacks. This matches the `nfrm` Frostmourne pedestal data, but may also match
+gameplay structures or other non-mobile units. Validate the classification and
+exact-placement behavior against retail Warcraft III before treating this as
+the final rule.
 
 The creation search also respects live-unit occupancy, matching Warsmash's
 `setPointAndCheckUnstuck`. Its collision queries use the server's linked-entity
