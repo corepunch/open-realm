@@ -397,12 +397,14 @@ TEST(wc3_ability_lifecycle, area_spell_presentation_resolves_authored_effect_obj
     slkTestData_t *old_sound_rows = G_SetSLKRows("AbilitySounds", sound_rows);
     int (*old_model_index)(cstring_t) = gi.ModelIndex;
     int (*old_sound_index)(cstring_t) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
     edict_t *caster = review_setup();
     edict_t *thinker, *effect = NULL;
 
     caster->data.UnitAbilities = &abilities;
     blizzard_effect_model[0] = '\0'; blizzard_sound_path[0] = '\0';
-    gi.ModelIndex = review_capture_model; gi.SoundIndex = review_capture_sound_index;
+    gi.ModelIndex = review_capture_model;
+    gi.SoundIndex = review_capture_sound_index; gi.SoundIndexAlias = review_capture_sound_index_alias;
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AOeq"), &caster->s.origin2));
     thinker = review_thinker(caster);
     T_NOT_NULL(thinker);
@@ -412,7 +414,7 @@ TEST(wc3_ability_lifecycle, area_spell_presentation_resolves_authored_effect_obj
     T_ASSERT(effect->s.sound != 0);
     T_STREQ(blizzard_sound_path, "TestUI\\Sounds\\quake-loop.wav");
 
-    gi.ModelIndex = old_model_index; gi.SoundIndex = old_sound_index;
+    gi.ModelIndex = old_model_index; gi.SoundIndex = old_sound_index; gi.SoundIndexAlias = old_sound_alias;
     S_SpellCancelChannel(caster);
     G_SetSLKRows("AbilitySounds", old_sound_rows); free_slk_rows(sound_rows);
     G_SetSLKRows("AbilityBuffData", old_effect); free_slk_rows(effect_rows);
