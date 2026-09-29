@@ -248,6 +248,38 @@ TEST(wc3_shadowmeld, timed_invisibility_uses_owner_ghost_alpha) {
     shadowmeld_done(&fix);
 }
 
+TEST(wc3_shadowmeld, persistent_invisibility_uses_owner_ghost_alpha) {
+    shadowmeldFix_t fix;
+    edict_t *clent;
+    color32_t color;
+    abilityitem_t ghost = S_AbilityItem(MAKEFOURCC('A','g','h','o'));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &ghost);
+
+    shadowmeld_setup(&fix);
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    clent->client->ps.number = 0;
+    fix.unit->vertex_color = MAKE(color32_t, 210, 180, 150, 200);
+    fix.unit->vertex_color_set = true;
+
+    fix.unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
+    fix.unit->permanent_invisibility_reveal_until = 0;
+    T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
+    T_EQ(color.a, 70);
+
+    fix.unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    T_ASSERT(S_AbilityMessage(fix.unit, A_ENABLE, &call));
+    T_ASSERT(S_GhostActive(fix.unit));
+    T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
+    T_EQ(color.a, 70);
+
+    T_ASSERT(S_AbilityMessage(fix.unit, A_DISABLE, &call));
+    T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
+    T_EQ(color.a, 200);
+
+    shadowmeld_done(&fix);
+}
+
 TEST(wc3_shadowmeld, daylight_cancels_fade_and_active_invisibility) {
     shadowmeldFix_t fix;
     shadowmeld_setup(&fix);

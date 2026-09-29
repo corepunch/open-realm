@@ -70,7 +70,7 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
         if (unit->s.player != player && !G_FowPlayerCanSeeEntity(player, unit)) return false;
         if (unit->s.player == player || G_FowPlayersShareVision(player, unit->s.player)) {
             presentation_alpha = S_ShadowMeldPresentationAlpha(unit);
-            if (S_UnitUsesInvisibilityRenderFlag(unit))
+            if (S_UnitHasInvisibilityState(unit))
                 presentation_alpha = MIN(presentation_alpha, 0.35f);
         }
     }

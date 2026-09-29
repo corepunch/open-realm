@@ -325,6 +325,11 @@ bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t con
 	return false;
 }
 
+bool S_UnitHasInvisibilityState(edict_t const *unit) {
+	return S_PermanentInvisibilityActive(unit) || S_GhostActive(unit) ||
+	       S_ShadowMeldActive(unit) || S_UnitUsesInvisibilityRenderFlag(unit);
+}
+
 void S_PermanentInvisibilityInitialize(edict_t *unit) {
     float transition;
     if (!unit || !G_UnitAbilityLevel(unit, ID_APIV)) {
