@@ -48,11 +48,15 @@ construction/hidden lifecycle afterward.
 ## Verification
 
 The regression is covered by
-`wc3_api.createunit_starts_ready_without_birth_delay` in
-`games/warcraft-3/game/tests/t_api.c`. It installs a minimal UnitUI fixture,
-creates a real runtime unit through `unit_create()`, and checks that the unit
-is in `stand` with `wait == 0`.
+`wc3_api.createunit_static_scenery_keeps_requested_spawn` verifies a stock-shaped
+Frostmourne row keeps its requested point when pathing is blocked.
+`wc3_api.createunit_custom_static_scenery_keeps_requested_spawn` verifies a
+custom rawcode inherits the scenery rows and applies a non-stock max-health
+override without moving. Both create through JASS `CreateUnit` in
+`games/warcraft-3/game/tests/t_api.c`.
 
+`wc3_api.createunit_starts_ready_without_birth_delay` separately verifies that
+the created unit enters `stand` with `wait == 0`, and
 `wc3_api.createunit_links_building_collision_bounds` covers the corresponding
 server-link contract with a synthetic building row and verifies that its
 collision-sized bounds are visible to `BoxEdicts()`.
@@ -60,7 +64,7 @@ collision-sized bounds are visible to `BoxEdicts()`.
 Run both Warcraft III data modes with:
 
 ```sh
-make test-wc3-engine WC3_PATTERN='wc3_api.createunit_starts_ready_without_birth_delay'
+make test-wc3-engine WC3_PATTERN='wc3_api.createunit_*'
 ```
 
 See [Human07 Mission Troubleshooting](human07-troubleshooting.md) for the complete
