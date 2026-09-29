@@ -106,7 +106,7 @@ Counts overlap; do not sum them into a coverage percentage.
 
 [Executable research backlog](retail-pathfinding-todo.md#work-next): numbered
 tasks, acceptance checks, completed evidence and the READY gate. Start with
-**GROUP-02.2**, then **BASE-05.1**; the backlog names their dependencies and
+**GROUP-02.3**, then **BASE-05.1**; the backlog names their dependencies and
 finish artifacts. The areas below describe the sequence, not additional tasks.
 
 1. **ORDER + GROUP + MOVE:** join the verified initial-admission/FIFO chain
@@ -216,3 +216,12 @@ curl --max-time 30 -fsS \
 Terminology only: [HPA*](https://webdocs.cs.ualberta.ca/~mmueller/ps/2004/hpastar.pdf),
 [HAA*](https://pathfinding.ai/pdf/harabor-botea-cig08.pdf).
 These are not evidence of Blizzard's implementation.
+
+### Fresh shared-pair checkpoint
+
+GROUP-02.2 now has a producer-built exact two-unit owner fixture: original point
+admission, original shared request membership, fresh owned/shared routes, both
+decisions before either commit, natural tick7 arrival and complete cleanup.
+See [fresh shared pair](retail-pathfinding-movement.md#fresh-shared-pair-through-owner-arrival)
+for the command, canonical hash and explicit supplied boundaries. Public player/
+JASS/AI producer sharing, obstruction and membership mutation remain open.

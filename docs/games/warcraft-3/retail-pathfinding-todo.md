@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**34 done / 211 tasks; 177 remaining.** Counts describe this backlog,
+**35 done / 211 tasks; 176 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -27,7 +27,7 @@ Completed evidence now sits next to its specific remaining extension.
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 0 | 11 |
 | ORDER — Orders and reclamation | 5 | 16 |
-| GROUP — Shared movement groups | 2 | 9 |
+| GROUP — Shared movement groups | 3 | 8 |
 | FORM — Formation and regrouping | 2 | 10 |
 | SEP — Repulsion and spatial records | 2 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -42,13 +42,15 @@ exclusion of NUM-02.2; it is closed independently of whole-trajectory NUM-02.3.
 
 ## Work next
 
-Start with **GROUP-02.2**. BASE-06.4/.5 now construct the ordinary map/mover
-through original producers, freeze the point/FIFO manifest and assert identical
-raw intermediate state on two runs. Remaining supplied boundaries carry task IDs.
+Start with **GROUP-02.3**. GROUP-02.2 now composes two independently admitted
+units into an original shared request and freezes both fresh searches, owner
+updates, per-member decision/commit order, natural arrival and cleanup. Public
+selected-player/JASS/AI producer sharing remains GROUP-01.1; the controlled core
+request producer is sufficient for this pair and its obstruction extension.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | GROUP-02.2 | BASE-06.5, GROUP-01.1 | Two active members execute fresh searches through the owner lifecycle |
+| 1 | GROUP-02.3 | GROUP-02.2, MAP-03.2 | Pair with a wall or failed member route through completion |
 | 2 | BASE-05.1 | Existing reports and captures | Corpus inventory including intentional adaptive mismatches |
 | 3 | NUM-01.2 | Verified scalar/heading slices | Remaining arithmetic inventory and exact numerical integration |
 
@@ -452,7 +454,7 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 ### GROUP-02 — Fresh group movement
 
 - [x] **GROUP-02.1** 144 complete cached-route group ticks and 156 membership prepasses are covered. Evidence: [cached group ticks][cached-groups]; shared-group fresh search under obstruction remains open.
-- [ ] **GROUP-02.2** Run two active members from fresh group/member searches through owner updates and arrival; assert all decisions occur before any velocity commit.
+- [x] **GROUP-02.2** Two originally admitted units join one original request; fresh shared/member routes run through owner updates and natural tick7 arrival. Evidence: [fresh shared pair](retail-pathfinding-movement.md#fresh-shared-pair-through-owner-arrival), frozen `retail-shared-pair-1.27.json`, report `group-02.2-frozen-shared-pair.json`; both decisions precede both commits, all intermediate words repeat exactly, all orders/groups/paths reclaim. Public selected/JASS/AI callers remain GROUP-01.1.
 - [ ] **GROUP-02.3** Add a wall/failed member route to that pair; assert shared versus separate routes, surviving movement and final completion.
 
 ### GROUP-03 — Shared parameters

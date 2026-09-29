@@ -9,6 +9,7 @@ import unittest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools/ghidra'))
 from wc3_pathing_scenario import DEFAULT_MANIFEST,load_manifest,verify_case,first_difference
+from wc3_pathing_pair import load_fixture as load_pair,verify as verify_pair
 
 
 class ScenarioTests(unittest.TestCase):
@@ -61,6 +62,45 @@ class ScenarioTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'expectations hash'):load_manifest(path)
             golden.unlink()
             with self.assertRaises(FileNotFoundError):load_manifest(path)
+
+    def test_fresh_shared_pair_decides_both_members_before_committing(self):
+        fixture=load_pair();case=fixture['output'];verify_pair(case,fixture)
+        self.assertEqual(case['arrival_tick'],7)
+        self.assertTrue(case['shared_pair_completed'])
+        self.assertEqual(len(case['arrivals']),1)
+        self.assertEqual(len(case['second_arrivals']),1)
+        initial=case['initial_state'];final=case['normalized_states'][-1]
+        self.assertEqual(initial['registry_live'],20)
+        self.assertEqual(final['registry_live'],20)
+        self.assertTrue(all(not p['fine'] and not p['adaptive'] for p in initial['paths']))
+        fresh=case['normalized_states'][0]
+        self.assertEqual(len(fresh['group']['members']),2)
+        self.assertTrue(all(p['fine'] or p['adaptive'] for p in fresh['paths']))
+        for state in case['normalized_states'][:8]:
+            self.assertEqual(state['decision_commit_order'],[
+                ['decision','first'],['decision','second'],['commit','first'],['commit','second']])
+        for state in (initial,final):
+            self.assertEqual(state['queue']['count'],0)
+            self.assertEqual(state['second_unit']['queue_count'],0)
+            self.assertFalse(state['visual_linked'])
+            self.assertFalse(state['group']['active'])
+            self.assertEqual(state['motion']['velocity'],[0,0])
+            self.assertEqual(state['second_unit']['motion'][4:6],[0,0])
+
+    def test_shared_pair_rejects_second_actor_and_ordering_mutations(self):
+        fixture=load_pair()
+        for field in ('second_unit','decision_commit_order','second_dispatch','auxiliary_dispatch'):
+            changed=copy.deepcopy(fixture['output'])
+            changed['normalized_states'][0][field]=None
+            with self.assertRaisesRegex(ValueError,field):verify_pair(changed,fixture)
+        changed=copy.deepcopy(fixture['output'])
+        changed['normalized_states'][0]['decision_commit_order'][1:3]=reversed(changed['normalized_states'][0]['decision_commit_order'][1:3])
+        with self.assertRaisesRegex(ValueError,'decision_commit_order'):verify_pair(changed,fixture)
+        changed=copy.deepcopy(fixture['output'])
+        changed['trajectory'][1]['second_velocity'][0]^=1
+        with self.assertRaisesRegex(ValueError,'second_velocity'):verify_pair(changed,fixture)
+        changed=copy.deepcopy(fixture['output']);changed['second_arrivals']=[]
+        with self.assertRaisesRegex(ValueError,'second_arrivals'):verify_pair(changed,fixture)
 
     def test_historical_motion_snapshot_preserves_unobserved_state(self):
         fixture=json.loads((DEFAULT_MANIFEST.parent/'retail-motion-snapshot-1.27.json').read_text())

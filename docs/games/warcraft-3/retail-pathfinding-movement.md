@@ -1815,3 +1815,60 @@ reference count4, empty user/internal queues, zero velocity and empty group/
 visual lists are asserted initially/finally as applicable. Broader map loading,
 owner first construction, multiunit groups, runtime obstacles, public player/
 network admission and real clock/RNG producers remain outside this closure.
+
+## Fresh shared pair through owner arrival
+
+**GROUP-02.2 (O).** `order_tasks --shared-pair` adds a second existing
+Unit/Move bridge to the producer-built baseline, constructs its mover/spatial
+objects and owned path through original factories, and admits both point
+orders through `680320`. Their independent groups are then replaced by one
+original request: `058430` creates it, `16db30` selects the destination,
+`169620` registers both mover identities, `16dc90(1)` selects policy, and
+`16bcf0 → 16bdb0 → 16b7b0` recruits both into one persistent group. No member
+row, formation destination, route or runtime callback is written by the harness.
+This controlled core producer is sufficient for this owner experiment;
+selected-player, JASS and AI callers remain **GROUP-01.1**.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_order_tasks.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --shared-pair \
+  --report /GitHub/wc3-analysis/reports/pathfinding-1.27/group-02.2-frozen-shared-pair.json
+python3 tests/test_pathfinding_scenarios.py
+```
+
+Inputs and exact expectations are
+`tools/ghidra/fixtures/retail-shared-pair-1.27.json`: first mover world128,128,
+second128,160, radius8, speed256, turn/window0.5, target192,128, request policy1.
+Both owned routes start empty. The original shared formation produces distinct
+member destinations, followed by fresh member fine routes and a shared adaptive
+route. Main-clock/owner execution is `054190 → 15aa80` throughout; there are no
+explicit group ticks during travel or completion.
+
+Expected and observed: eight owner decision/commit passes (fresh plus seven
+elapsed), each **decision(first), decision(second), commit(first),
+commit(second)** at `16a790` and `16fe20`. Both units naturally arrive on tick7,
+complete their internal tasks, empty their user queues, and release both orders,
+all three persistent groups/paths and the temporary request. Twenty baseline
+identities remain; unit references return to4; all five task/order classes
+recover32 payloads; main deferred requests, group list and visual list drain.
+The original unit callbacks are captured separately for both members; additional
+object callbacks retain their receiver identities/vtables instead of being
+silently discarded. Both positions are checked against exact old-velocity
+integration on every elapsed tick.
+
+Two independent executions match every frozen intermediate word: motion/facing,
+both unit poses/queues/callbacks, member rows, owned/shared routes and indices,
+spatial cells/tokens and both object rectangles/flags, all64 work budgets and
+owner events. Canonical digest:
+`fc29e310cdbe5b8b1f2e62bf7ac03f784fa277d060b3cd7aa34165039c5c0c73`.
+Asset-free tests reject changed second-member velocity, callback/arrival removal,
+missing second state and a commit moved before the second decision.
+
+Binary/CRT hashes are unchanged from the frozen singleton baseline. Supplied
+existing class/unit/Move state and recycled allocator capacity retain the
+BASE-03.1, ORDER-04.4, MAP-05.1 and GROUP-03.3 boundaries. File-backed terrain
+and production clock cadence remain MAP-02.1/SCHED-01.1. This closes the fresh
+unobstructed two-member owner lifecycle; walls, failed member routes, mixed
+speeds, runtime membership changes, public producer sharing and populated
+repulsion remain separate tasks, starting with **GROUP-02.3**.

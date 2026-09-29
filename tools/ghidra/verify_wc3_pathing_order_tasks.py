@@ -10,7 +10,7 @@ import json
 import struct
 from pathlib import Path
 from verify_wc3_pathing_numeric import add as float_add, multiply as float_multiply
-from wc3_pathing_scenario import DEFAULT_MANIFEST,load_manifest,verify_case,first_difference,case_output
+from wc3_pathing_scenario import DEFAULT_MANIFEST,load_manifest,verify_case,first_difference,case_output,canonical_digest
 
 
 def main():
@@ -20,9 +20,15 @@ def main():
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--producer-baseline', action='store_true', help='compose no-file map and mover producers before the owner baseline')
+    parser.add_argument('--shared-pair', action='store_true', help='compose two admitted units into one original shared request and run owner through arrival')
     parser.add_argument('--baseline-manifest', type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
-    manifest,expectations=load_manifest(args.baseline_manifest) if args.producer_baseline else (None,None)
+    manifest,expectations=load_manifest(args.baseline_manifest) if args.producer_baseline or args.shared_pair else (None,None)
+    pair_fixture=None
+    if args.shared_pair:
+        from wc3_pathing_pair import load_fixture
+        pair_fixture=load_fixture()
+        assert pair_fixture['inputs']['baseline_map_sha256']==manifest['map']['sha256']
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -269,7 +275,7 @@ def main():
     machine.mem_map(0x10100000,0x30000)
     machine.mem_map(0x10200000,0x100000)
     machine.mem_map(0x10300000,0x400000)
-    def dispatch_case(flag,player,status,target,next_target=None,replacement_target=None,replacement_mode=1,owner_updates=False,producer_setup=False):
+    def dispatch_case(flag,player,status,target,next_target=None,replacement_target=None,replacement_mode=1,owner_updates=False,producer_setup=False,shared_pair=False):
         reset()
         machine.mem_write(0x10100000,bytes(0x30000))
         machine.mem_write(0x10200000,bytes(0x100000))
@@ -480,6 +486,13 @@ def main():
             run(0x6f05c890,unit+0x164,inputs)
             assert all((word & 0xffffff)==0xffffff or (word & 0xffffff)<read(maps[1]+0x88)[0]
                        for word in read(read(maps[1]+0x28)[0],256))
+        pair=None
+        if shared_pair:
+            from wc3_pathing_pair import provision
+            pair=provision(machine,dict(owner=owner,registry=registry,slots=slots,inputs=inputs,
+                unit=unit,ability=ability,unit_wrapper=unit_wrapper,ability_wrapper=ability_wrapper,
+                group=group,path=path,spec=pair_fixture['inputs']),run)
+            base_live_count=pair['base_live_count']
         snapshot_group,snapshot_path=group,path
         def snapshot(phase):
             """Raw simulation state with owning pointer fields replaced by identity/role."""
@@ -497,14 +510,16 @@ def main():
                     # Live records carry a region pointer; retired records reuse
                     # the second word for scalar metadata. Preserve those words.
                     if link>>24!=2:
-                        assert payload==obj,(phase,'unexpected spatial payload',hex(link),hex(payload))
-                        payload='mover'
+                        roles={obj:'mover'}
+                        if pair:roles[pair['objects'][len(grids)]]='second_mover'
+                        assert payload in roles,(phase,'unexpected spatial payload',hex(link),hex(payload))
+                        payload=roles[payload]
                     tokens.append([link,payload])
                 grids.append(dict(dimensions=[width,height],cells=read(read(grid+0x28)[0],width*height),
                     tokens=tokens,free_head=read(grid+0xac)[0],object_flags=read(obj+0x34,4),
                     object_rectangle=read(obj+0x1c,4)))
             paths=[]
-            for role,ptr in [('mover',current_path),('group',snapshot_path)]:
+            for role,ptr in [('mover',current_path),('group',snapshot_path)]+([('second_mover',pair['path'])] if pair else []):
                 paths.append(dict(owner=role,identity=read(ptr+0x14,2),
                     fine=read(read(ptr+0x40)[0],read(ptr+0x50)[0]*2),
                     adaptive=read(read(ptr+0x60)[0],read(ptr+0x70)[0]*2),
@@ -513,10 +528,12 @@ def main():
             member_rows=[]
             for n in range(member_count):
                 row=read(read(snapshot_group+0x28)[0]+n*0x2c,11)
-                assert row[5] in (0,mover)
-                row[5]='mover' if row[5] else None
+                roles={0:None,mover:'mover'}
+                if pair:roles[pair['mover']]='second_mover'
+                assert row[5] in roles
+                row[5]=roles[row[5]]
                 member_rows.append(row)
-            return dict(phase=phase,clock=read(clock+0x40,3),owner_tick=read(owner+0x538,2),
+            result=dict(phase=phase,clock=read(clock+0x40,3),owner_tick=read(owner+0x538,2),
                 queue=dict(head=read(unit+0x19c,2),tail=read(unit+0x1a8,2),count=read(unit+0x1b4)[0],
                     internal_head=read(unit+0x174,2)),registry_live=read(registry+0x48)[0],
                 unit_refs=read(unit+4)[0],unit_pose=read(unit+0x284,4),
@@ -529,6 +546,18 @@ def main():
                 events=list(owner_events) if phase!='initial_idle' else [],
                 dispatch=list(dispatched) if phase!='initial_idle' else [],
                 deferred_count=read(clock+0x20)[0]-1)
+            if pair:
+                result['second_dispatch']=list(second_dispatch) if phase!='initial_idle' else []
+                result['auxiliary_dispatch']=list(auxiliary_dispatch) if phase!='initial_idle' else []
+                for index,grid in enumerate(grids):
+                    obj=pair['objects'][index]
+                    grid['second_object']=dict(flags=read(obj+0x34,4),rectangle=read(obj+0x1c,4))
+                u,a,m=(pair[k] for k in ('unit','ability','mover'))
+                result['second_unit']=dict(queue_head=read(u+0x19c,2),queue_tail=read(u+0x1a8,2),
+                    queue_count=read(u+0x1b4)[0],internal_head=read(u+0x174,2),refs=read(u+4)[0],
+                    pose=read(u+0x284,4),ability_flags=read(a+0x20)[0],group=read(m+0x9c,2),
+                    motion=read(m+0x70,8),visual=read(m+0xc8,2))
+            return result
         initial_state=snapshot('initial_idle') if producer_setup else None
         if producer_setup:
             assert initial_state['queue']['count']==0 and initial_state['queue']['head']==[0xffffffff]*2
@@ -541,11 +570,32 @@ def main():
         order_identity=read(order+0xc,2)
         order_wrapper=read(slots+order_identity[0]*8+4)[0]
         dispatched=[]
+        second_dispatch=[];second_admissions=[];second_arrivals=[];auxiliary_dispatch=[]
         def observe_dispatch(uc,address,length,data):
             packet=read(uc.reg_read(UC_X86_REG_ESP)+4)[0]
-            dispatched.append((hex(address),hex(read(packet+8)[0])))
+            event=(hex(address),hex(read(packet+8)[0]))
+            if pair and uc.reg_read(UC_X86_REG_ECX)!=(ability if address==0x6f5fda10 else unit):
+                receiver=uc.reg_read(UC_X86_REG_ECX)
+                if receiver==(pair['ability'] if address==0x6f5fda10 else pair['unit']):second_dispatch.append(event)
+                else:auxiliary_dispatch.append(dict(event=event,receiver_identity=read(receiver+0xc,2),receiver_vtable=read(receiver)[0]))
+            else:dispatched.append(event)
         admissions=[];arrivals=[]
         def observe_progress(uc,address,length,data):
+            if pair and uc.reg_read(UC_X86_REG_ECX)!=ability:
+                assert uc.reg_read(UC_X86_REG_ECX)==pair['ability']
+                head=read(pair['unit']+0x19c,2)
+                if address==0x6f5fd270:
+                    packet=read(uc.reg_read(UC_X86_REG_ESP)+4)[0]
+                    incoming=read(packet+0xc)[0]
+                    second_admissions.append(dict(clock_bits=read(clock+0x40)[0],user_head=head,
+                        order_identity=read(incoming+0xc,2),queue_count=read(pair['unit']+0x1b4)[0]))
+                else:
+                    identity=read(pair['unit']+0x174,2)
+                    task_wrapper=read(slots+identity[0]*8+4)[0]
+                    task=read(task_wrapper+0x54)[0]
+                    second_arrivals.append(dict(clock_bits=read(clock+0x40)[0],user_head=head,
+                        target_bits=[read(task+o)[0] for o in (0x38,0x40)]))
+                return
             now=read(clock+0x40)[0]
             head=read(unit+0x19c,2)
             if address==0x6f5fd270:
@@ -629,8 +679,8 @@ def main():
         assert read(owner+0x3b8)[0]==group
         assert read(generator+0x14,2)==[0xffffffff]*2
         assert read(owner+0x638+0x14,2)==[generator-4,0]
-        assert read(owner+0x678+0x14,2)==[0,1]
-        assert read(owner+0x958+0x14,2)==[0,1]
+        assert read(owner+0x678+0x14,2)==[pair['groups'][0]-4 if pair else 0,1]
+        assert read(owner+0x958+0x14,2)==[pair['paths'][0]-4 if pair else 0,1]
         accepted=dict(flag=flag,player=player,status=status,target_bits=target,
                 initial_command=hex(initial_command),initial_admission=initial_admission,
                 initial_admission_prelude=initial_dispatch[0]['prelude'],
@@ -666,6 +716,39 @@ def main():
             write(second_path+0x4c,1024,0)
             write(second_path+0x60,0x10272000)
             write(second_path+0x6c,1024,0)
+        pair_events=[]
+        pair_hooks=[]
+        if pair:
+            from wc3_pathing_pair import join
+            pair_order=create_order(*target)
+            pair_order_identity=read(pair_order+0xc,2)
+            pair_order_wrapper=read(slots+pair_order_identity[0]*8+4)[0]
+            second_prelude=[]
+            def capture_second_chain(uc,address,length,data):
+                second_prelude.extend(second_dispatch);second_dispatch.clear()
+            pair_admission_hook=machine.hook_add(UC_HOOK_CODE,capture_second_chain,begin=0x6f67df00,end=0x6f67df00)
+            run(0x6f680320,pair['unit'],pair_order,1,1)
+            machine.hook_del(pair_admission_hook)
+            assert second_prelude==initial_dispatch[0]['prelude']
+            independent_group=read(owner+0x3b8)[0]
+            assert independent_group!=group
+            assert read(independent_group+0x38)[0]==1
+            assert read(pair['unit']+0x1b4)[0]==1
+            write(0x10557000,*target_grid)
+            joined=join(machine,dict(inputs=inputs,target=0x10557000,movers=[mover,pair['mover']],slots=slots,policy=pair_fixture['inputs']['request_policy']),run)
+            group,path=joined['group'],joined['path']
+            members=read(group+0x28)[0]
+            group_objects+=pair['groups'];path_objects+=pair['paths']
+            accepted['shared_request']=dict(independent_groups=[accepted['group_identity'],read(independent_group+0x14,2)],
+                joined_group=read(group+0x14,2),joined_path=read(path+0x14,2),released_request=joined['request_identity'])
+            def observe_pair(uc,address,length,data):
+                if address==0x6f16a790:
+                    row=read(uc.reg_read(UC_X86_REG_ESP)+4)[0]
+                    actor=read(row+0x14)[0];kind='decision'
+                else:actor=uc.reg_read(UC_X86_REG_ECX);kind='commit'
+                assert actor in (mover,pair['mover'])
+                pair_events.append([kind,'first' if actor==mover else 'second'])
+            pair_hooks=[machine.hook_add(UC_HOOK_CODE,observe_pair,begin=a,end=a) for a in (0x6f16a790,0x6f16fe20)]
         owner_frames=[]
         normalized_states=[]
         owner_events=[]
@@ -680,7 +763,14 @@ def main():
             old_tick,old_parity=read(owner+0x538,2)
             buckets=[read(0x6fd53a90+k*0x1c+8,2) for k in range(64)]
             owner_events.clear()
+            pair_events.clear()
             run(0x6f15aa80,owner)
+            if pair:
+                decisions=[event[1] for event in pair_events if event[0]=='decision']
+                commits=[event[1] for event in pair_events if event[0]=='commit']
+                assert len(decisions)==len(set(decisions)) and len(commits)==len(set(commits)),pair_events
+                assert set(commits)<=set(decisions),pair_events
+                assert pair_events==[['decision',role] for role in decisions]+[['commit',role] for role in commits],pair_events
             assert read(owner+0x538,2)==[old_tick+1,1-old_parity]
             assert owner_events[:2]==['0x6f15aa80','0x6f167310']
             assert read(owner+0x38c)[0]==read(owner+0x51c)[0]==0
@@ -697,11 +787,15 @@ def main():
                 position_bits=read(mover+0x78,2),velocity_bits=read(mover+0x80,2),
                 desired_heading_bits=read(mover+0x8c)[0],visual_bits=read(mover+0xc8,2),
                 visual_linked=bool(read(owner+0x440)[0]),group_head=read(owner+0x3b8)[0]))
-            if producer_setup:normalized_states.append(snapshot(phase))
+            if producer_setup:
+                state=snapshot(phase)
+                if pair:state['decision_commit_order']=list(pair_events)
+                normalized_states.append(state)
         step('fresh')
         initial_route=read(member_route,read(current_path+0x50)[0]*2)
         assert len(initial_route)>=4
-        assert initial_route[:2]==target_grid and initial_route[-2:]==[0x40800000]*2
+        route_target=read(members+0x18,2) if pair else target_grid
+        assert initial_route[:2]==route_target and initial_route[-2:]==[0x40800000]*2,(initial_route,route_target)
         write(owner+0x210,extra+0x21000)
         write(owner+0x230,0)
         write(clock+0x48,manifest['clock']['span_bits'] if producer_setup else 0x41000000)
@@ -712,10 +806,16 @@ def main():
         for tick in range(1,129):
             run(0x6f054190,inputs,edx=clock)
             oldpos=read(mover+0x78,2);oldvel=read(mover+0x80,2)
+            if pair:second_oldpos=read(pair['mover']+0x78,2);second_oldvel=read(pair['mover']+0x80,2)
             step('elapsed')
             want=[float_add(p,float_multiply(v,0x3d000000)) for p,v in zip(oldpos,oldvel)]
             assert read(mover+0x78,2)==want,(tick,read(mover+0x78,2),want)
             trajectory.append(dict(tick=tick,position=want,velocity=read(mover+0x80,2)))
+            if pair:
+                second_want=[float_add(p,float_multiply(v,0x3d000000)) for p,v in zip(second_oldpos,second_oldvel)]
+                assert read(pair['mover']+0x78,2)==second_want,(tick,'second integration')
+                trajectory[-1]['second_position']=second_want
+                trajectory[-1]['second_velocity']=read(pair['mover']+0x80,2)
             if replacement_target and tick==3:
                 assert not arrivals and not admissions
                 abandoned_identity=list(second_identity)
@@ -771,7 +871,7 @@ def main():
                 if not owner_updates:run(0x6f16c150,group)
                 group=second_group;path=second_path
                 if not owner_updates:run(0x6f16c150,group)
-            if read(unit+0x174)[0]==0xffffffff:break
+            if read(unit+0x174)[0]==0xffffffff and (not pair or read(pair['unit']+0x174)[0]==0xffffffff):break
         else:raise AssertionError('generated point-order chain failed to arrive')
         assert read(unit+0x19c,2)==[0xffffffff]*2
         assert read(unit+0x1b4)[0]==0
@@ -865,11 +965,39 @@ def main():
             else:raise AssertionError('visual mover failed to return to idle')
             assert read(owner+0x3b8)[0]==read(owner+0x440)[0]==0
             assert read(mover+4,2)==[0,0]
-        for hook in owner_hooks:machine.hook_del(hook)
+        if pair:
+            u,a,m=(pair[k] for k in ('unit','ability','mover'))
+            assert read(u+0x174,2)==read(u+0x19c,2)==read(u+0x1a8,2)==[0xffffffff]*2
+            assert read(u+0x1b4)[0]==read(u+0x194)[0]==read(a+0x20)[0]==0
+            assert read(u+4)[0]==4 and read(m+0x80,2)==[0,0]
+            assert read(m+0x9c,2)==[0xffffffff]*2 and read(m+4,2)==[0,0]
+            assert read(pair_order_wrapper+0x14,4)==[0xffffffff,0xffffffff,0,0]
+            assert read(pair_order_wrapper+0x54)[0]==0
+            assert len(second_admissions)==len(second_arrivals)==1
+            assert second_admissions[0]['order_identity']==second_admissions[0]['user_head']==pair_order_identity
+            assert second_admissions[0]['queue_count']==1
+            assert second_arrivals[0]['user_head']==pair_order_identity and second_arrivals[0]['target_bits']==list(target)
+            assert [int(code,16) for address,code in second_dispatch if address=='0x6f071da0' and int(code,16) in expected_task_codes]==expected_task_codes
+            accepted.update(shared_pair_completed=True,second_dispatch=second_dispatch,
+                second_admissions=second_admissions,second_arrivals=second_arrivals,auxiliary_dispatch=auxiliary_dispatch)
+        for hook in owner_hooks+pair_hooks:machine.hook_del(hook)
         accepted.update(owner_frames=owner_frames,initial_route=initial_route,trajectory=trajectory,arrival_tick=tick,
                         user_order_reclaimed=True,producer_setup=setup,initial_state=initial_state,
                         normalized_states=normalized_states)
         return accepted
+    if args.shared_pair:
+        cases=[dispatch_case(0,0,0,tuple(pair_fixture['inputs']['target_bits']),
+                owner_updates=True,producer_setup=True,shared_pair=True) for _ in range(2)]
+        from wc3_pathing_pair import output,verify
+        for case in cases:verify(case,pair_fixture)
+        states=[output(c) for c in cases]
+        assert states[0]==states[1],first_difference(states[0],states[1])
+        report=dict(binary_sha256=digest,crt_sha256=crt_digest,passed=True,shared_pair=cases[0],
+            repeat_digests=[canonical_digest(s) for s in states])
+        args.report.parent.mkdir(parents=True,exist_ok=True)
+        args.report.write_text(json.dumps(report,indent=2)+'\n')
+        print(json.dumps(dict(passed=True,repeat_digests=report['repeat_digests'],arrival_tick=cases[0]['arrival_tick'])))
+        return
     if args.producer_baseline:
         assert crt_digest==manifest['build']['crt_sha256']
         cases=[];repeat_digests=[]
