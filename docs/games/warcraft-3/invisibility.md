@@ -18,6 +18,8 @@ See [Shadow Meld](shadowmeld.md) for the separate `Ashm`/`Ahid` night/stationary
 
 Selected friendly units retain their selection focus and control while invisible. `G_IsEntitySelected()` applies the same viewer-aware invisibility rule as selection admission, so portrait, status, command, and order paths continue to resolve the selected unit. Owner/shared-vision snapshots also receive a ghosted vertex alpha (0.35 multiplied by authored alpha); hostile visibility remains governed by fog and detection. Timed status expiry clears `RF_HIDDEN`, restoring ordinary presentation automatically.
 
+Gameplay-invisible friendly units continue to reveal fog for their owner and shared-vision viewers as they move. `RF_HIDDEN` suppresses fog sight only when the unit is hidden from its own owner, preserving the ordinary hidden-unit behavior for cargo, training, and script-hidden entities.
+
 `SP_SpawnUnit()` initializes authored unit abilities through `S_UnitAbilityEvent(..., A_UNIT_INIT)`. That event must dispatch both innate hooks and the unit's authored `UnitAbilities.abilList`; otherwise passive traits such as a Shade's `Agho` never initialize and the unit remains visible. The regression `wc3_spell.authored_ghost_initializes_on_unit_spawn_event` exercises this event with `Agho` in the authored list.
 
 ## Wind Walk lifecycle
@@ -117,6 +119,7 @@ Focused automated coverage lives in:
 - `games/warcraft-3/game/tests/t_collision.c`: Wind Walk movement through a live unit while retaining the normal movement order path.
 - `games/warcraft-3/game/tests/t_items.c`: non-stock `AIvi` Dur/HeroDur, selection/control while active, timed expiry/recast, and invalid dead-carrier use.
 - `games/warcraft-3/game/tests/t_shadowmeld.c`: owner ghost alpha for timed invisibility.
+- `games/warcraft-3/game/tests/t_game.c`: a moving Binv unit keeps revealing newly entered fog.
 - `games/warcraft-3/game/tests/t_wards.c`: Ghost lifecycle, player-relative invisibility, and save/load.
 
 When validating locally, use focused patterns before the full suite, for example:
