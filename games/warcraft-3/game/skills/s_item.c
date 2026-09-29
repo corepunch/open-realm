@@ -318,10 +318,23 @@ BZ_ITEM_PROC(AbilityItemInvis) {
     edict_t *target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, MAKEFOURCC('A','I','v','i'));
     float duration = S_SpellDuration(code, 1, G_UnitIsHero(target));
+    bool has_status_slot = unit_findstatus(target, MAKEFOURCC('B','i','n','v')) != NULL;
 
     if (!S_SpellIsAliveTarget(target) || duration <= 0.0f) return false;
+    if (!has_status_slot) {
+        FOR_LOOP(i, MAX_UNIT_STATUSES)
+            if (!target->abilstatus[i].level) { has_status_slot = true; break; }
+    }
+    if (!has_status_slot) return false;
+
     target->s.renderfx |= RF_HIDDEN;
     unit_addtimedstatus(target, "Binv", 1, duration);
+    if (!unit_findstatus(target, MAKEFOURCC('B','i','n','v'))) {
+        fprintf(stderr, "WC3 invisibility item: Binv status missing after use on unit %u\n",
+                target->s.number);
+        target->s.renderfx &= ~RF_HIDDEN;
+        return false;
+    }
     return true;
 }
 

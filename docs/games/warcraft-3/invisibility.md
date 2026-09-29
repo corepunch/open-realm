@@ -117,7 +117,7 @@ Focused automated coverage lives in:
 
 - `games/warcraft-3/game/tests/t_spell.c`: authored Wind Walk duration/cooldown, `AOwk`/`ANwk` procedure coverage, undispellable `BOwk`, applying-rawcode save/load, overlapping Wind Walk/Binv expiry, and Ghost aura exclusion through the shared gameplay-invisibility contract.
 - `games/warcraft-3/game/tests/t_collision.c`: Wind Walk movement through a live unit while retaining the normal movement order path.
-- `games/warcraft-3/game/tests/t_items.c`: non-stock `AIvi` Dur/HeroDur, selection/control while active, timed expiry/recast, and invalid dead-carrier use.
+- `games/warcraft-3/game/tests/t_items.c`: non-stock `AIvi` Dur/HeroDur, selection/control while active, timed expiry/recast, invalid dead-carrier use, and rejection without visibility changes when the status table is full.
 - `games/warcraft-3/game/tests/t_shadowmeld.c`: owner ghost alpha for timed invisibility.
 - `games/warcraft-3/game/tests/t_game.c`: a moving Binv unit keeps revealing newly entered fog.
 - `games/warcraft-3/game/tests/t_wards.c`: Ghost lifecycle, player-relative invisibility, and save/load.

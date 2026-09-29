@@ -276,6 +276,16 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_binvisibility_statu
 
     memset(hero->abilstatus, 0, sizeof(hero->abilstatus));
     hero->s.renderfx &= ~RF_HIDDEN;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        hero->abilstatus[i].code = MAKEFOURCC('T','s','t','0') + (uint32_t)i;
+        hero->abilstatus[i].level = 1;
+    }
+    T_ASSERT(!S_AbilityMessage(player, A_ITEM_USE, &call));
+    T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
+    T_EQ(G_UnitStatusLevel(hero, MAKEFOURCC('B','i','n','v')), 0);
+
+    memset(hero->abilstatus, 0, sizeof(hero->abilstatus));
+    hero->s.renderfx &= ~RF_HIDDEN;
     hero->health.value = 0.0f;
     T_ASSERT(!S_AbilityMessage(player, A_ITEM_USE, &call));
     T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','n','v')));
