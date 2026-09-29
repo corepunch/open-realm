@@ -103,9 +103,9 @@ map's SLK remains authoritative at runtime.
 camera-local world window.  Large map-wide weather therefore does not allocate
 particles across the entire map. Emission accrues the authored `emrate` across
 frame time. Retail tracing confirms that `emrate` is a per-second rate for each
-weather emitter. OpenRealm currently applies an effect-level aggregate-rate
-scale to approximate retail's multiple emitters, as described below. The
-authored `particles` count is retained as the effect's live-particle limit.
+weather emitter. OpenRealm applies that rate directly to its single renderer
+effect; retail's multiple emitter fan-out is not yet reconstructed. The
+authored `particles` count caps logical weather particles per effect.
 
 Spawn height is terrain height plus the authored `height`.  `angx`/`angy` rotate
 the base vertical direction, `veloc` supplies signed speed, `var` applies the
@@ -165,15 +165,18 @@ source-alpha compositing: `C_out = C_src * A + C_dst * (1-A)`. The white vertex
 RGB leaves the sampled texture RGB unchanged under modulation. The 4-bit
 precision is the OpenGL texture object's reported internal alpha size; the BLP
 source itself declares 8-bit alpha. The trace records the bound texture object
-and its dimensions, not its asset path. Attribution to `rainTail` comes from
-the controlled Prologue01 scene (`RLhr` is the active opening weather), the
-row's asset path and dimensions, and the matching authored vertex alpha
-observed in the draw; the probe does not independently recover a texture
+and its dimensions, not its asset path. Prologue01's active opening effect and
+the row's texture dimensions and vertex alpha make the draw a rain-matching
+candidate, but the probe does not independently recover or prove the texture
 filename.
 
-This establishes the runtime behavior for Prologue01 `RLhr` (`alphaMode=0`). It
-does not establish what `alphaMode=1` or other weather rows do. OpenRealm's
-weather path already multiplies texture and vertex color and uses the same
+The controlled Prologue01 scene and matching row data make this a strong
+correlation with `RLhr` (`alphaMode=0`), but the draw probe does not recover a
+texture filename and dimensions plus vertex alpha are not unique identifiers.
+Treat the GL state as observed on the rain-matching batch, not as a definitive
+asset-to-draw link. It does not establish what `alphaMode=1` or other weather
+rows do. OpenRealm's weather path already multiplies texture and vertex color
+and uses the same
 source-alpha blend factors, but it does not apply the observed `4/255` alpha
 test. In the implementation, [`R_WeatherSpawn`](../../../games/warcraft-3/renderer/r_weather.c)
 selects `BLEND_MODE_BLEND`; the shared [particle shader](../../../renderer/r_particles.c)
@@ -307,7 +310,9 @@ mostly 80 or 81 per emitter. Sequential per-object sums were 1,845 and 1,858 in
 two captures; these are non-atomic reads, not proof of the exact global cap.
 The roughly 1.85K live-particle total is consistent with the row's
 `particles=1800` value. The 20x row ratio therefore should not be read as an
-engine tick rate; Prologue01 has many concurrent weather emitters.
+engine tick rate; Prologue01 has many concurrent weather emitters. This probe
+does not establish emitter placement, the rule that chooses emitter count, or
+how counts are divided at region edges.
 
 ### Reproduce the density trace
 
@@ -332,7 +337,10 @@ This confirms the rate semantics for `RLhr` and the shared retail weather
 emitter path. It strongly supports the same interpretation for `RLlr`, though
 that row has not had its own runtime capture. Nominal single-emitter rates are
 100 * 0.9 = 90 live particles for `RLhr` and 40 * 1.1 = 44 for `RLlr`, before
-effect-wide limits and emitter multiplicity.
+effect-wide limits and emitter multiplicity. OpenRealm intentionally uses the
+confirmed per-emitter rate without guessing the number or placement of retail
+emitters; aggregate density can therefore be lower than retail until that
+fan-out is reconstructed.
 
 `RLlr` also authors `alphaMode=0` and alpha 150. The live alpha trace above used
 Prologue01's `RLhr`; the `RLlr` row has not had a separate runtime capture.
@@ -341,15 +349,14 @@ The shipped `RLlr` row has `head=0,tail=1`; the renderer draws its tail
 primitive. Rows with both flags clear have no authored primitive and are
 skipped with a diagnostic instead of being silently converted to a head.
 
-**Implementation status:** OpenRealm currently multiplies `emrate` by 20 and
-enforces the authored live-particle cap per weather effect. The factor is an
-aggregate-rate approximation in OpenRealm's single-effect renderer; retail
-uses multiple weather-emitter objects, each with the unscaled per-second rate.
-The Prologue01 trace makes the factor plausible for this row, but does not
-establish that every region creates exactly 20 emitters or prove the exact
-effect-wide cap behavior. An `RLlr` runtime capture remains outstanding. Keep
-those questions separate from the confirmed mode-0 alpha path above;
-`alphaMode` values other than zero remain unverified.
+**Implementation status:** OpenRealm uses the authored per-second `emrate`
+directly and enforces `particles` as a logical live-particle cap per weather
+effect. It does not yet reproduce retail's multiple spatial weather emitters,
+so aggregate density can be low. Do not restore a fixed ×20 multiplier: the
+Prologue01 trace establishes 23 emitters in that scene, not a universal
+fan-out rule or an exact effect-wide cap. An `RLlr` runtime capture remains
+outstanding. Keep those questions separate from the confirmed mode-0 alpha
+path above; `alphaMode` values other than zero remain unverified.
 
 ## Lifecycle And Networking
 

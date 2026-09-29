@@ -12,6 +12,15 @@ import frida
 EXPECTED_SHA256 = '3f2ed0120d80578bf07e4423296dade1adfb959d59a2d20a7584224559570eed'
 
 
+def validate_controller_inputs(exe, seconds):
+    if not 0 < seconds <= 300:
+        raise ValueError('--seconds must be in (0, 300]')
+    binary_hash = hashlib.sha256(exe.read_bytes()).hexdigest()
+    if binary_hash != EXPECTED_SHA256:
+        raise ValueError(f'unsupported Warcraft III.exe SHA256: {binary_hash}')
+    return binary_hash
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--exe', type=Path, required=True, help='hash-checked Warcraft III.exe')
@@ -21,11 +30,10 @@ def main():
     parser.add_argument('--output', type=Path, required=True, help='JSONL destination')
     args = parser.parse_args()
 
-    if not 0 < args.seconds <= 300:
-        parser.error('--seconds must be in (0, 300]')
-    binary_hash = hashlib.sha256(args.exe.read_bytes()).hexdigest()
-    if binary_hash != EXPECTED_SHA256:
-        parser.error(f'unsupported Warcraft III.exe SHA256: {binary_hash}')
+    try:
+        binary_hash = validate_controller_inputs(args.exe, args.seconds)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
 
     device = frida.get_device_manager().add_remote_device(args.remote)
     target = device.get_process(args.pid) if args.pid else device.get_process('Warcraft III.exe')
