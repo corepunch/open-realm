@@ -28,6 +28,8 @@ The WC3 default config binds:
 - Page Up/Page Down to the same zoom policy through the keyboard path;
 - F5 to `zoomdefault`, which returns to the effective player/default distance.
 
+Wheel zoom is ignored while the pointer is over a gameplay UI layout or client-managed window. Page Up/Page Down remain keyboard controls when a nonmodal window is open; modal windows block them through the normal gameplay-input gate.
+
 The generic `zoom` command asks the selected game for its zoom policy before falling back to the legacy generic `camera_min_distance` / `camera_max_distance` cvars.  The WC3 config currently uses `zoom_speed 100` world units per discrete key/wheel notch.  That step is an OpenRealm input-tuning value, not a claimed retail constant; the retail-compatible constraints are the resolved min/default/max values and controls.
 
 ## Scripted camera fields are intentionally separate
