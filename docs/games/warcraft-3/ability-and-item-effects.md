@@ -171,7 +171,56 @@ Far Sight snapshots the casting player, target point, authored Area, and normal 
 
 Feral Spirit reads its summoned unit from UnitID, count from Data B, lifetime from the normal duration field, and spawn distance from Area. Recasting kills surviving summons created by the caster's previous `AOsf` cast, then creates the new summons at the same authored point in front of the caster, matching the Warsmash reference, and requests SpecialArt on each summon. Summons retain their source ability rawcode so replacement does not accidentally kill unrelated summons of the same unit type. The generic attack path consumes stock creep Critical Strike (`ACct`), which makes the authored Dire/Shadow Wolf critical-strike ability functional. Stock Permanent Invisibility (`Apiv`) is registered as a passive and represented by a dedicated per-unit reveal deadline instead of `RF_HIDDEN`: after the authored transition time on spawn the unit is invisible to hostile viewers unless detected, while starting an attack or committing a spell restarts that authored reveal/transition window. Undetected units are excluded from hostile automatic acquisition, ongoing hostile attack validity, unit-target spell validation, networking, and selection; owners/shared-vision allies retain access, and Far Sight/passive detectors expose the unit only to the corresponding viewer. A zero authored transition keeps the unit continuously invisible across attacks/casts, while a negative transition disables entry into permanent invisibility. The reveal deadline is authoritative saved state, so save/load cannot make a revealed Shadow Wolf vanish early or reset its transition.
 
-Earthquake remains a fixed-point channel. Data A supplies the initial effect delay, Data B supplies the per-second structure/destructable damage, Data C supplies the movement-speed reduction, Area supplies the affected radius, and the normal duration controls channel lifetime. After the authored delay, each one-second tick applies the authored relationship and unit-class target tokens to ground units/structures, while tree/debris destructables are admitted only when their corresponding authored target token is present. Stock current data therefore affects enemy ground units, enemy structures, trees, and debris without hard-coding that relationship into the ability procedure; air units remain excluded from the Earthquake slow. The movement path consumes the active `BOeq` reduction for both ordinary and group-speed calculations and preserves Warcraft's 140 minimum speed for units that were authored faster than that threshold. The channel thinker owns persistent authored `Areaeffectart` (falling back to `EffectArt`), plays `Effectsound`, attaches `Effectsoundlooped` through generic snapshot-synchronised looping audio, and tears those resources down on interruption or natural completion. The MDX renderer now consumes classic `SPL`/`FPT` SplatData and `UBR` UberSplat event objects, including nested `SPN` child events, so Earthquake area-art models can use those generic authored presentation paths without spell-specific renderer code. Data D's exact `Final Area` runtime contract and whether stock `XOeq` requires additional specialized terrain behavior remain unverified and are not guessed here.
+Earthquake remains a fixed-point channel. Data A supplies the initial effect delay, Data B supplies per-second structure/destructable damage, Data C supplies movement-speed reduction, `Area` supplies the affected radius, and normal duration controls channel lifetime. The retail masks for both `AOeq` and `SNeq` are exactly `ground,structure,debris,tree`; neither row authors `enemy`, `friend`, `neutral`, `air`, `organic`, `mechanical`, `ancient`, `ward`, `vulnerable`, or `invulnerable`. Ground units and structures use those unit categories, while destructables are admitted through `tree` and `debris`. The absence of a relationship token means the data does not author a friend/enemy/neutral restriction; retail runtime treatment of that omission has not been independently verified. The movement path consumes the active `BOeq` reduction for ordinary and group-speed calculations and preserves Warcraft's 140 minimum speed for units authored faster than that threshold.
+
+### Earthquake retail presentation chain
+
+The retail object-data chain is `AOeq.EfctID1=XOeq`; the ability audit exposes that field as `EfctID=XOeq`. `SNeq` also has `EfctID1=XOeq`. No separate `Effects` field appears in the inspected ability row; the retail reference is `EfctID`. The presentation fields from `Units\\OrcAbilityFunc.txt` and object data are:
+
+The data check used the repository's `War3.mpq` and `War3x.mpq`; the relevant ability rows agree between those archives.
+
+| Rawcode | Art | TargetArt | CasterArt | EffectArt | AreaEffectArt | SpecialArt | MissileArt | Buffs | EfctID | Effectsound | Effectsoundlooped |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `AOeq` | button `ReplaceableTextures\\CommandButtons\\BTNEarthquake.blp` | — | — | — | — | — | — | `BOeq,BOea` | `XOeq` | — | — |
+| `BOeq` | — | `Abilities\\Spells\\Orc\\StasisTrap\\StasisTotemTarget.mdl` | — | — | — | — | — | — | — | — | — |
+| `BOea` | — | — | — | — | — | — | — | — | — | — | — |
+| `XOeq` | — | — | — | `Abilities\\Spells\\Orc\\EarthQuake\\EarthQuakeTarget.mdl` | — | — | — | — | — | — | `EarthquakeLoop` |
+
+`AOeq` also has `ResearchArt=ReplaceableTextures\\CommandButtons\\BTNEarthquake.blp`, which is a research icon rather than world presentation. The archive contains the effect model as `Abilities\\Spells\\Orc\\EarthQuake\\EarthquakeTarget.mdx`; the authored `.mdl` path resolves to that asset through Warcraft's model-path lookup. `SNeq` has the same `EfctID` and is an alternate ability row, not an assumption based on rawcode spelling. No `Effectsound` is authored on these rows. The table's `—` means no populated presentation value was found in the inspected retail rows/config.
+
+The model has `SEQS` Birth (167–1200), Stand (1233–10274), Death (62300–63267), four `TEXS` paths (`Textures\\EQ_Rock2.blp`, `Textures\\Dust5A.blp`, `Textures\\LavaLump.blp`, `Textures\\Red_Glow3.blp`), two `PRE2` emitters, one `EVTS`, and no `PREM`, `RIBB`, `ATCH`, or `LITE`. Its eight event objects are all root nodes with no parent and no global sequence:
+
+| Event name | Family / key | Sequence | Node pivot (model units) | Data lookup |
+|---|---|---|---|---|
+| `SNDXAEQK` | `SND`, frame 167 | Birth | `(-5.516, 11.992, 91.675)` | `AnimLookups` `AEQK` -> label `Earthquake` -> `AnimSounds` `Earthquake` -> `Abilities\\Spells\\Orc\\EarthQuake\\EarthquakeRock.wav` |
+| `UBRATHND` | `UBR`, frame 1033 | Birth | `(7.568, 7.219, 12.750)` | `UberSplatData` `THND` |
+| `UBRbTHND` | `UBR`, frame 1300 | Stand | `(173.838, -24.387, 12.750)` | `UberSplatData` `THND` |
+| `UBRdTHND` | `UBR`, frame 2801 | Stand | `(-130.571, -182.247, 12.750)` | `UberSplatData` `THND` |
+| `UBReTHND` | `UBR`, frame 4559 | Stand | `(-130.571, 180.168, 12.750)` | `UberSplatData` `THND` |
+| `UBRfTHND` | `UBR`, frame 5922 | Stand | `(95.024, 91.402, 12.750)` | `UberSplatData` `THND` |
+| `UBRgTHND` | `UBR`, frame 7979 | Stand | `(-109.460, -57.197, 12.750)` | `UberSplatData` `THND` |
+| `UBRcTHND` | `UBR`, frame 9787 | Stand | `(125.551, -125.525, 12.750)` | `UberSplatData` `THND` |
+
+There are no `SPN`, `SPL`, or `FPT` events, so the stock chain has no nested child model and does not use `Splats\\SplatData.slk`. `UberSplatData.slk` row `THND` resolves to `ReplaceableTextures\\Splats\\ThunderClapUbersplat.blp`: `Scale=280`, `BirthTime=0.2`, `PauseTime=2`, `Decay=2`; Start/Middle/End RGB are all 255 and alpha is 0/255/0. `BlendMode=1`; the renderer currently uses its alpha-blended splat primitive, retains this value, and issues one bounded unsupported-field warning. The exact retail meaning of mode 1 has not been established, so full blend parity is not claimed. `Sound="NULL"` is the table's empty sentinel and does not name a sound. The generic warning now treats `NULL`, `-`, and `_` as empty optional sound values.
+
+The renderer already handles the stock model's `PRE2`, `SND`, and `UBR` shapes generically. It resolves event rows in renderer asset scope, so map archive overrides keep their normal priority. The game-side area presentation now follows the selected `AbilityData.EfctID` when direct ability fields do not provide art or sound: direct ability values keep precedence, then the effect object's `AreaEffectArt`/`EffectArt` and one-shot/looped sound fields are considered. This makes the `XOeq` model and loop sound data-driven; the model's `SNDXAEQK` supplies the one-shot rock sound. It creates no renderer-only network or save state.
+
+For the generic event parser and renderer contracts, see [MDX Event Objects](mdx-event-objects.md); this Earthquake chain uses its `PRE2`, `SND`, and `UBR` paths and does not exercise `SPN`, `SPL`, or `FPT`.
+
+`BOeq` is a buff class (`CBuffEarthquake`) and authors `TargetArt=Abilities\\Spells\\Orc\\StasisTrap\\StasisTotemTarget.mdl` with `Targetattach=overhead`; `BOea` is a buff class (`CBuffEarthquakeAoe`) listed alongside `BOeq` on `AOeq`, but has no corresponding art fields in the inspected Func data. Those authored buff-target fields are distinct from the `XOeq` area model. Generic status-to-`TargetArt` lifetime binding is not implemented, so the current Earthquake effect chain does not claim that this overhead art is displayed. `XOeq` is an effect class (`CEffectEarthquake` in extracted retail class metadata), not a buff rawcode; its `EffectArt` selects the model whose `UBR` events resolve terrain decals. These facts establish an effect-object-to-model-to-UberSplat data chain, but do not establish whether the executable also treats `XOeq` as gameplay state, how it owns the model's lifetime, or whether it reads `Oeq4`.
+
+### Earthquake data questions still open
+
+`AbilityMetaData.slk` defines `Oeq4` as `AbilityData` Data index 4, displays it as `Final Area`, permits `0..99999`, and lists `AOeq,SNeq` as supported IDs. Both stock rows have `Area=250` and `Oeq4=250`. The equality does not establish that `Oeq4` is a radius or an effect scale; no reliable executable/runtime read site was recovered. Its semantics remain unresolved and behavior stays unchanged.
+
+| Retail row | Area | Oeq1 / Oeq2 / Oeq3 / Oeq4 | Duration | EffectArt / AreaEffectArt | BuffID | EfctID |
+|---|---:|---|---:|---|---|---|
+| `AOeq` | 250 | `0.5 / 50 / 0.75 / 250` | 25 | no direct value / no direct value | `BOeq,BOea` | `XOeq` |
+| `SNeq` | 250 | `0.5 / 50 / 0.75 / 250` | 25 | no direct value / no direct value | `BOeq` | `XOeq` |
+
+These values are identical for the timing, damage, slow, area, and effect reference; the buff list differs. The model and loop sound are inherited through `EfctID=XOeq`, as described above.
+
+The retail data establishes that `AOeq` lists both `BOeq` and `BOea`, while `SNeq` lists only `BOeq`. The class metadata identifies them as buff classes, but does not establish `BOea`'s gameplay contribution. Overlapping casts and modified `Oeq3` values were not tested in retail. OpenRealm's shared status storage replaces/refreshes an existing status with the same buff rawcode unless a `BuffStackType` override says otherwise; this is a code fact, not evidence of retail stacking behavior. No Earthquake-specific stacking rule was added.
 
 Chain Lightning's `CLPB`/`CLSB` records feed a bounded procedural lightning polyline. `AvgSegLen` controls point density, `Width` controls the ribbon thickness, `NoiseScale` scales deterministic stepped crackle relative to the stock 0.05 value, `TexCoordScale` tiles and advances `Lightning.blp`, and `Duration` bounds the authored lifetime. The shared registry also owns JASS lightning handles, so spell and script bolts use the same renderer and save/hashtable identity.
 
@@ -186,7 +235,8 @@ The following are deliberately outside this implementation slice:
   beyond explicitly owned lifecycles such as natural creep sleep;
 - ability/buff `EffectSound` and `EffectSoundLooped`;
 - Ghost/Ghost Visible remain separate from the player-aware invisibility paths covered here; Shadow Meld now uses dedicated saved state and the same owner/shared-vision/detector visibility query as the implemented `Apiv`/`Binv`/`BOwk`/ward mechanics;
-- Earthquake Data D/`Final Area` semantics and any `XOeq` behavior beyond the generic MDX `SPL`/`FPT`/`UBR` event paths remain unverified;
+- Earthquake `Oeq4`/`Final Area` semantics, the retail meaning of `UberSplatData.BlendMode=1`, `BOea`'s contribution, and overlapping-Earthquake stacking remain unverified;
+- generic buff `TargetArt`/`Targetattach` creation and lifetime binding remain unimplemented, including the authored `BOeq` overhead model;
 - item `cooldownID` / `ignoreCD` shared cooldown behavior;
 - automatic `powerup` acquisition/use;
 - spell cast-point/backswing timing changes;
