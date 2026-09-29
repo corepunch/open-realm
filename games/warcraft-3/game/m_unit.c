@@ -1129,7 +1129,8 @@ static bool unit_create_is_static_scenery(edict_t const *unit) {
      * Treat no movement type + zero speed + no enabled attacks as scenery and
      * preserve the authored spawn. Validate this heuristic against retail. */
     return data && data->id == unit->class_id && data->moveTypeName &&
-           !strcmp(data->moveTypeName, "-") && balance && balance->id == unit->class_id &&
+           (!strcmp(data->moveTypeName, "-") || !strcmp(data->moveTypeName, "_")) &&
+           balance && balance->id == unit->class_id &&
            unit->unitinfo.MoveSpeed <= 0.0f && weapons && weapons->id == unit->class_id &&
            weapons->attacksEnabled == 0;
 }

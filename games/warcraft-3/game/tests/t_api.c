@@ -2529,7 +2529,7 @@ TEST(wc3_api, createunit_static_scenery_keeps_requested_spawn) {
     static cstring_t const data_slk =
         "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\n"
-        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K\"-\"\nE\n";
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K\"_\"\nE\n";
     static cstring_t const balance_slk =
         "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"spd\"\n"
