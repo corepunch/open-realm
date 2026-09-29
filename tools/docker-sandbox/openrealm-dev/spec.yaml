@@ -90,5 +90,13 @@ setup:
         EOF
         chmod 755 /usr/local/bin/ghidra
 
+        wine --version
+        test -x /usr/local/bin/ghidra
+        test -x /usr/local/bin/frida
+        test -x /usr/local/bin/frida-ps
+        test -x /usr/local/bin/frida-server.exe
+        test -x /opt/openrealm-tools/ghidra_12.1.4_PUBLIC/ghidraRun
+        /opt/openrealm-tools/frida-venv/bin/python -c 'import frida; assert frida.__version__ == "17.19.0"'
+
         apt-get clean
         rm -rf /var/lib/apt/lists/*

@@ -110,6 +110,17 @@ cparticle_t *R_SpawnParticle(void) {
     return p;
 }
 
+void R_DiscardParticle(cparticle_t *particle) {
+    cparticle_t **link;
+
+    if (!particle) return;
+    for (link = &active_particles; *link && *link != particle; link = &(*link)->next) {}
+    if (!*link) return;
+    *link = particle->next;
+    particle->next = free_particles;
+    free_particles = particle;
+}
+
 /* Count an effect's logical particles; weather head/tail render copies have no owner key. */
 uint32_t R_CountParticlesForEmitter(uint32_t emitter_id) {
     uint32_t count = 0;

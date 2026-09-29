@@ -91,7 +91,7 @@ TEST(mdx_ui, wc3_weather_emits_authored_alpha_and_tail_primitive) {
         .lifespan = 1.0f, .particles = 10, .head = false, .tail = true,
         .alphaStart = 150, .rows = 1, .columns = 1, .tailLength = 2.0f,
         .tailUVStart = 3, .tailUVMid = 4, .tailUVEnd = 5, .velocity = 10.0f };
-    cparticle_t *p = weather_test_run(&art, 50, 1);
+    cparticle_t *p = weather_test_run(&art, 1000, 1);
     T_EQ(p->blend_mode, BLEND_MODE_BLEND);
     T_EQ(p->color[0].a, 150);
     T_EQ(p->uv_start, 3); T_EQ(p->uv_mid, 4); T_EQ(p->uv_end, 5);
@@ -103,6 +103,74 @@ TEST(mdx_ui, wc3_weather_rejects_authored_row_without_head_or_tail) {
         .lifespan = 1.0f, .particles = 10, .head = false, .tail = false };
     (void)weather_test_run(&art, 50, 0);
     T_NULL(active_particles);
+}
+
+TEST(mdx_ui, wc3_weather_head_and_tail_count_as_one_logical_particle) {
+    w3WeatherArt_t art = { .id = MAKEFOURCC('T','E','S','T'), .emissionRate = 1.0f,
+        .lifespan = 1.0f, .particles = 1, .head = true, .tail = true,
+        .rows = 1, .columns = 1, .tailLength = 2.0f, .velocity = 10.0f };
+    cparticle_t *p = weather_test_run(&art, 1000, 1);
+
+    T_NOT_NULL(p);
+    T_NOT_NULL(p->next);
+    T_EQ(R_CountParticlesForEmitter(7), 1);
+}
+
+TEST(mdx_ui, wc3_weather_particle_cap_recovers_after_particle_expiry) {
+    w3WeatherArt_t art = { .id = MAKEFOURCC('T','E','S','T'), .emissionRate = 1.0f,
+        .lifespan = 0.05f, .particles = 1, .head = false, .tail = true,
+        .rows = 1, .columns = 1, .tailLength = 2.0f, .velocity = 10.0f };
+    cparticle_t *p = weather_test_run(&art, 1000, 1);
+
+    T_NOT_NULL(p);
+    tr.viewDef.deltaTime = 51;
+    R_UpdateParticles();
+    T_NULL(active_particles);
+    tr.viewDef.deltaTime = 1000;
+    R_WeatherEmit();
+    T_EQ(R_CountParticlesForEmitter(7), 1);
+}
+
+TEST(mdx_ui, wc3_weather_uses_authored_per_second_rate_without_aggregate_multiplier) {
+    w3WeatherArt_t art = { .id = MAKEFOURCC('T','E','S','T'), .emissionRate = 1.0f,
+        .lifespan = 2.0f, .particles = 100, .head = false, .tail = true,
+        .rows = 1, .columns = 1, .tailLength = 2.0f, .velocity = 10.0f };
+    cparticle_t *p = weather_test_run(&art, 1000, 1);
+
+    T_NOT_NULL(p);
+    T_NULL(p->next);
+}
+
+TEST(mdx_ui, wc3_weather_does_not_emit_half_dual_primitive_on_pool_exhaustion) {
+    w3WeatherArt_t art = { .id = MAKEFOURCC('T','E','S','T'), .emissionRate = 1.0f,
+        .lifespan = 1.0f, .particles = 1, .head = true, .tail = true,
+        .rows = 1, .columns = 1, .tailLength = 2.0f, .velocity = 10.0f };
+    cparticle_t *p;
+
+    static wc3WeatherEffect_t state;
+    static texture_t texture;
+    R_ClearParticles();
+    R_WeatherInit();
+    weather_rng = 0x7f4a7c15u;
+    tr.viewDef = (viewDef_t){0};
+    tr.viewDef.deltaTime = 1000;
+    tr.viewDef.num_weather_effects = 1;
+    tr.viewDef.weather_effects = &state;
+    state = (wc3WeatherEffect_t){ .handle = 7, .effect_id = art.id, .enabled = 1,
+        .bounds = { .min = {-100, -100}, .max = {100, 100} } };
+    weather_effects[0] = (renderWeatherEffect_t){ .inuse = true, .enabled = true,
+        .handle = state.handle, .effect_id = state.effect_id, .bounds = state.bounds,
+        .art = &art, .texture = &texture };
+    cl_numparticles = 2;
+    R_ClearParticles();
+    T_NOT_NULL(R_SpawnParticle());
+    tr.viewDef.deltaTime = 1000;
+    R_WeatherEmit();
+    p = active_particles;
+    T_EQ(R_CountParticlesForEmitter(7), 0);
+    T_NOT_NULL(p);
+    T_NULL(p->next);
+    cl_numparticles = MAX_PARTICLES;
 }
 
 TEST(mdx_ui, sprite_clock_and_particle_scenes_are_isolated) {

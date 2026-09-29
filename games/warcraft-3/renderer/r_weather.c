@@ -6,7 +6,6 @@
 #define WEATHER_SCALE_QUANT 16.0f
 #define WEATHER_MIN_EMIT_RADIUS 1024.0f
 #define WEATHER_DEG2RAD 0.01745329251994329577f
-#define WEATHER_AGGREGATE_RATE_SCALE 20.0f // Approximate retail's multiple spatial weather emitters.
 
 typedef struct {
     uint32_t id;
@@ -319,7 +318,11 @@ static bool R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
 
     if (draw_head && draw_tail) {
         tail_particle = R_SpawnParticle();
-        if (tail_particle) {
+        if (!tail_particle) {
+            R_DiscardParticle(p);
+            return false;
+        }
+        {
             cparticle_t *next = tail_particle->next;
             *tail_particle = *p;
             tail_particle->next = next;
@@ -352,9 +355,7 @@ void R_WeatherEmit(void) {
         if (!effect->inuse || !effect->enabled || !art || !effect->texture ||
             art->emissionRate <= 0.0f || art->lifespan <= 0.0f ||
             !R_WeatherIntersect(&visible, &effect->bounds, &area)) continue;
-        /* TODO: Compare aggregate density and caps per weather region against retail. */
-        effect->emission_accum += art->emissionRate * WEATHER_AGGREGATE_RATE_SCALE *
-                                  (float)delta_ms / 1000.0f;
+        effect->emission_accum += art->emissionRate * (float)delta_ms / 1000.0f;
         emit_count = (uint32_t)effect->emission_accum;
         effect->emission_accum -= (float)emit_count;
         live_count = R_CountParticlesForEmitter(effect->handle);
