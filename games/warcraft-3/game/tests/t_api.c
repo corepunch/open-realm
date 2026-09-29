@@ -2569,6 +2569,62 @@ TEST(wc3_api, createunit_static_scenery_keeps_requested_spawn) {
     free_slk_rows(weapons_rows);
 }
 
+TEST(wc3_api, createunit_custom_static_scenery_keeps_requested_spawn) {
+    static cstring_t const data_slk =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\n"
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K\"_\"\nE\n";
+    static cstring_t const balance_slk =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"spd\"\n"
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K0\nE\n";
+    static cstring_t const weapons_slk =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"unitWeaponID\"\nC;Y1;X2;K\"weapsOn\"\n"
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K0\nE\n";
+    uint32_t const custom_id = MAKEFOURCC('x','f','r','m');
+    unitData_t custom = { .originalUnitID = MAKEFOURCC('n','f','r','m'), .newUnitID = custom_id };
+    mapInfo_t mapinfo = { .num_userCreatedUnits = 1, .userCreatedUnits = &custom };
+    slkTestData_t *data_rows, *balance_rows, *weapons_rows;
+    slkTestData_t *old_data, *old_balance, *old_weapons;
+    mapInfo_t const *old_mapinfo;
+    edict_t *created;
+
+    reset_entities(); setup_test_world();
+    data_rows = parse_slk_string(data_slk);
+    balance_rows = parse_slk_string(balance_slk);
+    weapons_rows = parse_slk_string(weapons_slk);
+    old_data = G_SetSLKRows("UnitData", data_rows);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    old_weapons = G_SetSLKRows("UnitWeapons", weapons_rows);
+    old_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+    setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call CreateUnit(Player(0), 'xfrm', 256.0, 256.0, 0.0)\n"
+        "endfunction\n"));
+
+    created = find_test_unit(custom_id);
+    T_NOT_NULL(created);
+    if (created) {
+        T_FEQ(created->s.origin.x, 256.0f, 0.001f);
+        T_FEQ(created->s.origin.y, 256.0f, 0.001f);
+        T_EQ(created->data.UnitData->id, MAKEFOURCC('n','f','r','m'));
+        T_EQ(created->data.UnitWeapons->id, MAKEFOURCC('n','f','r','m'));
+        T_EQ(created->data.UnitBalance->id, custom_id);
+    }
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = old_mapinfo;
+    G_SetSLKRows("UnitData", old_data);
+    G_SetSLKRows("UnitBalance", old_balance);
+    G_SetSLKRows("UnitWeapons", old_weapons);
+    free_slk_rows(data_rows);
+    free_slk_rows(balance_rows);
+    free_slk_rows(weapons_rows);
+}
+
 TEST(wc3_api, createunit_avoids_live_unit_collision) {
     vec2_t const point = { 256.0f, 256.0f };
     edict_t *first, *second;

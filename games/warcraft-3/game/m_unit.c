@@ -1128,10 +1128,10 @@ static bool unit_create_is_static_scenery(edict_t const *unit) {
     /* HACK: WC3 has no explicit scenery-unit flag in the loaded object data.
      * Treat no movement type + zero speed + no enabled attacks as scenery and
      * preserve the authored spawn. Validate this heuristic against retail. */
-    return data && data->id == unit->class_id && data->moveTypeName &&
+    return data && data->id && data->moveTypeName &&
            (!strcmp(data->moveTypeName, "-") || !strcmp(data->moveTypeName, "_")) &&
-           balance && balance->id == unit->class_id &&
-           unit->unitinfo.MoveSpeed <= 0.0f && weapons && weapons->id == unit->class_id &&
+           balance && balance->id &&
+           unit->unitinfo.MoveSpeed <= 0.0f && weapons && weapons->id &&
            weapons->attacksEnabled == 0;
 }
 
