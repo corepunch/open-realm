@@ -914,6 +914,8 @@ jassModule_t jass_funcs[] = {
     { "CameraSetupApplyForceDurationWithZ", CameraSetupApplyForceDurationWithZ },
     { "CameraSetTargetNoise", CameraSetTargetNoise },
     { "CameraSetSourceNoise", CameraSetSourceNoise },
+    { "CameraSetTargetNoiseEx", CameraSetTargetNoiseEx },
+    { "CameraSetSourceNoiseEx", CameraSetSourceNoiseEx },
     { "CameraSetSmoothingFactor", CameraSetSmoothingFactor },
     { "SetCineFilterTexture", SetCineFilterTexture },
     { "SetCineFilterBlendMode", SetCineFilterBlendMode },

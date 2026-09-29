@@ -235,6 +235,10 @@ native CameraSetupApply takes camerasetup whichSetup, boolean doPan, boolean pan
 native CameraSetupApplyWithZ takes camerasetup whichSetup, real zDestOffset returns nothing
 native CameraSetupApplyForceDuration takes camerasetup whichSetup, boolean doPan, real forceDuration returns nothing
 native CameraSetupApplyForceDurationWithZ takes camerasetup whichSetup, real zDestOffset, real forceDuration returns nothing
+native CameraSetTargetNoise takes real mag, real velocity returns nothing
+native CameraSetSourceNoise takes real mag, real velocity returns nothing
+native CameraSetTargetNoiseEx takes real mag, real velocity, boolean vertOnly returns nothing
+native CameraSetSourceNoiseEx takes real mag, real velocity, boolean vertOnly returns nothing
 native InitGameCache takes string campaignFile returns gamecache
 native StoreInteger takes gamecache cache, string missionKey, string key, integer value returns nothing
 native GetStoredInteger takes gamecache cache, string missionKey, string key returns integer
