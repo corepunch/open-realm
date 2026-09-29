@@ -246,6 +246,7 @@ client_t *SV_FindClientByAddr(netadr_t const *from) {
     SV_ReapZombieClients();
     FOR_LOOP(i, svs.num_clients) {
         client_t *cl = &svs.clients[i];
+        if (cl->state == cs_free) continue;
         if (from->type == NA_LOOPBACK &&
             cl->netchan.remote_address.type == NA_LOOPBACK)
             return cl;

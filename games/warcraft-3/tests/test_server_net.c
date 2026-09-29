@@ -889,6 +889,18 @@ TEST(server_net, duplicate_loopback_connect_replies_without_allocating_client) {
     SV_Shutdown(); NET_Shutdown();
 }
 
+TEST(server_net, find_client_by_loopback_skips_free_slot) {
+    netadr_t loopback = { .type = NA_LOOPBACK };
+
+    reset_server_state(2);
+    svs.num_clients = 2;
+    svs.clients[0].state = cs_free;
+    svs.clients[1].state = cs_connected;
+    svs.clients[1].netchan.remote_address = loopback;
+
+    T_ASSERT(SV_FindClientByAddr(&loopback) == &svs.clients[1]);
+}
+
 TEST(server_net, server_snapshot_ring_scales_to_client_capacity) {
     reset_server_state(4);
 
@@ -1010,6 +1022,7 @@ TEST(server_net, lobby_start_preserves_connected_clients) {
     slot.color = 0;
     snprintf(slot.name, sizeof(slot.name), "Host");
     SV_LobbySetSlot(0, &slot);
+    slot.type = LOBBY_SLOT_OPEN;
     slot.map_player = 1;
     slot.race = kPlayerRaceOrc;
     slot.team = 1;
@@ -1059,6 +1072,7 @@ TEST(server_net, lobby_start_same_map_is_noop) {
     slot.race = kPlayerRaceHuman;
     snprintf(slot.name, sizeof(slot.name), "Host");
     SV_LobbySetSlot(0, &slot);
+    slot.type = LOBBY_SLOT_OPEN;
     slot.map_player = 1;
     slot.race = kPlayerRaceOrc;
     snprintf(slot.name, sizeof(slot.name), "Open");
@@ -1073,6 +1087,55 @@ TEST(server_net, lobby_start_same_map_is_noop) {
     T_EQ(svs.num_clients, 2);
     T_EQ(svs.clients[1].state, cs_connected);
     T_EQ(svs.clients[1].netchan.remote_address.port, remote.port);
+
+    SV_Shutdown();
+    NET_Shutdown();
+    test_mapinfo = NULL;
+}
+
+TEST(server_net, lobby_map_transition_preserves_client_indices_with_holes) {
+    mapInfo_t info = { 0 };
+    lobbySlot_t slot = { 0 };
+    netadr_t remote_a = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 32) };
+    netadr_t remote_b = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 33) };
+
+    NET_Shutdown();
+    test_client_stubs_set_cvar("game_port", "28058");
+    reset_server_state(4);
+    test_mapinfo = &info;
+    SV_StartLobby("Maps\\Melee\\Before.w3m");
+    SV_LobbySetConfig(4, 4, "Before");
+    slot.visible = true;
+    slot.client = MAX_CLIENTS;
+    slot.type = LOBBY_SLOT_OPEN;
+    slot.map_player = 0;
+    SV_LobbySetSlot(0, &slot);
+    slot.map_player = 1;
+    SV_LobbySetSlot(1, &slot);
+    slot.map_player = 2;
+    SV_LobbySetSlot(2, &slot);
+    slot.type = LOBBY_SLOT_HUMAN;
+    slot.map_player = 0;
+    SV_LobbySetSlot(0, &slot);
+    SV_DirectConnect(&remote_a, "\\name\\A");
+    SV_DirectConnect(&remote_b, "\\name\\B");
+    T_EQ(svs.num_clients, 3);
+    T_EQ(svs.lobby.slots[2].client, 2);
+
+    SV_DropClient(&svs.clients[1]);
+    svs.realtime += BZ_CLIENT_ZOMBIE_MSEC;
+    SV_ReapZombieClients();
+    T_EQ(svs.clients[1].state, cs_free);
+    T_EQ(svs.clients[2].state, cs_connected);
+
+    SV_Map("Maps\\Melee\\After.w3m");
+
+    T_EQ(svs.num_clients, 3);
+    T_EQ(svs.clients[1].state, cs_free);
+    T_EQ(svs.clients[2].state, cs_connected);
+    T_EQ(svs.clients[2].netchan.remote_address.port, remote_b.port);
+    T_EQ(svs.lobby.slots[2].client, 2);
+    T_EQ(svs.lobby.slots[2].occupied, true);
 
     SV_Shutdown();
     NET_Shutdown();
