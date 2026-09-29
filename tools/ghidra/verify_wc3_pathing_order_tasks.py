@@ -10,6 +10,7 @@ import json
 import struct
 from pathlib import Path
 from verify_wc3_pathing_numeric import add as float_add, multiply as float_multiply
+from wc3_pathing_scenario import DEFAULT_MANIFEST,load_manifest,verify_case,first_difference,case_output
 
 
 def main():
@@ -18,7 +19,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--producer-baseline', action='store_true', help='compose no-file map and mover producers before the owner baseline')
+    parser.add_argument('--baseline-manifest', type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
+    manifest,expectations=load_manifest(args.baseline_manifest) if args.producer_baseline else (None,None)
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -29,6 +33,7 @@ def main():
     machine = Uc(UC_ARCH_X86, UC_MODE_32)
     def invalid_memory(uc,access,address,size,value,data):
         print(f'retail memory access {access} at {address:#x}, size {size}, EIP {uc.reg_read(UC_X86_REG_EIP):#x}',flush=True)
+        print({name:hex(uc.reg_read(reg)) for name,reg in [('eax',UC_X86_REG_EAX),('ecx',UC_X86_REG_ECX),('edx',UC_X86_REG_EDX),('esi',UC_X86_REG_ESI),('edi',UC_X86_REG_EDI)]},flush=True)
         return False
     machine.hook_add(UC_HOOK_MEM_INVALID,invalid_memory)
     machine.mem_map(base, (size + 4095) & ~4095)
@@ -57,7 +62,7 @@ def main():
         machine.reg_write(UC_X86_REG_EDX, edx)
         preserved={r:0x10203040+i*0x111111 for i,r in enumerate((UC_X86_REG_EBX,UC_X86_REG_ESI,UC_X86_REG_EDI,UC_X86_REG_EBP))}
         for r,v in preserved.items():machine.reg_write(r,v)
-        machine.emu_start(entry, stop, count=100000)
+        machine.emu_start(entry, stop, count=2000000)
         assert machine.reg_read(UC_X86_REG_ESP)==stack+4+4*len(arguments),(hex(entry),'stack')
         assert all(machine.reg_read(r)==v for r,v in preserved.items()),(hex(entry),'callee saved registers')
         assert read(0)[0]==0,(hex(entry),'exception chain')
@@ -263,7 +268,8 @@ def main():
 
     machine.mem_map(0x10100000,0x30000)
     machine.mem_map(0x10200000,0x100000)
-    def dispatch_case(flag,player,status,target,next_target=None,replacement_target=None,replacement_mode=1,owner_updates=False):
+    machine.mem_map(0x10300000,0x400000)
+    def dispatch_case(flag,player,status,target,next_target=None,replacement_target=None,replacement_mode=1,owner_updates=False,producer_setup=False):
         reset()
         machine.mem_write(0x10100000,bytes(0x30000))
         machine.mem_write(0x10200000,bytes(0x100000))
@@ -282,8 +288,9 @@ def main():
         generator,group,path,members=[extra+n for n in (0xc004,0xd004,0xe004,0xf000)]
         profile,profilebucket=extra+0x11000,extra+0x11300
         write(slots+125*8,-1,0)
-        write(slots+126*8,-2,unit_wrapper,-2,mover)
-        write(registry+0x48,3)  # Existing unit, mover and attached ability identities.
+        write(slots+126*8,-2,unit_wrapper)
+        if not producer_setup:write(slots+127*8,-2,mover)
+        write(registry+0x48,2 if producer_setup else 3)  # Existing unit/ability; mover is produced separately.
         write(unit_wrapper,0x6fa8099c)
         write(unit_wrapper+0xc,0x2b61676c,0x2b616761,126,900)
         write(unit_wrapper+0x54,unit)
@@ -294,22 +301,24 @@ def main():
         write(unit+0x240,-1,-1)
         write(unit+0x30,0x68666f6f)
         write(unit+0x58,player,status)
-        write(unit+0x164,0x6fac2f10,0,127,901)
-        floats(unit+0x284,128,128,0,0)
-        write(mover,0x6fa9129c,0 if owner_updates else owner+0x200,0)
+        write(unit+0x164,0x6fac2f10,0,*([-1,-1] if producer_setup else [127,901]))
+        if producer_setup:write(unit+0x284,*manifest['entities'][0]['position_bits'],0,0)
+        else:floats(unit+0x284,128,128,0,0)
+        if not producer_setup:write(mover,0x6fa9129c,0 if owner_updates else owner+0x200,0)
         if owner_updates:
             for entry in (0x6f004200,0x6f004210):run(entry,0)
             write(owner+0x38c,0)
             write(owner+0x43c,0,0)
             write(owner+0x51c,0)
-        write(mover+0x14,127,901)
-        write(mover+0x30,unit_wrapper)
-        floats(mover+0x78,4,4,0,0,8,0,0.25)
-        write(mover+0x94,*objects)
-        write(mover+0x9c,-1,-1)
-        write(mover+0xa8,current_path)
-        floats(mover+0xc8,0.25)
-        write(mover+0xd0,4,4)
+        if not producer_setup:
+            write(mover+0x14,127,901)
+            write(mover+0x30,unit_wrapper)
+            floats(mover+0x78,4,4,0,0,8,0,0.25)
+            write(mover+0x94,*objects)
+            write(mover+0x9c,-1,-1)
+            write(mover+0xa8,current_path)
+            floats(mover+0xc8,0.25)
+            write(mover+0xd0,4,4)
         write(ability,0x6fb62794,1)
         # Attached Move traverses the actual ability list; its virtual184 returns zero.
         ability_wrapper=extra+0x1d000
@@ -360,9 +369,12 @@ def main():
         write(terrain,1)
         write(terrain+0xb4,4,4,16,16)
         write(terrain+0xe0,25,vertices)
-        for y in range(5):
-            for x in range(5):write(vertices+(y*5+x)*0x1c,0x80402000+x*0x800000+y*0x4000,y*5+x)
-        for n,(grid,obj) in enumerate(zip(maps,objects)):
+        if producer_setup:
+            for n,row in enumerate(manifest['map']['terrain_words']):write(vertices+n*0x1c,*row)
+        else:
+            for y in range(5):
+                for x in range(5):write(vertices+(y*5+x)*0x1c,0x80402000+x*0x800000+y*0x4000,y*5+x)
+        for n,(grid,obj) in enumerate(zip(maps,objects)) if not producer_setup else []:
             data,links,bitmap=extra+0x12000+n*0x4000,extra+0x13000+n*0x4000,extra+0x15000+n*0x4000
             write(grid+0x28,data)
             write(grid+0x3c,16,16)
@@ -375,10 +387,11 @@ def main():
             machine.mem_write(data,struct.pack('<256I',*([0xffffff]*256)))
             write(obj+0x2c,grid)
             write(obj+0x34,0x01000001)
-        write(owner+0x24c,fine,acc)
-        write(fine+0x1c,maps[1])
-        write(acc+0x1c,accmap)
-        write(accmap+0x54,0,0,16,16)
+        if not producer_setup:
+            write(owner+0x24c,fine,acc)
+            write(fine+0x1c,maps[1])
+            write(acc+0x1c,accmap)
+            write(accmap+0x54,0,0,16,16)
         for ptr,ctor,offset in [(generator,0x6f169220,0x638),(group,0,0x678),(path,0x6f1657c0,0x958)]:
             if ctor:run(ctor,ptr)
             else:
@@ -396,7 +409,7 @@ def main():
         floats(profile+0x1d8,1,522)
         write(0x6fd709f4,profilebucket)
         write(0x6fd709fc,0)
-        floats(host+0x6c,0,0,512,512,0,522)
+        if not producer_setup:floats(host+0x6c,0,0,512,512,0,522)
         write(0x6fd687a8,extra+0x1a000)
         write(extra+0x1a3e0,1)
         for entry in [0x6f016290,0x6f0162b0,0x6f0162c0,0x6f0162d0,0x6f016210,0x6f016220,0x6f016230,0x6f016240]:run(entry,0)
@@ -410,25 +423,117 @@ def main():
         write(order_cache_entry,machine.reg_read(UC_X86_REG_EAX),0)
         write(order_cache_entry+0x14,0x2b6f7264,1)  # COrderTarget derives COrder.
         nodes,search_heap,member_route,group_route,member_coarse=[0x10200000+n for n in (0,0x30000,0x60000,0x64000,0x68000)]
-        write(fine+0x1c,maps[1],1)
-        write(fine+0x30,nodes)
-        write(fine+0x3c,4096,0)
-        write(fine+0x50,search_heap)
-        write(fine+0x5c,32768,1,-3,100000,0)
-        for ptr,route in [(current_path,member_route),(path,group_route)]:
+        if not producer_setup:
+            write(fine+0x1c,maps[1],1)
+            write(fine+0x30,nodes)
+            write(fine+0x3c,4096,0)
+            write(fine+0x50,search_heap)
+            write(fine+0x5c,32768,1,-3,100000,0)
+        for ptr,route in ([(path,group_route)] if producer_setup else [(current_path,member_route),(path,group_route)]):
             write(ptr+0x40,route)
             write(ptr+0x4c,1024,0)
             write(ptr+0x60,member_coarse if ptr==current_path else group_route+0x2000)
             write(ptr+0x6c,1024,0)
-        write(current_path+0x84,700|(400<<16))
-        write(current_path+0x9c,0x02000000)
+        if not producer_setup:
+            write(current_path+0x84,700|(400<<16))
+            write(current_path+0x9c,0x02000000)
         for row in range(16):
             for kind,(limit,reload,budget) in enumerate([(5000,3,800),(2000,2,300),(400,2,900),(700,1,1100)]):
                 write(0x6fd53a90+row*0x70+kind*0x1c,limit|(reload<<16),budget,0,0,0,0,0)
-        write(owner+0x538,100)
-        floats(inputs,0.5)
-        run(0x6f05c8c0,unit+0x164,inputs)
-        run(0x6f05c890,unit+0x164,inputs)
+        write(owner+0x538,manifest['clock']['owner_tick'] if producer_setup else 100)
+        if not producer_setup:
+            floats(inputs,0.5)
+            run(0x6f05c8c0,unit+0x164,inputs)
+            run(0x6f05c890,unit+0x164,inputs)
+        setup=None
+        base_live_count=3
+        mover_identity=[127,901]
+        if producer_setup:
+            from wc3_pathing_baseline import construct
+            setup=construct(machine,dict(owner=owner,terrain=terrain,registry=registry,slots=slots,
+                            inputs=inputs,unit=unit,unit_wrapper=unit_wrapper),run)
+            mover,current_path,fine,acc=(setup[k] for k in ('mover','current_path','fine','acc'))
+            maps,objects,mover_identity=(setup[k] for k in ('maps','objects','mover_identity'))
+            base_live_count=setup['base_live_count']
+            write(fine+0x28,nodes,4096*32,nodes,4096*32)
+            write(fine+0x3c,4096,0)
+            write(fine+0x48,search_heap,32768*12,search_heap,32768*12)
+            write(fine+0x5c,32768,1,-3,100000,0)
+            write(current_path+0x38,member_route,1024*8,member_route,1024*8)
+            write(current_path+0x4c,1024,0)
+            write(current_path+0x58,member_coarse,1024*8,member_coarse,1024*8)
+            write(current_path+0x6c,1024,0)
+            # Supplied commands use the same radius, speed and initial pose as
+            # the manual control, now through original setters and integration.
+            entity=manifest['entities'][0]
+            write(inputs,float_multiply(entity['radius_world_bits'],0x3d000000))
+            run(0x6f15fef0,mover,inputs)
+            write(inputs,entity['speed_world_bits'])
+            run(0x6f05c5c0,unit+0x164,inputs)
+            assert read(mover+0x88)[0]==0x41000000, ('speed producer',list(map(hex,read(mover+0x78,15))))
+            write(inputs,*(float_multiply(w,0x3d000000) for w in entity['position_bits']))
+            run(0x6f05c820,mover,inputs,0)
+            run(0x6f170cf0,mover)
+            write(inputs,entity['turn_bits'])
+            run(0x6f05c8c0,unit+0x164,inputs)
+            write(inputs,entity['window_bits'])
+            run(0x6f05c890,unit+0x164,inputs)
+            assert all((word & 0xffffff)==0xffffff or (word & 0xffffff)<read(maps[1]+0x88)[0]
+                       for word in read(read(maps[1]+0x28)[0],256))
+        snapshot_group,snapshot_path=group,path
+        def snapshot(phase):
+            """Raw simulation state with owning pointer fields replaced by identity/role."""
+            nonlocal snapshot_group,snapshot_path
+            active=read(owner+0x3b8)[0]
+            if active:
+                snapshot_group=active
+                snapshot_path=read(active+0x3c)[0]
+            grids=[]
+            for grid,obj in zip(maps,objects):
+                width,height=read(grid+0x3c,2)
+                tokens=[]
+                for n in range(read(grid+0x88)[0]):
+                    link,payload=read(read(grid+0x78)[0]+8*n,2)
+                    # Live records carry a region pointer; retired records reuse
+                    # the second word for scalar metadata. Preserve those words.
+                    if link>>24!=2:
+                        assert payload==obj,(phase,'unexpected spatial payload',hex(link),hex(payload))
+                        payload='mover'
+                    tokens.append([link,payload])
+                grids.append(dict(dimensions=[width,height],cells=read(read(grid+0x28)[0],width*height),
+                    tokens=tokens,free_head=read(grid+0xac)[0],object_flags=read(obj+0x34,4),
+                    object_rectangle=read(obj+0x1c,4)))
+            paths=[]
+            for role,ptr in [('mover',current_path),('group',snapshot_path)]:
+                paths.append(dict(owner=role,identity=read(ptr+0x14,2),
+                    fine=read(read(ptr+0x40)[0],read(ptr+0x50)[0]*2),
+                    adaptive=read(read(ptr+0x60)[0],read(ptr+0x70)[0]*2),
+                    indices=read(ptr+0x74,4),flags=read(ptr+0x84,8)))
+            member_count=read(snapshot_group+0x38)[0]
+            member_rows=[]
+            for n in range(member_count):
+                row=read(read(snapshot_group+0x28)[0]+n*0x2c,11)
+                assert row[5] in (0,mover)
+                row[5]='mover' if row[5] else None
+                member_rows.append(row)
+            return dict(phase=phase,clock=read(clock+0x40,3),owner_tick=read(owner+0x538,2),
+                queue=dict(head=read(unit+0x19c,2),tail=read(unit+0x1a8,2),count=read(unit+0x1b4)[0],
+                    internal_head=read(unit+0x174,2)),registry_live=read(registry+0x48)[0],
+                unit_refs=read(unit+4)[0],unit_pose=read(unit+0x284,4),
+                motion=dict(time=read(mover+0x70)[0],epoch=read(mover+0x74)[0],
+                    position=read(mover+0x78,2),velocity=read(mover+0x80,2),
+                    maximum=read(mover+0x88)[0],facing=read(mover+0x8c)[0]),visual=read(mover+0xc8,2),
+                group=dict(active=bool(read(owner+0x3b8)[0]),identity=read(snapshot_group+0x14,2),members=member_rows),
+                visual_linked=bool(read(owner+0x440)[0]),paths=paths,grids=grids,
+                budgets=[read(0x6fd53a90+k*0x1c+8,2) for k in range(64)],
+                events=list(owner_events) if phase!='initial_idle' else [],
+                dispatch=list(dispatched) if phase!='initial_idle' else [],
+                deferred_count=read(clock+0x20)[0]-1)
+        initial_state=snapshot('initial_idle') if producer_setup else None
+        if producer_setup:
+            assert initial_state['queue']['count']==0 and initial_state['queue']['head']==[0xffffffff]*2
+            assert not initial_state['group']['active'] and not initial_state['visual_linked']
+            assert initial_state['motion']['velocity']==[0,0]
         order=create_order(*target)
         initial_command=0xd0014 if flag else 0xd0012
         write(order+0x24,initial_command)
@@ -474,6 +579,7 @@ def main():
         write(layer,16,16)
         floats(layer+8,32,32)
         write(layer+0x18,samples)
+        if producer_setup:write(samples,*manifest['map']['support_height_bits'])
         assert read(unit+4)[0]==4
         initial_dispatch=[]
         def capture_initial_chain(uc,address,length,data):
@@ -514,12 +620,12 @@ def main():
         assert read(ability+0x20)[0]==(0x884 if player<12 else 0x84)
         assert read(mover+0x9c,2)==read(group+0x14,2)
         assert read(group+0x38,2)==[1,path]
-        assert read(members,2)==[127,901] and read(members+0x14)[0]==mover
+        assert read(members,2)==mover_identity and read(members+0x14)[0]==mover
         target_grid=[((w&0x7fffffff)-0x02800000)|(w&0x80000000) for w in target]
         assert read(group+0x4c,4)==target_grid+[0x40800000,0x40800000]
         assert read(path+0x1c,6)==target_grid*3
-        assert read(mover+0x88)[0]==0x41000000
-        assert read(path+0x84,4)==[(5000<<16)|700,0x400000,0,0]
+        assert read(mover+0x88)[0]==0x41000000, ('admitted speed',list(map(hex,read(mover+0x78,15))))
+        assert read(path+0x84,4)==[(5000<<16)|700,0x600000 if producer_setup else 0x400000,0,0], read(path+0x84,4)
         assert read(owner+0x3b8)[0]==group
         assert read(generator+0x14,2)==[0xffffffff]*2
         assert read(owner+0x638+0x14,2)==[generator-4,0]
@@ -561,6 +667,7 @@ def main():
             write(second_path+0x60,0x10272000)
             write(second_path+0x6c,1024,0)
         owner_frames=[]
+        normalized_states=[]
         owner_events=[]
         def observe_owner(uc,address,length,data):
             owner_events.append(hex(address))
@@ -583,21 +690,22 @@ def main():
                 # Searches can charge work during this owner call; only countdown
                 # changes are unconditional, while the published charge is retained.
                 assert actual[1]==expected[1] and actual[0]>=expected[0],(phase,k,expected,actual)
-                if not next_target:
+                if not next_target and not producer_setup:
                     if phase=='fresh' and k<4:expected[0]+=[0,0,0,3][k]
                     assert actual==expected,(phase,k,expected,actual)
             owner_frames.append(dict(phase=phase,tick=old_tick+1,parity=1-old_parity,events=list(owner_events),
                 position_bits=read(mover+0x78,2),velocity_bits=read(mover+0x80,2),
                 desired_heading_bits=read(mover+0x8c)[0],visual_bits=read(mover+0xc8,2),
                 visual_linked=bool(read(owner+0x440)[0]),group_head=read(owner+0x3b8)[0]))
+            if producer_setup:normalized_states.append(snapshot(phase))
         step('fresh')
         initial_route=read(member_route,read(current_path+0x50)[0]*2)
         assert len(initial_route)>=4
         assert initial_route[:2]==target_grid and initial_route[-2:]==[0x40800000]*2
         write(owner+0x210,extra+0x21000)
         write(owner+0x230,0)
-        floats(clock+0x48,8)
-        floats(inputs,1/32)
+        write(clock+0x48,manifest['clock']['span_bits'] if producer_setup else 0x41000000)
+        write(inputs,manifest['clock']['advance_bits'] if producer_setup else 0x3d000000)
         trajectory=[]
         replacement_evidence=None
         machine.ctl_flush_tb()
@@ -734,7 +842,7 @@ def main():
         assert read(pool+0x18)[0]==0
         assert read(order_wrapper+0x14,4)==[0xffffffff,0xffffffff,0,0]
         assert read(order_wrapper+0x54)[0]==0
-        assert read(registry+0x48)[0]==3
+        assert read(registry+0x48)[0]==base_live_count
         assert read(unit+4)[0]==4
         assert read(clock+0x20)[0]==1
         assert read(unit+0x284,2)==[w+0x02800000 for w in trajectory[-1]['position']]
@@ -759,8 +867,27 @@ def main():
             assert read(mover+4,2)==[0,0]
         for hook in owner_hooks:machine.hook_del(hook)
         accepted.update(owner_frames=owner_frames,initial_route=initial_route,trajectory=trajectory,arrival_tick=tick,
-                        user_order_reclaimed=True)
+                        user_order_reclaimed=True,producer_setup=setup,initial_state=initial_state,
+                        normalized_states=normalized_states)
         return accepted
+    if args.producer_baseline:
+        assert crt_digest==manifest['build']['crt_sha256']
+        cases=[];repeat_digests=[]
+        for scenario,expected in zip(manifest['scenarios'],expectations['cases']):
+            commands=scenario['commands']
+            target=tuple(commands[0]['target_bits'])
+            second=tuple(commands[1]['target_bits']) if len(commands)==2 else None
+            repeats=[dispatch_case(0,0,0,target,second,owner_updates=True,producer_setup=True) for _ in range(2)]
+            hashes=[verify_case(case,expected) for case in repeats]
+            assert hashes[0]==hashes[1],first_difference(case_output(repeats[0]),case_output(repeats[1]))
+            cases.append(repeats[0]);repeat_digests.append(dict(id=scenario['id'],digests=hashes))
+        report=dict(binary_sha256=digest,crt_sha256=crt_digest,passed=True,producer_cases=cases,
+                    manifest_sha256=hashlib.sha256(args.baseline_manifest.read_bytes()).hexdigest(),
+                    identical_repeats=repeat_digests)
+        args.report.parent.mkdir(parents=True,exist_ok=True)
+        args.report.write_text(json.dumps(report,indent=2)+'\n')
+        print(json.dumps(report,indent=2))
+        return
     dispatch_cases=[]
     for flag in (0,1):
       for player in (0,12):

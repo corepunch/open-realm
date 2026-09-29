@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**29 done / 210 tasks; 181 remaining.** Counts describe this backlog,
+**33 done / 210 tasks; 177 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -16,7 +16,7 @@ Completed evidence now sits next to its specific remaining extension.
 
 | Area | Done | Remaining |
 | --- | ---: | ---: |
-| BASE — Baseline and reproducibility | 3 | 17 |
+| BASE — Baseline and reproducibility | 7 | 13 |
 | MAP — Map construction and lifetime | 3 | 16 |
 | FOOT — Footprints and query policy | 1 | 8 |
 | FINE — Fine search | 1 | 8 |
@@ -40,20 +40,18 @@ The denominator changes only when a new task is explicitly added or split.
 
 ## Work next
 
-Start with **BASE-06.4**. Initial admission now reaches arrival and cleanup through
-actual owner updates, including four queued-successor cases. Construct the remaining
-seeded map/mover state through identified producers.
+Start with **GROUP-02.2**. BASE-06.4/.5 now construct the ordinary map/mover
+through original producers, freeze the point/FIFO manifest and assert identical
+raw intermediate state on two runs. Remaining supplied boundaries carry task IDs.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | BASE-06.4 | BASE-06.3 | Producer-built baseline with every remaining setup boundary assigned |
-| 2 | BASE-06.5 | BASE-06.4, BASE-04 | Frozen manifest, intermediate-state expectations and two identical runs |
-| 3 | GROUP-02.2 | BASE-06.5, GROUP-01.1 | Two active members execute fresh searches through the owner lifecycle |
+| 1 | GROUP-02.2 | BASE-06.5, GROUP-01.1 | Two active members execute fresh searches through the owner lifecycle |
+| 2 | BASE-05.1 | Existing reports and captures | Corpus inventory including intentional adaptive mismatches |
+| 3 | NUM-01.2 | Verified scalar/heading slices | Remaining arithmetic inventory and exact numerical integration |
 
-BASE-04.1/.2 and BASE-05.1 are independently runnable now. MAP-03.4
-(widget escape to arrival/failure) and NUM-01.2 (remaining arithmetic inventory)
-also have existing fixtures. After the baseline, use the per-area dependencies
-and finish one bounded task before starting another.
+MAP-03.4 (widget escape to arrival/failure) also has existing fixtures. Use
+the per-area dependencies and finish one bounded task before starting another.
 
 ## What counts as done
 
@@ -123,8 +121,8 @@ Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks,
 
 ### BASE-04 — Shared scenario format
 
-- [ ] **BASE-04.1** Define a versioned scenario manifest with build/data hashes, map, entities, handles, clock, seed, commands and expected termination; encode the existing FIFO case.
-- [ ] **BASE-04.2** Define normalized snapshots for cells, route indices, budgets, membership, motion and events; encode one tick from each existing motion/order report.
+- [x] **BASE-04.1** Define a versioned scenario manifest with build/data hashes, map, entities, handles, clock, seed, commands and expected termination; encode the existing FIFO case. Evidence: [frozen producer baseline](retail-pathfinding-movement.md#producer-built-frozen-baseline), version1 `retail-owner-baseline-1.27.json`.
+- [x] **BASE-04.2** Define normalized snapshots for cells, route indices, budgets, membership, motion and events; encode one tick from each existing motion/order report. Same evidence; frozen complete order states and `retail-motion-snapshot-1.27.json`; missing historical observations stay null.
 
 ### BASE-05 — Corpus runner
 
@@ -137,8 +135,8 @@ Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks,
 - [x] **BASE-06.1** Initial unit admission: 34 original 680320 admissions pass predicted task-chain and queue assertions without mid-call provisioning. Evidence: [initial admission][admission], report O `complete_initial_admissions=34`; controlled point commands and seeded pools only.
 - [x] **BASE-06.2** One admitted point order uses original owner updates through arrival/release; route, raw trajectory, arrival tick and reclamation equal the direct-group control. Evidence: [joined owner baseline](retail-pathfinding-movement.md#initial-admission-through-owner-updates), report `base-06.3-owner-fifo.json`, `complete_owner_admissions=1`. Seeded map/mover storage remains BASE-06.4.
 - [x] **BASE-06.3** Four queued-successor cases run only owner updates through both natural arrivals and final idle; both admissions, FIFO targets and all queue/group/path/payload ownership checked. Same evidence/report, `complete_owner_fifo_cases=4`; successor first tick follows owner cadence instead of explicit same-time group calls.
-- [ ] **BASE-06.4** After BASE-06.3, construct that fixture's map, mover, group and order through identified original producers; enumerate any remaining seeded storage/class-cache boundary and give it a task ID.
-- [ ] **BASE-06.5** After BASE-06.4 and BASE-04, freeze the baseline manifest and expected intermediate states; repeat twice and assert identical normalized output and initial/final idle invariants.
+- [x] **BASE-06.4** After BASE-06.3, construct that fixture's map, mover, group and order through identified original producers; enumerate any remaining seeded storage/class-cache boundary and give it a task ID. Same evidence; original no-file loader/mover construction and setters, report `base-06.4-producer-baseline.json`; allocations/caches/terrain/clock boundaries assigned explicitly.
+- [x] **BASE-06.5** After BASE-06.4 and BASE-04, freeze the baseline manifest and expected intermediate states; repeat twice and assert identical normalized output and initial/final idle invariants. Same evidence; report `base-06.5-frozen-baseline.json`, two scenarios × two runs,42 snapshots and exact output digests. No full-world or RNG claim.
 
 ## MAP — Map construction and lifetime
 

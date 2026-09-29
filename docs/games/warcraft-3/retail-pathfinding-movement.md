@@ -1720,3 +1720,98 @@ These fixtures still seed map descriptors, existing mover/unit/ability state,
 class caches and allocator backing storage. Original producers replace those
 boundaries in BASE-06.4; this closure does not claim full public world creation,
 player/network admission, populated shared groups or separation.
+
+### Producer-built frozen baseline
+
+BASE-06.4/.5 and BASE-04.1/.2 use the same two ordinary-point scenarios, now
+with original map/mover producers and frozen intermediate state. Evidence **S/O**:
+Ghidra caller/constructor inspection and unmodified original instructions,
+including the shipped CRT. The manifest is
+[`retail-owner-baseline-1.27.json`](../../../tools/ghidra/fixtures/retail-owner-baseline-1.27.json);
+its hash-guarded numeric expectations are
+[`retail-owner-baseline-states-1.27.json`](../../../tools/ghidra/fixtures/retail-owner-baseline-states-1.27.json).
+Neither contains executable retail bytes or requires installed assets in CI.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_order_tasks.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --producer-baseline --report /tmp/base-06.5-frozen-baseline.json
+make test-pathfinding-tools
+```
+
+Reports `base-06.4-producer-baseline.json` and `base-06.5-frozen-baseline.json`
+are under the report root. Each frozen case executes twice after original-image
+page restoration and clearing supplied storage. Arrival ticks are7 and27;
+11 and29 owner snapshots plus two initial-idle snapshots compare exactly.
+Normalized output digests are respectively
+`d67748378dd61f2c4a351e731ac2b1ae2b1784d4b8645087de293ca6320dc992`
+and `e20d71fa91ea72e7ca150fb7f23995d41081228046b936a24a7aa2b416a670bd`.
+The first route, every position/velocity word, arrival tick, completion sequence
+and restored payload counts also equal the earlier manual baseline. This is a
+finite deterministic original-code fixture, not a complete engine parity claim.
+
+The map producer chain is terrain bounds`78b0a0` → `04c860/15ab60` → original
+map/search pool factories and hierarchy`04e0b0/15d360`. Six newly registered
+map identities are `[0,100]` through `[5,105]`; dimensions/scales are
+5×5/8,16×16/1,17×17/2,8×8/4,4×4/8,2×2/16. Search identities are `[6,106]`
+and `[7,107]`. Original proximity constructors`14c280` initialize the free
+record sentinel; zeroing that field incorrectly means record0 is already free.
+The four adaptive maps and two search entries reuse supplied object storage;
+their first-allocation constructors remain excluded.
+
+The actual`78c090` caller passes pointers to initialized terrain step32 and
+simulation interval text`0.03`. Original initializers`017cd0/001e50` produce
+raw words`42000000/3cf5c290`; the latter is one ULP above host float`.03`.
+Supplying two unit scales instead wrongly derives a`.49` world speed ceiling.
+The original loader now derives the ceiling, with no manual override. This
+fixture separately advances its main clock by raw`3d000000` (1/32); matching
+real frame cadence remains SCHED-01.1.
+
+Original mover constructor`14fa30` and spatial constructors`14c1d0` precede
+factory`14ee90/1512c0`, virtual activation`16ea70`, registration and
+spatial linking. The resulting mover identity is `[8,108]`, spatial identities
+`[9,109]/[10,110]`. Owned path`1657c0/166060` gets `[11,111]`. Original radius,
+speed, position, turn and propagation-window setters supply the controlled
+parameters. Point-order/group/task admission and all later updates remain
+original producers from BASE-06.1/.2/.3. The owned-path adaptive bit produces
+group flags`600000`, compared with the historical manual flags`400000`.
+
+The version1 manifest defines build/CRT and terrain/support-data hashes, map,
+entity/handle identities, initial clock, controlled advance, storage reset,
+commands and terminal invariant. It explicitly makes no RNG seed claim.
+Snapshots retain unsigned raw words for cells, record tags/free indices, path
+indices/flags, all64 work/countdown budgets, actual member rows, pose, motion,
+visual state, queues, registry/reference counts, deferred requests and event
+order. Only known owning pointers become stable role names; unknown live
+pointers fail. Spatial record type1 is live, type0 retains a region pointer,
+and retired type2 uses scalar metadata; preserve its second word as an integer.
+Active-group snapshots follow the newly admitted successor's actual group/path,
+then retain that last group's released state through idle. Addresses in event
+sequences name original code entry points, not allocated object pointers.
+
+`wc3_pathing_scenario.py` supplies exact first-difference reporting and rejects
+missing/changed expectation files and build/data hashes. The historical motion
+example [`retail-motion-snapshot-1.27.json`](../../../tools/ghidra/fixtures/retail-motion-snapshot-1.27.json)
+encodes `motion-engine-exact.json:move_owner_trajectories[0].steps[0]` alongside
+the complete order snapshots. Unrecorded historical clock/events/membership
+are explicit null observations; they cannot establish empty or equivalent state.
+CI checks idle invariants, FIFO completion and rejection of one-bit motion
+changes, missing ticks, changed cells/budgets/routes/membership/events and hashes.
+
+Remaining supplied boundaries are assigned rather than hidden:
+
+| Boundary | Remaining task |
+| --- | --- |
+| Existing unit/Move/owner state, class/profile caches, unit attachment and owned-path binding | BASE-03.1 |
+| Preallocated wrapper/task/group payloads; first group construction and external heap growth | ORDER-04.4 |
+| Reused map/search objects, node/heap/vector capacity and spatial allocator growth | MAP-05.1 |
+| Shared auxiliary capacity growth | GROUP-03.3 |
+| Synthetic terrain vertices/height layer; no file-backed map deserialization | MAP-02.1 |
+| Controlled main-clock advancement and stationary maintenance clock | SCHED-01.1 |
+
+The map maintenance clock retains two original requests; the advanced main
+clock drains its task/order requests. Fourteen baseline identities, unit
+reference count4, empty user/internal queues, zero velocity and empty group/
+visual lists are asserted initially/finally as applicable. Broader map loading,
+owner first construction, multiunit groups, runtime obstacles, public player/
+network admission and real clock/RNG producers remain outside this closure.
