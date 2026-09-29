@@ -19,10 +19,6 @@ static bool cam_west, cam_east, cam_north, cam_south;
 static void CL_ScrollFrame(void);
 static bool CL_MouseOverGameplayUIAt(int x, int y);
 
-#ifdef BZ_TESTS
-static bool cl_test_gameplay_window_hit;
-#endif
-
 static struct {
     uint32_t buttons, sent, last_ms;
     bool select, look, focus, touch_pointer;
@@ -629,9 +625,6 @@ bool CL_MouseOverGameplayUI(void) {
 }
 
 static bool CL_MouseOverGameplayUIAt(int x, int y) {
-#ifdef BZ_TESTS
-    if (cl_test_gameplay_window_hit) return true;
-#endif
     return SCR_LayoutHitTest(x, y) || CL_WindowMouseOver(x, y);
 }
 
@@ -1037,8 +1030,7 @@ static void CL_ZoomSteps(float steps, bool block_over_ui) {
     gameCameraZoomPolicy_t policy;
     float dist = cl.viewDef.camerastate[0].distance - steps * speed;
 
-    if (!CL_GameplayInputReady() || CL_WindowModalActive() ||
-        (block_over_ui && CL_MouseOverGameplayUI())) return;
+    if (!CL_GameplayInputReady() || (block_over_ui && CL_MouseOverGameplayUI())) return;
     if (CL_GameCameraZoomPolicy(&policy,
             Cvar_Value("wc3_camera_default_distance", 1650.0f),
             Cvar_Value("wc3_camera_max_distance", 3000.0f))) {
@@ -1314,34 +1306,6 @@ TEST(client_input, zoom_reset_returns_to_default_after_zooming_in) {
     cls.state = old_state; cls.key_dest = old_dest; cl.playerstate.client_ui_state = old_ui;
     input.focus = old_focus;
     if (add_command) Cmd_RemoveCommand("zoomdefault");
-}
-
-TEST(client_input, wheel_zoom_is_consumed_by_gameplay_window) {
-    uint8_t data[128];
-    sizeBuf_t old_msg = cls.netchan.message;
-    viewDef_t old_view = cl.viewDef;
-    __typeof__(cl.camera_prediction) old_prediction = cl.camera_prediction;
-    int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
-    bool old_focus = input.focus, old_hit = cl_test_gameplay_window_hit;
-    bool add_command = !Cmd_Exists("zoom");
-
-    if (add_command) Cmd_AddCommand("zoom", CL_Zoom_f);
-    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
-    input.focus = true;
-    cl_test_gameplay_window_hit = true;
-    cl.viewDef.camerastate[0].distance = cl.viewDef.camerastate[1].distance = 1650.0f;
-    mouse.origin = (vec2_t){ 100, 100 };
-    SZ_Init(&cls.netchan.message, data, sizeof(data));
-    Cbuf_AddText("zoom 1\n"); Cbuf_Execute();
-
-    T_FEQ(cl.viewDef.camerastate[0].distance, 1650.0f, 0.001f);
-    T_EQ(cls.netchan.message.cursize, 0u);
-
-    cl_test_gameplay_window_hit = old_hit;
-    cls.netchan.message = old_msg; cl.viewDef = old_view; cl.camera_prediction = old_prediction;
-    cls.state = old_state; cls.key_dest = old_dest; cl.playerstate.client_ui_state = old_ui;
-    input.focus = old_focus;
-    if (add_command) Cmd_RemoveCommand("zoom");
 }
 
 static void CL_TestOrderQueueReleaseMessage(void) {

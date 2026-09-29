@@ -66,6 +66,7 @@ retained arena; it does not duplicate strings.
 ## Input
 
 - Mouse-down on a window raises it and assigns keyboard focus.
+- Pointer events inside a client-managed window are consumed even when the window has no matching scrollable control; this keeps wheel bindings from also acting on the world behind the window.
 - Mouse-down on non-command background starts a drag when `UI_WINDOW_MOVABLE` is set.
 - Drag capture continues through motion and mouse-up outside the window.
 - Keyboard hotkeys are searched only in the focused window, or the topmost modal window.
