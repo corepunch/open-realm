@@ -8,7 +8,9 @@ void R_DrawTerrainSegment(mapsegment_t const *segment, uint32_t mask) {
         if (((1 << layer->type) & mask) == 0)
             continue;
         if (layer->type == MAPLAYERTYPE_GROUND) {
-            if (first_ground) R_Call(glDisable, GL_BLEND);
+            if (first_ground) {
+                R_Call(glDisable, GL_BLEND);
+            }
             else {
                 R_Call(glEnable, GL_BLEND);
                 R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

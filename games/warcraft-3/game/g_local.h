@@ -2608,6 +2608,9 @@ cstring_t GetClassName(uint32_t);
 
 // g_effects.c
 cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t index);
+uint32_t G_SendTerrainDeformation(terrainDeform_t const *deformation);
+void G_StopTerrainDeformation(uint32_t id, uint32_t fade_ms);
+void G_StopAllTerrainDeformations(void);
 edict_t *G_SpawnModelEffect(cstring_t model, vec2_t const *point, edict_t *target, cstring_t attach_point, bool temporary);
 edict_t *G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index, vec2_t const *point, bool temporary);
 edict_t *G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, uint32_t index, edict_t *target, cstring_t attach_point, bool temporary);

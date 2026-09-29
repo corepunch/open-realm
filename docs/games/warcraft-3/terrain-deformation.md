@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document describes the generic terrain deformation path used by the Warcraft III renderer. It does not claim that OpenRealm's deformation equations reproduce Blizzard's native equations. Stock Earthquake is not wired to guessed deformation parameters.
+This document describes the generic terrain deformation path used by the Warcraft III renderer. It does not claim that OpenRealm's deformation equations reproduce Blizzard's native equations. Earthquake now sends provisional random deformation pulses to make the presentation testable; their parameters are guesses and are not verified retail behavior.
 
 The native names and signatures below are verified in the repository's retail-shaped `games/warcraft-3/game/common.txt`, which contains the World Editor API declarations:
 
@@ -30,6 +30,12 @@ Each deformation type currently uses a documented OpenRealm approximation:
 
 `count` is transported and retained but does not currently select repeated waves. The exact relationship of `duration`, `trailTime`, `count`, `spaceWaves`, `timeWaves`, and the native's stop duration to retail behavior remains unknown. Do not tune these formulas as retail-compatible without executable or controlled retail evidence.
 
+## Earthquake Test Pulse
+
+On each active Earthquake damage tick, after the authored `Oeq1` delay, the game sends one `TerrainDeformRandom`-shaped renderer event at the fixed cast point. Its radius comes from the ability's authored `Area`; the current stock row supplies `250`. Provisional visual-check values are `minDelta=-48`, `maxDelta=48`, `duration=1000 ms`, and `updateInterval=200 ms`. Since the existing channel tick is one second, pulses recur once per tick. Each one expires locally, so channel interruption adds no saved or persistent deformation state and leaves at most the current pulse's remaining lifetime.
+
+The larger amplitude is intended to make the random height field easier to see during an in-game check. Neither the use of `TerrainDeformRandom` nor the amplitude, interval, duration, and relation to `Area` have been verified against retail Earthquake. The integration deliberately does not read or assign semantics to `Oeq4`.
+
 ## Height Field And Limits
 
 Deformations are added together as vertical offsets over the static W3E height field. No permanent modification is written back to the map. This is renderer-owned presentation; server-side pathing and `CM_GetHeightAtPoint` remain unchanged. Maps whose vertex grids do not form complete existing renderer segments, or whose deformation buffers cannot be allocated, report one bounded warning and do not accept deformations.
@@ -40,8 +46,8 @@ The current implementation rebuilds affected terrain segments, including their g
 
 - **Verified from declarations:** the six native names and argument shapes listed above.
 - **Verified from code:** map renderer terrain is a separate client map copy; the height offset and transient descriptor state stay renderer-owned; map-change cleanup clears both.
-- **Implemented but not runtime-verified:** OpenRealm's four generic profile approximations, overlapping additive composition, and stop fade.
+- **Implemented but not runtime-verified:** OpenRealm's four generic profile approximations, overlapping additive composition, stop fade, and the provisional AOeq pulse wiring described above.
 - **Still unknown:** Blizzard's exact native math, whether persistent crater state survives save/load, retail overlap/combination semantics, gameplay height/pathing consumers, and whether Earthquake uses one of these natives or a separate hard-coded engine path.
-- **Explicitly not implemented:** AOeq-specific calls, inferred Earthquake radii/depths, modification of server collision/pathing, and permanent source-map mutation.
+- **Explicitly not implemented:** Retail-parity AOeq deformation, inferred `Oeq4` behavior, modification of server collision/pathing, and permanent source-map mutation.
 
 No project build, test binary, or retail game run was performed for this change, per the task instruction. Synthetic native payload regression coverage was added but not run.

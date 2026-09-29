@@ -29,6 +29,9 @@ static bool w3_deform_bounds_valid;
 static bool w3_warn_deform_unavailable, w3_warn_deform_type, w3_warn_deform_pool;
 static float r_w3_camera_grid_height(void const *data, uint32_t x, uint32_t y);
 static void R_W3RebuildCameraHeightMap(void);
+static void R_W3ResetTerrainDeformations(void);
+static mapsegment_t *R_BuildMapSegment(war3map_t const *map, uint32_t sx, uint32_t sy);
+static vec3_t R_GetMapVertexPoint(war3map_t const *map, uint32_t x, uint32_t y);
 static void R_LoadMapSegments(war3map_t const *map);
 static bool R_W3GetGridBounds(war3map_t const *map, wc3TerrainDeformation_t const *deform,
                               int *x0, int *y0, int *x1, int *y1);
@@ -361,6 +364,7 @@ static void R_W3RebuildSegmentGeometry(mapsegment_t *segment) {
     mapsegment_t *fresh;
     if (!tr.world || !segment) return;
     fresh = R_BuildMapSegment(tr.world, segment->sx, segment->sy);
+    R_FinishCliffs();
     R_FreeMapLayers(&segment->layers);
     segment->layers = fresh->layers;
     fresh->layers = NULL;

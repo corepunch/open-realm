@@ -10,6 +10,26 @@ uint32_t S_TestMoonWellEffectReleaseCalls(void);
 void S_TestResetMoonWellMissingDataWarningCalls(void);
 uint32_t S_TestMoonWellMissingDataWarningCalls(void);
 
+static pfWriteType_t terrain_deform_capture_types[32];
+static int32_t terrain_deform_capture_values[32];
+static float terrain_deform_capture_floats[16];
+static uint32_t terrain_deform_capture_count, terrain_deform_capture_float_count;
+
+static void terrain_deform_capture_write(pfWriteType_t type, void const *data) {
+    uint32_t slot = terrain_deform_capture_count++;
+    if (slot < sizeof(terrain_deform_capture_types) / sizeof(terrain_deform_capture_types[0])) {
+        terrain_deform_capture_types[slot] = type;
+        if (type == PF_BYTE || type == PF_LONG) terrain_deform_capture_values[slot] = *(int32_t const *)data;
+    }
+    if (type == PF_FLOAT && terrain_deform_capture_float_count <
+        sizeof(terrain_deform_capture_floats) / sizeof(terrain_deform_capture_floats[0]))
+        terrain_deform_capture_floats[terrain_deform_capture_float_count++] = *(float const *)data;
+}
+
+static void terrain_deform_capture_multicast(vec3_t const *origin, multicast_t to) {
+    (void)origin; (void)to;
+}
+
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
@@ -4690,6 +4710,69 @@ TEST(wc3_spell, earthquake_waits_for_effect_delay_slows_ground_and_damages_struc
     S_SpellCancelChannel(caster);
     earthquake_think(thinker);
     T_ASSERT(!thinker->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, earthquake_emits_provisional_random_terrain_pulses_after_effect_delay) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X12\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\n"
+        "C;Y1;X6;K\"DataA1\"\nC;Y1;X7;K\"DataB1\"\n"
+        "C;Y1;X8;K\"DataC1\"\nC;Y1;X9;K\"Area1\"\nC;Y1;X10;K\"levels\"\n"
+        "C;Y2;X1;K\"AOeq\"\nC;Y2;X2;K\"AOeq\"\n"
+        "C;Y2;X3;K\"ground,structure\"\nC;Y2;X4;K\"4\"\nC;Y2;X5;K\"4\"\n"
+        "C;Y2;X6;K\"0.5\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"0.75\"\n"
+        "C;Y2;X9;K\"250\"\nC;Y2;X10;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AOeq" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_multicast)(vec3_t const *, multicast_t) = gi.multicast;
+    uint32_t first_deformation_id;
+    edict_t *caster = make_hero(MAKEFOURCC('O','f','a','r'), 500, 500, 0, 0), *thinker = NULL;
+    vec2_t point = { 500, 700 };
+
+    caster->data.UnitAbilities = &abilities; caster->s.player = 0;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    terrain_deform_capture_count = terrain_deform_capture_float_count = 0;
+    gi.Write = terrain_deform_capture_write; gi.multicast = terrain_deform_capture_multicast;
+    level.time = 0;
+    T_ASSERT(S_CastPointTargetSpell(caster, MAKEFOURCC('A','O','e','q'), &point));
+    FILTER_EDICTS(ent, ent->think == earthquake_think && ent->owner == caster) { thinker = ent; break; }
+    T_NOT_NULL(thinker);
+    T_EQ(terrain_deform_capture_count, 0);
+    level.time = 499; earthquake_think(thinker);
+    T_EQ(terrain_deform_capture_count, 0);
+    level.time = 500; earthquake_think(thinker);
+    T_EQ(terrain_deform_capture_count, 16);
+    T_EQ(terrain_deform_capture_types[0], PF_BYTE);
+    T_EQ(terrain_deform_capture_types[1], PF_BYTE);
+    T_EQ(terrain_deform_capture_types[2], PF_LONG);
+    T_EQ(terrain_deform_capture_types[3], PF_BYTE);
+    T_EQ(terrain_deform_capture_values[0], svc_temp_entity);
+    T_EQ(terrain_deform_capture_values[1], TE_TERRAIN_DEFORM);
+    T_ASSERT(terrain_deform_capture_values[2] > 0);
+    first_deformation_id = (uint32_t)terrain_deform_capture_values[2];
+    T_EQ(terrain_deform_capture_values[3], TERRAIN_DEFORM_RANDOM);
+    T_EQ(terrain_deform_capture_float_count, 8);
+    T_FEQ(terrain_deform_capture_floats[0], 500, 0.001f);
+    T_FEQ(terrain_deform_capture_floats[1], 700, 0.001f);
+    T_FEQ(terrain_deform_capture_floats[2], 250, 0.001f);
+    T_FEQ(terrain_deform_capture_floats[3], -48, 0.001f);
+    T_FEQ(terrain_deform_capture_floats[4], 48, 0.001f);
+    T_EQ(terrain_deform_capture_types[12], PF_LONG);
+    T_EQ(terrain_deform_capture_types[15], PF_BYTE);
+    T_EQ(terrain_deform_capture_values[12], 1000);
+    T_EQ(terrain_deform_capture_values[14], 200);
+    level.time = 1500; earthquake_think(thinker);
+    T_EQ(terrain_deform_capture_count, 32);
+    T_EQ(terrain_deform_capture_float_count, 16);
+    T_EQ(terrain_deform_capture_values[17], TE_TERRAIN_DEFORM);
+    T_ASSERT(terrain_deform_capture_values[18] > 0);
+    T_ASSERT((uint32_t)terrain_deform_capture_values[18] != first_deformation_id);
+    S_SpellCancelChannel(caster); earthquake_think(thinker);
+    T_ASSERT(!thinker->inuse);
+    gi.Write = old_write; gi.multicast = old_multicast;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

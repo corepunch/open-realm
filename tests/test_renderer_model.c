@@ -1785,10 +1785,19 @@ static void test_splat_polygon_offset(GLfloat factor, GLfloat units) {
 #define glEnable test_splat_enable
 #define glDisable test_splat_disable
 #define glPolygonOffset test_splat_polygon_offset
+#define R_RenderRectSplatUV R_TestProductionRenderRectSplatUV
+#define R_RenderSplat R_TestProductionRenderSplat
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
 #undef glEnable
 #undef glDisable
 #undef glPolygonOffset
+#undef R_RenderRectSplatUV
+#undef R_RenderSplat
+
+float R_W3TerrainOffsetAtPoint(float x, float y) {
+    (void)x; (void)y;
+    return 0.0f;
+}
 
 TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
     memset(&splat_bias, 0, sizeof(splat_bias));
@@ -1810,11 +1819,14 @@ TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
         { { -1000, 24 }, { 1000, 1000 } },
         { { -1000, -1000 }, { 1000, 104 } },
     };
+    vec2_t uv_mins = { 0, 0 }, uv_maxs = { 1, 1 };
     FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
     FOR_LOOP(i, 5) {
         vec2_t *mins = &rects[i].mins, *maxs = &rects[i].maxs;
         ground_current_vertex = ground_vertex_buffer;
-        R_MakeSplatTile(&map, 0, 0, mins, maxs->x - mins->x, maxs->y - mins->y, COLOR32_WHITE);
+        R_MakeSplatTile(&MAKE(splatTileParams_t, .map = &map, .mins = mins,
+            .uv_mins = &uv_mins, .uv_maxs = &uv_maxs, .width = maxs->x - mins->x,
+            .height = maxs->y - mins->y, .color = COLOR32_WHITE));
         T_ASSERT(ground_current_vertex > ground_vertex_buffer);
         if (i) T_EQ(ground_current_vertex - ground_vertex_buffer, 9);
         for (vertex_t *v = ground_vertex_buffer; v < ground_current_vertex; v++) {
@@ -1831,12 +1843,15 @@ TEST(renderer_terrain, clipped_splat_follows_both_terrain_triangles) {
     war3mapVertex_t verts[4] = {0};
     war3map_t map = { .width = 2, .height = 2, .vertices = verts };
     vec2_t mins = { 24, 20 }, maxs = { 108, 112 };
+    vec2_t uv_mins = { 0, 0 }, uv_maxs = { 1, 1 };
     FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
     verts[1].level = 1; verts[2].level = 2;
     vec3_t p0 = R_GetVertexPosition(&map, 0, 0, true), p1 = R_GetVertexPosition(&map, 1, 0, true);
     vec3_t p2 = R_GetVertexPosition(&map, 1, 1, true), p3 = R_GetVertexPosition(&map, 0, 1, true);
     ground_current_vertex = ground_vertex_buffer;
-    R_MakeSplatTile(&map, 0, 0, &mins, maxs.x - mins.x, maxs.y - mins.y, COLOR32_WHITE);
+    R_MakeSplatTile(&MAKE(splatTileParams_t, .map = &map, .mins = &mins,
+        .uv_mins = &uv_mins, .uv_maxs = &uv_maxs, .width = maxs.x - mins.x,
+        .height = maxs.y - mins.y, .color = COLOR32_WHITE));
     T_ASSERT(ground_current_vertex > ground_vertex_buffer);
     T_ASSERT(ground_current_vertex - ground_vertex_buffer <= SPLAT_TILE_MAX_VERTICES);
     for (vertex_t *v = ground_vertex_buffer; v < ground_current_vertex; v++) {
