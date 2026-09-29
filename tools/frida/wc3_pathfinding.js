@@ -15,6 +15,24 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.motionEvents) {
+        // 170880 is thiscall: speed*, heading*, error*, stop are four stack arguments.
+        hook(0x170880, {
+            onEnter(args) {
+                this.speed = args[0]; this.heading = args[1];
+                const mover = this.context.ecx;
+                this.row = {mover: mover.toString(), speed: this.speed.readU32(),
+                    heading: this.heading.readU32(), error: args[2].readU32(), stop: args[3].toUInt32(),
+                    increment: mover.add(0xb4).readU32(), turn: mover.add(0xb8).readU32(),
+                    window: mover.add(0xbc).readU32()};
+            },
+            onLeave() {
+                bump('motion-decision');
+                if (counts['motion-decision'] <= config.samples)
+                    emit('motion-decision', {...this.row, nextSpeed: this.speed.readU32(), nextHeading: this.heading.readU32()});
+            }
+        });
+    }
     if (config.widgetEvents) {
         for (const [rva, method] of [[0x6501a0, 'create'], [0x650c00, 'destroy'],
                                      [0x6514d0, 'remove-mask'], [0x6544f0, 'reapply']]) {

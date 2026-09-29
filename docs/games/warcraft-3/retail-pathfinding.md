@@ -8,7 +8,10 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **230 functions annotated. No replacement implemented.**
+composition. **230 functions annotated. Incremental scalar/turn integration implemented;
+the full pathfinder replacement remains open.** See the
+[engine integration evidence](retail-pathfinding-engine.md) for exact C/live
+comparisons and remaining velocity/clock/trajectory gaps.
 The [executable backlog](retail-pathfinding-todo.md#progress) records completed
 mechanisms and remaining work as independently closable tasks. Its progress
 counts are maintained there; neither task nor assertion counts measure retail
@@ -22,6 +25,7 @@ crowd trajectory tests.
 | [Movement](retail-pathfinding-movement.md) | Clocks, speed/heading, velocity, groups, formations, regrouping, completion events and order release |
 | [Separation](retail-pathfinding-separation.md) | Authored repulsion, candidate order/filtering, displacement, occupancy links and reclamation |
 | [Experiments](retail-pathfinding-experiments.md) | Copied-map workflow, controls, terrain divergence, Way Gates and bounded capture commands |
+| [Engine integration](retail-pathfinding-engine.md) | Exact scalar/turn C replay, scripted movement windows, repeat captures and remaining numerical gaps |
 
 The ledger below is the current status authority. Evidence files preserve
 addresses, numerical contracts, fixture limits and artifacts; a local test's

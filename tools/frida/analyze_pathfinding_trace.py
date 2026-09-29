@@ -548,7 +548,7 @@ def analyze(rows, scenario=None):
             violations.append('scenario sample ticks are incomplete or out of order')
         if any(label in labels for label in ('order_rejected', 'stop_rejected', 'reorder_rejected')):
             violations.append('scenario move order rejected')
-        expected = {'open': {}, 'wall': {'wall_query_true': 1},
+        expected = {'open': {}, 'turn': {}, 'wall': {'wall_query_true': 1},
                     'insert': {'before_insert': 1, 'after_insert': 1, 'wall_query_true': 1},
                     'remove': {'before_remove': 1, 'after_remove': 1, 'wall_query_true': 1, 'wall_query_false': 1}}
         expected['remove_reorder'] = {**expected['remove'], 'before_reorder': 1, 'stop_accepted': 1, 'reorder_accepted': 1}
@@ -678,7 +678,7 @@ def analyze(rows, scenario=None):
             if samples and samples[-1]['order'] != 0:
                 violations.append('blocked goal order remained active at completion')
         terrain = [r for r in rows if r.get('event') == 'terrain-native']
-        states = {'open': [], 'wall': [0] * 4, 'insert': [0] * 4, 'remove': [0] * 4 + [1] * 4}
+        states = {'open': [], 'turn': [], 'wall': [0] * 4, 'insert': [0] * 4, 'remove': [0] * 4 + [1] * 4}
         states['remove_reorder'] = states['remove']
         states['follow'] = states['follow_shift'] = states['follow_walk'] = states['follow_invisible'] = states['follow_fog'] = states['follow_fog_reacquire'] = []
         states['crowd'] = states['crowd_air'] = []
@@ -723,7 +723,7 @@ def main():
     parser.add_argument('trace', type=Path)
     parser.add_argument('--output', type=Path)
     parser.add_argument('--require', choices=['widget', 'task', 'fine', 'acc', 'hierarchy', 'gate', 'arrival', 'reset', 'refresh', 'target-loss', 'target-perimeter', 'retry-exhaustion', 'separation'], action='append', default=[])
-    parser.add_argument('--scenario', choices=['open', 'wall', 'insert', 'remove', 'remove_reorder', 'gate', 'gate_off', 'gate_retarget', 'gate_disable', 'owner_change', 'follow', 'follow_shift', 'follow_walk', 'follow_invisible', 'follow_fog', 'follow_fog_reacquire', 'blocked_goal', 'crowd', 'crowd_air', 'widget_lifecycle'])
+    parser.add_argument('--scenario', choices=['open', 'turn', 'wall', 'insert', 'remove', 'remove_reorder', 'gate', 'gate_off', 'gate_retarget', 'gate_disable', 'owner_change', 'follow', 'follow_shift', 'follow_walk', 'follow_invisible', 'follow_fog', 'follow_fog_reacquire', 'blocked_goal', 'crowd', 'crowd_air', 'widget_lifecycle'])
     args = parser.parse_args()
     result = analyze([json.loads(line) for line in args.trace.read_text().splitlines() if line.strip()], args.scenario)
     for kind in args.require:

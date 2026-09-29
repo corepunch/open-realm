@@ -14,6 +14,7 @@ import itertools
 import math
 import json
 import struct
+import ctypes
 from pathlib import Path
 from verify_wc3_pathing_numeric import add as float_add, multiply as float_multiply, subtract as float_subtract, bits as float_bits
 from verify_wc3_pathing_grid import reference as reference_grid
@@ -51,7 +52,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine-library', type=Path, help='compiled wc3_pathing_engine_probe.c; compare decision/angle bits')
     args = parser.parse_args()
+    engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine:
+        engine.pathing_motion.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+        engine.pathing_angle.argtypes = [ctypes.c_uint32]
+        engine.pathing_angle.restype = ctypes.c_uint32
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -146,6 +153,10 @@ def main():
         floats(heading_ptr,heading)
         floats(delta_ptr,delta)
         run(0x6f170880,mover,speed_ptr,heading_ptr,delta_ptr,blocked)
+        if engine:
+            words = (ctypes.c_uint32 * 7)(*[float_bits(v) for v in (speed,heading,delta,increment,turn_cap,threshold)], blocked)
+            engine.pathing_motion(words)
+            assert list(words)[:2] == [read(speed_ptr)[0], read(heading_ptr)[0]]
         wanted_speed=0 if blocked or abs(delta)>=threshold else speed+increment
         wanted_heading=heading+max(-turn_cap,min(delta,turn_cap))
         assert scalar(speed_ptr)==wanted_speed,(speed,increment,threshold,delta,blocked)
@@ -232,6 +243,8 @@ def main():
         floats(delta_ptr,value)
         machine.reg_write(UC_X86_REG_EDX,delta_ptr)
         run(0x6f062930,angle_out)
+        if engine:
+            assert engine.pathing_angle(read(delta_ptr)[0]) == read(angle_out)[0], value
         actual=scalar(angle_out)
         expected=scalar(delta_ptr)%(2*math.pi)
         error=abs(actual-expected)
@@ -2668,6 +2681,9 @@ def main():
                             'full owner singleton executes scheduler and visual-facing updates with empty shared/separation lists; two controlled post-arrival repulsors also execute alternating separation; active singleton plus eligible repulsor also composes; crowded active groups and mixed profiles remain open',
                             'accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed',
                             'elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open'])
+    if engine:
+        report.update(engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest(),
+                      engine_exact_decision_cases=cases, engine_exact_angle_cases=len(normalization))
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
 

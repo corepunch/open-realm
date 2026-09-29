@@ -874,7 +874,11 @@ typedef struct {
     float TurnSpeed;
     float PropWindow;
     float AcquireRange;
+    uint32_t move_flags;
 } unitInfo_t;
+
+#define BZ_UNIT_TURN_SET 1u // bit; distinguishes scripted turn speed from authored speed; unitInfo_t.move_flags
+#define BZ_UNIT_WINDOW_SET 2u // bit; zero is a valid scripted movement window; unitInfo_t.move_flags
 
 typedef struct gameevent_s {
     EVENTTYPE type;
@@ -1625,6 +1629,7 @@ struct edict_s {
         routePath_t path; /* persistent WC3 accelerator state shared with other server games */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
+        bool turn_blocked;  /* translation decision from the heading error before this tick's turn */
         vec2_t worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
         uint32_t worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */

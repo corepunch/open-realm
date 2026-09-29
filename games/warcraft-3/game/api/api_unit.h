@@ -1,3 +1,4 @@
+#include "games/warcraft-3/common/wc3_math.h"
 extern player_t *currentplayer;
 
 static uint32_t const order_ugol = BZ_WC3_UNIT_HAUNTED_GOLD_MINE;
@@ -94,8 +95,33 @@ uint32_t GetUnitFlyHeight(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.FlyHeight : 0);
 }
-UNITINFO_ACCESS(TurnSpeed);
-UNITINFO_ACCESS(PropWindow);
+/* Keep explicit overrides: a zero window must not be mistaken for an unset value. */
+uint32_t SetUnitTurnSpeed(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    float value = wc3_angle(jass_checknumber(j, 2));
+    if (unit) {
+        unit->unitinfo.TurnSpeed = MAX(wc3_float(0x3a83126f), value);
+        unit->unitinfo.move_flags |= BZ_UNIT_TURN_SET;
+    }
+    return 0;
+}
+uint32_t SetUnitPropWindow(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    float value = wc3_angle(jass_checknumber(j, 2));
+    if (unit) {
+        unit->unitinfo.PropWindow = value;
+        unit->unitinfo.move_flags |= BZ_UNIT_WINDOW_SET;
+    }
+    return 0;
+}
+uint32_t GetUnitTurnSpeed(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, unit ? unit->unitinfo.TurnSpeed : 0);
+}
+uint32_t GetUnitPropWindow(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, unit ? unit->unitinfo.PropWindow : 0);
+}
 UNITINFO_ACCESS(AcquireRange);
 
 uint32_t GetUnitFacing(jass_t *j) {

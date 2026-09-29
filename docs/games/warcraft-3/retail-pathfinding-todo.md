@@ -2,7 +2,9 @@
 
 Target: Warcraft III **1.27.1.7085**. [Behavior ledger][ledger] owns the
 contracts and evidence limits; this file owns the work queue. Complete the
-research before starting the full faithful OpenRealm replacement.
+research before declaring the full faithful OpenRealm replacement. Independently
+verified slices can be integrated earlier; the [scalar/turn integration](retail-pathfinding-engine.md)
+has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 

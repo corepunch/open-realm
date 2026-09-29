@@ -13,6 +13,7 @@
  * Steering, collision-aware steps, route goals, and support heights are owned here.
  */
 #include "s_skills.h"
+#include "games/warcraft-3/common/wc3_math.h"
 
 /* With move-time collision (block-and-slide), "blocked" now means the unit
  * could not take a step this frame because it was boxed in — common and
@@ -293,7 +294,7 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
  * visibly rotate/wobble and crab sideways past each other and trees. */
 static void unit_moveindirection_policy(edict_t *self,
                                         moveCollisionPolicy_t collision_policy) {
-    if (self->aiflags & AI_IMMOBILE)
+    if ((self->aiflags & AI_IMMOBILE) || self->movement.turn_blocked)
         return;
 
     /* unit_changeangle* clears both routing fields before resolving this
@@ -346,27 +347,18 @@ bool unit_snap_to_point_ignore_units(edict_t *self, vec2_t const *point) {
     return true;
 }
 
-/* Turn the facing vector toward a target heading by at most the unit's turn
- * rate ('umvr', radians/tick; WC3 default 0.5).  Pure 2-D vector math (cross =
- * signed sin of the angle to turn, dot = cos); atan2 only writes the canonical
- * s.angle the renderer/network consume. */
+/* Use retail's scalar turn update instead of accumulating host sin/cos rotation error. */
 static void unit_turn_toward(edict_t *self, float target) {
-    vec2_t const facing = { cosf(self->s.angle), sinf(self->s.angle) };
-    vec2_t const goal   = { cosf(target), sinf(target) };
-    float const cross = facing.x * goal.y - facing.y * goal.x;
-    float const dot   = facing.x * goal.x + facing.y * goal.y;
-    float turn = self->data.UnitData->turnRate;
-    if (turn <= 0.0f) turn = 0.5f;
-
-    if (dot >= cosf(turn)) {
-        self->s.angle = target;  /* within one tick's turn: snap */
-    } else {
-        float const st = cross >= 0.0f ? sinf(turn) : -sinf(turn);
-        float const ct = cosf(turn);
-        vec2_t const nf = { facing.x * ct - facing.y * st,
-                             facing.x * st + facing.y * ct };
-        self->s.angle = atan2f(nf.y, nf.x);
-    }
+    float turn = self->unitinfo.move_flags & BZ_UNIT_TURN_SET ? self->unitinfo.TurnSpeed : self->data.UnitData->turnRate;
+    if (!(self->unitinfo.move_flags & BZ_UNIT_TURN_SET) && turn <= 0) turn = 0.5f;
+    /* TODO: recover the authored propWin producer/conversion before applying the gate to stock units.
+     * Scripted windows are proven radians; retain the existing unrestricted stock movement meanwhile. */
+    float window = self->unitinfo.move_flags & BZ_UNIT_WINDOW_SET ? self->unitinfo.PropWindow : wc3_float(0x40c90fdb);
+    wc3Motion_t motion = { .heading = self->s.angle, .error = angle_wrap(wc3_sub(target, self->s.angle)),
+        .turn = turn, .window = window };
+    /* Retail stops from the error before turning; testing the new angle allowed premature travel. */
+    self->movement.turn_blocked = !wc3_motion_update(&motion);
+    self->s.angle = motion.heading;
 }
 
 /* Resource workers need a different local crowd rule from ordinary combat
@@ -477,6 +469,7 @@ static float unit_desired_heading(edict_t *self, float goal_angle, float dist,
 }
 
 static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy_t policy) {
+    self->movement.turn_blocked = false;
     float const dirlen = Vector2_len(dir);
     if (dirlen <= 0.001f)
         return;  /* no meaningful heading this tick: hold current facing */
@@ -1049,6 +1042,7 @@ void move_reset_progress(edict_t *self) {
     self->movement.worker_avoid_blocked_frames = 0;
     self->movement.worker_avoid_active = false;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
+    self->movement.turn_blocked = false;
 }
 
 void move_cancel_displacement(edict_t *self) {
@@ -1387,6 +1381,12 @@ static void ai_move_walk(edict_t *ent) {
     }
 
     if (move_should_arrive(ent, move_distance)) {
+        /* A point inside the step budget still requires facing inside the scripted window;
+         * the old snap bypassed the movement decision and completed the order while turning. */
+        if (ent->unitinfo.move_flags & BZ_UNIT_WINDOW_SET) {
+            unit_changeangle(ent);
+            if (ent->movement.turn_blocked) return;
+        }
 #ifdef WC3_DEBUG_BUILD
         if (ent->class_id == MAKEFOURCC('h','p','e','a'))
             fprintf(stderr, "WC3_BUILD move-arrive unit=%ld origin=(%.1f,%.1f) target=(%.1f,%.1f) distance=%.1f goal=%ld\n",

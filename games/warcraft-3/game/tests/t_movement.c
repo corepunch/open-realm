@@ -34,6 +34,7 @@ void setup_test_world(void);
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(box2_t const *bounds);
 void CM_ProcessPathJobs(uint32_t work_budget);
+bool run_test_jass(cstring_t src);
 extern void ai_train_build(edict_t *ent);
 
 
@@ -62,6 +63,100 @@ static edict_t *make_moving_unit(float x, float y) {
     ent->health.max_value = 250.0f;
     unit_stand(ent);
     return ent;
+}
+
+/* Drive the native setters before steering, as a map script does. */
+static edict_t *make_scripted_turn_unit(void) {
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call SetUnitTurnSpeed(u, 0.125)\n"
+        "  call SetUnitPropWindow(u, 0.5)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) {
+            /* The minimal fixture lacks the retail model; install the same live lifecycle as make_moving_unit. */
+            g_edicts[i].collision = 0; g_edicts[i].health.value = 250;
+            g_edicts[i].movetype = MOVETYPE_STEP; g_edicts[i].stand = unit_stand;
+            unit_stand(&g_edicts[i]);
+            return &g_edicts[i];
+        }
+    return NULL;
+}
+
+/* Retail 170880 tests the heading error BEFORE turning; equality stops travel. */
+TEST(wc3_movement, scripted_window_stops_translation_while_turning) {
+    edict_t *unit = make_scripted_turn_unit();
+    vec2_t const goal = {0, 512};
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    unit_changeangle_towards_point(unit, &goal);
+    unit_moveindirection(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, 0.125f);
+    FOR_LOOP(i, 16) {
+        unit_changeangle_towards_point(unit, &goal);
+        unit_moveindirection(unit);
+    }
+    T_ASSERT(unit->s.origin2.y > 0);
+}
+
+TEST(wc3_movement, scripted_window_equality_and_zero_keep_turning) {
+    edict_t *unit = make_scripted_turn_unit();
+    vec2_t const east = {512, 0};
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    unit->s.angle = 0.5f;
+    unit_changeangle_towards_point(unit, &east);
+    unit_moveindirection(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, 0.375f);
+    unit->unitinfo.PropWindow = 0;
+    unit_changeangle_towards_point(unit, &east);
+    unit_moveindirection(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, 0.25f);
+}
+
+/* The close-goal snap must obey the same turn decision as an ordinary step. */
+TEST(wc3_movement, scripted_point_order_turns_before_arriving) {
+    edict_t *unit = make_scripted_turn_unit();
+    vec2_t const goal = {10, 0};
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    unit->s.angle = 1;
+    bool accepted = unit_issueorder(unit, "move", &goal);
+    T_ASSERT(accepted);
+    if (!accepted) return;
+    unit->currentmove->think(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, 0.875f);
+    T_EQ(unit->currentmove->proc, CAbilityMove);
+    FOR_LOOP(i, 8) unit->currentmove->think(unit);
+    T_EQ(unit->s.origin2.x, 10);
+    T_STREQ(unit->currentmove->animation, "stand");
+}
+
+/* Primitive override flags and the pre-turn decision travel in the ordinary edict save image. */
+TEST(wc3_movement, scripted_turn_state_survives_save_load) {
+    edict_t *unit = make_scripted_turn_unit();
+    cstring_t file = "/tmp/openwarcraft3-scripted-turn-save.bin";
+    vec2_t const goal = {0, 512};
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    unit_changeangle_towards_point(unit, &goal);
+    T_ASSERT(unit->movement.turn_blocked);
+    T_ASSERT(WriteGame(file));
+    unit->unitinfo.move_flags = 0; unit->unitinfo.TurnSpeed = 0; unit->unitinfo.PropWindow = 0;
+    unit->movement.turn_blocked = false;
+    T_ASSERT(ReadGame(file));
+    T_EQ(unit->unitinfo.move_flags, BZ_UNIT_TURN_SET | BZ_UNIT_WINDOW_SET);
+    T_EQ(unit->unitinfo.TurnSpeed, 0.125f); T_EQ(unit->unitinfo.PropWindow, 0.5f);
+    T_ASSERT(unit->movement.turn_blocked);
+    unit_moveindirection(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    remove(file);
 }
 
 /* Harvest damage now uses the authoritative destructable lifecycle, so test

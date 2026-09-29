@@ -11,6 +11,7 @@ import json
 import math
 import random
 import struct
+import ctypes
 from pathlib import Path
 
 MASK = 0xffffffff
@@ -130,7 +131,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', required=True, type=Path)
     parser.add_argument('--report', required=True, type=Path)
+    parser.add_argument('--engine-library', type=Path, help='compiled wc3_pathing_engine_probe.c; compare exact C output bits')
     args = parser.parse_args()
+    engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine:
+        for name in ('add', 'subtract', 'multiply'):
+            proc = getattr(engine, 'pathing_' + name)
+            proc.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
+            proc.restype = ctypes.c_uint32
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -198,6 +206,8 @@ def main():
             pairs.append(((exponent << 23)|1, sign|((exponent-gap)<<23)|FRAC))
         for a,b in pairs:
             actual = call(entry,a,b)
+            if engine:
+                assert getattr(engine, 'pathing_' + name)(a, b) == actual, (name, hex(a), hex(b), hex(actual))
             assert actual == model(a,b), (name,hex(a),hex(b),hex(actual),hex(model(a,b)))
         for a,b in pairs[:200]:
             for alias in [1,2]:
@@ -337,6 +347,8 @@ def main():
                    'multiply':'Truncated 24-bit product; pre-normalization exponent guard 1..256; zero-fraction shortcut handles exponent-zero operands separately',
                    'floor':'Negative nonzero values below one become -1; both signed zeros become +0; fractional mantissa truncation with negative ceiling of magnitude; exponent >=150 unchanged',
                    'integer':'Truncation toward zero for ordinary values; exponent <127 returns zero; larger exponents use x86 modulo-32 shifts and modulo-32-bit output, without saturation'},
+        engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest() if engine else None,
+        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply')} if engine else {},
         exclusions=['Producer reachability of raw NaN/infinity/denormal/overflow patterns',
                     'Full spatial mutation after bounds construction',
                     'General simulation trajectories and trigonometry',

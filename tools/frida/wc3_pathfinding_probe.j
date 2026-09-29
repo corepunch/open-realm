@@ -197,6 +197,11 @@ function PathProbeInit takes nothing returns nothing
         set crowdType = 'hgry'
     endif
     set udg_PathProbeUnit = CreateUnit(Player(0), crowdType, -1936.0, -976.0, 90.0)
+    if PATH_PROBE_SCENARIO == 20 then
+        call SetUnitFacing(udg_PathProbeUnit, 0.0)
+        call SetUnitTurnSpeed(udg_PathProbeUnit, 0.125)
+        call SetUnitPropWindow(udg_PathProbeUnit, 0.5)
+    endif
     if (PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) then
         if PATH_PROBE_SCENARIO >= 13 and PATH_PROBE_SCENARIO <= 15 then
             call SetPlayerAlliance(Player(0), Player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_PASSIVE, true)

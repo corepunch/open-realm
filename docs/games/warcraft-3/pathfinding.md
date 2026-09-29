@@ -10,6 +10,10 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 
 `games/warcraft-3/game/skills/s_move.c` owns per-tick steering and local block-and-slide. `server/sv_routing.c` owns static pathmap line tests, connectivity queries, and cached flow fields. Harvest target selection remains in `skills/s_harvest_lumber.c`; the router never changes a tree target by itself.
 
+Move's scalar turn update and scripted movement-window gate now use
+[verified retail arithmetic](retail-pathfinding-engine.md). This is an incremental
+integration; the routing/velocity pipeline does not yet have full retail parity.
+
 Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach keeps live-unit collision and uses collision-sized resource-worker local avoidance.
 
 ### Static interaction rectangles
