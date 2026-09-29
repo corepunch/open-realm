@@ -185,6 +185,8 @@ native GetRectMinX            takes rect whichRect returns real
 native GetRectMaxY            takes rect whichRect returns real
 native CreateRegion           takes nothing returns region
 native RegionAddRect          takes region whichRegion, rect r returns nothing
+native TriggerRegisterEnterRegion takes trigger whichTrigger, region whichRegion, boolexpr filter returns event
+native TriggerRegisterLeaveRegion takes trigger whichTrigger, region whichRegion, boolexpr filter returns event
 native RegionClearRect        takes region whichRegion, rect r returns nothing
 native Location               takes real x, real y returns location
 native MoveLocation           takes location whichLocation, real newX, real newY returns nothing

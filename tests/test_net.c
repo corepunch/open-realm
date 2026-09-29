@@ -31,6 +31,10 @@
 #include "../client/client.h"
 #include "../client/cl_input_local.h"
 
+TEST(net, protocol_version_covers_camera_noise_player_state_fields) {
+    T_EQ(BZ_PROTOCOL_VERSION, 15);
+}
+
 static cstring_t minimap_map;
 static void capture_minimap(rect_t const *screen, cstring_t map) { (void)screen; minimap_map = map; }
 

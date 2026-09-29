@@ -390,6 +390,7 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
         }
     }
     T_NOT_NULL(mover);
+    mover->svflags |= SVF_MONSTER;
     mover->movetype = MOVETYPE_STEP;
     mover->stand = unit_stand;
     mover->birth = unit_birth;
@@ -415,50 +416,52 @@ TEST(wc3_api, nonunit_map_entity_placement_does_not_fire_region_enter) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *map_entity;
     vec2_t old_position = { 0.0f, 0.0f };
+    event_t *handler = NULL;
 
     reset_entities(); setup_test_world(); currentplayer = NULL;
     T_ASSERT(run_test_jass(
         "globals\n"
-        "  unit mover = null\n"
         "  integer enters = 0\n"
         "endglobals\n"
-        "function player_zero_filter takes nothing returns boolean\n"
-        "  return GetOwningPlayer(GetEnteringUnit()) == Player(0)\n"
-        "endfunction\n"
         "function on_enter takes nothing returns nothing\n"
         "  set enters = enters + 1\n"
         "endfunction\n"
-        "function move_real_unit takes nothing returns nothing\n"
-        "  call SetUnitPosition(mover, -1088.0, -3493.0)\n"
-        "endfunction\n"
-        "function verify_no_false_entry takes nothing returns nothing\n"
-        "  call BJassAssert(enters == 0, \"non-unit map entity fired a region enter event\")\n"
-        "endfunction\n"
         "function verify_real_entry takes nothing returns nothing\n"
-        "  call BJassAssert(enters == 1, \"real unit crossing did not fire region enter event\")\n"
+        "  call BJassAssert(enters == 1, \"real unit entry was not delivered exactly once\")\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  local trigger t = CreateTrigger()\n"
         "  local region r = CreateRegion()\n"
-        "  set mover = CreateUnit(Player(0), 'hpea', -2000.0, -3493.0, 0.0)\n"
-        "  call RegionAddRect(r, Rect(-1408.0, -4352.0, -128.0, -3072.0))\n"
-        "  call TriggerRegisterEnterRegion(t, r, Condition(function player_zero_filter))\n"
+        "  call RegionAddRect(r, Rect(50.0, 50.0, 150.0, 150.0))\n"
+        "  call TriggerRegisterEnterRegion(t, r, null)\n"
         "  call TriggerAddAction(t, function on_enter)\n"
         "endfunction\n"));
 
+    FOR_EACH_EVENT(evt) {
+        if (evt->type == EVENT_GAME_ENTER_REGION) { handler = evt; break; }
+    }
+    T_NOT_NULL(handler);
     map_entity = G_Spawn();
     T_NOT_NULL(map_entity);
-    if (!map_entity) { currentplayer = saved_currentplayer; return; }
-    map_entity->s.player = 0;
-    map_entity->s.model = 138;
-    map_entity->s.origin2 = (vec2_t){ -1088.0f, -3493.0f };
+    if (!map_entity || !handler) { currentplayer = saved_currentplayer; return; }
+    map_entity->class_id = map_entity->s.class_id = MAKEFOURCC('d','0','0','1');
+    map_entity->s.origin2 = (vec2_t){ 100.0f, 100.0f };
     G_UnitPositionChanged(map_entity, &old_position);
     G_RunEvents(); jass_runevents(level.vm);
-    jass_callbyname(level.vm, "verify_no_false_entry", false);
-    T_ASSERT(!jass_rterror_pending(level.vm));
 
-    jass_callbyname(level.vm, "move_real_unit", false);
-    T_ASSERT(!jass_rterror_pending(level.vm));
+    /* Same classed entity, now carrying a real unit rawcode: the unit-only
+     * gate must still reject it because it has no unit runtime classification. */
+    map_entity->class_id = map_entity->s.class_id = MAKEFOURCC('h','p','e','a');
+    old_position = (vec2_t){ 0.0f, 0.0f };
+    map_entity->s.origin2 = (vec2_t){ 100.0f, 100.0f };
+    G_UnitPositionChanged(map_entity, &old_position);
+    G_RunEvents(); jass_runevents(level.vm);
+
+    /* The runtime unit classification admits the same entity and delivers
+     * the crossing through the normal movement entry point. */
+    map_entity->svflags |= SVF_MONSTER;
+    old_position = (vec2_t){ 0.0f, 0.0f };
+    G_UnitPositionChanged(map_entity, &old_position);
     G_RunEvents(); jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify_real_entry", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -730,6 +733,10 @@ TEST(wc3_api, set_unit_position_dispatches_region_crossings) {
         "  call TriggerAddAction(enterTrigger, function on_enter)\n"
         "  call TriggerAddAction(leaveTrigger, function on_leave)\n"
         "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a') && g_edicts[i].s.player == 0)
+            g_edicts[i].svflags |= SVF_MONSTER;
 
     jass_callbyname(level.vm, "teleport_into", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -1318,7 +1325,8 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_EQ(gc->ps.client_ui_state, CLIENT_UI_GAME);
     T_EQ(gc->ps.uiflags, 1u << LAYER_CINEMATIC);
     T_ASSERT(!gc->no_control);
-    T_FEQ(gc->ps.vieworigin.x, 128, 0.001f); T_FEQ(gc->ps.vieworigin.y, 256, 0.001f);
+    T_ASSERT(gc->camera.pan_active);
+    T_FEQ(gc->camera.pan_destination.x, 128, 0.001f); T_FEQ(gc->camera.pan_destination.y, 256, 0.001f);
     T_FEQ(gc->ps.distance, WC3_CAMERA_DEFAULT_DISTANCE, 0.001f); T_FEQ(gc->ps.fov, WC3_CAMERA_DEFAULT_FOV, 0.001f);
     T_FEQ(gc->ps.znear, WC3_CAMERA_DEFAULT_NEAR_Z, 0.001f);
     T_FEQ(gc->ps.zfar, WC3_CAMERA_DEFAULT_FAR_Z, 0.001f);
@@ -1435,6 +1443,7 @@ TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
         if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a') && g_edicts[i].s.player == 0)
             leaving = &g_edicts[i];
     T_NOT_NULL(leaving);
+    leaving->svflags |= SVF_MONSTER;
     leaving->movetype = MOVETYPE_STEP;
     leaving->stand = unit_stand;
     leaving->birth = unit_birth;
@@ -1875,6 +1884,32 @@ TEST(wc3_api, untimed_camera_pan_uses_authored_forward_and_strafe_rates) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, invalid_camera_pan_rates_report_error_without_snapping) {
+    gameClient_t *gc = &game.clients[0];
+    stbIniCache_t saved = game.config.misc, custom = { 0 };
+
+    T_ASSERT(Stb_IniCacheLoadBuffer(&custom,
+        "[CameraRates]\nStrafe=invalid\nForward=200\n"));
+    game.config.misc = custom;
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(vec2_t, 10.0f, 20.0f);
+    gc->camera.old_state = gc->camera.state;
+    G_ClearCameraPan(gc);
+    currentplayer = &gc->ps;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PanCameraTo(200.0, 400.0)\n"
+        "endfunction\n"));
+    T_ASSERT(!gc->camera.pan_active);
+    T_FEQ(gc->camera.state.position.x, 10.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 20.0f, 0.001f);
+
+    currentplayer = NULL;
+    game.config.misc = saved;
+    Stb_IniCacheFree(&custom);
+}
+
 TEST(wc3_api, camera_setup_pantimed_uses_normal_pan_rates) {
     gameClient_t *gc = &game.clients[0];
 
@@ -1975,8 +2010,9 @@ TEST(wc3_api, camera_setup_applies_clip_planes_z_and_dopan_contract) {
         "  call CameraSetupSetField(c, CAMERA_FIELD_FARZ, 7500.0, 0.0)\n"
         "  call CameraSetupApplyWithZ(c, 275.0)\n"
         "endfunction\n"));
-    T_FEQ(gc->camera.state.position.x, 700.0f, 0.001f);
-    T_FEQ(gc->camera.state.position.y, 800.0f, 0.001f);
+    T_ASSERT(gc->camera.pan_active);
+    T_FEQ(gc->camera.pan_destination.x, 700.0f, 0.001f);
+    T_FEQ(gc->camera.pan_destination.y, 800.0f, 0.001f);
     T_FEQ(gc->camera.state.near_z, 65.0f, 0.001f);
     T_FEQ(gc->camera.state.far_z, 7500.0f, 0.001f);
     T_FEQ(gc->camera.state.z_offset, 275.0f, 0.001f);
