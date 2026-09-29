@@ -1444,6 +1444,7 @@ TEST(server_net, loading_configstrings_do_not_queue_duplicate_live_updates) {
 TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines) {
     uint8_t buf[MAX_MSGLEN];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    entityState_t baselines[200];
     char next[64] = "configstrings";
     uint32_t strings = 0, bases = 0, pages = 0;
     NET_Shutdown(); reset_server_state(2);
@@ -1458,8 +1459,13 @@ TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines)
     sv.state = ss_game;
     FOR_LOOP(i, 200) {
         memset(sv.configstrings[CS_MODELS + i + 1], 'a' + i % 26, MAX_PATHLEN - 1);
-        test_edicts[i].s = (entityState_t){ .number = i, .model = i + 1, .origin = { i, i + 1, i + 2 } };
+        baselines[i] = (entityState_t){ .number = i, .model = i + 1, .origin = { i, i + 1, i + 2 } };
+        /* A live entity can change after map baselines were captured but before a
+         * client finishes signon. Snapshot additions are still encoded against
+         * sv.baselines, so signon must give the client that same starting state. */
+        test_edicts[i].s = (entityState_t){ .number = i, .model = i + 1000, .origin = { i + 1000, i + 1001, i + 1002 } };
     }
+    sv.baselines = baselines;
     ge->num_edicts = 200;
     while (strcmp(next, "precache")) {
         T_ASSERT(pages++ < 300);
@@ -1492,6 +1498,7 @@ TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines)
         T_EQ(svs.clients[0].state, cs_connected);
     }
     T_EQ(strings, 200); T_EQ(bases, 200); T_ASSERT(pages > 2);
+    sv.baselines = NULL;
     close(sock); NET_Shutdown();
 }
 
