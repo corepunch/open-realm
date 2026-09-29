@@ -3,8 +3,9 @@
 ## Implemented slice
 
 `games/warcraft-3/common/wc3_math.h` implements the retail 1.27.1.7085
-software scalar add, subtract, multiply, angle normalization, and speed/heading
-decision. Integer significands, truncation, explicit sign extension and exponent
+software scalar add, subtract, multiply, divide, square root, reciprocal,
+sine/cosine, angle normalization, speed/heading decisions and velocity/position
+arithmetic. Integer significands, truncation, explicit sign extension and exponent
 wrapping reproduce the game-specific arithmetic; host nearest-rounded float
 operations are not equivalent. This does not replace ordinary shared vector math.
 
@@ -18,7 +19,7 @@ With a scripted window, translation stops when the **pre-turn** heading error
 is greater than or equal to the window. Turning continues. The same decision
 guards the close-goal Move snap. `movement.turn_blocked` records this tick's
 decision and resets with order progress. Both values survive save/load. Save
-format 54 rejects earlier layouts because scalar fields shift edict offsets.
+format 55 rejects earlier layouts because scalar fields shift edict offsets.
 
 The stock authored `UnitData.propWin` producer/conversion remains to be
 recovered. The code has an explicit TODO and preserves unrestricted stock
@@ -92,13 +93,75 @@ subsequent travel, close-goal arrival and save/load. Turn and arrival regression
 failed before the corresponding fixes. On this host `make test` needs native
 SDL2 as documented in [test performance](../../test-performance.md#linux-sdl-compatibility-layer-text-event-crash).
 
+## Generated tables and exact trigonometry
+
+`generate_wc3_math_tables.py` independently generates the static tables into
+`wc3_math_tables.h`, using 90-digit Decimal sine series and integer division.
+The 1,025 quarter-wave entries are `floor(sin(i*pi/2048)*2^31)`, saturating the
+positive endpoint to `7fffffff`. The reciprocal entries are
+`min(2^23, floor(2^47/(2^23+i*2^13-1))-2^23)`. The subtraction of one from
+the denominator is necessary: sampling the exact nominal significand misses 845
+entries. Both generated tables compare byte-for-byte with the embedded retail
+constants; the original build-time generator source is unavailable.
+
+Sine/cosine first multiply by stored scale `4822f983`, truncate to a wrapping
+integer phase, select a quadrant and interpolate the quarter-wave table with
+its low 8-bit residue repeated four times. Converting that fixed-point value
+back to a scalar truncates; hardware float conversion rounds. There is no host
+libm call in these simulation helpers. Table addresses/hashes and exact C
+comparisons are in `scalar-trig-engine-exact.json`: add/subtract/multiply 21,772
+each, sine/cosine 21,668 each, square root/reciprocal 25,542 each and divide 21,732.
+Raw exceptional inputs establish helper behavior, not public producer validity.
+
+## Velocity and position integration
+
+`wc3_velocity_update()` computes desired-minus-old velocity and adds that delta
+back with retail truncation. It tests squared magnitude against `3456bf95`
+(2e-7), then clamps with retail sqrt/reciprocal and scalar multiply. Cancellation
+cannot be simplified to assigning the desired vector. `wc3_elapsed()` clears
+fractional differences strictly below `38d1b717`, then adds the signed epoch
+span; it does not clamp negative elapsed time. `wc3_integrate()` applies the
+previous committed velocity before any requested velocity change.
+
+`velocity-integration-engine-exact.json` compares 80 complete original velocity
+commits and 2,384 position integrations exactly against C, alongside real
+occupancy mutations and the existing motion corpus. Frida's optional
+`--velocity-events` records the mover's prior time/epoch/position/velocity,
+selected original clock and complete commit output. The fresh turning capture
+`runtime/velocity-turn-raw.jsonl` contains 191 scalar decisions and 192 velocity/
+position commits, including the final stop; all output words compare exactly in
+`runtime/velocity-turn-exact.json`. The normalized translation hash is
+`b1f3acf293d750142136d18534a9492330fcacd2fe7fc2cfa7d26f5aac6616f8`.
+A second complete capture has the same decision and translation hashes in
+`runtime/velocity-turn-repeat-exact.json`. Frozen observer/controller sources and
+binary/map/capture hashes are in `runtime/velocity-integration-tools` and the
+corresponding `*-provenance.json` files.
+Facing reconstructed from velocity remains outside this comparison.
+
+The captured clock advances by approximately 0.03, with soft-add truncation
+visible in adjacent deltas. The historical offline fixtures use a controlled
+1/32 input; that value must not be presented as recovered live cadence.
+`tools/ghidra/fixtures/retail-turn-velocity-1.27.json` freezes all 192 raw commits
+without process addresses. Asset-free tests replay the entire fixture through
+production C at O0/O2. The capture checker rejects missing/truncated commits,
+invalid raw words and mismatched velocity, position or clock outputs.
+
+Move now retains committed XY velocity and uses this arithmetic when computing
+steps along the selected facing or avoidance heading. It still integrates at the existing engine frame interval
+and uses world coordinates; an explicit TODO marks the remaining retail grid/
+clock handoff. An oblique-step regression fails on the former host arithmetic
+and passes with exact coordinate/velocity words. Stop, no-route, failed-step and
+order-reset paths clear the velocity. Save format 55 includes the new state and
+rejects format 54; a 12-step alternating-heading test matches uninterrupted versus
+save/load-resumed position and velocity words exactly.
+
 ## Remaining fidelity work
 
 Flow fields, route scheduling, group ownership, collision, repulsion and arrival
 range policy are not replaced. Heading **selection** still uses host `atan2` and
-existing steering; retail uses software length/division/acos. Velocity
-trigonometry, stored-velocity integration, clocks, world/fine coordinate
-conversion and complete cross-feature trajectories remain open. Repeat equality
+existing steering; retail uses software length/division/acos. Stored-velocity integration and elapsed-clock arithmetic now have exact C/retail
+evidence. Their complete engine lifecycle, world/fine coordinate conversion
+and cross-feature trajectories remain open. Repeat equality
 covers the observed helper sequence, not an unattached-observer control or all
 deterministic state.
 

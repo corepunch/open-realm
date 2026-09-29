@@ -1681,3 +1681,42 @@ The combined report now contains78 elapsed trajectories,681 integration ticks,
 156 task reclamations and78 group/path releases.
 Inspect`move_owner_active_separation_trajectories` and
 `move_owner_separation_cases` alongside`passed=true`.
+
+
+### Initial admission through owner updates
+
+BASE-06.2/.3 join the original `680320(order,1,1)` admission with original
+`15aa80` owner updates. The report is `base-06.3-owner-fifo.json` under the
+report root, evidence **O** (unmodified original instructions; real class vtables
+and shipped CRT). Run:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_order_tasks.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --report /tmp/base-06.3-owner-fifo.json
+```
+
+The single-order baseline moves from grid `(4,4)` toward `(6,4)`, arriving
+at clock tick7. Nine owner updates include fresh route creation, seven elapsed
+steps and release. Its route, every raw position/velocity pair, arrival clock,
+dispatch sequence and restored five32-block factory pools equal the explicit
+group control exactly. The owner calls original table initializers
+`004200/004210`; resolving the shipped CRT `isdigit` import is required.
+Scheduler countdowns, owner counter/parity and empty shared/separation lists
+are checked on every owner call. Visual heading settles through original
+`170cf0`, leaving group/visual lists empty and mover links cleared.
+
+Four FIFO cases extend this fixture with queued destinations `(8,8)`, `(4,4)`,
+`(4,8)` and X=`192+1 float32 bit`, Y128 in world coordinates. They arrive at
+clock ticks27,20,27,8 with29,26,29,10 owner updates respectively. Actual
+`693490` publication and completion-driven `67de20/67abe0/5fd270` admit the
+second order. Callback identities and target bits remain FIFO, then user
+head/tail/count, generated tasks, group/path pools and wrappers all return to
+idle. The adjacent-float successor arrives on tick8: owner iteration does
+not explicitly run a newly linked successor at the predecessor's same clock.
+Six settling updates are needed in the reverse case.
+
+These fixtures still seed map descriptors, existing mover/unit/ability state,
+class caches and allocator backing storage. Original producers replace those
+boundaries in BASE-06.4; this closure does not claim full public world creation,
+player/network admission, populated shared groups or separation.

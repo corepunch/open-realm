@@ -13,6 +13,7 @@ import random
 import struct
 import ctypes
 from pathlib import Path
+from generate_wc3_math_tables import sine_table as generate_sines, reciprocal_table as generate_recips
 
 MASK = 0xffffffff
 SIGN = 0x80000000
@@ -100,6 +101,28 @@ def divide(a, b, table):
     return bits(1) if a == b else multiply(a, reciprocal(b, table))
 
 
+def integer_float(word):
+    sign = word & SIGN
+    magnitude = (-word if sign else word) & MASK
+    if not magnitude:
+        return 0
+    exponent = magnitude.bit_length() - 1
+    mantissa = magnitude >> (exponent-23) if exponent >= 23 else magnitude << (23-exponent)
+    return sign | ((exponent+127) << 23) | (mantissa & FRAC)
+
+
+def trig_bits(word, cosine, table):
+    phase = integer_word(multiply(word, 0x4822f983))
+    quadrant, index, residual = ((phase >> 18) + int(cosine)) & 3, (phase >> 8) & 1023, phase & 255
+    weight = residual * 0x01010101
+    if quadrant & 1:
+        value = table[1024-index] - ((table[1024-index]-table[1023-index])*weight >> 32)
+    else:
+        value = table[index] + ((table[index+1]-table[index])*weight >> 32)
+    result = integer_float((-value if quadrant & 2 else value) & MASK)
+    return (result - (0x0f800000 if result & 0x7f800000 else 0)) & MASK
+
+
 def floor_word(word):
     exponent = ((word >> 23) & 255) - 127
     if exponent < 0:
@@ -135,9 +158,13 @@ def main():
     args = parser.parse_args()
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
-        for name in ('add', 'subtract', 'multiply'):
+        for name in ('add', 'subtract', 'multiply', 'divide'):
             proc = getattr(engine, 'pathing_' + name)
             proc.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
+            proc.restype = ctypes.c_uint32
+        for name in ('sin', 'cos', 'sqrt', 'reciprocal'):
+            proc = getattr(engine, 'pathing_' + name)
+            proc.argtypes = [ctypes.c_uint32]
             proc.restype = ctypes.c_uint32
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
@@ -168,7 +195,7 @@ def main():
         write(left-4, 0xabcdef01, a, 0xabcdef02)
         write(right-4, 0xabcdef03, b or 0, 0xabcdef04)
         write(output-4, 0xabcdef05, 0xdeadbeef, 0xabcdef06)
-        destination = [output, left, right][alias]
+        destination = left if entry in (0x6f071280, 0x6f070790) else [output, left, right][alias]
         write(stack, stop, right)
         uc.reg_write(UC_X86_REG_ESP, stack)
         uc.reg_write(UC_X86_REG_ECX, left if entry == 0x6f070120 else destination)
@@ -211,7 +238,10 @@ def main():
             assert actual == model(a,b), (name,hex(a),hex(b),hex(actual),hex(model(a,b)))
         for a,b in pairs[:200]:
             for alias in [1,2]:
-                assert call(entry,a,b,alias) == model(a,b)
+                actual = call(entry,a,b,alias)
+                assert actual == model(a,b)
+                if engine:
+                    assert getattr(engine, 'pathing_' + name)(a,b) == actual
         counts[name] = len(pairs)+400
     unary = sorted(words) + [rng.getrandbits(32) for _ in range(20000)]
     for name, entry, model in [('floor',0x6f070c80,floor_word),('integer',0x6f070120,integer_word)]:
@@ -241,6 +271,7 @@ def main():
     # regenerated constants. Arithmetic/interpolation is modeled separately.
     reciprocal_table = list(struct.unpack('<1025I',uc.mem_read(0x6fa810c0,4100)))
     table_hash = hashlib.sha256(uc.mem_read(0x6fa810c0,4100)).hexdigest()
+    assert reciprocal_table == generate_recips()
     extended_unary = unary + [((127 << 23) | (i << 13) | residual)
                              for i in range(1024) for residual in [0,1,4095,8190,8191]]
     for name,entry,model in [('sqrt',0x6f071480,square_root),
@@ -248,18 +279,41 @@ def main():
         for word in extended_unary:
             actual = call(entry,word)
             assert actual == model(word),(name,hex(word),hex(actual),hex(model(word)))
+            if engine:
+                assert getattr(engine,'pathing_'+name)(word)==actual,(name,hex(word),hex(actual))
         for word in extended_unary[:200]:
-            assert call(entry,word,alias=1) == model(word)
+            actual = call(entry,word,alias=1)
+            assert actual == model(word)
+            if engine:
+                assert getattr(engine,'pathing_'+name)(word) == actual
         counts[name] = len(extended_unary)+200
     division_pairs = [(a,b) for a in sorted(words) for b in [0,SIGN,a,a^SIGN,bits(1),bits(-1)]]
     division_pairs += [(rng.getrandbits(32),rng.getrandbits(32)) for _ in range(20000)]
     for a,b in division_pairs:
         actual = call(0x6f06fcd0,a,b)
         assert actual == divide(a,b,reciprocal_table),('divide',hex(a),hex(b),hex(actual))
+        if engine:
+            assert engine.pathing_divide(a,b)==actual,('divide',hex(a),hex(b),hex(actual))
     for a,b in division_pairs[:200]:
         for alias in [1,2]:
-            assert call(0x6f06fcd0,a,b,alias) == divide(a,b,reciprocal_table)
+            actual = call(0x6f06fcd0,a,b,alias)
+            assert actual == divide(a,b,reciprocal_table)
+            if engine:
+                assert engine.pathing_divide(a,b) == actual
     counts['divide'] = len(division_pairs)+400
+    trig_table = list(struct.unpack('<1025I', uc.mem_read(0x6fa820c8, 4100)))
+    trig_hash = hashlib.sha256(uc.mem_read(0x6fa820c8, 4100)).hexdigest()
+    assert trig_table == generate_sines()
+    trig_words = unary + [bits(i*math.pi/2048)+offset
+                         for i in range(-4096,4097,17) for offset in (-1,0,1)]
+    for name, entry, cosine in [('sin',0x6f071280,False),('cos',0x6f070790,True)]:
+        for word in trig_words:
+            actual = call(entry,word)
+            expected = trig_bits(word,cosine,trig_table)
+            assert actual == expected,(name,hex(word),hex(actual),hex(expected))
+            if engine:
+                assert getattr(engine,'pathing_'+name)(word)==actual,(name,hex(word),hex(actual))
+        counts[name] = len(trig_words)
     # Complete Path normalizer: returns length; modifies XY only for length>1.
     vector = 0x10000800
     vectors = [(bits(x),bits(y)) for x,y in itertools.product(
@@ -333,6 +387,8 @@ def main():
         normalization_threshold_witness={'input_x':'3f800001','input_y':'00000000',
             'retail_length':'3f800000','output_x':'3f800001','output_y':'00000000'},
         reciprocal_table={"address":"6fa810c0","words":1025,"sha256":table_hash},
+        trig_table={"address":"6fa820c8","words":1025,"sha256":trig_hash},
+        independently_generated_table_words=2050,
         composed_bound_prefix_cases=bound_count,occupied_cell_witness=witness,
         reference='Independent integer-bit models; exact outputs, no tolerance; unmodified retail code',
         random_seed='0x12717085', random_pair_cases_per_binary_helper=20000,
@@ -348,11 +404,11 @@ def main():
                    'floor':'Negative nonzero values below one become -1; both signed zeros become +0; fractional mantissa truncation with negative ceiling of magnitude; exponent >=150 unchanged',
                    'integer':'Truncation toward zero for ordinary values; exponent <127 returns zero; larger exponents use x86 modulo-32 shifts and modulo-32-bit output, without saturation'},
         engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest() if engine else None,
-        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply')} if engine else {},
+        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','sqrt','reciprocal','divide')} if engine else {},
         exclusions=['Producer reachability of raw NaN/infinity/denormal/overflow patterns',
                     'Full spatial mutation after bounds construction',
-                    'General simulation trajectories and trigonometry',
-                    'Independent derivation of reciprocal table values; reference reads authoritative binary constants',
+                    'General simulation trajectories; trig helper domains are raw input words, not public producer proof',
+                    'Historical table-generation source is unavailable; independent formulas reproduce every embedded entry',
                     'Non-power-of-two map scales are not asserted to be producer-reachable'])
     args.report.parent.mkdir(parents=True,exist_ok=True)
     args.report.write_text(json.dumps(report,indent=2)+'\n')

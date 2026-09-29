@@ -93,7 +93,7 @@ Counts overlap; do not sum them into a coverage percentage.
 | SCHED — admission/scheduling | **S/O/C/L:** bucket/FIFO/cadence, owner row and transitions, budgets/timestamps, live handoffs; full singleton owner tick and active singleton plus controlled repulsor | Populated shared-cap/multiple-group owner tick; mutation/reentrancy; fairness under crowd load; non-unit class-15 producers |
 | ROUTE — reconstruction/refill | **S/O/C:** fine/coarse endpoints, partials, size-2 adjustment, sampling/skipping; 288 object refills; 288 enabled hierarchy advances; 288 full ordinary fine/coarse transitions | Oblique/all-class numerical parity; dynamic yielding + fresh refill + multi-tick progression; allocation growth; invalid-start contracts |
 | TARGET — target state/retry | **S/O/C/L:** target radius/heading tests, destination reset/replan, refresh counter, follow, invisibility cancellation, fog loss/reacquisition, perimeter acceptance and retry exhaustion | Point-order arrival parameter producers; sub-cell edits; other visibility-loss policies; complete moving-target ticks; gameplay meanings of remaining policy flags |
-| NUM — arithmetic | **S/O/C:** 200,330 exact scalar calls including divide/sqrt; 2,130 normalizations; 864 bounds prefixes | Trig; reciprocal table derivation; producer reachability of extreme raw inputs; full mutation/trajectory parity |
+| NUM — arithmetic | **S/O/C:** 200,330 exact scalar calls including divide/sqrt; 2,130 normalizations; 864 bounds prefixes | Remaining inverse trig and conversions; producer reachability of extreme raw inputs; full mutation/trajectory parity |
 | MOVE — kinematics/clocks | **S/O/C:** 13,824 speed/heading cases; producers, normalization; 2,304 position integrations; velocity commits with real occupancy updates | Full software-float parity and general inputs; authored turn-data chain; clock domains/cadence/rollover; moving mixed-object and region-crossing trajectories |
 | GROUP — group state | **S/O/C/L (target witnesses):** shared-cap ownership/publication, max footprint, stops/pools; 576 member decisions; 144 route/commit compositions; 144 full cached-route ticks; 156 membership prepasses; 36 new-group fine-search ticks; fine/adaptive singleton wall trajectories and one active singleton plus repulsor | Shared-group adaptive/obstacle/crowd fresh ticks; target-speed adjustment; populated owner tick; create/join/leave/destroy during movement; live Captain AI delay; stale handles under mutation |
 | FORM — formations/regroup | **S/O/C:** authored rank setter; interval classifier; rank/row layout; 144 full layouts, 48 refreshes, 384 offset-destination cases, 648 regroup/reset/refresh compositions | Mixed-radius/moving/oblique complete layouts; refresh → destination → decision → commit chain; live selection formations and rebuild cadence; remaining flag producers |
@@ -106,12 +106,12 @@ Counts overlap; do not sum them into a coverage percentage.
 
 [Executable research backlog](retail-pathfinding-todo.md#work-next): numbered
 tasks, acceptance checks, completed evidence and the READY gate. Start with
-**BASE-06.2**, then **BASE-06.3–.5**; the backlog names their dependencies and
+**BASE-06.4**, then **BASE-06.5**; the backlog names their dependencies and
 finish artifacts. The areas below describe the sequence, not additional tasks.
 
 1. **ORDER + GROUP + MOVE:** join the verified initial-admission/FIFO chain
-   (currently explicit group ticks) with the verified full-owner trajectory
-   (currently prepared movement state). Freeze one construction-to-next-order
+   (now joined with actual owner updates) with map/mover producers.
+   Freeze one construction-to-next-order
    baseline with intermediate state, callback order and final ownership checks.
    Then extend populated shared groups; the controlled separation pair already
    passes and is not an untouched prerequisite.

@@ -279,6 +279,19 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
     gi.LinkEntity(self);
 }
 
+/* Keep the verified velocity arithmetic in Move while preserving the engine's current frame cadence.
+ * TODO: move integration to the retail grid/clock owner once its public producer chain is recovered. */
+static vec2_t unit_step_heading(edict_t *self, float angle, vec2_t *vel) {
+    float speed = unit_current_speed(self);
+    wc3Velocity_t v = { .vel = {self->movement.velocity.x, self->movement.velocity.y},
+        .speed = speed, .heading = angle, .limit = speed };
+    wc3_velocity_update(&v);
+    float pos[2] = {self->s.origin2.x, self->s.origin2.y};
+    wc3_integrate(pos, v.vel, 10.0f / FRAMETIME);
+    *vel = (vec2_t){v.vel[0], v.vel[1]};
+    return (vec2_t){pos[0], pos[1]};
+}
+
 /* Advance the unit one tick.  Avoidance is decided ONCE per tick in
  * unit_changeangle (which picks a free heading via unit_desired_heading and
  * turns the facing toward it); this function only commits the step.  WC3 moves a
@@ -294,8 +307,10 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
  * visibly rotate/wobble and crab sideways past each other and trees. */
 static void unit_moveindirection_policy(edict_t *self,
                                         moveCollisionPolicy_t collision_policy) {
-    if ((self->aiflags & AI_IMMOBILE) || self->movement.turn_blocked)
+    if ((self->aiflags & AI_IMMOBILE) || self->movement.turn_blocked) {
+        self->movement.velocity = (vec2_t){0};
         return;
+    }
 
     /* unit_changeangle* clears both routing fields before resolving this
      * tick's heading.  A resumable cache miss deliberately leaves both clear;
@@ -303,21 +318,25 @@ static void unit_moveindirection_policy(edict_t *self,
      * step using the unit's previous facing/heading while the requested route
      * is still being built.  This is the common safety net for Move, Harvest,
      * Patrol, Attack, Build, Repair, and resource-return walkers. */
-    if (!self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0)
+    if (!self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0) {
+        self->movement.velocity = (vec2_t){0};
         return;
+    }
 
-    float const dist = unit_movedistance(self);
-    vec2_t const by_facing = Vector2_mad(&self->s.origin2, dist,
-                                          &MAKE(vec2_t, cosf(self->s.angle), sinf(self->s.angle)));
+    vec2_t vel;
+    vec2_t const by_facing = unit_step_heading(self, self->s.angle, &vel);
     if (move_is_valid_policy(self, &by_facing, collision_policy)) {
+        self->movement.velocity = vel;
         unit_commit_step(self, &by_facing);
         return;
     }
-    vec2_t const by_heading = Vector2_mad(&self->s.origin2, dist,
-                                           &MAKE(vec2_t, cosf(self->movement.heading), sinf(self->movement.heading)));
+    vec2_t const by_heading = unit_step_heading(self, self->movement.heading, &vel);
     if (move_is_valid_policy(self, &by_heading, collision_policy)) {
+        self->movement.velocity = vel;
         unit_commit_step(self, &by_heading);
+        return;
     }
+    self->movement.velocity = (vec2_t){0};
 }
 
 void unit_moveindirection(edict_t *self) {
@@ -1043,6 +1062,7 @@ void move_reset_progress(edict_t *self) {
     self->movement.worker_avoid_active = false;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
     self->movement.turn_blocked = false;
+    self->movement.velocity = (vec2_t){0};
 }
 
 void move_cancel_displacement(edict_t *self) {

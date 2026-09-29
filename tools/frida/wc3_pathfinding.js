@@ -15,6 +15,27 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.velocityEvents) {
+        // 16fe20 is thiscall(speed*,heading*); original integration precedes the velocity change.
+        hook(0x16fe20, {
+            onEnter(args) {
+                this.mover = this.context.ecx;
+                const mover = this.mover, owner = base.add(0xd53a48).readPointer();
+                const clock = owner.add(mover.add(0x14).readU32() & 0x80000000 ? 0x68 : 0x14);
+                const words = (p, n) => Array.from({length:n}, (_,i) => p.add(i*4).readU32());
+                this.row = {mover:mover.toString(), speed:args[0].readU32(), heading:args[1].readU32(),
+                    before:words(mover.add(0x70),8), clock:words(clock.add(0x40),3)};
+            },
+            onLeave() {
+                bump('velocity-commit');
+                if (counts['velocity-commit'] <= config.samples) {
+                    const words = (p, n) => Array.from({length:n}, (_,i) => p.add(i*4).readU32());
+                    emit('velocity-commit', {...this.row, after:words(this.mover.add(0x70),8),
+                        requested:words(this.mover.add(0xc0),2)});
+                }
+            }
+        });
+    }
     if (config.motionEvents) {
         // 170880 is thiscall: speed*, heading*, error*, stop are four stack arguments.
         hook(0x170880, {
@@ -547,6 +568,7 @@ function install(module) {
         if (value.startsWith('PATHCROWD ')) emit('crowd-marker', {value});
         if (value.startsWith('PATHTARGET ')) emit('target-marker', {value});
         if (value.startsWith('PATHWIDGET ')) emit('widget-marker', {value});
+        if (value.startsWith('PATHSTOCK ')) emit('stock-marker', {value});
         if (value.startsWith('PATHTRACE ')) {
             if (value.includes('label=start_widget_lifecycle ')) widgetScenario = true;
             emit('marker', {value});

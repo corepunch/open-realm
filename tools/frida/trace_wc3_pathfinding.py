@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--samples', type=int, default=200)
     parser.add_argument('--task-events', action='store_true', help='observe point-task acceptance and arrival queue state')
     parser.add_argument('--motion-events', action='store_true', help='capture raw speed/heading decision bits for numerical replay')
+    parser.add_argument('--velocity-events', action='store_true', help='capture raw velocity commits and selected simulation clocks')
     parser.add_argument('--widget-events', action='store_true', help='observe widget methods after the widget lifecycle scenario starts')
     parser.add_argument('--blockers', action='store_true', help='aggregate original fine-cell blocker decisions per request')
     parser.add_argument('--watch-cell', type=int, nargs=2, metavar=('X', 'Y'), help='fine-grid cell and its parents at scenario markers')
@@ -43,7 +44,7 @@ def main():
     config = {'timestamp': struct.unpack_from('<I', binary, pe + 8)[0],
               'imageSize': struct.unpack_from('<I', binary, pe + 80)[0], 'samples': args.samples,
               'watchCell': args.watch_cell, 'blockers': args.blockers, 'taskEvents': args.task_events,
-              'widgetEvents': args.widget_events, 'motionEvents': args.motion_events}
+              'widgetEvents': args.widget_events, 'motionEvents': args.motion_events, 'velocityEvents': args.velocity_events}
     device = frida.get_device_manager().add_remote_device(args.remote)
     path = 'Z:' + str(args.data.resolve()).replace('/', '\\')
     args.output.parent.mkdir(parents=True, exist_ok=True)

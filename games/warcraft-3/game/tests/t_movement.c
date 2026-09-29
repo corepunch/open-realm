@@ -85,6 +85,47 @@ static edict_t *make_scripted_turn_unit(void) {
     return NULL;
 }
 
+/* Oblique motion exposes the nearest-rounded host trig and multiply/add used by the old step. */
+TEST(wc3_movement, retail_oblique_velocity_and_step_words) {
+    edict_t *unit = make_moving_unit(320, 320);
+    unit->unitinfo.MoveSpeed = 100;
+    unit->s.angle = 0.125f;
+    unit->movement.flow_direct = true;
+    unit_moveindirection(unit);
+    T_EQ(wc3_float_bits(unit->s.origin2.x), 0x43a4f603u);
+    T_EQ(wc3_float_bits(unit->s.origin2.y), 0x43a09f94u);
+    T_EQ(wc3_float_bits(unit->movement.velocity.x), 0x42c67084u);
+    T_EQ(wc3_float_bits(unit->movement.velocity.y), 0x41477a18u);
+    move_reset_progress(unit);
+    T_EQ(unit->movement.velocity.x, 0); T_EQ(unit->movement.velocity.y, 0);
+}
+
+/* Saved velocity must resume with the same cancellation words, not a fresh zero-velocity approximation. */
+TEST(wc3_movement, retail_velocity_resume_is_deterministic) {
+    edict_t *unit = make_moving_unit(320, 320);
+    cstring_t file = "/tmp/openwarcraft3-retail-velocity-save.bin";
+    uint32_t expected[12][4];
+    unit->unitinfo.MoveSpeed = 100; unit->s.angle = 0.125f; unit->movement.flow_direct = true;
+    unit_moveindirection(unit);
+    T_ASSERT(WriteGame(file));
+    FOR_LOOP(i, 12) {
+        unit->s.angle = (i & 1) ? 0.6f : 0.125f;
+        unit_moveindirection(unit);
+        expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
+        expected[i][2] = wc3_float_bits(unit->movement.velocity.x);
+        expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
+    }
+    T_ASSERT(ReadGame(file));
+    FOR_LOOP(i, 12) {
+        unit->s.angle = (i & 1) ? 0.6f : 0.125f;
+        unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
+    }
+    remove(file);
+}
+
 /* Retail 170880 tests the heading error BEFORE turning; equality stops travel. */
 TEST(wc3_movement, scripted_window_stops_translation_while_turning) {
     edict_t *unit = make_scripted_turn_unit();
@@ -95,6 +136,7 @@ TEST(wc3_movement, scripted_window_stops_translation_while_turning) {
     unit_moveindirection(unit);
     T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
     T_EQ(unit->s.angle, 0.125f);
+    T_EQ(unit->movement.velocity.x, 0); T_EQ(unit->movement.velocity.y, 0);
     FOR_LOOP(i, 16) {
         unit_changeangle_towards_point(unit, &goal);
         unit_moveindirection(unit);

@@ -249,7 +249,7 @@ def main():
         cursor+=block
     export=crt_base+struct.unpack_from('<I',crt,co+96)[0]
     count,functions,names,ordinals=read(export+24,4)
-    imports={'_libm_sse2_sin_precise':0x6fa7c48c,'_libm_sse2_cos_precise':0x6fa7c47c,'_libm_sse2_sqrt_precise':0x6fa7c4f8,'_CIatan2':0x6fa7c450,'_libm_sse2_asin_precise':0x6fa7c44c}
+    imports={'_libm_sse2_sin_precise':0x6fa7c48c,'_libm_sse2_cos_precise':0x6fa7c47c,'_libm_sse2_sqrt_precise':0x6fa7c4f8,'_CIatan2':0x6fa7c450,'_libm_sse2_asin_precise':0x6fa7c44c,'isdigit':0x6fa7c4fc}
     resolved_crt_exports={}
     for i in range(count):
         name_address=crt_base+read(crt_base+names+i*4)[0]
@@ -263,7 +263,7 @@ def main():
 
     machine.mem_map(0x10100000,0x30000)
     machine.mem_map(0x10200000,0x100000)
-    def dispatch_case(flag,player,status,target,next_target=None,replacement_target=None,replacement_mode=1):
+    def dispatch_case(flag,player,status,target,next_target=None,replacement_target=None,replacement_mode=1,owner_updates=False):
         reset()
         machine.mem_write(0x10100000,bytes(0x30000))
         machine.mem_write(0x10200000,bytes(0x100000))
@@ -296,7 +296,12 @@ def main():
         write(unit+0x58,player,status)
         write(unit+0x164,0x6fac2f10,0,127,901)
         floats(unit+0x284,128,128,0,0)
-        write(mover,0x6fa9129c,owner+0x200,0)
+        write(mover,0x6fa9129c,0 if owner_updates else owner+0x200,0)
+        if owner_updates:
+            for entry in (0x6f004200,0x6f004210):run(entry,0)
+            write(owner+0x38c,0)
+            write(owner+0x43c,0,0)
+            write(owner+0x51c,0)
         write(mover+0x14,127,901)
         write(mover+0x30,unit_wrapper)
         floats(mover+0x78,4,4,0,0,8,0,0.25)
@@ -555,7 +560,37 @@ def main():
             write(second_path+0x4c,1024,0)
             write(second_path+0x60,0x10272000)
             write(second_path+0x6c,1024,0)
-        run(0x6f16c150,group)
+        owner_frames=[]
+        owner_events=[]
+        def observe_owner(uc,address,length,data):
+            owner_events.append(hex(address))
+        owner_hooks=[machine.hook_add(UC_HOOK_CODE,observe_owner,begin=a,end=a) for a in
+                     (0x6f15aa80,0x6f167310,0x6f16c150,0x6f1705c0,0x6f170cf0)] if owner_updates else []
+        def step(phase):
+            if not owner_updates:
+                run(0x6f16c150,group)
+                return
+            old_tick,old_parity=read(owner+0x538,2)
+            buckets=[read(0x6fd53a90+k*0x1c+8,2) for k in range(64)]
+            owner_events.clear()
+            run(0x6f15aa80,owner)
+            assert read(owner+0x538,2)==[old_tick+1,1-old_parity]
+            assert owner_events[:2]==['0x6f15aa80','0x6f167310']
+            assert read(owner+0x38c)[0]==read(owner+0x51c)[0]==0
+            for k,(work,countdown) in enumerate(buckets):
+                expected=[work,countdown-1] if countdown else [0,[3,2,2,1][k%4]]
+                actual=read(0x6fd53a90+k*0x1c+8,2)
+                # Searches can charge work during this owner call; only countdown
+                # changes are unconditional, while the published charge is retained.
+                assert actual[1]==expected[1] and actual[0]>=expected[0],(phase,k,expected,actual)
+                if not next_target:
+                    if phase=='fresh' and k<4:expected[0]+=[0,0,0,3][k]
+                    assert actual==expected,(phase,k,expected,actual)
+            owner_frames.append(dict(phase=phase,tick=old_tick+1,parity=1-old_parity,events=list(owner_events),
+                position_bits=read(mover+0x78,2),velocity_bits=read(mover+0x80,2),
+                desired_heading_bits=read(mover+0x8c)[0],visual_bits=read(mover+0xc8,2),
+                visual_linked=bool(read(owner+0x440)[0]),group_head=read(owner+0x3b8)[0]))
+        step('fresh')
         initial_route=read(member_route,read(current_path+0x50)[0]*2)
         assert len(initial_route)>=4
         assert initial_route[:2]==target_grid and initial_route[-2:]==[0x40800000]*2
@@ -569,7 +604,7 @@ def main():
         for tick in range(1,129):
             run(0x6f054190,inputs,edx=clock)
             oldpos=read(mover+0x78,2);oldvel=read(mover+0x80,2)
-            run(0x6f16c150,group)
+            step('elapsed')
             want=[float_add(p,float_multiply(v,0x3d000000)) for p,v in zip(oldpos,oldvel)]
             assert read(mover+0x78,2)==want,(tick,read(mover+0x78,2),want)
             trajectory.append(dict(tick=tick,position=want,velocity=read(mover+0x80,2)))
@@ -625,9 +660,9 @@ def main():
                 second_chain=chain()
                 assert second_chain[0][2]==0xd016b
                 queue_transitions.append(dict(tick=tick,position_bits=want,second_task_identity=second_chain[0][1]))
-                run(0x6f16c150,group)
+                if not owner_updates:run(0x6f16c150,group)
                 group=second_group;path=second_path
-                run(0x6f16c150,group)
+                if not owner_updates:run(0x6f16c150,group)
             if read(unit+0x174)[0]==0xffffffff:break
         else:raise AssertionError('generated point-order chain failed to arrive')
         assert read(unit+0x19c,2)==[0xffffffff]*2
@@ -678,7 +713,7 @@ def main():
         accepted.update(arrivals=arrivals,next_order_admission=admissions)
         assert read(mover+0x80,2)==[0,0]
         for _ in range(2):run(0x6f054190,inputs,edx=clock)
-        run(0x6f16c150,group)
+        step('release')
         assert read(group+0x38)[0]==0
         for offset,objects_to_free in [(0x678,group_objects),(0x958,path_objects)]:
             assert read(owner+offset+0x18)[0]==0
@@ -714,7 +749,16 @@ def main():
             assert read(second_wrapper+0x14,4)==[0xffffffff,0xffffffff,0,0]
             assert read(second_wrapper+0x54)[0]==0
             accepted.update(second_target_bits=next_target,queue_transitions=queue_transitions,completed_internal_tasks=len(expected_task_codes))
-        accepted.update(initial_route=initial_route,trajectory=trajectory,arrival_tick=tick,
+        if owner_updates:
+            for settle in range(64):
+                if not read(owner+0x440)[0]:break
+                run(0x6f054190,inputs,edx=clock)
+                step('settle')
+            else:raise AssertionError('visual mover failed to return to idle')
+            assert read(owner+0x3b8)[0]==read(owner+0x440)[0]==0
+            assert read(mover+4,2)==[0,0]
+        for hook in owner_hooks:machine.hook_del(hook)
+        accepted.update(owner_frames=owner_frames,initial_route=initial_route,trajectory=trajectory,arrival_tick=tick,
                         user_order_reclaimed=True)
         return accepted
     dispatch_cases=[]
@@ -730,7 +774,16 @@ def main():
                    for destination in [(0x43000000,0x43800000),(0x43000000,0x43000000),(0x43800000,0x43000000)]]
     replacement_cases=[dispatch_case(0,0,0,(0x43400000,0x43000000),(0x43800000,0x43800000),destination)
                        for destination in [(0x43000000,0x43800000),(0x43000000,0x43000000),(0x43800000,0x43000000)]]
-    report=dict(replacement_cases=replacement_cases,replacement_arrival_cases=len(replacement_cases),
+    owner_case=dispatch_case(0,0,0,(0x43400000,0x43000000),owner_updates=True)
+    control=dispatch_cases[0]
+    for field in ('initial_route','trajectory','arrival_tick','arrivals','complete_dispatch','reclaimed_payloads_by_class'):
+        assert owner_case[field]==control[field],('owner versus explicit group',field)
+    owner_fifo=[dispatch_case(0,0,0,(0x43400000,0x43000000),second,owner_updates=True)
+                for second in [(0x43800000,0x43800000),(0x43000000,0x43000000),
+                               (0x43000000,0x43800000),(0x43400001,0x43000000)]]
+    report=dict(owner_update_cases=[owner_case],owner_fifo_cases=owner_fifo,
+      complete_owner_admissions=1,complete_owner_fifo_cases=len(owner_fifo),
+      replacement_cases=replacement_cases,replacement_arrival_cases=len(replacement_cases),
       replacement_elapsed_ticks=sum(c['arrival_tick'] for c in replacement_cases),
       prepend_cases=prepend_cases,prepend_complete_cases=len(prepend_cases),
       prepend_elapsed_ticks=sum(c['arrival_tick'] for c in prepend_cases),
@@ -774,7 +827,7 @@ def main():
         'Ordinary point target only: invalid target identity and order68=0; target units/items/destructibles/waygates and local-target branch excluded',
         'UI notification singleton absent; stockhfoo terrain transform executes shippedCRT; user input/network admission remains separate',
         'Every composed first admission executes680320(order,1,1) with complete fixture; factory-created order command/coordinates remain controlled input and UI/network producer is excluded',
-        'Group ticks are orchestrated explicitly; new successor group receives its first actual tick after predecessor group cleanup at the same simulation time',
+        'Historical corpus orchestrates group ticks explicitly; owner_update_cases/owner_fifo_cases use only original15aa80 for all group, scheduler and visual updates through release and idle',
         'Move-only attached behavior: registered ability list, original20event registration and Unitself action/state subscriptions; unrelated abilities/presentation subscribers absent',
         'Class caches: Amov-to-Bply/BUsl/Asla false and ordt-to-+ord true are preexisting fixture entries; cache-miss class construction excluded',
         '680320 mode1 tuple also exists at233de0/233e17 statically; its caller/input policy not executed; mode0 corresponds to original widget654090 call tuple. Unit198=0 and no69b2f0 rejection in tested modes',
@@ -783,6 +836,6 @@ def main():
         'Optional retained object tests use genuine registered COrderTarget as a raw reference-contract fixture, not a claim of gameplay target class reachability'])
     args.report.parent.mkdir(parents=True,exist_ok=True)
     args.report.write_text(json.dumps(report,indent=2)+'\n')
-    print(json.dumps({k:v for k,v in report.items() if k not in ('full_move_cases','evidence','produced_chain_dispatch','resolved_crt_exports','fifo_cases','replacement_cases','prepend_cases')},indent=2))
+    print(json.dumps({k:v for k,v in report.items() if k not in ('full_move_cases','evidence','produced_chain_dispatch','resolved_crt_exports','fifo_cases','replacement_cases','prepend_cases','owner_update_cases','owner_fifo_cases')},indent=2))
 
 if __name__ == '__main__': main()

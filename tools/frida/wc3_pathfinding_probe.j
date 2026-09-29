@@ -36,6 +36,11 @@ function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
     set udg_PathProbeTick = udg_PathProbeTick + 1
+    if PATH_PROBE_SCENARIO == 21 and udg_PathProbeTick == 200 then
+        call SetUnitTurnSpeed(udg_PathProbeUnit, 0.125)
+        call SetUnitPropWindow(udg_PathProbeUnit, 0.5)
+        call Preload("PATHSTOCK tick=200 turn=" + R2S(GetUnitTurnSpeed(udg_PathProbeUnit)) + " window=" + R2S(GetUnitPropWindow(udg_PathProbeUnit)) + " defaultTurn=" + R2S(GetUnitDefaultTurnSpeed(udg_PathProbeUnit)) + " defaultWindow=" + R2S(GetUnitDefaultPropWindow(udg_PathProbeUnit)))
+    endif
     if PATH_PROBE_SCENARIO == 19 and udg_PathProbeTick == @REMOVE_TICK@ then
         call PathProbeRecord("before_widget_remove")
         call Preload("PATHWIDGET tick=" + I2S(udg_PathProbeTick) + " x=" + R2S(GetUnitX(udg_PathProbeBuilding)) + " y=" + R2S(GetUnitY(udg_PathProbeBuilding)))
@@ -197,6 +202,10 @@ function PathProbeInit takes nothing returns nothing
         set crowdType = 'hgry'
     endif
     set udg_PathProbeUnit = CreateUnit(Player(0), crowdType, -1936.0, -976.0, 90.0)
+    if PATH_PROBE_SCENARIO == 21 then
+        call SetUnitFacing(udg_PathProbeUnit, 0.0)
+        call Preload("PATHSTOCK tick=0 turn=" + R2S(GetUnitTurnSpeed(udg_PathProbeUnit)) + " window=" + R2S(GetUnitPropWindow(udg_PathProbeUnit)) + " defaultTurn=" + R2S(GetUnitDefaultTurnSpeed(udg_PathProbeUnit)) + " defaultWindow=" + R2S(GetUnitDefaultPropWindow(udg_PathProbeUnit)))
+    endif
     if PATH_PROBE_SCENARIO == 20 then
         call SetUnitFacing(udg_PathProbeUnit, 0.0)
         call SetUnitTurnSpeed(udg_PathProbeUnit, 0.125)

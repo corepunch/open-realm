@@ -57,6 +57,8 @@ def main():
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
         engine.pathing_motion.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+        engine.pathing_velocity.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+        engine.pathing_integrate.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
         engine.pathing_angle.argtypes = [ctypes.c_uint32]
         engine.pathing_angle.restype = ctypes.c_uint32
     binary = args.binary.read_bytes()
@@ -267,6 +269,19 @@ def main():
     write(0x6fd53a48,owner)
     floats(0x6fd3c74c,2)
     time_deadzone=scalar(0x6fcd539c)
+    engine_integrations=0
+    def compare_integration(mover,clock,displacement):
+        nonlocal engine_integrations
+        if not engine:return None
+        words=(ctypes.c_uint32*11)(*read(mover+0x78,4),*read(mover+0x70,2),
+                                   *read(clock+0x40,3),*read(displacement,2))
+        engine.pathing_integrate(words)
+        engine_integrations+=1
+        return list(words)
+    def check_integration(mover,words):
+        if words is None:return
+        assert read(mover+0x78,2)==words[:2]
+        assert read(mover+0x70,2)==words[4:6]
     integration_cases=0
     for domain,now,old,epoch,velocity,delta,radius in itertools.product(
             [0,0x80000000],[0.125,0.5,1,2],[0,0.125,0.5],[0,1],
@@ -302,7 +317,9 @@ def main():
         if abs(elapsed)<time_deadzone: elapsed=0
         elapsed+=epoch*8
         wanted=(8+velocity*elapsed+delta,8-velocity*elapsed-delta)
+        engine_words=compare_integration(mover,clock,displacement)
         run(0x6f1603d0,mover,displacement)
+        check_integration(mover,engine_words)
         assert (scalar(mover+0x78),scalar(mover+0x7c))==wanted
         assert scalar(mover+0x70)==now and read(mover+0x74)[0]==epoch
         assert (scalar(mover+0x80),scalar(mover+0x84))==(velocity,-velocity)
@@ -320,7 +337,9 @@ def main():
         floats(clock+0x40,now+0.25)
         floats(displacement,-delta,delta)
         wanted2=(wanted[0]+velocity*0.25-delta,wanted[1]-velocity*0.25+delta)
+        engine_words=compare_integration(mover,clock,displacement)
         run(0x6f1603d0,mover,displacement)
+        check_integration(mover,engine_words)
         assert (scalar(mover+0x78),scalar(mover+0x7c))==wanted2
         assert scalar(mover+0x70)==now+0.25 and read(mover+0x74)[0]==epoch
         x,y=wanted2
@@ -401,7 +420,11 @@ def main():
             machine.mem_write(data,struct.pack('<256I',*([0xffffff]*256)))
         floats(speed_ptr,new_speed)
         floats(heading_ptr,new_heading)
+        if engine:
+            engine_vel=(ctypes.c_uint32*5)(*read(mover+0x80,2),read(speed_ptr)[0],read(heading_ptr)[0],read(mover+0x88)[0])
+            engine.pathing_velocity(engine_vel)
         run(0x6f16fe20,mover,speed_ptr,heading_ptr)
+        if engine:assert read(mover+0x80,2)==list(engine_vel)[:2],(new_speed,new_heading,maximum)
         assert (scalar(mover+0x78),scalar(mover+0x7c))==(8.0625,7.9375)
         assert scalar(mover+0x70)==0.5 and read(mover+0x74)[0]==0
         actual=(scalar(mover+0x80),scalar(mover+0x84))
@@ -413,7 +436,9 @@ def main():
         assert scalar(mover+0xc0)==new_speed
         floats(clock+0x40,0.75)
         floats(displacement,0,0)
+        engine_words=compare_integration(mover,clock,displacement)
         run(0x6f1603d0,mover,displacement)
+        check_integration(mover,engine_words)
         wanted_position=(8.0625+actual[0]*0.25,7.9375+actual[1]*0.25)
         assert max(abs(scalar(mover+0x78+4*n)-wanted_position[n]) for n in [0,1])<0.000002
         assert scalar(mover+0x70)==0.75
@@ -2683,7 +2708,8 @@ def main():
                             'elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open'])
     if engine:
         report.update(engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest(),
-                      engine_exact_decision_cases=cases, engine_exact_angle_cases=len(normalization))
+                      engine_exact_decision_cases=cases, engine_exact_angle_cases=len(normalization),
+                      engine_exact_velocity_cases=len(velocity_cases),engine_exact_integration_cases=engine_integrations)
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
 

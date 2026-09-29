@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 54, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 55, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -558,3 +558,5 @@ pre-turn translation decision. These primitive fields change edict offsets;
 version 53 saves are rejected. The native-setter/steering save regression is
 `wc3_movement.scripted_turn_state_survives_save_load`; see
 [numerical movement integration](retail-pathfinding-engine.md).
+
+Format55 adds the committed Move XY velocity. It survives the raw edict save image; stopping/reset clears it in Move. Format54 is rejected because subsequent edict field offsets differ. The alternating-heading movement regression compares uninterrupted and resumed position/velocity words exactly.

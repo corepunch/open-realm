@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**24 done / 210 tasks; 186 remaining.** Counts describe this backlog,
+**28 done / 210 tasks; 182 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -16,12 +16,12 @@ Completed evidence now sits next to its specific remaining extension.
 
 | Area | Done | Remaining |
 | --- | ---: | ---: |
-| BASE — Baseline and reproducibility | 1 | 19 |
+| BASE — Baseline and reproducibility | 3 | 17 |
 | MAP — Map construction and lifetime | 3 | 16 |
 | FOOT — Footprints and query policy | 1 | 8 |
 | FINE — Fine search | 1 | 8 |
 | ACC — Adaptive search | 1 | 10 |
-| NUM — Numbers and random state | 1 | 9 |
+| NUM — Numbers and random state | 3 | 7 |
 | ROUTE — Route progression and yielding | 0 | 10 |
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
@@ -40,16 +40,15 @@ The denominator changes only when a new task is explicitly added or split.
 
 ## Work next
 
-Start with **BASE-06.2**. The initial-admission and owner-update ingredients
-already pass separately; join them rather than repeat their isolated coverage.
+Start with **BASE-06.4**. Initial admission now reaches arrival and cleanup through
+actual owner updates, including four queued-successor cases. Construct the remaining
+seeded map/mover state through identified producers.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | BASE-06.2 | BASE-06.1, SCHED-02.1 (done) | One admitted move driven by actual owner updates through arrival/release |
-| 2 | BASE-06.3 | BASE-06.2 | Same fixture executes a queued successor and proves final ownership |
-| 3 | BASE-06.4 | BASE-06.3 | Producer-built baseline with every remaining setup boundary assigned |
-| 4 | BASE-06.5 | BASE-06.4, BASE-04 | Frozen manifest, intermediate-state expectations and two identical runs |
-| 5 | GROUP-02.2 | BASE-06.5, GROUP-01.1 | Two active members execute fresh searches through the owner lifecycle |
+| 1 | BASE-06.4 | BASE-06.3 | Producer-built baseline with every remaining setup boundary assigned |
+| 2 | BASE-06.5 | BASE-06.4, BASE-04 | Frozen manifest, intermediate-state expectations and two identical runs |
+| 3 | GROUP-02.2 | BASE-06.5, GROUP-01.1 | Two active members execute fresh searches through the owner lifecycle |
 
 BASE-04.1/.2 and BASE-05.1 are independently runnable now. MAP-03.4
 (widget escape to arrival/failure) and NUM-01.2 (remaining arithmetic inventory)
@@ -136,8 +135,8 @@ Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks,
 ### BASE-06 — One frozen ordinary-move baseline
 
 - [x] **BASE-06.1** Initial unit admission: 34 original 680320 admissions pass predicted task-chain and queue assertions without mid-call provisioning. Evidence: [initial admission][admission], report O `complete_initial_admissions=34`; controlled point commands and seeded pools only.
-- [ ] **BASE-06.2** After BASE-06.1 and SCHED-02.1, replace explicit group ticks in one admitted point-order fixture with actual owner updates; assert identical route, arrival and cleanup.
-- [ ] **BASE-06.3** After BASE-06.2, carry one queued successor through those owner updates; assert both admissions, arrival order and final queue/group/path ownership.
+- [x] **BASE-06.2** One admitted point order uses original owner updates through arrival/release; route, raw trajectory, arrival tick and reclamation equal the direct-group control. Evidence: [joined owner baseline](retail-pathfinding-movement.md#initial-admission-through-owner-updates), report `base-06.3-owner-fifo.json`, `complete_owner_admissions=1`. Seeded map/mover storage remains BASE-06.4.
+- [x] **BASE-06.3** Four queued-successor cases run only owner updates through both natural arrivals and final idle; both admissions, FIFO targets and all queue/group/path/payload ownership checked. Same evidence/report, `complete_owner_fifo_cases=4`; successor first tick follows owner cadence instead of explicit same-time group calls.
 - [ ] **BASE-06.4** After BASE-06.3, construct that fixture's map, mover, group and order through identified original producers; enumerate any remaining seeded storage/class-cache boundary and give it a task ID.
 - [ ] **BASE-06.5** After BASE-06.4 and BASE-04, freeze the baseline manifest and expected intermediate states; repeat twice and assert identical normalized output and initial/final idle invariants.
 
@@ -270,12 +269,12 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 
 - [x] **NUM-01.1** 200,330 exact scalar calls, 2,130 normalizations and 864 bounds prefixes are recorded. Evidence: [scalar arithmetic][numeric]; trig and general trajectories remain open.
 - [ ] **NUM-01.2** Inventory the remaining trig/conversion helpers with operand ABI, constant initialization and public input domains; link the already verified scalar helpers.
-- [ ] **NUM-01.3** Recover reciprocal-table generation and compare every generated entry with retail initialization.
+- [x] **NUM-01.3** Independent integer formula regenerates all 1,025 embedded reciprocal entries exactly; Ghidra references identify a static table consumed by0711e0, with no runtime producer. Same generator also reproduces all 1,025 sine entries. Evidence: [generated tables](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry), report `scalar-trig-engine-exact.json`; historical build-time source is unavailable.
 
 ### NUM-02 — Branch-sensitive arithmetic
 
 - [ ] **NUM-02.1** Verify trig outputs at cardinal/oblique and adjacent branch thresholds using independent bit-faithful expectations; document reachable signed-zero/cancellation behavior.
-- [ ] **NUM-02.2** Replace tolerance checks that can change cells, branches or accumulated positions in one motion/separation case with exact comparisons; reduce any mismatch.
+- [x] **NUM-02.2** Original 80 velocity commits and 2,384 position integrations now compare exact C output words; fresh live turn capture compares all 192 velocity/position commits, including stopping. Evidence: [exact velocity integration](retail-pathfinding-engine.md#velocity-and-position-integration), reports `velocity-integration-engine-exact.json` and `runtime/velocity-turn-exact.json`. Facing-from-velocity and whole-engine cadence remain excluded.
 - [ ] **NUM-02.3** Extend that exact case to a fixed long oblique trajectory at small/large valid values; compare every committed position and cell crossing.
 
 ### NUM-03 — Exceptional numeric inputs

@@ -13,7 +13,7 @@ HASH = 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236'
 
 
 def markers(text):
-    return re.findall(r'call Preload\( "(PATH(?:TRACE|CROWD|TARGET|GATE|WIDGET)[^"\r\n]*)" \)', text)
+    return re.findall(r'call Preload\( "(PATH(?:TRACE|CROWD|TARGET|GATE|WIDGET|STOCK)[^"\r\n]*)" \)', text)
 
 
 def validate(rows):
@@ -59,7 +59,7 @@ def main():
     if original['binary']['sha256'] != HASH or original['map']['sha256'] != digest(map_path):
         parser.error('reference provenance binary/map hash mismatch')
     expected = [row['value'] for row in reference
-                if row.get('event') in ('marker', 'crowd-marker', 'target-marker', 'widget-marker')]
+                if row.get('event') in ('marker', 'crowd-marker', 'target-marker', 'widget-marker', 'stock-marker')]
     validate(expected)
     args.output.mkdir(parents=True, exist_ok=False)
     generated = data / 'CustomMapData' / ('pathtrace-' + args.scenario + '.txt')

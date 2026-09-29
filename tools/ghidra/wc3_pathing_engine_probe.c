@@ -5,6 +5,11 @@ uint32_t pathing_add(uint32_t a, uint32_t b) { return wc3_add_bits(a, b); }
 uint32_t pathing_subtract(uint32_t a, uint32_t b) { return wc3_add_bits(a, b ^ 0x80000000u); }
 uint32_t pathing_multiply(uint32_t a, uint32_t b) { return wc3_mul_bits(a, b); }
 uint32_t pathing_angle(uint32_t a) { return wc3_float_bits(wc3_angle(wc3_float(a))); }
+uint32_t pathing_sin(uint32_t a) { return wc3_float_bits(wc3_sin(wc3_float(a))); }
+uint32_t pathing_cos(uint32_t a) { return wc3_float_bits(wc3_cos(wc3_float(a))); }
+uint32_t pathing_sqrt(uint32_t a) { return wc3_float_bits(wc3_sqrt(wc3_float(a))); }
+uint32_t pathing_reciprocal(uint32_t a) { return wc3_float_bits(wc3_recip(wc3_float(a))); }
+uint32_t pathing_divide(uint32_t a, uint32_t b) { return wc3_float_bits(wc3_div(wc3_float(a), wc3_float(b))); }
 
 /* Inputs: speed, heading, error, increment, turn, window, stop. Outputs overwrite speed/heading only. */
 void pathing_motion(uint32_t *words) {
@@ -13,4 +18,23 @@ void pathing_motion(uint32_t *words) {
         .window = wc3_float(words[5]), .stop = words[6] != 0 };
     wc3_motion_update(&m);
     words[0] = wc3_float_bits(m.speed); words[1] = wc3_float_bits(m.heading);
+}
+
+/* Inputs: old velocity XY, requested speed, heading, maximum. Outputs overwrite XY only. */
+void pathing_velocity(uint32_t *words) {
+    wc3Velocity_t v = { .vel = {wc3_float(words[0]), wc3_float(words[1])},
+        .speed = wc3_float(words[2]), .heading = wc3_float(words[3]), .limit = wc3_float(words[4]) };
+    wc3_velocity_update(&v);
+    words[0] = wc3_float_bits(v.vel[0]); words[1] = wc3_float_bits(v.vel[1]);
+}
+
+/* XY, old velocity XY, previous time/epoch, current time/epoch/span, displacement XY. */
+void pathing_integrate(uint32_t *words) {
+    float pos[2] = {wc3_float(words[0]), wc3_float(words[1])};
+    float vel[2] = {wc3_float(words[2]), wc3_float(words[3])};
+    wc3Clock_t old = { .time = wc3_float(words[4]), .epoch = words[5] };
+    wc3Clock_t cur = { .time = wc3_float(words[6]), .epoch = words[7], .span = wc3_float(words[8]) };
+    wc3_integrate(pos, vel, wc3_elapsed(&cur, &old));
+    for (unsigned i = 0; i < 2; i++) words[i] = wc3_float_bits(wc3_add(pos[i], wc3_float(words[9 + i])));
+    words[4] = words[6]; words[5] = words[7];
 }
