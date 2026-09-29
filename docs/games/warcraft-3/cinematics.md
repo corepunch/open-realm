@@ -230,6 +230,18 @@ override the setup Z offset with their explicit argument.
 target position while still applying camera fields, matching Warsmash's
 separation between setup fields and destination panning.
 
+`CameraSetTargetNoise`, `CameraSetSourceNoise`, and their `...NoiseEx` variants
+are local camera presentation controls. OpenRealm transports magnitude,
+velocity, and `vertOnly` in per-player state, then applies the noise while
+building the final client view matrix: target noise perturbs the look-at point,
+and source noise perturbs the derived eye. The scripted camera state,
+interpolation endpoints, controllers, and `StopCamera` remain unchanged.
+Passing zero magnitude and velocity clears the corresponding noise state.
+`vertOnly` constrains the noise to world Z, as requested by Blizzard's
+earthquake helper. Retail's exact waveform is not documented, so OpenRealm uses
+a deterministic smooth oscillator while preserving native ownership,
+magnitude/rate inputs, and source-versus-target semantics.
+
 The current untimed `PanCameraTo` and `CameraSetupApply(..., panTimed=true)` still snap their target because OpenRealm does not yet retain Warcraft's default camera forward/strafe rates. `SetCameraField` and `AdjustCameraField` now reuse the authoritative camera-state interpolation: a new field transition starts from the sampled in-flight camera state, and `StopCamera` freezes an active timed transition at that sampled state instead of snapping to either endpoint. Setter/adjuster angular and FOV values remain in Warcraft's authored degree units; the already-implemented runtime `GetCameraField` keeps its observed retail contract and reports angular/FOV values in radians from the realized player camera. Local pitch/yaw/roll camera fields remain unsupported, matching the camera-setup path. `SetCameraOrientController` remains separate work because Warcraft keeps the camera source fixed while orienting toward a moving unit; that requires a distinct source/controller contract rather than aliasing `SetCameraTargetController`. `SetCinematicCamera` also remains separate because it requires playback of an authored MDX camera track. Keep those limitations explicit rather than inventing controller or model-camera semantics in the scalar camera path.
 
 `SetCameraQuickPosition` is not a camera movement native. It records Warcraft's spacebar/quick-position recall point for the local player. Assigning that point must leave `camera.state.position` unchanged; treating it like `SetCameraPosition` makes quest discovery and cinematic scripts unexpectedly jump the view when they only intend to set the later spacebar target.

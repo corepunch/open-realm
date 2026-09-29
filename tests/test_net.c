@@ -2337,6 +2337,30 @@ TEST(client_layout, sprite_sequence_can_be_selected_by_second_stat) {
     T_FEQ(ratio, 32768.0f / (float)UINT16_MAX, 0.00001f);
 }
 
+TEST(net, camera_noise_presentation_roundtrips) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    player_t from = { 0 }, to = { 0 }, out = { 0 };
+    uint32_t bits;
+    int number;
+
+    to.number = 3;
+    to.camera_target_noise = (vec2_t){ 12.5f, 34.5f };
+    to.camera_source_noise = (vec2_t){ 56.5f, 78.5f };
+    to.camera_noise_flags = CAMERA_NOISE_TARGET_VERTICAL;
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(number, 3);
+    T_FEQ(out.camera_target_noise.x, 12.5f, 0.001f);
+    T_FEQ(out.camera_target_noise.y, 34.5f, 0.001f);
+    T_FEQ(out.camera_source_noise.x, 56.5f, 0.001f);
+    T_FEQ(out.camera_source_noise.y, 78.5f, 0.001f);
+    T_EQ(out.camera_noise_flags, CAMERA_NOISE_TARGET_VERTICAL);
+}
+
 TEST(net, environment_variant_stat_roundtrips) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));

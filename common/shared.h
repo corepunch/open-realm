@@ -624,6 +624,9 @@ struct playerState_s {
     float znear;                    // near clip; required camera sample, copied like fov
     float zfar;                     // far clip; required camera sample, copied like fov
     float fov;                      // vertical FOV in degrees; transmitted as NFT_FLOAT for cinematic interpolation
+    vec2_t camera_target_noise;      // {magnitude, velocity}; presentation-only camera target noise
+    vec2_t camera_source_noise;      // {magnitude, velocity}; presentation-only camera source noise
+    uint32_t camera_noise_flags;     // CAMERA_NOISE_* presentation flags
     uint32_t rdflags;                  // refdef flags (underwater tint, etc.)
     uint32_t uiflags;                  // per-widget HUD visibility bits, set server-side via FDF/svc_layout pipeline
     uint32_t client_ui_state;          // coarse UI mode: CLIENT_UI_LOADING/GAME/CINEMATIC; state machine, not a bitfield like uiflags
@@ -637,6 +640,9 @@ struct playerState_s {
     uint16_t stats[MAX_STATS];        // fast-update integer stats; uint16_t (vs Q3's int) to halve wire size
     cstring_t texts[PLAYERTEXT_COUNT]; // named player text channels used by server-authored UI
 };
+
+#define CAMERA_NOISE_TARGET_VERTICAL (1u << 0)
+#define CAMERA_NOISE_SOURCE_VERTICAL (1u << 1)
 
 _Static_assert(offsetof(player_t, cinematic_portrait) % 4 == 0, "NFT_LONG identity pack requires 4-byte alignment");
 _Static_assert(offsetof(player_t, team) == offsetof(player_t, cinematic_portrait) + 1, "team must follow cinematic_portrait");

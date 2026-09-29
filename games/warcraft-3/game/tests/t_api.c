@@ -1599,6 +1599,40 @@ TEST(wc3_api, camera_runtime_getters_report_interpolated_state_and_eye) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, camera_noise_natives_store_independent_presentation_state) {
+    gameClient_t *gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->ps.camera_target_noise = (vec2_t){ 0 };
+    gc->ps.camera_source_noise = (vec2_t){ 0 };
+    gc->ps.camera_noise_flags = 0;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call CameraSetTargetNoiseEx(12.0, 34.0, true)\n"
+        "  call CameraSetSourceNoiseEx(56.0, 78.0, false)\n"
+        "endfunction\n"));
+    T_FEQ(gc->ps.camera_target_noise.x, 12.0f, 0.001f);
+    T_FEQ(gc->ps.camera_target_noise.y, 34.0f, 0.001f);
+    T_FEQ(gc->ps.camera_source_noise.x, 56.0f, 0.001f);
+    T_FEQ(gc->ps.camera_source_noise.y, 78.0f, 0.001f);
+    T_ASSERT(gc->ps.camera_noise_flags & CAMERA_NOISE_TARGET_VERTICAL);
+    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_SOURCE_VERTICAL));
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call CameraSetTargetNoise(0.0, 0.0)\n"
+        "  call CameraSetSourceNoise(0.0, 0.0)\n"
+        "endfunction\n"));
+    T_FEQ(gc->ps.camera_target_noise.x, 0.0f, 0.001f);
+    T_FEQ(gc->ps.camera_target_noise.y, 0.0f, 0.001f);
+    T_FEQ(gc->ps.camera_source_noise.x, 0.0f, 0.001f);
+    T_FEQ(gc->ps.camera_source_noise.y, 0.0f, 0.001f);
+    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_TARGET_VERTICAL));
+    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_SOURCE_VERTICAL));
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, camera_field_set_adjust_and_stop_sample_current_transition) {
     gameClient_t *gc = &game.clients[0];
 
