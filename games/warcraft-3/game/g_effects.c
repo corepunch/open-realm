@@ -21,7 +21,6 @@ static umove_t wc3_effect_temp_stand = { "stand", NULL, G_FreeEdict };
 static umove_t wc3_effect_birth = { "birth", NULL, G_EffectEnterStand };
 static umove_t wc3_effect_stand = { "stand", NULL, G_EffectLoopStand };
 static umove_t wc3_effect_death = { "death", NULL, G_FreeEdict };
-static uint32_t terrain_deformation_log_count;
 
 static void G_TerrainDeformWriteLong(int32_t value) {
     if (gi.Write) gi.Write(PF_LONG, &value);
@@ -33,14 +32,6 @@ uint32_t G_SendTerrainDeformation(terrainDeform_t const *deformation) {
     descriptor = *deformation;
     descriptor.id = ++terrain_deformation_next_id;
     if (!descriptor.id) descriptor.id = ++terrain_deformation_next_id;
-    if (terrain_deformation_log_count < 8) {
-        fprintf(stderr, "WC3 terrain deformation send id=%u type=%u center=(%.1f,%.1f) radius=%.1f "
-                "delta=[%.1f,%.1f] duration=%u update=%u transport=%s\n", descriptor.id,
-                (unsigned)descriptor.type, descriptor.data[0], descriptor.data[1], descriptor.data[2],
-                descriptor.data[3], descriptor.data[4], descriptor.duration_ms, descriptor.update_ms,
-                gi.Write && gi.multicast ? "ready" : "unavailable");
-        terrain_deformation_log_count++;
-    }
     if (gi.Write && gi.multicast) {
         vec3_t origin = { descriptor.data[0], descriptor.data[1], 0.0f };
         gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });

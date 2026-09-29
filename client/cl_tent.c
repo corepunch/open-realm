@@ -196,7 +196,6 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
             break;
         case TE_TERRAIN_DEFORM:
             {
-                static uint32_t terrain_deformation_log_count;
                 terrainDeform_t deformation = { 0 };
                 uint32_t flags;
                 int32_t duration_ms, count, update_ms;
@@ -213,14 +212,6 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
                 flags = (uint32_t)MSG_ReadByte(msg);
                 deformation.permanent = !!(flags & 1u);
                 deformation.limit_negative = !!(flags & 2u);
-                if (terrain_deformation_log_count < 8) {
-                    fprintf(stderr, "Client terrain deformation receive id=%u type=%u center=(%.1f,%.1f) "
-                            "radius=%.1f delta=[%.1f,%.1f] duration=%u update=%u\n", deformation.id,
-                            (unsigned)deformation.type, deformation.data[0], deformation.data[1],
-                            deformation.data[2], deformation.data[3], deformation.data[4],
-                            deformation.duration_ms, deformation.update_ms);
-                    terrain_deformation_log_count++;
-                }
                 if (deformation.id && deformation.type <= TERRAIN_DEFORM_RANDOM && re.StartTerrainDeformation)
                     re.StartTerrainDeformation(&deformation);
             }
