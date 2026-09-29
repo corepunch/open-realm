@@ -63,6 +63,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 mutable Blight world state, Abli growth, placement/regen, JASS natives, save/load | [docs/games/warcraft-3/blight.md](docs/games/warcraft-3/blight.md) |
 | WC3 Barkskin modal autocast, authored armor status, expiry/death inverse | [docs/games/warcraft-3/barkskin.md](docs/games/warcraft-3/barkskin.md) |
 | WC3 camera viewport/bounds, cinematic camera state, world-overlay clipping | [docs/games/warcraft-3/cinematics.md](docs/games/warcraft-3/cinematics.md) |
+| WC3 Reforged player camera zoom, W3I force min/default/max policy, F5/reset controls | [docs/games/warcraft-3/camera-zoom.md](docs/games/warcraft-3/camera-zoom.md) |
 | WC3 triggered dialogue, gameplay/cinematic presentation split, message and transmission lifetimes | [docs/games/warcraft-3/triggered-dialogue.md](docs/games/warcraft-3/triggered-dialogue.md) |
 | WC3 pre-rendered movies, optional FFmpeg backend, `PlayCinematic` lifecycle, campaign camera rows | [docs/games/warcraft-3/pre-rendered-movies.md](docs/games/warcraft-3/pre-rendered-movies.md) |
 | WC3 W3I/W3R/JASS weather lifecycle, Weather.slk particle rendering, rain tails | [docs/games/warcraft-3/weather.md](docs/games/warcraft-3/weather.md) |

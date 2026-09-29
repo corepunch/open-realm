@@ -43,6 +43,15 @@ TEST(keys, parse_plain_and_named_keys) {
 
     T_ASSERT(Key_ParseName("MWHEELDOWN", &key, &mods));
     T_EQ(key, (keyCode_t)K_MWHEELDOWN);
+
+    T_ASSERT(Key_ParseName("PAGEUP", &key, &mods));
+    T_EQ(key, (keyCode_t)K_PAGEUP);
+    T_ASSERT(Key_ParseName("PAGEDOWN", &key, &mods));
+    T_EQ(key, (keyCode_t)K_PAGEDOWN);
+    T_ASSERT(Key_ParseName("PGUP", &key, &mods));
+    T_EQ(key, (keyCode_t)K_PAGEUP);
+    T_ASSERT(Key_ParseName("PGDN", &key, &mods));
+    T_EQ(key, (keyCode_t)K_PAGEDOWN);
     T_EQ(mods, 0u);
 }
 

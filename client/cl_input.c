@@ -550,10 +550,12 @@ static keyCode_t CL_SDLKeyToKeyCode(int sym) {
         { SDLK_DOWN, K_DOWNARROW },
         { SDLK_LEFT, K_LEFTARROW },
         { SDLK_RIGHT, K_RIGHTARROW },
+        { SDLK_PAGEUP, K_PAGEUP },
+        { SDLK_PAGEDOWN, K_PAGEDOWN },
     };
     if (sym >= SDLK_F1 && sym <= SDLK_F12)
         return (keyCode_t)(K_F1 + (sym - SDLK_F1));
-    FOR_LOOP(i, 4)
+    FOR_LOOP(i, sizeof(extra) / sizeof(*extra))
         if (extra[i].sym == sym) return extra[i].key;
     return (keyCode_t)sym;
 }
@@ -1018,18 +1020,51 @@ void IN_SelectUp(void) {
     }
 }
 
-/* `zoom <delta>` — bound to MWHEELUP/MWHEELDOWN. Negative delta zooms out.
- * Clamps with camera_min_distance / camera_max_distance when max > min. */
-static void CL_Zoom_f(void) {
-    float steps = Cmd_Argc() > 1 ? (float)atof(Cmd_Argv(1)) : 1.0f;
+/* Player-controlled orbit zoom.  Wheel input avoids stealing scroll from
+ * gameplay UI; keyboard zoom uses the same policy without depending on cursor
+ * position.  Negative delta zooms out. */
+static void CL_ZoomSteps(float steps, bool block_over_ui) {
     float speed = Cvar_Value("zoom_speed", 1.0f);
     float min_dist = Cvar_Value("camera_min_distance", 0.0f);
     float max_dist = Cvar_Value("camera_max_distance", 0.0f);
+    gameCameraZoomPolicy_t policy;
     float dist = cl.viewDef.camerastate[0].distance - steps * speed;
-    if (!CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
 
+    if (!CL_GameplayInputReady() || (block_over_ui && CL_MouseOverGameplayUI())) return;
+    if (CL_GameCameraZoomPolicy(&policy,
+            Cvar_Value("wc3_camera_default_distance", 1650.0f),
+            Cvar_Value("wc3_camera_max_distance", 3000.0f))) {
+        min_dist = policy.minimum;
+        max_dist = policy.maximum;
+    }
     if (max_dist > min_dist)
         dist = MAX(min_dist, MIN(max_dist, dist));
+    CL_SendView(cl.viewDef.camerastate[0].viewangles, MAX(0, dist));
+}
+
+static void CL_Zoom_f(void) {
+    float steps = Cmd_Argc() > 1 ? (float)atof(Cmd_Argv(1)) : 1.0f;
+    CL_ZoomSteps(steps, true);
+}
+
+static void CL_ZoomKey_f(void) {
+    float steps = Cmd_Argc() > 1 ? (float)atof(Cmd_Argv(1)) : 1.0f;
+    CL_ZoomSteps(steps, false);
+}
+
+/* Player-facing reset (WC3 F5) uses the same effective default policy as
+ * interactive zoom.  It deliberately does not call a JASS camera native. */
+static void CL_ZoomDefault_f(void) {
+    gameCameraZoomPolicy_t policy;
+    gameCamera_t camera;
+    float dist;
+
+    if (!CL_GameplayInputReady()) return;
+    if (CL_GameCameraZoomPolicy(&policy,
+            Cvar_Value("wc3_camera_default_distance", 1650.0f),
+            Cvar_Value("wc3_camera_max_distance", 3000.0f))) dist = policy.default_distance;
+    else if (CL_GameDefaultCamera(&camera)) dist = camera.distance;
+    else return;
     CL_SendView(cl.viewDef.camerastate[0].viewangles, MAX(0, dist));
 }
 
@@ -1048,6 +1083,8 @@ void CL_InitInput(void) {
     Cmd_AddCommand("-select", IN_SelectUp);
     Cmd_AddCommand("cmd", CL_ForwardToServer_f);
     Cmd_AddCommand("zoom", CL_Zoom_f);
+    Cmd_AddCommand("zoomkey", CL_ZoomKey_f);
+    Cmd_AddCommand("zoomdefault", CL_ZoomDefault_f);
     Cvar_Get("zoom_speed", "1.0", CVAR_ARCHIVE);
     CL_ControlGroupsInit();
     CL_RegisterCameraControls();
