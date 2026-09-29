@@ -167,6 +167,23 @@ TEST(wc3_collision, mover_slides_around_idle_unit) {
     T_ASSERT(mover->s.origin2.x > 60.0f);                    /* got past it */
 }
 
+TEST(wc3_collision, wind_walk_mover_ignores_dynamic_unit_collision) {
+    reset_collision_world();
+    edict_t *blocker = make_collision_unit(50.0f, 0.0f, 16.0f);
+    edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
+    vec2_t dest = {100.0f, 0.0f};
+
+    unit_addtimedstatus(mover, "BOwk", 1, 10.0f);
+    mover->s.renderfx |= RF_HIDDEN;
+    unit_issueorder(mover, "move", &dest);
+    run_move_tracking_min_dist(mover, NULL, 20);
+
+    T_ASSERT(mover->s.origin2.x > blocker->s.origin2.x);
+    T_ASSERT(fabsf(mover->s.origin2.y) < 1.0f);
+    T_FEQ(blocker->s.origin2.x, 50.0f, 0.001f);
+    T_FEQ(blocker->s.origin2.y, 0.0f, 0.001f);
+}
+
 /* Units that start overlapping (spawn / blink / a building dropped on them)
  * can still slide apart: the penetration rule allows a step that does not move
  * closer to the overlapped neighbour. */

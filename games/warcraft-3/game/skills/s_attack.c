@@ -340,10 +340,10 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     } }
     uint32_t wind_level = G_UnitStatusLevel(attacker, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (wind_level) {
-        damage += (int)S_SpellData(MAKEFOURCC('A', 'O', 'w', 'k'), wind_level, 3);
-        attacker->s.renderfx &= ~RF_HIDDEN;
-        FOR_LOOP(i, MAX_UNIT_STATUSES)
-            if (attacker->abilstatus[i].code == MAKEFOURCC('B', 'O', 'w', 'k')) memset(attacker->abilstatus + i, 0, sizeof(attacker->abilstatus[i]));
+        heroabilitystatus_t *wind = unit_findstatus(attacker, MAKEFOURCC('B', 'O', 'w', 'k'));
+        uint32_t wind_code = wind && wind->data ? wind->data : MAKEFOURCC('A', 'O', 'w', 'k');
+        damage += (int)S_SpellData(wind_code, wind_level, 3);
+        S_WindWalkEnd(attacker);
     }
     damage = S_PossessionDamageTaken(target, damage);
     damage = S_HardenedSkinDamage(target, damage);

@@ -212,7 +212,7 @@ bool S_AuraUnitActive(edict_t const *unit) {
     return unit && unit->inuse && !M_IsDead(unit) &&
            !(unit->svflags & SVF_STATIC_SCENERY) &&
            !(unit->s.renderfx & RF_HIDDEN) &&
-           !S_PermanentInvisibilityActive(unit) && !S_ShadowMeldActive(unit);
+           !S_PermanentInvisibilityActive(unit) && !S_GhostActive(unit) && !S_ShadowMeldActive(unit);
 }
 
 static bool aura_target_has_token(cstring_t targets, cstring_t full, cstring_t short_name) {

@@ -226,6 +226,61 @@ TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
          (int32_t)(30.0f / ((float)FRAMETIME / 1000.0f)));
 }
 
+TEST(wc3_items, invisibility_item_uses_authored_duration_and_binvisibility_status) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AIvi\"\nC;Y2;X2;K\"AIvi\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"3.5\"\nC;Y2;X5;K\"7.25\"\nC;Y2;X6;K\"Binv\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *player;
+    edict_t *hero;
+    abilityitem_t item;
+    abilityCall_t call;
+    heroabilitystatus_t *status;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->s.player = 0;
+    hero->svflags |= SVF_MONSTER;
+    hero->health.value = hero->health.max_value = 100.0f;
+    player->client->ps.number = 0;
+    G_SelectEntity(player->client, hero);
+    player->client->menu.ability_code = MAKEFOURCC('A','I','v','i');
+    item = S_AbilityItem(MAKEFOURCC('A','I','v','i'));
+    T_EQ(item.ability->proc, CAbilityItemInvis);
+    call = MAKE(abilityCall_t, .item = &item, .client = player);
+
+    T_ASSERT(S_AbilityMessage(player, A_ITEM_USE, &call));
+    status = unit_findstatus(hero, MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);
+    if (!status) {
+        G_SetSLKRows("AbilityData", old);
+        free_slk_rows(rows);
+        return;
+    }
+    T_EQ(status->duration_ms, 7250);
+    T_ASSERT(hero->s.renderfx & RF_HIDDEN);
+
+    level.time = status->timestamp;
+    unit_updatestatuses(hero);
+    T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','n','v')));
+    T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
+    T_ASSERT(S_AbilityMessage(player, A_ITEM_USE, &call));
+    T_NOT_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','n','v')));
+
+    memset(hero->abilstatus, 0, sizeof(hero->abilstatus));
+    hero->s.renderfx &= ~RF_HIDDEN;
+    hero->health.value = 0.0f;
+    T_ASSERT(!S_AbilityMessage(player, A_ITEM_USE, &call));
+    T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','n','v')));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, inventory_capacity_comes_from_inventory_ability_data) {
     edict_t *standard = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     edict_t *small = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);

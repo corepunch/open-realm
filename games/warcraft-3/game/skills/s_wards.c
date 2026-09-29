@@ -298,6 +298,10 @@ static float permanent_invisibility_transition(edict_t const *unit) {
 	return level ? S_SpellDuration(ID_APIV, level, false) : -1.0f;
 }
 
+bool S_GhostActive(edict_t const *unit) {
+	return unit && unit->inuse && (unit->runtime.flags & UNIT_BALANCE_GHOST_INVISIBLE);
+}
+
 bool S_PermanentInvisibilityActive(edict_t const *unit) {
 	return unit && unit->inuse && (unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE) &&
 		G_Time() >= unit->permanent_invisibility_reveal_until;
@@ -403,7 +407,7 @@ bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player) {
 bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player) {
 	if (!unit || !unit->inuse || player >= MAX_PLAYERS) return false;
 	if (unit->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, unit->s.player)) return false;
-	if (!S_PermanentInvisibilityActive(unit) && !S_ShadowMeldActive(unit) && !S_UnitUsesInvisibilityRenderFlag(unit)) return false;
+	if (!S_PermanentInvisibilityActive(unit) && !S_GhostActive(unit) && !S_ShadowMeldActive(unit) && !S_UnitUsesInvisibilityRenderFlag(unit)) return false;
 	return !S_UnitIsDetectedByPlayer(unit, player);
 }
 

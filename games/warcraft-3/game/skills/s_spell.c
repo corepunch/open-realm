@@ -628,10 +628,13 @@ static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t
     S_SpellCancelChannel(caster);
     S_HumanBreakInvisibility(caster);
     S_PermanentInvisibilityReveal(caster);
+    if (code != MAKEFOURCC('A','O','w','k') && code != MAKEFOURCC('A','N','w','k'))
+        S_WindWalkEnd(caster);
     if (code != MAKEFOURCC('A', 's', 'h', 'm') && code != MAKEFOURCC('A', 'h', 'i', 'd'))
         S_ShadowMeldBreak(caster);
     S_SpellSpendMana(caster, code, level);
-    S_SpellStartCooldown(caster, code, level);
+    if (code != MAKEFOURCC('A','O','w','k') && code != MAKEFOURCC('A','N','w','k'))
+        S_SpellStartCooldown(caster, code, level);
     S_ManaFlareOnCast(caster, code, level);
 }
 

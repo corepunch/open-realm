@@ -28,7 +28,7 @@ The Hero-aura cache refreshes combat aura values on the existing `AURA_UPDATE_MS
 Devotion, Brilliance, Unholy, Vampiric, Trueshot, and Thorns Aura, then applies that alias's authored Area and Targets Allowed before
 selecting the strongest contribution. Hidden and gameplay-invisible units are excluded on both sides of aura membership: they neither
 provide nor receive these auras. This includes `RF_HIDDEN` states such as temporary Invisibility/Wind Walk plus the independently tracked
-Permanent Invisibility and Shadow Meld states; fog-of-war visibility and true-sight detection do not make an invisible unit aura-active. Devotion and Unholy Aura recipient presentation use the same cadence: the winning BuffID is cached for HUD-only status presentation and each
+Permanent Invisibility, Ghost, and Shadow Meld states; fog-of-war visibility and true-sight detection do not make an invisible unit aura-active. Devotion and Unholy Aura recipient presentation use the same cadence: the winning BuffID is cached for HUD-only status presentation and each
 persistent target-art overlay is replaced or removed as aura membership changes. No fake `abilstatus[]` entry is created. Unholy DataC additionally selects whether DataB is flat HP/sec or a fraction of each recipient's maximum life per second.
 
 ## Data Flow

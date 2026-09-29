@@ -313,6 +313,18 @@ BZ_ITEM_PROC(AbilityItemHeal) {
     return true;
 }
 
+
+BZ_ITEM_PROC(AbilityItemInvis) {
+    edict_t *target = G_GetMainSelectedUnit(clent->client);
+    uint32_t code = S_SpellCurrentCode(clent, MAKEFOURCC('A','I','v','i'));
+    float duration = S_SpellDuration(code, 1, G_UnitIsHero(target));
+
+    if (!S_SpellIsAliveTarget(target) || duration <= 0.0f) return false;
+    target->s.renderfx |= RF_HIDDEN;
+    unit_addtimedstatus(target, "Binv", 1, duration);
+    return true;
+}
+
 BZ_ITEM_PROC(AbilityItemManaRestore) {
     edict_t *target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_MANA);

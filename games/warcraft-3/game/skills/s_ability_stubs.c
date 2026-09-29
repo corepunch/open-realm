@@ -63,10 +63,55 @@ BZ_SIMPLE_SPELL_PROC(AbilityStomp) {
 /* Name=Wind Walk
  * Ubertip="Allows the Blademaster to become invisible and move faster until it attacks or uses an ability."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityWindWalk) {
+static heroabilitystatus_t *wind_walk_status(edict_t *unit) {
+    if (!unit) return NULL;
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (unit->abilstatus[i].level && unit->abilstatus[i].code == MAKEFOURCC('B','O','w','k'))
+            return unit->abilstatus + i;
+    return NULL;
+}
+
+static void wind_walk_cleanup(edict_t *unit, heroabilitystatus_t const *status) {
+    uint32_t code, level;
+    if (!unit || !status || !status->level) return;
+    code = status->data ? status->data : MAKEFOURCC('A','O','w','k');
+    level = status->level;
+    /* BOwk owns only its own RF_HIDDEN contribution.  Keep the render flag if
+     * an independently applied temporary invisibility status still needs it. */
+    if (!G_UnitStatusLevel(unit, MAKEFOURCC('B','i','n','v')))
+        unit->s.renderfx &= ~RF_HIDDEN;
+    S_SpellStartCooldown(unit, code, level);
+    G_InvalidateUnitInfoPanel(unit);
+}
+
+void S_WindWalkEnd(edict_t *unit) {
+    heroabilitystatus_t *status = wind_walk_status(unit);
+    heroabilitystatus_t saved;
+    if (!status) return;
+    saved = *status;
+    memset(status, 0, sizeof(*status));
+    wind_walk_cleanup(unit, &saved);
+}
+
+static void AbilityWindWalk_Execute(edict_t *caster, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
+    heroabilitystatus_t *status;
     caster->s.renderfx |= RF_HIDDEN;
     unit_addtimedstatus(caster, "BOwk", level, S_SpellDuration(spell->code, level, true));
+    status = wind_walk_status(caster);
+    if (status) status->data = spell->code;
+}
+
+BZ_ABILITY_PROC(CAbilityWindWalk) {
+    if (msg == A_EXECUTE && call && call->item) {
+        AbilityWindWalk_Execute(ent, call->item);
+        return true;
+    }
+    if (msg == A_STATUS_REMOVE && call && call->status.slot) {
+        wind_walk_cleanup(ent, call->status.slot);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
 }
 
 /* Name=Mana Burn

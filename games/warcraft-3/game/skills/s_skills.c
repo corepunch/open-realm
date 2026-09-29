@@ -172,6 +172,7 @@ static ability_t abilitylist[] = {
     { "AIim", CAbilityStrengthMod, AB_ITEM },  /* Item Intelligence Gain */
     { "AIxm", CAbilityStrengthMod, AB_ITEM },  /* Item Int/Agi/Str gain */
     { "AIhe", CAbilityItemHeal, AB_ITEM },  /* Item Healing */
+    { "AIvi", CAbilityItemInvis, AB_ITEM },  /* Item Temporary Invisibility */
     { "AIma", CAbilityItemManaRestore, AB_ITEM },  /* Item Mana Regain */
     { "AIda", CAbilityItemDefenseAoe, AB_ITEM },  /* Item Temporary Area Armor Bonus */
     { "AIco", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Command */
@@ -318,7 +319,6 @@ static ability_t abilitylist[] = {
     // TODO: AIfo a_button  /* Item Capture The Flag */
     // TODO: AIfe a_button  /* Item Capture The Flag */
     // TODO: AIha a_item_heal_aoe  /* Item Area Healing */
-    // TODO: AIvi a_unknown  /* Item Temporary Invisibility */
     // TODO: AIvu a_item_invul  /* Item Temporary Invulnerability */
     // TODO: AImr a_item_mana_restore_aoe  /* Item Area Mana Regain */
     // TODO: AIre a_item_restore  /* Item Heal/Mana Regain */
@@ -850,6 +850,8 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     bool handled = false;
 
     if (!ent) return false;
+    if (msg == A_UNIT_INIT)
+        return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false,
                                                  msg != A_DEATH, msg == A_MOVE_LEAVE) != 0;
