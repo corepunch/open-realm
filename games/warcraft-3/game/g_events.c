@@ -269,9 +269,14 @@ static void G_TouchTriggers(edict_t *ent) {
     FOR_EACH_EVENT(evt) {
         switch (evt->type) {
             case EVENT_GAME_ENTER_REGION: {
-                handle_t event_handle = G_EventHandle(evt), region_handle = evt->region;
-                region_t *region = G_RegionFromHandle(evt->region);
-                uint32_t spawn_time = ent->spawn_time;
+                handle_t event_handle, region_handle;
+                region_t *region;
+                uint32_t spawn_time;
+                if (!ent->class_id) break; /* Region enter events carry units; classless map entities are not units. */
+                event_handle = G_EventHandle(evt);
+                region_handle = evt->region;
+                region = G_RegionFromHandle(evt->region);
+                spawn_time = ent->spawn_time;
                 if (region && G_RegionContains(region, &ent->s.origin2) &&
                     !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
                     ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
@@ -285,6 +290,7 @@ static void G_TouchTriggers(edict_t *ent) {
                 handle_t event_handle = G_EventHandle(evt), region_handle = evt->region;
                 region_t *region = G_RegionFromHandle(evt->region);
                 uint32_t spawn_time = ent->spawn_time;
+                if (!ent->class_id) break; /* Region leave events carry units; classless map entities are not units. */
                 if (region && !G_RegionContains(region, &ent->s.origin2) &&
                     G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
                     ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&

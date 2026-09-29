@@ -411,6 +411,60 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     currentplayer = saved_currentplayer;
 }
 
+TEST(wc3_api, nonunit_map_entity_placement_does_not_fire_region_enter) {
+    player_t *saved_currentplayer = currentplayer;
+    edict_t *map_entity;
+    vec2_t old_position = { 0.0f, 0.0f };
+
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit mover = null\n"
+        "  integer enters = 0\n"
+        "endglobals\n"
+        "function player_zero_filter takes nothing returns boolean\n"
+        "  return GetOwningPlayer(GetEnteringUnit()) == Player(0)\n"
+        "endfunction\n"
+        "function on_enter takes nothing returns nothing\n"
+        "  set enters = enters + 1\n"
+        "endfunction\n"
+        "function move_real_unit takes nothing returns nothing\n"
+        "  call SetUnitPosition(mover, -1088.0, -3493.0)\n"
+        "endfunction\n"
+        "function verify_no_false_entry takes nothing returns nothing\n"
+        "  call BJassAssert(enters == 0, \"non-unit map entity fired a region enter event\")\n"
+        "endfunction\n"
+        "function verify_real_entry takes nothing returns nothing\n"
+        "  call BJassAssert(enters == 1, \"real unit crossing did not fire region enter event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local region r = CreateRegion()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', -2000.0, -3493.0, 0.0)\n"
+        "  call RegionAddRect(r, Rect(-1408.0, -4352.0, -128.0, -3072.0))\n"
+        "  call TriggerRegisterEnterRegion(t, r, Condition(function player_zero_filter))\n"
+        "  call TriggerAddAction(t, function on_enter)\n"
+        "endfunction\n"));
+
+    map_entity = G_Spawn();
+    T_NOT_NULL(map_entity);
+    if (!map_entity) { currentplayer = saved_currentplayer; return; }
+    map_entity->s.player = 0;
+    map_entity->s.model = 138;
+    map_entity->s.origin2 = (vec2_t){ -1088.0f, -3493.0f };
+    G_UnitPositionChanged(map_entity, &old_position);
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_no_false_entry", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+
+    jass_callbyname(level.vm, "move_real_unit", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_real_entry", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
+}
+
 TEST(wc3_api, removed_region_filter_cannot_publish_to_reused_event) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *mover = NULL;
