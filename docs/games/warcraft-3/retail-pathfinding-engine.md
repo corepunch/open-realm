@@ -137,7 +137,7 @@ A second complete capture has the same decision and translation hashes in
 `runtime/velocity-turn-repeat-exact.json`. Frozen observer/controller sources and
 binary/map/capture hashes are in `runtime/velocity-integration-tools` and the
 corresponding `*-provenance.json` files.
-Facing reconstructed from velocity remains outside this comparison.
+That historical report excluded facing; the committed-facing extension below closes that numerical slice.
 
 The captured clock advances by approximately 0.03, with soft-add truncation
 visible in adjacent deltas. The historical offline fixtures use a controlled
@@ -221,17 +221,92 @@ Frozen sources and capture/map/binary hashes are in `runtime/heading-tools` and
 the corresponding `*-provenance.json` files. This verifies the observed numerical
 chain; full route selection and whole-engine motion cadence remain open.
 
+## Committed facing and remainder arithmetic
+
+NUM-02.4 explicitly separates the facing exclusion from the already closed
+velocity slice. Ghidra original`16fe20 →15f7e0 →160060` shows that positive
+requested speed commits the heading reconstructed from the resulting velocity,
+including cancellation and clamping. `160060` preserves prior facing when
+`abs(soft(vx²+vy²)-0) <34d6bf95` (4e-7). Equality recomputes it. This threshold
+is twice the earlier velocity-zero threshold`3456bf95` (2e-7); positive tiny
+velocity can therefore survive while facing remains unchanged.
+
+The regression uses world speed100, angle`.125` and zero old velocity. Exact
+velocity words are`42c67084/41477a18`; original`160060` commits facing
+`3dfffadc`, while the previous engine left requested`3e000000`. The assertion
+failed before changing Move and passes afterward. A second failing regression
+exposed the coordinate scale: the facing guard uses fine-grid velocity, with32
+world units per fine cell. Move now converts accepted world velocity through
+retail scalar multiplication before that guard. World speed`.016` retains the
+prior facing; testing the squared world magnitude would incorrectly recompute it.
+Only accepted candidates commit velocity/facing/position; rejected steps retain
+the existing steering/collision policy.
+
+Nonpositive requested speed normalizes the requested heading using the
+`15ffd0/16fe20` remainder path. This differs from the `062930` turn/window
+parameter normalizer. Original`070d20` subtracts the truncated integer word,
+returning +0 for integral magnitudes at least2²³. Original`070fe0` multiplies
+by the absolute divisor's reciprocal, takes that fraction, multiplies back, then
+performs its sign-dependent correction. Preserve its negative correction; it
+adds the **negative** absolute divisor at the original boundary. `wc3_fraction`,
+`wc3_modulo` and `wc3_facing_angle` implement the verified value contracts.
+Positive tau produces raw`35490fdb`, a small remainder, rather than zero or tau.
+Signed zeros remain signed in the facing-angle path.
+
+Evidence **S/O/C/L**, target/CRT hashes unchanged:
+
+| Report under the report root | Exact evidence |
+| --- | --- |
+| `fraction-modulo-engine-exact.json` | 20,422 fractional and21,750 remainder calls, including aliases; independent integer models and C |
+| `facing-chain-engine-exact.json` | 810 velocity-heading calls,44 facing-angle boundaries,140 complete velocity/facing commits and2,444 integrations |
+| `facing-stock-turn-exact.json` | Earlier complete repeat captures: all184 velocity/position/facing commits,183 scalar decisions and183 vector-heading errors |
+| `facing-stock-turn-fresh-exact.json` | Fresh complete Frida capture with the same exact counts and normalized hashes; compared with the earlier complete capture |
+
+The frozen numeric fixture
+[`retail-committed-facing-1.27.json`](../../../tools/ghidra/fixtures/retail-committed-facing-1.27.json)
+contains810 input/result rows plus44 wrap cases. It includes adjacent input words
+around the tiny-velocity guard, both signs and preserved prior headings. The
+explicit vector`3a176b4c/39870e5f` produces squared word`34d6bf95` exactly,
+and recomputes facing at equality. CI replays these and all192 frozen live
+turn velocity/facing commits at O0/O2, compares seeded raw fractional/remainder
+inputs with independent models and rejects a changed facing word in a capture.
+The larger-speed original matrix uses exact C velocity words; host trig's
+former1e-5 tolerance does not describe its recovered numerical contract.
+
+Reproduce with the common compile/numeric/motion commands above; the motion
+oracle's `--facing-fixture /tmp/facing.json` exports original numeric outputs.
+For the stock live fixture:
+
+```sh
+/home/lofcz/.local/share/uv/tools/frida-tools/bin/python tools/frida/trace_wc3_pathfinding.py \
+  --data /run/media/lofcz/ssd_external/Games/w3 --map 'Maps\PathingRE-StockTurn.w3m' \
+  --seconds 130 --samples 300 --motion-events --velocity-events --heading-events \
+  --x11-display :94 --continue-at 80 --output /tmp/facing-stock-turn.jsonl
+python3 tools/frida/verify_wc3_motion_trace.py /tmp/facing-stock-turn.jsonl \
+  --engine-library /tmp/wc3-pathing-engine.so --scenario stock_turn \
+  --report /tmp/facing-stock-turn-exact.json
+```
+
+The fresh raw capture is`runtime/facing-stock-turn-raw.jsonl`, SHA256
+`d21d4072db02f0b290bc19db72868bb8a866d5b861bbfe7d46e0e17451d3215a`.
+Frozen observer/controller/checker/kernel/oracle sources and hashes are in
+`runtime/facing-tools` and `facing-stock-turn-provenance.json`. The normalized
+velocity hash remains`7a1d7783e9c680144b4ea61592d9604673b293e1871b6a992cbf709b65d6aa70`;
+it already includes facing words, which the comparator now checks explicitly.
+Raw exceptional arithmetic input tests do not prove public producer reachability.
+Move still updates requested facing during its existing steering phase; these
+accepted-step fixes do not claim a complete retail motion/clock state machine.
+
 ## Remaining fidelity work
 
 Flow fields, route scheduling, group ownership, collision, repulsion and arrival
-range policy are not replaced. Move's vector-heading arithmetic now matches retail;
+range policy are not replaced. Move's vector-heading and accepted velocity-facing arithmetic now match the verified retail kernels;
 its route and avoidance selection still use existing steering. Stored-velocity integration and elapsed-clock arithmetic have exact C/retail
 evidence. Their complete engine lifecycle, world/fine coordinate conversion
 and cross-feature trajectories remain open. Repeat equality
 covers the observed helper sequence, not an unattached-observer control or all
 deterministic state.
 
-Next numerical integration: verify facing reconstructed from committed velocity, then connect
-committed velocity/clocks to the [admission-to-owner baseline](retail-pathfinding-todo.md#work-next).
+Next numerical integration: connect committed velocity/clocks to the [admission-to-owner baseline](retail-pathfinding-todo.md#work-next).
 Extend the same C probe and exact-word comparator before changing those stages.
 The full replacement still needs the [READY gates](retail-pathfinding-todo.md#ready--start-the-faithful-replacement).

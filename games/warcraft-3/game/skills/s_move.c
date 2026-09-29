@@ -282,15 +282,24 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
 
 /* Keep the verified velocity arithmetic in Move while preserving the engine's current frame cadence.
  * TODO: move integration to the retail grid/clock owner once its public producer chain is recovered. */
-static vec2_t unit_step_heading(edict_t *self, float angle, vec2_t *vel) {
+static vec2_t unit_step_heading(edict_t *self, float angle, wc3Velocity_t *v) {
     float speed = unit_current_speed(self);
-    wc3Velocity_t v = { .vel = {self->movement.velocity.x, self->movement.velocity.y},
+    *v = (wc3Velocity_t){ .vel = {self->movement.velocity.x, self->movement.velocity.y},
         .speed = speed, .heading = angle, .limit = speed };
-    wc3_velocity_update(&v);
+    wc3_velocity_update(v);
     float pos[2] = {self->s.origin2.x, self->s.origin2.y};
-    wc3_integrate(pos, v.vel, 10.0f / FRAMETIME);
-    *vel = (vec2_t){v.vel[0], v.vel[1]};
+    wc3_integrate(pos, v->vel, 10.0f / FRAMETIME);
     return (vec2_t){pos[0], pos[1]};
+}
+
+/* Retail160060 commits facing from the resulting velocity; stopped16fe20 uses the requested heading. */
+static void unit_commit_motion(edict_t *self, vec2_t const *cand, wc3Velocity_t const *v) {
+    self->movement.velocity = (vec2_t){v->vel[0], v->vel[1]};
+    /* Original mover velocity is in32-world-unit fine cells; its tiny-speed guard uses that scale. */
+    float grid_x = wc3_mul(v->vel[0], wc3_float(0x3d000000));
+    float grid_y = wc3_mul(v->vel[1], wc3_float(0x3d000000));
+    self->s.angle = v->speed > 0 ? wc3_velocity_heading(grid_x, grid_y, self->s.angle) : wc3_facing_angle(v->heading);
+    unit_commit_step(self, cand);
 }
 
 /* Advance the unit one tick.  Avoidance is decided ONCE per tick in
@@ -324,17 +333,15 @@ static void unit_moveindirection_policy(edict_t *self,
         return;
     }
 
-    vec2_t vel;
-    vec2_t const by_facing = unit_step_heading(self, self->s.angle, &vel);
+    wc3Velocity_t motion;
+    vec2_t const by_facing = unit_step_heading(self, self->s.angle, &motion);
     if (move_is_valid_policy(self, &by_facing, collision_policy)) {
-        self->movement.velocity = vel;
-        unit_commit_step(self, &by_facing);
+        unit_commit_motion(self, &by_facing, &motion);
         return;
     }
-    vec2_t const by_heading = unit_step_heading(self, self->movement.heading, &vel);
+    vec2_t const by_heading = unit_step_heading(self, self->movement.heading, &motion);
     if (move_is_valid_policy(self, &by_heading, collision_policy)) {
-        self->movement.velocity = vel;
-        unit_commit_step(self, &by_heading);
+        unit_commit_motion(self, &by_heading, &motion);
         return;
     }
     self->movement.velocity = (vec2_t){0};

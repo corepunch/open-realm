@@ -14,6 +14,13 @@ uint32_t pathing_heading(uint32_t x, uint32_t y) {
 uint32_t pathing_heading_error(uint32_t x, uint32_t y, uint32_t heading) {
     return wc3_float_bits(wc3_heading_error(wc3_float(x), wc3_float(y), wc3_float(heading)));
 }
+uint32_t pathing_fractional(uint32_t a) { return wc3_float_bits(wc3_fraction(wc3_float(a))); }
+uint32_t pathing_modulo(uint32_t a, uint32_t b) { return wc3_float_bits(wc3_modulo(wc3_float(a), wc3_float(b))); }
+uint32_t pathing_facing_angle(uint32_t a) { return wc3_float_bits(wc3_facing_angle(wc3_float(a))); }
+uint32_t pathing_velocity_heading(uint32_t x, uint32_t y, uint32_t current) {
+    return wc3_float_bits(wc3_velocity_heading(wc3_float(x), wc3_float(y), wc3_float(current)));
+}
+
 uint32_t pathing_sqrt(uint32_t a) { return wc3_float_bits(wc3_sqrt(wc3_float(a))); }
 uint32_t pathing_reciprocal(uint32_t a) { return wc3_float_bits(wc3_recip(wc3_float(a))); }
 uint32_t pathing_divide(uint32_t a, uint32_t b) { return wc3_float_bits(wc3_div(wc3_float(a), wc3_float(b))); }
@@ -33,6 +40,16 @@ void pathing_velocity(uint32_t *words) {
         .speed = wc3_float(words[2]), .heading = wc3_float(words[3]), .limit = wc3_float(words[4]) };
     wc3_velocity_update(&v);
     words[0] = wc3_float_bits(v.vel[0]); words[1] = wc3_float_bits(v.vel[1]);
+}
+
+/* Inputs: old velocity XY, speed, heading, maximum, facing. Outputs: XY and facing. */
+void pathing_velocity_commit(uint32_t *words) {
+    wc3Velocity_t v = { .vel = {wc3_float(words[0]), wc3_float(words[1])},
+        .speed = wc3_float(words[2]), .heading = wc3_float(words[3]), .limit = wc3_float(words[4]) };
+    wc3_velocity_update(&v);
+    float facing = v.speed > 0 ? wc3_velocity_heading(v.vel[0], v.vel[1], wc3_float(words[5])) : wc3_facing_angle(v.heading);
+    words[0] = wc3_float_bits(v.vel[0]); words[1] = wc3_float_bits(v.vel[1]);
+    words[5] = wc3_float_bits(facing);
 }
 
 /* XY, old velocity XY, previous time/epoch, current time/epoch/span, displacement XY. */

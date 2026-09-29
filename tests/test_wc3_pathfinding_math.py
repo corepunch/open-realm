@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools/ghidra'))
 sys.path.insert(0, str(ROOT / 'tools/frida'))
-from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits
+from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits, fractional, modulo
 from generate_wc3_math_tables import sine_table, reciprocal_table, acos_tables
 from verify_wc3_motion_trace import verify
 
@@ -28,13 +28,16 @@ class PathingMathTests(unittest.TestCase):
                             '-I', str(ROOT), str(ROOT / 'tools/ghidra/wc3_pathing_engine_probe.c'), '-o', str(lib)], check=True)
             engine = ctypes.CDLL(str(lib))
             engine.pathing_motion.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+            engine.pathing_velocity_commit.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+            engine.pathing_velocity_heading.argtypes = [ctypes.c_uint32]*3
+            engine.pathing_velocity_heading.restype = ctypes.c_uint32
             engine.pathing_velocity.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
             engine.pathing_integrate.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
             engine.pathing_heading_error.argtypes = [ctypes.c_uint32]*3
             engine.pathing_heading_error.restype = ctypes.c_uint32
-            for name in ('add', 'subtract', 'multiply', 'angle', 'sin', 'cos', 'acos', 'sqrt', 'reciprocal'):
+            for name in ('add', 'subtract', 'multiply', 'modulo', 'fractional', 'facing_angle', 'angle', 'sin', 'cos', 'acos', 'sqrt', 'reciprocal'):
                 proc = getattr(engine, 'pathing_' + name)
-                proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply') else 1)
+                proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
 
@@ -59,6 +62,24 @@ class PathingMathTests(unittest.TestCase):
                 engine.pathing_motion(words)
                 self.assertEqual(words[0], 0 if stopped else bits(1.125))
                 self.assertEqual(words[1], bits(0.125))
+
+    def test_fraction_remainder_and_committed_facing(self):
+        rng=random.Random(0x70fe0)
+        table=reciprocal_table()
+        pairs=[(rng.getrandbits(32),rng.getrandbits(32)) for _ in range(5000)]
+        for engine in self.engines:
+            for a,b in pairs:
+                self.assertEqual(engine.pathing_fractional(a),fractional(a))
+                self.assertEqual(engine.pathing_modulo(a,b),modulo(a,b,table),(hex(a),hex(b)))
+            self.assertEqual(engine.pathing_facing_angle(0),0)
+            self.assertEqual(engine.pathing_facing_angle(0x80000000),0x80000000)
+            self.assertEqual(engine.pathing_facing_angle(0x40c90fdb),0x35490fdb)
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-committed-facing-1.27.json').read_text())
+        for heading,expected in fixture['angles']:
+            for engine in self.engines:self.assertEqual(engine.pathing_facing_angle(heading),expected)
+        for x,y,maximum,before,after in fixture['cases']:
+            for engine in self.engines:
+                self.assertEqual(engine.pathing_velocity_heading(x,y,before),after)
 
     def test_full_turn_and_signed_zero_retain_retail_quirks(self):
         for engine in self.engines:
@@ -112,6 +133,10 @@ class PathingMathTests(unittest.TestCase):
                 engine.pathing_velocity(words)
                 self.assertEqual(list(words)[:2], after[4:6])
                 self.assertEqual(list(words)[2:], [speed, heading, before[6]])
+                full = (ctypes.c_uint32 * 6)(*before[4:6],speed,heading,*before[6:8])
+                engine.pathing_velocity_commit(full)
+                self.assertEqual(list(full)[:2],after[4:6])
+                self.assertEqual(full[5],after[7])
                 words = (ctypes.c_uint32 * 11)(*before[2:6], *before[:2], *clock, 0, 0)
                 engine.pathing_integrate(words)
                 self.assertEqual(list(words)[:2], after[2:4])
@@ -149,7 +174,7 @@ class PathingMathTests(unittest.TestCase):
         for key, value in (('speed', -1), ('before', []), ('clock', [True, 0, 0])):
             with self.assertRaises(ValueError):
                 verify([metadata, decision, {**commit, key: value}, ending], self.engines[0], None)
-        for index in (0, 2, 4, 6):
+        for index in (0, 2, 4, 6, 7):
             mutated = list(commit['after'])
             mutated[index] ^= 1
             with self.assertRaises(ValueError):

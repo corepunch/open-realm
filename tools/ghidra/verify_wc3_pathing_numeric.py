@@ -101,6 +101,25 @@ def divide(a, b, table):
     return bits(1) if a == b else multiply(a, reciprocal(b, table))
 
 
+def fractional(word):
+    exponent=((word>>23)&255)-127
+    if exponent<0:return word
+    if exponent>=23:return 0
+    mask=(MASK << (23-exponent)) & MASK
+    return subtract(word,word & mask)
+
+
+def modulo(a, b, table):
+    magnitude=b & ~SIGN
+    result=multiply(fractional(multiply(a,reciprocal(magnitude,table))),magnitude)
+    value=lambda word:struct.unpack('<f',struct.pack('<I',word))[0]
+    if not result & SIGN and result & ~SIGN:
+        if value(result)>=value(magnitude):result=subtract(result,magnitude)
+    elif value(magnitude | SIGN)>=value(result):
+        result=add(result,magnitude | SIGN)
+    return result
+
+
 def integer_float(word):
     sign = word & SIGN
     magnitude = (-word if sign else word) & MASK
@@ -186,11 +205,11 @@ def main():
     args = parser.parse_args()
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
-        for name in ('add', 'subtract', 'multiply', 'divide'):
+        for name in ('add', 'subtract', 'multiply', 'divide','modulo'):
             proc = getattr(engine, 'pathing_' + name)
             proc.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
             proc.restype = ctypes.c_uint32
-        for name in ('sin', 'cos', 'acos', 'sqrt', 'reciprocal'):
+        for name in ('sin', 'cos', 'acos', 'sqrt', 'reciprocal','fractional'):
             proc = getattr(engine, 'pathing_' + name)
             proc.argtypes = [ctypes.c_uint32]
             proc.restype = ctypes.c_uint32
@@ -272,14 +291,17 @@ def main():
                     assert getattr(engine, 'pathing_' + name)(a,b) == actual
         counts[name] = len(pairs)+400
     unary = sorted(words) + [rng.getrandbits(32) for _ in range(20000)]
-    for name, entry, model in [('floor',0x6f070c80,floor_word),('integer',0x6f070120,integer_word)]:
+    for name, entry, model in [('floor',0x6f070c80,floor_word),('integer',0x6f070120,integer_word),('fractional',0x6f070d20,fractional)]:
         for word in unary:
             actual = call(entry,word)
             assert actual == model(word), (name,hex(word),hex(actual),hex(model(word)))
-        if name == 'floor':
+            if engine and name=='fractional':assert engine.pathing_fractional(word)==actual
+        if name in ('floor','fractional'):
             for word in unary[:200]:
-                assert call(entry,word,alias=1) == model(word)
-        counts[name] = len(unary) + (200 if name == 'floor' else 0)
+                actual=call(entry,word,alias=1)
+                assert actual==model(word)
+                if engine and name=='fractional':assert engine.pathing_fractional(word)==actual
+        counts[name] = len(unary) + (200 if name in ('floor','fractional') else 0)
     root_rng = random.Random(0x71530)
     integer_roots = [0,1,MASK] + [root_rng.getrandbits(32) for _ in range(20000)]
     integer_roots += [root*root+offset for root in range(1,65536,127) for offset in [-1,0,1]]
@@ -329,6 +351,18 @@ def main():
             if engine:
                 assert engine.pathing_divide(a,b) == actual
     counts['divide'] = len(division_pairs)+400
+    modulo_pairs=division_pairs+[(bits(x),bits(y)) for x in (-100,-6.283185307,0,.125,6.283185307,100) for y in (.125,1,6.283185307)]
+    for a,b in modulo_pairs:
+        actual=call(0x6f070fe0,a,b)
+        expected=modulo(a,b,reciprocal_table)
+        assert actual==expected,('modulo',hex(a),hex(b),hex(actual),hex(expected))
+        if engine:assert engine.pathing_modulo(a,b)==actual,('C-modulo',hex(a),hex(b),hex(actual))
+    for a,b in modulo_pairs[:200]:
+        for alias in (1,2):
+            actual=call(0x6f070fe0,a,b,alias)
+            assert actual==modulo(a,b,reciprocal_table)
+            if engine:assert engine.pathing_modulo(a,b)==actual
+    counts['modulo']=len(modulo_pairs)+400
     acos_table = list(struct.unpack('<1025I',uc.mem_read(0x6fa830d0,4100)))
     acos_near = list(struct.unpack('<138I',uc.mem_read(0x6fa840d8,552)))
     ordinary_generated,near_generated = acos_tables()
@@ -455,7 +489,7 @@ def main():
                    'floor':'Negative nonzero values below one become -1; both signed zeros become +0; fractional mantissa truncation with negative ceiling of magnitude; exponent >=150 unchanged',
                    'integer':'Truncation toward zero for ordinary values; exponent <127 returns zero; larger exponents use x86 modulo-32 shifts and modulo-32-bit output, without saturation'},
         engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest() if engine else None,
-        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','acos','sqrt','reciprocal','divide')} if engine else {},
+        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','acos','sqrt','reciprocal','divide','fractional','modulo')} if engine else {},
         exclusions=['Producer reachability of raw NaN/infinity/denormal/overflow patterns',
                     'Full spatial mutation after bounds construction',
                     'General simulation trajectories; trig helper domains are raw input words, not public producer proof',

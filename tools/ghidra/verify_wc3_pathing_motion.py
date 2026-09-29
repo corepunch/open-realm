@@ -53,11 +53,17 @@ def main():
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--engine-library', type=Path, help='compiled wc3_pathing_engine_probe.c; compare decision/angle bits')
+    parser.add_argument('--facing-fixture', type=Path, help='export original committed facing inputs/results')
     parser.add_argument('--heading-fixture', type=Path, help='export raw original vector-heading errors for asset-free C replay')
     args = parser.parse_args()
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
         engine.pathing_motion.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+        engine.pathing_velocity_commit.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+        engine.pathing_velocity_heading.argtypes = [ctypes.c_uint32]*3
+        engine.pathing_velocity_heading.restype = ctypes.c_uint32
+        engine.pathing_facing_angle.argtypes = [ctypes.c_uint32]
+        engine.pathing_facing_angle.restype = ctypes.c_uint32
         engine.pathing_velocity.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
         engine.pathing_integrate.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
         engine.pathing_angle.argtypes = [ctypes.c_uint32]
@@ -422,8 +428,36 @@ def main():
         now=scalar(clock+0x40)
         assert scalar(angle_out)==(0 if abs(now)<time_deadzone else now)
         time_boundary_cases+=1
+    facing_cases=[]
+    for x,y,facing in itertools.product([-100,-4,-.001,-.0005,0,.0005,.001,4,100],repeat=3):
+        floats(mover+0x80,x,y,8,facing)
+        original=read(mover+0x80,4)
+        run(0x6f160060,mover)
+        facing_cases.append(original+[read(mover+0x8c)[0]])
+    floats(mover+0x80,100,0,100,.125)
+    write(mover+0x80,0x42c67084,0x41477a18)
+    original=read(mover+0x80,4);run(0x6f160060,mover)
+    facing_cases.append(original+[read(mover+0x8c)[0]])
+    boundary_vectors=[(0x3a25cb5f+delta,0) for delta in range(-8,9)]
+    boundary_vectors += [(0x3a176b4c,0x39870e5f+delta) for delta in (-1,0,1)]
+    for (x,y),sign,before in itertools.product(boundary_vectors,[0,0x80000000],[0,0x3e000000]):
+        write(mover+0x80,x|sign,y,0x41000000,before)
+        original=read(mover+0x80,4);run(0x6f160060,mover)
+        facing_cases.append(original+[read(mover+0x8c)[0]])
+    if engine:
+        for x,y,maximum,before,after in facing_cases:
+            assert engine.pathing_velocity_heading(x,y,before)==after
+    facing_angles=[float_bits(x) for x in [-100,-2*pi,-pi,-.125,-0.0,0,.125,pi,2*pi,100]]
+    facing_angles += [word|sign for word in range(0x40c90fdb-8,0x40c90fdb+9) for sign in (0,0x80000000)]
+    facing_angle_outputs=[]
+    for word in facing_angles:
+        write(heading_ptr,word);run(0x6f15ffd0,mover,heading_ptr)
+        result=read(mover+0x8c)[0];facing_angle_outputs.append([word,result])
+        if engine:assert engine.pathing_facing_angle(word)==result,hex(word)
+    if args.facing_fixture:
+        args.facing_fixture.write_text(json.dumps(dict(version=1,binary_sha256=digest,columns=['vx','vy','maximum','before_facing','after_facing'],cases=facing_cases,angles=facing_angle_outputs),separators=(',',':'))+'\n')
     velocity_cases=[]
-    for new_speed,new_heading,maximum in itertools.product([0,0.125,1,4],[0,0.125,pi/2,pi,3*pi/2],[0,0.5,2,8]):
+    for new_speed,new_heading,maximum in itertools.product(([0,0.0005,0.125,1,4,100,256] if engine else [0,0.125,1,4]),[0,0.125,pi/2,pi,3*pi/2],[0,0.5,2,8]):
         write(mover,0x6fa9129c,owner+0x200,0)  # actual retail vtable, already on update list
         write(mover+0x14,0)
         clock=owner+0x14
@@ -453,19 +487,22 @@ def main():
         floats(speed_ptr,new_speed)
         floats(heading_ptr,new_heading)
         if engine:
-            engine_vel=(ctypes.c_uint32*5)(*read(mover+0x80,2),read(speed_ptr)[0],read(heading_ptr)[0],read(mover+0x88)[0])
-            engine.pathing_velocity(engine_vel)
+            engine_vel=(ctypes.c_uint32*6)(*read(mover+0x80,2),read(speed_ptr)[0],read(heading_ptr)[0],*read(mover+0x88,2))
+            engine.pathing_velocity_commit(engine_vel)
         run(0x6f16fe20,mover,speed_ptr,heading_ptr)
-        if engine:assert read(mover+0x80,2)==list(engine_vel)[:2],(new_speed,new_heading,maximum)
+        if engine:
+            assert read(mover+0x80,2)==list(engine_vel)[:2],(new_speed,new_heading,maximum)
+            assert read(mover+0x8c)[0]==engine_vel[5],(new_speed,new_heading,maximum,
+                hex(read(mover+0x8c)[0]),hex(engine_vel[5]))
         assert (scalar(mover+0x78),scalar(mover+0x7c))==(8.0625,7.9375)
         assert scalar(mover+0x70)==0.5 and read(mover+0x74)[0]==0
         actual=(scalar(mover+0x80),scalar(mover+0x84))
         desired=min(new_speed,maximum)
         expected=(desired*math.cos(scalar(heading_ptr)),desired*math.sin(scalar(heading_ptr)))
         error=max(abs(a-b) for a,b in zip(actual,expected))
-        assert error<0.00001,(new_speed,new_heading,maximum,actual,expected,error)
+        if not engine:assert error<0.00001,(new_speed,new_heading,maximum,actual,expected,error)
         assert bool(read(objects[1]+0x40)[0]&0x20000000)==bool(new_speed and maximum)
-        assert scalar(mover+0xc0)==new_speed
+        assert read(mover+0xc0)[0]==read(speed_ptr)[0]
         floats(clock+0x40,0.75)
         floats(displacement,0,0)
         engine_words=compare_integration(mover,clock,displacement)
@@ -474,7 +511,7 @@ def main():
         wanted_position=(8.0625+actual[0]*0.25,7.9375+actual[1]*0.25)
         assert max(abs(scalar(mover+0x78+4*n)-wanted_position[n]) for n in [0,1])<0.000002
         assert scalar(mover+0x70)==0.75
-        velocity_cases.append(dict(speed=new_speed,heading=scalar(heading_ptr),maximum=maximum,velocity=actual,error=error))
+        velocity_cases.append(dict(speed=new_speed,heading=scalar(heading_ptr),maximum=maximum,velocity=actual,facing_bits=read(mover+0x8c)[0],error=error))
     # Two-member speed commit through shared-cap selection and actual movers.
     group,members=system+0xe000,system+0xf000
     actors=[system+0x10000,system+0x10200]
@@ -2742,6 +2779,9 @@ def main():
         report.update(engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest(),
                       engine_exact_decision_cases=cases, engine_exact_angle_cases=len(normalization),
                       engine_exact_velocity_cases=len(velocity_cases),engine_exact_integration_cases=engine_integrations,
+                      engine_exact_committed_facing_cases=len(velocity_cases) if engine else 0,
+                      engine_exact_velocity_heading_cases=len(facing_cases) if engine else 0,
+                      engine_exact_facing_angle_cases=len(facing_angles) if engine else 0,
                       engine_exact_heading_error_cases=angle_cases+heading_boundary_cases+deadzone_cases)
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))

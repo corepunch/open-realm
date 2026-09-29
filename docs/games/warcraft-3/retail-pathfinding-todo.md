@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**33 done / 210 tasks; 177 remaining.** Counts describe this backlog,
+**34 done / 211 tasks; 177 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -21,7 +21,7 @@ Completed evidence now sits next to its specific remaining extension.
 | FOOT — Footprints and query policy | 1 | 8 |
 | FINE — Fine search | 1 | 8 |
 | ACC — Adaptive search | 1 | 10 |
-| NUM — Numbers and random state | 4 | 6 |
+| NUM — Numbers and random state | 5 | 6 |
 | ROUTE — Route progression and yielding | 0 | 10 |
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
@@ -37,6 +37,8 @@ Completed evidence now sits next to its specific remaining extension.
 Update these counts when checking, adding or splitting a task. Report progress
 as **IDs closed + artifact + next runnable ID**, not additional raw test counts.
 The denominator changes only when a new task is explicitly added or split.
+NUM-02.4 was added explicitly to own the previously unassigned committed-facing
+exclusion of NUM-02.2; it is closed independently of whole-trajectory NUM-02.3.
 
 ## Work next
 
@@ -272,8 +274,9 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 ### NUM-02 — Branch-sensitive arithmetic
 
 - [x] **NUM-02.1** Sine/cosine and acos compare exact output words across cardinal/oblique inputs and adjacent lookup thresholds; independently generated consumed tables match retail. Signed-zero, cancellation and opposite-heading signs are retained. Evidence: [exact vector headings](retail-pathfinding-engine.md#exact-vector-headings), reports `scalar-trig-engine-exact.json`, `acos-engine-exact.json`, `heading-chain-engine-exact.json`; 1,287 composed heading errors plus 183 live errors. Remaining helper inventory belongs to NUM-01.2, whole trajectory to NUM-02.3.
-- [x] **NUM-02.2** Original 80 velocity commits and 2,384 position integrations now compare exact C output words; fresh live turn capture compares all 192 velocity/position commits, including stopping. Evidence: [exact velocity integration](retail-pathfinding-engine.md#velocity-and-position-integration), reports `velocity-integration-engine-exact.json` and `runtime/velocity-turn-exact.json`. Facing-from-velocity and whole-engine cadence remain excluded.
+- [x] **NUM-02.2** Original 80 velocity commits and 2,384 position integrations now compare exact C output words; fresh live turn capture compares all 192 velocity/position commits, including stopping. Evidence: [exact velocity integration](retail-pathfinding-engine.md#velocity-and-position-integration), reports `velocity-integration-engine-exact.json` and `runtime/velocity-turn-exact.json`. Committed facing is closed separately by NUM-02.4; whole-engine cadence remains excluded.
 - [ ] **NUM-02.3** Extend that exact case to a fixed long oblique trajectory at small/large valid values; compare every committed position and cell crossing.
+- [x] **NUM-02.4** Verify committed facing from resulting velocity, its tiny-speed guard/equality and stopped-heading remainder normalization; compare original/C/live words. Evidence: [committed facing](retail-pathfinding-engine.md#committed-facing-and-remainder-arithmetic), reports `fraction-modulo-engine-exact.json`, `facing-chain-engine-exact.json`, `facing-stock-turn-fresh-exact.json`;810 heading guards,44 angle boundaries,140 full commits and184 fresh live commits. Accepted-step engine regressions cover oblique facing and fine-grid scale; original full owner cadence/steering state remains open.
 
 ### NUM-03 — Exceptional numeric inputs
 

@@ -71,19 +71,21 @@ def verify(rows, engine, scenario):
             before, after, clock = words('before',8), words('after',8), words('clock',3)
             if any(type(row.get(k)) is not int or not 0<=row[k]<=0xffffffff for k in ('speed','heading')):
                 raise ValueError(f'commit {index}: invalid speed/heading words')
-            velocity = (ctypes.c_uint32*5)(*before[4:6],row['speed'],row['heading'],before[6])
-            engine.pathing_velocity(velocity)
+            velocity = (ctypes.c_uint32*6)(*before[4:6],row['speed'],row['heading'],*before[6:8])
+            engine.pathing_velocity_commit(velocity)
             state = (ctypes.c_uint32*11)(*before[2:6],*before[:2],*clock,0,0)
             engine.pathing_integrate(state)
             if list(velocity)[:2]!=after[4:6] or list(state)[:2]!=after[2:4] or list(state)[4:6]!=after[:2]:
                 raise ValueError(f'commit {index}: C velocity/position/clock differs from retail')
+            if velocity[5]!=after[7]:
+                raise ValueError(f'commit {index}: C facing differs from retail')
             if after[6]!=before[6]:
                 raise ValueError(f'commit {index}: maximum changed')
             mover = movers.setdefault(row['mover'],len(movers))
             normalized.append([mover,row['speed'],row['heading'],*before,*clock,*after])
-        result.update(exact_velocity_commits=len(commits),exact_position_commits=len(commits),
+        result.update(exact_velocity_commits=len(commits),exact_position_commits=len(commits),exact_facing_commits=len(commits),
             velocity_sha256=hashlib.sha256(json.dumps(normalized,separators=(',',':')).encode()).hexdigest(),
-            scope='Complete captured scalar decisions, velocity and position/clock commits; facing-from-velocity and whole engine cadence remain excluded')
+            scope='Complete captured scalar decisions, velocity and position/clock commits; facing commits included; whole engine cadence remains excluded')
     return result
 
 
@@ -97,6 +99,7 @@ def main():
     args = parser.parse_args()
     engine = ctypes.CDLL(str(args.engine_library.resolve()))
     engine.pathing_motion.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+    engine.pathing_velocity_commit.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
     engine.pathing_velocity.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
     engine.pathing_integrate.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
     engine.pathing_heading_error.argtypes = [ctypes.c_uint32]*3

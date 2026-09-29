@@ -106,8 +106,21 @@ TEST(wc3_movement, retail_oblique_velocity_and_step_words) {
     T_EQ(wc3_float_bits(unit->s.origin2.y), 0x43a09f94u);
     T_EQ(wc3_float_bits(unit->movement.velocity.x), 0x42c67084u);
     T_EQ(wc3_float_bits(unit->movement.velocity.y), 0x41477a18u);
+    /* Original160060 reconstructs facing from the committed velocity, not requested0.125. */
+    T_EQ(wc3_float_bits(unit->s.angle), 0x3dfffadcu);
     move_reset_progress(unit);
     T_EQ(unit->movement.velocity.x, 0); T_EQ(unit->movement.velocity.y, 0);
+}
+
+/* Original160060 measures squared velocity in fine-grid units, with32 world units per cell. */
+TEST(wc3_movement, retail_committed_facing_guard_uses_grid_velocity) {
+    edict_t *unit = make_moving_unit(320, 320);
+    unit->unitinfo.MoveSpeed = 0.016f;
+    unit->s.angle = 0.125f;
+    unit->movement.flow_direct = true;
+    unit_moveindirection(unit);
+    T_ASSERT(unit->movement.velocity.x > 0);
+    T_EQ(wc3_float_bits(unit->s.angle), 0x3e000000u);
 }
 
 /* Saved velocity must resume with the same cancellation words, not a fresh zero-velocity approximation. */

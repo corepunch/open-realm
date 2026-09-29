@@ -192,6 +192,42 @@ static inline float wc3_angle(float angle) {
     return wc3_sub(angle, span);
 }
 
+/* 070d20 subtracts the truncated integer word; integral magnitudes >=2^23 return +0. */
+static inline float wc3_fraction(float value) {
+    uint32_t word = wc3_float_bits(value);
+    int exponent = ((word >> 23) & 255) - 127;
+    if (exponent < 0) return value;
+    if (exponent >= 23) return 0;
+    uint32_t mask = ~((1u << (23 - exponent)) - 1);
+    return wc3_sub(value, wc3_float(word & mask));
+}
+
+/* 070fe0 uses reciprocal/fraction multiplication, including its negative correction. */
+static inline float wc3_modulo(float value, float divisor) {
+    divisor = wc3_float(wc3_float_bits(divisor) & 0x7fffffffu);
+    float result = wc3_mul(wc3_fraction(wc3_mul(value, wc3_recip(divisor))), divisor);
+    uint32_t word = wc3_float_bits(result);
+    if (!(word & 0x80000000u) && (word & 0x7fffffffu)) {
+        if (result >= divisor) result = wc3_sub(result, divisor);
+    } else if (-divisor >= result) result = wc3_add(result, -divisor);
+    return result;
+}
+
+/* 15ffd0/16fe20 facing uses this remainder; 062930 parameter normalization is different. */
+static inline float wc3_facing_angle(float heading) {
+    float tau = wc3_float(0x40c90fdb);
+    if (wc3_float(wc3_float_bits(heading) & 0x7fffffffu) >= tau)
+        heading = wc3_modulo(heading, tau);
+    return heading < 0 ? wc3_add(heading, tau) : heading;
+}
+
+/* 160060 preserves facing below the squared-velocity threshold; equality recomputes it. */
+static inline float wc3_velocity_heading(float x, float y, float current) {
+    float sq = wc3_sub(wc3_add(wc3_mul(x, x), wc3_mul(y, y)), 0);
+    if (wc3_float(wc3_float_bits(sq) & 0x7fffffffu) < wc3_float(0x34d6bf95)) return current;
+    return wc3_vector_heading(x, y);
+}
+
 typedef struct {
     float speed, heading, error, increment, turn, window;
     bool stop;
