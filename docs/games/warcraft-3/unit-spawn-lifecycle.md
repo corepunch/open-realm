@@ -47,9 +47,8 @@ construction/hidden lifecycle afterward.
 
 ## Verification
 
-The regression is covered by
-`wc3_api.createunit_static_scenery_keeps_requested_spawn` verifies a stock-shaped
-Frostmourne row keeps its requested point when pathing is blocked.
+`wc3_api.createunit_static_scenery_keeps_requested_spawn` verifies that a
+stock-shaped Frostmourne row keeps its requested point when pathing is blocked.
 `wc3_api.createunit_custom_static_scenery_keeps_requested_spawn` verifies a
 custom rawcode inherits the scenery rows and applies a non-stock max-health
 override without moving. Both create through JASS `CreateUnit` in
