@@ -276,6 +276,10 @@ Do not implement `GetCameraMargin()` as `complement * TILE_SIZE`. World Editor g
 
 Ordinary server camera target writers use `G_ClampCameraPosition()` against `level.camera_bounds`. `SetCameraOrientController` is the deliberate exception: its `camera.state.position` is a virtual orbit target placed on the look ray so the captured camera source stays fixed, and clamping that virtual point would translate the source instead of merely constraining player panning. The client clamps predicted user-movement targets with `CM_GetWorldBounds()` — the loaded map, not a per-player snapshot. `CL_ParsePlayerInfo()` reclamps pending prediction to those world bounds before comparing it with the authoritative server origin.
 
+Scripted target panning is independent from scalar camera-field interpolation. `PanCameraTo` and `PanCameraToWithZ` read Warcraft's `UI\MiscData.txt` `[CameraRates]` `Strafe` and `Forward` values and move X/Y independently at those authored world-unit rates, matching Warsmash's `GameCameraManager.panTo()`. `PanCameraToTimed*` derives one X rate and one Y rate from the requested duration so both axes arrive at the destination at that duration. `CameraSetupApply(setup, doPan=true, panTimed=true)` and `CameraSetupApplyWithZ` use the same normal-rate pan path; a non-timed setup apply snaps its destination, while the ForceDuration variants retain their explicit duration interpolation. The pan track owns target XY only, so a timed Z offset or other scalar field can advance concurrently without forcing all camera properties through one shared movement rate. `StopCamera`, direct player movement, reset, and target/orient controllers sample or cancel the active pan rather than leaving stale movement behind.
+
+The `[CameraRates]` values are Warcraft data, not OpenRealm tuning constants. Production reads them through the existing merged MiscData cache; the WC3 test fixture authors small deterministic `Strafe=100` / `Forward=200` values so JASS tests can assert per-axis movement without depending on a retail MPQ installation.
+
 The camera bounds constrain the **target**, not the visible frustum. Do not widen `SetCameraBounds` to compensate for a view that appears to stop too early. WC3's world projection must instead use the actual gameplay viewport above the command console. `V_RenderView()` assigns `{0, 0.22, 1, 0.76}` to both `viewDef.viewport` and `viewDef.scissor`; `Matrix4_getCameraMatrix()` derives aspect ratio from that viewport rather than the full window. Renderer screen rays (`R_LineForScreenPoint`) and drag-selection normalization use the same viewport, so ground picking, middle-dragging, minimap camera-footprint projection, and the visible world all agree. A full-window projection followed only by scissoring narrows the horizontal ground footprint and leaves the camera target vertically off-center inside the visible WC3 world area; near map edges this can look like an over-tight camera clamp even when the JASS bounds themselves are correct.
 
 The August 30, 2026 viewport change (`9c22952`, `wc3: match retail camera viewport and bounds semantics`) also established a presentation contract for post-world overlays. `R_RenderView()` calls `R_RevertSettings()` before drawing 2D overhead bars, and `V_RenderView()` draws the drag-selection marquee after `re.RenderFrame()`, so both paths are back in full-window GL state even though their content belongs to the world. Those overlays must temporarily re-apply `viewDef.scissor` and then restore the full-window scissor before `SCR_DrawLayout()` draws the HUD. Do not move the WC3 HUD boundary into renderer constants or rely on opaque console art to hide world overlays; the client-authored `viewDef.scissor` remains the authoritative rectangular world boundary.
@@ -291,8 +295,9 @@ make test
 
 The focused JASS cases cover camera bounds, shortest-arc Euler interpolation
 (including equivalent multi-turn pitch values), timed WithZ interpolation,
-target-controller orientation inheritance, setup clip/Z fields, and `doPan`
-destination ownership. The full test target additionally covers
+normal-rate untimed panning from authored CameraRates, `panTimed` camera-setup
+panning, target-controller orientation inheritance, setup clip/Z fields, and
+`doPan` destination ownership. The full test target additionally covers
 `net.camera_clamp_uses_world_bounds`,
 `net.playerstate_camera_render_fields_roundtrip`,
 `net.playerinfo_copies_server_clip_planes`, and
