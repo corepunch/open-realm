@@ -567,7 +567,10 @@ static bool G_FowEntityIsRevealer(edict_t const *ent) {
     if (ent->svflags & SVF_NOCLIENT) {
         return false;
     }
-    if (ent->s.renderfx & RF_HIDDEN) {
+    /* Gameplay-invisible units still provide sight to their owner. Only
+     * non-invisibility RF_HIDDEN states suppress a unit's fog reveal. */
+    if ((ent->s.renderfx & RF_HIDDEN) &&
+        S_UnitIsHiddenFromPlayer(ent, ent->s.player)) {
         return false;
     }
     if (M_IsDead((edict_t *)ent)) {

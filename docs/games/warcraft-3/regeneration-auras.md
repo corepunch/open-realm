@@ -62,7 +62,7 @@ categories needed by the stock regeneration family and nearby custom variants:
 
 Aura participation also requires both the source and recipient to be active rather than
 hidden or gameplay-invisible. `RF_HIDDEN` covers explicit hidden state and temporary
-invisibility such as Invisibility/Wind Walk; Permanent Invisibility and Shadow Meld use
+invisibility such as Invisibility/Wind Walk; Permanent Invisibility, Ghost, and Shadow Meld use
 their separate authoritative states. Fog-of-war visibility and true-sight detection do
 not alter this rule: an invisible unit does not provide or receive an aura merely because
 a viewer can detect it.

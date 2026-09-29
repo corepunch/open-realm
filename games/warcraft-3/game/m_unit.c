@@ -1337,9 +1337,6 @@ void unit_updatestatuses(edict_t *ent) {
             if (unit_status_timedlife(status->code)) {
                 kill = true;
             }
-            if (status->code == MAKEFOURCC('B', 'O', 'w', 'k')) {
-                ent->s.renderfx &= ~RF_HIDDEN;
-            }
             if (status->code == MAKEFOURCC('B', 'm', 'i', 'l')) {
                 militia_expired = true;
             }

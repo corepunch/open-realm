@@ -667,6 +667,8 @@ typedef struct {
 #define AB_UPDATE       (1u << 7)  // bit 7; persistent behavior procedure; receives per-unit update messages
 #define AB_ITEM         (1u << 8)  // bit 8; inventory behavior procedure; receives item-use messages
 #define AB_INNATE       (1u << 9)  // bit 9; unit-data behavior; receives lifecycle messages without a command-card slot
+#define AB_COOLDOWN_ON_STATUS_REMOVE (1u << 10) // bit 10; defer spell cooldown until its owned status ends
+#define AB_STATUS_EVENTS (1u << 11) // bit 11; active statuses from this ability accept generic status policy events
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -762,6 +764,10 @@ typedef enum {
     A_STATUS_DEATH,     /* Victim died with this status active; independent of the victim's learned abilities. */
     A_ISSUED_TARGET_ORDER, /* Issuer ability gets the target/order before generic Smart fallback. */
     A_NATURAL_MANA_REGEN_BLOCKED, /* Ability query: return true to suppress UnitBalance.manaRegen. */
+    A_MOVE_COLLISION_QUERY, /* Active status ability query: true ignores dynamic unit collision for Move. */
+    A_SPELL_COMMIT,      /* Accepted spell commit notification; call->item is the spell being committed. */
+    A_ATTACK_DAMAGE_BONUS, /* Active status ability query: return additive attack damage. */
+    A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
 } abilityMsg_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call)
@@ -1163,6 +1169,7 @@ typedef struct {
 
 #define UNIT_BALANCE_BUILDING 0x1 // bit; current rooted/building mode; immutable unit-type metadata remains separate
 #define UNIT_BALANCE_PERMANENT_INVISIBLE 0x2 // bit; cached Apiv classification for hot per-viewer FOW checks
+#define UNIT_BALANCE_GHOST_INVISIBLE 0x4 // bit; Agho persistent invisibility; detection reveals without breaking it
 #define WC3_UNIT_TYPE_STRUCTURE 2 // handle value; Warcraft structure type; used by IsUnitType
 #define WC3_UNIT_TYPE_GROUND 4 // handle value; authored ground movement class; used by IsUnitType
 #define WC3_UNIT_TYPE_POLYMORPHED 22 // handle value; Warcraft Polymorphed type; used by IsUnitType
@@ -1234,7 +1241,7 @@ typedef struct heroabilitystatus_s {
     uint32_t level;
     uint32_t timestamp;
     uint32_t duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
-    uint32_t data; /* applying ability rawcode for lifecycle dispatch; legacy Anti-Magic Shell absorption payload */
+    uint32_t data; /* applying ability rawcode or ability-specific numeric payload */
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
 } heroabilitystatus_t;
@@ -2239,6 +2246,7 @@ void G_RemoveUnitForcedVisibility(edict_t *unit, uint32_t viewer);
 bool G_UnitIsForcedVisibleToPlayer(edict_t const *unit, uint32_t viewer);
 bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player);
 bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player);
+bool S_UnitIsHiddenFromPlayer(edict_t const *unit, uint32_t player);
 bool S_ShadowMeldActive(edict_t const *unit);
 float S_ShadowMeldPresentationAlpha(edict_t const *unit);
 void S_ShadowMeldBreak(edict_t *unit);

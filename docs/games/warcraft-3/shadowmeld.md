@@ -54,3 +54,5 @@ Owner/shared-vision Shadow Meld presentation now reuses the WC3 per-client verte
 - a hidden unit responding to incoming attacks through the normal retaliation path;
 - daytime rejection of the classic `ambush` order;
 - shared aura coverage additionally verifies Shadowmelded aura sources and recipients are excluded.
+
+See also [Invisibility mechanics](invisibility.md) for the shared detector/player-relative visibility contract and Wind Walk/Ghost/item invisibility ownership.

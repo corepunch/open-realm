@@ -60,15 +60,6 @@ BZ_SIMPLE_SPELL_PROC(AbilityStomp) {
 /* Name=Endurance Aura
  * Ubertip="Increases nearby friendly units' movement speed and attack rate."
  */
-/* Name=Wind Walk
- * Ubertip="Allows the Blademaster to become invisible and move faster until it attacks or uses an ability."
- */
-BZ_SIMPLE_SPELL_PROC(AbilityWindWalk) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    caster->s.renderfx |= RF_HIDDEN;
-    unit_addtimedstatus(caster, "BOwk", level, S_SpellDuration(spell->code, level, true));
-}
-
 /* Name=Mana Burn
  * Ubertip="Sends a bolt of negative energy that burns a target enemy unit's mana and deals damage proportional to the amount of mana burned."
  */

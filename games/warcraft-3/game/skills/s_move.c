@@ -320,7 +320,9 @@ static void unit_moveindirection_policy(edict_t *self,
 }
 
 void unit_moveindirection(edict_t *self) {
-    unit_moveindirection_policy(self, MOVE_COLLIDE_UNITS);
+    unit_moveindirection_policy(self,
+        S_UnitStatusAbilityEvent(self, A_MOVE_COLLISION_QUERY, NULL) ?
+        MOVE_IGNORE_UNITS : MOVE_COLLIDE_UNITS);
 }
 
 void unit_moveindirection_ignore_units(edict_t *self) {
@@ -453,7 +455,9 @@ static float unit_worker_desired_heading(edict_t *self, float goal_angle, float 
 static float unit_desired_heading(edict_t *self, float goal_angle, float dist,
                                   moveAvoidPolicy_t policy) {
     moveCollisionPolicy_t const collision_policy =
-        policy == MOVE_AVOID_STATIC_ONLY ? MOVE_IGNORE_UNITS : MOVE_COLLIDE_UNITS;
+        (policy == MOVE_AVOID_STATIC_ONLY ||
+         S_UnitStatusAbilityEvent(self, A_MOVE_COLLISION_QUERY, NULL)) ?
+        MOVE_IGNORE_UNITS : MOVE_COLLIDE_UNITS;
     vec2_t const straight = Vector2_mad(&self->s.origin2, dist,
                                          &MAKE(vec2_t, cosf(goal_angle), sinf(goal_angle)));
     if (policy == MOVE_AVOID_RESOURCE_WORKER)

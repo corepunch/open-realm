@@ -3063,6 +3063,31 @@ TEST(wc3_game, fow_visible_clears_but_explored_remains) {
     G_FowShutdown();
 }
 
+TEST(wc3_game, invisible_friendly_unit_keeps_revealing_fog_as_it_moves) {
+    uint32_t destination;
+    edict_t *unit;
+
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    unit->s.player = 0;
+    unit->runtime.sight_radius.day = 128.0f;
+    unit->health.value = unit->health.max_value = 1.0f;
+
+    G_FowUpdate();
+    unit_addtimedstatus(unit, "Binv", 1, 120.0f);
+    unit->s.renderfx |= RF_HIDDEN;
+    unit->s.origin.x = 512.0f;
+    unit->s.origin.y = 512.0f;
+    G_FowUpdate();
+
+    destination = G_FowWorldToCellY(512.0f) * level.fow.width + G_FowWorldToCellX(512.0f);
+    T_ASSERT(level.fow.players[0].visible[destination]);
+    T_ASSERT(level.fow.players[0].explored[destination]);
+    G_FowShutdown();
+}
+
 TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
     reset_entities();
     G_FowInit();

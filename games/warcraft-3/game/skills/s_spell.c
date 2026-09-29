@@ -624,14 +624,20 @@ static void spell_begin_channel(edict_t *caster, uint32_t code) {
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
 static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t *active_approach) {
+    abilityitem_t committed = S_AbilityItem(code);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &committed);
+
     spell_cancel_target_approaches(caster, active_approach);
     S_SpellCancelChannel(caster);
     S_HumanBreakInvisibility(caster);
     S_PermanentInvisibilityReveal(caster);
+    S_UnitStatusAbilityEvent(caster, A_SPELL_COMMIT, &call);
     if (code != MAKEFOURCC('A', 's', 'h', 'm') && code != MAKEFOURCC('A', 'h', 'i', 'd'))
         S_ShadowMeldBreak(caster);
     S_SpellSpendMana(caster, code, level);
-    S_SpellStartCooldown(caster, code, level);
+    if (!committed.ability || !(committed.ability->flags & AB_COOLDOWN_ON_STATUS_REMOVE)) {
+        S_SpellStartCooldown(caster, code, level);
+    }
     S_ManaFlareOnCast(caster, code, level);
 }
 

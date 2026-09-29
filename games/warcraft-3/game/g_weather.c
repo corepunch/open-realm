@@ -60,7 +60,7 @@ void G_WeatherInitMap(void) {
 static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color32_t *out) {
     uint32_t player;
     color32_t color;
-    float shadowmeld_alpha = 1.0f;
+    float presentation_alpha = 1.0f;
 
     if (!unit || !unit->inuse || !out) return false;
     color = unit->vertex_color_set ? unit->vertex_color : COLOR32_WHITE;
@@ -68,12 +68,15 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
     if (client_ent && client_ent->client) {
         player = client_ent->client->ps.number;
         if (unit->s.player != player && !G_FowPlayerCanSeeEntity(player, unit)) return false;
-        if (unit->s.player == player || G_FowPlayersShareVision(player, unit->s.player))
-            shadowmeld_alpha = S_ShadowMeldPresentationAlpha(unit);
+        if (unit->s.player == player || G_FowPlayersShareVision(player, unit->s.player)) {
+            presentation_alpha = S_ShadowMeldPresentationAlpha(unit);
+            if (S_UnitHasInvisibilityState(unit))
+                presentation_alpha = MIN(presentation_alpha, 0.35f);
+        }
     }
 
-    if (!unit->vertex_color_set && shadowmeld_alpha >= 1.0f) return false;
-    color.a = (uint8_t)MIN(255, MAX(0, (int)((float)color.a * shadowmeld_alpha + 0.5f)));
+    if (!unit->vertex_color_set && presentation_alpha >= 1.0f) return false;
+    color.a = (uint8_t)MIN(255, MAX(0, (int)((float)color.a * presentation_alpha + 0.5f)));
     *out = color;
     return true;
 }
