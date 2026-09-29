@@ -1957,6 +1957,16 @@ CLIENTCOMMAND(Menu) {
     UI_ShowMainMenu(clent);
 }
 
+CLIENTCOMMAND(MenuOptions) {
+    (void)argc; (void)argv;
+    UI_ShowGameMenuOptions(clent);
+}
+
+CLIENTCOMMAND(MenuOptionsSound) {
+    (void)argc; (void)argv;
+    UI_ShowGameMenuOptionsSound(clent);
+}
+
 CLIENTCOMMAND(MenuEndGame) {
     (void)argc; (void)argv;
     UI_ShowGameMenuEndGame(clent);
@@ -2854,6 +2864,8 @@ clientCommand_t clientCommands[] = {
     { "sound_event", CMD_SoundEvent },
     { "camera", CMD_Camera },
     { "menu", CMD_Menu },
+    { "wc3_menu_options", CMD_MenuOptions },
+    { "wc3_menu_options_sound", CMD_MenuOptionsSound },
     { "menu_endgame", CMD_MenuEndGame },
     { "menu_restart", CMD_MenuRestart },
     { "menu_quit_game", CMD_MenuQuitGame },

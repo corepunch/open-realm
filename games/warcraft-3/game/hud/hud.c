@@ -594,7 +594,8 @@ bool UI_BuildFrameForWrite(frameDef_t const *frame,
             } else { buf.overflowed = true; }
             break;
         }
-        case FT_SCROLLBAR: {
+        case FT_SCROLLBAR:
+        case FT_SLIDER: {
             uiScrollBar_t data = MakeScrollBar(frame);
             float range = frame->Slider.MaxValue - frame->Slider.MinValue;
             out->value = range > 0.0f

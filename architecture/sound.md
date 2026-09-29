@@ -18,6 +18,8 @@ because the upstream report [#145](https://github.com/lieff/minimp3/issues/145) 
 
 Movies and background music use client-owned stereo S16 / 44.1-kHz ring buffers rather than one-shot `sfx_t` channels. `sound/s_local.h` defines generic `S_STREAM_MOVIE` and `S_STREAM_MUSIC` slots; each has independent active, pause, volume, buffer state, and a consumed-frame counter reset by `S_StreamStart()`. `S_StreamPlayedFrames()` exposes that counter under the audio-device lock so presentation code can snapshot the amount actually heard without treating decoded-but-buffered PCM as elapsed playback. The SDL callback mixes both streams before ordinary SFX.
 
+Ordinary one-shot/game SFX have a separate archived user master: `s_sound` gates them and `s_volume` supplies a clamped `0.0..1.0` multiplier. The client samples those CVars on its normal frame thread and publishes the resulting gain to the mixer under the audio-device lock; the callback does not read the CVar registry. Music remains on its independent `S_STREAM_MUSIC` gain, so the legacy Sound and Music sliders do not overwrite authored packet/JASS volumes or each other.
+
 WC3 music is transported separately with reliable `svc_music`: game-specific code resolves `war3skins.txt` and `Music.slk`, while `client/cl_music.c` owns playlist and optional FFmpeg decoding. Movies use `S_STREAM_MOVIE` and temporarily suspend `S_STREAM_MUSIC` without resetting its decoder/buffer. Keep new long-form sources generic at the `client/`/`sound/` boundary; game-specific aliases and metadata stay under `games/<game>/`.
 
 ## Entity Sound Events (One-Shot)

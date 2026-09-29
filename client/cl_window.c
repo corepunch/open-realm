@@ -44,12 +44,21 @@ typedef struct clientWindow_s {
 } clientWindow_t;
 
 static struct {
-    clientWindow_t *first, *last, *focus, *drag, *scroll_drag, *edit_window;
+    clientWindow_t *first, *last, *focus, *drag, *scroll_drag, *slider_drag, *edit_window;
     uint32_t scroll_drag_frame;
+    uint32_t slider_drag_frame;
     uint32_t edit_frame;
     vec2_t drag_point, drag_offset;
     bool modal_paused;
 } cl_windows;
+
+static struct {
+    bool active;
+    char sound_enabled[32];
+    char sound_volume[32];
+    char music_enabled[32];
+    char music_volume[32];
+} cl_local_audio_transaction;
 
 static rect_t CL_WindowRoot(clientWindow_t const *window);
 static bool CL_WindowIsEditBox(uiFrame_t const *frame);
@@ -57,6 +66,70 @@ static uiFrame_t *CL_WindowEditTextFrame(uiFrame_t const *edit);
 
 static bool CL_WindowDebugEnabled(void) {
     return Cvar_Integer("ui_window_debug", 0) != 0;
+}
+
+typedef enum {
+    LOCAL_AUDIO_NONE,
+    LOCAL_AUDIO_SOUND_ENABLED,
+    LOCAL_AUDIO_SOUND_VOLUME,
+    LOCAL_AUDIO_MUSIC_ENABLED,
+    LOCAL_AUDIO_MUSIC_VOLUME,
+} localAudioPreference_t;
+
+/* Keep local audio controls on a fixed whitelist instead of interpreting wire strings as cvar names. */
+static localAudioPreference_t CL_WindowLocalAudioPreference(uiFrame_t const *frame) {
+    cstring_t action;
+
+    if (!frame || !(action = frame->onclick)) return LOCAL_AUDIO_NONE;
+    if (!strcmp(action, UI_WINDOW_LOCAL_SOUND_ENABLED_ACTION)) return LOCAL_AUDIO_SOUND_ENABLED;
+    if (!strcmp(action, UI_WINDOW_LOCAL_SOUND_VOLUME_ACTION)) return LOCAL_AUDIO_SOUND_VOLUME;
+    if (!strcmp(action, UI_WINDOW_LOCAL_MUSIC_ENABLED_ACTION)) return LOCAL_AUDIO_MUSIC_ENABLED;
+    if (!strcmp(action, UI_WINDOW_LOCAL_MUSIC_VOLUME_ACTION)) return LOCAL_AUDIO_MUSIC_VOLUME;
+    return LOCAL_AUDIO_NONE;
+}
+
+/* Resolve the only client cvars that a server-authored local-audio action may change. */
+static cstring_t CL_WindowLocalAudioCvar(localAudioPreference_t preference) {
+    switch (preference) {
+        case LOCAL_AUDIO_SOUND_ENABLED: return "s_sound";
+        case LOCAL_AUDIO_SOUND_VOLUME: return "s_volume";
+        case LOCAL_AUDIO_MUSIC_ENABLED: return "s_music";
+        case LOCAL_AUDIO_MUSIC_VOLUME: return "s_musicvolume";
+        default: return NULL;
+    }
+}
+
+static bool CL_WindowLocalAudioCheckBox(localAudioPreference_t preference) {
+    return preference == LOCAL_AUDIO_SOUND_ENABLED || preference == LOCAL_AUDIO_MUSIC_ENABLED;
+}
+
+/* Convert a normalized frame value to the local audio cvar representation. */
+static void CL_WindowSetLocalAudioPreference(localAudioPreference_t preference, float value) {
+    cstring_t name = CL_WindowLocalAudioCvar(preference);
+    char text[32];
+
+    if (!name) return;
+    if (CL_WindowLocalAudioCheckBox(preference))
+        snprintf(text, sizeof(text), "%u", value >= 0.5f ? 1u : 0u);
+    else
+        snprintf(text, sizeof(text), "%.3f", (double)MIN(1.0f, MAX(0.0f, value)));
+    Cvar_Set(name, text);
+}
+
+/* Reapply local preferences after parsing the transient window's wire layout. */
+static void CL_WindowApplyLocalPreferences(void) {
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t *frame = SCR_Frame(i);
+        localAudioPreference_t preference;
+        cstring_t name;
+
+        if (!frame || !(preference = CL_WindowLocalAudioPreference(frame)) ||
+            !(name = CL_WindowLocalAudioCvar(preference))) continue;
+        if (CL_WindowLocalAudioCheckBox(preference))
+            frame->value = Cvar_Integer(name, 1) != 0 ? 1.0f : 0.0f;
+        else
+            frame->value = MIN(1.0f, MAX(0.0f, Cvar_Value(name, 1.0f)));
+    }
 }
 
 static cstring_t CL_WindowImageName(RESOURCE image) {
@@ -480,6 +553,79 @@ static bool CL_WindowFormatCommand(clientWindow_t *window, cstring_t src, window
     return true;
 }
 
+typedef enum {
+    LOCAL_AUDIO_TRANSACTION_NONE,
+    LOCAL_AUDIO_TRANSACTION_BEGIN,
+    LOCAL_AUDIO_TRANSACTION_ACCEPT,
+    LOCAL_AUDIO_TRANSACTION_CANCEL,
+} localAudioTransactionAction_t;
+
+/* Decode transaction prefixes while keeping their server-command suffix opaque to local preference logic. */
+static localAudioTransactionAction_t CL_WindowLocalAudioTransactionAction(cstring_t action,
+                                                                           cstring_t *command) {
+    if (!action || !command) return LOCAL_AUDIO_TRANSACTION_NONE;
+    if (!strncmp(action, UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX) - 1;
+        return LOCAL_AUDIO_TRANSACTION_BEGIN;
+    }
+    if (!strncmp(action, UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX) - 1;
+        return LOCAL_AUDIO_TRANSACTION_ACCEPT;
+    }
+    if (!strncmp(action, UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX) - 1;
+        return LOCAL_AUDIO_TRANSACTION_CANCEL;
+    }
+    return LOCAL_AUDIO_TRANSACTION_NONE;
+}
+
+/* Capture the current values before the in-game Sound page allows live edits. */
+static void CL_WindowBeginLocalAudioTransaction(void) {
+    snprintf(cl_local_audio_transaction.sound_enabled,
+             sizeof(cl_local_audio_transaction.sound_enabled), "%s",
+             Cvar_String("s_sound", "1"));
+    snprintf(cl_local_audio_transaction.sound_volume,
+             sizeof(cl_local_audio_transaction.sound_volume), "%s",
+             Cvar_String("s_volume", "1"));
+    snprintf(cl_local_audio_transaction.music_enabled,
+             sizeof(cl_local_audio_transaction.music_enabled), "%s",
+             Cvar_String("s_music", "1"));
+    snprintf(cl_local_audio_transaction.music_volume,
+             sizeof(cl_local_audio_transaction.music_volume), "%s",
+             Cvar_String("s_musicvolume", "1"));
+    cl_local_audio_transaction.active = true;
+}
+
+/* Accept keeps the live values; Cancel restores the snapshot captured on entry. */
+static void CL_WindowFinishLocalAudioTransaction(bool cancel) {
+    if (!cl_local_audio_transaction.active) return;
+    if (cancel) {
+        Cvar_Set("s_sound", cl_local_audio_transaction.sound_enabled);
+        Cvar_Set("s_volume", cl_local_audio_transaction.sound_volume);
+        Cvar_Set("s_music", cl_local_audio_transaction.music_enabled);
+        Cvar_Set("s_musicvolume", cl_local_audio_transaction.music_volume);
+    }
+    cl_local_audio_transaction.active = false;
+}
+
+/* Apply the local transaction action, then forward only its authored server-command suffix. */
+static bool CL_WindowRunLocalAudioTransactionCommand(clientWindow_t *window, cstring_t action) {
+    cstring_t source = NULL;
+    localAudioTransactionAction_t transaction = CL_WindowLocalAudioTransactionAction(action, &source);
+    char command[CMDARG_LEN * 4];
+
+    if (transaction == LOCAL_AUDIO_TRANSACTION_NONE) return false;
+    if (!CL_WindowFormatCommand(window, source, &MAKE(windowTextOut_t, .data = command, .size = sizeof(command))))
+        return true;
+    if (transaction == LOCAL_AUDIO_TRANSACTION_BEGIN) CL_WindowBeginLocalAudioTransaction();
+    else CL_WindowFinishLocalAudioTransaction(transaction == LOCAL_AUDIO_TRANSACTION_CANCEL);
+    Cmd_ForwardToServer(command);
+    return true;
+}
+
 static void CL_WindowPrepareState(clientWindow_t *window, rect_t const *root) {
     if (!window) return;
     SCR_WindowPrepare(window->layout, root);
@@ -501,6 +647,7 @@ static void CL_WindowPrepareState(clientWindow_t *window, rect_t const *root) {
         if (frame && frame->buffer.data && frame->buffer.size >= sizeof(uiListBox_t))
             ((uiListBox_t *)frame->buffer.data)->selectedIndex = value->selected;
     }
+    CL_WindowApplyLocalPreferences();
 }
 
 static uiFrame_t *CL_WindowScrollOwner(uiFrame_t *frame) {
@@ -644,7 +791,18 @@ static uiFrame_t const *CL_WindowClickableAt(clientWindow_t *window, vec2_t cons
 /* Consume client-owned button actions locally; ordinary layout actions remain server commands. */
 static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *frame) {
     size_t const close_command_len = sizeof(UI_WINDOW_CLOSE_COMMAND_PREFIX) - 1;
+    localAudioPreference_t preference;
     if (!frame) return;
+    if (CL_WindowRunLocalAudioTransactionCommand(window, frame->onclick)) return;
+    preference = CL_WindowLocalAudioPreference(frame);
+    if (CL_WindowLocalAudioCheckBox(preference)) {
+        CL_WindowSetLocalAudioPreference(preference, frame->value < 0.5f ? 1.0f : 0.0f);
+        return;
+    }
+    if (preference == LOCAL_AUDIO_SOUND_VOLUME || preference == LOCAL_AUDIO_MUSIC_VOLUME) {
+        CL_WindowSetLocalAudioPreference(preference, frame->value);
+        return;
+    }
     if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION) ||
         !strcmp(frame->onclick, UI_WINDOW_CLOSE_NOTIFY_ACTION)) {
         CL_WindowClose(window->id);
@@ -670,6 +828,14 @@ static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *fram
     }
 }
 
+static void CL_WindowEndSliderDrag(void) {
+    clientWindow_t *window = cl_windows.slider_drag;
+
+    if (window && window->layout) SCR_LayoutSetPointer(window->layout, 0, false);
+    cl_windows.slider_drag = NULL;
+    cl_windows.slider_drag_frame = 0;
+}
+
 void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
     clientWindow_t *window = CL_WindowById(def->id);
     if (!window && (def->flags & UI_WINDOW_UNIQUE)) window = CL_WindowByClass(def->class_id);
@@ -682,6 +848,7 @@ void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
         cl_windows.last = window;
     } else {
         if (cl_windows.edit_window == window) CL_WindowBlurEdit();
+        if (cl_windows.slider_drag == window) CL_WindowEndSliderDrag();
         SAFE_DELETE(window->layout, MemFree);
     }
     window->id = def->id; window->class_id = def->class_id; window->flags = def->flags; window->layout = layout;
@@ -711,6 +878,7 @@ void CL_WindowClose(uint32_t id) {
         cl_windows.scroll_drag = NULL;
         cl_windows.scroll_drag_frame = 0;
     }
+    if (cl_windows.slider_drag == window) CL_WindowEndSliderDrag();
     CL_WindowUnlink(window);
     SAFE_DELETE(window->layout, MemFree);
     MemFree(window);
@@ -721,6 +889,8 @@ void CL_WindowClose(uint32_t id) {
 void CL_WindowClear(void) {
     while (cl_windows.first) CL_WindowClose(cl_windows.first->id);
     memset(&cl_windows, 0, sizeof(cl_windows));
+    /* A full client-state clear ends this edit session without restoring stale preferences. */
+    cl_local_audio_transaction.active = false;
 }
 
 bool CL_WindowModalActive(void) { return CL_WindowModal() != NULL; }
@@ -748,10 +918,40 @@ void CL_WindowDraw(void) {
     }
 }
 
+static void CL_WindowSliderSetFromPoint(clientWindow_t *window, uiFrame_t *slider, vec2_t const *point) {
+    rect_t const *rect;
+    localAudioPreference_t preference;
+    float value;
+
+    if (!window || !slider || !point || slider->flags.type != FT_SLIDER) return;
+    preference = CL_WindowLocalAudioPreference(slider);
+    if (preference != LOCAL_AUDIO_SOUND_VOLUME && preference != LOCAL_AUDIO_MUSIC_VOLUME) return;
+    rect = SCR_LayoutRect(slider);
+    if (!rect || rect->w <= 0.0f || rect->h <= 0.0f) return;
+    value = (point->x - rect->x) / rect->w;
+    value = MIN(1.0f, MAX(0.0f, value));
+    slider->value = value;
+    CL_WindowSetLocalAudioPreference(preference, value);
+}
+
 bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     vec2_t point = SCR_ScreenToUI(x, y);
     clientWindow_t *modal = CL_WindowModal(), *window;
     uiFrame_t const *frame;
+
+    if (cl_windows.slider_drag) {
+        rect_t root = CL_WindowRoot(cl_windows.slider_drag);
+        CL_WindowPrepareState(cl_windows.slider_drag, &root);
+        uiFrame_t *slider = SCR_Frame(cl_windows.slider_drag_frame);
+        if (event == MENU_MOUSE_MOVE && slider && slider->flags.type == FT_SLIDER)
+            CL_WindowSliderSetFromPoint(cl_windows.slider_drag, slider, &point);
+        else if (event == MENU_MOUSE_UP && param == 1) {
+            if (slider && slider->flags.type == FT_SLIDER)
+                CL_WindowSliderSetFromPoint(cl_windows.slider_drag, slider, &point);
+            CL_WindowEndSliderDrag();
+        }
+        return true;
+    }
 
     if (cl_windows.scroll_drag) {
         rect_t root = CL_WindowRoot(cl_windows.scroll_drag);
@@ -785,7 +985,16 @@ bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
             return true;
 
         if (event == MENU_MOUSE_DOWN && param == 1) {
+            uiFrame_t *slider = CL_WindowFrameAtType(&point, FT_SLIDER);
             uiFrame_t *edit = CL_WindowFrameAtType(&point, FT_EDITBOX);
+            if (slider && (CL_WindowLocalAudioPreference(slider) == LOCAL_AUDIO_SOUND_VOLUME ||
+                           CL_WindowLocalAudioPreference(slider) == LOCAL_AUDIO_MUSIC_VOLUME)) {
+                CL_WindowSliderSetFromPoint(window, slider, &point);
+                cl_windows.slider_drag = window;
+                cl_windows.slider_drag_frame = slider->number;
+                SCR_LayoutSetPointer(window->layout, slider->number, true);
+                return true;
+            }
             uiFrame_t *list = CL_WindowFrameAtType(&point, FT_LISTBOX);
             uiFrame_t *list_scrollbar = CL_WindowFrameAtType(&point, FT_SCROLLBAR);
             if (!edit) edit = CL_WindowFrameAtType(&point, FT_GLUEEDITBOX);

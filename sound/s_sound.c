@@ -475,8 +475,8 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
         if (!s.channels[ch].active || !s.channels[ch].sc) continue;
         S_SpatializeChannel(ch);
         sfxcache_t *sc   = s.channels[ch].sc;
-        float       lvol = s.channels[ch].leftvol;
-        float       rvol = s.channels[ch].rightvol;
+        float       lvol = s.channels[ch].leftvol * s.user_volume;
+        float       rvol = s.channels[ch].rightvol * s.user_volume;
         int         pos  = s.channels[ch].pos;
         int         skip = MIN(frames, s.channels[ch].delay);
         s.channels[ch].delay -= skip;
@@ -533,6 +533,7 @@ bool S_Init(void) {
         fprintf(stderr, "[sound] SDL_OpenAudioDevice: %s\n", SDL_GetError());
         return false;
     }
+    s.user_volume = 1.0f;
     SDL_PauseAudioDevice(s.device, 0);
     S_LoadSoundEntries();
     s.initialized = true;
@@ -863,6 +864,18 @@ void S_StreamStop(sStreamId_t stream) {
 void S_SetListener(vec2_t const *origin, vec2_t const *right) {
     s.listener.origin = *origin;
     s.listener.right  = *right;
+}
+
+void S_SetUserVolume(float volume) {
+    volume = MAX(0.0f, MIN(volume, 1.0f));
+    if (!s.initialized || s.user_volume == volume) return;
+    if (!s.device) {
+        s.user_volume = volume;
+        return;
+    }
+    SDL_LockAudioDevice(s.device);
+    s.user_volume = volume;
+    SDL_UnlockAudioDevice(s.device);
 }
 
 
