@@ -16,7 +16,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 15 // version; camera noise fields extend the player-state delta schema
+#define BZ_PROTOCOL_VERSION 16 // version; adds terrain-deformation temp events on top of the v15 camera-noise player-state fields
 
 
 typedef struct entityState_s entityState_t;

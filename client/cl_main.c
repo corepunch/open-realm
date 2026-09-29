@@ -1024,7 +1024,7 @@ TEST(client_session, connection_reply_requires_matching_protocol) {
     struct client_static old_cls = cls;
     void (*old_register_map)(cstring_t) = re.RegisterMap;
     netadr_t loopback = { .type = NA_LOOPBACK };
-    cstring_t replies[] = { "client_connect", "client_connect 8",
+    cstring_t replies[] = { "client_connect", "client_connect 14",
         "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION) };
     memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
     re.RegisterMap = CL_TestRegisterMap;

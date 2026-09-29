@@ -32,7 +32,7 @@
 #include "../client/cl_input_local.h"
 
 TEST(net, protocol_version_covers_camera_noise_player_state_fields) {
-    T_EQ(BZ_PROTOCOL_VERSION, 15);
+    T_EQ(BZ_PROTOCOL_VERSION, 16);
 }
 
 static cstring_t minimap_map;
