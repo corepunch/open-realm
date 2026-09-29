@@ -6,7 +6,7 @@
 #define WEATHER_SCALE_QUANT 16.0f
 #define WEATHER_MIN_EMIT_RADIUS 1024.0f
 #define WEATHER_DEG2RAD 0.01745329251994329577f
-#define WEATHER_EMISSION_TICK_HZ 20.0f // Hz; best guess from count/lifespan ratios; scales weather emission
+#define WEATHER_AGGREGATE_RATE_SCALE 20.0f // Approximate retail's multiple spatial weather emitters.
 
 typedef struct {
     uint32_t id;
@@ -352,8 +352,9 @@ void R_WeatherEmit(void) {
         if (!effect->inuse || !effect->enabled || !art || !effect->texture ||
             art->emissionRate <= 0.0f || art->lifespan <= 0.0f ||
             !R_WeatherIntersect(&visible, &effect->bounds, &area)) continue;
-        /* TODO: Best guess until compared to retail; the old path treated emrate as particles/second. */
-        effect->emission_accum += art->emissionRate * WEATHER_EMISSION_TICK_HZ * (float)delta_ms / 1000.0f;
+        /* TODO: Compare aggregate density and caps per weather region against retail. */
+        effect->emission_accum += art->emissionRate * WEATHER_AGGREGATE_RATE_SCALE *
+                                  (float)delta_ms / 1000.0f;
         emit_count = (uint32_t)effect->emission_accum;
         effect->emission_accum -= (float)emit_count;
         live_count = R_CountParticlesForEmitter(effect->handle);

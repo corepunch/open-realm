@@ -101,9 +101,11 @@ map's SLK remains authoritative at runtime.
 
 `r_weather.c` emits only inside the intersection of the weather rectangle and a
 camera-local world window.  Large map-wide weather therefore does not allocate
-particles across the entire map.  Emission accrues the authored `emrate` across
-frame time, then applies the provisional 20 Hz interpretation described below.
-The authored `particles` count caps live logical particles per weather effect.
+particles across the entire map. Emission accrues the authored `emrate` across
+frame time. Retail tracing confirms that `emrate` is a per-second rate for each
+weather emitter. OpenRealm currently applies an effect-level aggregate-rate
+scale to approximate retail's multiple emitters, as described below. The
+authored `particles` count is retained as the effect's live-particle limit.
 
 Spawn height is terrain height plus the authored `height`.  `angx`/`angy` rotate
 the base vertical direction, `veloc` supplies signed speed, `var` applies the
@@ -264,35 +266,73 @@ The GL enum values are recorded numerically so the output is machine-readable:
 `8448=GL_MODULATE`, `770=GL_SRC_ALPHA`, `771=GL_ONE_MINUS_SRC_ALPHA`, and
 `518=GL_GEQUAL`.
 
-## Undead01 Rain Fidelity: Best Guess
+## Retail Rain Emission Density
 
 Undead01's JASS in `Maps/Campaign/Undead01.w3m` (inside `War3Local.mpq`)
 enables `RLlr` (Lordaeron light rain). The base `War3.mpq` row has `emrate=40`,
 `lifespan=1.1`, `particles=880`, `alphaMode=0`, `alphaStart/Mid/End=150`,
-`head=0`, and `tail=1`. This is separate from the map's `SetSkyModel` choice.
+`head=0`, and `tail=1`. Prologue01's opening uses `RLhr`, whose row has
+`emrate=100`, `lifespan=0.9`, and `particles=1800`.
 
 These commands inspect the installed source data without relying on an
 extracted working-tree file:
 
 ```sh
-build/bin/mpqtool -mpq "data/Warcraft III/War3Local.mpq" cat Maps/Campaign/Undead01.w3m > /tmp/Undead01.w3m
+build/bin/mpqtool -mpq "data/warcraft-3/War3Local.mpq" cat Maps/Campaign/Undead01.w3m > /tmp/Undead01.w3m
 build/bin/mpqtool -mpq /tmp/Undead01.w3m cat war3map.j | rg -n "RLlr|SetSkyModel"
-build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat TerrainArt/Weather.slk | rg -n "RLlr"
+build/bin/mpqtool -mpq "data/warcraft-3/War3.mpq" cat TerrainArt/Weather.slk | rg -n "RLlr"
 ```
 
-Before this change, OpenRealm treated `emrate` as particles per second. At
-steady state, `40 * 1.1` predicts about 44 live rain particles before any pool
-limit. The row's `particles=880` is exactly twenty times that estimate. The
-same 20x relationship appears in shipped rain rows such as `RAhr`
-(`100 * 0.9 * 20 = 1800`).
+The `particles / (emrate * lifespan) = 20` relationship in shipped rain rows
+initially suggested that retail applied `emrate` once per 50 ms tick. Retail
+executable analysis and a live trace resolve the rate semantics: each emitter
+accumulates `emrate` as a per-second rate. The aggregate rate of a map's whole
+weather effect also depends on how many emitters retail creates for its region.
 
-**Best-guess density hypothesis, not confirmed retail behavior:** Warcraft may
-apply `emrate` once per 50 ms weather update (20 Hz), making `RLlr` emit about
-800 particles per second and reach its authored 880-particle cap. The renderer
-now applies that multiplier and cap, with frame-time accumulation. Community
-Weather.slk guidance describes `emrate` as particles per second and
-`particles` as a maximum, so the field relationship alone does not prove the
-20 Hz interpretation ([The Helper weather guide](https://world-editor-tutorials.thehelper.net/cat_usersubmit.php?view=112038)).
+In the hash-verified retail executable
+(`3f2ed0120d80578bf07e4423296dade1adfb959d59a2d20a7584224559570eed`), the
+generic emitter update at VA `0x0097d170` loads the rate from `this + 0xa8`,
+multiplies it by the clamped frame delta, and adds that amount to the fractional
+emission accumulator at `this + 8`. The helper at VA `0x009794b0` supplies
+`1.0`, so it adds no tick-rate scale. The update then emits the accumulated
+whole particles and keeps the fractional remainder. The weather-specific
+particle initializer is at VA `0x0097f1c0`.
+
+A read-only Frida trace of the unmodified Prologue01 scene hooked that
+initializer and observed 23 active weather emitter objects with rate `100`.
+Their initializer argument was `0.025` seconds, matching the update's frame
+delta: each emitter accrues `100 * 0.025 = 2.5` particle credits per update,
+which is 100 particles per second per emitter. The sampled live counts were
+mostly 80 or 81 per emitter. Sequential per-object sums were 1,845 and 1,858 in
+two captures; these are non-atomic reads, not proof of the exact global cap.
+The roughly 1.85K live-particle total is consistent with the row's
+`particles=1800` value. The 20x row ratio therefore should not be read as an
+engine tick rate; Prologue01 has many concurrent weather emitters.
+
+### Reproduce the density trace
+
+Launch the hash-verified retail executable on the unmodified Prologue01 map and
+reach the opening rain scene using the setup in [Reproduce the alpha
+trace](#reproduce-the-trace). Then attach the read-only rate probe:
+
+```sh
+WC3DATA="$PWD/data/warcraft-3"
+"$HOME/.local/share/open-realm/tools/frida-venv/bin/python" \
+  tools/frida/trace_wc3_weather_density.py --exe "$WC3DATA/Warcraft III.exe" \
+  --seconds 10 --rate 100 --output /tmp/wc3-weather-density.jsonl
+```
+
+The controller checks the executable SHA-256 and bounds the capture. The probe
+hooks the weather initializer at RVA `0x57f1c0`; each matching JSONL row reports
+the emitter's rate at `this + 0xa8`, frame delta, and live count. The companion
+Ghidra check is the rate-times-delta sequence in `ParticleEmitter_Update` at
+VA `0x0097d170`.
+
+This confirms the rate semantics for `RLhr` and the shared retail weather
+emitter path. It strongly supports the same interpretation for `RLlr`, though
+that row has not had its own runtime capture. Nominal single-emitter rates are
+100 * 0.9 = 90 live particles for `RLhr` and 40 * 1.1 = 44 for `RLlr`, before
+effect-wide limits and emitter multiplicity.
 
 `RLlr` also authors `alphaMode=0` and alpha 150. The live alpha trace above used
 Prologue01's `RLhr`; the `RLlr` row has not had a separate runtime capture.
@@ -301,11 +341,15 @@ The shipped `RLlr` row has `head=0,tail=1`; the renderer draws its tail
 primitive. Rows with both flags clear have no authored primitive and are
 skipped with a diagnostic instead of being silently converted to a head.
 
-**Implementation status:** OpenRealm currently emits at the 20 Hz equivalent
-rate and enforces the authored live-particle cap per weather effect. The rate
-multiplier remains a best guess pending a same-map, same-camera, same-duration
-comparison with retail. Keep that density question separate from the confirmed
-mode-0 alpha path above; `alphaMode` values other than zero remain unverified.
+**Implementation status:** OpenRealm currently multiplies `emrate` by 20 and
+enforces the authored live-particle cap per weather effect. The factor is an
+aggregate-rate approximation in OpenRealm's single-effect renderer; retail
+uses multiple weather-emitter objects, each with the unscaled per-second rate.
+The Prologue01 trace makes the factor plausible for this row, but does not
+establish that every region creates exactly 20 emitters or prove the exact
+effect-wide cap behavior. An `RLlr` runtime capture remains outstanding. Keep
+those questions separate from the confirmed mode-0 alpha path above;
+`alphaMode` values other than zero remain unverified.
 
 ## Lifecycle And Networking
 
