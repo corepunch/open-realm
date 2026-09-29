@@ -15,6 +15,42 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.profileEvents) {
+        for (const [rva, kind] of [[0x690c20, 'query-mask'], [0x690c80, 'category']]) {
+            hook(rva, {
+                onEnter() { this.rawcode = this.context.ecx.toUInt32(); },
+                onLeave(result) {
+                    bump('profile-' + kind);
+                    if (counts['profile-' + kind] <= config.samples)
+                        emit('movement-profile', {kind, rawcode:this.rawcode, value:result.toUInt32()});
+                }
+            });
+        }
+        hook(0x05c7e0, {
+            onEnter(args) {
+                this.bridge = this.context.ecx;
+                this.row = {category:args[0].toUInt32(), queryMask:args[1].toUInt32(),
+                    identity:ints(this.bridge.add(8),2)};
+            },
+            onLeave() {
+                bump('movement-mask-publication');
+                if (counts['movement-mask-publication'] > config.samples) return;
+                const id = this.row.identity[0] >>> 0;
+                if (id === 0xffffffff) { emit('movement-mask-publication', {...this.row, mover:null}); return; }
+                const registry = base.add(0xd68610).readPointer(), alternate = (id & 0x80000000) !== 0;
+                const index = id & 0x7fffffff, limit = registry.add(alternate ? 0x3c : 0x1c).readU32();
+                if (index >= limit) throw new Error('movement bridge identity outside registry');
+                const slot = registry.add(alternate ? 0x2c : 0xc).readPointer().add(index*8);
+                if (slot.readS32() !== -2) throw new Error('movement bridge identity is not live');
+                const mover = slot.add(4).readPointer();
+                if (mover.add(0x18).readS32() !== this.row.identity[1]) throw new Error('movement bridge epoch differs');
+                const region = mover.add(0x98).readPointer(), path = mover.add(0xa8).readPointer();
+                emit('movement-mask-publication', {...this.row, mover:mover.toString(),
+                    objectCategory:region.add(0x34).readU32(),
+                    pathMask:path.isNull() ? null : path.add(0x9c).readU32()});
+            }
+        });
+    }
     if (config.headingEvents) {
         // 16f630: ECX=output*, EDX=current heading*, one vector* stack argument.
         hook(0x16f630, {

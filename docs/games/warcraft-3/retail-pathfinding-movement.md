@@ -1872,3 +1872,100 @@ and production clock cadence remain MAP-02.1/SCHED-01.1. This closes the fresh
 unobstructed two-member owner lifecycle; walls, failed member routes, mixed
 speeds, runtime membership changes, public producer sharing and populated
 repulsion remain separate tasks, starting with **GROUP-02.3**.
+
+## Shared pair with terrain obstruction and reversal
+
+**GROUP-02.3 (S/O/C/L).** The shared-pair harness accepts a versioned
+`--pair-fixture`. Four frozen controls distinguish terrain edits from the query
+policy that actually consumes them:
+
+| Fixture suffix (`retail-shared-pair-…-1.27.json`) | Profile mask | Terrain | Arrival ticks | Exact repeated output digest |
+| --- | --- | --- | --- | --- |
+| `wall-maskless` |0| Three blocked cells |7 /7|`60637aaec72387184cbfcf34ccb60cb6d76efb5f596cd6fb4ea81bd98507d1f9`|
+| `ground-open` |`02000002`| Open |7 /7|`62ee245012478fc03779b2b06c8fd6e3b1899bb43caa35ee47f06cf099aa2a76`|
+| `wall` |`02000002`| Three blocked cells |19 /25|`08c3390272a97ca3fe362963dccd16fe0a8c5885ec6cb3d161675fbb5e3199d2`|
+| `ground-reversal` |`02000002`| Set, then clear the same cells |7 /7|`6bd48162c2fb883f6f775aa096e342d9c19e70cfd0d123cfe561547162a1f5e4`|
+
+The wall occupies fine cells `(5,3)..(5,5)`. Original world editor`04d870`
+receives cell-center world coordinates, mask2 and blocked1; explicit
+`04e0b0(0)` rebuilds the hierarchy. Low24 occupancy bits are preserved and
+all edits are checked against the original fine map. The maskless control
+retains the earlier pair's identical route/trajectory despite terrain changing;
+it is a negative control, not evidence of obstacle routing.
+
+### Stock Footman mask producer
+
+A fresh bounded read-only Frida capture adds `--profile-events` to the existing
+observer. Original getters`690c20`/`690c80` return Footman query2/category`ca`.
+Original bridge`05c7e0` publishes fine-object category`010000ca` and owned-path
+mask`02000002`: `05c7b0` changes the object's low24 category bits;
+`05c770 → 168c40` stores `(query &ffffff) | (query <<24)` at path`+9c`.
+CUnit virtuals`+164/+160`, thunks`678b50/678b60`, read existing profile fields
+`+1b0/+1ac` through the hashed rawcode table. The stock capture has two getter/
+publication sequences and a complete trace-end marker, with no observer error.
+
+```sh
+DISPLAY=:94 WAYLAND_DISPLAY= WINEDEBUG=-all \
+WINEPREFIX=/home/lofcz/.local/share/open-realm/wine-pathfinding-re \
+/home/lofcz/.local/share/uv/tools/frida-tools/bin/python tools/frida/trace_wc3_pathfinding.py \
+  --data /run/media/lofcz/ssd_external/Games/w3 --map 'Maps\PathingRE-StockTurn.w3m' \
+  --seconds 130 --samples 1000 --profile-events --x11-display :94 --continue-at 80 \
+  --output /tmp/movement-profile-stock.jsonl
+python3 tools/frida/verify_wc3_profile_trace.py /tmp/movement-profile-stock.jsonl \
+  --report /tmp/movement-profile-stock-verified.json
+```
+
+The harness supplies these observed values in its existing hfoo profile cache,
+then executes the original CUnit getters and complete`05c7e0` bridge for both
+units. Custom fixture radius8 remains supplied. The full`6945a0` caller also
+runs`674310`, which validates/traverses attached abilities using the complete
+class-descriptor graph. That graph is absent from this controlled baseline;
+a full-call attempt reaches an invalid class-descriptor read. **BASE-03.1**
+owns that missing notification context. No callback is patched or replaced,
+and the harness does not claim to execute that later notification traversal.
+Air/water/amphibious profile producers remain **BASE-02.1**.
+
+### Owner result and exact replay
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_order_tasks.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll --shared-pair \
+  --pair-fixture tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json \
+  --engine-library /tmp/wc3-world-velocity-engine.so \
+  --report /tmp/group-02.3-wall-ground-frozen.json
+```
+
+Report`group-02.3-wall-ground-frozen.json` matches both complete runs against
+all frozen words. Both owned fine routes are12 words; each member retains its
+own detour and a two-word adaptive route, while the shared group owns its own
+two-word adaptive route. The two units travel on opposite sides of the wall.
+The first completes on clock`.59375` (tick19), membership shrinks from2 to1,
+and the survivor completes on`.78125` (tick25). All decisions precede all
+commits at every two-member and singleton pass. Group identity/ownership,
+queues, callbacks, spatial state, budgets, arrival, deferred release and visual
+settling remain frozen. All orders and all three groups/paths reclaim, leaving
+20 baseline identities and unit references4.
+
+All **46** actual owner-driven velocity/facing commits compare exactly against
+the production C world adapter, including stops and the membership transition.
+`retail-wall-pair-velocity-1.27.json` replays these original words at O0/O2.
+The reversal's routes and trajectories exactly equal the ground-open control,
+but rebuilding leaves a real retained fine-object word (`+38`,33 versus41).
+The fixture preserves that difference instead of resetting metadata to force
+whole-state equality. Asset-free tests assert wall-induced route changes,
+maskless negative behavior, removal/arrival timing, decision-before-commit
+ordering and reversal travel.
+
+Reports and frozen-source hashes are `group-02.3-*.json` and
+`movement-profile-stock-provenance.json` under the documented report root.
+Numeric-only `retail-ground-profile-1.27.json` freezes the observed profile
+publication contract; its parser rejects missing completion, truncated getters,
+observer errors and changed category/query/path words. `--record-pair-fixture`
+is an explicit original-expectation export after complete identical runs;
+normal replay always requires the frozen input/output hashes and exact states.
+
+This closes one wall case and its controls, not failed-route/alternate-order
+policy, runtime wall edits during travel, widget escape, mixed speeds, class
+notification ownership, populated repulsion or production clock cadence.
+Next bounded owner extension: **GROUP-04.1**, remove/reuse a member identity from movement callbacks while
+its shared group is travelling; public entry sharing remains **GROUP-01.1**.

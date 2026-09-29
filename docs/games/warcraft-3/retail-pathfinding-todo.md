@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**35 done / 211 tasks; 176 remaining.** Counts describe this backlog,
+**36 done / 211 tasks; 175 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -27,7 +27,7 @@ Completed evidence now sits next to its specific remaining extension.
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 0 | 11 |
 | ORDER — Orders and reclamation | 5 | 16 |
-| GROUP — Shared movement groups | 3 | 8 |
+| GROUP — Shared movement groups | 4 | 7 |
 | FORM — Formation and regrouping | 2 | 10 |
 | SEP — Repulsion and spatial records | 2 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -42,16 +42,16 @@ exclusion of NUM-02.2; it is closed independently of whole-trajectory NUM-02.3.
 
 ## Work next
 
-Start with **GROUP-02.3**. GROUP-02.2 now composes two independently admitted
-units into an original shared request and freezes both fresh searches, owner
-updates, per-member decision/commit order, natural arrival and cleanup. Public
-selected-player/JASS/AI producer sharing remains GROUP-01.1; the controlled core
-request producer is sufficient for this pair and its obstruction extension.
+Start with **BASE-05.1**. GROUP-02.3 now has original terrain edits, stock
+Footman mask getters/publication, opposing detours, independent tick19/25
+arrivals, exact46 C commits, cleanup and maskless/open/reversal controls.
+The supplied class cache and unexecuted ability-notification traversal retain
+BASE-03.1; other movement profiles remain BASE-02.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | GROUP-02.3 | GROUP-02.2, MAP-03.2 | Pair with a wall or failed member route through completion |
-| 2 | BASE-05.1 | Existing reports and captures | Corpus inventory including intentional adaptive mismatches |
+| 1 | BASE-05.1 | Existing reports and captures | Corpus inventory including intentional adaptive mismatches |
+| 2 | GROUP-04.1 | GROUP-02.3 | Member identity removal/reuse from callbacks while survivor completes |
 | 3 | NUM-01.2 | Verified scalar/heading slices | Remaining arithmetic inventory and exact numerical integration |
 
 MAP-03.4 (widget escape to arrival/failure) also has existing fixtures. Use
@@ -453,9 +453,9 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 
 ### GROUP-02 — Fresh group movement
 
-- [x] **GROUP-02.1** 144 complete cached-route group ticks and 156 membership prepasses are covered. Evidence: [cached group ticks][cached-groups]; shared-group fresh search under obstruction remains open.
+- [x] **GROUP-02.1** 144 complete cached-route group ticks and 156 membership prepasses are covered. Evidence: [cached group ticks][cached-groups]; fresh wall-pair search is covered separately by GROUP-02.3; additional failed-route policy remains open.
 - [x] **GROUP-02.2** Two originally admitted units join one original request; fresh shared/member routes run through owner updates and natural tick7 arrival. Evidence: [fresh shared pair](retail-pathfinding-movement.md#fresh-shared-pair-through-owner-arrival), frozen `retail-shared-pair-1.27.json`, report `group-02.2-frozen-shared-pair.json`; both decisions precede both commits, all intermediate words repeat exactly, all orders/groups/paths reclaim. Public selected/JASS/AI callers remain GROUP-01.1.
-- [ ] **GROUP-02.3** Add a wall/failed member route to that pair; assert shared versus separate routes, surviving movement and final completion.
+- [x] **GROUP-02.3** Original three-cell terrain wall and Footman mask-producing prefix give opposing owned routes under one shared group, tick19/25 arrivals and complete recovery. Evidence: [wall pair and reversal](retail-pathfinding-movement.md#shared-pair-with-terrain-obstruction-and-reversal), report `group-02.3-wall-ground-frozen.json`, four frozen pair fixtures;46 owner commits match C, maskless/open/reversal controls retain all raw differences. Failed routes, runtime edits and full class notification remain separate exclusions.
 
 ### GROUP-03 — Shared parameters
 

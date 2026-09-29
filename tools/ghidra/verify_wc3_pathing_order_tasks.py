@@ -10,6 +10,7 @@ import json
 import struct
 from pathlib import Path
 from verify_wc3_pathing_numeric import add as float_add, multiply as float_multiply
+from wc3_pathing_pair import DEFAULT_FIXTURE
 from wc3_pathing_scenario import DEFAULT_MANIFEST,load_manifest,verify_case,first_difference,case_output,canonical_digest
 
 
@@ -21,14 +22,25 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--producer-baseline', action='store_true', help='compose no-file map and mover producers before the owner baseline')
     parser.add_argument('--shared-pair', action='store_true', help='compose two admitted units into one original shared request and run owner through arrival')
+    parser.add_argument('--engine-library', type=Path, help='verify observed shared-pair velocity commits against the production world adapter')
+    parser.add_argument('--pair-fixture', type=Path, default=DEFAULT_FIXTURE)
+    parser.add_argument('--record-pair-fixture', type=Path, help='export a new original shared-pair expectation after complete identical repeats')
     parser.add_argument('--baseline-manifest', type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
     manifest,expectations=load_manifest(args.baseline_manifest) if args.producer_baseline or args.shared_pair else (None,None)
+    if args.record_pair_fixture and not args.shared_pair:parser.error('--record-pair-fixture requires --shared-pair')
     pair_fixture=None
     if args.shared_pair:
         from wc3_pathing_pair import load_fixture
-        pair_fixture=load_fixture()
+        pair_fixture=load_fixture(args.pair_fixture)
+        if args.record_pair_fixture and args.record_pair_fixture.exists():parser.error('recorded fixture destination already exists')
         assert pair_fixture['inputs']['baseline_map_sha256']==manifest['map']['sha256']
+    engine=None
+    if args.engine_library:
+        import ctypes
+        if not args.shared_pair:parser.error('--engine-library currently requires --shared-pair')
+        engine=ctypes.CDLL(str(args.engine_library.resolve()))
+        engine.pathing_velocity_world_commit.argtypes=[ctypes.POINTER(ctypes.c_uint32)]
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -493,6 +505,10 @@ def main():
                 unit=unit,ability=ability,unit_wrapper=unit_wrapper,ability_wrapper=ability_wrapper,
                 group=group,path=path,spec=pair_fixture['inputs']),run)
             base_live_count=pair['base_live_count']
+            from wc3_pathing_pair import terrain_edits,ground_profile
+            ground_profile(machine,dict(spec=pair_fixture['inputs'],profile=profile,inputs=inputs,
+                members=[(unit,mover),(pair['unit'],pair['mover'])]),run)
+            terrain_edits(machine,dict(spec=pair_fixture['inputs'],maps=maps,inputs=inputs),run)
         snapshot_group,snapshot_path=group,path
         def snapshot(phase):
             """Raw simulation state with owning pointer fields replaced by identity/role."""
@@ -717,6 +733,7 @@ def main():
             write(second_path+0x60,0x10272000)
             write(second_path+0x6c,1024,0)
         pair_events=[]
+        pair_commits=[];verified_pair_commits=[]
         pair_hooks=[]
         if pair:
             from wc3_pathing_pair import join
@@ -745,7 +762,13 @@ def main():
                 if address==0x6f16a790:
                     row=read(uc.reg_read(UC_X86_REG_ESP)+4)[0]
                     actor=read(row+0x14)[0];kind='decision'
-                else:actor=uc.reg_read(UC_X86_REG_ECX);kind='commit'
+                else:
+                    actor=uc.reg_read(UC_X86_REG_ECX);kind='commit'
+                    if engine:
+                        speed_ptr,heading_ptr=read(uc.reg_read(UC_X86_REG_ESP)+4,2)
+                        grid_input=read(actor+0x80,2)+[read(speed_ptr)[0],read(heading_ptr)[0]]+read(actor+0x88,2)
+                        world_input=[float_multiply(w,0x42000000) if n in (0,1,2,4) else w for n,w in enumerate(grid_input)]
+                        pair_commits.append(dict(actor=actor,grid_input=grid_input,world_input=world_input))
                 assert actor in (mover,pair['mover'])
                 pair_events.append([kind,'first' if actor==mover else 'second'])
             pair_hooks=[machine.hook_add(UC_HOOK_CODE,observe_pair,begin=a,end=a) for a in (0x6f16a790,0x6f16fe20)]
@@ -763,8 +786,16 @@ def main():
             old_tick,old_parity=read(owner+0x538,2)
             buckets=[read(0x6fd53a90+k*0x1c+8,2) for k in range(64)]
             owner_events.clear()
-            pair_events.clear()
+            pair_events.clear();pair_commits.clear()
             run(0x6f15aa80,owner)
+            if engine:
+                for commit in pair_commits:
+                    actor=commit.pop('actor')
+                    expected=[float_multiply(w,0x42000000) for w in read(actor+0x80,2)]+[read(actor+0x8c)[0]]
+                    words=(ctypes.c_uint32*6)(*commit['world_input']);engine.pathing_velocity_world_commit(words)
+                    assert [words[0],words[1],words[5]]==expected,(phase,commit,expected,list(words))
+                    verified_pair_commits.append(dict(commit,role='first' if actor==mover else 'second',
+                        clock=read(clock+0x40,3),expected=expected))
             if pair:
                 decisions=[event[1] for event in pair_events if event[0]=='decision']
                 commits=[event[1] for event in pair_events if event[0]=='commit']
@@ -984,15 +1015,24 @@ def main():
         accepted.update(owner_frames=owner_frames,initial_route=initial_route,trajectory=trajectory,arrival_tick=tick,
                         user_order_reclaimed=True,producer_setup=setup,initial_state=initial_state,
                         normalized_states=normalized_states)
+        if engine:accepted['verified_velocity_commits']=verified_pair_commits
         return accepted
     if args.shared_pair:
         cases=[dispatch_case(0,0,0,tuple(pair_fixture['inputs']['target_bits']),
                 owner_updates=True,producer_setup=True,shared_pair=True) for _ in range(2)]
         from wc3_pathing_pair import output,verify
-        for case in cases:verify(case,pair_fixture)
+        if not args.record_pair_fixture:
+            for case in cases:verify(case,pair_fixture)
         states=[output(c) for c in cases]
         assert states[0]==states[1],first_difference(states[0],states[1])
+        if args.record_pair_fixture:
+            recorded=dict(pair_fixture,output=states[0],output_sha256=canonical_digest(states[0]))
+            args.record_pair_fixture.parent.mkdir(parents=True,exist_ok=True)
+            args.record_pair_fixture.write_text(json.dumps(recorded,separators=(',',':'))+'\n')
         report=dict(binary_sha256=digest,crt_sha256=crt_digest,passed=True,shared_pair=cases[0],
+            fixture_id=pair_fixture['id'],exported_original_expectations=bool(args.record_pair_fixture),
+            engine_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest() if engine else None,
+            exact_world_velocity_commits=len(cases[0].get('verified_velocity_commits',[])),
             repeat_digests=[canonical_digest(s) for s in states])
         args.report.parent.mkdir(parents=True,exist_ok=True)
         args.report.write_text(json.dumps(report,indent=2)+'\n')

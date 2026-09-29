@@ -102,6 +102,33 @@ class ScenarioTests(unittest.TestCase):
         changed=copy.deepcopy(fixture['output']);changed['second_arrivals']=[]
         with self.assertRaisesRegex(ValueError,'second_arrivals'):verify_pair(changed,fixture)
 
+    def test_ground_wall_changes_member_routes_and_reversal_restores_travel(self):
+        directory=DEFAULT_MANIFEST.parent
+        fixtures={name:load_pair(directory/('retail-shared-pair-'+name+'-1.27.json'))
+                  for name in ('wall','wall-maskless','ground-open','ground-reversal')}
+        for fixture in fixtures.values():verify_pair(fixture['output'],fixture)
+        wall,maskless,opened,reversed_wall=(fixtures[name]['output'] for name in ('wall','wall-maskless','ground-open','ground-reversal'))
+        self.assertEqual([wall['arrival_tick'],maskless['arrival_tick'],opened['arrival_tick'],reversed_wall['arrival_tick']],[25,7,7,7])
+        self.assertEqual(opened['trajectory'],reversed_wall['trajectory'])
+        self.assertEqual(maskless['trajectory'],load_pair()['output']['trajectory'])
+        self.assertNotEqual(wall['trajectory'],opened['trajectory'])
+        self.assertEqual(wall['arrivals'][0]['clock_bits'],0x3f180000)
+        self.assertEqual(wall['second_arrivals'][0]['clock_bits'],0x3f480000)
+        self.assertIn(1,[len(s['group']['members']) for s in wall['normalized_states']])
+        self.assertEqual([p['flags'][6] for p in wall['initial_state']['paths'] if p['owner']!='group'],[0x02000002]*2)
+        self.assertEqual([p['flags'][6] for p in maskless['initial_state']['paths'] if p['owner']!='group'],[0]*2)
+        for y in range(3,6):
+            self.assertEqual(wall['initial_state']['grids'][1]['cells'][16*y+5]>>24,2)
+            self.assertEqual(reversed_wall['initial_state']['grids'][1]['cells'][16*y+5]>>24,0)
+        for state in wall['normalized_states']:
+            events=state['decision_commit_order'];committed=False
+            for kind,role in events:
+                if kind=='commit':committed=True
+                else:self.assertFalse(committed)
+        # Rebuild history remains observable even when travel is restored.
+        self.assertEqual(opened['normalized_states'][0]['grids'][1]['object_flags'][1],33)
+        self.assertEqual(reversed_wall['normalized_states'][0]['grids'][1]['object_flags'][1],41)
+
     def test_historical_motion_snapshot_preserves_unobserved_state(self):
         fixture=json.loads((DEFAULT_MANIFEST.parent/'retail-motion-snapshot-1.27.json').read_text())
         snapshot=fixture['snapshot']

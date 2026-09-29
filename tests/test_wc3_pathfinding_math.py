@@ -162,6 +162,16 @@ class PathingMathTests(unittest.TestCase):
                 words=(ctypes.c_uint32*6)(*inputs);engine.pathing_velocity_world_commit(words)
                 self.assertEqual([words[0],words[1],words[5]],expected)
 
+    def test_shared_wall_pair_owner_commits_match_production_world_adapter(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-wall-pair-velocity-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']),46)
+        self.assertEqual({r['role'] for r in fixture['cases']},{'first','second'})
+        for row in fixture['cases']:
+            for engine in self.engines:
+                words=(ctypes.c_uint32*6)(*row['world_input'])
+                engine.pathing_velocity_world_commit(words)
+                self.assertEqual([words[0],words[1],words[5]],row['expected'])
+
     def test_trace_rejects_missing_truncated_and_mutated_decisions(self):
         rows = [dict(event='metadata', sha256='d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236', motionEvents=True),
                 dict(event='motion-decision', mover='a', speed=bits(1), heading=0, error=0,

@@ -106,7 +106,7 @@ Counts overlap; do not sum them into a coverage percentage.
 
 [Executable research backlog](retail-pathfinding-todo.md#work-next): numbered
 tasks, acceptance checks, completed evidence and the READY gate. Start with
-**GROUP-02.3**, then **BASE-05.1**; the backlog names their dependencies and
+**BASE-05.1**, then **GROUP-04.1**; the backlog names their dependencies and
 finish artifacts. The areas below describe the sequence, not additional tasks.
 
 1. **ORDER + GROUP + MOVE:** join the verified initial-admission/FIFO chain
@@ -224,4 +224,14 @@ admission, original shared request membership, fresh owned/shared routes, both
 decisions before either commit, natural tick7 arrival and complete cleanup.
 See [fresh shared pair](retail-pathfinding-movement.md#fresh-shared-pair-through-owner-arrival)
 for the command, canonical hash and explicit supplied boundaries. Public player/
-JASS/AI producer sharing, obstruction and membership mutation remain open.
+JASS/AI producer sharing and runtime membership mutation remain open; the following checkpoint covers terrain obstruction.
+
+### Shared wall-pair checkpoint
+
+GROUP-02.3 now freezes a terrain-wall owner scenario with stock Footman mask
+getter/publication evidence from Frida: opposing member routes, tick19/25
+arrivals, membership2→1→0, complete cleanup and46 exact production-C commits.
+[Wall pair and controls](retail-pathfinding-movement.md#shared-pair-with-terrain-obstruction-and-reversal)
+retain maskless negative and open/reversal states, including retained rebuild
+metadata. Other movement profiles and the full ability-notification class graph
+remain BASE-02.1/BASE-03.1.

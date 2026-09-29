@@ -93,6 +93,58 @@ def join(machine, context, run):
     return dict(group=group,path=read(group+0x3c)[0],request_identity=read(request+0x14,2))
 
 
+def ground_profile(machine, context, run):
+    """Observed hfoo profile cache, original CUnit collision/mask getters and bridge publication."""
+    from unicorn.x86_const import UC_X86_REG_EAX
+    profile=context['profile']
+    spec=context['spec'].get('ground_profile')
+    if spec is None:return
+    def read(address,count=1):return list(struct.unpack('<%dI'%count,machine.mem_read(address,4*count)))
+    def write(address,*words):machine.mem_write(address,struct.pack('<%dI'%len(words),*words))
+    # Ground category/mask are observed live profile outputs; custom fixture radius stays8.
+    write(profile+0x1ac,spec['category'],spec['query_mask'])
+    write(profile+0x19c,spec['radius_world_bits'])
+    for unit,mover in context['members']:
+        # Execute the complete mask-producing prefix components of6945a0. Its
+        # subsequent674310 ability-notification traversal needs the full class
+        # descriptor graph (BASE-03.1), absent from this existing-unit fixture.
+        run(0x6f678b50,unit);query=machine.reg_read(UC_X86_REG_EAX)
+        run(0x6f678b60,unit);category=machine.reg_read(UC_X86_REG_EAX)
+        assert query==spec['query_mask'] and category==spec['category']
+        run(0x6f05c7e0,unit+0x164,category,query)
+        path=read(mover+0xa8)[0];region=read(mover+0x98)[0]
+        assert read(path+0x9c)==[(spec['query_mask'] & 0xffffff)|(spec['query_mask']<<24)]
+        assert read(region+0x34)[0]&0xffffff==spec['category']
+        assert read(unit+4)[0]==4
+
+
+def terrain_edits(machine, context, run):
+    """Original world terrain producer and explicit hierarchy refresh, preserving occupancy."""
+    from verify_wc3_pathing_numeric import multiply
+    spec,inputs,maps=(context[k] for k in ('spec','inputs','maps'))
+    def read(address,count=1):return list(struct.unpack('<%dI'%count,machine.mem_read(address,4*count)))
+    def write(address,*words):machine.mem_write(address,struct.pack('<%dI'%len(words),*words))
+    edits=spec.get('terrain_edits',[])
+    if not edits:return
+    width,height=read(maps[1]+0x3c,2)
+    cells=read(maps[1]+0x28)[0]
+    before=read(cells,width*height)
+    expected=list(before)
+    for x,y,mask,blocked in edits:
+        write(inputs,x,y)
+        run(0x6f04d870,inputs,mask,blocked,edx=inputs+4)
+        # Integer bit-to-float conversion is only for fixture coordinate indexing;
+        # the original producer is authoritative for the edit.
+        ix=int(struct.unpack('<f',struct.pack('<I',multiply(x,0x3d000000)))[0]//1)
+        iy=int(struct.unpack('<f',struct.pack('<I',multiply(y,0x3d000000)))[0]//1)
+        assert 0<=ix<width and 0<=iy<height
+        old=expected[iy*width+ix]
+        expected[iy*width+ix]=old|(mask<<24) if blocked else old&~(mask<<24)
+        assert read(cells,width*height)==expected
+    run(0x6f04e0b0,0)
+    assert read(cells,width*height)==expected
+
+
 def output(case):
     result=case_output(case)
     for field in ('shared_request','shared_pair_completed','second_dispatch','second_admissions','second_arrivals','auxiliary_dispatch'):
