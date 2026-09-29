@@ -258,7 +258,7 @@ static ability_t abilitylist[] = {
     { "AOvd", CAbilityVoodoo, AB_SPELL },  /* Big Bad Voodoo */
     { "Astd", CAbilityStandDown, AB_COMMAND },  /* Stand Down */
     { "Abtl", CAbilityBattlestations, AB_COMMAND },  /* Battle Stations */
-    { "AOwk", CAbilityWindWalk, AB_SPELL | AB_COOLDOWN_ON_STATUS_REMOVE },  /* Wind Walk */
+    { "AOwk", CAbilityWindWalk, AB_SPELL | AB_COOLDOWN_ON_STATUS_REMOVE | AB_STATUS_EVENTS },  /* Wind Walk */
     { "AOmi", CAbilityMirrorImage, AB_SPELL },  /* Mirror Image */
     { "AOcr", CAbilityCreepAura, AB_PASSIVE },  /* Critical Strike */
     { "AOww", CAbilityWhirlwind, AB_SPELL | AB_CHANNEL },  /* Bladestorm */
@@ -642,7 +642,7 @@ static ability_t abilitylist[] = {
     { "ANrn", CAbilityReincarnation, AB_PASSIVE },  /* Mannoroth - Reincarnation */
     { "ANta", CAbilityTaunt, AB_SPELL },  /* Taunt (Creep) */
     { "ANtr", CAbilityTrueSight, AB_PASSIVE },  /* Detect (War Eagle) */
-    { "ANwk", CAbilityWindWalk, AB_SPELL | AB_COOLDOWN_ON_STATUS_REMOVE },  /* Wind Walk */
+    { "ANwk", CAbilityWindWalk, AB_SPELL | AB_COOLDOWN_ON_STATUS_REMOVE | AB_STATUS_EVENTS },  /* Wind Walk */
     { "Aap1", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Abomination) */
     { "Aap2", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Plague Ward) */
     { "Aap3", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Creep) */
@@ -781,9 +781,8 @@ static intptr_t unit_dispatch_ability_code(edict_t *ent, abilityMsg_t msg, abili
     return S_AbilityMessage(ent, msg, &invoke);
 }
 
-/* Route active-status policy notifications to each status's concrete source
- * ability. Shared movement/combat/spell systems consume the result without
- * knowing individual buff or ability rawcodes. */
+/* Route policy notifications only to abilities that opt in. Status data is
+ * also used for numeric payloads, so it is not by itself an owner contract. */
 intptr_t S_UnitStatusAbilityEvent(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload) {
     intptr_t result = 0;
 
@@ -796,11 +795,7 @@ intptr_t S_UnitStatusAbilityEvent(edict_t *ent, abilityMsg_t msg, abilityCall_t 
 
         if (!status->level || !status->data) continue;
         item = S_AbilityItem(status->data);
-        if (!item.ability || !item.ability->proc) {
-            fprintf(stderr, "WC3: unresolved status owner %08x on unit %u\n",
-                    status->data, ent->s.number);
-            continue;
-        }
+        if (!item.ability || !(item.ability->flags & AB_STATUS_EVENTS)) continue;
         call = payload ? *payload : MAKE(abilityCall_t, 0);
         call.status.slot = status;
         call.status.ability = status->data;

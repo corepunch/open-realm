@@ -24,7 +24,7 @@ Gameplay-invisible friendly units continue to reveal fog for their owner and sha
 
 ## Wind Walk lifecycle
 
-`CAbilityWindWalk` declares cooldown-on-status-removal in its registry row. The shared spell processor reads that policy without checking Wind Walk rawcodes; cooldown begins when `BOwk` ends. Expiry and generic status queries dispatch to the owning procedure through the status's saved applying rawcode. That procedure owns movement collision policy, attack damage/break behavior, spell-commit breaks, and cleanup.
+`CAbilityWindWalk` declares cooldown-on-status-removal and active-status event dispatch in its registry row. The shared spell processor reads the cooldown policy without checking Wind Walk rawcodes; cooldown begins when `BOwk` ends. Generic status policy events are sent only to abilities that opt into them, and the Wind Walk procedure verifies that the event's status is `BOwk`. This matters because `heroabilitystatus_t.data` may instead hold an ability-specific numeric payload, such as Anti-Magic Shell absorption. The Wind Walk procedure owns movement collision policy, attack damage/break behavior, spell-commit breaks, and cleanup.
 
 While `BOwk` is active, both steering and final movement commits ignore dynamic unit collision but retain static terrain/building pathing. `S_StatusIsUndispellable()` treats `BOwk` as non-dispellable. The breaking attack reads Data C from the rawcode saved in `BOwk.data`, rather than assuming `AOwk`. Wind Walk and temporary Invisibility share `RF_HIDDEN`; removing either effect preserves the flag while the other remains active.
 

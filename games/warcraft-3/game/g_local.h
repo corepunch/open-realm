@@ -668,6 +668,7 @@ typedef struct {
 #define AB_ITEM         (1u << 8)  // bit 8; inventory behavior procedure; receives item-use messages
 #define AB_INNATE       (1u << 9)  // bit 9; unit-data behavior; receives lifecycle messages without a command-card slot
 #define AB_COOLDOWN_ON_STATUS_REMOVE (1u << 10) // bit 10; defer spell cooldown until its owned status ends
+#define AB_STATUS_EVENTS (1u << 11) // bit 11; active statuses from this ability accept generic status policy events
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -1240,7 +1241,7 @@ typedef struct heroabilitystatus_s {
     uint32_t level;
     uint32_t timestamp;
     uint32_t duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
-    uint32_t data; /* applying ability rawcode for lifecycle dispatch; legacy Anti-Magic Shell absorption payload */
+    uint32_t data; /* applying ability rawcode or ability-specific numeric payload */
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
 } heroabilitystatus_t;

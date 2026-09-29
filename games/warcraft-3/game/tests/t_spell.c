@@ -122,11 +122,15 @@ TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_ori
     UnitAbilities_t abilities = { .abilList = "AOwk" };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *caster = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+    edict_t *target;
     heroabilitystatus_t *status;
     uint32_t number;
 
     caster->data.UnitAbilities = &abilities;
     caster->s.player = 0;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    target->s.player = 1; target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
     T_EQ(S_AbilityItem(MAKEFOURCC('A','O','w','k')).ability->proc, CAbilityWindWalk);
     T_EQ(S_AbilityItem(MAKEFOURCC('A','N','w','k')).ability->proc, CAbilityWindWalk);
     T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','O','w','k')));
@@ -147,8 +151,9 @@ TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_ori
     T_EQ(status->data, MAKEFOURCC('A','O','w','k'));
     T_ASSERT(S_SpellCooldownReady(caster, MAKEFOURCC('A','O','w','k')));
 
-    S_UnitStatusAbilityEvent(caster, A_ATTACK_LANDED, NULL);
+    S_ResolveAttackHit(caster, target, 10);
     T_NULL(unit_findstatus(caster, MAKEFOURCC('B','O','w','k')));
+    T_ASSERT(target->health.value < 100.0f);
     T_ASSERT(!S_SpellCooldownReady(caster, MAKEFOURCC('A','O','w','k')));
     T_FEQ(S_SpellCooldownLength(caster, MAKEFOURCC('A','O','w','k')), 13.0f, 0.001f);
 
@@ -327,7 +332,7 @@ TEST(wc3_spell, invisibility_spell_breaks_on_committed_spell) {
         "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"13\"\nC;Y3;X7;K\"2.75\"\n"
         "C;Y3;X8;K\"2.75\"\nE\n", targs_column);
     UnitAbilities_t abilities = { .abilList = "Aivs" };
-    UnitAbilities_t walk_abilities = { .abilList = "AOwk" };
+    UnitAbilities_t walk_abilities = { .abilList = "AOwk,Aivs" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
     edict_t *caster, *unit;
 
@@ -349,6 +354,41 @@ TEST(wc3_spell, invisibility_spell_breaks_on_committed_spell) {
     T_NULL(unit_findstatus(unit, MAKEFOURCC('B','i','x','x')));
     T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','O','w','k')));
     T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+    T_ASSERT(S_CastUnitTargetSpell(unit, MAKEFOURCC('A','i','v','s'), unit));
+    T_NULL(unit_findstatus(unit, MAKEFOURCC('B','O','w','k')));
+    T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','i','x','x')));
+    T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+    T_ASSERT(!S_SpellCooldownReady(unit, MAKEFOURCC('A','O','w','k')));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, numeric_status_payload_is_not_dispatched_as_wind_walk_owner) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Dur1\"\n"
+        "C;Y1;X7;K\"HeroDur1\"\nC;Y1;X8;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"13\"\nC;Y2;X6;K\"10\"\n"
+        "C;Y2;X7;K\"10\"\nC;Y2;X8;K\"77\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AOwk" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
+    heroabilitystatus_t *payload;
+
+    unit->data.UnitAbilities = &abilities;
+    unit->s.player = 0;
+    unit_addtimedstatus(unit, "Bams", 1, 30.0f);
+    payload = unit_findstatus(unit, MAKEFOURCC('B','a','m','s'));
+    T_NOT_NULL(payload);
+    if (payload) payload->data = MAKEFOURCC('A','O','w','k');
+    T_ASSERT(S_CastNoTargetSpell(unit, MAKEFOURCC('A','O','w','k')));
+
+    T_EQ(S_UnitStatusAbilityEvent(unit, A_ATTACK_DAMAGE_BONUS, NULL), 77);
+    T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','O','w','k')));
+    T_EQ(payload ? payload->data : 0, MAKEFOURCC('A','O','w','k'));
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);

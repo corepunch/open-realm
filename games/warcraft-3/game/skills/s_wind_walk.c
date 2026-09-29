@@ -14,6 +14,11 @@ static heroabilitystatus_t *wind_walk_status(edict_t *unit) {
     return NULL;
 }
 
+static bool wind_walk_event_status(abilityCall_t const *call) {
+    return call && call->status.slot && call->status.slot->level &&
+           call->status.slot->code == WW_ID_BOWK;
+}
+
 static void wind_walk_cleanup(edict_t *unit, heroabilitystatus_t const *status) {
     if (!unit || !status || !status->level) return;
     if (!status->data) {
@@ -76,13 +81,14 @@ BZ_ABILITY_PROC(CAbilityWindWalk) {
         wind_walk_execute(ent, call->item);
         return true;
     case A_STATUS_REMOVE:
-        if (!call || !call->status.slot) return false;
+        if (!wind_walk_event_status(call)) return false;
         wind_walk_cleanup(ent, call->status.slot);
         return true;
     case A_MOVE_COLLISION_QUERY:
-        return wind_walk_status(ent) != NULL;
+        return wind_walk_event_status(call);
     case A_ATTACK_DAMAGE_BONUS:
-        status = wind_walk_status(ent);
+        if (!wind_walk_event_status(call)) return 0;
+        status = call->status.slot;
         if (!status) return 0;
         if (!status->data) {
             fprintf(stderr, "WC3 Wind Walk: status on unit %u has no applying ability rawcode\n",
@@ -91,9 +97,10 @@ BZ_ABILITY_PROC(CAbilityWindWalk) {
         }
         return (intptr_t)(int)S_SpellData(status->data, status->level, 3);
     case A_ATTACK_LANDED:
-        wind_walk_end(ent);
+        if (wind_walk_event_status(call)) wind_walk_end(ent);
         return true;
     case A_SPELL_COMMIT:
+        if (!wind_walk_event_status(call)) return false;
         if (call && call->item && call->item->ability &&
             call->item->ability->proc == CAbilityWindWalk) return true;
         wind_walk_end(ent);
