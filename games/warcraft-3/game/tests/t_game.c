@@ -3384,6 +3384,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.state.far_z = 7000.0f;
     game.clients[0].camera.target_controller = second;
     game.clients[0].camera.target_inherit_orientation = true;
+    game.clients[0].camera.orient_eye = (vec3_t){ 11.0f, 22.0f, 33.0f };
     game.clients[0].modal_flags = WC3_MODAL_CLIENT | WC3_MODAL_QUEST;
     game.clients[0].quest_dialog_open = true;
     game.clients[0].canvas = UI_CANVAS_WIDE;
@@ -3420,6 +3421,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.state.far_z = 0.0f;
     game.clients[0].camera.target_controller = NULL;
     game.clients[0].camera.target_inherit_orientation = false;
+    game.clients[0].camera.orient_eye = (vec3_t){ 0.0f, 0.0f, 0.0f };
     game.clients[0].rally_indicator = NULL;
     saved_quest->discovered = saved_quest->required = saved_quest->enabled = false;
     saved_quest->completed = true;
@@ -3505,6 +3507,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(game.clients[0].camera.state.far_z, 7000.0f, 0.001f);
     T_ASSERT(game.clients[0].camera.target_controller == &g_edicts[second - g_edicts]);
     T_ASSERT(game.clients[0].camera.target_inherit_orientation);
+    T_FEQ(game.clients[0].camera.orient_eye.x, 11.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.orient_eye.y, 22.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.orient_eye.z, 33.0f, 0.001f);
     T_EQ(game.clients[0].modal_flags, 0);
     T_ASSERT(!game.clients[0].quest_dialog_open);
     /* The window class belongs to the reconnecting client, which reports it again before begin. */

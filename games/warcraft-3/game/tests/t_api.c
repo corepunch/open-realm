@@ -1736,6 +1736,55 @@ TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, camera_orient_controller_keeps_source_fixed_while_tracking_unit) {
+    gameClient_t *gc;
+    edict_t *target = NULL;
+    float initial_yaw;
+
+    setup_test_world();
+    gc = &game.clients[0];
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(vec2_t, 0.0f, 0.0f);
+    gc->camera.state.z_offset = 0.0f;
+    gc->camera.state.viewangles = MAKE(vec3_t, 90.0f, 0.0f, 270.0f);
+    gc->camera.state.target_distance = 100.0f;
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.start_time = gc->camera.end_time = 100;
+    level.time = 100;
+    G_RunClients();
+    currentplayer = &gc->ps;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 100.0, 0.0, 0.0)\n"
+        "  call SetCameraOrientController(u, 0.0, 0.0)\n"
+        "endfunction\n"));
+    target = gc->camera.target_controller;
+    T_NOT_NULL(target);
+    T_ASSERT(gc->camera.target_orient_only);
+    T_FEQ(gc->camera.orient_eye.x, -100.0f, 0.01f);
+    T_FEQ(gc->camera.orient_eye.y, 0.0f, 0.01f);
+
+    G_RunClients();
+    initial_yaw = gc->camera.state.viewangles.z;
+    T_FEQ(gc->camera.state.target_distance, 100.0f, 0.001f);
+    target->s.origin2 = MAKE(vec2_t, 0.0f, 100.0f);
+    target->s.origin.x = 0.0f;
+    target->s.origin.y = 100.0f;
+    G_RunClients();
+    T_ASSERT(fabsf(gc->camera.state.viewangles.z - initial_yaw) > 1.0f);
+    T_FEQ(gc->camera.state.target_distance, 100.0f, 0.001f);
+    T_FEQ(gc->camera.orient_eye.x, -100.0f, 0.01f);
+    T_FEQ(gc->camera.orient_eye.y, 0.0f, 0.01f);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call ResetToGameCamera(0.0)\n"
+        "endfunction\n"));
+    T_NULL(gc->camera.target_controller);
+    T_ASSERT(!gc->camera.target_orient_only);
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, camera_target_controller_can_inherit_unit_facing) {
     gameClient_t *gc = &game.clients[0];
     edict_t *target = NULL;
@@ -1753,6 +1802,7 @@ TEST(wc3_api, camera_target_controller_can_inherit_unit_facing) {
     T_FEQ(gc->camera.state.position.y, 180.0f, 0.001f);
     T_FEQ(gc->camera.state.viewangles.z, -45.0f, 0.001f);
     T_ASSERT(gc->camera.target_inherit_orientation);
+    T_ASSERT(!gc->camera.target_orient_only);
 
     target->s.origin2 = MAKE(vec2_t, 300.0f, 400.0f);
     target->s.angle = (float)DEG2RAD(45.0f);
