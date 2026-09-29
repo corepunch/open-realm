@@ -2307,6 +2307,11 @@ static void jass_snapshot_freehandles(jassSnapshot_t *snapshot) {
 static bool jass_snapshot_writehandle(jass_t *j, jassSnapshot_t *snapshot, jassVar_t const *var) {
     uint32_t encoding, id;
     (void)j;
+    if (!strcmp(var->type->name, "terraindeformation")) {
+        /* Renderer-only effects and their transient handles do not survive save/load. */
+        encoding = JASS_SNAPSHOT_HANDLE_NULL;
+        return jass_snapshot_io(snapshot, &encoding, sizeof(encoding));
+    }
     if (jass_valuehandle(var->type->name)) {
         encoding = JASS_SNAPSHOT_HANDLE_VALUE;
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&

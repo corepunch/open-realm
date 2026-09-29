@@ -925,12 +925,90 @@ uint32_t SetTerrainPathable(jass_t *j) {
     (void)jass_checkboolean(j, 4);
     return 0;
 }
+static uint32_t terrain_deformation_next_id;
+
+static void TerrainDeformWriteLong(int32_t value) {
+    if (gi.Write) gi.Write(PF_LONG, &value);
+}
+
+static uint32_t TerrainDeformEmit(jass_t *j, terrainDeform_t *deformation) {
+    uint32_t id = ++terrain_deformation_next_id;
+    if (!id) id = ++terrain_deformation_next_id;
+    deformation->id = id;
+    if (gi.Write && gi.multicast) {
+        vec3_t origin = { deformation->data[0], deformation->data[1], 0.0f };
+        gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
+        gi.Write(PF_BYTE, &(int32_t){ TE_TERRAIN_DEFORM });
+        TerrainDeformWriteLong((int32_t)id);
+        gi.Write(PF_BYTE, &(int32_t){ deformation->type });
+        FOR_LOOP(i, 8) gi.Write(PF_FLOAT, &deformation->data[i]);
+        TerrainDeformWriteLong((int32_t)deformation->duration_ms);
+        TerrainDeformWriteLong((int32_t)deformation->count);
+        TerrainDeformWriteLong((int32_t)deformation->update_ms);
+        gi.Write(PF_BYTE, &(int32_t){ (deformation->permanent ? 1 : 0) |
+                                      (deformation->limit_negative ? 2 : 0) });
+        gi.multicast(&origin, MULTICAST_ALL);
+    }
+    uint32_t *handle = jass_newhandle(j, sizeof(*handle), "terraindeformation");
+    if (!handle) return 1;
+    *handle = id;
+    return 1;
+}
+
+uint32_t TerrainDeformCrater(jass_t *j) {
+    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_CRATER };
+    deformation.data[0] = jass_checknumber(j, 1); deformation.data[1] = jass_checknumber(j, 2);
+    deformation.data[2] = jass_checknumber(j, 3); deformation.data[3] = jass_checknumber(j, 4);
+    deformation.duration_ms = MAX(0, jass_checkinteger(j, 5));
+    deformation.permanent = jass_checkboolean(j, 6);
+    return TerrainDeformEmit(j, &deformation);
+}
 uint32_t TerrainDeformRipple(jass_t *j) {
-    (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checknumber(j, 3); (void)jass_checknumber(j, 4);
-    (void)jass_checkinteger(j, 5); (void)jass_checkinteger(j, 6);
-    (void)jass_checknumber(j, 7); (void)jass_checknumber(j, 8); (void)jass_checknumber(j, 9);
-    (void)jass_checkboolean(j, 10);
-    return jass_pushnullhandle(j, "terraindeformation");
+    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_RIPPLE };
+    deformation.data[0] = jass_checknumber(j, 1); deformation.data[1] = jass_checknumber(j, 2);
+    deformation.data[2] = jass_checknumber(j, 3); deformation.data[3] = jass_checknumber(j, 4);
+    deformation.duration_ms = MAX(0, jass_checkinteger(j, 5));
+    deformation.count = MAX(0, jass_checkinteger(j, 6));
+    deformation.data[4] = jass_checknumber(j, 7); deformation.data[5] = jass_checknumber(j, 8);
+    deformation.data[6] = jass_checknumber(j, 9); deformation.limit_negative = jass_checkboolean(j, 10);
+    return TerrainDeformEmit(j, &deformation);
+}
+uint32_t TerrainDeformWave(jass_t *j) {
+    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_WAVE };
+    FOR_LOOP(i, 8) deformation.data[i] = jass_checknumber(j, i + 1);
+    deformation.duration_ms = MAX(0, jass_checkinteger(j, 9));
+    deformation.count = MAX(0, jass_checkinteger(j, 10));
+    return TerrainDeformEmit(j, &deformation);
+}
+uint32_t TerrainDeformRandom(jass_t *j) {
+    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_RANDOM };
+    FOR_LOOP(i, 5) deformation.data[i] = jass_checknumber(j, i + 1);
+    deformation.duration_ms = MAX(0, jass_checkinteger(j, 6));
+    deformation.update_ms = MAX(0, jass_checkinteger(j, 7));
+    return TerrainDeformEmit(j, &deformation);
+}
+uint32_t TerrainDeformStop(jass_t *j) {
+    uint32_t *handle = jass_checkhandle(j, 1, "terraindeformation");
+    int32_t fade_ms = MAX(0, jass_checkinteger(j, 2));
+    if (handle && gi.Write && gi.multicast) {
+        vec3_t origin = { 0 };
+        gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
+        gi.Write(PF_BYTE, &(int32_t){ TE_TERRAIN_DEFORM_STOP });
+        TerrainDeformWriteLong((int32_t)*handle);
+        TerrainDeformWriteLong(fade_ms);
+        gi.multicast(&origin, MULTICAST_ALL);
+    }
+    return 0;
+}
+uint32_t TerrainDeformStopAll(jass_t *j) {
+    (void)j;
+    if (gi.Write && gi.multicast) {
+        vec3_t origin = { 0 };
+        gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
+        gi.Write(PF_BYTE, &(int32_t){ TE_TERRAIN_DEFORM_STOP_ALL });
+        gi.multicast(&origin, MULTICAST_ALL);
+    }
+    return 0;
 }
 uint32_t SetCampaignMenuRaceEx(jass_t *j) {
     //int32_t campaignIndex = jass_checkinteger(j, 1); /* TODO: wire to campaign UI */

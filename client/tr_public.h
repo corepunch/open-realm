@@ -302,6 +302,9 @@ typedef struct {
 
     void (*DrawBoundingBox)(box3_t const *box, mat4_t const *modelMatrix, mat4_t const *vpMatrix, color32_t color);
     float (*GetHeightAtPoint)(float x, float y);
+    void (*StartTerrainDeformation)(terrainDeform_t const *deformation);
+    void (*StopTerrainDeformation)(uint32_t id, uint32_t fade_ms);
+    void (*StopAllTerrainDeformations)(void);
     float (*GetCameraHeightAtPoint)(float x, float y);
     bool (*CameraUsesTerrainHeight)(void);
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, uint32_t *number);

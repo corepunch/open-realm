@@ -194,6 +194,34 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
                 text->active = text->text[0] && text->lifetime > 0;
             }
             break;
+        case TE_TERRAIN_DEFORM:
+            {
+                terrainDeform_t deformation = { 0 };
+                uint32_t flags;
+                deformation.id = (uint32_t)MSG_ReadLong(msg);
+                deformation.type = (terrainDeformType_t)MSG_ReadByte(msg);
+                FOR_LOOP(i, sizeof(deformation.data) / sizeof(deformation.data[0]))
+                    deformation.data[i] = MSG_ReadFloat(msg);
+                deformation.duration_ms = (uint32_t)MAX(0, MSG_ReadLong(msg));
+                deformation.count = (uint32_t)MAX(0, MSG_ReadLong(msg));
+                deformation.update_ms = (uint32_t)MAX(0, MSG_ReadLong(msg));
+                flags = (uint32_t)MSG_ReadByte(msg);
+                deformation.permanent = !!(flags & 1u);
+                deformation.limit_negative = !!(flags & 2u);
+                if (deformation.id && deformation.type <= TERRAIN_DEFORM_RANDOM && re.StartTerrainDeformation)
+                    re.StartTerrainDeformation(&deformation);
+            }
+            break;
+        case TE_TERRAIN_DEFORM_STOP:
+            {
+                uint32_t const id = (uint32_t)MSG_ReadLong(msg);
+                uint32_t const fade_ms = (uint32_t)MSG_ReadLong(msg);
+                if (id && re.StopTerrainDeformation) re.StopTerrainDeformation(id, fade_ms);
+            }
+            break;
+        case TE_TERRAIN_DEFORM_STOP_ALL:
+            if (re.StopAllTerrainDeformations) re.StopAllTerrainDeformations();
+            break;
         default:
             Com_Error(ERR_DROP, "CL_ParseTEnt: bad type %d", evt);
             break;

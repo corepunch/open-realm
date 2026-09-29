@@ -152,6 +152,10 @@ float R_GetHeightAtPoint(float x, float y) {
     return Wow_GetHeightAtPoint(x, y);
 }
 
+void R_StartTerrainDeformation(terrainDeform_t const *deformation) { (void)deformation; }
+void R_StopTerrainDeformation(uint32_t id, uint32_t fade_ms) { (void)id; (void)fade_ms; }
+void R_StopAllTerrainDeformations(void) { }
+
 float R_GetCameraHeightAtPoint(float x, float y) { return R_GetHeightAtPoint(x, y); }
 bool R_CameraUsesTerrainHeight(void) { return false; }
 
