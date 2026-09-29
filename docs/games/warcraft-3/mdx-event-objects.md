@@ -101,6 +101,11 @@ The terrain splat renderer accepts an explicit UV rectangle, so a SplatData atla
 
 `LifespanRepeat` and `UVDecayRepeat` are parsed and retained but not yet applied: their exact retail repeat-count/wrap contract remains unverified. Likewise `BlendMode`, `Water`, and `Sound` are preserved but not guessed into renderer/audio behavior. A used row with one of those unsupported non-default fields produces one bounded warning, so the partial presentation contract is not silent. This keeps the implemented subset deterministic and data-driven without approximating the remaining semantics.
 
+When both `Lifespan` and `Decay` are zero, the current approximation draws the
+splat on its event frame and retires it immediately. The retail lifetime meaning
+of this data shape is not established. Such rows produce one warning per row
+and map scope; the one-frame display must not be described as retail behavior.
+
 ## `UBR` data flow
 
 `UBR` events resolve `Splats\UberSplatData.slk` in renderer asset scope, so map
@@ -117,6 +122,11 @@ UberSplat path. `UberSplatData.BlendMode` values beyond the default blend path
 and the optional `Sound` field are not yet interpreted by this event consumer;
 the renderer emits one bounded warning for a used row with those retained fields
 until a verified retail blend/audio contract is implemented.
+
+When `BirthTime`, `PauseTime`, and `Decay` are all zero, the current
+approximation draws the UberSplat on its event frame and retires it immediately.
+The retail lifetime meaning of this shape is unverified and is reported once
+per row and map scope.
 
 ## Nested child events
 
@@ -173,10 +183,18 @@ modes and the row's optional sound behavior remain unverified.
 ### Event families and dispatch limits
 
 The `SND`, `SPN`, `SPL`, `FPT`, and `UBR` prefixes all have consumers, but
-unknown event prefixes are ignored. Nested child models dispatch these same
-families only up to the renderer's four-level `SPN` nesting limit. Events from
-deeper children are suppressed for safety. This is a renderer limit, not a
-verified Warcraft limit.
+unknown event prefixes are skipped after one warning per prefix and map scope.
+Missing event rows/models and nesting-limit hits are also warned once per event
+key and map scope. A fixed warning cache suppresses further distinct warnings
+after capacity is reached and emits one cache-full warning. Nested child models
+dispatch these same families only up to the renderer's four-level `SPN` nesting
+limit. Events from deeper children are suppressed for safety. This is a renderer
+limit, not a verified Warcraft limit.
+
+The renderer event clock also includes a client-local entity incarnation value.
+Observed entity remove/re-add transitions seed a fresh event clock even when the
+reused edict slot resolves to the same model. This value is presentation-only;
+it is not in snapshots, saves, or the wire protocol.
 
 The `EVTS` chunk and its key records are parsed. This commit did not introduce
 that base parser; it extended runtime dispatch to additional event families and

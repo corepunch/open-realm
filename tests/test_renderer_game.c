@@ -50,6 +50,72 @@ TEST(renderer_game, splat_atlas_frame_handles_full_signed_range) {
     T_EQ(R_W3SplatAtlasFrame(INT_MAX, INT_MIN, 1.0f), INT_MIN);
 }
 
+TEST(renderer_game, event_warning_cache_suppresses_duplicate_asset_diagnostics) {
+    R_W3ClearEventWarnings();
+    T_ASSERT(R_W3EventWarningShouldLog("missing-spawn-row", "SPNxMissing"));
+    T_ASSERT(!R_W3EventWarningShouldLog("missing-spawn-row", "SPNxMissing"));
+    T_ASSERT(R_W3EventWarningShouldLog("missing-splat-row", "SPNxMissing"));
+    R_W3ClearEventWarnings();
+    T_ASSERT(R_W3EventWarningShouldLog("missing-spawn-row", "SPNxMissing"));
+    R_W3ClearEventWarnings();
+}
+
+TEST(renderer_game, zero_lifetime_event_splats_are_one_frame_and_marked_unverified) {
+    wc3SplatData_t splat_row = { .name = "ZeroSplat", .rows = 1, .columns = 1,
+                                 .scale = 8.0f, .texture = &test_splat_texture };
+    wc3UberSplatData_t uber_row = { .name = "ZeroUber", .scale = 8.0f,
+                                    .texture = &test_splat_texture };
+    wc3EventSplat_t splat = { .kind = WC3_EVENT_SPLAT_SPLAT, .splat_row = &splat_row, .active = true };
+    wc3EventSplat_t uber = { .kind = WC3_EVENT_SPLAT_UBER, .uber_row = &uber_row, .active = true };
+    uint32_t saved_time = tr.viewDef.time;
+
+    R_W3ClearEventWarnings(); test_splat_count = 0; tr.viewDef.time = 100;
+    T_ASSERT(R_W3RenderEventSplat(&splat));
+    T_ASSERT(!splat.active); T_ASSERT(splat_row.zero_duration_warned);
+    T_EQ(test_splat_count, 1);
+    T_ASSERT(!R_W3RenderEventSplat(&splat));
+    T_ASSERT(R_W3RenderEventSplat(&uber));
+    T_ASSERT(!uber.active); T_ASSERT(uber_row.zero_duration_warned);
+    T_EQ(test_splat_count, 2);
+    T_ASSERT(!R_W3RenderEventSplat(&uber));
+    R_W3ClearEventWarnings(); tr.viewDef.time = saved_time;
+}
+
+TEST(renderer_game, reused_entity_generation_seeds_mdx_event_clock) {
+    uint32_t key = 100;
+    vec3_t pivot = { 0 };
+    mdxSequence_t sequence = { .interval = { 0, 1000 } };
+    mdxEvent_t event = { .num_keys = 1, .globalSeqId = (uint32_t)-1, .keys = &key };
+    mdxModel_t mdx = { .events = &event, .sequences = &sequence, .num_sequences = 1,
+                       .pivots = &pivot, .num_pivots = 1 };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entity = { .model = &model, .number = 12, .frame = 150, .generation = 2 };
+    wc3SplatData_t row = { .name = "TestReuse", .rows = 1, .columns = 1, .scale = 8.0f,
+                           .lifespan = 1.0f, .texture = &test_splat_texture };
+    wc3SplatData_t *saved_rows = splat_data_rows;
+    uint32_t saved_count = splat_data_count, saved_time = tr.viewDef.time;
+    render_phase_t saved_phase = tr.render_phase;
+    wc3EventState_t state = { .model = &model, .frame = 900, .render_time = 900,
+                              .valid = true, .generation = 1 };
+    mat4_t transform;
+
+    snprintf(event.node.name, sizeof(event.node.name), "SPLxTestReuse");
+    event.node.node_id = 0; event.node.parent_id = (uint32_t)-1;
+    mdx.nodes[0] = &event.node; mdx.node_list[0] = &event.node; mdx.num_nodes = 1;
+    splat_data_rows = &row; splat_data_count = 1;
+    test_splat_count = 0; tr.viewDef.time = 1050; tr.render_phase = RENDER_PHASE_SOLID;
+    Matrix4_identity(&transform);
+
+    R_W3DispatchModelEvents(&(wc3EventDispatchParams_t){ .entity = &entity, .model = &mdx,
+        .state = &state, .transform = &transform, .depth = 0 });
+    T_EQ(test_splat_count, 0); /* The reused slot seeds a fresh event clock; it must not replay old keys. */
+    T_EQ(state.generation, 2);
+
+    splat_data_rows = saved_rows; splat_data_count = saved_count;
+    tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
+    R_W3ClearEventSplats();
+}
+
 static handle_t test_renderer_alloc(long size) { return calloc(1, (size_t)size); }
 static void test_renderer_free(handle_t ptr) { free(ptr); }
 

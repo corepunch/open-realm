@@ -146,7 +146,7 @@ typedef struct {
     int water;
     cstring_t sound;
     texture_t const *texture;
-    bool texture_attempted, unsupported_warned, atlas_warned;
+    bool texture_attempted, unsupported_warned, atlas_warned, zero_duration_warned;
 } wc3SplatData_t;
 typedef struct {
     cstring_t name;
@@ -158,7 +158,7 @@ typedef struct {
     float middle_r, middle_g, middle_b, middle_a;
     float end_r, end_g, end_b, end_a;
     texture_t const *texture;
-    bool texture_attempted, unsupported_warned;
+    bool texture_attempted, unsupported_warned, zero_duration_warned;
 } wc3UberSplatData_t;
 
 typedef struct {
@@ -251,7 +251,7 @@ static slkField_t const uber_splat_data_schema[] = {
     { NULL, 0, 0 },
 };
 static wc3UberSplatData_t *uber_splat_rows; static uint32_t uber_splat_count;
-typedef struct { model_t const *model; uint32_t frame, render_time; bool valid; } wc3EventState_t;
+typedef struct { model_t const *model; uint32_t frame, render_time, generation; bool valid; } wc3EventState_t;
 typedef enum {
     WC3_EVENT_NONE, WC3_EVENT_SOUND, WC3_EVENT_SPAWN, WC3_EVENT_SPLAT, WC3_EVENT_FOOTPRINT, WC3_EVENT_UBER_SPLAT,
 } wc3EventKind_t;
@@ -279,6 +279,11 @@ typedef struct {
     uint32_t depth;
 } wc3EventDispatchParams_t;
 static wc3EventState_t event_state[MAX_GAME_ENTITIES];
+#define WC3_EVENT_WARNING_MAX 128
+typedef struct { char kind[32], name[80]; } wc3EventWarning_t;
+static wc3EventWarning_t event_warnings[WC3_EVENT_WARNING_MAX];
+static uint32_t event_warning_count;
+static bool event_warning_overflow_logged;
 #define WC3_EVENT_SPAWN_MAX 128 // effects; bounds renderer-owned SPN children without heap growth
 typedef struct {
     model_t *model; mat4_t transform;
@@ -307,6 +312,8 @@ static void R_W3DrawEventSpawns(void);
 static void R_W3DrawEventSplats(void);
 static bool R_W3RenderEventSplat(wc3EventSplat_t *splat);
 static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params);
+static bool R_W3EventWarningShouldLog(cstring_t kind, cstring_t name);
+static void R_W3ClearEventWarnings(void);
 
 /* WorldEditData is the authoritative tileset-to-Blight-art mapping.  Keep the
  * lookup data-driven because custom/expansion tilesets can add rows there. */
@@ -571,6 +578,14 @@ static void R_W3WarnUnsupportedSplatFields(wc3SplatData_t *row) {
             row->name ? row->name : "(unnamed)");
 }
 
+static void R_W3WarnZeroSplatLifetime(wc3SplatData_t *row) {
+    if (!row || row->zero_duration_warned || row->lifespan > 0.0f || row->decay_time > 0.0f) return;
+    row->zero_duration_warned = true;
+    if (R_W3EventWarningShouldLog("zero-splat-lifetime", row->name ? row->name : "(unnamed)"))
+        fprintf(stderr, "WC3 renderer: SplatData '%s' has zero lifetime; one-frame display is unverified\n",
+                row->name ? row->name : "(unnamed)");
+}
+
 static void R_W3FreeUberSplatData(void) {
     FS_SLKFreeRows(uber_splat_data_schema, uber_splat_rows, uber_splat_count, sizeof(wc3UberSplatData_t));
     uber_splat_rows = NULL; uber_splat_count = 0;
@@ -619,6 +634,15 @@ static void R_W3WarnUnsupportedUberSplatFields(wc3UberSplatData_t *row) {
             row->name ? row->name : "(unnamed)");
 }
 
+static void R_W3WarnZeroUberSplatLifetime(wc3UberSplatData_t *row) {
+    if (!row || row->zero_duration_warned || row->birth_time > 0.0f ||
+        row->pause_time > 0.0f || row->decay_time > 0.0f) return;
+    row->zero_duration_warned = true;
+    if (R_W3EventWarningShouldLog("zero-uber-splat-lifetime", row->name ? row->name : "(unnamed)"))
+        fprintf(stderr, "WC3 renderer: UberSplatData '%s' has zero lifetime; one-frame display is unverified\n",
+                row->name ? row->name : "(unnamed)");
+}
+
 static void R_W3ClearEventSplats(void) {
     memset(event_splats, 0, sizeof(event_splats));
     event_splat_serial = 0;
@@ -627,6 +651,30 @@ static void R_W3ClearEventSplats(void) {
 static void R_W3ClearEventSpawns(void) {
     memset(event_spawns, 0, sizeof(event_spawns));
     event_spawn_serial = 0;
+}
+
+/* Keep repeated authored-event failures visible without printing on every animation loop. */
+static bool R_W3EventWarningShouldLog(cstring_t kind, cstring_t name) {
+    if (!kind || !name) return false;
+    FOR_LOOP(i, event_warning_count)
+        if (!strcmp(event_warnings[i].kind, kind) && !strcmp(event_warnings[i].name, name)) return false;
+    if (event_warning_count >= WC3_EVENT_WARNING_MAX) {
+        if (!event_warning_overflow_logged) {
+            fprintf(stderr, "WC3 renderer: MDX event warning cache full; suppressing further event warnings\n");
+            event_warning_overflow_logged = true;
+        }
+        return false;
+    }
+    strlcpy(event_warnings[event_warning_count].kind, kind, sizeof(event_warnings[0].kind));
+    strlcpy(event_warnings[event_warning_count].name, name, sizeof(event_warnings[0].name));
+    event_warning_count++;
+    return true;
+}
+
+static void R_W3ClearEventWarnings(void) {
+    memset(event_warnings, 0, sizeof(event_warnings));
+    event_warning_count = 0;
+    event_warning_overflow_logged = false;
 }
 
 void R_LoadAssets(void) {
@@ -653,6 +701,7 @@ void R_LoadAssets(void) {
                                   (void **)&anim_sound_rows, sizeof(wc3AnimSound_t));
     R_W3ClearEventSpawns();
     R_W3ClearEventSplats();
+    R_W3ClearEventWarnings();
     R_W3LoadSpawnData();
     R_W3LoadSplatData();
     R_W3LoadUberSplatData();
@@ -703,6 +752,7 @@ void R_Shutdown(void) {
     anim_sound_rows = NULL; anim_sound_count = 0;
     R_W3ClearEventSpawns();
     R_W3ClearEventSplats();
+    R_W3ClearEventWarnings();
     R_W3FreeSpawnData(false);
     R_W3FreeSplatData();
     R_W3FreeUberSplatData();
@@ -1015,6 +1065,7 @@ void R_RegisterMap(cstring_t mapFileName) {
     R_AdvanceTextureGeneration();
     R_W3ClearEventSpawns();
     R_W3ClearEventSplats();
+    R_W3ClearEventWarnings();
     R_W3LoadSpawnData();
     R_W3LoadSplatData();
     R_W3LoadUberSplatData();
@@ -1264,10 +1315,22 @@ static void R_W3EmitSoundEvent(wc3EventParams_t const *params, uint32_t key) {
         !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
     label = R_W3AnimLookupLabel(id);
     row = R_W3AnimSound(label ? label : id);
-    if (!row) return;
-    if (!(count = R_W3SoundVariantCount(row))) return;
+    if (!row) {
+        if (R_W3EventWarningShouldLog("missing-animation-sound", id))
+            fprintf(stderr, "WC3 renderer: MDX SND event '%s' has no AnimSounds row\n", id);
+        return;
+    }
+    if (!(count = R_W3SoundVariantCount(row))) {
+        if (R_W3EventWarningShouldLog("empty-animation-sound", id))
+            fprintf(stderr, "WC3 renderer: MDX SND event '%s' has no sound variants\n", id);
+        return;
+    }
     pick = R_W3PresentationPick(params->entity->number, key, tr.viewDef.time, count);
-    if (!R_W3SoundPath(row, pick, path, sizeof(path))) return;
+    if (!R_W3SoundPath(row, pick, path, sizeof(path))) {
+        if (R_W3EventWarningShouldLog("invalid-animation-sound-path", id))
+            fprintf(stderr, "WC3 renderer: MDX SND event '%s' has an invalid AnimSounds path\n", id);
+        return;
+    }
     {
         mat4_t event_transform;
         if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
@@ -1308,6 +1371,7 @@ static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
 
     child.model = spawn->model;
     child.number = MAX_GAME_ENTITIES + slot + 1;
+    child.generation = spawn->serial;
     child.team = spawn->team;
     child.flags = spawn->flags | RF_NO_SHADOW | RF_NO_UBERSPLAT;
     child.scale = spawn->scale;
@@ -1318,7 +1382,7 @@ static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
         uint32_t serial = spawn->serial;
         wc3EventState_t state = {
             .model = spawn->model, .frame = spawn->event_frame,
-            .render_time = spawn->event_render_time, .valid = spawn->event_valid,
+            .render_time = spawn->event_render_time, .generation = spawn->serial, .valid = spawn->event_valid,
         };
         R_W3DispatchModelEvents(&MAKE(wc3EventDispatchParams_t, .entity = &child,
             .model = spawn->model->mdx, .state = &state, .transform = &spawn->transform,
@@ -1349,11 +1413,21 @@ static void R_W3EmitSpawnEvent(wc3EventParams_t const *params) {
         !params->family ||
         !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
     row = R_W3SpawnData(id);
-    if (!row) { fprintf(stderr, "WC3 renderer: MDX SPN event '%s' has no SpawnData row\n", id); return; }
+    if (!row) {
+        if (R_W3EventWarningShouldLog("missing-spawn-row", id))
+            fprintf(stderr, "WC3 renderer: MDX SPN event '%s' has no SpawnData row\n", id);
+        return;
+    }
     child_model = R_W3SpawnModel(row);
-    if (!child_model) { fprintf(stderr, "WC3 renderer: MDX SPN '%s' model '%s' did not resolve to MDLX\n", id, row->model_path ? row->model_path : "(empty)"); return; }
+    if (!child_model) {
+        if (R_W3EventWarningShouldLog("unresolved-spawn-model", id))
+            fprintf(stderr, "WC3 renderer: MDX SPN '%s' model '%s' did not resolve to MDLX\n",
+                    id, row->model_path ? row->model_path : "(empty)");
+        return;
+    }
     if (!child_model->mdx->sequences || child_model->mdx->num_sequences < 1) {
-        fprintf(stderr, "WC3 renderer: MDX SPN '%s' model '%s' has no sequences\n", id, row->model_path);
+        if (R_W3EventWarningShouldLog("spawn-model-no-sequence", id))
+            fprintf(stderr, "WC3 renderer: MDX SPN '%s' model '%s' has no sequences\n", id, row->model_path);
         return;
     }
     spawn = R_W3AllocEventSpawn();
@@ -1370,7 +1444,8 @@ static void R_W3EmitSpawnEvent(wc3EventParams_t const *params) {
     if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
                                   params->transform, &spawn->transform)) {
         spawn->active = false;
-        fprintf(stderr, "WC3 renderer: failed to transform MDX SPN event '%s'\n", id);
+        if (R_W3EventWarningShouldLog("spawn-transform", id))
+            fprintf(stderr, "WC3 renderer: failed to transform MDX SPN event '%s'\n", id);
         return;
     }
     /* Render the event on the crossing frame; the retained slot continues from
@@ -1463,19 +1538,24 @@ static void R_W3EmitSplatEvent(wc3EventParams_t const *params) {
         !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
     row = R_W3SplatData(id);
     if (!row) {
-        fprintf(stderr, "WC3 renderer: MDX %s event '%s' has no SplatData row\n", params->family->prefix, id);
+        if (R_W3EventWarningShouldLog("missing-splat-row", id))
+            fprintf(stderr, "WC3 renderer: MDX %s event '%s' has no SplatData row\n",
+                    params->family->prefix, id);
         return;
     }
     if (!R_W3SplatAtlasValid(row)) return;
     if (row->scale <= 0.0f) {
-        fprintf(stderr, "WC3 renderer: SplatData '%s' has invalid scale %.3f\n", id, row->scale);
+        if (R_W3EventWarningShouldLog("invalid-splat-scale", id))
+            fprintf(stderr, "WC3 renderer: SplatData '%s' has invalid scale %.3f\n", id, row->scale);
         return;
     }
     R_W3WarnUnsupportedSplatFields(row);
     if (!R_W3SplatTexture(row)) return;
     if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
                                   params->transform, &event_transform)) {
-        fprintf(stderr, "WC3 renderer: failed to transform MDX %s event '%s'\n", params->family->prefix, id);
+        if (R_W3EventWarningShouldLog("splat-transform", id))
+            fprintf(stderr, "WC3 renderer: failed to transform MDX %s event '%s'\n",
+                    params->family->prefix, id);
         return;
     }
     splat = R_W3AllocEventSplat();
@@ -1501,16 +1581,22 @@ static void R_W3EmitUberSplatEvent(wc3EventParams_t const *params) {
         !params->family ||
         !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
     row = R_W3UberSplatData(id);
-    if (!row) { fprintf(stderr, "WC3 renderer: MDX UBR event '%s' has no UberSplatData row\n", id); return; }
+    if (!row) {
+        if (R_W3EventWarningShouldLog("missing-uber-splat-row", id))
+            fprintf(stderr, "WC3 renderer: MDX UBR event '%s' has no UberSplatData row\n", id);
+        return;
+    }
     if (row->scale <= 0.0f) {
-        fprintf(stderr, "WC3 renderer: UberSplatData '%s' has invalid scale %.3f\n", id, row->scale);
+        if (R_W3EventWarningShouldLog("invalid-uber-splat-scale", id))
+            fprintf(stderr, "WC3 renderer: UberSplatData '%s' has invalid scale %.3f\n", id, row->scale);
         return;
     }
     R_W3WarnUnsupportedUberSplatFields(row);
     if (!R_W3UberSplatTexture(row)) return;
     if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
                                   params->transform, &event_transform)) {
-        fprintf(stderr, "WC3 renderer: failed to transform MDX UBR event '%s'\n", id);
+        if (R_W3EventWarningShouldLog("uber-splat-transform", id))
+            fprintf(stderr, "WC3 renderer: failed to transform MDX UBR event '%s'\n", id);
         return;
     }
     splat = R_W3AllocEventSplat();
@@ -1542,6 +1628,7 @@ static bool R_W3RenderEventSplat(wc3EventSplat_t *splat) {
         vec2_t mins, maxs;
 
         if (!row || !(texture = R_W3SplatTexture(row))) { splat->active = false; return false; }
+        R_W3WarnZeroSplatLifetime(row);
         life_ms = MAX(0.0f, row->lifespan) * 1000.0f;
         decay_ms = MAX(0.0f, row->decay_time) * 1000.0f;
         total_ms = life_ms + decay_ms;
@@ -1576,6 +1663,7 @@ static bool R_W3RenderEventSplat(wc3EventSplat_t *splat) {
         color32_t start_color, middle_color, end_color, color;
 
         if (!row || !(texture = R_W3UberSplatTexture(row))) { splat->active = false; return false; }
+        R_W3WarnZeroUberSplatLifetime(row);
         birth_ms = MAX(0.0f, row->birth_time) * 1000.0f;
         pause_ms = MAX(0.0f, row->pause_time) * 1000.0f;
         decay_ms = MAX(0.0f, row->decay_time) * 1000.0f;
@@ -1613,9 +1701,10 @@ static void R_W3DrawEventSpawns(void) {
 static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params) {
     if (!params || !params->entity || !params->model || !params->state || !params->transform ||
         !params->model->events) return;
-    if (!params->state->valid || params->state->model != params->entity->model) {
+    if (!params->state->valid || params->state->model != params->entity->model ||
+        params->state->generation != params->entity->generation) {
         *params->state = (wc3EventState_t){ .model = params->entity->model, .frame = params->entity->frame,
-            .render_time = tr.viewDef.time, .valid = true };
+            .render_time = tr.viewDef.time, .generation = params->entity->generation, .valid = true };
         return;
     }
     if (params->state->frame == params->entity->frame &&
@@ -1625,7 +1714,14 @@ static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params) {
         wc3EventFamily_t const *family = R_W3EventFamily(event);
         wc3EventParams_t event_params;
 
-        if (!event->num_keys || !family) continue;
+        if (!event->num_keys) continue;
+        if (!family) {
+            char prefix[4] = { event->node.name[0], event->node.name[1], event->node.name[2], '\0' };
+            if (R_W3EventWarningShouldLog("unsupported-event-family", prefix))
+                fprintf(stderr, "WC3 renderer: unsupported MDX event family '%s' in '%s'\n",
+                        prefix, event->node.name);
+            continue;
+        }
         event_params = MAKE(wc3EventParams_t, .entity = params->entity, .model = params->model,
             .event = event, .transform = params->transform, .family = family, .depth = params->depth);
         FOR_LOOP(i, event->num_keys) {
@@ -1649,8 +1745,9 @@ static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params) {
                     event_params.depth = params->depth + 1;
                     R_W3EmitSpawnEvent(&event_params);
                 } else {
-                    fprintf(stderr, "WC3 renderer: MDX SPN nesting exceeded %u presentation levels at event '%s'\n",
-                            WC3_EVENT_MAX_DEPTH, event->node.name);
+                    if (R_W3EventWarningShouldLog("spawn-depth-limit", event->node.name))
+                        fprintf(stderr, "WC3 renderer: MDX SPN nesting exceeded %u presentation levels at event '%s'\n",
+                                WC3_EVENT_MAX_DEPTH, event->node.name);
                 }
                 break;
             default:

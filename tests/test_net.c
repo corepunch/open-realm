@@ -4014,6 +4014,7 @@ TEST(net, active_entity_list_tracks_model_transitions) {
     uint8_t buf[512];
     sizeBuf_t sb;
     entityState_t state, from, to;
+    uint32_t generation;
 
     test_client_stubs_init();
     T_EQ(cl.num_active, 0);
@@ -4025,6 +4026,7 @@ TEST(net, active_entity_list_tracks_model_transitions) {
     net_parse(&sb);
     T_EQ(cl.num_active, 1);
     T_EQ(cl.active_entities[0], 7);
+    generation = cl.ents[7].presentation_generation;
 
     /* Duplicate baseline must not append a second entry. */
     sb = make_msg_buf(buf, sizeof(buf));
@@ -4045,6 +4047,8 @@ TEST(net, active_entity_list_tracks_model_transitions) {
     net_send_remove(&sb, 7);
     net_parse(&sb);
     T_EQ(cl.num_active, 0);
+    T_NE(cl.ents[7].presentation_generation, generation);
+    generation = cl.ents[7].presentation_generation;
 
     /* Slot reuse: model 0 -> 1 re-adds, then a plain U_REMOVE clears it again. */
     from = to; /* model=0 */
@@ -4054,6 +4058,7 @@ TEST(net, active_entity_list_tracks_model_transitions) {
     net_parse(&sb);
     T_EQ(cl.num_active, 1);
     T_EQ(cl.active_entities[0], 7);
+    T_NE(cl.ents[7].presentation_generation, generation);
 
     sb = make_msg_buf(buf, sizeof(buf));
     net_send_remove(&sb, 7);

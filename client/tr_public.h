@@ -136,6 +136,7 @@ typedef struct {
     texture_t const *splat;
     cstring_t name;                      /* server-authored world label (NULL = none) */
     uint32_t number;
+    uint32_t generation; /* client-local entity incarnation; not serialized */
     uint32_t owner;                     /* authoritative entity owner/player slot when the game assigns one */
     uint32_t team;
 #ifdef WOW
