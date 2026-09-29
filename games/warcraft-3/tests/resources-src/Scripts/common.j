@@ -13,6 +13,7 @@ type item             extends widget
 type effect           extends agent
 type effecttype       extends handle
 type weathereffect    extends handle
+type terraindeformation extends handle
 type player           extends agent
 type quest            extends handle
 type questitem        extends handle
