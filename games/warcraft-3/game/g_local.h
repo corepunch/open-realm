@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <limits.h>
+#include <float.h>
 
 #include "common/common.h"
 #include "common/weather.h"

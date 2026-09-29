@@ -173,14 +173,23 @@ static float G_CameraZOffset(player_t const *p) {
               : p->vieworigin.z - CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y) - CM_GetCameraHeightOffset();
 }
 
+static bool G_CameraParsePanRate(cstring_t text, float *rate) {
+    char *end;
+    double value;
+
+    if (!text || !*text || !rate) return false;
+    value = strtod(text, &end);
+    while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n') end++;
+    if (end == text || *end || !isfinite(value) || value <= 0.0 || value > FLT_MAX) return false;
+    *rate = (float)value;
+    return isfinite(*rate) && *rate > 0.0f;
+}
+
 static bool G_CameraDefaultPanRates(vec2_t *rate) {
     cstring_t strafe = Stb_IniCacheFind(&game.config.misc, "CameraRates", "Strafe");
     cstring_t forward = Stb_IniCacheFind(&game.config.misc, "CameraRates", "Forward");
 
-    if (!rate || !strafe || !forward) return false;
-    rate->x = (float)atof(strafe);
-    rate->y = (float)atof(forward);
-    return isfinite(rate->x) && isfinite(rate->y) && rate->x > 0.0f && rate->y > 0.0f;
+    return rate && G_CameraParsePanRate(strafe, &rate->x) && G_CameraParsePanRate(forward, &rate->y);
 }
 
 /* Scripted pans own only target XY. Scalar field interpolation remains independent,
@@ -229,8 +238,9 @@ static void G_StartCameraPanTimed(gameClient_t *gc, vec2_t destination, float du
 static void G_StartCameraPanDefault(gameClient_t *gc, vec2_t destination) {
     vec2_t rate;
 
+    if (!gc) return;
     if (!G_CameraDefaultPanRates(&rate)) {
-        G_StartCameraPan(gc, destination, (vec2_t){ 0, 0 });
+        fprintf(stderr, "WC3 camera: missing or invalid UI\\MiscData.txt CameraRates Strafe/Forward; default camera pan not started\n");
         return;
     }
     G_StartCameraPan(gc, destination, rate);

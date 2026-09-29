@@ -272,7 +272,7 @@ static void G_TouchTriggers(edict_t *ent) {
                 handle_t event_handle, region_handle;
                 region_t *region;
                 uint32_t spawn_time;
-                if (!ent->class_id) break; /* Region enter events carry units; classless map entities are not units. */
+                if (!(ent->svflags & SVF_MONSTER)) break; /* Region enter events carry units, not items, destructables, or map entities. */
                 event_handle = G_EventHandle(evt);
                 region_handle = evt->region;
                 region = G_RegionFromHandle(evt->region);
@@ -290,7 +290,7 @@ static void G_TouchTriggers(edict_t *ent) {
                 handle_t event_handle = G_EventHandle(evt), region_handle = evt->region;
                 region_t *region = G_RegionFromHandle(evt->region);
                 uint32_t spawn_time = ent->spawn_time;
-                if (!ent->class_id) break; /* Region leave events carry units; classless map entities are not units. */
+                if (!(ent->svflags & SVF_MONSTER)) break; /* Region leave events carry units, not items, destructables, or map entities. */
                 if (region && !G_RegionContains(region, &ent->s.origin2) &&
                     G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
                     ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&

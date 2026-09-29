@@ -16,7 +16,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 14 // version; separate cursor interaction state and generic pointer input flags
+#define BZ_PROTOCOL_VERSION 15 // version; camera noise fields extend the player-state delta schema
 
 
 typedef struct entityState_s entityState_t;
