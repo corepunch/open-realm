@@ -531,13 +531,13 @@ static mapsegment_t *R_BuildMapSegment(war3map_t const *map, uint32_t sx, uint32
     mapSegment->sy = sy;
     for (uint32_t layer = map->num_grounds; layer > 0; layer--) {
         mapLayer = R_BuildMapSegmentLayer(map, sx, sy, layer - 1);
-        if (mapLayer) ADD_TO_LIST(mapLayer, mapSegment->layers);
+        R_AddMapSegmentLayer(mapSegment, mapLayer);
     }
     mapLayer = R_BuildMapSegmentWater(map, sx, sy);
-    ADD_TO_LIST(mapLayer, mapSegment->layers);
+    R_AddMapSegmentLayer(mapSegment, mapLayer);
     FOR_LOOP(cliff, map->num_cliffs) {
         if ((mapLayer = R_BuildMapSegmentCliffs(map, sx, sy, cliff))) {
-            ADD_TO_LIST(mapLayer, mapSegment->layers);
+            R_AddMapSegmentLayer(mapSegment, mapLayer);
         }
     }
     mapSegment->bbox.min = MAKE(vec3_t, FLT_MAX, FLT_MAX, FLT_MAX);

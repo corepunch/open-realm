@@ -757,6 +757,7 @@ static void MDLX_AddNode(mdxModel_t *model, mdxNode_t *node) {
 }
 
 mdxModel_t *R_LoadModelMDLX(void *data, uint32_t size) {
+    static bool warned_prem_runtime;
     mdxModel_t *model = ri.MemAlloc(sizeof(mdxModel_t));
     sizeBuf_t buffer = { .data = data, .cursize = size, .readcount = 4 };
     if (MSG_ReadBlock(&buffer, R_MDLX, model) != BLOCKREAD_OK) {
@@ -773,9 +774,11 @@ mdxModel_t *R_LoadModelMDLX(void *data, uint32_t size) {
     /* TODO: PREM runtime model-particle emission waits for validated retail axis
      * conversion and EmitterUsesTGA semantics. Keep parsed data visible rather
      * than silently pretending the emitter rendered. */
-    if (model->emitters1)
+    if (model->emitters1 && !warned_prem_runtime) {
         fprintf(stderr, "MDX model '%s' uses PREM ParticleEmitter1; runtime model emission is not implemented\n",
                 model->info.name[0] ? model->info.name : "(unnamed)");
+        warned_prem_runtime = true;
+    }
     FOR_EACH_LIST(mdxLight_t, light, model->lights) MDLX_AddNode(model, &light->node);
     FOR_EACH_LIST(mdxEvent_t, event, model->events) MDLX_AddNode(model, &event->node);
     FOR_LOOP(i, model->num_textures) {

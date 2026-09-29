@@ -5,9 +5,11 @@
 MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[INDEX], 1, 0.5f), 1)
 
 texture_t const *g_groundTextures[MAX_MAP_LAYERS] = { NULL };
+static bool g_warn_missing_terrain_art[MAX_MAP_LAYERS];
 
 void R_ResetGroundTextures(void) {
     memset(g_groundTextures, 0, sizeof(g_groundTextures));
+    memset(g_warn_missing_terrain_art, 0, sizeof(g_warn_missing_terrain_art));
 }
 
 #define GROUND_VERTEX_BUFFER_CAPACITY (SEGMENT_SIZE * SEGMENT_SIZE * 6)
@@ -521,16 +523,27 @@ void R_RenderRectSplat(vec2_t const *mins,
 }
 
 maplayer_t *R_BuildMapSegmentLayer(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t layer) {
-    maplayer_t *mapLayer = ri.MemAlloc(sizeof(maplayer_t));
+    maplayer_t *mapLayer;
     PATHSTR zBuffer;
+    if (layer >= MAX_MAP_LAYERS) return NULL;
     if (g_groundTextures[layer] == NULL) {
         w3TerrainArt_t const *terrain = R_TerrainArt(map->grounds[layer]);
-        if (terrain->file && terrain->dir) {
+        if (terrain && terrain->file && terrain->dir) {
             snprintf(zBuffer, sizeof(zBuffer), "%s\\%s.blp", terrain->dir, terrain->file);
             g_groundTextures[layer] = R_LoadTexture(zBuffer);
         } else {
+            if (!g_warn_missing_terrain_art[layer]) {
+                fprintf(stderr, "WC3 renderer: missing terrain art for ground layer %u (rawcode %u)\n",
+                        layer, map->grounds[layer]);
+                g_warn_missing_terrain_art[layer] = true;
+            }
             return NULL;
         }
+    }
+    mapLayer = ri.MemAlloc(sizeof(maplayer_t));
+    if (!mapLayer) {
+        fprintf(stderr, "WC3 renderer: failed to allocate ground layer %u\n", layer);
+        return NULL;
     }
     mapLayer->texture = g_groundTextures[layer];
     mapLayer->type = MAPLAYERTYPE_GROUND;

@@ -37,6 +37,12 @@ struct MapSegment {
     uint32_t sx, sy;
 };
 
+static inline void R_AddMapSegmentLayer(mapsegment_t *segment, maplayer_t *layer) {
+    if (!segment || !layer) return;
+    layer->next = segment->layers;
+    segment->layers = layer;
+}
+
 void R_DrawTerrainSegment(mapsegment_t const *segment, uint32_t mask);
 
 /* Both tile renderers need normals independent of triangle diagonals and holes in neighbouring cells. */

@@ -84,26 +84,8 @@ static bool earthquake_target_token(cstring_t targets, cstring_t token) {
     return false;
 }
 
-static bool earthquake_allows_unit(edict_t *caster, edict_t *target, cstring_t targets) {
-    bool allow_ground, allow_structure, allow_friend, allow_enemy, allow_neutral;
-    bool structure;
-
-    if (!S_SpellIsAliveTarget(target)) return false;
-    structure = G_UnitIsStructure(target);
-    allow_ground = earthquake_target_token(targets, "ground");
-    allow_structure = earthquake_target_token(targets, "structure");
-    if ((allow_ground || allow_structure) && !(structure ? allow_structure :
-        (G_UnitTargetType(target) == TARG_GROUND && allow_ground))) return false;
-
-    allow_friend = earthquake_target_token(targets, "friend");
-    allow_enemy = earthquake_target_token(targets, "enemy");
-    allow_neutral = earthquake_target_token(targets, "neutral");
-    if (!allow_friend && !allow_enemy && !allow_neutral) return true;
-    if (allow_friend && S_SpellIsFriend(caster, target)) return true;
-    if (allow_enemy && S_SpellIsEnemy(caster, target)) return true;
-    if (allow_neutral && target->s.player < MAX_PLAYERS && level.mapinfo &&
-        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) return true;
-    return false;
+static bool earthquake_allows_unit(uint32_t code, edict_t *caster, edict_t *target) {
+    return S_SpellIsAliveTarget(target) && S_SpellAllowsTarget(code, caster, target);
 }
 
 static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, float radius, vec2_t const *origin) {
@@ -167,7 +149,7 @@ void earthquake_think(edict_t *ent) {
                   EARTHQUAKE_DEFORM_MIN_DELTA, EARTHQUAKE_DEFORM_MAX_DELTA },
         .duration_ms = EARTHQUAKE_DEFORM_DURATION_MS,
         .update_ms = EARTHQUAKE_DEFORM_UPDATE_MS });
-    FILTER_EDICTS(target, earthquake_allows_unit(ent->owner, target, targets) &&
+    FILTER_EDICTS(target, earthquake_allows_unit(ent->class_id, ent->owner, target) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= radius) {
         if (G_UnitIsStructure(target)) {
             S_SpellDamage(target, ent->owner, (int)damage);
