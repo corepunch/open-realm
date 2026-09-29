@@ -124,12 +124,10 @@ Weather also supplies separate head/tail `hUV*` / `tUV*` atlas-frame curves,
 interpolated across the same authored `midTime`; ordinary shared particles keep
 the existing full-lifetime atlas animation unless they opt into that curve.
 
-`alphaMode` uses Warcraft's public blend-mode numbering: `0` none, `1` key
-alpha, `2` blend, `3` additive, `4` modulate, and `5` modulate 2x.  The renderer
-maps those authored values explicitly instead of casting to OpenRealm's internal
-blend enum, which contains an extra `ADDALPHA` value.  Shipped heavy Ashenvale
-rain (`RAhr`) authors `alphaMode=1`, so its `rainTail` particles use alpha-key
-rendering rather than ordinary alpha blending.
+Weather particles use ordinary alpha blending, preserving the behavior from
+before the weather fidelity changes. `Weather.slk`'s `alphaMode` is parsed but
+not applied; authored start/mid/end alpha still participates in particle color
+interpolation and source-alpha blending.
 
 ## Undead01 Rain Fidelity: Best Guess
 
@@ -152,13 +150,12 @@ Weather.slk guidance describes `emrate` as particles per second and
 `particles` as a maximum, so the field relationship alone does not prove the
 20 Hz interpretation ([The Helper weather guide](https://world-editor-tutorials.thehelper.net/cat_usersubmit.php?view=112038)).
 
-**Best-guess alpha concern, not confirmed retail behavior:** `RLlr` authors
-`alphaMode=0` and alpha 150. OpenRealm maps mode 0 to `BLEND_MODE_NONE`, whose
-particle pass disables GL blending. The authored alpha is therefore not
-composited as ordinary opacity. The report that retail rain looks slightly
-more opaque does not establish whether retail uses a different blend mapping,
-texture-alpha handling, or a higher effective vertex alpha. Keep the authored
-150 value unchanged until those possibilities are compared directly.
+**Alpha behavior:** `RLlr` authors `alphaMode=0` and alpha 150. OpenRealm keeps
+the pre-change behavior and uses ordinary alpha blending, so the authored 150
+value participates in source-alpha compositing. The report that retail rain
+looks slightly more opaque does not establish whether retail uses different
+blend mapping, texture-alpha handling, or effective vertex alpha. Keep the
+authored value unchanged until those possibilities are compared directly.
 
 **Implementation status:** OpenRealm currently emits at the 20 Hz equivalent
 rate and enforces the authored live-particle cap per weather effect. This is a

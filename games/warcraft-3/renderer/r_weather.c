@@ -255,21 +255,6 @@ static uint8_t R_WeatherScale(float value) {
     return (uint8_t)MIN(MAX(encoded, 0), 255);
 }
 
-static BLEND_MODE R_WeatherBlendMode(uint32_t alpha_mode) {
-    /* Weather.slk uses Warcraft's public blendmode numbering from common.j:
-     * 0 none, 1 key alpha, 2 blend, 3 additive, 4 modulate, 5 modulate 2x.
-     * BLEND_MODE_ADDALPHA is an OpenRealm internal mode and has no Weather.slk value. */
-    switch (alpha_mode) {
-    case 0: return BLEND_MODE_NONE;
-    case 1: return BLEND_MODE_ALPHAKEY;
-    case 2: return BLEND_MODE_BLEND;
-    case 3: return BLEND_MODE_ADD;
-    case 4: return BLEND_MODE_MODULATE;
-    case 5: return BLEND_MODE_MODULATE_2X;
-    default: return BLEND_MODE_BLEND;
-    }
-}
-
 static bool R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
     w3WeatherArt_t const *art = effect->art;
     cparticle_t *p, *tail_particle = NULL;
@@ -307,7 +292,8 @@ static bool R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
     p->rows = (uint8_t)MIN(MAX(art->rows, 1u), 255u);
     p->columns = (uint8_t)MIN(MAX(art->columns, 1u), 255u);
     p->use_uv_curve = true;
-    p->blend_mode = R_WeatherBlendMode(art->alphaMode);
+    /* Keep the pre-weather-fidelity baseline: authored alpha uses normal blending. */
+    p->blend_mode = BLEND_MODE_BLEND;
     p->time = 0.0f;
     p->lifespan = art->lifespan;
 
