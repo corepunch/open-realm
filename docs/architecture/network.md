@@ -94,12 +94,12 @@ Quake 2:
 ### Remote client → server
 
 1. Client calls `CL_Connect(host, port)` which resolves the hostname via
-   `NET_StringToAdr` and sends an out-of-band `"connect 9\n<userinfo>"` datagram to the
+   `NET_StringToAdr` and sends an out-of-band `"connect <version>\n<userinfo>"` datagram to the
    server (the version comes from `BZ_PROTOCOL_VERSION`).
 2. The server's `SV_ReadPackets` reads the datagram, checks that the payload
    starts with `"connect"`, validates the protocol version, and calls `SV_DirectConnect(from, userinfo)`
    to allocate a new client slot with `NA_IP` type. Missing or mismatched versions are rejected before allocation.
-3. The server replies `"client_connect 9"`; the client validates that version before clearing its state
+3. The server replies `"client_connect <version>"`; the client validates that version before clearing its state
    and sending the `"new"` command. This also rejects an old server's unversioned reply.
 4. From this point the normal `clc_*` / `svc_*` message exchange proceeds over
    UDP, identical to the loopback exchange.
@@ -328,6 +328,14 @@ mode and image regression exposed that omission. Tests cover all 32 slots,
 unchanged values and clears. Protocol 14 rejects older peers at connection time.
 Version 13 introduced this stat mask; version 14 separates pointer interaction
 values from resolved game-renderer modes and adds pointer input-policy flags.
+
+## Terrain-deformation events (protocol 15)
+
+Protocol 15 adds Warcraft III's transient `TE_TERRAIN_DEFORM`,
+`TE_TERRAIN_DEFORM_STOP`, and `TE_TERRAIN_DEFORM_STOP_ALL` event payloads. Older
+clients cannot parse those event types, so protocol 14 peers are rejected during
+the connection handshake before gameplay messages are exchanged. The event
+payloads remain transient and are not part of entity snapshots or saves.
 
 The generic cursor presentation stats carry a registered model, an opaque
 game-owned interaction, a registered cursor image and generic input-policy flags. WC3 resolves race skins and
