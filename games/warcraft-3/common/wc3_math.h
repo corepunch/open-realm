@@ -273,6 +273,17 @@ static inline void wc3_velocity_update(wc3Velocity_t *v) {
     }
 }
 
+/* Engine velocities are world units; retail16fe20 measures its guards in32-unit fine cells. */
+static inline void wc3_velocity_update_world(wc3Velocity_t *v) {
+    float speed = v->speed, limit = v->limit;
+    for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_mul(v->vel[i], wc3_float(0x3d000000));
+    v->speed = wc3_mul(speed, wc3_float(0x3d000000));
+    v->limit = wc3_mul(limit, wc3_float(0x3d000000));
+    wc3_velocity_update(v);
+    for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_mul(v->vel[i], wc3_float(0x42000000));
+    v->speed = speed; v->limit = limit;
+}
+
 /* 6f170880 tests the PRE-TURN error; turning continues while translation is stopped. */
 static inline bool wc3_motion_update(wc3Motion_t *m) {
     float mag = wc3_float(wc3_float_bits(m->error) & 0x7fffffffu);

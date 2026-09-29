@@ -297,13 +297,56 @@ Raw exceptional arithmetic input tests do not prove public producer reachability
 Move still updates requested facing during its existing steering phase; these
 accepted-step fixes do not claim a complete retail motion/clock state machine.
 
+## Velocity guards in fine-grid units
+
+The accepted-step adapter now converts old velocity, requested speed and maximum
+speed from world units to32-unit fine cells before `wc3_velocity_update`, then
+converts the resulting velocity back. The scalar cutoff belongs to the original
+mover's coordinate system: squared fine velocity below`3456bf95` (`2e-7`) is
+cleared by `1606e0`; facing uses the separate`34d6bf95` (`4e-7`) guard. Applying
+the first guard directly to world velocity admitted motion retail clears.
+
+A test-first Move regression at custom world speed`.01`, facing`.125`, position
+320,320 failed four velocity/position assertions before this fix. It now keeps
+zero velocity, the original position and facing. The existing`.016` case still
+moves while retaining facing, proving the two thresholds remain distinct.
+These tiny controlled speed values test the mover/adapter domain; they do not
+claim public `SetUnitMoveSpeed` bypasses retail's native speed limits.
+
+```sh
+cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared -I . \
+  tools/ghidra/wc3_pathing_engine_probe.c -o /tmp/wc3-world-velocity-engine.so
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_motion.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --engine-library /tmp/wc3-world-velocity-engine.so \
+  --world-velocity-fixture /tmp/retail-world-velocity-1.27.json \
+  --report /tmp/world-velocity-engine-exact.json
+python3 tests/test_wc3_pathfinding_math.py
+```
+
+`world-velocity-engine-exact.json` checks **1,040** complete original `16fe20`
+velocity/facing commits and their world adapter words, plus **3,344** original
+position integrations. The matrix includes17 adjacent cutoff-speed inputs,
+zero/nonzero old velocity, five headings, four maxima, and low/ordinary/high
+speeds. Requested speed remains recorded at mover`+c0` even when velocity is
+cleared; the fine occupancy moving bit is checked against actual resulting
+velocity. Ghidra `1606e0` confirms this branch and its optional callback.
+
+`tools/ghidra/fixtures/retail-world-velocity-1.27.json` freezes the original
+world-adapted input/output words without retail assets. Both O0 and O2 probes
+replay all1,040 cases and all192 recorded live velocity/facing commits through
+the same world adapter used by Move. No saved struct or frame cadence changes.
+This extends the integrated NUM-02.2/NUM-02.4 kernels; world-position clock
+ownership, route choices, collision and complete cross-feature trajectories
+remain open.
+
 ## Remaining fidelity work
 
 Flow fields, route scheduling, group ownership, collision, repulsion and arrival
 range policy are not replaced. Move's vector-heading and accepted velocity-facing arithmetic now match the verified retail kernels;
 its route and avoidance selection still use existing steering. Stored-velocity integration and elapsed-clock arithmetic have exact C/retail
-evidence. Their complete engine lifecycle, world/fine coordinate conversion
-and cross-feature trajectories remain open. Repeat equality
+evidence. Their complete engine clock/position lifecycle and cross-feature trajectories
+remain open; accepted velocity guards now execute at the verified fine-grid scale. Repeat equality
 covers the observed helper sequence, not an unattached-observer control or all
 deterministic state.
 

@@ -123,6 +123,20 @@ TEST(wc3_movement, retail_committed_facing_guard_uses_grid_velocity) {
     T_EQ(wc3_float_bits(unit->s.angle), 0x3e000000u);
 }
 
+/* Original16fe20 clears squared fine velocity below2e-7, before the distinct facing guard. */
+TEST(wc3_movement, retail_velocity_guard_uses_fine_grid_scale) {
+    edict_t *unit = make_moving_unit(320, 320);
+    unit->unitinfo.MoveSpeed = 0.01f;
+    unit->s.angle = 0.125f;
+    unit->movement.flow_direct = true;
+    unit_moveindirection(unit);
+    T_EQ(wc3_float_bits(unit->movement.velocity.x), 0u);
+    T_EQ(wc3_float_bits(unit->movement.velocity.y), 0u);
+    T_EQ(wc3_float_bits(unit->s.origin2.x), 0x43a00000u);
+    T_EQ(wc3_float_bits(unit->s.origin2.y), 0x43a00000u);
+    T_EQ(wc3_float_bits(unit->s.angle), 0x3e000000u);
+}
+
 /* Saved velocity must resume with the same cancellation words, not a fresh zero-velocity approximation. */
 TEST(wc3_movement, retail_velocity_resume_is_deterministic) {
     edict_t *unit = make_moving_unit(320, 320);

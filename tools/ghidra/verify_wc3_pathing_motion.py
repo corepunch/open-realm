@@ -53,12 +53,15 @@ def main():
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--engine-library', type=Path, help='compiled wc3_pathing_engine_probe.c; compare decision/angle bits')
+    parser.add_argument('--world-velocity-fixture', type=Path, help='export world-adapted original velocity/facing words including small-speed cutoffs')
     parser.add_argument('--facing-fixture', type=Path, help='export original committed facing inputs/results')
     parser.add_argument('--heading-fixture', type=Path, help='export raw original vector-heading errors for asset-free C replay')
     args = parser.parse_args()
+    if args.world_velocity_fixture and not args.engine_library:parser.error('--world-velocity-fixture requires --engine-library for exact guard comparisons')
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
         engine.pathing_motion.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+        engine.pathing_velocity_world_commit.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
         engine.pathing_velocity_commit.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
         engine.pathing_velocity_heading.argtypes = [ctypes.c_uint32]*3
         engine.pathing_velocity_heading.restype = ctypes.c_uint32
@@ -456,8 +459,10 @@ def main():
         if engine:assert engine.pathing_facing_angle(word)==result,hex(word)
     if args.facing_fixture:
         args.facing_fixture.write_text(json.dumps(dict(version=1,binary_sha256=digest,columns=['vx','vy','maximum','before_facing','after_facing'],cases=facing_cases,angles=facing_angle_outputs),separators=(',',':'))+'\n')
-    velocity_cases=[]
-    for new_speed,new_heading,maximum in itertools.product(([0,0.0005,0.125,1,4,100,256] if engine else [0,0.125,1,4]),[0,0.125,pi/2,pi,3*pi/2],[0,0.5,2,8]):
+    velocity_cases=[];world_velocity_cases=[]
+    velocity_speeds=[0,0.00025,0.0003125,0.0005,0.125,1,4,100,256]
+    velocity_speeds += [struct.unpack('<f',struct.pack('<I',float_bits(math.sqrt(2e-7))+d))[0] for d in range(-8,9)]
+    for new_speed,new_heading,maximum,old_velocity in itertools.product((velocity_speeds if engine else [0,0.125,1,4]),[0,0.125,pi/2,pi,3*pi/2],[0,0.5,2,8],[(0.125,-0.125),(0,0)] if engine else [(0.125,-0.125)]):
         write(mover,0x6fa9129c,owner+0x200,0)  # actual retail vtable, already on update list
         write(mover+0x14,0)
         clock=owner+0x14
@@ -466,7 +471,7 @@ def main():
         floats(clock+0x48,8)
         floats(mover+0x70,0)
         write(mover+0x74,0)
-        floats(mover+0x78,8,8,0.125,-0.125,maximum,0)
+        floats(mover+0x78,8,8,*old_velocity,maximum,0.125 if old_velocity==(0,0) else 0)
         floats(mover+0x90,0.25)
         write(mover+0x94,*objects)
         for obj,grid,data,records,bitmap in zip(objects,maps,cells,links,bitmaps):
@@ -486,6 +491,8 @@ def main():
             machine.mem_write(data,struct.pack('<256I',*([0xffffff]*256)))
         floats(speed_ptr,new_speed)
         floats(heading_ptr,new_heading)
+        original_velocity=read(mover+0x80,2)+[read(speed_ptr)[0],read(heading_ptr)[0]]+read(mover+0x88,2)
+        world_input=[float_multiply(w,0x42000000) if n in (0,1,2,4) else w for n,w in enumerate(original_velocity)]
         if engine:
             engine_vel=(ctypes.c_uint32*6)(*read(mover+0x80,2),read(speed_ptr)[0],read(heading_ptr)[0],*read(mover+0x88,2))
             engine.pathing_velocity_commit(engine_vel)
@@ -494,24 +501,33 @@ def main():
             assert read(mover+0x80,2)==list(engine_vel)[:2],(new_speed,new_heading,maximum)
             assert read(mover+0x8c)[0]==engine_vel[5],(new_speed,new_heading,maximum,
                 hex(read(mover+0x8c)[0]),hex(engine_vel[5]))
-        assert (scalar(mover+0x78),scalar(mover+0x7c))==(8.0625,7.9375)
+        world_expected=[float_multiply(w,0x42000000) for w in read(mover+0x80,2)]+[read(mover+0x8c)[0]]
+        world_velocity_cases.append(dict(input=world_input,expected=world_expected))
+        if engine:
+            world_words=(ctypes.c_uint32*6)(*world_input)
+            engine.pathing_velocity_world_commit(world_words)
+            assert [world_words[0],world_words[1],world_words[5]]==world_expected,(new_speed,new_heading,maximum,'world adapter')
+        integrated_old=(8+old_velocity[0]*.5,8+old_velocity[1]*.5)
+        assert (scalar(mover+0x78),scalar(mover+0x7c))==integrated_old
         assert scalar(mover+0x70)==0.5 and read(mover+0x74)[0]==0
         actual=(scalar(mover+0x80),scalar(mover+0x84))
         desired=min(new_speed,maximum)
         expected=(desired*math.cos(scalar(heading_ptr)),desired*math.sin(scalar(heading_ptr)))
         error=max(abs(a-b) for a,b in zip(actual,expected))
         if not engine:assert error<0.00001,(new_speed,new_heading,maximum,actual,expected,error)
-        assert bool(read(objects[1]+0x40)[0]&0x20000000)==bool(new_speed and maximum)
+        assert bool(read(objects[1]+0x40)[0]&0x20000000)==bool(actual[0] or actual[1]),(new_speed,new_heading,maximum,actual,'moving occupancy flag')
         assert read(mover+0xc0)[0]==read(speed_ptr)[0]
         floats(clock+0x40,0.75)
         floats(displacement,0,0)
         engine_words=compare_integration(mover,clock,displacement)
         run(0x6f1603d0,mover,displacement)
         check_integration(mover,engine_words)
-        wanted_position=(8.0625+actual[0]*0.25,7.9375+actual[1]*0.25)
+        wanted_position=tuple(integrated_old[n]+actual[n]*.25 for n in range(2))
         assert max(abs(scalar(mover+0x78+4*n)-wanted_position[n]) for n in [0,1])<0.000002
         assert scalar(mover+0x70)==0.75
         velocity_cases.append(dict(speed=new_speed,heading=scalar(heading_ptr),maximum=maximum,velocity=actual,facing_bits=read(mover+0x8c)[0],error=error))
+    if args.world_velocity_fixture:
+        args.world_velocity_fixture.write_text(json.dumps(dict(version=1,binary_sha256=digest,columns=['old_vx_world','old_vy_world','speed_world','heading','limit_world','old_facing'],expected_columns=['vx_world','vy_world','facing'],cases=world_velocity_cases),separators=(',',':'))+'\n')
     # Two-member speed commit through shared-cap selection and actual movers.
     group,members=system+0xe000,system+0xf000
     actors=[system+0x10000,system+0x10200]
@@ -2779,7 +2795,7 @@ def main():
         report.update(engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest(),
                       engine_exact_decision_cases=cases, engine_exact_angle_cases=len(normalization),
                       engine_exact_velocity_cases=len(velocity_cases),engine_exact_integration_cases=engine_integrations,
-                      engine_exact_committed_facing_cases=len(velocity_cases) if engine else 0,
+                      engine_exact_world_velocity_cases=len(world_velocity_cases) if engine else 0,engine_exact_committed_facing_cases=len(velocity_cases) if engine else 0,
                       engine_exact_velocity_heading_cases=len(facing_cases) if engine else 0,
                       engine_exact_facing_angle_cases=len(facing_angles) if engine else 0,
                       engine_exact_heading_error_cases=angle_cases+heading_boundary_cases+deadzone_cases)

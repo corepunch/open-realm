@@ -28,6 +28,7 @@ class PathingMathTests(unittest.TestCase):
                             '-I', str(ROOT), str(ROOT / 'tools/ghidra/wc3_pathing_engine_probe.c'), '-o', str(lib)], check=True)
             engine = ctypes.CDLL(str(lib))
             engine.pathing_motion.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+            engine.pathing_velocity_world_commit.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
             engine.pathing_velocity_commit.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
             engine.pathing_velocity_heading.argtypes = [ctypes.c_uint32]*3
             engine.pathing_velocity_heading.restype = ctypes.c_uint32
@@ -141,6 +142,25 @@ class PathingMathTests(unittest.TestCase):
                 engine.pathing_integrate(words)
                 self.assertEqual(list(words)[:2], after[2:4])
                 self.assertEqual(list(words)[4:6], after[:2])
+
+    def test_world_velocity_adapter_matches_original_cutoffs_and_live_words(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-world-velocity-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']),1040)
+        self.assertTrue(any(c['input'][2]>0 and c['expected'][:2]==[0,0] for c in fixture['cases']))
+        for row in fixture['cases']:
+            for engine in self.engines:
+                words=(ctypes.c_uint32*6)(*row['input'])
+                engine.pathing_velocity_world_commit(words)
+                self.assertEqual([words[0],words[1],words[5]],row['expected'],row['input'])
+                self.assertEqual(list(words)[2:5],row['input'][2:5])
+        live=json.loads((ROOT/'tools/ghidra/fixtures/retail-turn-velocity-1.27.json').read_text())
+        for row in live['commits']:
+            speed,heading,before,after=row[0],row[1],row[2:10],row[13:21]
+            inputs=[multiply(w,0x42000000) for w in before[4:6]]+[multiply(speed,0x42000000),heading,multiply(before[6],0x42000000),before[7]]
+            expected=[multiply(w,0x42000000) for w in after[4:6]]+[after[7]]
+            for engine in self.engines:
+                words=(ctypes.c_uint32*6)(*inputs);engine.pathing_velocity_world_commit(words)
+                self.assertEqual([words[0],words[1],words[5]],expected)
 
     def test_trace_rejects_missing_truncated_and_mutated_decisions(self):
         rows = [dict(event='metadata', sha256='d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236', motionEvents=True),

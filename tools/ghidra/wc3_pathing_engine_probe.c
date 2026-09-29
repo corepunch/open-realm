@@ -52,6 +52,18 @@ void pathing_velocity_commit(uint32_t *words) {
     words[5] = wc3_float_bits(facing);
 }
 
+/* World-unit adapter of the original fine-grid commit: same six-word contract. */
+void pathing_velocity_world_commit(uint32_t *words) {
+    wc3Velocity_t v = { .vel = {wc3_float(words[0]), wc3_float(words[1])},
+        .speed = wc3_float(words[2]), .heading = wc3_float(words[3]), .limit = wc3_float(words[4]) };
+    wc3_velocity_update_world(&v);
+    float x = wc3_mul(v.vel[0], wc3_float(0x3d000000));
+    float y = wc3_mul(v.vel[1], wc3_float(0x3d000000));
+    float facing = v.speed > 0 ? wc3_velocity_heading(x, y, wc3_float(words[5])) : wc3_facing_angle(v.heading);
+    words[0] = wc3_float_bits(v.vel[0]); words[1] = wc3_float_bits(v.vel[1]);
+    words[5] = wc3_float_bits(facing);
+}
+
 /* XY, old velocity XY, previous time/epoch, current time/epoch/span, displacement XY. */
 void pathing_integrate(uint32_t *words) {
     float pos[2] = {wc3_float(words[0]), wc3_float(words[1])};

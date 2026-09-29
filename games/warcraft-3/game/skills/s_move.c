@@ -286,7 +286,7 @@ static vec2_t unit_step_heading(edict_t *self, float angle, wc3Velocity_t *v) {
     float speed = unit_current_speed(self);
     *v = (wc3Velocity_t){ .vel = {self->movement.velocity.x, self->movement.velocity.y},
         .speed = speed, .heading = angle, .limit = speed };
-    wc3_velocity_update(v);
+    wc3_velocity_update_world(v);
     float pos[2] = {self->s.origin2.x, self->s.origin2.y};
     wc3_integrate(pos, v->vel, 10.0f / FRAMETIME);
     return (vec2_t){pos[0], pos[1]};
