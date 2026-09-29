@@ -101,9 +101,9 @@ map's SLK remains authoritative at runtime.
 
 `r_weather.c` emits only inside the intersection of the weather rectangle and a
 camera-local world window.  Large map-wide weather therefore does not allocate
-particles across the entire map.  Emission uses the authored `emrate *
-deltaTime`, so particle creation is frame-rate independent without inventing a
-region-area multiplier.
+particles across the entire map.  Emission accrues the authored `emrate` across
+frame time, then applies the provisional 20 Hz interpretation described below.
+The authored `particles` count caps live logical particles per weather effect.
 
 Spawn height is terrain height plus the authored `height`.  `angx`/`angy` rotate
 the base vertical direction, `veloc` supplies signed speed, `var` applies the
@@ -130,6 +130,42 @@ maps those authored values explicitly instead of casting to OpenRealm's internal
 blend enum, which contains an extra `ADDALPHA` value.  Shipped heavy Ashenvale
 rain (`RAhr`) authors `alphaMode=1`, so its `rainTail` particles use alpha-key
 rendering rather than ordinary alpha blending.
+
+## Undead01 Rain Fidelity: Best Guess
+
+Undead01's JASS enables `RLlr` (Lordaeron light rain) in
+`extracted/Undead01/war3map.j`. The base `War3.mpq` row has `emrate=40`,
+`lifespan=1.1`, `particles=880`, `alphaMode=0`, `alphaStart/Mid/End=150`,
+`head=0`, and `tail=1`. This is separate from the map's `SetSkyModel` choice.
+
+Before this change, OpenRealm treated `emrate` as particles per second. At
+steady state, `40 * 1.1` predicts about 44 live rain particles before any pool
+limit. The row's `particles=880` is exactly twenty times that estimate. The
+same 20x relationship appears in shipped rain rows such as `RAhr`
+(`100 * 0.9 * 20 = 1800`).
+
+**Best-guess density hypothesis, not confirmed retail behavior:** Warcraft may
+apply `emrate` once per 50 ms weather update (20 Hz), making `RLlr` emit about
+800 particles per second and reach its authored 880-particle cap. The renderer
+now applies that multiplier and cap, with frame-time accumulation. Community
+Weather.slk guidance describes `emrate` as particles per second and
+`particles` as a maximum, so the field relationship alone does not prove the
+20 Hz interpretation ([The Helper weather guide](https://world-editor-tutorials.thehelper.net/cat_usersubmit.php?view=112038)).
+
+**Best-guess alpha concern, not confirmed retail behavior:** `RLlr` authors
+`alphaMode=0` and alpha 150. OpenRealm maps mode 0 to `BLEND_MODE_NONE`, whose
+particle pass disables GL blending. The authored alpha is therefore not
+composited as ordinary opacity. The report that retail rain looks slightly
+more opaque does not establish whether retail uses a different blend mapping,
+texture-alpha handling, or a higher effective vertex alpha. Keep the authored
+150 value unchanged until those possibilities are compared directly.
+
+**Implementation status:** OpenRealm currently emits at the 20 Hz equivalent
+rate and enforces the authored live-particle cap per weather effect. This is a
+best guess pending a same-map, same-camera, same-duration comparison with
+retail. Check alpha separately over light and dark backgrounds; do not infer an
+alpha-mode change from particle density. `alphaMode` and the authored alpha
+values remain unchanged.
 
 ## Lifecycle And Networking
 
@@ -159,8 +195,6 @@ confirmed strongly enough:
 
 - `useFog` is parsed but is not mapped to a new weather-specific fog policy;
   the existing shared particle FOW behavior remains unchanged;
-- `particles` is parsed but not yet enforced as a per-weather-system live
-  particle cap; the shared renderer pool remains the hard global bound;
 - `long` is parsed but not yet used because its exact legacy emitter-extent
   transform is not verified;
 - `AmbientSound` is parsed but weather ambient audio is not yet wired through

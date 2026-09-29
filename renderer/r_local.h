@@ -500,6 +500,7 @@ void R_InitParticles(void);
 void R_ShutdownParticles(void);
 void R_DrawParticles(void);
 cparticle_t *R_SpawnParticle(void);
+uint32_t R_CountParticlesForEmitter(uint32_t emitter_id);
 void R_DrawBillboardSprite(texture_t const *texture, vec3_t const *origin, float size, color32_t color);
 typedef struct {
     texture_t const *texture;
