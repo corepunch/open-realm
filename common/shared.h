@@ -1330,6 +1330,7 @@ struct Doodad {
 
 typedef struct particle_s {
     struct particle_s *next;
+    uint32_t emitter_id; /* optional owner key for emitter-specific particle limits */
     struct texture const *texture;
     vec3_t org;
     vec3_t vel;

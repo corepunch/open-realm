@@ -102,11 +102,24 @@ cparticle_t *R_SpawnParticle(void) {
     p->next = active_particles;
     active_particles = p;
     p->blend_mode = BLEND_MODE_ADD;
+    p->emitter_id = 0;
     p->tail = (vec3_t){0};
     p->use_uv_curve = false;
     p->uv_start = p->uv_mid = p->uv_end = 0;
     p->size_value_scale = p->size_time_scale = 1.0f;
     return p;
+}
+
+/* Count an effect's logical particles; weather head/tail render copies have no owner key. */
+uint32_t R_CountParticlesForEmitter(uint32_t emitter_id) {
+    uint32_t count = 0;
+
+    if (!emitter_id) return 0;
+    FOR_EACH_LIST(cparticle_t, p, active_particles) {
+        if (p->emitter_id == emitter_id && p->time <= p->lifespan)
+            ++count;
+    }
+    return count;
 }
 
 #define SHADER_TYPE particleState_t

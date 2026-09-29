@@ -6,6 +6,7 @@
 #define WEATHER_SCALE_QUANT 16.0f
 #define WEATHER_MIN_EMIT_RADIUS 1024.0f
 #define WEATHER_DEG2RAD 0.01745329251994329577f
+#define WEATHER_EMISSION_TICK_HZ 20.0f // Hz; best guess from count/lifespan ratios; scales weather emission
 
 typedef struct {
     uint32_t id;
@@ -269,16 +270,17 @@ static BLEND_MODE R_WeatherBlendMode(uint32_t alpha_mode) {
     }
 }
 
-static void R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
+static bool R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
     w3WeatherArt_t const *art = effect->art;
     cparticle_t *p, *tail_particle = NULL;
     float ax, ay, speed;
     vec3_t direction;
     bool draw_head, draw_tail;
 
-    if (!art || !area || art->lifespan <= 0.0f) return;
+    if (!art || !area || art->lifespan <= 0.0f) return false;
     p = R_SpawnParticle();
-    if (!p) return;
+    if (!p) return false;
+    p->emitter_id = effect->handle;
     memset(p->color, 0, sizeof(p->color));
     p->texture = effect->texture;
     p->org.x = area->min.x + (area->max.x - area->min.x) * R_WeatherRandom01();
@@ -332,8 +334,10 @@ static void R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
             tail_particle->uv_mid = (uint16_t)MIN(art->tailUVMid, 0xffffu);
             tail_particle->uv_end = (uint16_t)MIN(art->tailUVEnd, 0xffffu);
             tail_particle->tail = Vector3_scale(&tail_particle->vel, art->tailLength);
+            tail_particle->emitter_id = 0; /* one authored particle may draw two primitives */
         }
     }
+    return true;
 }
 
 void R_WeatherEmit(void) {
@@ -350,14 +354,21 @@ void R_WeatherEmit(void) {
         renderWeatherEffect_t *effect = weather_effects + i;
         w3WeatherArt_t const *art = effect->art;
         box2_t area;
-        uint32_t emit_count;
+        uint32_t emit_count, live_count;
 
         if (!effect->inuse || !effect->enabled || !art || !effect->texture ||
             art->emissionRate <= 0.0f || art->lifespan <= 0.0f ||
             !R_WeatherIntersect(&visible, &effect->bounds, &area)) continue;
-        effect->emission_accum += art->emissionRate * (float)delta_ms / 1000.0f;
+        /* TODO: Best guess until compared to retail; the old path treated emrate as particles/second. */
+        effect->emission_accum += art->emissionRate * WEATHER_EMISSION_TICK_HZ * (float)delta_ms / 1000.0f;
         emit_count = (uint32_t)effect->emission_accum;
         effect->emission_accum -= (float)emit_count;
-        while (emit_count--) R_WeatherSpawn(effect, &area);
+        live_count = R_CountParticlesForEmitter(effect->handle);
+        /* TODO: particles is the authored live-particle limit; the old path used only the global pool. */
+        uint32_t available = live_count < art->particles ? art->particles - live_count : 0;
+        emit_count = MIN(emit_count, available);
+        while (emit_count--) {
+            if (!R_WeatherSpawn(effect, &area)) break;
+        }
     }
 }
