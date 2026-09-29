@@ -562,7 +562,7 @@ static void R_W3WarnUnsupportedSplatFields(wc3SplatData_t *row) {
     if (!row->lifespan_repeat && !row->decay_repeat && !row->water &&
         (!row->sound || !row->sound[0]) && !unsupported_blend) return;
     row->unsupported_warned = true;
-    fprintf(stderr, "WC3 renderer: SplatData row '%s' uses retained fields whose retail runtime semantics are not implemented\n",
+    fprintf(stderr, "WC3 renderer: SplatData '%s' uses unsupported retained fields\n",
             row->name ? row->name : "(unnamed)");
 }
 
@@ -610,7 +610,7 @@ static void R_W3WarnUnsupportedUberSplatFields(wc3UberSplatData_t *row) {
     unsupported_blend = row->blend_mode && row->blend_mode[0] && strcmp(row->blend_mode, "0");
     if ((!row->sound || !row->sound[0]) && !unsupported_blend) return;
     row->unsupported_warned = true;
-    fprintf(stderr, "WC3 renderer: UberSplatData row '%s' uses retained BlendMode/Sound semantics that are not implemented for MDX UBR events\n",
+    fprintf(stderr, "WC3 renderer: UberSplatData '%s' uses unsupported BlendMode/Sound fields\n",
             row->name ? row->name : "(unnamed)");
 }
 
@@ -1436,8 +1436,14 @@ static void R_W3EmitSplatEvent(wc3EventParams_t const *params) {
         !params->family ||
         !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
     row = R_W3SplatData(id);
-    if (!row) { fprintf(stderr, "WC3 renderer: MDX %s event '%s' has no SplatData row\n", params->family->prefix, id); return; }
-    if (row->scale <= 0.0f) { fprintf(stderr, "WC3 renderer: SplatData row '%s' has invalid scale %.3f\n", id, row->scale); return; }
+    if (!row) {
+        fprintf(stderr, "WC3 renderer: MDX %s event '%s' has no SplatData row\n", params->family->prefix, id);
+        return;
+    }
+    if (row->scale <= 0.0f) {
+        fprintf(stderr, "WC3 renderer: SplatData '%s' has invalid scale %.3f\n", id, row->scale);
+        return;
+    }
     R_W3WarnUnsupportedSplatFields(row);
     if (!R_W3SplatTexture(row)) return;
     if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
@@ -1469,7 +1475,10 @@ static void R_W3EmitUberSplatEvent(wc3EventParams_t const *params) {
         !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
     row = R_W3UberSplatData(id);
     if (!row) { fprintf(stderr, "WC3 renderer: MDX UBR event '%s' has no UberSplatData row\n", id); return; }
-    if (row->scale <= 0.0f) { fprintf(stderr, "WC3 renderer: UberSplatData row '%s' has invalid scale %.3f\n", id, row->scale); return; }
+    if (row->scale <= 0.0f) {
+        fprintf(stderr, "WC3 renderer: UberSplatData '%s' has invalid scale %.3f\n", id, row->scale);
+        return;
+    }
     R_W3WarnUnsupportedUberSplatFields(row);
     if (!R_W3UberSplatTexture(row)) return;
     if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
