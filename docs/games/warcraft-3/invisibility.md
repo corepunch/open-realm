@@ -16,6 +16,8 @@ See [Shadow Meld](shadowmeld.md) for the separate `Ashm`/`Ahid` night/stationary
 - `Agho` Ghost caches persistent invisibility in `unit->runtime.flags`; detector coverage reveals it per viewer without removing the Ghost state. Like the repository's other gameplay-invisible states, Ghost is excluded by the shared aura-active predicate.
 - `AIvi` Item Temporary Invisibility is an `AB_ITEM` ability and applies the existing `Binv` state to the selected living carrier. Duration is read through `S_SpellDuration()`, including HeroDur for hero carriers.
 
+Selected friendly units retain their selection focus and control while invisible. `G_IsEntitySelected()` applies the same viewer-aware invisibility rule as selection admission, so portrait, status, command, and order paths continue to resolve the selected unit. Owner/shared-vision snapshots also receive a ghosted vertex alpha (0.35 multiplied by authored alpha); hostile visibility remains governed by fog and detection. Timed status expiry clears `RF_HIDDEN`, restoring ordinary presentation automatically.
+
 `SP_SpawnUnit()` initializes authored unit abilities through `S_UnitAbilityEvent(..., A_UNIT_INIT)`. That event must dispatch both innate hooks and the unit's authored `UnitAbilities.abilList`; otherwise passive traits such as a Shade's `Agho` never initialize and the unit remains visible. The regression `wc3_spell.authored_ghost_initializes_on_unit_spawn_event` exercises this event with `Agho` in the authored list.
 
 ## Wind Walk lifecycle
@@ -113,7 +115,8 @@ Focused automated coverage lives in:
 
 - `games/warcraft-3/game/tests/t_spell.c`: authored Wind Walk duration/cooldown, `AOwk`/`ANwk` procedure coverage, undispellable `BOwk`, applying-rawcode save/load, and Ghost aura exclusion through the shared gameplay-invisibility contract.
 - `games/warcraft-3/game/tests/t_collision.c`: Wind Walk movement through a live unit while retaining the normal movement order path.
-- `games/warcraft-3/game/tests/t_items.c`: non-stock `AIvi` Dur/HeroDur, timed expiry/recast, and invalid dead-carrier use.
+- `games/warcraft-3/game/tests/t_items.c`: non-stock `AIvi` Dur/HeroDur, selection/control while active, timed expiry/recast, and invalid dead-carrier use.
+- `games/warcraft-3/game/tests/t_shadowmeld.c`: owner ghost alpha for timed invisibility.
 - `games/warcraft-3/game/tests/t_wards.c`: Ghost lifecycle, player-relative invisibility, and save/load.
 
 When validating locally, use focused patterns before the full suite, for example:

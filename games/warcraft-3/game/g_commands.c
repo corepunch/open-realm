@@ -323,7 +323,10 @@ void G_DeselectEntity(gameClient_t *client, edict_t *ent) {
 bool G_IsEntitySelected(gameClient_t *client, edict_t *ent) {
     TEST_SELECTION_CHECK();
     return client && ent && ent->inuse && !M_IsDead(ent) &&
-        !(ent->s.flags & EF_NOT_SELECTABLE) && !(ent->s.renderfx & RF_HIDDEN) &&
+        !(ent->s.flags & EF_NOT_SELECTABLE) &&
+        (!(ent->s.renderfx & RF_HIDDEN) ||
+         (S_UnitUsesInvisibilityRenderFlag(ent) &&
+          !S_UnitIsInvisibleToPlayer(ent, client->ps.number))) &&
         (ent->selected & (1 << client->ps.number));
 }
 

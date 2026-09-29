@@ -263,6 +263,9 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_binvisibility_statu
     }
     T_EQ(status->duration_ms, 7250);
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
+    T_ASSERT(G_IsEntitySelected(player->client, hero));
+    T_ASSERT(G_GetMainSelectedUnit(player->client) == hero);
+    T_ASSERT(G_UnitCanControl(player->client, hero));
 
     level.time = status->timestamp;
     unit_updatestatuses(hero);

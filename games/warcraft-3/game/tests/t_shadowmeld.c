@@ -230,6 +230,24 @@ TEST(wc3_shadowmeld, owner_ghost_alpha_multiplies_authored_vertex_alpha) {
     shadowmeld_done(&fix);
 }
 
+TEST(wc3_shadowmeld, timed_invisibility_uses_owner_ghost_alpha) {
+    shadowmeldFix_t fix;
+    edict_t *clent;
+    color32_t color;
+
+    shadowmeld_setup(&fix);
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    clent->client->ps.number = 0;
+    fix.unit->s.renderfx |= RF_HIDDEN;
+    unit_addtimedstatus(fix.unit, "Binv", 1, 120.0f);
+
+    T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
+    T_EQ(color.a, 89);
+
+    shadowmeld_done(&fix);
+}
+
 TEST(wc3_shadowmeld, daylight_cancels_fade_and_active_invisibility) {
     shadowmeldFix_t fix;
     shadowmeld_setup(&fix);
