@@ -29,11 +29,13 @@ static uint32_t sc2_UnitGroupCopy(jass_t *j) {
 static uint32_t sc2_UnitGroupClear(jass_t *j) { sc2GGroup_t *g=sc2_mutable_unit_group(j); if (g) g->count=0; return 0; }
 static uint32_t sc2_UnitGroupAdd(jass_t *j) {
     sc2GGroup_t *g=sc2_mutable_unit_group(j); int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,2,"unit");
-    if (g && sc2_group_unit_matches(h,0)) sc2_group_append(j,g,h); return 0;
+    if (g && sc2_group_unit_matches(h,0)) sc2_group_append(j,g,h);
+    return 0;
 }
 static uint32_t sc2_UnitGroupRemove(jass_t *j) {
     sc2GGroup_t *g=sc2_mutable_unit_group(j); int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,2,"unit");
-    if (g) sc2_group_remove(g,h); return 0;
+    if (g) sc2_group_remove(g,h);
+    return 0;
 }
 static uint32_t sc2_UnitGroupCount(jass_t *j) {
     sc2GGroup_t *g=sc2_unit_group(j); int mode=sc2_checked_index(j,2,3), count=0;

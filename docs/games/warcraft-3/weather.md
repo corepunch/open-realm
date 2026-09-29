@@ -131,10 +131,19 @@ interpolation and source-alpha blending.
 
 ## Undead01 Rain Fidelity: Best Guess
 
-Undead01's JASS enables `RLlr` (Lordaeron light rain) in
-`extracted/Undead01/war3map.j`. The base `War3.mpq` row has `emrate=40`,
+Undead01's JASS in `Maps/Campaign/Undead01.w3m` (inside `War3Local.mpq`)
+enables `RLlr` (Lordaeron light rain). The base `War3.mpq` row has `emrate=40`,
 `lifespan=1.1`, `particles=880`, `alphaMode=0`, `alphaStart/Mid/End=150`,
 `head=0`, and `tail=1`. This is separate from the map's `SetSkyModel` choice.
+
+These commands inspect the installed source data without relying on an
+extracted working-tree file:
+
+```sh
+build/bin/mpqtool -mpq "data/Warcraft III/War3Local.mpq" cat Maps/Campaign/Undead01.w3m > /tmp/Undead01.w3m
+build/bin/mpqtool -mpq /tmp/Undead01.w3m cat war3map.j | rg -n "RLlr|SetSkyModel"
+build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat TerrainArt/Weather.slk | rg -n "RLlr"
+```
 
 Before this change, OpenRealm treated `emrate` as particles per second. At
 steady state, `40 * 1.1` predicts about 44 live rain particles before any pool
@@ -156,6 +165,10 @@ value participates in source-alpha compositing. The report that retail rain
 looks slightly more opaque does not establish whether retail uses different
 blend mapping, texture-alpha handling, or effective vertex alpha. Keep the
 authored value unchanged until those possibilities are compared directly.
+
+The shipped `RLlr` row has `head=0,tail=1`; the renderer draws its tail
+primitive. Rows with both flags clear have no authored primitive and are
+skipped with a diagnostic instead of being silently converted to a head.
 
 **Implementation status:** OpenRealm currently emits at the 20 Hz equivalent
 rate and enforces the authored live-particle cap per weather effect. This is a
@@ -228,6 +241,9 @@ For visual verification, use a map with shipped heavy/light rain and test:
 6. a custom `Weather.slk` row with non-zero `var`/`lati` and distinct head/tail
    UV stages, including `head=1,tail=1`, to confirm the two primitives share
    motion while selecting their independent atlas curves.
+
+The renderer-level `test-mdx-ui` suite directly exercises weather emission,
+alpha, tail geometry, and rejection of a row with neither primitive flag.
 
 Do not add weather debug logging to do this; use the authored-map cases above
 as the acceptance checks.
