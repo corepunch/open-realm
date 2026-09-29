@@ -612,8 +612,8 @@ static void CL_MusicSendThematicSnapshot(uint32_t thematic_session_id) {
 }
 
 void CL_MusicInit(void) {
-    Cvar_Get("s_music", "1", CVAR_ARCHIVE);
-    Cvar_Get("s_musicvolume", "1", CVAR_ARCHIVE);
+    Cvar_Get("s_music", "1", CVAR_ARCHIVE | CVAR_UI);
+    Cvar_Get("s_musicvolume", "1", CVAR_ARCHIVE | CVAR_UI);
     memset(&cl_music, 0, sizeof(cl_music));
     cl_music.music_volume = 127;
     cl_music.thematic_volume = 127;

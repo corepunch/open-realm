@@ -71,7 +71,8 @@ static bool CL_WindowDebugEnabled(void) {
 
 typedef struct { cstring_t name; bool slider; } windowCvar_t;
 
-/* Decode "<prefix><cvar>" from a control's action. The client only edits the cvar the server named. */
+/* Decode "<prefix><cvar>" from a control's action. The client knows no preference names, but it only binds
+ * cvars that their owning subsystem registered with CVAR_UI: a server cannot edit or create any other cvar. */
 static bool CL_WindowCvarBinding(uiFrame_t const *frame, windowCvar_t *out) {
     cstring_t const action = frame ? frame->onclick : NULL;
     size_t const check_len = sizeof(UI_WINDOW_CVAR_CHECKBOX_PREFIX) - 1;
@@ -81,7 +82,21 @@ static bool CL_WindowCvarBinding(uiFrame_t const *frame, windowCvar_t *out) {
     if (!strncmp(action, UI_WINDOW_CVAR_CHECKBOX_PREFIX, check_len)) *out = (windowCvar_t){ action + check_len, false };
     else if (!strncmp(action, UI_WINDOW_CVAR_SLIDER_PREFIX, slider_len)) *out = (windowCvar_t){ action + slider_len, true };
     else return false;
-    return out->name[0] != '\0' && strlen(out->name) < sizeof(cl_cvar_transaction.saved[0].name);
+    if (out->name[0] == '\0' || strlen(out->name) >= sizeof(cl_cvar_transaction.saved[0].name)) return false;
+    return (Cvar_Flags(out->name) & CVAR_UI) != 0;
+}
+
+/* Any action the client consumes as a cvar edit or transaction step, whether or not the binding is permitted. */
+static bool CL_WindowIsCvarAction(cstring_t action) {
+    static cstring_t const prefixes[] = {
+        UI_WINDOW_CVAR_CHECKBOX_PREFIX, UI_WINDOW_CVAR_SLIDER_PREFIX, UI_WINDOW_CVAR_TX_BEGIN_COMMAND_PREFIX,
+        UI_WINDOW_CVAR_TX_ACCEPT_COMMAND_PREFIX, UI_WINDOW_CVAR_TX_CANCEL_COMMAND_PREFIX,
+    };
+
+    if (!action) return false;
+    FOR_LOOP(i, sizeof(prefixes) / sizeof(*prefixes))
+        if (!strncmp(action, prefixes[i], strlen(prefixes[i]))) return true;
+    return false;
 }
 
 static bool CL_WindowCvarIsSlider(uiFrame_t const *frame) {
@@ -579,8 +594,10 @@ static cvarTransactionAction_t CL_WindowCvarTransactionAction(cstring_t action,
     return CVAR_TRANSACTION_NONE;
 }
 
-/* Begin an empty edit log; cvars are captured as the page first touches them. */
+/* Begin an empty edit log; cvars are captured as the page first touches them. A Begin inside an unfinished
+ * transaction keeps its log, so Cancel still restores the values from before the first Begin. */
 static void CL_WindowBeginCvarTransaction(void) {
+    if (cl_cvar_transaction.active) return;
     cl_cvar_transaction.count = 0;
     cl_cvar_transaction.active = true;
 }
@@ -632,6 +649,20 @@ static void CL_WindowPrepareState(clientWindow_t *window, rect_t const *root) {
             ((uiListBox_t *)frame->buffer.data)->selectedIndex = value->selected;
     }
     CL_WindowApplyCvarBindings();
+}
+
+/* A window takes part in the open transaction when it carries bound controls or a transaction step. */
+static bool CL_WindowOwnsCvarTransaction(clientWindow_t *window) {
+    rect_t root;
+
+    if (!window || !cl_cvar_transaction.active) return false;
+    root = CL_WindowRoot(window);
+    CL_WindowPrepareState(window, &root);
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *frame = SCR_Frame(i);
+        if (frame && CL_WindowIsCvarAction(frame->onclick)) return true;
+    }
+    return false;
 }
 
 static uiFrame_t *CL_WindowScrollOwner(uiFrame_t *frame) {
@@ -780,6 +811,11 @@ static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *fram
     if (CL_WindowRunCvarTransactionCommand(window, frame->onclick)) return;
     if (CL_WindowCvarBinding(frame, &binding)) {
         CL_WindowSetCvar(&binding, binding.slider ? frame->value : (frame->value < 0.5f ? 1.0f : 0.0f));
+        return;
+    }
+    if (CL_WindowIsCvarAction(frame->onclick)) {
+        /* A rejected binding is dropped: forwarding it would hand the server an action it never authored as a command. */
+        fprintf(stderr, "CL_WindowActivateFrame: \"%s\" names a cvar without CVAR_UI\n", frame->onclick);
         return;
     }
     if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION) ||
@@ -1086,6 +1122,8 @@ bool CL_WindowKeyEvent(int key) {
     if (key == K_ESCAPE) {
         if (window->flags & UI_WINDOW_NO_ESCAPE)
             return (window->flags & UI_WINDOW_MODAL) != 0;
+        /* Dismissing an options page is a Cancel: live edits must not survive as a silent Accept. */
+        if (CL_WindowOwnsCvarTransaction(window)) CL_WindowFinishCvarTransaction(true);
         CL_WindowClose(window->id);
         return true;
     }
