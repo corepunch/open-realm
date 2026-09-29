@@ -333,8 +333,6 @@ static int test_minimap_fs_read(cstring_t path, void **buffer) {
 static void test_minimap_fs_free(void *buffer) { free(buffer); }
 void R_WeatherRegisterMap(void) {}
 void R_LightningRegisterMap(void) {}
-void _W3M_RegisterMap(cstring_t map) { (void)map; }
-
 void R_RegisterMap(cstring_t map) {
     if (map && (strstr(map, ".w3m") || strstr(map, ".w3x"))) R_SetMapAssetScope(map);
     else R_SetMapAssetScope(NULL);
@@ -707,6 +705,7 @@ TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
     T_EQ(nverts, 6);
     T_FEQ(verts[0].position.y, 20.0f, 0.001f);
     T_FEQ(verts[1].position.y, -20.0f, 0.001f);
+    MDLX_ForgetRibbonModel(&model);
     if (model.ribbon_states) {
         test_free(model.ribbon_states->trails);
         test_free(model.ribbon_states);
@@ -736,6 +735,7 @@ TEST(renderer_model, mdx_ribbon_second_emit_same_frame_does_not_advance) {
     tr.viewDef.time = 1050;
     T_EQ(MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64), 6);
     T_EQ(model.ribbon_states->trails[0].count, 2);
+    MDLX_ForgetRibbonModel(&model);
     if (model.ribbon_states) {
         test_free(model.ribbon_states->trails);
         test_free(model.ribbon_states);
@@ -770,6 +770,7 @@ TEST(renderer_model, mdx_ribbon_entity_reuse_after_gap_drops_old_edges) {
     T_EQ(nverts, 6);
     FOR_LOOP(i, nverts) /* no streak back to the old impact point */
         T_ASSERT(fabsf(verts[i].position.x - 10000.0f) < 1.0f);
+    MDLX_ForgetRibbonModel(&model);
     if (model.ribbon_states) {
         test_free(model.ribbon_states->trails);
         test_free(model.ribbon_states);
@@ -1775,7 +1776,14 @@ TEST(renderer_terrain, undead04_waygate_cliff_type_from_native_corners) {
 void R_DrawBuffer(buffer_t const *buffer, uint32_t count) {}
 line3_t R_LineForScreenPoint(viewDef_t const *view, float x, float y) { return (line3_t){0}; }
 texture_t const *R_BlightTexture(void) { return texture_load_result; }
-w3TerrainArt_t const *R_TerrainArt(uint32_t id) { T_ASSERT(false); return NULL; }
+w3TerrainArt_t const *R_TerrainArt(uint32_t id) { (void)id; return NULL; }
+void R_BuildCameraHeightMap(cameraHeightBuild_t const *build) { (void)build; }
+void R_FreeCameraHeightMap(cameraHeightMap_t *map) { (void)map; }
+void R_ShutdownFogOfWar(void) {}
+void R_InitFogOfWar(uint32_t width, uint32_t height) { (void)width; (void)height; }
+maplayer_t *R_BuildMapSegmentWater(war3map_t const *map, uint32_t sx, uint32_t sy) {
+    (void)map; (void)sx; (void)sy; return NULL;
+}
 static struct { uint32_t enables, disables, offsets; float factor, units; } splat_bias;
 static void test_splat_enable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) splat_bias.enables++; }
 static void test_splat_disable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) splat_bias.disables++; }
@@ -1793,10 +1801,42 @@ static void test_splat_polygon_offset(GLfloat factor, GLfloat units) {
 #undef glPolygonOffset
 #undef R_RenderRectSplatUV
 #undef R_RenderSplat
+#define _W3M_ClearMap R_TestClearMap
+#define _W3M_RegisterMap R_TestUnusedRegisterMap
+#include "games/warcraft-3/renderer/w3m/r_war3map.c"
+#undef _W3M_ClearMap
+#undef _W3M_RegisterMap
+void _W3M_RegisterMap(char const *map) { (void)map; }
 
-float R_W3TerrainOffsetAtPoint(float x, float y) {
-    (void)x; (void)y;
-    return 0.0f;
+TEST(renderer_terrain, null_segment_layer_does_not_drop_existing_layers) {
+    maplayer_t first = {0};
+    mapsegment_t segment = { .layers = &first };
+    R_AddMapSegmentLayer(&segment, NULL);
+    T_ASSERT(segment.layers == &first);
+    R_AddMapSegmentLayer(&segment, &(maplayer_t){0});
+    T_ASSERT(segment.layers != &first);
+    T_ASSERT(segment.layers->next == &first);
+}
+
+TEST(renderer_terrain, deformation_updates_and_expires_height_offsets) {
+    war3map_t map = { .width = SEGMENT_SIZE + 1, .height = SEGMENT_SIZE + 1 };
+    war3map_t const *saved_world = tr.world;
+    viewDef_t saved_view = tr.viewDef;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.world = &map;
+    R_W3SetMapTerrainOffsets(&map);
+    tr.viewDef.time = 100;
+    terrainDeform_t deform = { .id = 77, .type = TERRAIN_DEFORM_CRATER,
+        .data = { 16 * TILE_SIZE, 16 * TILE_SIZE, 96, 30 }, .duration_ms = 1000 };
+    R_W3StartTerrainDeformation(&deform);
+    tr.viewDef.time = 600;
+    R_W3UpdateTerrainDeformations();
+    T_ASSERT(R_W3TerrainOffsetAtPoint(16 * TILE_SIZE, 16 * TILE_SIZE) < -20.0f);
+    tr.viewDef.time = 1200;
+    R_W3UpdateTerrainDeformations();
+    T_FEQ(R_W3TerrainOffsetAtPoint(16 * TILE_SIZE, 16 * TILE_SIZE), 0.0f, 0.001f);
+    R_W3ClearTerrainDeformations();
+    tr.world = saved_world; tr.viewDef = saved_view;
 }
 
 TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {

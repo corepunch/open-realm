@@ -40,7 +40,7 @@ The larger amplitude is intended to make the random height field easier to see d
 
 Deformations are added together as vertical offsets over the static W3E height field. No permanent modification is written back to the map. This is renderer-owned presentation; server-side pathing and `CM_GetHeightAtPoint` remain unchanged. Maps whose vertex grids do not form complete existing renderer segments, or whose deformation buffers cannot be allocated, report one bounded warning and do not accept deformations.
 
-The current implementation rebuilds affected terrain segments, including their ground layers and cliff meshes. Cliff vertices that join to the ground sample the deformed height field; cliff art and tile masks are unchanged. Water surfaces retain their authored heights. The system does not alter gameplay collision or pathing. Segment rebuilds can be expensive when a large deformation covers much of the map; the fixed pool, bounded update interval, affected-bounds evaluation, and dirty-segment rebuilds limit unnecessary work, but profiling on the RG40XX-H-class target remains outstanding.
+The current implementation rebuilds affected terrain segments, including their ground layers and cliff meshes. Cliff vertices that join to the ground sample the deformed height field; cliff art and tile masks are unchanged. Water surfaces retain their authored heights. The system does not alter gameplay collision or pathing. Headless regression coverage checks deformation height sampling and expiry, and that an absent layer cannot clear already assembled segment layers. Segment rebuilds can be expensive when a large deformation covers much of the map; the fixed pool, bounded update interval, affected-bounds evaluation, and dirty-segment rebuilds limit unnecessary work, but profiling on the RG40XX-H-class target remains outstanding.
 
 ## Evidence Status
 
@@ -50,4 +50,4 @@ The current implementation rebuilds affected terrain segments, including their g
 - **Still unknown:** Blizzard's exact native math, whether persistent crater state survives save/load, retail overlap/combination semantics, gameplay height/pathing consumers, and whether Earthquake uses one of these natives or a separate hard-coded engine path.
 - **Explicitly not implemented:** Retail-parity AOeq deformation, inferred `Oeq4` behavior, modification of server collision/pathing, and permanent source-map mutation.
 
-No project build, test binary, or retail game run was performed for this change, per the task instruction. Synthetic native payload regression coverage was added but not run.
+The renderer regression uses a synthetic terrain grid and does not require proprietary retail assets. Runtime visual behavior has not been manually verified in-game.
