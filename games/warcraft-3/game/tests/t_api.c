@@ -60,6 +60,26 @@ static uint32_t selection_native_packet_count;
 static uint32_t selection_native_packet_units;
 static int selection_native_packet_stage;
 
+static pfWriteType_t terrain_deform_write_types[32];
+static int32_t terrain_deform_write_values[32];
+static float terrain_deform_write_floats[16];
+static uint32_t terrain_deform_write_count, terrain_deform_float_count, terrain_deform_multicast_count;
+
+static void terrain_deform_test_write(pfWriteType_t type, void const *data) {
+    if (terrain_deform_write_count < ARRAY_COUNT(terrain_deform_write_types)) {
+        uint32_t slot = terrain_deform_write_count++;
+        terrain_deform_write_types[slot] = type;
+        if (type == PF_BYTE || type == PF_LONG) terrain_deform_write_values[slot] = *(int32_t const *)data;
+    }
+    if (type == PF_FLOAT && terrain_deform_float_count < ARRAY_COUNT(terrain_deform_write_floats))
+        terrain_deform_write_floats[terrain_deform_float_count++] = *(float const *)data;
+}
+
+static void terrain_deform_test_multicast(vec3_t const *origin, multicast_t to) {
+    (void)origin;
+    if (to == MULTICAST_ALL) terrain_deform_multicast_count++;
+}
+
 static void selection_native_test_write(pfWriteType_t type, void const *data) {
     int32_t value;
 
@@ -1115,6 +1135,50 @@ TEST(wc3_api, add_indicator_accepts_unit_widget_and_sends_local_tinted_ring) {
     gi.unicast = old_unicast;
     currentplayer = NULL;
     G_SetClientConnected(&g_edicts[0], false);
+}
+
+TEST(wc3_api, terrain_deform_native_sends_renderer_only_descriptor_and_returns_stoppable_handle) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_multicast)(vec3_t const *, multicast_t) = gi.multicast;
+    uint32_t old_id;
+    terrain_deform_write_count = terrain_deform_float_count = terrain_deform_multicast_count = 0;
+    gi.Write = terrain_deform_test_write;
+    gi.multicast = terrain_deform_test_multicast;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local terraindeformation d\n"
+        "  set d = TerrainDeformCrater(128.0, 256.0, 96.0, 14.0, 1800, false)\n"
+        "  call TerrainDeformStop(d, 300)\n"
+        "  call TerrainDeformStopAll()\n"
+        "endfunction\n"));
+
+    T_EQ(terrain_deform_write_values[0], svc_temp_entity);
+    T_EQ(terrain_deform_write_values[1], TE_TERRAIN_DEFORM);
+    T_ASSERT(terrain_deform_write_values[2] > 0);
+    T_EQ(terrain_deform_write_values[3], TERRAIN_DEFORM_CRATER);
+    old_id = (uint32_t)terrain_deform_write_values[2];
+    T_EQ(terrain_deform_float_count, 8);
+    T_FEQ(terrain_deform_write_floats[0], 128.0f, 0.001f);
+    T_FEQ(terrain_deform_write_floats[1], 256.0f, 0.001f);
+    T_FEQ(terrain_deform_write_floats[2], 96.0f, 0.001f);
+    T_FEQ(terrain_deform_write_floats[3], 14.0f, 0.001f);
+    T_EQ(terrain_deform_write_count, 22);
+    T_EQ(terrain_deform_write_values[12], 1800);
+    T_EQ(terrain_deform_write_values[13], 0);
+    T_EQ(terrain_deform_write_values[14], 0);
+    T_EQ(terrain_deform_write_values[15], 0);
+    T_EQ(terrain_deform_write_values[16], svc_temp_entity);
+    T_EQ(terrain_deform_write_values[17], TE_TERRAIN_DEFORM_STOP);
+    T_EQ(terrain_deform_write_values[18], (int32_t)old_id);
+    T_EQ(terrain_deform_write_values[19], 300);
+    T_EQ(terrain_deform_write_values[20], svc_temp_entity);
+    T_EQ(terrain_deform_write_values[21], TE_TERRAIN_DEFORM_STOP_ALL);
+    T_EQ(terrain_deform_multicast_count, 3);
+    T_EQ(old_id, (uint32_t)terrain_deform_write_values[2]);
+
+    gi.Write = old_write;
+    gi.multicast = old_multicast;
 }
 
 TEST(wc3_api, disconnected_presentation_defers_network_write_until_connected) {

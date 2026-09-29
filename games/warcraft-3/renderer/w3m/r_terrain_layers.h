@@ -34,6 +34,7 @@ struct MapSegment {
     maplayer_t *layers;
     mapsegment_t *next;
     box3_t bbox;
+    uint32_t sx, sy;
 };
 
 void R_DrawTerrainSegment(mapsegment_t const *segment, uint32_t mask);

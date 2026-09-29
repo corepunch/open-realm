@@ -1,0 +1,47 @@
+# Warcraft III Terrain Deformation
+
+## Scope
+
+This document describes the generic terrain deformation path used by the Warcraft III renderer. It does not claim that OpenRealm's deformation equations reproduce Blizzard's native equations. Stock Earthquake is not wired to guessed deformation parameters.
+
+The native names and signatures below are verified in the repository's retail-shaped `games/warcraft-3/game/common.txt`, which contains the World Editor API declarations:
+
+- `TerrainDeformCrater(x, y, radius, depth, duration, permanent)`
+- `TerrainDeformRipple(x, y, radius, depth, duration, count, spaceWaves, timeWaves, radiusStartPct, limitNeg)`
+- `TerrainDeformWave(x, y, dirX, dirY, distance, speed, radius, depth, trailTime, count)`
+- `TerrainDeformRandom(x, y, radius, minDelta, maxDelta, duration, updateInterval)`
+- `TerrainDeformStop(deformation, duration)`
+- `TerrainDeformStopAll()`
+
+Those declarations establish the interface, not the exact stock height functions, waveform, persistence, or overlap behavior.
+
+## Runtime Ownership
+
+A JASS call is simulation-owned. The native sends a typed, one-shot `svc_temp_entity` command containing an ID and numeric descriptor. The renderer owns a fixed 32-entry transient registry and one map-sized height-offset array. The command does not become entity snapshot data or renderer state in a save. `terraindeformation` handles store the transient ID in memory and serialize as null, so neither the effect nor its renderer ID survives save/load.
+
+The WC3 renderer samples its map vertices from the sum of active descriptors, updates only the union of previously and currently affected grid bounds at a 33 ms minimum interval, and rebuilds dirty terrain segments before drawing. Ground, terrain-conforming splats, and exact terrain height queries consume the deformed heights. The camera adds a bilinearly sampled deformation offset to its separately blurred base height; that offset does not receive the camera blur. Renderer arrays and active descriptors are released/reset on map changes.
+
+Each deformation type currently uses a documented OpenRealm approximation:
+
+- Crater: radial smooth depression using the absolute authored depth, with a time envelope unless permanent.
+- Ripple: radial sinusoidal rings bounded by radius, with an optional nonnegative clamp.
+- Wave: directional sinusoidal strip bounded by distance and width.
+- Random: stable tile-seeded samples refreshed at the authored interval.
+
+`count` is transported and retained but does not currently select repeated waves. The exact relationship of `duration`, `trailTime`, `count`, `spaceWaves`, `timeWaves`, and the native's stop duration to retail behavior remains unknown. Do not tune these formulas as retail-compatible without executable or controlled retail evidence.
+
+## Height Field And Limits
+
+Deformations are added together as vertical offsets over the static W3E height field. No permanent modification is written back to the map. This is renderer-owned presentation; server-side pathing and `CM_GetHeightAtPoint` remain unchanged. Maps whose vertex grids do not form complete existing renderer segments, or whose deformation buffers cannot be allocated, report one bounded warning and do not accept deformations.
+
+The current implementation rebuilds affected terrain segments, including their ground layers and cliff meshes. Cliff vertices that join to the ground sample the deformed height field; cliff art and tile masks are unchanged. Water surfaces retain their authored heights. The system does not alter gameplay collision or pathing. Segment rebuilds can be expensive when a large deformation covers much of the map; the fixed pool, bounded update interval, affected-bounds evaluation, and dirty-segment rebuilds limit unnecessary work, but profiling on the RG40XX-H-class target remains outstanding.
+
+## Evidence Status
+
+- **Verified from declarations:** the six native names and argument shapes listed above.
+- **Verified from code:** map renderer terrain is a separate client map copy; the height offset and transient descriptor state stay renderer-owned; map-change cleanup clears both.
+- **Implemented but not runtime-verified:** OpenRealm's four generic profile approximations, overlapping additive composition, and stop fade.
+- **Still unknown:** Blizzard's exact native math, whether persistent crater state survives save/load, retail overlap/combination semantics, gameplay height/pathing consumers, and whether Earthquake uses one of these natives or a separate hard-coded engine path.
+- **Explicitly not implemented:** AOeq-specific calls, inferred Earthquake radii/depths, modification of server collision/pathing, and permanent source-map mutation.
+
+No project build, test binary, or retail game run was performed for this change, per the task instruction. Synthetic native payload regression coverage was added but not run.

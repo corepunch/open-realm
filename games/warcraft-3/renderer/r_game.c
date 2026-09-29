@@ -1062,7 +1062,12 @@ float R_GetHeightAtPoint(float x, float y) {
     return R_W3TerrainHeightAtPoint(x, y);
 }
 
-float R_GetCameraHeightAtPoint(float x, float y) { return R_W3CameraHeightAtPoint(x, y); }
+float R_GetCameraHeightAtPoint(float x, float y) {
+    return R_W3CameraHeightAtPoint(x, y);
+}
+void R_StartTerrainDeformation(terrainDeform_t const *deformation) { R_W3StartTerrainDeformation(deformation); }
+void R_StopTerrainDeformation(uint32_t id, uint32_t fade_ms) { R_W3StopTerrainDeformation(id, fade_ms); }
+void R_StopAllTerrainDeformations(void) { R_W3StopAllTerrainDeformations(); }
 bool R_CameraUsesTerrainHeight(void) { return true; }
 
 

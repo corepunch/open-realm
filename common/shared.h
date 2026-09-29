@@ -925,7 +925,30 @@ typedef enum {
     /* Generic transient entity highlight. Payload: entity int32_t, RGBA int32_t.
      * The client owns the fixed two-flash lifetime and follows the entity while visible. */
     TE_ENTITY_INDICATOR,
+    /* Transient terrain deformation. Payload is a typed deformation descriptor or stop command. */
+    TE_TERRAIN_DEFORM,
+    TE_TERRAIN_DEFORM_STOP,
+    TE_TERRAIN_DEFORM_STOP_ALL,
 } tempEvent_t;
+
+typedef enum {
+    TERRAIN_DEFORM_CRATER,
+    TERRAIN_DEFORM_RIPPLE,
+    TERRAIN_DEFORM_WAVE,
+    TERRAIN_DEFORM_RANDOM,
+} terrainDeformType_t;
+
+/* Renderer-owned visual command; this descriptor is sent only in a transient event, never in snapshots or saves. */
+typedef struct {
+    uint32_t id;
+    terrainDeformType_t type;
+    float data[8];
+    uint32_t duration_ms;
+    uint32_t count;
+    uint32_t update_ms;
+    bool permanent;
+    bool limit_negative;
+} terrainDeform_t;
 
 typedef enum {
     FT_NONE,
