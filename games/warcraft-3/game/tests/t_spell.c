@@ -215,16 +215,18 @@ TEST(wc3_spell, wind_walk_and_temporary_invisibility_keep_hidden_until_both_expi
 }
 
 TEST(wc3_spell, invisibility_spell_uses_authored_buff_and_breaks_through_status_owner) {
-    const char slk[] =
+    char slk[1024];
+    cstring_t targs_column = atoi(gi.CvarString("fs_expansion", "0")) ? "targs1" : "targs";
+    snprintf(slk, sizeof(slk),
         "ID;PWXL;N;EBB;Y2;X10\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
         "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
         "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
-        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"targs\"\n"
+        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"%s\"\n"
         "C;Y2;X1;K\"Aivs\"\nC;Y2;X2;K\"Aivs\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"600\"\n"
         "C;Y2;X7;K\"9\"\nC;Y2;X8;K\"9\"\nC;Y2;X9;K\"Bixx\"\n"
-        "C;Y2;X10;K\"air,ground,friend\"\nE\n";
+        "C;Y2;X10;K\"air,ground,friend\"\nE\n", targs_column);
     UnitAbilities_t abilities = { .abilList = "Aivs" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
     edict_t *caster, *target, *enemy;
@@ -262,20 +264,68 @@ TEST(wc3_spell, invisibility_spell_uses_authored_buff_and_breaks_through_status_
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, stock_invisibility_spell_applies_and_expires_binv) {
+    char slk[1024];
+    cstring_t targs_column = atoi(gi.CvarString("fs_expansion", "0")) ? "targs1" : "targs";
+    snprintf(slk, sizeof(slk),
+        "ID;PWXL;N;EBB;Y2;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
+        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"%s\"\n"
+        "C;Y2;X1;K\"Aivs\"\nC;Y2;X2;K\"Aivs\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"600\"\n"
+        "C;Y2;X7;K\"120\"\nC;Y2;X8;K\"120\"\nC;Y2;X9;K\"Binv\"\n"
+        "C;Y2;X10;K\"air,ground,friend\"\nE\n", targs_column);
+    UnitAbilities_t abilities = { .abilList = "Aivs" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster, *target;
+    heroabilitystatus_t *status;
+
+    setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = 0;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    target->s.player = 0;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
+    target->svflags |= SVF_MONSTER;
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','i','v','s'), target));
+    status = unit_findstatus(target, MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);
+    if (status) {
+        T_EQ(status->duration_ms, 120000);
+        T_EQ(status->data, MAKEFOURCC('A','i','v','s'));
+        T_ASSERT(target->s.renderfx & RF_HIDDEN);
+        level.time = status->timestamp;
+        unit_updatestatuses(target);
+        T_NULL(unit_findstatus(target, MAKEFOURCC('B','i','n','v')));
+        T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
+    }
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, invisibility_spell_breaks_on_committed_spell) {
-    const char slk[] =
+    char slk[1024];
+    cstring_t targs_column = atoi(gi.CvarString("fs_expansion", "0")) ? "targs1" : "targs";
+    snprintf(slk, sizeof(slk),
         "ID;PWXL;N;EBB;Y3;X10\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
         "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
         "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
-        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"targs\"\n"
+        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"%s\"\n"
         "C;Y2;X1;K\"Aivs\"\nC;Y2;X2;K\"Aivs\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"600\"\n"
         "C;Y2;X7;K\"9\"\nC;Y2;X8;K\"9\"\nC;Y2;X9;K\"Bixx\"\n"
         "C;Y2;X10;K\"air,ground,friend\"\n"
         "C;Y3;X1;K\"AOwk\"\nC;Y3;X2;K\"AOwk\"\nC;Y3;X3;K\"1\"\n"
         "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"13\"\nC;Y3;X7;K\"2.75\"\n"
-        "C;Y3;X8;K\"2.75\"\nE\n";
+        "C;Y3;X8;K\"2.75\"\nE\n", targs_column);
     UnitAbilities_t abilities = { .abilList = "Aivs" };
     UnitAbilities_t walk_abilities = { .abilList = "AOwk" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
