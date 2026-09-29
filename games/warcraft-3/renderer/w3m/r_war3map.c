@@ -27,8 +27,6 @@ static bool w3_terrain_rebuild_pending;
 static int w3_deform_x0, w3_deform_y0, w3_deform_x1, w3_deform_y1;
 static bool w3_deform_bounds_valid;
 static bool w3_warn_deform_unavailable, w3_warn_deform_type, w3_warn_deform_pool;
-static uint32_t w3_deform_log_count;
-static bool w3_deform_logged_change;
 static float r_w3_camera_grid_height(void const *data, uint32_t x, uint32_t y);
 static void R_W3RebuildCameraHeightMap(void);
 static void R_W3ResetTerrainDeformations(void);
@@ -198,16 +196,7 @@ static bool R_W3GetGridBounds(war3map_t const *map, wc3TerrainDeformation_t cons
 
 void R_W3StartTerrainDeformation(terrainDeform_t const *deformation) {
     wc3TerrainDeformation_t *slot = NULL;
-    if (!deformation) return;
-    if (w3_deform_log_count < 8) {
-        fprintf(stderr, "WC3 renderer: terrain deformation start id=%u type=%u map=%ux%u grid=%s "
-                "center=(%.1f,%.1f) radius=%.1f delta=[%.1f,%.1f]\n", deformation->id,
-                (unsigned)deformation->type, tr.world ? tr.world->width : 0, tr.world ? tr.world->height : 0,
-                w3_terrain_offsets ? "ready" : "unavailable", deformation->data[0], deformation->data[1],
-                deformation->data[2], deformation->data[3], deformation->data[4]);
-        w3_deform_log_count++;
-    }
-    if (!deformation->id || !tr.world) return;
+    if (!deformation || !deformation->id || !tr.world) return;
     if (!w3_terrain_offsets) {
         if (!w3_warn_deform_unavailable) {
             fprintf(stderr, "WC3 renderer: terrain deformation unavailable for this map\n");
@@ -401,8 +390,6 @@ void R_W3UpdateTerrainDeformations(void) {
     int x0 = 0, y0 = 0, x1 = -1, y1 = -1;
     int current_x0 = 0, current_y0 = 0, current_x1 = -1, current_y1 = -1;
     bool current_bounds_valid;
-    uint32_t changed_vertices = 0;
-    float changed_min = FLT_MAX, changed_max = -FLT_MAX;
     int deform_x0[WC3_TERRAIN_DEFORM_MAX], deform_y0[WC3_TERRAIN_DEFORM_MAX];
     int deform_x1[WC3_TERRAIN_DEFORM_MAX], deform_y1[WC3_TERRAIN_DEFORM_MAX];
     if (!map || !w3_terrain_offsets ||
@@ -461,9 +448,6 @@ void R_W3UpdateTerrainDeformations(void) {
             }
             if (fabsf(w3_terrain_offsets[index] - offset) < 0.001f) continue;
             w3_terrain_offsets[index] = offset;
-            changed_vertices++;
-            changed_min = MIN(changed_min, offset);
-            changed_max = MAX(changed_max, offset);
             changed = true;
             R_W3MarkMapVertex(map, (uint32_t)x, (uint32_t)y);
         }
@@ -475,14 +459,7 @@ void R_W3UpdateTerrainDeformations(void) {
         w3_deform_x0 = current_x0; w3_deform_y0 = current_y0;
         w3_deform_x1 = current_x1; w3_deform_y1 = current_y1;
     } else w3_deform_bounds_valid = false;
-    if (changed) {
-        w3_terrain_rebuild_pending = true;
-        if (!w3_deform_logged_change) {
-            fprintf(stderr, "WC3 renderer: terrain deformation changed %u height samples; offset range %.1f..%.1f\n",
-                    changed_vertices, changed_min, changed_max);
-            w3_deform_logged_change = true;
-        }
-    }
+    if (changed) w3_terrain_rebuild_pending = true;
     if (!active) w3_deform_last_update = 0;
 }
 
