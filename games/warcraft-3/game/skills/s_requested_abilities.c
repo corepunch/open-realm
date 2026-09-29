@@ -2,6 +2,11 @@
 
 #define ID_EARTHQUAKE MAKEFOURCC('A', 'O', 'e', 'q')
 #define ID_EARTHQUAKE_BUFF MAKEFOURCC('B', 'O', 'e', 'q')
+/* Provisional visual values for testing; these are not verified retail parameters. */
+#define EARTHQUAKE_DEFORM_DURATION_MS 1000
+#define EARTHQUAKE_DEFORM_UPDATE_MS 200
+#define EARTHQUAKE_DEFORM_MIN_DELTA -48.0f
+#define EARTHQUAKE_DEFORM_MAX_DELTA 48.0f
 #define ID_CHAIN_LIGHTNING_VISIT MAKEFOURCC('C', 'L', 'v', 's')
 #define CHAIN_LIGHTNING_JUMP_MS 250
 #define CHAIN_LIGHTNING_BOLT_MS 2000
@@ -157,6 +162,11 @@ void earthquake_think(edict_t *ent) {
     float damage = S_SpellData(ent->class_id, level, 2);
     if (now >= ent->spawn_time) { spell_end_area_presentation(ent); S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
+    G_SendTerrainDeformation(&(terrainDeform_t){ .type = TERRAIN_DEFORM_RANDOM,
+        .data = { ent->s.origin2.x, ent->s.origin2.y, radius,
+                  EARTHQUAKE_DEFORM_MIN_DELTA, EARTHQUAKE_DEFORM_MAX_DELTA },
+        .duration_ms = EARTHQUAKE_DEFORM_DURATION_MS,
+        .update_ms = EARTHQUAKE_DEFORM_UPDATE_MS });
     FILTER_EDICTS(target, earthquake_allows_unit(ent->owner, target, targets) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= radius) {
         if (G_UnitIsStructure(target)) {

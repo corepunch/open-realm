@@ -66,12 +66,13 @@ static float terrain_deform_write_floats[16];
 static uint32_t terrain_deform_write_count, terrain_deform_float_count, terrain_deform_multicast_count;
 
 static void terrain_deform_test_write(pfWriteType_t type, void const *data) {
-    if (terrain_deform_write_count < ARRAY_COUNT(terrain_deform_write_types)) {
+    if (terrain_deform_write_count < sizeof(terrain_deform_write_types) / sizeof(terrain_deform_write_types[0])) {
         uint32_t slot = terrain_deform_write_count++;
         terrain_deform_write_types[slot] = type;
         if (type == PF_BYTE || type == PF_LONG) terrain_deform_write_values[slot] = *(int32_t const *)data;
     }
-    if (type == PF_FLOAT && terrain_deform_float_count < ARRAY_COUNT(terrain_deform_write_floats))
+    if (type == PF_FLOAT && terrain_deform_float_count <
+        sizeof(terrain_deform_write_floats) / sizeof(terrain_deform_write_floats[0]))
         terrain_deform_write_floats[terrain_deform_float_count++] = *(float const *)data;
 }
 

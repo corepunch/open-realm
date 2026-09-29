@@ -203,7 +203,9 @@ The model has `SEQS` Birth (167–1200), Stand (1233–10274), Death (62300–63
 
 There are no `SPN`, `SPL`, or `FPT` events, so the stock chain has no nested child model and does not use `Splats\\SplatData.slk`. `UberSplatData.slk` row `THND` resolves to `ReplaceableTextures\\Splats\\ThunderClapUbersplat.blp`: `Scale=280`, `BirthTime=0.2`, `PauseTime=2`, `Decay=2`; Start/Middle/End RGB are all 255 and alpha is 0/255/0. `BlendMode=1`; the renderer currently uses its alpha-blended splat primitive, retains this value, and issues one bounded unsupported-field warning. The exact retail meaning of mode 1 has not been established, so full blend parity is not claimed. `Sound="NULL"` is the table's empty sentinel and does not name a sound. The generic warning now treats `NULL`, `-`, and `_` as empty optional sound values.
 
-The renderer already handles the stock model's `PRE2`, `SND`, and `UBR` shapes generically. It resolves event rows in renderer asset scope, so map archive overrides keep their normal priority. The game-side area presentation now follows the selected `AbilityData.EfctID` when direct ability fields do not provide art or sound: direct ability values keep precedence, then the effect object's `AreaEffectArt`/`EffectArt` and one-shot/looped sound fields are considered. This makes the `XOeq` model and loop sound data-driven; the model's `SNDXAEQK` supplies the one-shot rock sound. It creates no renderer-only network or save state.
+The renderer already handles the stock model's `PRE2`, `SND`, and `UBR` shapes generically. It resolves event rows in renderer asset scope, so map archive overrides keep their normal priority. The game-side area presentation follows the selected `AbilityData.EfctID` when direct ability fields do not provide art or sound: direct ability values keep precedence, then the effect object's `AreaEffectArt`/`EffectArt` and one-shot/looped sound fields are considered. This makes the `XOeq` model and loop sound data-driven; the model's `SNDXAEQK` supplies the one-shot rock sound. The model presentation uses the existing effect-entity path; the separate provisional terrain pulses are described below.
+
+For in-game visual checking, active Earthquake ticks also emit provisional `TerrainDeformRandom`-shaped pulses centered at the cast point. They use authored `Area` for radius and guessed values of ±12 height units, 200 ms update interval, and 1000 ms lifetime. These are explicitly unverified presentation guesses, not claims about retail Earthquake or `Oeq4`; see [Terrain Deformation](terrain-deformation.md).
 
 For the generic event parser and renderer contracts, see [MDX Event Objects](mdx-event-objects.md); this Earthquake chain uses its `PRE2`, `SND`, and `UBR` paths and does not exercise `SPN`, `SPL`, or `FPT`.
 
@@ -211,7 +213,7 @@ For the generic event parser and renderer contracts, see [MDX Event Objects](mdx
 
 ### Earthquake data questions still open
 
-`AbilityMetaData.slk` defines `Oeq4` as `AbilityData` Data index 4, displays it as `Final Area`, permits `0..99999`, and lists `AOeq,SNeq` as supported IDs. Both stock rows have `Area=250` and `Oeq4=250`. The equality does not establish that `Oeq4` is a radius or an effect scale; no reliable executable/runtime read site was recovered. Its semantics remain unresolved and behavior stays unchanged.
+`AbilityMetaData.slk` defines `Oeq4` as `AbilityData` Data index 4, displays it as `Final Area`, permits `0..99999`, and lists `AOeq,SNeq` as supported IDs. Both stock rows have `Area=250` and `Oeq4=250`. The equality does not establish that `Oeq4` is a radius or an effect scale; no reliable executable/runtime read site was recovered. Its semantics remain unresolved, and the provisional deformation pulse does not read it.
 
 | Retail row | Area | Oeq1 / Oeq2 / Oeq3 / Oeq4 | Duration | EffectArt / AreaEffectArt | BuffID | EfctID |
 |---|---:|---|---:|---|---|---|

@@ -925,30 +925,8 @@ uint32_t SetTerrainPathable(jass_t *j) {
     (void)jass_checkboolean(j, 4);
     return 0;
 }
-static uint32_t terrain_deformation_next_id;
-
-static void TerrainDeformWriteLong(int32_t value) {
-    if (gi.Write) gi.Write(PF_LONG, &value);
-}
-
 static uint32_t TerrainDeformEmit(jass_t *j, terrainDeform_t *deformation) {
-    uint32_t id = ++terrain_deformation_next_id;
-    if (!id) id = ++terrain_deformation_next_id;
-    deformation->id = id;
-    if (gi.Write && gi.multicast) {
-        vec3_t origin = { deformation->data[0], deformation->data[1], 0.0f };
-        gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
-        gi.Write(PF_BYTE, &(int32_t){ TE_TERRAIN_DEFORM });
-        TerrainDeformWriteLong((int32_t)id);
-        gi.Write(PF_BYTE, &(int32_t){ deformation->type });
-        FOR_LOOP(i, 8) gi.Write(PF_FLOAT, &deformation->data[i]);
-        TerrainDeformWriteLong((int32_t)deformation->duration_ms);
-        TerrainDeformWriteLong((int32_t)deformation->count);
-        TerrainDeformWriteLong((int32_t)deformation->update_ms);
-        gi.Write(PF_BYTE, &(int32_t){ (deformation->permanent ? 1 : 0) |
-                                      (deformation->limit_negative ? 2 : 0) });
-        gi.multicast(&origin, MULTICAST_ALL);
-    }
+    uint32_t id = G_SendTerrainDeformation(deformation);
     uint32_t *handle = jass_newhandle(j, sizeof(*handle), "terraindeformation");
     if (!handle) return 1;
     *handle = id;
@@ -990,24 +968,12 @@ uint32_t TerrainDeformRandom(jass_t *j) {
 uint32_t TerrainDeformStop(jass_t *j) {
     uint32_t *handle = jass_checkhandle(j, 1, "terraindeformation");
     int32_t fade_ms = MAX(0, jass_checkinteger(j, 2));
-    if (handle && gi.Write && gi.multicast) {
-        vec3_t origin = { 0 };
-        gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
-        gi.Write(PF_BYTE, &(int32_t){ TE_TERRAIN_DEFORM_STOP });
-        TerrainDeformWriteLong((int32_t)*handle);
-        TerrainDeformWriteLong(fade_ms);
-        gi.multicast(&origin, MULTICAST_ALL);
-    }
+    if (handle) G_StopTerrainDeformation(*handle, (uint32_t)fade_ms);
     return 0;
 }
 uint32_t TerrainDeformStopAll(jass_t *j) {
     (void)j;
-    if (gi.Write && gi.multicast) {
-        vec3_t origin = { 0 };
-        gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
-        gi.Write(PF_BYTE, &(int32_t){ TE_TERRAIN_DEFORM_STOP_ALL });
-        gi.multicast(&origin, MULTICAST_ALL);
-    }
+    G_StopAllTerrainDeformations();
     return 0;
 }
 uint32_t SetCampaignMenuRaceEx(jass_t *j) {
