@@ -30,6 +30,43 @@ def reciprocal_table():
     return [min(0x800000, (1 << 47) // (0x800000+i*8192-1) - 0x800000) for i in range(1025)]
 
 
+def decimal_acos(x):
+    if not x: return PI/2
+    if x == 1: return Decimal(0)
+    y = ((1-x)/(1+x)).sqrt()
+    scale = 2
+    while y > Decimal('0.1'):
+        y /= 1+(1+y*y).sqrt()
+        scale *= 2
+    total = term = y
+    for n in range(1,100):
+        term *= -y*y
+        total += term/(2*n+1)
+        if abs(term) < Decimal('1e-85'): break
+    return total*scale
+
+
+def acos_tables():
+    with localcontext() as context:
+        context.prec = 90
+        # Only indices0..1019 can be read by the ordinary abs(x)<=3f7e8000 branch.
+        ordinary = [int(decimal_acos(Decimal(i)/1024)*(1 << 29)) for i in range(1020)]
+        near = []
+        for i in range(138):
+            if i >= 136:
+                near.append(0)
+                continue
+            q,r = divmod(i,8)
+            delta = Decimal(16-r)*(Decimal(2)**(-11-q))
+            # The embedded terminal samples flatten to4,2,1 raw ULPs below1.
+            # This regenerates the constants; historical generator source is unavailable.
+            if i >= 120:
+                delta = Decimal(2)**(-24+(2 if i<124 else 1 if i<128 else 0))
+            rounded = struct.unpack('<f',struct.pack('<f',float(decimal_acos(1-delta))))[0]
+            near.append(min(int(rounded*(1 << 34)),0x7fffffff))
+        return ordinary,near
+
+
 def main():
     table = sine_table()
     digest = hashlib.sha256(struct.pack('<1025I', *table)).hexdigest()
@@ -47,6 +84,13 @@ def main():
     lines[-2:-2] = ['/* floor(2^47/(2^23+i*2^13-1))-2^23, saturated to2^23; SHA256 ' + reciprocal_hash + ' */',
                     'static uint32_t const wc3_recips[1025] = {'] + [
         '    ' + ', '.join(f'0x{n:08x}u' for n in reciprocal[i:i+8]) + ',' for i in range(0,len(reciprocal),8)] + ['};']
+    for name,table,curve_hash in zip(('wc3_acos_curve','wc3_acos_near'),acos_tables(),
+            ('6233bffc73eddcf2745dc016610dbf5f818dc8ccee3305a86b062b3b670958d3',
+             '6c9cb49399630fc9cecb91b57c3ff779c60e77563048017f3086bbcc7dec56a2')):
+        assert hashlib.sha256(struct.pack('<%dI'%len(table),*table)).hexdigest() == curve_hash
+        lines[-2:-2] = ['/* Independently reconstructed acos curve; SHA256 ' + curve_hash + ' */',
+                        'static uint32_t const ' + name + '[' + str(len(table)) + '] = {'] + [
+            '    ' + ', '.join(f'0x{n:08x}u' for n in table[i:i+8]) + ',' for i in range(0,len(table),8)] + ['};']
     (ROOT / 'games/warcraft-3/common/wc3_math_tables.h').write_text('\n'.join(lines))
     print(digest)
 

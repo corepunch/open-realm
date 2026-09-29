@@ -53,6 +53,7 @@ def main():
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--engine-library', type=Path, help='compiled wc3_pathing_engine_probe.c; compare decision/angle bits')
+    parser.add_argument('--heading-fixture', type=Path, help='export raw original vector-heading errors for asset-free C replay')
     args = parser.parse_args()
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
@@ -61,6 +62,8 @@ def main():
         engine.pathing_integrate.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
         engine.pathing_angle.argtypes = [ctypes.c_uint32]
         engine.pathing_angle.restype = ctypes.c_uint32
+        engine.pathing_heading_error.argtypes = [ctypes.c_uint32]*3
+        engine.pathing_heading_error.restype = ctypes.c_uint32
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -190,13 +193,14 @@ def main():
         speed_producer_cases+=1
     # Full heading error: software length, acos-based vector heading, shortest
     # signed difference and deadzone. Independent atan2 checks numerical error;
-    # these are tolerance comparisons, not bit-parity claims.
+    # the optional C kernel additionally compares every output word exactly.
     vector,angle_out=system+0x6000,system+0x6100
     pi=scalar(0x6fcd545c); tau=scalar(0x6fcd5464)
     deadzone=scalar(0x6fcd5470)
     def f32(value):
         return struct.unpack('<f',struct.pack('<f',value))[0]
     angle_cases=0
+    heading_fixture=[]
     max_angle_error=0
     for x,y,heading in itertools.product([-4,-1,-0.125,0,0.125,1,4],
                                         [-4,-1,-0.125,0,0.125,1,4],
@@ -212,6 +216,9 @@ def main():
         elif delta<-math.pi: delta+=2*math.pi
         if abs(delta)<deadzone: delta=0
         actual=scalar(angle_out)
+        if engine:
+            assert engine.pathing_heading_error(*read(vector,2),read(heading_ptr)[0]) == read(angle_out)[0]
+        heading_fixture.append([*read(vector,2),read(heading_ptr)[0],read(angle_out)[0]])
         error=abs(actual-delta)
         # Sign at exactly opposite headings depends on the represented pi.
         if abs(abs(delta)-math.pi)<1e-6:
@@ -219,6 +226,30 @@ def main():
         assert error<0.0003,(x,y,heading,actual,delta,error)
         max_angle_error=max(max_angle_error,error)
         angle_cases+=1
+    # Non-binary directions across all quadrants and the near-cardinal curve;
+    # length thresholds include adjacent represented values. These exact checks
+    # intentionally have no host atan2 tolerance assumption.
+    heading_boundary_cases=0
+    raw_vectors=[]
+    for x,y in itertools.product([0.1,0.3,0.7,3.14159,17.23,1000.1],
+                                 [0.0001,0.001,0.01,0.03,0.1,0.2,0.7,1.3]):
+        for sx,sy in itertools.product([-1,1],repeat=2):
+            raw_vectors.append([float_bits(sx*x),float_bits(sy*y)])
+    raw_vectors.extend([[sign|word,0] for sign in [0,0x80000000]
+                       for word in range(0x3727c5ac-4,0x3727c5ac+5)])
+    for raw,heading in itertools.product(raw_vectors,[0,0.345,pi,tau]):
+        write(vector,*raw)
+        floats(heading_ptr,heading)
+        machine.reg_write(UC_X86_REG_EDX,heading_ptr)
+        run(0x6f16f630,angle_out,vector)
+        if engine:
+            assert engine.pathing_heading_error(*raw,read(heading_ptr)[0]) == read(angle_out)[0], (raw,heading)
+        heading_boundary_cases+=1
+    if args.heading_fixture:
+        args.heading_fixture.parent.mkdir(parents=True,exist_ok=True)
+        args.heading_fixture.write_text(json.dumps(dict(version=1,binary_sha256=digest,
+            source_entry='6f16f630',columns=['x','y','current_heading','error'],cases=heading_fixture),
+            separators=(',',':'))+'\n')
     # Exact principal-range producer values avoid wrap-rounding assumptions.
     turn_producer_cases=0
     minimum=scalar(0x6fcd53a0)
@@ -239,6 +270,7 @@ def main():
         run(0x6f16f630,angle_out,vector)
         heading=scalar(heading_ptr)
         assert scalar(angle_out)==(0 if abs(heading)<deadzone else -heading)
+        if engine:assert engine.pathing_heading_error(*read(vector,2),read(heading_ptr)[0])==read(angle_out)[0]
         deadzone_cases+=1
     normalization=[]
     for value in [-2*tau,-tau,-0.5,0,0.5,tau,2*tau,10,-10]:
@@ -2702,14 +2734,15 @@ def main():
                 move_elapsed_arrival_cases=len(elapsed_arrival_cases),move_elapsed_trajectories=elapsed_arrival_cases,
                 move_elapsed_integration_ticks=sum(row['ticks'] for row in elapsed_arrival_cases),move_elapsed_deferred_task_reclamations=2*len(elapsed_arrival_cases),move_elapsed_group_path_releases=len(elapsed_arrival_cases),scope=__doc__,passed=True,group_member_decision_cases=decision_cases,group_member_decision_hold_cases=decision_hold_cases,group_member_route_commit_cases=decision_route_cases,group_cached_tick_cases=tick_cases,group_membership_prepass_cases=prepass_cases,group_completion_cases=completion_cases,move_subscriber_dispatch_prefix_cases=subscriber_prefix_cases,move_arrival_dispatch_cases=arrival_dispatch_cases,move_active_arrival_task_pop_cases=active_arrival_dispatch_cases,move_arrival_next_task_rejection_cases=arrival_next_task_rejection_cases,move_arrival_next_task_acceptance_cases=arrival_next_task_acceptance_cases,move_arrival_fresh_tick_cases=arrival_fresh_tick_cases,unit_order_queue_pop_cases=queue_prefix_cases,deferred_wrapper_release_cases=queue_prefix_cases,owner_payload_release_cases=queue_prefix_cases//2,group_completion_threshold=completion_threshold,group_completion_sentinel=completion_sentinel,regroup_advance_cases=regroup_advance_cases,regroup_status_cases=regroup_cases,regroup_squared_thresholds=regroup_thresholds,formation_refresh_cases=formation_refresh_cases,formation_full_layout_cases=full_layout_cases,formation_full_layout_max_error=full_layout_error,formation_rank_gap=rank_gap,formation_depth_gap=depth_gap,formation_center_rotate_cases=center_rotate_cases,formation_center_rotate_max_error=center_rotate_error,formation_row_placement_cases=row_placement_cases,formation_row_dimension_cases=row_dimension_cases,formation_row_tables=row_tables,formation_row_gap=row_gap,formation_layout_bucket_cases=layout_bucket_cases,formation_layout_max_error=layout_error,formation_step_cases=formation_step_cases,formation_setter_cases=formation_setter_cases,group_formation_boundary_intervals=formation_boundary,group_formation_cases=formation_cases,group_formation_padding=formation_padding,group_registered_release_cases=registered_release_cases,group_stop_cases=group_cases,group_shared_lifecycle_cases=lifecycle_cases,group_shared_radius_sequences=radius_sequences,group_aux_ownership_cases=ownership_cases,group_aux_publication_sequences=publication_sequences,group_radius_cases=radius_cases,group_speed_cap_cases=cap_cases,group_speed_commit_cases=group_cases,velocity_commit_cases=len(velocity_cases),post_velocity_integration_cases=len(velocity_cases),velocity_max_error=max(row['error'] for row in velocity_cases),position_integration_cases=integration_cases*2,integration_sequences=integration_cases,time_deadzone=time_deadzone,time_sequences=time_sequences,time_boundary_cases=time_boundary_cases,speed_heading_cases=cases,speed_producer_cases=speed_producer_cases,heading_error_cases=angle_cases,max_heading_error=max_angle_error,heading_deadzone=deadzone,turn_producer_cases=turn_producer_cases,deadzone_boundary_cases=deadzone_cases,normalization_samples=normalization,
                 boundary_policy='abs(delta)>=threshold stops translation; turning still applies',
-                exclusions=['non-binary-fraction rounding','angle-error bit parity','group target-speed adjustment, adaptive intermediate-waypoint progression, crowded ticks and cant-path consumers','integration with general float rounding and mixed-object occupancy',
+                exclusions=['non-binary-fraction rounding outside the implemented C helper comparisons','group target-speed adjustment, adaptive intermediate-waypoint progression, crowded ticks and cant-path consumers','integration with general float rounding and mixed-object occupancy',
                             'full owner singleton executes scheduler and visual-facing updates with empty shared/separation lists; two controlled post-arrival repulsors also execute alternating separation; active singleton plus eligible repulsor also composes; crowded active groups and mixed profiles remain open',
                             'accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed',
                             'elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open'])
     if engine:
         report.update(engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest(),
                       engine_exact_decision_cases=cases, engine_exact_angle_cases=len(normalization),
-                      engine_exact_velocity_cases=len(velocity_cases),engine_exact_integration_cases=engine_integrations)
+                      engine_exact_velocity_cases=len(velocity_cases),engine_exact_integration_cases=engine_integrations,
+                      engine_exact_heading_error_cases=angle_cases+heading_boundary_cases+deadzone_cases)
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
 

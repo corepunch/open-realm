@@ -15,6 +15,21 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.headingEvents) {
+        // 16f630: ECX=output*, EDX=current heading*, one vector* stack argument.
+        hook(0x16f630, {
+            onEnter(args) {
+                this.output = this.context.ecx;
+                this.row = {vector:[args[0].readU32(),args[0].add(4).readU32()],
+                    heading:this.context.edx.readU32()};
+            },
+            onLeave() {
+                bump('heading-error');
+                if (counts['heading-error'] <= config.samples)
+                    emit('heading-error', {...this.row,error:this.output.readU32()});
+            }
+        });
+    }
     if (config.velocityEvents) {
         // 16fe20 is thiscall(speed*,heading*); original integration precedes the velocity change.
         hook(0x16fe20, {

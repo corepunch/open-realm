@@ -11,8 +11,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools/ghidra'))
 sys.path.insert(0, str(ROOT / 'tools/frida'))
-from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal
-from generate_wc3_math_tables import sine_table, reciprocal_table
+from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits
+from generate_wc3_math_tables import sine_table, reciprocal_table, acos_tables
 from verify_wc3_motion_trace import verify
 
 
@@ -30,7 +30,9 @@ class PathingMathTests(unittest.TestCase):
             engine.pathing_motion.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
             engine.pathing_velocity.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
             engine.pathing_integrate.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
-            for name in ('add', 'subtract', 'multiply', 'angle', 'sin', 'cos', 'sqrt', 'reciprocal'):
+            engine.pathing_heading_error.argtypes = [ctypes.c_uint32]*3
+            engine.pathing_heading_error.restype = ctypes.c_uint32
+            for name in ('add', 'subtract', 'multiply', 'angle', 'sin', 'cos', 'acos', 'sqrt', 'reciprocal'):
                 proc = getattr(engine, 'pathing_' + name)
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply') else 1)
                 proc.restype = ctypes.c_uint32
@@ -85,6 +87,21 @@ class PathingMathTests(unittest.TestCase):
                 for engine in self.engines:
                     self.assertEqual(getattr(engine, 'pathing_' + name)(word), model(word), (name, hex(word)))
 
+    def test_inverse_trig_thresholds_and_heading_fixture(self):
+        ordinary,near = acos_tables()
+        rng = random.Random(0x6ffa0)
+        words = [rng.getrandbits(32) for _ in range(5000)]
+        words += [w | sign for sign in (0,0x80000000)
+                  for pivot in (0x3f7e8000,0x3f800000) for w in range(pivot-16,pivot+17)]
+        for word in words:
+            for engine in self.engines:
+                self.assertEqual(engine.pathing_acos(word), acos_bits(word,ordinary,near), hex(word))
+        fixture = json.loads((ROOT/'tools/ghidra/fixtures/retail-heading-errors-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']),441)
+        for x,y,heading,error in fixture['cases']:
+            for engine in self.engines:
+                self.assertEqual(engine.pathing_heading_error(x,y,heading),error,(hex(x),hex(y),hex(heading)))
+
     def test_complete_live_turn_velocity_and_integration(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-turn-velocity-1.27.json').read_text())
         self.assertEqual(len(fixture['commits']), 192)
@@ -138,6 +155,18 @@ class PathingMathTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 verify([metadata, decision, {**commit, 'after': mutated}, ending], self.engines[0], None)
 
+    def test_heading_capture_rejects_incomplete_or_changed_results(self):
+        x,y,current,error = json.loads((ROOT/'tools/ghidra/fixtures/retail-heading-errors-1.27.json').read_text())['cases'][27]
+        metadata = dict(event='metadata',sha256='d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236',motionEvents=True,headingEvents=True)
+        decision = dict(event='motion-decision',mover='a',speed=bits(1),heading=0,error=0,
+                        increment=0,turn=bits(.5),window=bits(.5),stop=0,nextSpeed=bits(1),nextHeading=0)
+        heading = dict(event='heading-error',vector=[x,y],heading=current,error=error)
+        ending = dict(event='trace-end',installed=True,samples=0,counts={'motion-decision':1,'heading-error':1})
+        self.assertEqual(verify([metadata,decision,heading,ending],self.engines[0],None)['exact_heading_errors'],1)
+        with self.assertRaises(ValueError):verify([metadata,decision,ending],self.engines[0],None)
+        for changed in ({'vector':[]},{'heading':True},{'error':error^1}):
+            with self.assertRaises(ValueError):verify([metadata,decision,{**heading,**changed},ending],self.engines[0],None)
+        with self.assertRaises(ValueError):verify([metadata,decision,heading,{**ending,'counts':{'motion-decision':1,'heading-error':2}}],self.engines[0],None)
 
 if __name__ == '__main__':
     unittest.main()

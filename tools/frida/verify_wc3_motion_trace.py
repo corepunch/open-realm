@@ -40,6 +40,23 @@ def verify(rows, engine, scenario):
     result = dict(passed=True, exact_decisions=count, stopped_decisions=stopped,
                 movers=len(movers), decision_sha256=digest,
                 scope='Complete captured speed/heading helper decisions; excludes velocity trig and position integration')
+    if metadata.get('headingEvents'):
+        headings = [r for r in rows if r.get('event') == 'heading-error']
+        if not headings or ending.get('counts',{}).get('heading-error') != len(headings):
+            raise ValueError('missing, truncated, or inconsistent heading errors')
+        normalized = []
+        for index,row in enumerate(headings):
+            vector = row.get('vector')
+            if not isinstance(vector,list) or len(vector)!=2:
+                raise ValueError(f'heading {index}: invalid vector')
+            words = [*vector,row.get('heading'),row.get('error')]
+            if any(type(w) is not int or not 0<=w<=0xffffffff for w in words):
+                raise ValueError(f'heading {index}: invalid raw words')
+            if engine.pathing_heading_error(*words[:3]) != words[3]:
+                raise ValueError(f'heading {index}: C error differs from retail')
+            normalized.append(words)
+        result.update(exact_heading_errors=len(headings),
+            heading_sha256=hashlib.sha256(json.dumps(normalized,separators=(',',':')).encode()).hexdigest())
     if metadata.get('velocityEvents'):
         commits = [r for r in rows if r.get('event') == 'velocity-commit']
         if not commits or ending.get('counts', {}).get('velocity-commit') != len(commits):
@@ -82,6 +99,8 @@ def main():
     engine.pathing_motion.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
     engine.pathing_velocity.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
     engine.pathing_integrate.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+    engine.pathing_heading_error.argtypes = [ctypes.c_uint32]*3
+    engine.pathing_heading_error.restype = ctypes.c_uint32
     read = lambda path: [json.loads(line) for line in path.read_text().splitlines()]
     result = verify(read(args.trace), engine, args.scenario)
     if args.compare:
@@ -90,6 +109,8 @@ def main():
             raise ValueError('repeat differs in normalized motion inputs/outputs')
         if result.get('velocity_sha256') != repeated.get('velocity_sha256'):
             raise ValueError('repeat differs in normalized velocity inputs/outputs')
+        if result.get('heading_sha256') != repeated.get('heading_sha256'):
+            raise ValueError('repeat differs in normalized heading inputs/outputs')
         result['repeat_equal'] = True
     digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
     result.update(trace_sha256=digest(args.trace), engine_library_sha256=digest(args.engine_library))

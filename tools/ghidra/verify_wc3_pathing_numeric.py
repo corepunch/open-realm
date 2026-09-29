@@ -13,7 +13,7 @@ import random
 import struct
 import ctypes
 from pathlib import Path
-from generate_wc3_math_tables import sine_table as generate_sines, reciprocal_table as generate_recips
+from generate_wc3_math_tables import sine_table as generate_sines, reciprocal_table as generate_recips, acos_tables
 
 MASK = 0xffffffff
 SIGN = 0x80000000
@@ -123,6 +123,34 @@ def trig_bits(word, cosine, table):
     return (result - (0x0f800000 if result & 0x7f800000 else 0)) & MASK
 
 
+def acos_bits(word, ordinary, near):
+    absolute = word & ~SIGN
+    if absolute <= 0x3f7e8000:
+        phase = integer_word((word + 0x0f000000) & MASK)
+        signed = phase - (1 << 32) if phase & SIGN else phase
+        signed = max(-0x3fffffff, min(0x3fffffff, signed))
+        index = (signed >> 20) & 1023
+        fraction = (signed << 12) & MASK
+        weight = fraction | (fraction >> 20)
+        if signed < 0:
+            value = 0x6487ed51 - ordinary[1024-index]
+            delta = ordinary[1023-index] - ordinary[1024-index]
+        else:
+            value = ordinary[index]
+            delta = value - ordinary[index+1]
+        result = integer_float((value - (delta*weight >> 32)) & MASK)
+        return (result - (0x0e800000 if result & 0x7f800000 else 0)) & MASK
+    absolute = min(absolute, bits(1))
+    difference = bits(1) - absolute
+    zeros = 32 - difference.bit_length()
+    fraction = ((~difference << zeros) & MASK) if zeros < 32 else 0
+    index = zeros*8 - 120 | (fraction >> 28)
+    value = near[index] - ((near[index]-near[index+1])*((fraction << 4) & MASK) >> 32)
+    result = integer_float(value & MASK)
+    result = (result - (0x11000000 if result & 0x7f800000 else 0)) & MASK
+    return subtract(0x40490fdb, result) if word & SIGN else result
+
+
 def floor_word(word):
     exponent = ((word >> 23) & 255) - 127
     if exponent < 0:
@@ -162,7 +190,7 @@ def main():
             proc = getattr(engine, 'pathing_' + name)
             proc.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
             proc.restype = ctypes.c_uint32
-        for name in ('sin', 'cos', 'sqrt', 'reciprocal'):
+        for name in ('sin', 'cos', 'acos', 'sqrt', 'reciprocal'):
             proc = getattr(engine, 'pathing_' + name)
             proc.argtypes = [ctypes.c_uint32]
             proc.restype = ctypes.c_uint32
@@ -301,6 +329,26 @@ def main():
             if engine:
                 assert engine.pathing_divide(a,b) == actual
     counts['divide'] = len(division_pairs)+400
+    acos_table = list(struct.unpack('<1025I',uc.mem_read(0x6fa830d0,4100)))
+    acos_near = list(struct.unpack('<138I',uc.mem_read(0x6fa840d8,552)))
+    ordinary_generated,near_generated = acos_tables()
+    assert acos_table[:1020] == ordinary_generated and acos_near == near_generated
+    acos_words = unary + [word | sign for sign in (0,SIGN)
+                         for pivot in (0x3f7e8000,0x3f800000)
+                         for word in range(pivot-16,pivot+17)]
+    acos_words += [word | sign for sign in (0,SIGN)
+                   for difference in range(1,129) for word in (0x3f800000-difference,)]
+    for word in acos_words:
+        actual = call(0x6f06ffa0,word)
+        assert actual == acos_bits(word,acos_table,acos_near),('acos',hex(word),hex(actual),hex(acos_bits(word,acos_table,acos_near)))
+        if engine:
+            assert engine.pathing_acos(word) == actual,('C-acos',hex(word),hex(actual))
+    for word in acos_words[:200]:
+        actual = call(0x6f06ffa0,word,alias=1)
+        assert actual == acos_bits(word & ~SIGN,acos_table,acos_near),('acos-alias',hex(word),hex(actual))
+        if engine:
+            assert engine.pathing_acos(word & ~SIGN) == actual
+    counts['acos'] = len(acos_words)+200
     trig_table = list(struct.unpack('<1025I', uc.mem_read(0x6fa820c8, 4100)))
     trig_hash = hashlib.sha256(uc.mem_read(0x6fa820c8, 4100)).hexdigest()
     assert trig_table == generate_sines()
@@ -388,7 +436,10 @@ def main():
             'retail_length':'3f800000','output_x':'3f800001','output_y':'00000000'},
         reciprocal_table={"address":"6fa810c0","words":1025,"sha256":table_hash},
         trig_table={"address":"6fa820c8","words":1025,"sha256":trig_hash},
-        independently_generated_table_words=2050,
+        acos_tables={'ordinary_address':'6fa830d0','near_address':'6fa840d8',
+                     'ordinary_sha256':hashlib.sha256(uc.mem_read(0x6fa830d0,4100)).hexdigest(),
+                     'near_sha256':hashlib.sha256(uc.mem_read(0x6fa840d8,552)).hexdigest()},
+        independently_generated_table_words=3208,
         composed_bound_prefix_cases=bound_count,occupied_cell_witness=witness,
         reference='Independent integer-bit models; exact outputs, no tolerance; unmodified retail code',
         random_seed='0x12717085', random_pair_cases_per_binary_helper=20000,
@@ -404,11 +455,11 @@ def main():
                    'floor':'Negative nonzero values below one become -1; both signed zeros become +0; fractional mantissa truncation with negative ceiling of magnitude; exponent >=150 unchanged',
                    'integer':'Truncation toward zero for ordinary values; exponent <127 returns zero; larger exponents use x86 modulo-32 shifts and modulo-32-bit output, without saturation'},
         engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest() if engine else None,
-        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','sqrt','reciprocal','divide')} if engine else {},
+        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','acos','sqrt','reciprocal','divide')} if engine else {},
         exclusions=['Producer reachability of raw NaN/infinity/denormal/overflow patterns',
                     'Full spatial mutation after bounds construction',
                     'General simulation trajectories; trig helper domains are raw input words, not public producer proof',
-                    'Historical table-generation source is unavailable; independent formulas reproduce every embedded entry',
+                    'Historical table-generation source is unavailable; independent formulas reproduce all consumed table entries',
                     'Non-power-of-two map scales are not asserted to be producer-reachable'])
     args.report.parent.mkdir(parents=True,exist_ok=True)
     args.report.write_text(json.dumps(report,indent=2)+'\n')

@@ -86,6 +86,16 @@ static edict_t *make_scripted_turn_unit(void) {
 }
 
 /* Oblique motion exposes the nearest-rounded host trig and multiply/add used by the old step. */
+TEST(wc3_movement, retail_vector_heading_words) {
+    edict_t *unit = make_moving_unit(0, 0);
+    vec2_t const point = {4, 0.125f};
+    unit_changeangle_towards_point(unit, &point);
+    /* Full original16f630 vector/length/acos/shortest-error chain, current heading0. */
+    T_EQ(wc3_float_bits(unit->s.angle), 0x3d00f7e3u);
+    T_EQ(wc3_float_bits(unit->movement.heading), 0x3d00f7e3u);
+    T_ASSERT(!unit->movement.turn_blocked);
+}
+
 TEST(wc3_movement, retail_oblique_velocity_and_step_words) {
     edict_t *unit = make_moving_unit(320, 320);
     unit->unitinfo.MoveSpeed = 100;

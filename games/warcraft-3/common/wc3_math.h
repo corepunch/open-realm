@@ -124,6 +124,64 @@ static inline float wc3_div(float a, float b) {
     return wc3_float_bits(a) == wc3_float_bits(b) ? 1 : wc3_mul(a, wc3_recip(b));
 }
 
+/* 6f06ffa0 changes lookup resolution near abs(x)=3f7e8000; both curves use fixed-point interpolation. */
+static inline float wc3_acos(float a) {
+    uint32_t w = wc3_float_bits(a), mag = w & 0x7fffffffu, val;
+    if (mag <= 0x3f7e8000) {
+        uint32_t phase = wc3_int_bits(w + 0x0f000000u);
+        int64_t n = phase & 0x80000000u ? (int64_t)phase - 0x100000000ll : phase;
+        if (n > 0x3fffffff) n = 0x3fffffff;
+        if (n < -0x3fffffff) n = -0x3fffffff;
+        uint32_t idx = ((uint32_t)n >> 20) & 1023, frac = (uint32_t)n << 12;
+        uint32_t weight = frac | (frac >> 20), delta;
+        if (n < 0) {
+            val = 0x6487ed51u - wc3_acos_curve[1024 - idx];
+            delta = wc3_acos_curve[1023 - idx] - wc3_acos_curve[1024 - idx];
+        } else {
+            val = wc3_acos_curve[idx];
+            delta = val - wc3_acos_curve[idx + 1];
+        }
+        val = wc3_from_int(val - ((uint64_t)delta * weight >> 32));
+        return wc3_float(val - (val & 0x7f800000 ? 0x0e800000u : 0));
+    }
+    if (mag > 0x3f800000) mag = 0x3f800000;
+    uint32_t diff = 0x3f800000u - mag, zeros = diff ? __builtin_clz(diff) : 32;
+    uint32_t frac = zeros < 32 ? ~diff << zeros : 0, idx = (zeros * 8 - 120) | (frac >> 28);
+    val = wc3_acos_near[idx];
+    val -= (uint64_t)(val - wc3_acos_near[idx + 1]) * (frac << 4) >> 32;
+    val = wc3_from_int(val);
+    float result = wc3_float(val - (val & 0x7f800000 ? 0x11000000u : 0));
+    return w & 0x80000000u ? wc3_sub(wc3_float(0x40490fdb), result) : result;
+}
+
+/* 6f1d4c80 takes length separately; the tiny-angle guard runs after acos as well. */
+static inline float wc3_vector_heading(float x, float y) {
+    float len = wc3_sqrt(wc3_add(wc3_mul(x, x), wc3_mul(y, y)));
+    if (wc3_float(wc3_float_bits(len) & 0x7fffffffu) <= wc3_float(0x3727c5ac)) return 0;
+    float angle = wc3_acos(wc3_div(x, len));
+    if (wc3_float(wc3_float_bits(angle) & 0x7fffffffu) <= wc3_float(0x3727c5ac)) return 0;
+    return y < 0 ? wc3_sub(wc3_float(0x40c90fdb), angle) : angle;
+}
+
+/* 6f173720 subtracts current-minus-target first; that operand order affects truncated wraps. */
+static inline float wc3_heading_delta(float target, float current) {
+    float reverse = wc3_sub(current, target), pi = wc3_float(0x40490fdb), tau = wc3_float(0x40c90fdb);
+    if (reverse < 0) {
+        if (-reverse > pi) return wc3_sub(-tau, reverse);
+    } else if (reverse > pi) return wc3_sub(tau, reverse);
+    return wc3_float(wc3_float_bits(reverse) ^ 0x80000000u);
+}
+
+/* 6f16f630's final deadzone is strict; equality keeps the signed error. */
+static inline float wc3_turn_error(float target, float current) {
+    float error = wc3_heading_delta(target, current);
+    return wc3_float(wc3_float_bits(wc3_sub(error, 0)) & 0x7fffffffu) < wc3_float(0x3456bf95) ? 0 : error;
+}
+
+static inline float wc3_heading_error(float x, float y, float current) {
+    return wc3_turn_error(wc3_vector_heading(x, y), current);
+}
+
 /* 6f062930: truncated reciprocal multiplication and negative correction; +tau remains +tau. */
 static inline float wc3_angle(float angle) {
     uint32_t w = wc3_float_bits(wc3_mul(angle, wc3_float(0x3e22f983)));

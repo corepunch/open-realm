@@ -7,6 +7,13 @@ uint32_t pathing_multiply(uint32_t a, uint32_t b) { return wc3_mul_bits(a, b); }
 uint32_t pathing_angle(uint32_t a) { return wc3_float_bits(wc3_angle(wc3_float(a))); }
 uint32_t pathing_sin(uint32_t a) { return wc3_float_bits(wc3_sin(wc3_float(a))); }
 uint32_t pathing_cos(uint32_t a) { return wc3_float_bits(wc3_cos(wc3_float(a))); }
+uint32_t pathing_acos(uint32_t a) { return wc3_float_bits(wc3_acos(wc3_float(a))); }
+uint32_t pathing_heading(uint32_t x, uint32_t y) {
+    return wc3_float_bits(wc3_vector_heading(wc3_float(x), wc3_float(y)));
+}
+uint32_t pathing_heading_error(uint32_t x, uint32_t y, uint32_t heading) {
+    return wc3_float_bits(wc3_heading_error(wc3_float(x), wc3_float(y), wc3_float(heading)));
+}
 uint32_t pathing_sqrt(uint32_t a) { return wc3_float_bits(wc3_sqrt(wc3_float(a))); }
 uint32_t pathing_reciprocal(uint32_t a) { return wc3_float_bits(wc3_recip(wc3_float(a))); }
 uint32_t pathing_divide(uint32_t a, uint32_t b) { return wc3_float_bits(wc3_div(wc3_float(a), wc3_float(b))); }

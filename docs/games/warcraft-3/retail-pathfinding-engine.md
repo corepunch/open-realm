@@ -4,7 +4,7 @@
 
 `games/warcraft-3/common/wc3_math.h` implements the retail 1.27.1.7085
 software scalar add, subtract, multiply, divide, square root, reciprocal,
-sine/cosine, angle normalization, speed/heading decisions and velocity/position
+sine/cosine, acos-based vector headings, angle normalization, speed/heading decisions and velocity/position
 arithmetic. Integer significands, truncation, explicit sign extension and exponent
 wrapping reproduce the game-specific arithmetic; host nearest-rounded float
 operations are not equivalent. This does not replace ordinary shared vector math.
@@ -185,17 +185,53 @@ regression still failed after 96 thinks. The counter now remains exhausted until
 a step commits or the direct corridor clears; no passing direction is cached. Fixtures carry the
 actual Peasant/Footman/Knight/Wisp turn and propagation data instead of zero rows.
 
+## Exact vector headings
+
+Move now selects its desired heading with the original software length/divide/acos
+chain, and computes the shortest error with retail's current-minus-target operand
+order. Host `atan2f` gave different heading words even for direction `(4,0.125)`;
+the engine regression fails before this change and expects retail word `3d00f7e3`.
+The vector-length and post-acos tiny guards are inclusive at `3727c5ac`; the final
+error deadzone is strict at `3456bf95`. Opposite-heading signs retain retail's
+represented-pi behavior.
+
+`generate_wc3_math_tables.py` reconstructs the 1,020 consumed ordinary acos entries
+with 90-digit Decimal arithmetic, plus all 138 near-one entries. The ordinary
+branch ends at magnitude `3f7e8000`; its unreachable trailer is not copied into
+the engine. Near-one sample indices 120–135 retain repeated represented-input
+plateaus, followed by two zero endpoints. The generator is a mathematical
+reconstruction; the historical table generator remains unavailable.
+`acos-engine-exact.json` verifies all consumed table words and 20,810 original
+acos outputs, including adjacent branch values, both signs and in-place calls.
+Aliasing output with input changes the original negative-input sign behavior;
+the C value-return API has no such aliasing contract.
+
+`heading-chain-engine-exact.json` compares 1,287 original `16f630` results exactly,
+including non-binary directions, all quadrants, near-cardinal directions and
+adjacent tiny-vector/deadzone values. The frozen 441-case heading/error fixture
+runs through production C at O0/O2 without retail assets. Frida's read-only
+`--heading-events` captures raw vectors, prior headings and resulting errors.
+`heading-stock-turn-exact.json` checks all 183 live errors, plus 183 motion
+decisions and 184 velocity/position commits. Its raw trace is
+`runtime/heading-stock-turn-raw.jsonl`. A second complete capture matches its
+normalized heading, decision and velocity/position sequences exactly in
+`heading-stock-turn-repeat-exact.json`; heading hash
+`b391f4d1125b2965d6d83b7f93ea98d414d9d3eefa468e78f95a40acc9fc09d8`.
+Frozen sources and capture/map/binary hashes are in `runtime/heading-tools` and
+the corresponding `*-provenance.json` files. This verifies the observed numerical
+chain; full route selection and whole-engine motion cadence remain open.
+
 ## Remaining fidelity work
 
 Flow fields, route scheduling, group ownership, collision, repulsion and arrival
-range policy are not replaced. Heading **selection** still uses host `atan2` and
-existing steering; retail uses software length/division/acos. Stored-velocity integration and elapsed-clock arithmetic now have exact C/retail
+range policy are not replaced. Move's vector-heading arithmetic now matches retail;
+its route and avoidance selection still use existing steering. Stored-velocity integration and elapsed-clock arithmetic have exact C/retail
 evidence. Their complete engine lifecycle, world/fine coordinate conversion
 and cross-feature trajectories remain open. Repeat equality
 covers the observed helper sequence, not an unattached-observer control or all
 deterministic state.
 
-Next numerical integration: recover the software vector heading, then connect
+Next numerical integration: verify facing reconstructed from committed velocity, then connect
 committed velocity/clocks to the [admission-to-owner baseline](retail-pathfinding-todo.md#work-next).
 Extend the same C probe and exact-word comparator before changing those stages.
 The full replacement still needs the [READY gates](retail-pathfinding-todo.md#ready--start-the-faithful-replacement).

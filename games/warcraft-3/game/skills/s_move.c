@@ -381,7 +381,7 @@ float unit_propwindow(edict_t const *self) {
 
 /* Use retail's scalar turn update instead of accumulating host sin/cos rotation error. */
 static void unit_turn_toward(edict_t *self, float target) {
-    wc3Motion_t motion = { .heading = self->s.angle, .error = angle_wrap(wc3_sub(target, self->s.angle)),
+    wc3Motion_t motion = { .heading = self->s.angle, .error = wc3_turn_error(target, self->s.angle),
         .turn = unit_turnspeed(self), .window = unit_propwindow(self) };
     /* Retail stops from the error before turning; testing the new angle allowed premature travel. */
     self->movement.turn_blocked = !wc3_motion_update(&motion);
@@ -505,7 +505,7 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
     /* Local avoidance resolves into ONE heading; the facing turns toward it and
      * the move step (unit_moveindirection) follows it, keeping facing and motion
      * aligned (no second, disagreeing search). */
-    float const goal_angle = atan2f(dir->y, dir->x);
+    float const goal_angle = wc3_vector_heading(dir->x, dir->y);
     float const desired = unit_desired_heading(self, goal_angle,
                                                 unit_movedistance(self), policy);
     self->movement.heading = desired;
