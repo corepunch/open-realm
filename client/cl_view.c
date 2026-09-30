@@ -209,7 +209,9 @@ void Matrix4_getCameraMatrix(mat4_t *output) {
     Matrix4_inverse(&view, &inverse);
     cl.viewDef.camerastate[0].eye = (vec3_t){ inverse.v[12], inverse.v[13], inverse.v[14] };
     /* The game evaluates view offsets (camera shake) once per server frame, as Quake 2 does for kick angles;
-     * the client only interpolates the two samples and re-aims, so it needs no game-specific waveform. */
+     * the client only interpolates the two samples and re-aims, so it needs no game-specific waveform.
+     * The samples arrive at the 10 Hz server tick, so this lerp is all the motion there is: nothing faster
+     * than 5 Hz. That is the accepted cost of keeping the waveform in the game module. */
     vec3_t viewoffset = Vector3_lerp(&a->viewoffset, &b->viewoffset, cl.viewDef.lerpfrac);
     vec3_t eyeoffset = Vector3_lerp(&a->eyeoffset, &b->eyeoffset, cl.viewDef.lerpfrac);
     if (Vector3_lengthsq(&viewoffset) > 0.0f || Vector3_lengthsq(&eyeoffset) > 0.0f) {

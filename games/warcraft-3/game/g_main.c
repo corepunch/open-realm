@@ -804,7 +804,14 @@ static void G_ClientInput(edict_t *ent, inputCmd_t const *cmd) {
 #define CAMERA_NOISE_SOURCE_PHASE 2.2 // radians; keeps source noise out of lockstep with target noise
 
 /* Camera shake is game logic, as view kicks are in Quake 2's p_view.c: sample the oscillator once per
- * server frame and hand the client a plain offset to interpolate. Either zero input clears the noise. */
+ * server frame and hand the client a plain offset to interpolate. Either zero input clears the noise.
+ *
+ * Sampling limit: this runs at the 10 Hz server tick (FRAMETIME) and the client lerps linearly between
+ * samples, so the visible shake cannot contain motion faster than 5 Hz. Any velocity above ~31 rad/s
+ * aliases, and Blizzard.j's earthquake velocities (magnitude * 10^richter) are orders of magnitude above
+ * that, so they show up as a fresh pseudo-random offset each tick rather than a smooth wave. How that
+ * compares with retail's shake is unchecked. Do not move the evaluation into client/ to gain frequency;
+ * see docs/architecture/game-client-boundary.md. */
 static vec3_t G_CameraNoiseOffset(gameClient_t const *client, cameraNoiseSlot_t slot, double phase) {
     float const magnitude = client->camera.noise[slot].magnitude;
     float const velocity = client->camera.noise[slot].velocity;

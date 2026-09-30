@@ -632,6 +632,7 @@ struct playerState_s {
     float znear;                    // near clip; required camera sample, copied like fov
     float zfar;                     // far clip; required camera sample, copied like fov
     float fov;                      // vertical FOV in degrees; transmitted as NFT_FLOAT for cinematic interpolation
+    /* viewoffset/eyeoffset widen the player-state contract by 24 bytes over protocol 14; approved 2026-09-30. */
     vec3_t viewoffset;              // world units; game-evaluated transient offset of the look-at target (camera shake); client lerps and adds it
     vec3_t eyeoffset;               // world units; same for the derived orbit eye; both stay out of vieworigin so game logic reads a steady camera
     uint32_t rdflags;                  // refdef flags (underwater tint, etc.)
