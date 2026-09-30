@@ -11,17 +11,17 @@ import tempfile
 from pathlib import Path
 
 SCENARIOS = {'open': 0, 'wall': 1, 'insert': 2, 'remove': 3, 'remove_reorder': 4,
-             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23}
+             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24}
 
 
-def numeric_calls():
+def numeric_calls(filename="wc3_numeric_inputs.json"):
     """Explicit public calls, each bracketed before argument evaluation can call the native."""
-    cases = json.loads(Path(__file__).with_name('wc3_numeric_inputs.json').read_text())['cases']
+    cases = json.loads(Path(__file__).with_name(filename).read_text())['cases']
     lines = []
     seen = set()
     for case in cases:
         name, value, identity = case['native'], case['input'], case['id']
-        if name not in ('S2R', 'I2R', 'R2I', 'Sin', 'Cos', 'Acos', 'SquareRoot'):
+        if name not in ('S2R', 'I2R', 'R2I', 'Sin', 'Cos', 'Acos', 'SquareRoot', 'Asin', 'Atan', 'Tan', 'Atan2', 'Deg2Rad', 'Rad2Deg'):
             raise ValueError('unsupported numeric native: ' + name)
         if not re.fullmatch(r'[a-z0-9_]+', identity) or identity in seen:
             raise ValueError('duplicate or invalid numeric case ID')
@@ -35,11 +35,12 @@ def numeric_calls():
                 raise ValueError('I2R fixture requires signed integer')
             argument = str(value)
         else:
-            if not isinstance(value, (int, float)) or not math.isfinite(value):
-                raise ValueError('numeric real fixture requires finite value')
+            values = value if name == 'Atan2' else [value]
+            if (name == 'Atan2' and (not isinstance(values, list) or len(values) != 2)) or any(not isinstance(v, (int, float)) or not math.isfinite(v) for v in values):
+                raise ValueError('numeric real fixture requires finite arguments')
             # Feed decimal text through the observed public parser; long compiled
             # JASS literals have a separate producer contract.
-            argument = 'S2R(' + json.dumps(format(Decimal(str(value)), 'f')) + ')'
+            argument = ', '.join('S2R(' + json.dumps(format(Decimal(str(v)), 'f')) + ')' for v in values)
         lines.append('    call Preload("PATHNUM case=' + identity + ' native=' + name + '")')
         lines.append('    set ' + ('integerResult' if name == 'R2I' else 'realResult') + ' = ' + name + '(' + argument + ')')
         lines.append('    call Preload("PATHNUM done=' + identity + ' value=" + ' + ('I2S(integerResult)' if name == 'R2I' else 'R2S(realResult)') + ')')
@@ -62,6 +63,7 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
         raise ValueError('unexpected source map geometry')
     probe = probe.replace('@SCENARIO@', str(SCENARIOS[scenario])).replace('@NAME@', scenario)
     probe = probe.replace('@NUMERIC_CASES@', numeric_calls())
+    probe = probe.replace('@ANGLE_CASES@', numeric_calls('wc3_angle_inputs.json'))
     probe = probe.replace('@REMOVE_TICK@', str(remove_tick))
     probe = probe.replace('@GATE_Y@', str(float(gate_y))).replace('@GATE_EXIT_Y@', str(float(gate_exit_y)))
     block = re.search(r'^globals\n(.*?)^endglobals\n', probe, re.M | re.S)

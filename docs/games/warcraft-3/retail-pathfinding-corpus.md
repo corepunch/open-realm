@@ -11,7 +11,7 @@ production-engine parity. Engine comparisons are named explicitly.
 ## Inventory and acceptance
 
 BASE-05.1 records all **32** `verify_wc3_pathing_*.py` oracle scripts, **12**
-selected variants, **61** archived JSONL captures and **eight** stronger live-input
+selected variants, **61** archived JSONL captures and **nine** stronger live-input
 replays from the documented report
 root. Ghidra exports, reducer attempts and other scratch reports support those
 experiments; they are not additional independently accepted corpus entries.
@@ -24,7 +24,7 @@ restored-valid checks). Cdecl stack, callee registers, SEH and Unit references
 are checked. Existing VM backing is supplied; full construction stays excluded.
 GROUP-04.1 adds callback-mutation checks to the motion oracle. GROUP-04.3 adds
 three variants: open/wall callback-timed mover reuse and a missing-registry-alias
-counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. NUM-01.5/06 add one repeated public numeric/parser and parsed Move admission capture. The inventory now has **123 entries**; fixture hashes and Ghidra
+counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. NUM-01.5/06 add one repeated public numeric/parser and parsed Move admission capture; NUM-01.8 adds one48-pair public-angle repeat. The inventory now has **124 entries**; fixture hashes and Ghidra
 annotation-script fingerprints cover those extensions. See [callback reuse](retail-pathfinding-movement.md#callback-timed-handle-reclamation-and-reuse).
 
 | Entries | Expected status | Meaning |
@@ -36,8 +36,8 @@ annotation-script fingerprints cover those extensions. See [callback reuse](reta
 | Seven incomplete/failed archives | `archive-rejected`, exit1 | Retain their diagnostic rejection and grant no live evidence |
 | Five numerical replays and one profile replay | `live-exact-replay` / `live-profile-replay` | Captured raw decisions/commits or getter/publication words match the stronger checker; three entries also compare a repeat capture |
 
-The two further live entries require repeated public order lifecycle and67
-bracketed numeric/25 parser witnesses, respectively. The new numeric capture
+The three further live entries require repeated public order lifecycle,67
+bracketed numeric/25 parser witnesses, and48 raw public angle pairs, respectively. The new numeric capture
 embeds source and map hashes and compares exact parsed Move destination words;
 it does not certify a full engine trajectory.
 

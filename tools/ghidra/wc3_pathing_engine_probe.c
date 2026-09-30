@@ -21,6 +21,12 @@ void pathing_sincos_alias(uint32_t words[3], unsigned mode) {
     wc3_sincos(slots[0], &slots[sine], &slots[cosine]);
     for (unsigned i = 0; i < 3; i++) words[i] = wc3_float_bits(slots[i]);
 }
+uint32_t pathing_asin(uint32_t a) { return wc3_float_bits(wc3_asin(wc3_float(a))); }
+uint32_t pathing_atan(uint32_t a) { return wc3_float_bits(wc3_atan(wc3_float(a))); }
+uint32_t pathing_atan2(uint32_t y, uint32_t x) { return wc3_float_bits(wc3_atan2(wc3_float(y), wc3_float(x))); }
+uint32_t pathing_tan(uint32_t a) { return wc3_float_bits(wc3_tan(wc3_float(a))); }
+uint32_t pathing_degrees_to_radians(uint32_t a) { return wc3_float_bits(wc3_degrees_to_radians(wc3_float(a))); }
+uint32_t pathing_radians_to_degrees(uint32_t a) { return wc3_float_bits(wc3_radians_to_degrees(wc3_float(a))); }
 uint32_t pathing_acos(uint32_t a) { return wc3_float_bits(wc3_acos(wc3_float(a))); }
 uint32_t pathing_heading(uint32_t x, uint32_t y) {
     return wc3_float_bits(wc3_vector_heading(wc3_float(x), wc3_float(y)));

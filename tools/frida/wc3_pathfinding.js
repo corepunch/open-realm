@@ -19,13 +19,16 @@ function install(module) {
     if (config.numericEvents) {
         for (const [name, rva] of [['S2R',0x211080], ['I2R',0x204c80], ['R2I',0x2103a0],
                                   ['Sin',0x215d00], ['Cos',0x1f9580], ['Acos',0x1f75d0],
-                                  ['SquareRoot',0x215d30]]) {
+                                  ['SquareRoot',0x215d30], ['Asin',0x1f8250], ['Atan',0x1f8310],
+                                  ['Tan',0x216750], ['Atan2',0x1f8290], ['Deg2Rad',0x1fcda0],
+                                  ['Rad2Deg',0x210480]]) {
             hook(rva, {
                 onEnter(args) {
                     this.numeric = numericCase && numericCase.native === name ? {...numericCase} : null;
                     if (!this.numeric) return;
                     if (name !== 'S2R')
-                        this.numeric.input = name === 'I2R' ? args[0].toUInt32() : args[0].readU32();
+                        this.numeric.input = name === 'I2R' ? args[0].toUInt32() : name === 'Atan2' ?
+                            [args[0].readU32(),args[1].readU32()] : args[0].readU32();
                 },
                 onLeave(result) {
                     if (this.numeric) {

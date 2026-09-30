@@ -170,6 +170,60 @@ def acos_bits(word, ordinary, near):
     return subtract(0x40490fdb, result) if word & SIGN else result
 
 
+def asin_bits(word, ordinary, near):
+    absolute = word & ~SIGN
+    if absolute <= 0x3f7e8000:
+        phase = integer_word((word + 0x0f000000) & MASK)
+        signed = phase if phase < SIGN else phase - (1 << 32)
+        signed = -max(-0x3fffffff, min(0x3fffffff, signed))
+        index = (signed >> 20) & 1023
+        fraction = (signed << 12) & MASK
+        weight = fraction | (fraction >> 20)
+        if signed < 0:
+            value = 0x6487ed51 - ordinary[1024-index]
+            delta = ordinary[1023-index] - ordinary[1024-index]
+        else:
+            value = ordinary[index]
+            delta = value - ordinary[index+1]
+        result = integer_float((value - 0x3243f6a8 - (delta * weight >> 32)) & MASK)
+        return (result - (0x0e800000 if result & 0x7f800000 else 0)) & MASK
+    difference = bits(1) - min(absolute, bits(1))
+    zeros = 32 - difference.bit_length()
+    fraction = ((~difference << zeros) & MASK) if zeros < 32 else 0
+    index = zeros * 8 - 120 | (fraction >> 28)
+    value = near[index] - ((near[index] - near[index+1]) * ((fraction << 4) & MASK) >> 32)
+    result = integer_float(value & MASK)
+    result = (result - (0x11000000 if result & 0x7f800000 else 0)) & MASK
+    return add(0xbfc90fdb, result) if word & SIGN else subtract(0x3fc90fdb, result)
+
+
+def atan_bits(word, table):
+    value = lambda w: struct.unpack('<f', struct.pack('<I', w))[0]
+    absolute = word & ~SIGN
+    x = reciprocal(absolute, table) if value(absolute) > 1 else absolute
+    reduced = value(x) > value(0x3e8930a3)
+    if reduced:
+        numerator = add(x, 0xbf13cd3a)
+        denominator = add(bits(1), multiply(0x3f13cd3a, x))
+        x = divide(numerator, denominator, table)
+    square = multiply(x, x)
+    denominator = add(bits(1), multiply(0x3f17592e, square))
+    numerator = multiply(x, add(0x3f7ffff0, multiply(0x3e8415a6, square)))
+    result = divide(numerator, denominator, table)
+    if reduced:
+        result = add(result, 0x3f060a92)
+    if value(absolute) > 1:
+        result = subtract(0x3fc90fdb, result)
+    return result ^ SIGN if word & SIGN and word & ~SIGN else result
+
+
+def atan2_bits(y, x, table):
+    result = atan_bits(divide(y, x, table) & ~SIGN, table) if x & 0x7f800000 else 0x3fc90fdb
+    if x & SIGN and x & ~SIGN:
+        result = subtract(0x40490fdb, result)
+    return result ^ SIGN if y & SIGN and y & ~SIGN else result
+
+
 def floor_word(word):
     exponent = ((word >> 23) & 255) - 127
     if exponent < 0:
@@ -417,10 +471,14 @@ def main():
     sine_model = generate_sines()
     ordinary_model, near_model = acos_tables()
     for name, entry in [('I2R',0x6f204c80), ('R2I',0x6f2103a0), ('Sin',0x6f215d00),
-                        ('Cos',0x6f1f9580), ('Acos',0x6f1f75d0), ('SquareRoot',0x6f215d30)]:
-        for word in public_words:
+                        ('Cos',0x6f1f9580), ('Acos',0x6f1f75d0), ('SquareRoot',0x6f215d30),
+                        ('Asin',0x6f1f8250), ('Atan',0x6f1f8310), ('Tan',0x6f216750),
+                        ('Atan2',0x6f1f8290), ('Deg2Rad',0x6f1fcda0), ('Rad2Deg',0x6f210480)]:
+        for public_index, word in enumerate(public_words):
+            second = public_words[(public_index + 1) % len(public_words)]
+            write(right - 4, 0xabcddcba, second, 0x12344321)
             write(left - 4, 0xabcddcba, word, 0x12344321)
-            write(stack, stop, word if name == 'I2R' else left)
+            write(stack, stop, word if name == 'I2R' else left, right)
             uc.reg_write(UC_X86_REG_ESP, stack)
             for reg in preserved:
                 uc.reg_write(reg, 0x12120000)
@@ -428,12 +486,21 @@ def main():
             assert uc.reg_read(UC_X86_REG_EIP) == stop and uc.reg_read(UC_X86_REG_ESP) == stack + 4
             assert all(uc.reg_read(reg) == 0x12120000 for reg in preserved)
             assert [read(left - 4),read(left),read(left + 4)] == [0xabcddcba,word,0x12344321]
+            assert [read(right - 4),read(right),read(right + 4)] == [0xabcddcba,second,0x12344321]
             actual = uc.reg_read(UC_X86_REG_EAX)
             value = struct.unpack('<f', struct.pack('<I', word))[0]
             if name == 'I2R': expected = integer_float(word)
             elif name == 'R2I': expected = saturating_integer_word(word)
             elif name in ('Sin','Cos'): expected = trig_bits(word, name == 'Cos', sine_model)
             elif name == 'Acos': expected = 0 if value < -1 or value > 1 else acos_bits(word, ordinary_model, near_model)
+            elif name == 'Asin': expected = 0 if value < -1 or value > 1 else asin_bits(word, ordinary_model, near_model)
+            elif name == 'Atan': expected = atan_bits(word,reciprocal_table)
+            elif name == 'Tan': expected = divide(trig_bits(word,False,sine_model),trig_bits(word,True,sine_model),reciprocal_table)
+            elif name in ('Deg2Rad','Rad2Deg'): expected = multiply(word,0x3c8efa35 if name == 'Deg2Rad' else 0x42652ee1)
+            elif name == 'Atan2':
+                distances = [struct.unpack('<f',struct.pack('<I',subtract(w,0) & ~SIGN))[0] for w in (word,second)]
+                threshold = struct.unpack('<f',struct.pack('<I',0x3a83126f))[0]
+                expected = 0 if all(d < threshold for d in distances) else atan2_bits(word,second,reciprocal_table)
             else:
                 distance = struct.unpack('<f', struct.pack('<I', subtract(word,0) & ~SIGN))[0]
                 expected = 0 if distance < struct.unpack('<f',struct.pack('<I',0x3a83126f))[0] or value < 0 else square_root(word)
@@ -443,10 +510,16 @@ def main():
                 proc.argtypes = [ctypes.c_uint32]
                 proc.restype = ctypes.c_uint32
                 assert proc(word) == actual, ('C-public-conversion', name, hex(word), hex(actual))
-            public_records.append([name,word,actual])
+            if engine and name in ('Deg2Rad','Rad2Deg'):
+                proc = engine.pathing_degrees_to_radians if name == 'Deg2Rad' else engine.pathing_radians_to_degrees
+                proc.argtypes = [ctypes.c_uint32]
+                proc.restype = ctypes.c_uint32
+                assert proc(word) == actual, ('C-angle-conversion',name,hex(word),hex(actual))
+            public_records.append([name,word,second,actual] if name == 'Atan2' else [name,word,actual])
     public_digest = hashlib.sha256(json.dumps(public_records, separators=(',', ':')).encode()).hexdigest()
     counts['public_wrapper'] = len(public_records)
     counts['integer_float'] = counts['saturating_integer'] = len(public_words)
+    counts['degrees_to_radians'] = counts['radians_to_degrees'] = len(public_words)
 
 
     assert reciprocal_table == generate_recips()
@@ -567,6 +640,37 @@ def main():
             if engine:
                 assert getattr(engine,'pathing_'+name)(word)==actual,(name,hex(word),hex(actual))
         counts[name] = len(trig_words)
+    # Remaining angle helpers: distinct output storage follows public-native
+    # operand ABI. Pointer aliases have their own unresolved producer inventory.
+    angle_records = []
+    for name, entry, model in [
+        ('asin',0x6f0703a0,lambda w:asin_bits(w,ordinary_generated,near_generated)),
+        ('atan',0x6f0705b0,lambda w:atan_bits(w,reciprocal_table)),
+        ('tan',0x6f071590,lambda w:divide(trig_bits(w,False,trig_table),trig_bits(w,True,trig_table),reciprocal_table))]:
+        angle_words = unary + [w | sign for sign in (0,SIGN) for pivot in (0x3e8930a3,0x3f7e8000,0x3f800000) for w in range(pivot-16,pivot+17)]
+        for word in angle_words:
+            actual = call(entry, word)
+            assert actual == model(word), (name,hex(word),hex(actual),hex(model(word)))
+            if engine:
+                proc = getattr(engine,'pathing_'+name)
+                proc.argtypes = [ctypes.c_uint32]
+                proc.restype = ctypes.c_uint32
+                assert proc(word) == actual, ('C-'+name,hex(word),hex(actual))
+            angle_records.append([name,word,actual])
+        counts[name] = len(angle_words)
+    atan2_pairs = [(bits(y),bits(x)) for y,x in itertools.product([-10,-1,-.001,0,.001,1,10],repeat=2)]
+    atan2_pairs += [(rng.getrandbits(32),rng.getrandbits(32)) for _ in range(20000)]
+    for y,x in atan2_pairs:
+        actual = call(0x6f070530,y,x)
+        expected = atan2_bits(y,x,reciprocal_table)
+        assert actual == expected, ('atan2',hex(y),hex(x),hex(actual),hex(expected))
+        if engine:
+            engine.pathing_atan2.argtypes = [ctypes.c_uint32,ctypes.c_uint32]
+            engine.pathing_atan2.restype = ctypes.c_uint32
+            assert engine.pathing_atan2(y,x) == actual, ('C-atan2',hex(y),hex(x),hex(actual))
+        angle_records.append(['atan2',y,x,actual])
+    counts['atan2'] = len(atan2_pairs)
+    angle_digest = hashlib.sha256(json.dumps(angle_records,separators=(',',':')).encode()).hexdigest()
     # Complete Path normalizer: returns length; modifies XY only for length>1.
     vector = 0x10000800
     vectors = [(bits(x),bits(y)) for x,y in itertools.product(
@@ -660,13 +764,15 @@ def main():
                    'floor':'Negative nonzero values below one become -1; both signed zeros become +0; fractional mantissa truncation with negative ceiling of magnitude; exponent >=150 unchanged',
                    'integer':'Truncation toward zero for ordinary values; exponent <127 returns zero; larger exponents use x86 modulo-32 shifts and modulo-32-bit output, without saturation'},
         engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest() if engine else None,
+        angle_helper_cases=len(angle_records), angle_helper_sha256=angle_digest,
+        angle_helper_scope='Distinct input/output storage, original helper ABI and raw-word models; public wrappers and alias producer domains verified separately',
         public_wrapper_cases=len(public_records), public_wrapper_sha256=public_digest,
         public_wrapper_scope='Original registered cdecl wrappers, raw synthetic words, guards/nonvolatile/stack checks; producer reachability is separately bounded by the live input fixture',
         decimal_cases=len(parser_records), decimal_sha256=parser_digest,
         decimal_import_scope='ASCII isdigit supplied in isolated parser calls; original scalar arithmetic executes unchanged; sibling CRT is observed separately live',
         paired_trig_cases=len(pair_records), paired_trig_alias_cases=pair_aliases, paired_trig_sha256=pair_digest,
         paired_trig_abi='ECX angle pointer, EDX sine pointer, stack4 cosine pointer, RET4; sine stored before cosine',
-        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','sincos','acos','sqrt','reciprocal','divide','fractional','modulo','decimal','integer_float','saturating_integer')} if engine else {},
+        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','sincos','acos','sqrt','reciprocal','divide','fractional','modulo','decimal','integer_float','saturating_integer','asin','atan','atan2','tan','degrees_to_radians','radians_to_degrees')} if engine else {},
         exclusions=['Producer reachability of raw NaN/infinity/denormal/overflow patterns',
                     'Full spatial mutation after bounds construction',
                     'General simulation trajectories; trig helper domains are raw input words, not public producer proof',

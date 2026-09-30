@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools/ghidra'))
 sys.path.insert(0, str(ROOT / 'tools/frida'))
-from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits, fractional, modulo, decimal_bits, integer_float, saturating_integer_word
+from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits, fractional, modulo, decimal_bits, integer_float, saturating_integer_word, asin_bits, atan_bits, atan2_bits, divide
 from generate_wc3_math_tables import sine_table, reciprocal_table, acos_tables
 from verify_wc3_motion_trace import verify
 
@@ -65,6 +65,30 @@ class PathingMathTests(unittest.TestCase):
                 result = (ctypes.c_uint32 * 2)()
                 proc(angle, result)
                 self.assertEqual(list(result), [trig_bits(angle, False, sines), trig_bits(angle, True, sines)])
+
+    def test_remaining_angle_helpers_match_integer_models_and_optimization(self):
+        table = reciprocal_table()
+        ordinary, near = acos_tables()
+        sines = sine_table()
+        rng = random.Random(0x705b0)
+        words = [rng.getrandbits(32) for _ in range(20000)]
+        words += [w | sign for sign in (0,0x80000000) for pivot in (0x3e8930a3,0x3f7e8000,0x3f800000)
+                  for w in range(pivot-16,pivot+17)]
+        models = [('asin',lambda w:asin_bits(w,ordinary,near)), ('atan',lambda w:atan_bits(w,table)),
+                  ('tan',lambda w:divide(trig_bits(w,False,sines),trig_bits(w,True,sines),table)),
+                  ('degrees_to_radians',lambda w:multiply(w,0x3c8efa35)),
+                  ('radians_to_degrees',lambda w:multiply(w,0x42652ee1))]
+        for engine in self.engines:
+            for name, model in models:
+                proc = getattr(engine,'pathing_'+name)
+                proc.argtypes = [ctypes.c_uint32]
+                proc.restype = ctypes.c_uint32
+                for word in words:
+                    self.assertEqual(proc(word),model(word),(name,hex(word)))
+            engine.pathing_atan2.argtypes = [ctypes.c_uint32,ctypes.c_uint32]
+            engine.pathing_atan2.restype = ctypes.c_uint32
+            for y,x in zip(words,words[1:]):
+                self.assertEqual(engine.pathing_atan2(y,x),atan2_bits(y,x,table),(hex(y),hex(x)))
 
     def test_decimal_and_public_integer_conversion_match_independent_models(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-public-numeric-inputs-1.27.json').read_text())

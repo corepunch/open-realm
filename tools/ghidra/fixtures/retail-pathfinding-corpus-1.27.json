@@ -419,16 +419,22 @@
           "equal": "45fb304aa5ffa02919dae455d2e5ede75299567f71be7b9acb058374f7713556"
         },
         "public_wrapper_cases": {
-          "equal": 12210
+          "equal": 24420
         },
         "public_wrapper_sha256": {
-          "equal": "1af7c716e12804fbb195cf546923f6411cb1be6dc73bae87adbf59dea713440c"
+          "equal": "23c401d402844bdfa509d5eff151dcfe37c3cb4e88139b2d9aff0c5d9bc43251"
+        },
+        "angle_helper_cases": {
+          "equal": 81309
+        },
+        "angle_helper_sha256": {
+          "equal": "caba85090ffb76bb247fd0a43bf23e1661915cf5d77710299689a8923700f205"
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat.",
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat. NUM-01.8 extends to81309 distinct-storage Asin/Atan/Atan2/Tan helper cases and24420 original registered wrapper cases; paired/public/decimal digests remain frozen, public angle-domain evidence is separate live-public-angle-repeat.",
       "exclusions": [
         "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
         "Full spatial mutation after bounds construction",
@@ -1632,16 +1638,22 @@
           "equal": "45fb304aa5ffa02919dae455d2e5ede75299567f71be7b9acb058374f7713556"
         },
         "public_wrapper_cases": {
-          "equal": 12210
+          "equal": 24420
         },
         "public_wrapper_sha256": {
-          "equal": "1af7c716e12804fbb195cf546923f6411cb1be6dc73bae87adbf59dea713440c"
+          "equal": "23c401d402844bdfa509d5eff151dcfe37c3cb4e88139b2d9aff0c5d9bc43251"
+        },
+        "angle_helper_cases": {
+          "equal": 81309
+        },
+        "angle_helper_sha256": {
+          "equal": "caba85090ffb76bb247fd0a43bf23e1661915cf5d77710299689a8923700f205"
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat.",
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat. NUM-01.8 extends to81309 distinct-storage Asin/Atan/Atan2/Tan helper cases and24420 original registered wrapper cases; paired/public/decimal digests remain frozen, public angle-domain evidence is separate live-public-angle-repeat.",
       "exclusions": [
         "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
         "Full spatial mutation after bounds construction",
@@ -5717,6 +5729,122 @@
       "exclusions": [
         "Non-ASCII string locale, original compiled long-literal parser, full simulation trajectory and other scalar natives remain open."
       ]
+    },
+    {
+      "id": "live-public-angle-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_numeric_inputs.py",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-angle-inputs-1.27.json",
+        "--capture",
+        "{archive}/runtime/num-01.8-angles-raw.jsonl",
+        "--repeat",
+        "{archive}/runtime/num-01.8-angles-repeat.jsonl",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.8-angles-raw.jsonl",
+        "sha256": "bbde36e90479b9c5efa59c65f3ccb80c514daf2be9b48422e7095036449fc877",
+        "bytes": 94200,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+            "wc3_pathfinding.js": "aee289cda2d89fecbfde6fd5576ff4e16c568a9d24760ec6f2d0b148b380da4f",
+            "wc3_pathfinding_probe.j": "443ea01241391be6babe060d6ae402d9badcfe95598e5f358d1b31ddbc4bfced",
+            "make_wc3_pathfinding_map.py": "fd4144adfb9f7b12014a7bb82cf9033b6b35633de832c542f1cdb36fc6fb74e0",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "map": "ac0b11a0d61a96d675cd7b8883980fb2293596d53a84bd5eeb86b2ad48cd9642"
+          },
+          "map": "Maps\\PathingRE-NumericAngles1.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/num-01.8-angles-repeat.jsonl",
+            "sha256": "f6164b6cc680b7a55a454cc208bd711f8906e21ac720301c5220af1c08005228",
+            "bytes": 94200,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+                "wc3_pathfinding.js": "aee289cda2d89fecbfde6fd5576ff4e16c568a9d24760ec6f2d0b148b380da4f",
+                "wc3_pathfinding_probe.j": "443ea01241391be6babe060d6ae402d9badcfe95598e5f358d1b31ddbc4bfced",
+                "make_wc3_pathfinding_map.py": "fd4144adfb9f7b12014a7bb82cf9033b6b35633de832c542f1cdb36fc6fb74e0",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "map": "ac0b11a0d61a96d675cd7b8883980fb2293596d53a84bd5eeb86b2ad48cd9642"
+              },
+              "map": "Maps\\PathingRE-NumericAngles1.w3m",
+              "seconds": 130.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 1000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": false,
+              "velocityEvents": false,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": true
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-public-angle-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-public-angle-repeat",
+      "checks": {
+        "violations": {
+          "equal": []
+        },
+        "repeat_equal": {
+          "equal": true
+        },
+        "native_cases": {
+          "equal": 48
+        },
+        "parser_cases": {
+          "equal": 0
+        },
+        "numeric_sha256": {
+          "equal": "8dc9da2575dc2703abc75e88f941251beceb2c22537cba781423d13ecd08bee8"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Six original registered public angle natives on actual S2R-produced finite inputs;48 raw argument/output words repeat identically. Asin admission bounds, Atan reduction/reciprocal, Atan2 small-input/axis/quadrant guards, paired Tan pole and degree/radian factors. Embedded source/map provenance and ordinary point Move completion.",
+      "exclusions": [
+        "Original compiled decimal literal producer, pointer aliases, Pow and full engine trajectory remain excluded."
+      ]
     }
   ],
   "fixtures": [
@@ -5782,7 +5910,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "b470a3c00bd7162e3c3c638cf7acb57b46d341d6a082fb1c23ae608141d263ef"
+      "sha256": "79e320792e6e15647bb000b8c22f819d723f40b2e7544728e1b9b35399246c1d"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -5835,6 +5963,14 @@
     {
       "path": "tools/frida/wc3_numeric_inputs.json",
       "sha256": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-angle-inputs-1.27.json",
+      "sha256": "7bf4ebe561864dc1c16a7f880b9be540e545a4b7e5269a60f6a204f026a8be4c"
+    },
+    {
+      "path": "tools/frida/wc3_angle_inputs.json",
+      "sha256": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f"
     }
   ]
 }

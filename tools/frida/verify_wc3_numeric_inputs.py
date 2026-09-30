@@ -47,7 +47,8 @@ def verify(rows, fixture):
         errors.append('bracketed parser/native sequence or exact words differ')
     native_count = sum(r.get('event') == 'numeric-native' for r in rows)
     parser_count = sum(r.get('event') == 'numeric-parser' for r in rows)
-    if ends and (ends[0].get('counts', {}).get('numeric-native') != native_count or ends[0].get('counts', {}).get('numeric-parser') != parser_count):
+    # Observer counters are sparse: no parser call means no parser key.
+    if ends and (ends[0].get('counts', {}).get('numeric-native') != native_count or ends[0].get('counts', {}).get('numeric-parser', 0) != parser_count):
         errors.append('observer numeric counts differ from recorded events')
     destinations = [[struct.unpack('<I', struct.pack('<f', value))[0] for value in r['destination']]
                     for r in rows if r.get('event') == 'point-task']
@@ -62,11 +63,12 @@ def verify(rows, fixture):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--fixture', type=Path, default=FIXTURE)
     parser.add_argument('--capture', type=Path, required=True)
     parser.add_argument('--repeat', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
     args = parser.parse_args()
-    fixture = json.loads(FIXTURE.read_text())
+    fixture = json.loads(args.fixture.read_text())
     first, second = [[json.loads(line) for line in path.read_text().splitlines()] for path in (args.capture, args.repeat)]
     report = verify(first, fixture)
     other = verify(second, fixture)

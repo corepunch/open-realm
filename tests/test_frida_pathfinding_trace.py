@@ -24,6 +24,27 @@ def capture(*searches, calls=None):
 
 
 class PathTraceTests(unittest.TestCase):
+    def test_angle_capture_keeps_binary_operands_and_sparse_zero_parser_count(self):
+        fixture = json.loads(numeric.FIXTURE.with_name('retail-public-angle-inputs-1.27.json').read_text())
+        rows = [dict(event='metadata',sha256=fixture['target_sha256'],source_sha256=fixture['source_sha256'])]
+        for case in fixture['cases']:
+            identity, name = case['id'],case['native']
+            rows.extend([dict(event='numeric-marker',value=f'PATHNUM case={identity} native={name}'),
+                         dict(event='numeric-native',case=identity,native=name,input=case['input_word'],output=case['output']),
+                         dict(event='numeric-marker',value=f'PATHNUM done={identity} value=completion')])
+        rows.extend([dict(event='point-task',destination=[-1936.0,-144.0]),
+                     dict(event='marker',value='PATHTRACE tick=10 label=order_accepted x=0 y=0 order=851986'),
+                     dict(event='marker',value='PATHTRACE tick=300 label=complete x=0 y=0 order=0'),
+                     dict(event='trace-end',installed=True,counts={'numeric-native':48})])
+        self.assertEqual(numeric.verify(rows,fixture)['violations'],[])
+        changed = copy.deepcopy(rows)
+        row = next(r for r in changed if r.get('case') == 'atan2_10' and r['event'] == 'numeric-native')
+        row['input'].reverse()
+        self.assertIn('bracketed parser/native sequence or exact words differ',numeric.verify(changed,fixture)['violations'])
+        changed = copy.deepcopy(rows)
+        changed[-1]['counts']['numeric-parser'] = 1
+        self.assertIn('observer numeric counts differ from recorded events',numeric.verify(changed,fixture)['violations'])
+
     def test_public_numeric_contract_rejects_word_order_and_provenance_changes(self):
         fixture = json.loads(numeric.FIXTURE.read_text())
         rows = [dict(event='metadata', sha256=fixture['target_sha256'], source_sha256=fixture['source_sha256'])]

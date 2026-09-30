@@ -90,24 +90,32 @@ CONVERT_FUNC(TexMapFlags, texmapflags);
 CONVERT_FUNC(FogState, fogstate);
 CONVERT_FUNC(EffectType, effecttype);
 
-MATH_FUNC(Deg2Rad, DEG2RAD, number, number);
-MATH_FUNC(Rad2Deg, RAD2DEG, number, number);
+MATH_FUNC(Deg2Rad, wc3_degrees_to_radians, number, number);
+MATH_FUNC(Rad2Deg, wc3_radians_to_degrees, number, number);
 MATH_FUNC(Sin, wc3_sin, number, number);
 MATH_FUNC(Cos, wc3_cos, number, number);
-MATH_FUNC(Tan, tan, number, number);
-MATH_FUNC(Asin, asin, number, number);
+MATH_FUNC(Tan, wc3_tan, number, number);
+/* Registered1f8250 uses the same public admission bounds as Acos. */
+uint32_t Asin(jass_t *j) {
+    float value = jass_checknumber(j, 1);
+    return jass_pushnumber(j, value < -1.0f || value > 1.0f ? 0.0f : wc3_asin(value));
+}
 /* Registered1f75d0 keeps the original public [-1,1] admission guard. */
 uint32_t Acos(jass_t *j) {
     float value = jass_checknumber(j, 1);
     return jass_pushnumber(j, value < -1.0f || value > 1.0f ? 0.0f : wc3_acos(value));
 }
-MATH_FUNC(Atan, atan, number, number);
+MATH_FUNC(Atan, wc3_atan, number, number);
+static bool api_scalar_is_near_zero(float value) {
+    float distance = wc3_float(wc3_float_bits(wc3_sub(value, 0.0f)) & 0x7fffffffu);
+    return distance < wc3_float(0x3a83126f);
+}
+
 /* Registered215d30 compares the scalar difference from zero, strictly below
  * cd53a0's raw3a83126f threshold; equality still executes the root helper. */
 uint32_t SquareRoot(jass_t *j) {
     float value = jass_checknumber(j, 1);
-    float distance = wc3_float(wc3_float_bits(wc3_sub(value, 0.0f)) & 0x7fffffffu);
-    return jass_pushnumber(j, distance < wc3_float(0x3a83126f) || value < 0.0f ? 0.0f : wc3_sqrt(value));
+    return jass_pushnumber(j, api_scalar_is_near_zero(value) || value < 0.0f ? 0.0f : wc3_sqrt(value));
 }
 uint32_t I2R(jass_t *j) {
     return jass_pushnumber(j, wc3_float(wc3_from_int((uint32_t)jass_checkinteger(j, 1))));
@@ -119,7 +127,11 @@ uint32_t R2I(jass_t *j) {
     return jass_pushinteger(j, value);
 }
 MATH_FUNC2(Pow, pow, number);
-MATH_FUNC2(Atan2, atan2, number);
+/* Registered1f8290 rejects only when both scalar distances are strictly small. */
+uint32_t Atan2(jass_t *j) {
+    float y = jass_checknumber(j, 1), x = jass_checknumber(j, 2);
+    return jass_pushnumber(j, api_scalar_is_near_zero(y) && api_scalar_is_near_zero(x) ? 0.0f : wc3_atan2(y, x));
+}
 uint32_t OrderId(jass_t *j) {
     return jass_pushinteger(j, (int32_t)G_OrderId(jass_checkstring(j, 1)));
 }

@@ -142,7 +142,6 @@ static inline float wc3_div(float a, float b) {
     return wc3_float_bits(a) == wc3_float_bits(b) ? 1 : wc3_mul(a, wc3_recip(b));
 }
 
-/* 6f06ffa0 changes lookup resolution near abs(x)=3f7e8000; both curves use fixed-point interpolation. */
 /* Original071180 for a nonnegative integer exponent; parser070de0 uses base10. */
 static inline float wc3_integer_power(float base, uint32_t exponent) {
     float result = 1.0f;
@@ -188,13 +187,16 @@ static inline float wc3_decimal(char const *text) {
     return multiply ? wc3_mul(value, power) : wc3_div(value, power);
 }
 
-static inline float wc3_acos(float a) {
+/* Original06ffa0/0703a0 share the inverse curve; Asin subtracts the fixed-point
+ * half turn BEFORE integer conversion, preserving its distinct rounding. */
+static inline float wc3_inverse_curve(float a, bool sine) {
     uint32_t w = wc3_float_bits(a), mag = w & 0x7fffffffu, val;
     if (mag <= 0x3f7e8000) {
         uint32_t phase = wc3_int_bits(w + 0x0f000000u);
         int64_t n = phase & 0x80000000u ? (int64_t)phase - 0x100000000ll : phase;
         if (n > 0x3fffffff) n = 0x3fffffff;
         if (n < -0x3fffffff) n = -0x3fffffff;
+        if (sine) n = -n;
         uint32_t idx = ((uint32_t)n >> 20) & 1023, frac = (uint32_t)n << 12;
         uint32_t weight = frac | (frac >> 20), delta;
         if (n < 0) {
@@ -204,7 +206,9 @@ static inline float wc3_acos(float a) {
             val = wc3_acos_curve[idx];
             delta = val - wc3_acos_curve[idx + 1];
         }
-        val = wc3_from_int(val - ((uint64_t)delta * weight >> 32));
+        val -= (uint64_t)delta * weight >> 32;
+        if (sine) val -= 0x3243f6a8u;
+        val = wc3_from_int(val);
         return wc3_float(val - (val & 0x7f800000 ? 0x0e800000u : 0));
     }
     if (mag > 0x3f800000) mag = 0x3f800000;
@@ -214,8 +218,52 @@ static inline float wc3_acos(float a) {
     val -= (uint64_t)(val - wc3_acos_near[idx + 1]) * (frac << 4) >> 32;
     val = wc3_from_int(val);
     float result = wc3_float(val - (val & 0x7f800000 ? 0x11000000u : 0));
+    if (sine)
+        return w & 0x80000000u ? wc3_add(wc3_float(0xbfc90fdb), result) : wc3_sub(wc3_float(0x3fc90fdb), result);
     return w & 0x80000000u ? wc3_sub(wc3_float(0x40490fdb), result) : result;
 }
+
+static inline float wc3_acos(float a) { return wc3_inverse_curve(a, false); }
+static inline float wc3_asin(float a) { return wc3_inverse_curve(a, true); }
+
+/* Original0705b0: preserve the scalar operation order of the reduced rational
+ * polynomial, including both reciprocal and half-pi correction branches. */
+static inline float wc3_atan(float a) {
+    uint32_t word = wc3_float_bits(a);
+    float absolute = wc3_float(word & 0x7fffffffu);
+    float x = absolute > 1.0f ? wc3_recip(absolute) : absolute;
+    bool reduced = x > wc3_float(0x3e8930a3);
+    if (reduced) {
+        float numerator = wc3_add(x, wc3_float(0xbf13cd3a));
+        float denominator = wc3_add(1.0f, wc3_mul(wc3_float(0x3f13cd3a), x));
+        x = wc3_div(numerator, denominator);
+    }
+    float square = wc3_mul(x, x);
+    float denominator = wc3_add(1.0f, wc3_mul(wc3_float(0x3f17592e), square));
+    float numerator = wc3_mul(x, wc3_add(wc3_float(0x3f7ffff0), wc3_mul(wc3_float(0x3e8415a6), square)));
+    float result = wc3_div(numerator, denominator);
+    if (reduced) result = wc3_add(result, wc3_float(0x3f060a92));
+    if (absolute > 1.0f) result = wc3_sub(wc3_float(0x3fc90fdb), result);
+    return word & 0x80000000u && word & 0x7fffffffu ? wc3_float(wc3_float_bits(result) ^ 0x80000000u) : result;
+}
+
+/* Original070530 ignores the sign of zero in its quadrant corrections. */
+static inline float wc3_atan2(float y, float x) {
+    uint32_t wx = wc3_float_bits(x), wy = wc3_float_bits(y);
+    float result = wx & 0x7f800000u ? wc3_atan(wc3_float(wc3_float_bits(wc3_div(y, x)) & 0x7fffffffu)) : wc3_float(0x3fc90fdb);
+    if (wx & 0x80000000u && wx & 0x7fffffffu) result = wc3_sub(wc3_float(0x40490fdb), result);
+    return wy & 0x80000000u && wy & 0x7fffffffu ? wc3_float(wc3_float_bits(result) ^ 0x80000000u) : result;
+}
+
+static inline float wc3_tan(float angle) {
+    float sine, cosine;
+    wc3_sincos(angle, &sine, &cosine);
+    return wc3_div(sine, cosine);
+}
+
+static inline float wc3_degrees_to_radians(float angle) { return wc3_mul(angle, wc3_float(0x3c8efa35)); }
+static inline float wc3_radians_to_degrees(float angle) { return wc3_mul(angle, wc3_float(0x42652ee1)); }
+
 
 /* 6f1d4c80 takes length separately; the tiny-angle guard runs after acos as well. */
 static inline float wc3_vector_heading(float x, float y) {

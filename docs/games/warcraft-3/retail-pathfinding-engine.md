@@ -184,6 +184,89 @@ integration. Remaining angle/power helpers, their constant initialization,
 non-ASCII grammar/locale and broader public exceptional domains stay NUM-01.2/03.
 Whole trajectory/cadence parity remains NUM-02.3.
 
+## Public angle adapters
+
+NUM-01.8 extends the scalar integration to `Asin`, `Atan`, `Atan2`, `Tan`,
+`Deg2Rad` and `Rad2Deg`. These WC3 native adapters now use the same deterministic
+scalar helpers as movement. Host Galaxy math remains separate.
+
+| Public native | Registered RVA | Helper / public guard |
+| --- | --- | --- |
+| Asin | 1f8250 | 0703a0; strict outside[-1,1] returns0 |
+| Atan | 1f8310 | 0705b0; reciprocal/range-reduced scalar polynomial |
+| Atan2 | 1f8290 | 070530; both absolute scalar distances strictly below3a83126f returns0 |
+| Tan | 216750 | 071590; original paired sin/cos followed by scalar division |
+| Deg2Rad | 1fcda0 | scalar multiply by static3c8efa35 |
+| Rad2Deg | 210480 | scalar multiply by static42652ee1 |
+
+All wrappers are cdecl, returning a raw scalar in EAX. Single-real arguments
+are pointers at stack4; Atan2 uses y/x pointers at stack4/8. Decompiler's earlier
+fastcall suggestion for Tan was corrected from instructions. All four low-level
+angle helpers use ECX output/EDX input, with Atan2's second input at stack4 and
+RET4. The other helpers have plain RET and return the output pointer in EAX.
+
+Asin reuses the original inverse curve and its near-one table. Its ordinary
+branch negates the clamped fixed-point phase and subtracts3243f6a8 before
+truncating integer-to-scalar conversion. Computing half-pi minus the completed
+acos scalar would lose that operation order. Near one, positive/negative
+inputs use separate half-pi subtraction/addition. The engine shares the
+interpolation machinery with acos; the frozen acos/vector/velocity corpora
+continue to verify every affected consumer.
+
+Atan takes the absolute input, uses a reciprocal above1, then tests strict
+range threshold3e8930a3. Reduction is
+`(x + bf13cd3a) / (1 + 3f13cd3a*x)`, using scalar operations. The rational
+polynomial is `x*(3f7ffff0 + 3e8415a6*x*x)/(1 + 3f17592e*x*x)` in that exact
+operation order. Reduction adds3f060a92; reciprocal mode subtracts the result
+from3fc90fdb. Negative-nonzero input bits then invert the sign. Atan2 consumes
+the absolute scalar quotient, handles exponent-zero x with half-pi, then uses
+pi subtraction and y sign correction. Signed zero does not trigger either
+negative quadrant correction. The public wrapper's both-small guard is separate.
+
+Tan consumes the paired helper directly. Its live half-pi example returns
+4effffff, and its pi example returnsb0000001; these retain lookup/remainder
+quirks rather than host transcendental results. Asin's public bounds and
+Atan2's strict tiny-input guard are retained in `api_misc.h`; SC2's own math
+adapters are not routed through these WC3 helpers.
+
+`num-01.8-angle-engine-exact.json` records81,309 original/model/C calls across
+the four distinct-storage helpers, including adjacent reduction/lookup inputs,
+and24,420 original registered-wrapper raw calls across twelve natives. Public
+producer reachability is separately established by the live cases; raw
+nonfinite inputs and pointer aliases are not promoted to public-domain evidence.
+Angle-helper digest:
+`caba85090ffb76bb247fd0a43bf23e1661915cf5d77710299689a8923700f205`;
+registered-wrapper digest:
+`23c401d402844bdfa509d5eff151dcfe37c3cb4e88139b2d9aff0c5d9bc43251`.
+
+Scenario24 `numeric_angles` supplies actual decimal text to S2R before each
+angle-native invocation. Two complete `runtime/num-01.8-angles-{raw,repeat}.jsonl`
+captures each record48 bracketed raw input/output pairs and ordinary point-Move
+admission/completion. All raw pairs repeat identically:
+`8dc9da2575dc2703abc75e88f941251beceb2c22537cba781423d13ecd08bee8`.
+The fixture includes both Atan2 operand words, public boundary/zero guards,
+static factors and source/map hashes. The analyzer treats absent sparse parser
+counters as zero when no parser event is expected, and rejects nonzero counts,
+operand reversal and other trace corruption.
+
+The engine public regression reproduced25 failures across48 frozen cases;
+all48 pass after integration. Together with the earlier decimal/scalar cases,
+all94 public checks pass in both Classic and TFT. Independent integer models
+also compare optimized/unoptimized C. Ghidra persists299 names,18 partial
+layouts,115 fields and67 explicit operand-storage prototypes; twelve consumed
+static constants have named typed labels and no direct write xrefs.
+`num-01.8-ghidra-angle-types.json` records the persisted ABI. Historical
+constant generation, pointer-alias producers, Pow and compiled-literal parsing
+remain explicit NUM-01.2/07 work. Whole cadence/trajectory parity stays NUM-02.3.
+
+Full validation passes85 pathfinding tool tests and37,104 assertions in2,141
+engine tests per Classic/TFT run; WC3 and SC2 production builds pass.
+`num-01.8-angle-corpus/corpus-results.json` passes124/124 with all recorded
+source fingerprints unchanged through completion. Manifest SHA256:
+`8ce2ad3f3889607dabcc45d87d582eb32119d5c6c7475bb45c0422663525867f`;
+summary SHA256:
+`90450e97d996040caaf9c336d15d72f57bd6ea322d91b8e7501700676021895c`.
+
 ## Generated tables and exact trigonometry
 
 `generate_wc3_math_tables.py` independently generates the static tables into

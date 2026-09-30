@@ -1688,6 +1688,166 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f0703a0",
+      "name": "Math_Asin",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f0705b0",
+      "name": "Math_Atan",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f070530",
+      "name": "Math_Atan2",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f071590",
+      "name": "Math_Tan",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f1f8250",
+      "name": "Jass_Asin",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1f8310",
+      "name": "Jass_Atan",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f216750",
+      "name": "Jass_Tan",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1f8290",
+      "name": "Jass_Atan2",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f1fcda0",
+      "name": "Jass_Deg2Rad",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f210480",
+      "name": "Jass_Rad2Deg",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [
@@ -1714,6 +1874,78 @@
       "name": "Math_PublicNearZeroThreshold",
       "type": "WC3PathScalar",
       "evidence": "Static3a83126f (~0.001), public SquareRoot215d30/Atan21f8290 compare abs scalar difference strictly below. Original wrapper raw equality controls and live decimal inputs; complete initializer inventory remains NUM-01.2."
+    },
+    {
+      "address": "6fcd5440",
+      "name": "Math_NegativeHalfPi",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalarbfc90fdb; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd5444",
+      "name": "Math_DegreesScale",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalar3c8efa35; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd5450",
+      "name": "Math_AtanReductionAngle",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalar3f060a92; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd5458",
+      "name": "Math_HalfPi",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalar3fc90fdb; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd545c",
+      "name": "Math_Pi",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalar40490fdb; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd5468",
+      "name": "Math_RadiansScale",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalar42652ee1; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd58c0",
+      "name": "Math_AtanNumeratorConstant",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalar3f7ffff0; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd58c4",
+      "name": "Math_AtanNumeratorSquared",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalar3e8415a6; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd58c8",
+      "name": "Math_AtanDenominatorSquared",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalar3f17592e; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd58cc",
+      "name": "Math_AtanReductionThreshold",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalar3e8930a3; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd58d0",
+      "name": "Math_AtanReductionPositive",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalar3f13cd3a; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd58d4",
+      "name": "Math_AtanReductionNegative",
+      "type": "WC3PathScalar",
+      "evidence": "Stored PE scalarbf13cd3a; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
     }
   ]
 }

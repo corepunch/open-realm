@@ -159,6 +159,67 @@ TEST(wc3_api, pathfinding_public_numeric_natives_match_retail_words) {
     reset_entities();
 }
 
+/* Actual registered angle-native outputs with decimal producers and public guards. */
+TEST(wc3_api, pathfinding_public_angle_natives_match_retail_words) {
+    static char const *assertions[] = {
+        "  call BJassAssert(Asin(S2R(\"-2.0\")) == 0.0, \"asin_0 exact retail word\")\n",
+        "  call BJassAssert(Asin(S2R(\"-1.0\")) == -1.57079637050628662109375, \"asin_1 exact retail word\")\n",
+        "  call BJassAssert(Asin(S2R(\"-0.999\")) == -1.5260827541351318359375, \"asin_2 exact retail word\")\n",
+        "  call BJassAssert(Asin(S2R(\"-0.994140625\")) == -1.4624903202056884765625, \"asin_3 exact retail word\")\n",
+        "  call BJassAssert(Asin(S2R(\"-0.6\")) == -0.643501222133636474609375, \"asin_4 exact retail word\")\n",
+        "  call BJassAssert(Asin(S2R(\"0.0\")) == 0.0, \"asin_5 exact retail word\")\n",
+        "  call BJassAssert(Asin(S2R(\"0.6\")) == 0.643501222133636474609375, \"asin_6 exact retail word\")\n",
+        "  call BJassAssert(Asin(S2R(\"0.994140625\")) == 1.46249020099639892578125, \"asin_7 exact retail word\")\n",
+        "  call BJassAssert(Asin(S2R(\"0.999\")) == 1.52608263492584228515625, \"asin_8 exact retail word\")\n",
+        "  call BJassAssert(Asin(S2R(\"1.0\")) == 1.57079637050628662109375, \"asin_9 exact retail word\")\n",
+        "  call BJassAssert(Asin(S2R(\"2.0\")) == 0.0, \"asin_10 exact retail word\")\n",
+        "  call BJassAssert(Atan(S2R(\"-10000.0\")) == -1.570696353912353515625, \"atan_0 exact retail word\")\n",
+        "  call BJassAssert(Atan(S2R(\"-1.0\")) == -0.7853982448577880859375, \"atan_1 exact retail word\")\n",
+        "  call BJassAssert(Atan(S2R(\"-0.6\")) == -0.540419518947601318359375, \"atan_2 exact retail word\")\n",
+        "  call BJassAssert(Atan(S2R(\"-0.2679492\")) == -0.261799335479736328125, \"atan_3 exact retail word\")\n",
+        "  call BJassAssert(Atan(S2R(\"0.0\")) == 0.0, \"atan_4 exact retail word\")\n",
+        "  call BJassAssert(Atan(S2R(\"0.2679492\")) == 0.261799335479736328125, \"atan_5 exact retail word\")\n",
+        "  call BJassAssert(Atan(S2R(\"0.6\")) == 0.540419518947601318359375, \"atan_6 exact retail word\")\n",
+        "  call BJassAssert(Atan(S2R(\"1.0\")) == 0.7853982448577880859375, \"atan_7 exact retail word\")\n",
+        "  call BJassAssert(Atan(S2R(\"10000.0\")) == 1.570696353912353515625, \"atan_8 exact retail word\")\n",
+        "  call BJassAssert(Tan(S2R(\"0.0\")) == 0.0, \"tan_0 exact retail word\")\n",
+        "  call BJassAssert(Tan(S2R(\"0.6\")) == 0.68413245677947998046875, \"tan_1 exact retail word\")\n",
+        "  call BJassAssert(Tan(S2R(\"-0.6\")) == -0.68412363529205322265625, \"tan_2 exact retail word\")\n",
+        "  call BJassAssert(Tan(S2R(\"1.5707963267948966\")) == 2147483520.0, \"tan_3 exact retail word\")\n",
+        "  call BJassAssert(Tan(S2R(\"3.141592653589793\")) == -0.000000000465661342818890489070327021181583404541015625, \"tan_4 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"0.0\"), S2R(\"0.0\")) == 0.0, \"atan2_0 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"0.0009\"), S2R(\"0.0009\")) == 0.0, \"atan2_1 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"0.001\"), S2R(\"0.0009\")) == 0.837981164455413818359375, \"atan2_2 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"0.0009\"), S2R(\"0.001\")) == 0.732815265655517578125, \"atan2_3 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"-0.001\"), S2R(\"0.0\")) == -1.57079637050628662109375, \"atan2_4 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"0.0\"), S2R(\"-0.001\")) == 3.1415927410125732421875, \"atan2_5 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"1.0\"), S2R(\"1.0\")) == 0.7853982448577880859375, \"atan2_6 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"-1.0\"), S2R(\"1.0\")) == -0.7853982448577880859375, \"atan2_7 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"1.0\"), S2R(\"-1.0\")) == 2.35619449615478515625, \"atan2_8 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"-1.0\"), S2R(\"-1.0\")) == -2.35619449615478515625, \"atan2_9 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"10.0\"), S2R(\"1.0\")) == 1.47112762928009033203125, \"atan2_10 exact retail word\")\n",
+        "  call BJassAssert(Atan2(S2R(\"1.0\"), S2R(\"10.0\")) == 0.0996686518192291259765625, \"atan2_11 exact retail word\")\n",
+        "  call BJassAssert(Deg2Rad(S2R(\"0.0\")) == 0.0, \"deg2rad_0 exact retail word\")\n",
+        "  call BJassAssert(Deg2Rad(S2R(\"90.0\")) == 1.57079637050628662109375, \"deg2rad_1 exact retail word\")\n",
+        "  call BJassAssert(Deg2Rad(S2R(\"180.0\")) == 3.1415927410125732421875, \"deg2rad_2 exact retail word\")\n",
+        "  call BJassAssert(Deg2Rad(S2R(\"360.0\")) == 6.283185482025146484375, \"deg2rad_3 exact retail word\")\n",
+        "  call BJassAssert(Deg2Rad(S2R(\"-45.0\")) == -0.785398185253143310546875, \"deg2rad_4 exact retail word\")\n",
+        "  call BJassAssert(Deg2Rad(S2R(\"0.1\")) == 0.001745329354889690876007080078125, \"deg2rad_5 exact retail word\")\n",
+        "  call BJassAssert(Rad2Deg(S2R(\"0.0\")) == 0.0, \"rad2deg_0 exact retail word\")\n",
+        "  call BJassAssert(Rad2Deg(S2R(\"3.141592653589793\")) == 180.0, \"rad2deg_1 exact retail word\")\n",
+        "  call BJassAssert(Rad2Deg(S2R(\"6.283185307179586\")) == 360.0, \"rad2deg_2 exact retail word\")\n",
+        "  call BJassAssert(Rad2Deg(S2R(\"-0.6\")) == -34.377468109130859375, \"rad2deg_3 exact retail word\")\n",
+        "  call BJassAssert(Rad2Deg(S2R(\"0.001\")) == 0.0572957806289196014404296875, \"rad2deg_4 exact retail word\")\n",
+    };
+    setup_test_world();
+    for (unsigned i = 0; i < sizeof(assertions) / sizeof(assertions[0]); i++) {
+        char script[1024];
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n%sendfunction\n", assertions[i]);
+        T_ASSERT(run_test_jass(script));
+    }
+    reset_entities();
+}
+
 TEST(wc3_api, revive_hero_location_native_restores_grom_style_death) {
     edict_t *hero;
 
