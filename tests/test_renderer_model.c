@@ -1159,6 +1159,13 @@ TEST(renderer_texture, resident_registry_keeps_entries_beyond_configstring_limit
     T_ASSERT(R_FindLoadedTexture("textures/registry/1024.BLP") == &placeholder);
 }
 
+/* Map registration reloads the MDX event tables; this fixture ships none, so every table reads as empty. */
+static uint32_t test_no_slk(cstring_t filename, slkField_t const *schema, void **dest, uint32_t row_stride) {
+    (void)filename; (void)schema; (void)row_stride;
+    *dest = NULL;
+    return 0;
+}
+
 TEST(renderer_texture, wc3_map_registration_reclaims_skin_override_and_keeps_stock) {
     static texture_t placeholder = { .texid = 1 };
     rImageCacheEntry_t *entry;
@@ -1173,7 +1180,7 @@ TEST(renderer_texture, wc3_map_registration_reclaims_skin_override_and_keeps_sto
     minimap_test_map_data = map_data;
     T_ASSERT(SFileOpenArchiveFromMemory(map_data, map_size, 0, &minimap_test_map_archive));
     ri.FS_ReadFile = test_minimap_fs_read; ri.FS_FreeFile = test_minimap_fs_free;
-    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.LoadSlk = test_no_slk;
     tr.texture[TEX_PLACEHOLDER] = &placeholder;
     cache_minimap_textures = true; next_minimap_texture_id = 1;
     minimap_test_saw_streamed_override = false;
@@ -1874,7 +1881,7 @@ TEST(renderer_terrain, deformation_updates_and_expires_height_offsets) {
     R_W3SetMapTerrainOffsets(&map);
     tr.viewDef.time = 100;
     terrainDeform_t deform = { .id = 77, .type = TERRAIN_DEFORM_CRATER,
-        .data = { 16 * TILE_SIZE, 16 * TILE_SIZE, 96, 30 }, .duration_ms = 1000 };
+        .crater = { .origin = { 16 * TILE_SIZE, 16 * TILE_SIZE }, .radius = 96, .depth = 30 }, .duration_ms = 1000 };
     R_W3StartTerrainDeformation(&deform);
     tr.viewDef.time = 600;
     R_W3UpdateTerrainDeformations();

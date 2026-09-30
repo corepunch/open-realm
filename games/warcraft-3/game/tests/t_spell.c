@@ -4981,7 +4981,12 @@ TEST(wc3_spell, earthquake_retail_mask_is_enemy_only_and_reaches_invisible_units
     T_NOT_NULL(thinker);
     earthquake_think(thinker);
 
+    /* The caster's own building is the one target the two builds disagree on. */
+#ifdef WC3_EARTHQUAKE_FRIENDLY_FIRE
+    T_FEQ(friend_building->health.value, 490.0f, 0.001f);
+#else
     T_FEQ(friend_building->health.value, 500.0f, 0.001f);
+#endif
     T_FEQ(enemy_building->health.value, 490.0f, 0.001f);
     T_EQ(G_UnitStatusLevel(hidden_enemy, MAKEFOURCC('B','O','e','q')), 1);
 

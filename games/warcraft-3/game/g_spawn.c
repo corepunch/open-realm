@@ -711,7 +711,7 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     }
     clent->client->camera.target_height = ps->vieworigin.z;
     clent->client->camera.old_state = clent->client->camera.state;
-    clent->client->camera.target_inherit_orientation = false;
+    clent->client->camera.target_mode = CAMERA_TARGET_FOLLOW;
     if (mapinfo) {
         FOR_LOOP(i, mapinfo->num_techAvailabilities) {
             mapTechAvailability_t const *tech = mapinfo->techAvailabilities + i;
@@ -1070,6 +1070,9 @@ static bool G_CanRepositionUnitAt(edict_t *unit, vec2_t const *point) {
     float radius;
     box2_t area;
     if (!unit || !point) return false;
+    /* A movement-disabled unit (every retail building and scenery row) is legal wherever the script puts it;
+     * testing it against walkability nudged authored pedestals off their spot. */
+    if (M_UnitMoveDisabled(unit)) return true;
     if (!CM_PointIsPathableForRadiusFlags(point, unit->collision, M_UnitStaticPathingFlags(unit))) return false;
     radius = MAX(0.0f, unit->collision);
     area = MAKE(box2_t, .min = { point->x - radius, point->y - radius },
