@@ -1767,6 +1767,8 @@ TEST(wc3_combat, cooldown_range_buffer_holds_then_chases_at_ready_time) {
 
     attacker->wait = FRAMETIME / 1000.0f;
     attacker->attack_cooldown_remaining = FRAMETIME / 1000.0f;
+    attacker->attack_cooldown_end_time = G_Time();
+    attacker->attack_cooldown_active = true;
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "walk");
 }
@@ -1884,6 +1886,33 @@ TEST(wc3_combat, canceled_windup_cooldown_survives_chase_and_reacquisition) {
     T_ASSERT(attacker->attack_cooldown_active);
 }
 
+TEST(wc3_combat, canceled_windup_cooldown_advances_after_attack_order_is_replaced) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.damagePoint = 0.3f;
+    attacker->attack1.cooldown = 1.0f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    target->s.origin2.x = 180.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+    T_ASSERT(attacker->attack_cooldown_active);
+
+    attacker->currentmove = NULL;
+    level.time += 1100;
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+    T_ASSERT(!attacker->attack_cooldown_active);
+}
+
 TEST(wc3_combat, backswing_still_blocks_attack_after_cooldown_during_chase) {
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
@@ -1931,6 +1960,7 @@ TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
     T_ASSERT(S_OrderAttack(attacker, target));
     attacker->attack_cooldown_active = true;
     attacker->attack_cooldown_remaining = cooldown_remaining;
+    attacker->attack_cooldown_end_time = G_Time() + 730;
 
     T_ASSERT(WriteGame(filename));
     {
@@ -1939,6 +1969,7 @@ TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
         attacker->goalentity = NULL;
         attacker->attack_cooldown_active = false;
         attacker->attack_cooldown_remaining = 0.0f;
+        attacker->attack_cooldown_end_time = 0;
         T_ASSERT(ReadGame(filename));
 
         attacker = g_edicts + attacker_index;

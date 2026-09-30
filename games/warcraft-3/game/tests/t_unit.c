@@ -1021,7 +1021,7 @@ TEST(wc3_unit, neutral_creep_natural_sleep_tracks_night_and_wakes_at_dawn) {
     creep->data.UnitUI = &ui;
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
     SP_SpawnUnit(creep);
-    T_FEQ(creep->unitinfo.PropWindow, 23.0f, 0.001f);
+    T_FEQ(creep->unitinfo.PropWindow, DEG2RAD(23.0f), 0.001f);
     unit_stand(creep);
     T_ASSERT(G_UnitCanSleep(creep));
     *no_creep_sleep = 0;

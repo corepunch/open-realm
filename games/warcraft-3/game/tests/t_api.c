@@ -5660,13 +5660,13 @@ TEST(wc3_api, prop_window_runtime_native_and_authored_default) {
         "endglobals\n"
         "function main takes nothing returns nothing\n"
         "  set subject = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
-        "  call SetUnitPropWindow(subject, 10.0)\n"
+        "  call SetUnitPropWindow(subject, 0.174532925)\n"
         "endfunction\n"
         "function verify_prop_window takes nothing returns nothing\n"
-        "  if GetUnitPropWindow(subject) == 10.0 and GetUnitDefaultPropWindow(subject) == 23.0 then\n"
-        "    call SetUnitPropWindow(subject, 20.0)\n"
+        "  if GetUnitPropWindow(subject) == 0.174532925 and GetUnitDefaultPropWindow(subject) == 23.0 then\n"
+        "    call SetUnitPropWindow(subject, 0.34906585)\n"
         "  else\n"
-        "    call SetUnitPropWindow(subject, 30.0)\n"
+        "    call SetUnitPropWindow(subject, 0.523598776)\n"
         "  endif\n"
         "endfunction\n"));
 
@@ -5676,7 +5676,7 @@ TEST(wc3_api, prop_window_runtime_native_and_authored_default) {
     unit->data.UnitData = &authored;
     jass_callbyname(level.vm, "verify_prop_window", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    T_FEQ(unit->unitinfo.PropWindow, 20.0f, 0.001f);
+    T_FEQ(unit->unitinfo.PropWindow, DEG2RAD(20.0f), 0.001f);
 }
 
 TEST(wc3_api, unit_invulnerable_default_false) {

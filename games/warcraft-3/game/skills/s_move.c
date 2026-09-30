@@ -322,13 +322,10 @@ static void unit_moveindirection_policy(edict_t *self,
     if (!self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0)
         return;
 
-    /* UnitData propWin/uprw is authored in degrees.  Normal movement may turn
-     * toward the avoidance-resolved heading every tick, but it only translates
-     * once the remaining facing error is inside that propulsion window.  A
-     * missing/non-positive value preserves the historical permissive fallback
-     * for synthetic/custom data that did not author the field. */
+    /* Runtime PropWindow follows SetUnitPropWindow's native radians contract;
+     * spawn converts authored UnitData degrees once at the boundary. */
     if (self->unitinfo.PropWindow > 0.0f) {
-        float const window = self->unitinfo.PropWindow * ((float)M_PI / 180.0f);
+        float const window = self->unitinfo.PropWindow;
         float const delta = fabsf(angle_wrap(self->movement.heading - self->s.angle));
         if (delta > window)
             return;
