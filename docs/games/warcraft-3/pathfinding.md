@@ -70,6 +70,14 @@ While a resumable request is pending, `unit_changeangle*()` leaves both `movemen
 
 Plain Move also keeps the stand presentation while that pair is clear. The order switches to walk only after direct steering or a completed flow field supplies a heading; starting the walk pose at order submission made the old facing look like an incorrect first turn during a long route build.
 
+The stepper also rejects a collision-free candidate along a turn-lagged facing when that candidate disagrees with the resolved route heading or increases distance to the active goal. The old stepper accepted the facing candidate first, so a short scripted cinematic move could advance in the wrong direction while the unit was still rotating; Human02Interlude then left Jaina on Antonidas's later ride-off path. Construction displacement is the exception: its temporary exit point remains the active progress goal until it is reached, after which the unit resumes its original order. `unit_commit_step()` and the arrival snap keep the network/render `origin` synchronized with authoritative `origin2` for the same reason.
+
+The regression is `wc3_movement.turn_lag_does_not_step_away_from_route_heading` in `games/warcraft-3/game/tests/t_movement.c`. Run both game variants with:
+
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_movement.*'
+```
+
 `CM_BuildHeatmapForRadius()` remains the synchronous API for tests/tools that explicitly require a completed field. Production movement goes through `M_RefreshHeatmap()` -> `CM_RequestHeatmapForRadius()`.
 
 Production services the shared incremental build with 32,768 queue pops per 10 Hz server frame. A 256x256 open field therefore completes in at most two frames instead of the previous sixteen-frame (1.6 second) delay. Override `wc3_path_work_budget` for slower targets. Complete destination-rooted publication remains the long-route fallback; the bounded accelerator is what removes that publication delay from nearby obstacle detours.

@@ -275,6 +275,8 @@ bool M_MoveIsValid(edict_t *self, vec2_t const *pos) {
 static void unit_commit_step(edict_t *self, vec2_t const *cand) {
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     self->s.origin2 = *cand;
+    self->s.origin.x = cand->x;
+    self->s.origin.y = cand->y;
     gi.LinkEntity(self);
 }
 
@@ -306,9 +308,19 @@ static void unit_moveindirection_policy(edict_t *self,
         return;
 
     float const dist = unit_movedistance(self);
+    vec2_t const facing_dir = MAKE(vec2_t, cosf(self->s.angle), sinf(self->s.angle));
+    vec2_t const heading_dir = MAKE(vec2_t, cosf(self->movement.heading), sinf(self->movement.heading));
+    vec2_t const origin = self->s.origin2;
+    vec2_t const progress_goal = self->movement.displacement_active ? self->movement.displacement_target :
+        self->goalentity ? self->goalentity->s.origin2 : self->s.origin2;
     vec2_t const by_facing = Vector2_mad(&self->s.origin2, dist,
-                                          &MAKE(vec2_t, cosf(self->s.angle), sinf(self->s.angle)));
-    if (move_is_valid_policy(self, &by_facing, collision_policy)) {
+                                          &facing_dir);
+    bool const facing_progress = !self->goalentity ||
+        Vector2_distance(&by_facing, &progress_goal) <=
+        Vector2_distance(&origin, &progress_goal) + 0.001f;
+    /* A lagging facing is useful while turning around an obstacle, but it must
+     * not carry a unit away from the heading selected by the route solver. */
+    if (facing_progress && move_is_valid_policy(self, &by_facing, collision_policy)) {
         unit_commit_step(self, &by_facing);
         return;
     }
@@ -1400,6 +1412,8 @@ static void ai_move_walk(edict_t *ent) {
          * stop where we are rather than overlapping it. */
         if (M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
             ent->s.origin2 = ent->goalentity->s.origin2;
+            ent->s.origin.x = ent->s.origin2.x;
+            ent->s.origin.y = ent->s.origin2.y;
             gi.LinkEntity(ent);
         }
         if (S_UnitAbilityMoveArrive(ent)) return;
