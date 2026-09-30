@@ -527,8 +527,19 @@ static void SinglePlayer_BeginCampaignBackdropBirth(singlePlayerCampaign_t const
                           campaign ? campaign->background : "campaign backdrop");
 }
 
-static cstring_t SinglePlayer_CampaignBackdropAnimation(string_t anim, size_t anim_size) {
-    return UI_BirthSequenceAnimation(&campaign_background_birth, anim, anim_size, "Stand");
+static cstring_t SinglePlayer_CampaignBackdropAnimation(refExport_t *renderer,
+                                                        string_t anim, size_t anim_size) {
+    uint32_t duration;
+    cstring_t stable = "Stand";
+
+    /* SetEntityAnimFrame runs before RenderFrame installs this backdrop's clock. */
+    if (renderer && renderer->GetModelAnimationDuration &&
+        renderer->GetModelAnimationDuration(UI_GetModel(campaign_background_model), "Stand", &duration) &&
+        duration) {
+        snprintf(anim, anim_size, "Stand@%.4f", (float)(M_Time() % duration) / (float)duration);
+        stable = anim;
+    }
+    return UI_BirthSequenceAnimation(&campaign_background_birth, anim, anim_size, stable);
 }
 
 static void SinglePlayer_DrawCampaignBackdrop(void) {
@@ -549,7 +560,7 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
         if (renderer->SetEntityAnimFrame) {
             char anim[32];
             renderer->SetEntityAnimFrame(model,
-                                         SinglePlayer_CampaignBackdropAnimation(anim, sizeof(anim)),
+                                         SinglePlayer_CampaignBackdropAnimation(renderer, anim, sizeof(anim)),
                                          &entity);
         }
 
