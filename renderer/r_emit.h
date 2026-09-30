@@ -5,6 +5,8 @@
 #include <math.h>
 #include <stdlib.h>
 
+#define R_EMIT_PARTICLE_BUDGET 256 // particles per emitter per render call; bounds CPU work for extreme authored rates
+
 /* Preserve sub-unit authored sizes in the shared compact particle curve. */
 static inline void R_EncodeParticleSize(cparticle_t *particle, float const values[3]) {
     float peak = MAX(values[0], MAX(values[1], values[2]));
@@ -35,11 +37,23 @@ static vec3_t FX_GenerateRandomOrigin(float length, float width) {
 __attribute__((unused))
 static void R_EmitParticles(float rate, float *accum, uint32_t delta_ms,
                             void (*spawn)(void *), void *ctx) {
-	if (rate <= 0.0f || delta_ms == 0 || !accum) return;
+	uint32_t emitted = 0;
+	if (rate <= 0.0f || delta_ms == 0 || !accum || !spawn) return;
+	if (!isfinite(rate) || !isfinite(*accum) || *accum < 0.0f) {
+		fprintf(stderr, "Renderer: invalid particle emission rate/accumulator (%g, %g)\n", rate, *accum);
+		*accum = 0.0f;
+		return;
+	}
 	*accum += rate * (float)MIN(delta_ms, 100u) / 1000.0f;
-	while (*accum >= 1.0f) {
+	while (*accum >= 1.0f && emitted < R_EMIT_PARTICLE_BUDGET) {
 		*accum -= 1.0f;
 		spawn(ctx);
+		emitted++;
+	}
+	if (*accum >= 1.0f) {
+		fprintf(stderr, "Renderer: particle emission exceeded per-call budget (%u); dropping excess whole emissions\n",
+		        R_EMIT_PARTICLE_BUDGET);
+		*accum = fmodf(*accum, 1.0f);
 	}
 }
 

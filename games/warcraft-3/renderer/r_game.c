@@ -1882,13 +1882,15 @@ static void R_W3UpdateModelEvents(renderEntity_t const *entity) {
     if (tr.render_phase == RENDER_PHASE_LIGHTS) return;
     bool entity_camera = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) != 0;
 
-    if (!entity || (entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX ||
+    if (!entity) return;
+    wc3EventState_t *state = entity_camera ? R_W3CameraEventState(entity) : NULL;
+    if (entity_camera && !state) return;
+    if ((entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX ||
         !entity->model->mdx || (!entity_camera && entity->number >= MAX_GAME_ENTITIES)) return;
     model = entity->model->mdx;
     if (!model->events) return;
     R_GetEntityMatrix(entity, &transform);
-    wc3EventState_t *state = entity_camera ? R_W3CameraEventState(entity) : event_state + entity->number;
-    if (!state) return;
+    if (!entity_camera) state = event_state + entity->number;
     R_W3DispatchModelEvents(&MAKE(wc3EventDispatchParams_t, .entity = entity, .model = model,
         .state = state, .transform = &transform, .depth = 0, .entity_camera = entity_camera,
         .source_model = entity_camera ? entity->model : NULL,

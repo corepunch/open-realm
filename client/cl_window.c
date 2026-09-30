@@ -52,15 +52,20 @@ static struct {
     vec2_t drag_point, drag_offset;
     bool modal_paused;
 } cl_windows;
-static uintptr_t cl_window_camera_namespace_next = MAX_LAYOUT_LAYERS;
-
 static uintptr_t CL_WindowNewCameraNamespace(void) {
     uintptr_t const max_namespace = (((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1)) - 1) >> 10;
-    if (cl_window_camera_namespace_next > max_namespace) {
+    uintptr_t candidate;
+
+    for (candidate = MAX_LAYOUT_LAYERS; candidate <= max_namespace; candidate++) {
+        clientWindow_t const *window;
+        for (window = cl_windows.first; window; window = window->next)
+            if (window->camera_namespace == candidate) break;
+        if (!window) return candidate;
+    }
+    {
         fprintf(stderr, "Client: exhausted portrait camera namespaces for transient windows\n");
         return 0;
     }
-    return cl_window_camera_namespace_next++;
 }
 
 #define CVAR_TX_MAX 32
@@ -875,6 +880,7 @@ void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
         cl_windows.last = window;
     } else {
         SCR_ReleaseWindowCameraEvents(window->camera_namespace);
+        window->camera_namespace = 0;
         if (cl_windows.edit_window == window) CL_WindowBlurEdit();
         if (cl_windows.slider_drag == window) CL_WindowEndSliderDrag();
         SAFE_DELETE(window->layout, MemFree);
