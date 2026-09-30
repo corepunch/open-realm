@@ -3,7 +3,8 @@
 This document tracks the remaining gaps against the group Attack, chase, and
 combat-movement specification. It describes the implementation in
 `skills/s_attack.c`, `skills/s_move.c`, and the order queue as it stands after
-the propulsion-window and cooldown-deadline fixes. It does not claim that
+the propulsion-window, cooldown-deadline, and active-target identity fixes. It
+does not claim that
 unverified behavior is a retail mismatch; items marked as coverage gaps need a
 representative simulation test before changing production code.
 
@@ -25,80 +26,44 @@ deadline is active; the damage point still rechecks true range. See
 [Attack Damage](attack-damage.md) for weapon timing, legality, and projectile
 contracts, [Pathfinding](pathfinding.md) for shared route behavior, and
 [Shift Order Queue](order-queue.md) for queued-target identity.
+The active direct target also retains its edict spawn generation through
+save/load, and zero `PropWindow` remains the runtime sentinel for no authored
+window.
 
-## Confirmed Parity Gaps
+## Resolved Fixes And Remaining Gaps
 
 ### Attack facing gate and turn animation
 
-The attack behavior calls `unit_changeangle()` while in range, but melee and
-ranged windup callbacks proceed through `unit_runwait()` without waiting for a
-separate attack-facing tolerance. An in-range target behind the attacker can
-therefore receive damage or a projectile while the attacker is still turning.
-The movement `propWin` gate does not provide this attack gate: it only controls
-translation. Also, `unit_moveindirection_policy()` returns when outside the
-propulsion window but leaves the active walk animation selected, so a unit can
-play Walk while turning without translating.
+The shared movement step now switches to a stable Stand pose when propulsion is
+blocked by the facing window. The separate attack-facing tolerance is still a
+gap: melee and ranged windup callbacks advance without an attack-facing gate.
+Do not reuse `propWin` for that rule; establish the authoritative attack-facing
+tolerance before adding the gate and cover both melee and ranged transitions.
 
-The spec requires these to be separate rules: turn-rate movement, propulsion
-window, and attack-facing tolerance. Add a facing predicate to attack windup
-progression and a stable Stand/Ready pose while a walking move is turning in
-place. Cover melee and ranged attacks with the target initially behind the
-attacker, including the transition through the facing window.
+### Target distance uses collision geometry
 
-### Target distance does not consistently use collision geometry
+`attack_target_distance()` is shared by maximum- and minimum-range checks. It
+measures from the attacker's collision edge to a unit/destructable collision
+edge, or to the target's authored pathing footprint when present. Regressions
+cover unit collision radii for both maximum and minimum range; the existing
+building-footprint test continues to cover structures. A destructable-specific
+range regression is still useful.
 
-`attack_target_out_of_range_for_mode()` uses distance to the pathing footprint
-for structure targets with a path texture. Other targets use origin-to-origin
-distance. `attack_target_too_close_for()` also uses origin distance. This leaves
-unit collision radii and destructable target geometry out of normal maximum-
-and minimum-range checks, despite movement routing using collision-sized
-pathing.
+### Active direct target incarnation is retained
 
-Route range checks through one target-distance helper that accounts for the
-attacker collision edge and the target's supported collision/footprint
-semantics. Add tests for two units with nonzero collision, a large destructable,
-and the existing building-footprint case; cover both max and minimum range.
+Active direct Attack stores `attack_target_spawn_time` with its goal pointer,
+checks the target incarnation before combat callbacks, and persists the field
+through save/load. Regression coverage verifies slot reuse rejection and a live
+Attack target round trip.
 
-### Active direct target has no incarnation guard
-
-Queued target orders retain `target_number` and `target_spawn_time`, but active
-Attack uses `goalentity`/`combatentity` pointers without a companion spawn
-generation. `S_AttackCanTarget()` verifies the edict is currently in use and
-legal, but it cannot distinguish the original target from a compatible entity
-that later reuses the same edict slot. Direct Attack can consequently follow a
-reused slot if that slot becomes a valid target before the order is checked.
-
-Retain the active Attack target's spawn generation and validate it before
-range, damage, resume, and save/load transitions. Reuse the queue's entity
-identity contract rather than adding a group-level target object. Test removal,
-slot reuse by a compatible target, and save/load of a live direct Attack.
-
-### Long-route moving-target refresh differs from the spec threshold
+### Long-route moving-target refresh is bounded by relative displacement
 
 Direct steering and the final approach read the target's current coordinates.
 For a longer route, `M_RefreshHeatmapForMover()` reuses a cached target field
-until the target has moved at least 64 world units **and** the field is at least
-400 ms old. The specification describes invalidating a longer route when
-target displacement becomes significant relative to the current attacker to
-target distance (approximately 10%). The current fixed distance/time policy is
-bounded, but it is not that relative threshold and can retain an obsolete route
-when a nearby target moves less than 64 units around an obstacle.
-
-Add tests for a target reversing direction or crossing an obstacle during a
-long route, and for small displacement at short remaining distance. Compare the
-relative threshold with current bounded behavior before changing it; avoid
-requesting a new full route every simulation tick.
-
-### Zero propulsion-window semantics need an explicit contract
-
-The shared movement step only enforces `PropWindow` when the runtime value is
-positive. A zero value therefore permits propulsion at any facing error. The
-authored UnitData field is documented in degrees and stock object metadata
-expects a positive authored window, while the native accepts radians directly.
-The intended behavior of native `SetUnitPropWindow(unit, 0)` has not been
-established here. Keep this as an explicit open question rather than treating
-the permissive branch as a proven retail fallback. Resolve it from authoritative
-native behavior/data and test zero separately from an omitted/default value.
+until the target moves more than 10% of the current mover-to-target distance
+and the field is at least 400 ms old. When no mover is supplied, it retains the
+64-unit bound. Tests for reversals, obstacle crossings, and small displacement
+at short remaining distance are still needed.
 
 ## Acceptance Coverage Still Needed
 
@@ -144,7 +109,7 @@ Relevant code and tests:
 - `games/warcraft-3/game/g_save.c` (`edict_fields` and order queue persistence)
 - `games/warcraft-3/game/tests/t_combat.c`
 - `games/warcraft-3/game/tests/t_movement.c`
-- `games/warcraft-3/game/tests/t_order.c`
+- `games/warcraft-3/game/tests/t_order_lifecycle.c`
 
 Run focused Warcraft III tests in both data variants with:
 

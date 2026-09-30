@@ -324,11 +324,15 @@ static void unit_moveindirection_policy(edict_t *self,
 
     /* Runtime PropWindow follows SetUnitPropWindow's native radians contract;
      * spawn converts authored UnitData degrees once at the boundary. */
+    /* Zero is the runtime sentinel used by units with no authored window. */
     if (self->unitinfo.PropWindow > 0.0f) {
         float const window = self->unitinfo.PropWindow;
         float const delta = fabsf(angle_wrap(self->movement.heading - self->s.angle));
-        if (delta > window)
+        if (delta > window) {
+            if (!G_AnimationHasPrimary(self->animation, "stand"))
+                unit_setanimation(self, "stand");
             return;
+        }
     }
 
     float const dist = unit_movedistance(self);
@@ -840,7 +844,11 @@ uint32_t M_RefreshHeatmapForMover(edict_t const *mover, edict_t *self, float rad
         return route->heatmap2;
 
     if (cached && (route->svflags & SVF_MONSTER)) {
-        bool const moved = Vector2_distance(&route->s.origin2, &route->heatmap2_origin) >= 64.0f;
+        float const target_movement = Vector2_distance(&route->s.origin2, &route->heatmap2_origin);
+        float const refresh_distance = mover
+            ? Vector2_distance(&mover->s.origin2, &route->s.origin2) * 0.1f
+            : 64.0f;
+        bool const moved = target_movement > refresh_distance;
         bool const stale = (uint32_t)(level.time - route->heatmap2_time) >= 400;
         if (!moved || !stale)
             return route->heatmap2;
@@ -1546,6 +1554,7 @@ void order_move(edict_t *self, edict_t *target) {
         return;
     move_cancel_displacement(self);
     self->goalentity = target;
+    self->attack_target_spawn_time = 0;
     self->movement.attackmove_waypoint = NULL;
     self->movement.patrol_a = NULL;
     self->movement.patrol_b = NULL;

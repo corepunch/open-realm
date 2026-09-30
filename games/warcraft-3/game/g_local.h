@@ -1661,6 +1661,7 @@ struct edict_s {
     bool projectile_reflected; /* basic attack missile has already been returned by Defend */
     TARGTYPE targtype;
     edict_t *goalentity;
+    uint32_t attack_target_spawn_time; /* active CAbilityAttack target incarnation */
     edict_t *item_drop; /* inventory item owned by an active point-drop behavior */
     edict_t *spell_item; /* originating item for a pending walk-into-range spell */
     uint32_t spell_item_spawn_time;

@@ -792,6 +792,7 @@ field_t edict_fields[] = {
     F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
     F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, attack_target_spawn_time, F_INT),
     F(edict_s, item_drop, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spell_item, F_EDICT, 0, FIELD_NONE),
     F(edict_s, soul_trap_head, F_EDICT, 0, FIELD_NONE),
@@ -2046,8 +2047,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-53.bin",
         "/tmp/openwarcraft3-wc3-save-version-54.bin",
         "/tmp/openwarcraft3-wc3-save-version-55.bin",
+        "/tmp/openwarcraft3-wc3-save-version-56.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56 };
 
     reset_entities();
     setup_test_world();
