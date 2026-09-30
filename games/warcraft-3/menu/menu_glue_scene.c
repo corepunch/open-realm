@@ -34,6 +34,8 @@ typedef struct {
 
 typedef struct {
     bool loaded;
+    bool has_render_time;
+    uint32_t last_render_time;
     model_t const *background, *top_left_panel, *top_right_panel;
     glueLayer_t layers[UI_GLUE_SIDE_COUNT];
     uiGluePanelChanged_f exited, changed;
@@ -271,6 +273,7 @@ void UI_CloseGluePanel(uiGluePanelChanged_f changed) { UI_GotoGluePanel((glueDes
 void UI_DrawGlueScene(void) {
     refExport_t *renderer = mi.GetRenderer();
     float right_offset;
+    uint32_t scene_time, delta_time;
     char left_anim[UI_GLUE_ANIM_NAME];
     char right_anim[UI_GLUE_ANIM_NAME];
 
@@ -278,6 +281,11 @@ void UI_DrawGlueScene(void) {
     if (!scene.layers[UI_GLUE_LEFT].current.panel && !scene.layers[UI_GLUE_RIGHT].current.panel) return;
     UI_PreloadGlueSceneModels();
     right_offset = UI_GlueRightPanelOffset(renderer);
+    scene_time = M_Time();
+    delta_time = scene.has_render_time && scene_time >= scene.last_render_time
+        ? scene_time - scene.last_render_time : 0;
+    scene.last_render_time = scene_time;
+    scene.has_render_time = true;
 
     if (scene.background) {
         renderEntity_t entity = {
@@ -288,7 +296,9 @@ void UI_DrawGlueScene(void) {
 
         viewDef_t viewdef = {
             .viewport = {0, 0, 1, 1}, .num_entities = 1, .entities = &entity,
-            .rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA,
+            .time = scene_time, .deltaTime = delta_time,
+            .rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG |
+                RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES,
         };
         renderer->RenderFrame(&viewdef);
     }
