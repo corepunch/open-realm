@@ -4875,4 +4875,59 @@ TEST(wc3_spell, earthquake_uses_shared_mechanical_target_filter) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* The retail mask names no relationship: Earthquake stays enemy-only, and as an area
+ * effect it still slows enemies the caster cannot see. */
+TEST(wc3_spell, earthquake_retail_mask_is_enemy_only_and_reaches_invisible_units) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X14\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\nC;Y1;X9;K\"DataA1\"\n"
+        "C;Y1;X10;K\"DataB1\"\nC;Y1;X11;K\"DataC1\"\nC;Y1;X12;K\"Area1\"\n"
+        "C;Y1;X13;K\"BuffID1\"\nC;Y1;X14;K\"levels\"\n"
+        "C;Y2;X1;K\"AOeq\"\nC;Y2;X2;K\"AOeq\"\nC;Y2;X3;K\"ground,structure,debris,tree\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"1000\"\n"
+        "C;Y2;X7;K\"5\"\nC;Y2;X8;K\"5\"\nC;Y2;X9;K\"0\"\n"
+        "C;Y2;X10;K\"10\"\nC;Y2;X11;K\"0.75\"\nC;Y2;X12;K\"300\"\n"
+        "C;Y2;X13;K\"BOeq\"\nC;Y2;X14;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AOeq" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = make_hero(MAKEFOURCC('O','f','a','r'), 500, 500, 500, 500);
+    edict_t *friend_building = alloc_test_unit(MAKEFOURCC('o','b','u','r'), 60, 0);
+    edict_t *enemy_building = alloc_test_unit(MAKEFOURCC('o','b','u','r'), 80, 0);
+    edict_t *hidden_enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 70, 0);
+    edict_t *thinker = NULL;
+    vec2_t point = { 0, 0 };
+
+    caster->data.UnitAbilities = &abilities; caster->s.player = 0;
+    friend_building->s.player = 0;
+    enemy_building->s.player = hidden_enemy->s.player = 1;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    friend_building->targtype = enemy_building->targtype = TARG_STRUCTURE;
+    friend_building->s.flags |= EF_BUILDING; enemy_building->s.flags |= EF_BUILDING;
+    hidden_enemy->targtype = TARG_GROUND;
+    friend_building->svflags |= SVF_MONSTER; enemy_building->svflags |= SVF_MONSTER;
+    hidden_enemy->svflags |= SVF_MONSTER;
+    friend_building->health.value = friend_building->health.max_value = 500;
+    enemy_building->health.value = enemy_building->health.max_value = 500;
+    hidden_enemy->health.value = hidden_enemy->health.max_value = 500;
+    hidden_enemy->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
+    hidden_enemy->permanent_invisibility_reveal_until = 0;
+
+    level.time = 0;
+    T_ASSERT(S_UnitIsInvisibleToPlayer(hidden_enemy, 0));
+    T_ASSERT(S_CastPointTargetSpell(caster, MAKEFOURCC('A','O','e','q'), &point));
+    FILTER_EDICTS(ent, ent->think == earthquake_think && ent->owner == caster) { thinker = ent; break; }
+    T_NOT_NULL(thinker);
+    earthquake_think(thinker);
+
+    T_FEQ(friend_building->health.value, 500.0f, 0.001f);
+    T_FEQ(enemy_building->health.value, 490.0f, 0.001f);
+    T_EQ(G_UnitStatusLevel(hidden_enemy, MAKEFOURCC('B','O','e','q')), 1);
+
+    S_SpellCancelChannel(caster); earthquake_think(thinker);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 #endif /* BZ_TESTS */

@@ -69,8 +69,13 @@ static void radial_damage_status(edict_t *caster, vec2_t point, abilityitem_t co
     }
 }
 
-static bool earthquake_allows_unit(uint32_t code, edict_t *caster, edict_t *target) {
-    return S_SpellIsAliveTarget(target) && S_SpellAllowsTarget(code, caster, target);
+/* Retail AOeq/SNeq masks author no relationship token; until retail's reading of that
+ * omission is verified, keep Earthquake enemy-only rather than hitting the caster's own base. */
+static bool earthquake_allows_unit(uint32_t code, cstring_t targets, edict_t *caster, edict_t *target) {
+    bool const relationship = S_SpellTargetHasToken(targets, "friend", NULL) ||
+        S_SpellTargetHasToken(targets, "enemy", NULL) || S_SpellTargetHasToken(targets, "neutral", NULL);
+    return S_SpellIsAliveTarget(target) && S_SpellAllowsAreaTarget(code, caster, target) &&
+        (relationship || S_SpellIsEnemy(caster, target));
 }
 
 static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, float radius, vec2_t const *origin) {
@@ -134,7 +139,7 @@ void earthquake_think(edict_t *ent) {
                   EARTHQUAKE_DEFORM_MIN_DELTA, EARTHQUAKE_DEFORM_MAX_DELTA },
         .duration_ms = EARTHQUAKE_DEFORM_DURATION_MS,
         .update_ms = EARTHQUAKE_DEFORM_UPDATE_MS });
-    FILTER_EDICTS(target, earthquake_allows_unit(ent->class_id, ent->owner, target) &&
+    FILTER_EDICTS(target, earthquake_allows_unit(ent->class_id, targets, ent->owner, target) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= radius) {
         if (G_UnitIsStructure(target)) {
             S_SpellDamage(target, ent->owner, (int)damage);
