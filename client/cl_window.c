@@ -31,6 +31,7 @@ typedef struct {
 
 typedef struct clientWindow_s {
     uint32_t id, class_id, flags;
+    uintptr_t camera_namespace;
     handle_t layout;
     vec2_t offset;
     bool debug_draw_logged;
@@ -51,6 +52,16 @@ static struct {
     vec2_t drag_point, drag_offset;
     bool modal_paused;
 } cl_windows;
+static uintptr_t cl_window_camera_namespace_next = MAX_LAYOUT_LAYERS;
+
+static uintptr_t CL_WindowNewCameraNamespace(void) {
+    uintptr_t const max_namespace = (((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1)) - 1) >> 10;
+    if (cl_window_camera_namespace_next > max_namespace) {
+        fprintf(stderr, "Client: exhausted portrait camera namespaces for transient windows\n");
+        return 0;
+    }
+    return cl_window_camera_namespace_next++;
+}
 
 #define CVAR_TX_MAX 32
 
@@ -630,6 +641,7 @@ static bool CL_WindowRunCvarTransactionCommand(clientWindow_t *window, cstring_t
 static void CL_WindowPrepareState(clientWindow_t *window, rect_t const *root) {
     if (!window) return;
     SCR_WindowPrepare(window->layout, root);
+    SCR_WindowSetCameraNamespace(window->camera_namespace);
     FOR_LOOP(i, window->num_scroll_values) {
         uiFrame_t *frame = SCR_Frame(window->scroll_values[i].frame);
         if (frame) frame->value = window->scroll_values[i].value;
@@ -862,10 +874,12 @@ void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
         else cl_windows.first = window;
         cl_windows.last = window;
     } else {
+        SCR_ReleaseWindowCameraEvents(window->camera_namespace);
         if (cl_windows.edit_window == window) CL_WindowBlurEdit();
         if (cl_windows.slider_drag == window) CL_WindowEndSliderDrag();
         SAFE_DELETE(window->layout, MemFree);
     }
+    window->camera_namespace = CL_WindowNewCameraNamespace();
     window->id = def->id; window->class_id = def->class_id; window->flags = def->flags; window->layout = layout;
     window->debug_draw_logged = false;
     window->num_edit_values = 0;
@@ -894,6 +908,7 @@ void CL_WindowClose(uint32_t id) {
         cl_windows.scroll_drag_frame = 0;
     }
     if (cl_windows.slider_drag == window) CL_WindowEndSliderDrag();
+    SCR_ReleaseWindowCameraEvents(window->camera_namespace);
     CL_WindowUnlink(window);
     SAFE_DELETE(window->layout, MemFree);
     MemFree(window);

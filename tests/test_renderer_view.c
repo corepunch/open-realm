@@ -160,6 +160,7 @@ TEST(renderer_view, entity_camera_particle_scenes_follow_instance_lifecycle) {
     camera = true;
 
     entity.instance_id = 101;
+    entity.model = (model_t const *)(uintptr_t)1;
     R_RenderFrame(&view);
     entity.instance_id = 202;
     R_RenderFrame(&view);
@@ -168,21 +169,60 @@ TEST(renderer_view, entity_camera_particle_scenes_follow_instance_lifecycle) {
     T_NE(captured_particle_scenes[0], captured_particle_scenes[1]);
     T_EQ(captured_particle_scenes[0], captured_particle_scenes[2]);
 
-    R_ReleaseEntityCameraEvents(101);
-    T_EQ(particle_scene_clears, 1);
+    int const clears_before_rebind = particle_scene_clears;
+    entity.model = (model_t const *)(uintptr_t)2;
     R_RenderFrame(&view);
-    T_NE(captured_particle_scenes[0], captured_particle_scenes[3]);
+    T_EQ(captured_particle_scenes[3], captured_particle_scenes[0]);
+    T_EQ(particle_scene_clears, clears_before_rebind + 1);
+    entity.generation++;
+    R_RenderFrame(&view);
+    T_EQ(particle_scene_clears, clears_before_rebind + 2);
+
+    R_ReleaseEntityCameraEvents(101);
+    T_EQ(particle_scene_clears, clears_before_rebind + 3);
+    R_RenderFrame(&view);
+    T_NE(captured_particle_scenes[0], captured_particle_scenes[5]);
     R_ReleaseEntityCameraEvents(101);
     R_ReleaseEntityCameraEvents(202);
     R_ClearEntityCameraParticleScenes();
 
     view.rdflags &= ~RDF_ISOLATED_PARTICLES;
     R_RenderFrame(&view);
-    T_EQ(particle_scene_clears, 4); /* released instances plus this transient camera scene */
+    T_EQ(particle_scene_clears, clears_before_rebind + 6); /* released instances plus transient scene */
     view.rdflags = RDF_NOWORLDMODEL | RDF_NOPARTICLES;
     entity.instance_id = 303;
     R_RenderFrame(&view);
-    T_EQ(particle_scene_clears, 5); /* custom no-world model cameras also discard suppressed emissions */
+    T_EQ(particle_scene_clears, clears_before_rebind + 7); /* suppressed no-world particles are discarded */
+    ri.MemAlloc = saved_alloc;
+    ri.MemFree = saved_free;
+}
+
+TEST(renderer_view, missing_particle_state_free_keeps_table_reachable) {
+    renderEntity_t entity = { .instance_id = 404 };
+    viewDef_t view = {
+        .time = 1234, .deltaTime = 16,
+        .rdflags = RDF_NOWORLDMODEL | RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES,
+        .entities = &entity, .num_entities = 1,
+    };
+    void *(*saved_alloc)(long) = ri.MemAlloc;
+    void (*saved_free)(handle_t) = ri.MemFree;
+
+    camera = true;
+    ri.MemAlloc = test_particle_scene_alloc;
+    ri.MemFree = test_particle_scene_free;
+    R_RenderFrame(&view);
+    entityCameraParticleState_t *const states = entity_camera_particle_states;
+    T_NOT_NULL(states);
+
+    ri.MemFree = NULL;
+    R_ClearEntityCameraParticleScenes();
+    T_EQ(entity_camera_particle_states, states);
+    T_EQ(entity_camera_particle_count, 0);
+    T_ASSERT(entity_camera_particle_capacity > 0);
+
+    ri.MemFree = test_particle_scene_free;
+    R_ClearEntityCameraParticleScenes();
+    T_NULL(entity_camera_particle_states);
     ri.MemAlloc = saved_alloc;
     ri.MemFree = saved_free;
 }

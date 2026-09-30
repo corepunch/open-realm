@@ -55,6 +55,15 @@ void UI_ResetGlueTransitions(void);
 void UI_ReleaseGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
 bool UI_GlueSkipTransitions(void);
+typedef struct {
+    bool started, complete;
+    uint32_t start, duration;
+} uiBirthSequence_t;
+void UI_BirthSequenceReset(uiBirthSequence_t *sequence);
+void UI_BirthSequenceBegin(uiBirthSequence_t *sequence, refExport_t *renderer,
+                           model_t const *model, cstring_t label);
+cstring_t UI_BirthSequenceAnimation(uiBirthSequence_t *sequence, string_t anim,
+                                     size_t anim_size, cstring_t stable);
 typedef void (*uiGluePanelChanged_f)(void);
 void UI_GotoGluePanel(glueDest_t dest, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
 void UI_CloseGluePanel(uiGluePanelChanged_f changed);

@@ -90,8 +90,7 @@ static frameDef_t *campaign_list_frame;
 static uiMapListState_t mission_list;
 static frameDef_t *mission_list_frame;
 static uint32_t campaign_background_model = 0;
-static bool campaign_background_birth_started, campaign_background_birth_complete;
-static uint32_t campaign_background_birth_start, campaign_background_birth_duration;
+static uiBirthSequence_t campaign_background_birth;
 static bool campaign_background_has_render_time;
 static uint32_t campaign_background_last_render_time;
 static uint32_t selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
@@ -522,42 +521,14 @@ static void SinglePlayer_BeginCampaignBackdropBirth(singlePlayerCampaign_t const
     model_t const *model = UI_GetModel(campaign_background_model);
 
     SinglePlayer_ReleaseCampaignBackdropState();
-    campaign_background_birth_started = false;
-    campaign_background_birth_complete = false;
-    campaign_background_birth_start = M_Time();
-    campaign_background_birth_duration = 0;
+    UI_BirthSequenceReset(&campaign_background_birth);
     campaign_background_has_render_time = false;
-    if (UI_GlueSkipTransitions()) {
-        campaign_background_birth_complete = true;
-        return;
-    }
-    if (!model || !renderer || !renderer->GetModelAnimationDuration ||
-        !renderer->GetModelAnimationDuration(model, "Birth", &campaign_background_birth_duration) ||
-        !campaign_background_birth_duration) {
-        fprintf(stderr, "UI: campaign backdrop '%s' has no valid Birth sequence duration; using Stand\n",
-                campaign ? campaign->background : "(unknown)");
-        campaign_background_birth_complete = true;
-        return;
-    }
-    campaign_background_birth_started = true;
+    UI_BirthSequenceBegin(&campaign_background_birth, renderer, model,
+                          campaign ? campaign->background : "campaign backdrop");
 }
 
 static cstring_t SinglePlayer_CampaignBackdropAnimation(string_t anim, size_t anim_size) {
-    uint32_t elapsed;
-
-    if (UI_GlueSkipTransitions()) {
-        campaign_background_birth_complete = true;
-        return "Stand";
-    }
-    if (!campaign_background_birth_started || campaign_background_birth_complete) return "Stand";
-    elapsed = M_Time() - campaign_background_birth_start;
-    if (elapsed >= campaign_background_birth_duration) {
-        campaign_background_birth_complete = true;
-        return "Stand";
-    }
-    snprintf(anim, anim_size, "Birth@%.4f",
-             (float)elapsed / (float)campaign_background_birth_duration);
-    return anim;
+    return UI_BirthSequenceAnimation(&campaign_background_birth, anim, anim_size, "Stand");
 }
 
 static void SinglePlayer_DrawCampaignBackdrop(void) {

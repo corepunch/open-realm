@@ -9,6 +9,12 @@ The server owns a window's instance ID, opaque game-local class ID, flags, frame
 z-order, keyboard focus, pointer capture, and the local drag offset. Updating an existing instance preserves its drag offset.
 Opening a `UI_WINDOW_UNIQUE` class replaces and focuses its existing instance.
 
+Portrait cameras in transient layouts use a client-assigned namespace per open
+window instance, combined with the frame number. Replacing or closing a window
+releases every portrait camera ID in that namespace so retained particles and
+animation events cannot leak into a later window that reuses the same frame
+numbers. Persistent HUD layouts keep their layer-based IDs.
+
 After opening a pause-owning modal `svc_window`, the client compares pause-owner presence with its last reported pause state.
 The first modal without `UI_WINDOW_NO_PAUSE` sends `pause 1`; closing the last pause-owning modal sends `pause 0`. Opening or
 closing nested modals sends nothing while a pause owner remains. The game keeps this client request as an independent pause

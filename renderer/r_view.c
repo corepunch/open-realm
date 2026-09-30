@@ -4,16 +4,30 @@
 
 typedef struct {
     uintptr_t instance_id;
+    model_t const *model;
+    uint32_t generation;
     particleScene_t particles;
 } entityCameraParticleState_t;
 
 static entityCameraParticleState_t *entity_camera_particle_states;
 static size_t entity_camera_particle_count, entity_camera_particle_capacity;
 
-static particleScene_t *R_EntityCameraParticleScene(uintptr_t instance_id) {
+static particleScene_t *R_EntityCameraParticleScene(renderEntity_t const *entity) {
+    uintptr_t const instance_id = entity->instance_id;
+    if (!instance_id) {
+        fprintf(stderr, "Renderer: isolated entity camera has no instance ID; using transient particles\n");
+        return NULL;
+    }
     FOR_LOOP(i, entity_camera_particle_count) {
-        if (entity_camera_particle_states[i].instance_id == instance_id)
-            return &entity_camera_particle_states[i].particles;
+        entityCameraParticleState_t *state = entity_camera_particle_states + i;
+        if (state->instance_id != instance_id) continue;
+        if (state->model != entity->model || state->generation != entity->generation) {
+            /* A retained instance may be rebound to a new model; discard its old emitters. */
+            R_ClearParticleScene(&state->particles);
+            state->model = entity->model;
+            state->generation = entity->generation;
+        }
+        return &state->particles;
     }
     if (entity_camera_particle_count == entity_camera_particle_capacity) {
         size_t capacity = entity_camera_particle_capacity ? entity_camera_particle_capacity * 2 : 16;
@@ -21,8 +35,11 @@ static particleScene_t *R_EntityCameraParticleScene(uintptr_t instance_id) {
             fprintf(stderr, "Renderer: entity-camera particle-state capacity overflow\n");
             return NULL;
         }
-        entityCameraParticleState_t *states = ri.MemAlloc
-            ? ri.MemAlloc((long)(capacity * sizeof(*states))) : NULL;
+        if (!ri.MemAlloc || !ri.MemFree) {
+            fprintf(stderr, "Renderer: isolated entity cameras require paired MemAlloc and MemFree imports\n");
+            return NULL;
+        }
+        entityCameraParticleState_t *states = ri.MemAlloc((long)(capacity * sizeof(*states)));
         if (!states) {
             fprintf(stderr, "Renderer: failed to grow entity-camera particle states to %zu entries\n", capacity);
             return NULL;
@@ -32,14 +49,15 @@ static particleScene_t *R_EntityCameraParticleScene(uintptr_t instance_id) {
             memcpy(states, entity_camera_particle_states,
                    entity_camera_particle_count * sizeof(*states));
         if (entity_camera_particle_states) {
-            if (ri.MemFree) ri.MemFree(entity_camera_particle_states);
-            else fprintf(stderr, "Renderer: cannot free replaced entity-camera particle-state table without MemFree\n");
+            ri.MemFree(entity_camera_particle_states);
         }
         entity_camera_particle_states = states;
         entity_camera_particle_capacity = capacity;
     }
     entityCameraParticleState_t *state = entity_camera_particle_states + entity_camera_particle_count++;
     state->instance_id = instance_id;
+    state->model = entity->model;
+    state->generation = entity->generation;
     return &state->particles;
 }
 
@@ -47,11 +65,17 @@ void R_ClearEntityCameraParticleScenes(void) {
     FOR_LOOP(i, entity_camera_particle_count)
         R_ClearParticleScene(&entity_camera_particle_states[i].particles);
     if (entity_camera_particle_states) {
-        if (ri.MemFree) ri.MemFree(entity_camera_particle_states);
-        else fprintf(stderr, "Renderer: cannot free entity-camera particle-state table without MemFree\n");
+        if (ri.MemFree) {
+            ri.MemFree(entity_camera_particle_states);
+            entity_camera_particle_states = NULL;
+            entity_camera_particle_count = entity_camera_particle_capacity = 0;
+        } else {
+            fprintf(stderr, "Renderer: retaining entity-camera particle-state table because MemFree is unavailable\n");
+            entity_camera_particle_count = 0;
+        }
+    } else {
+        entity_camera_particle_count = entity_camera_particle_capacity = 0;
     }
-    entity_camera_particle_states = NULL;
-    entity_camera_particle_count = entity_camera_particle_capacity = 0;
 }
 
 void R_ReleaseEntityCameraEvents(uintptr_t instance_id) {
@@ -107,7 +131,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
         particleScene_t temporary_particles = {0};
         bool const isolated_particles = (tr.viewDef.rdflags & RDF_ISOLATED_PARTICLES) != 0;
         particleScene_t *particle_scene = isolated_particles
-            ? R_EntityCameraParticleScene(entity->instance_id) : NULL;
+            ? R_EntityCameraParticleScene(entity) : NULL;
         if (!particle_scene) particle_scene = &temporary_particles;
         bool const temporary_particle_scene = particle_scene == &temporary_particles;
         cparticle_t *previous_particles = R_BeginParticleScene(particle_scene);
@@ -147,7 +171,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     cparticle_t *previous_particles = NULL;
     if (manage_camera_particles) {
         particle_scene = retain_camera_particles
-            ? R_EntityCameraParticleScene(tr.viewDef.entities[0].instance_id) : NULL;
+            ? R_EntityCameraParticleScene(&tr.viewDef.entities[0]) : NULL;
         if (!particle_scene) {
             particle_scene = &temporary_particles;
             temporary_particle_scene = true;

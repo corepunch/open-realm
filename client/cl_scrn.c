@@ -266,6 +266,7 @@ static uint32_t layout_current_layer;
 static handle_t layout_hovered;
 static handle_t layout_current;
 static bool layout_current_window;
+static uintptr_t layout_current_window_camera_namespace;
 
 /* Project a world point through the active camera into the virtual UI canvas.
  * The world scissor is authoritative: callers should not turn an off-screen
@@ -722,8 +723,13 @@ void SCR_LayoutSetPointer(handle_t layout, uint32_t number, bool down) {
 void SCR_WindowPrepare(handle_t layout, rect_t const *root) {
     layout_current_window = true;
     layout_current = layout;
+    layout_current_window_camera_namespace = 0;
     SCR_ClearWindow(layout);
     if (root) SCR_SetLayoutRoot(root);
+}
+
+void SCR_WindowSetCameraNamespace(uintptr_t window_namespace) {
+    layout_current_window_camera_namespace = window_namespace;
 }
 
 bool SCR_WindowLayoutIsCurrent(handle_t layout) {
@@ -929,8 +935,13 @@ void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen) {
 
     renderEntity_t entity = {0};
     entity.model = draw; entity.scale = 1.0f;
-    entity.instance_id = ((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1)) |
-                         ((uintptr_t)layout_current_layer << 10) | frame->number;
+    entity.instance_id = layout_current_window
+        ? (layout_current_window_camera_namespace
+            ? (((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1)) |
+               (layout_current_window_camera_namespace << 10) | frame->number)
+            : 0)
+        : (((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1)) |
+           ((uintptr_t)layout_current_layer << 10) | frame->number);
     entity.team = frame->stat;
     entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
     re.SetEntityAnimFrame(draw, anim, &entity);
@@ -1464,6 +1475,14 @@ void SCR_ClearLayoutLayer(uint32_t layer) {
 void SCR_ReleaseLayoutCameraEvents(uint32_t layer) {
     if (layer >= MAX_LAYOUT_LAYERS || !re.ReleaseEntityCameraEvents) return;
     uintptr_t const prefix = ((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1)) | ((uintptr_t)layer << 10);
+    FOR_LOOP(number, MAX_LAYOUT_OBJECTS)
+        re.ReleaseEntityCameraEvents(prefix | number);
+}
+
+void SCR_ReleaseWindowCameraEvents(uintptr_t window_namespace) {
+    if (!window_namespace || !re.ReleaseEntityCameraEvents) return;
+    uintptr_t const prefix = ((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1)) |
+                            (window_namespace << 10);
     FOR_LOOP(number, MAX_LAYOUT_OBJECTS)
         re.ReleaseEntityCameraEvents(prefix | number);
 }
