@@ -1993,6 +1993,17 @@ bool R_SetEntityAnimFrame(model_t const *model, cstring_t anim, renderEntity_t *
     return MDLX_SetEntityAnimationFrame(model, anim, entity);
 }
 
+bool R_GetModelAnimationDuration(model_t const *model, cstring_t anim, uint32_t *duration) {
+    mdxSequence_t const *seq;
+
+    if (!model || model->modeltype != ID_MDLX || !model->mdx || !anim || !*anim || !duration)
+        return false;
+    seq = MDLX_FindSequenceByName(model->mdx, anim);
+    if (!seq || seq->interval[1] < seq->interval[0]) return false;
+    *duration = seq->interval[1] - seq->interval[0];
+    return true;
+}
+
 void R_DrawSprite(drawSprite_t const *sprite) {
     MDLX_DrawSpriteInstance(sprite, COLOR32_WHITE);
 }

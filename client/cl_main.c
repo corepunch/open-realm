@@ -969,6 +969,7 @@ void CL_Init(void) {
     Cmd_AddCommand("menu_restart", CL_MenuRestart_f);
 
     CON_Init();
+    Cvar_Get("ui_skip_transitions", "0", CVAR_ARCHIVE);
     CL_InitInput();
 
     CL_SetMenuBindings();

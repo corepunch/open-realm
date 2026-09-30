@@ -1013,6 +1013,21 @@ TEST(renderer_model, mdx_sound_event_keys_follow_sequence_and_global_sequence_ti
     T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 500, 0, 0, 50, 1050));
 }
 
+TEST(renderer_model, mdx_animation_duration_uses_authored_sequence_interval) {
+    mdxSequence_t sequences[] = {
+        { .name = "Birth", .interval = { 250, 1750 } },
+    };
+    mdxModel_t mdx = { .sequences = sequences, .num_sequences = 1 };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    uint32_t duration = 0;
+
+    T_ASSERT(R_GetModelAnimationDuration(&model, "Birth", &duration));
+    T_EQ(duration, 1500);
+    T_ASSERT(!R_GetModelAnimationDuration(&model, "Stand", &duration));
+    model.modeltype = ID_43DM;
+    T_ASSERT(!R_GetModelAnimationDuration(&model, "Birth", &duration));
+}
+
 TEST(renderer_model, mdx_event_object_id_parses_spawn_rows) {
     mdxEvent_t event = { 0 };
     char id[32] = { 0 };

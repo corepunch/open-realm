@@ -32,6 +32,7 @@ static uint32_t captured_realm_panel_sprites;
 static uint32_t captured_sprite_calls;
 static viewDef_t captured_glue_view;
 static uint32_t captured_glue_views;
+static PATHSTR captured_entity_anim;
 static float captured_sprite_x[2];
 static PATHSTR captured_sprite_anim[2];
 static size2_t test_window_size = { 1000, 750 };
@@ -48,6 +49,7 @@ static vec2_t fake_text_size;
 static handle_t test_mpq_archive;
 static bool hide_expansion_campaign_file;
 static bool test_fs_expansion;
+static bool test_skip_menu_transitions;
 static int test_vid_native = -1;
 static cstring_t test_campaign_visibility;
 static PATHSTR test_campaign_progress_path = "campaign-progress-menu-test.orcp";
@@ -284,7 +286,14 @@ static rect_t test_get_scene_rect(void) { return UI_ResolveCanvas(test_window_si
 static void test_release_texture(texture_t *texture) { (void)texture; texture_releases++; }
 static void test_release_model(model_t *model) { (void)model; }
 static bool test_entity_anim(model_t const *model, cstring_t anim, renderEntity_t *entity) {
-    (void)model; (void)anim; (void)entity;
+    (void)model; (void)entity;
+    snprintf(captured_entity_anim, sizeof(captured_entity_anim), "%s", anim ? anim : "");
+    return true;
+}
+static bool test_animation_duration(model_t const *model, cstring_t anim, uint32_t *duration) {
+    (void)model;
+    if (!anim || strcmp(anim, "Birth") || !duration) return false;
+    *duration = 1000;
     return true;
 }
 static void test_render_frame(viewDef_t const *view) {
@@ -305,6 +314,7 @@ static refExport_t *test_get_renderer(void) {
         .DrawText = test_draw_text,
         .DrawSprite = test_draw_sprite,
         .SetEntityAnimFrame = test_entity_anim,
+        .GetModelAnimationDuration = test_animation_duration,
         .RenderFrame = test_render_frame,
         .GetTextSize = test_get_text_size,
     };
@@ -346,6 +356,7 @@ static bool test_play_movie(cstring_t path) {
 
 static cstring_t test_cvar_string(cstring_t name, cstring_t fallback) {
     if (!strcmp(name, "map")) return test_map;
+    if (name && !strcmp(name, "ui_skip_transitions")) return test_skip_menu_transitions ? "1" : "0";
     if (name && !strcmp(name, "fs_expansion")) {
         return test_fs_expansion ? "1" : "0";
     }
@@ -408,6 +419,7 @@ static void reset_ui_state(void) {
     captured_realm_panel_sprites = 0;
     captured_sprite_calls = 0;
     captured_glue_views = 0;
+    captured_entity_anim[0] = '\0';
     memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
     memset(captured_sprite_anim, 0, sizeof(captured_sprite_anim));
     captured_birth_sprites = 0;
@@ -416,6 +428,7 @@ static void reset_ui_state(void) {
     fake_texture_id = 0;
     texture_releases = map_reads = 0;
     test_map = "";
+    test_skip_menu_transitions = false;
     test_vid_native = -1;
     hover_texture = NULL;
     captured_hover_draws = 0;
@@ -2427,6 +2440,51 @@ static void test_glue_setup(void) {
 static void test_glue_tick(uint32_t msec) {
     captured_sprite_calls = 0;
     M_Refresh(M_Time() + msec);
+}
+
+TEST(menu_fdf, glue_background_birth_hands_off_to_stand_at_authored_duration) {
+    menuImport_t saved = mi;
+    uint32_t const start = M_Time();
+
+    test_glue_setup();
+    M_SetActive(true);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
+    UI_DrawGlueScene();
+    T_STREQ(captured_entity_anim, "Birth@0.0000");
+
+    M_Refresh(start + 500);
+    UI_DrawGlueScene();
+    T_STREQ(captured_entity_anim, "Birth@0.5000");
+
+    M_Refresh(start + 1000);
+    UI_DrawGlueScene();
+    T_STREQ(captured_entity_anim, "Stand");
+
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, skip_glue_transitions_settles_scene_and_delivers_callbacks) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    test_skip_menu_transitions = true;
+
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, NULL, test_glue_changed);
+    T_EQ(captured_glue_changes, 1);
+    T_ASSERT(!UI_GlueIsTransitioning());
+    UI_DrawGlueScene();
+    T_STREQ(captured_entity_anim, "Stand");
+    T_STREQ(captured_sprite_anim[0], "MainMenu Stand");
+
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_OPTIONS }, test_glue_changed, test_glue_changed);
+    T_EQ(captured_glue_changes, 3);
+    T_ASSERT(!UI_GlueIsTransitioning());
+    captured_sprite_calls = 0;
+    UI_DrawGlueScene();
+    T_STREQ(captured_sprite_anim[0], "Options Stand");
+
+    UI_ResetGlueSceneModels();
+    mi = saved;
 }
 
 TEST(menu_fdf, glue_background_advances_isolated_particle_view_time) {
