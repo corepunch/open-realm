@@ -3450,6 +3450,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->s.origin.y = 128.0f;
     first->owner = second;
     first->movement.follow_target = second;
+    first->movement.explicit_allied_attack = true;
     first->inventory[2] = second;
     first->cargo.units[3] = second;
     first->stand = unit_stand; first->birth = unit_birth; first->die = unit_die; first->think = monster_think;
@@ -3540,6 +3541,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->sleep.sleeping = false;
     first->owner = NULL;
     first->movement.follow_target = NULL;
+    first->movement.explicit_allied_attack = false;
     first->inventory[2] = NULL;
     first->cargo.units[3] = NULL;
     first->animation_props[0] = '\0';
@@ -3623,6 +3625,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(level.camera_bounds.max.y, 50.0f, 0.001f);
     T_ASSERT(g_edicts[first - g_edicts].owner == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].movement.follow_target == &g_edicts[second - g_edicts]);
+    T_ASSERT(g_edicts[first - g_edicts].movement.explicit_allied_attack);
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].cargo.units[3] == &g_edicts[second - g_edicts]);
     T_STREQ(g_edicts[first - g_edicts].animation_props, "alternate,work");

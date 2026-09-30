@@ -186,6 +186,7 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target)
         attacker->currentmove->proc != CAbilityAttack || attacker->goalentity != target) return;
     unit_leavecombat(attacker);
     attacker->goalentity = NULL;
+    attacker->movement.explicit_allied_attack = false;
     if (G_BuildingIsUnsummoning(attacker)) {
         attacker->currentmove = NULL;
         attacker->animation = NULL;
@@ -207,7 +208,8 @@ static bool attack_stop_if_target_invalid(edict_t *attacker) {
     edict_t const *target = attacker ? attacker->goalentity : NULL;
     bool allied = attacker && target && attacker->s.player < MAX_PLAYERS &&
         target->s.player < MAX_PLAYERS && attacker->s.player != target->s.player &&
-        G_PlayerTreatsPlayerAsAlly(attacker->s.player, target->s.player);
+        G_PlayerTreatsPlayerAsAlly(attacker->s.player, target->s.player) &&
+        !attacker->movement.explicit_allied_attack;
     /* Existing attack orders are combat orders, unlike the explicit Attack
      * command which may deliberately target an allied unit.  Alliance changes
      * must therefore end an automatic/cinematic attack before its next hit. */
@@ -662,6 +664,7 @@ void order_attack(edict_t *self, edict_t *target) {
      * hold-fire state before installing the attack behavior. */
     if (self->shadowmeld.active || self->shadowmeld.fading || self->shadowmeld.hide_order_active)
         S_ShadowMeldBreak(self);
+    self->movement.explicit_allied_attack = false;
     unit_entercombat(self, target);
     self->goalentity = target;
     attack_walk(self);
@@ -677,6 +680,7 @@ bool S_OrderAttack(edict_t *self, edict_t *target) {
     self->movement.follow_target = NULL;
     self->movement.holding_position = false;
     order_attack(self, target);
+    self->movement.explicit_allied_attack = G_PlayerTreatsPlayerAsAlly(self->s.player, target->s.player);
     return true;
 }
 

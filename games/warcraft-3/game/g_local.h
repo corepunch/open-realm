@@ -1633,6 +1633,7 @@ struct edict_s {
         edict_t *patrol_a, *patrol_b, *patrol_target;
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
         bool holding_position;
+        bool explicit_allied_attack;
     } movement;
     edictStat_t health;
     edictStat_t mana;
