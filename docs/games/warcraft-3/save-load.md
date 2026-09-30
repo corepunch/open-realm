@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 58, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 59, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -586,3 +586,12 @@ explicit allied attack intent, and the camera field schema includes upstream
 orientation/noise state. Both parents' earlier layouts are rejected. Existing
 ROC/TFT round-trips cover live movement, allied intent and camera state; the
 previous-format rejection matrix includes versions39 through57.
+
+The subsequent September30 upstream sync advances the outer format to **59**.
+Camera noise parameters now live in `client.camera.noise[]`; `client.ps` retains
+only the game-evaluated `viewoffset`/`eyeoffset` samples. Both records use the
+existing raw `F_STRUCT` schema, so their changed layouts require rejecting58
+independently of the edict-size guard. ROC/TFT round-trips retain the parameters
+and all six sample components after clearing live state. The prior-version
+matrix now rejects39 through58; JSVM remains7. The network contract is the
+upstream-approved generic view-offset protocol; this merge adds no wire fields.

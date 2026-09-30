@@ -2608,7 +2608,9 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     }
     T_FEQ(Vector2_distance(&after_first_step, &before_displace), normal_step, 0.001f);
     T_ASSERT(move_displacement_active(worker));
-    FOR_LOOP(frame, 7) globals.RunFrame();
+    /* Sample mid-displacement. The route-heading stepper covers the 192-unit exit in about eight 27-unit
+     * steps, so the old eight-frame sample sat on the arrival threshold and flipped with libm rounding. */
+    FOR_LOOP(frame, 3) globals.RunFrame();
     T_ASSERT(Vector2_distance(&worker->s.origin2, &before_displace) > 1.0f);
     T_STREQ(worker->animation_request, "walk");
     FOR_LOOP(frame, 240) globals.RunFrame();

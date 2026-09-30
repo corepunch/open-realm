@@ -159,16 +159,13 @@ static void R_WeatherResolve(renderWeatherEffect_t *effect) {
     if (!effect || !effect->inuse) return;
     effect->art = FS_SLKLookup(&weather_index, effect->effect_id);
     if (!effect->art) {
-        fprintf(stderr, "R_WeatherResolve: unresolved Weather.slk row '%c%c%c%c' (0x%08x)\n",
-            (char)(effect->effect_id >> 24), (char)(effect->effect_id >> 16),
-            (char)(effect->effect_id >> 8), (char)effect->effect_id, effect->effect_id);
+        /* MAKEFOURCC keeps the first character in the low byte; printing the high byte first logged RLhr as rhLR. */
+        fprintf(stderr, "R_WeatherResolve: unresolved Weather.slk row '%.4s' (0x%08x)\n", (cstring_t)&effect->effect_id, effect->effect_id);
         effect->texture = NULL;
         return;
     }
     if (!effect->art->head && !effect->art->tail)
-        fprintf(stderr, "R_WeatherResolve: Weather.slk row '%c%c%c%c' has neither head nor tail; effect will not render\n",
-            (char)(effect->effect_id >> 24), (char)(effect->effect_id >> 16),
-            (char)(effect->effect_id >> 8), (char)effect->effect_id);
+        fprintf(stderr, "R_WeatherResolve: Weather.slk row '%.4s' has neither head nor tail; effect will not render\n", (cstring_t)&effect->effect_id);
     effect->texture = R_WeatherTexture(effect->art);
 }
 

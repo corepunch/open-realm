@@ -2449,6 +2449,10 @@ static void Wow_ClientBegin(edict_t *ent) {
     UI_WriteWelcomeWindow(ent);
 }
 
+/* WoW runs one persistent local character whose state outlives the connection, and Wow_ClientBegin rebuilds
+ * every HUD layer on the next begin, so there is no connection-scoped state to release yet. */
+static void Wow_ClientDisconnect(edict_t *ent) { (void)ent; }
+
 /* Map.dbc/LoadingScreens.dbc identify loading art without loading WDT/ADT terrain or spawning entities. */
 static bool Wow_PrepareMap(cstring_t filename) {
     Wow_SelectLoadingScreen(filename);
@@ -2468,6 +2472,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientInput = Wow_ClientInput;
     globals.PrepareMap = Wow_PrepareMap;
     globals.ClientBegin = Wow_ClientBegin;
+    globals.ClientDisconnect = Wow_ClientDisconnect;
     globals.CanSeeEntity = NULL;
     globals.CustomizeEntity = Wow_CustomizeEntity;
     globals.WriteClientDatagram = G_WriteClientDatagram;

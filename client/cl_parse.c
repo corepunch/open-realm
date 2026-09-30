@@ -122,6 +122,8 @@ static void CL_ReadPacketEntities(sizeBuf_t *msg) {
              * zero (a prior delta replaced it with a sound/event), so gating on
              * old.model leaves a stale active-list entry behind. */
             CL_RemoveActiveEntity(nument);
+            ent->presentation_generation++;
+            if (!ent->presentation_generation) ent->presentation_generation++;
             memset(&ent->current, 0, sizeof(ent->current));
             memset(&ent->prev, 0, sizeof(ent->prev));
             ent->tint = COLOR32_WHITE;
@@ -138,6 +140,8 @@ static void CL_ReadPacketEntities(sizeBuf_t *msg) {
          * a model-less entity may gain a model (add) or lose it to a sound/event
          * (remove) without a U_REMOVE. */
         if (!old.model && ent->current.model) {
+            ent->presentation_generation++;
+            if (!ent->presentation_generation) ent->presentation_generation++;
             CL_AddActiveEntity(nument);
         } else if (old.model && !ent->current.model) {
             CL_RemoveActiveEntity(nument);
@@ -411,6 +415,8 @@ void CL_ParsePlayerInfo(sizeBuf_t *msg) {
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
     cl.viewDef.camerastate[0].origin = cl.playerstate.vieworigin;
     cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
+    cl.viewDef.camerastate[0].viewoffset = cl.playerstate.viewoffset;
+    cl.viewDef.camerastate[0].eyeoffset = cl.playerstate.eyeoffset;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
     cl.viewDef.camerastate[0].znear = cl.playerstate.znear;

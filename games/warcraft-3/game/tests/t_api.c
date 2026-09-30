@@ -61,6 +61,27 @@ static uint32_t selection_native_packet_count;
 static uint32_t selection_native_packet_units;
 static int selection_native_packet_stage;
 
+static pfWriteType_t terrain_deform_write_types[32];
+static int32_t terrain_deform_write_values[32];
+static float terrain_deform_write_floats[16];
+static uint32_t terrain_deform_write_count, terrain_deform_float_count, terrain_deform_multicast_count;
+
+static void terrain_deform_test_write(pfWriteType_t type, void const *data) {
+    if (terrain_deform_write_count < sizeof(terrain_deform_write_types) / sizeof(terrain_deform_write_types[0])) {
+        uint32_t slot = terrain_deform_write_count++;
+        terrain_deform_write_types[slot] = type;
+        if (type == PF_BYTE || type == PF_LONG) terrain_deform_write_values[slot] = *(int32_t const *)data;
+    }
+    if (type == PF_FLOAT && terrain_deform_float_count <
+        sizeof(terrain_deform_write_floats) / sizeof(terrain_deform_write_floats[0]))
+        terrain_deform_write_floats[terrain_deform_float_count++] = *(float const *)data;
+}
+
+static void terrain_deform_test_multicast(vec3_t const *origin, multicast_t to) {
+    (void)origin;
+    if (to == MULTICAST_ALL) terrain_deform_multicast_count++;
+}
+
 static void selection_native_test_write(pfWriteType_t type, void const *data) {
     int32_t value;
 
@@ -1726,6 +1747,50 @@ TEST(wc3_api, add_indicator_accepts_unit_widget_and_sends_local_tinted_ring) {
     G_SetClientConnected(&g_edicts[0], false);
 }
 
+TEST(wc3_api, terrain_deform_native_sends_renderer_only_descriptor_and_returns_stoppable_handle) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_multicast)(vec3_t const *, multicast_t) = gi.multicast;
+    uint32_t old_id;
+    terrain_deform_write_count = terrain_deform_float_count = terrain_deform_multicast_count = 0;
+    gi.Write = terrain_deform_test_write;
+    gi.multicast = terrain_deform_test_multicast;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local terraindeformation d\n"
+        "  set d = TerrainDeformCrater(128.0, 256.0, 96.0, 14.0, 1800, false)\n"
+        "  call TerrainDeformStop(d, 300)\n"
+        "  call TerrainDeformStopAll()\n"
+        "endfunction\n"));
+
+    T_EQ(terrain_deform_write_values[0], svc_temp_entity);
+    T_EQ(terrain_deform_write_values[1], TE_TERRAIN_DEFORM);
+    T_ASSERT(terrain_deform_write_values[2] > 0);
+    T_EQ(terrain_deform_write_values[3], TERRAIN_DEFORM_CRATER);
+    old_id = (uint32_t)terrain_deform_write_values[2];
+    T_EQ(terrain_deform_float_count, 8);
+    T_FEQ(terrain_deform_write_floats[0], 128.0f, 0.001f);
+    T_FEQ(terrain_deform_write_floats[1], 256.0f, 0.001f);
+    T_FEQ(terrain_deform_write_floats[2], 96.0f, 0.001f);
+    T_FEQ(terrain_deform_write_floats[3], 14.0f, 0.001f);
+    T_EQ(terrain_deform_write_count, 22);
+    T_EQ(terrain_deform_write_values[12], 1800);
+    T_EQ(terrain_deform_write_values[13], 0);
+    T_EQ(terrain_deform_write_values[14], 0);
+    T_EQ(terrain_deform_write_values[15], 0);
+    T_EQ(terrain_deform_write_values[16], svc_temp_entity);
+    T_EQ(terrain_deform_write_values[17], TE_TERRAIN_DEFORM_STOP);
+    T_EQ(terrain_deform_write_values[18], (int32_t)old_id);
+    T_EQ(terrain_deform_write_values[19], 300);
+    T_EQ(terrain_deform_write_values[20], svc_temp_entity);
+    T_EQ(terrain_deform_write_values[21], TE_TERRAIN_DEFORM_STOP_ALL);
+    T_EQ(terrain_deform_multicast_count, 3);
+    T_EQ(old_id, (uint32_t)terrain_deform_write_values[2]);
+
+    gi.Write = old_write;
+    gi.multicast = old_multicast;
+}
+
 TEST(wc3_api, disconnected_presentation_defers_network_write_until_connected) {
     gameClient_t *gc = &game.clients[0];
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
@@ -2210,37 +2275,85 @@ TEST(wc3_api, camera_runtime_getters_report_interpolated_state_and_eye) {
     currentplayer = NULL;
 }
 
-TEST(wc3_api, camera_noise_natives_store_independent_presentation_state) {
-    gameClient_t *gc = &game.clients[0];
+/* A leaving client must not keep the simulation paused behind a dialog nobody can close. */
+TEST(wc3_api, client_disconnect_export_releases_connection_and_modal_state) {
+    edict_t *player = &g_edicts[0];
 
+    setup_test_world();
+    player->client = &game.clients[0];
+    G_SetClientConnected(player, true);
+    T_ASSERT(player->client->connected);
+    player->client->quest_dialog_open = true;
+    player->client->modal_flags = WC3_MODAL_QUEST;
+
+    globals.ClientDisconnect(player);
+    T_ASSERT(!player->client->connected);
+    T_ASSERT(!player->client->quest_dialog_open);
+    T_EQ(player->client->modal_flags, 0);
+}
+
+/* The natives only store inputs; the game frame turns them into plain view offsets and leaves the logical
+ * camera (vieworigin, angles, distance, target height) untouched so scripts and input read a steady view. */
+TEST(wc3_api, camera_noise_is_evaluated_by_the_game_into_view_offsets) {
+    gameClient_t *gc = &game.clients[0];
+    player_t steady;
+    float steady_height;
+
+    setup_test_world();
     gc->ps.number = 0;
-    gc->ps.camera_target_noise = (vec2_t){ 0 };
-    gc->ps.camera_source_noise = (vec2_t){ 0 };
-    gc->ps.camera_noise_flags = 0;
+    memset(gc->camera.noise, 0, sizeof(gc->camera.noise));
+    level.time = 250;
+    G_RunClients();
+    steady = gc->ps;
+    steady_height = gc->camera.target_height;
+    T_FEQ(Vector3_len(&gc->ps.viewoffset), 0.0f, 0.001f);
+    T_FEQ(Vector3_len(&gc->ps.eyeoffset), 0.0f, 0.001f);
     currentplayer = &gc->ps;
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
-        "  call CameraSetTargetNoiseEx(12.0, 34.0, true)\n"
-        "  call CameraSetSourceNoiseEx(56.0, 78.0, false)\n"
+        "  call CameraSetTargetNoiseEx(12.0, 4.0, true)\n"
+        "  call CameraSetSourceNoiseEx(56.0, 7.0, false)\n"
         "endfunction\n"));
-    T_FEQ(gc->ps.camera_target_noise.x, 12.0f, 0.001f);
-    T_FEQ(gc->ps.camera_target_noise.y, 34.0f, 0.001f);
-    T_FEQ(gc->ps.camera_source_noise.x, 56.0f, 0.001f);
-    T_FEQ(gc->ps.camera_source_noise.y, 78.0f, 0.001f);
-    T_ASSERT(gc->ps.camera_noise_flags & CAMERA_NOISE_TARGET_VERTICAL);
-    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_SOURCE_VERTICAL));
+    T_FEQ(gc->camera.noise[CAMERA_NOISE_TARGET].magnitude, 12.0f, 0.001f);
+    T_FEQ(gc->camera.noise[CAMERA_NOISE_TARGET].velocity, 4.0f, 0.001f);
+    T_ASSERT(gc->camera.noise[CAMERA_NOISE_TARGET].vert_only);
+    T_FEQ(gc->camera.noise[CAMERA_NOISE_SOURCE].magnitude, 56.0f, 0.001f);
+    T_FEQ(gc->camera.noise[CAMERA_NOISE_SOURCE].velocity, 7.0f, 0.001f);
+    T_ASSERT(!gc->camera.noise[CAMERA_NOISE_SOURCE].vert_only);
+
+    G_RunClients();
+    /* vertOnly target noise stays on world Z and inside its magnitude. */
+    T_FEQ(gc->ps.viewoffset.x, 0.0f, 0.001f);
+    T_FEQ(gc->ps.viewoffset.y, 0.0f, 0.001f);
+    T_ASSERT(fabsf(gc->ps.viewoffset.z) > 0.001f && fabsf(gc->ps.viewoffset.z) <= 12.0f);
+    /* Source noise is independent and uses all three axes. */
+    T_ASSERT(fabsf(gc->ps.eyeoffset.x) > 0.001f && fabsf(gc->ps.eyeoffset.x) <= 56.0f);
+    T_ASSERT(fabsf(gc->ps.eyeoffset.y) > 0.001f && fabsf(gc->ps.eyeoffset.y) <= 56.0f);
+    T_ASSERT(fabsf(gc->ps.eyeoffset.z) <= 56.0f);
+    T_ASSERT(memcmp(&gc->ps.vieworigin, &steady.vieworigin, sizeof(vec3_t)) == 0);
+    T_ASSERT(memcmp(&gc->ps.viewangles, &steady.viewangles, sizeof(vec3_t)) == 0);
+    T_FEQ(gc->ps.distance, steady.distance, 0.001f);
+    T_FEQ(gc->camera.target_height, steady_height, 0.001f);
+
+    /* The oscillator advances with simulation time through the real per-frame entry point. */
+    {
+        float const first = gc->ps.viewoffset.z;
+        bool const started = level.started;
+        level.started = true;
+        level.time = 350;
+        globals.RunFrame();
+        level.started = started;
+        T_ASSERT(fabsf(gc->ps.viewoffset.z - first) > 0.001f);
+    }
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call CameraSetTargetNoise(0.0, 0.0)\n"
         "  call CameraSetSourceNoise(0.0, 0.0)\n"
         "endfunction\n"));
-    T_FEQ(gc->ps.camera_target_noise.x, 0.0f, 0.001f);
-    T_FEQ(gc->ps.camera_target_noise.y, 0.0f, 0.001f);
-    T_FEQ(gc->ps.camera_source_noise.x, 0.0f, 0.001f);
-    T_FEQ(gc->ps.camera_source_noise.y, 0.0f, 0.001f);
-    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_TARGET_VERTICAL));
-    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_SOURCE_VERTICAL));
+    G_RunClients();
+    T_FEQ(Vector3_len(&gc->ps.viewoffset), 0.0f, 0.001f);
+    T_FEQ(Vector3_len(&gc->ps.eyeoffset), 0.0f, 0.001f);
     currentplayer = NULL;
 }
 

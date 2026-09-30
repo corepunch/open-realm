@@ -365,7 +365,14 @@ void R_DrawSprite(drawSprite_t const *sprite);
 bool R_SetEntityAnimFrame(model_t const *model, cstring_t anim, renderEntity_t *entity);
 void R_RenderSplat(vec2_t const *position, float radius, texture_t const *texture, splat_shader_t *shader, color32_t color);
 void R_DrawBackdrop(drawBackdrop_t const *drawBackdrop);
+typedef struct {
+    vec2_t const *mins, *maxs, *uv_mins, *uv_maxs;
+    texture_t const *texture;
+    splat_shader_t *shader;
+    color32_t color;
+} rectSplatParams_t;
 void R_RenderRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, splat_shader_t *shader, color32_t color);
+void R_RenderRectSplatUV(rectSplatParams_t const *params);
 void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z, texture_t const *texture, splat_shader_t *shader, color32_t color);
 /* Batched splat rendering: accumulate many ground decals (unit shadows) into one
  * vertex-buffer upload + draw per contiguous texture run (plus capacity flushes),
@@ -427,6 +434,7 @@ vertex_t *R_AddQuad(vertex_t *buffer, rect_t const *screen, rect_t const *uv, co
 vertex_t *R_AddStrip(vertex_t *buffer, rect_t const *screen, color32_t color);
 vertex_t *R_AddWireBox(vertex_t *buffer, box3_t const *box, color32_t color);
 buffer_t *R_MakeVertexArrayObject(vertex_t const *vertices, uint32_t size);
+void R_UpdateVertexArrayObject(buffer_t const *buffer, uint32_t first, vertex_t const *vertices, uint32_t count);
 buffer_t *R_MakeIndexedVertexArrayObject(vertex_t const *vertices, uint32_t num_vertices, uint32_t const *indices, uint32_t num_indices);
 void R_DrawBuffer(buffer_t const *buffer, uint32_t num_vertices);
 void R_DrawBufferRange(buffer_t const *buffer, drawRange_t const *draw);

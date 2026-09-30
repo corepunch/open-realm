@@ -4,11 +4,14 @@
 
 This codebase is inspired by **Quake 2** (id Software). The developer is deeply familiar with Quake 2's architecture and source code. **Quake 2 is the primary reference** for all lifecycle, state communication, UI control, movement, and entity patterns. Use **Quake 3** as a secondary reference for features Q2 lacks, such as client-side UI libraries or renderer module separation.
 
+**The game module is `game.dll`; the client is a universal `client.dll`.** Keep as much logic as possible in `games/<game>/game/` and do not leak it into `client/`. The client decodes, interpolates, predicts the local player's own input and draws what the game authored — it should be able to run a game it has never heard of. See [Game Logic Stays in the Game Module](#game-logic-stays-in-the-game-module).
+
 ## Further Reading
 
 | Topic | File |
 |-------|------|
 | Architecture, engine boundaries, struct/API discipline, network contracts | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Game/client boundary: universal client, where logic goes, parameters vs results, camera-noise worked example | [docs/architecture/game-client-boundary.md](docs/architecture/game-client-boundary.md) |
 | Client camera samples, Euler snapshot, quat slerp | [docs/architecture/client.md](docs/architecture/client.md) |
 | Server-selected presentation effects and generic effect contracts | [docs/architecture/server-selected-effects.md](docs/architecture/server-selected-effects.md) |
 | Environment lighting samples, day-phase stat, per-game fill hook | [docs/architecture/environment-lighting.md](docs/architecture/environment-lighting.md) |
@@ -36,10 +39,10 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Entity sound architecture | [architecture/sound.md](architecture/sound.md) |
 | WC3 retail audio admission, Ghidra/r2 setup, recovered structures and parity gaps | [docs/games/warcraft-3/audio-retail-analysis.md](docs/games/warcraft-3/audio-retail-analysis.md) |
 | WC3 background music, `Music.slk`/skin lookup, `svc_music`, optional FFmpeg streaming | [docs/games/warcraft-3/music.md](docs/games/warcraft-3/music.md) |
-| WC3 MDX `EVTS` presentation events, `SND` sounds, `SPN` SpawnData child models, transient lifetimes | [docs/games/warcraft-3/mdx-event-objects.md](docs/games/warcraft-3/mdx-event-objects.md) |
+| WC3 MDX `EVTS` presentation events, `SND` sounds, `SPN` child models, `SPL`/`FPT` SplatData decals, `UBR` UberSplats, transient lifetimes | [docs/games/warcraft-3/mdx-event-objects.md](docs/games/warcraft-3/mdx-event-objects.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
-| WC3 JASS native coverage, callback contracts, state ownership | [docs/games/warcraft-3/jass-native-coverage.md](docs/games/warcraft-3/jass-native-coverage.md) |
+| WC3 JASS native coverage, callback contracts, state ownership | [games/warcraft-3/jass-native-coverage.md](games/warcraft-3/jass-native-coverage.md) |
 | WC3 AI next-upgrade cost queries and `ShiftTownSpot` construction placement state | [docs/games/warcraft-3/ai-upgrade-costs-and-town-spot.md](docs/games/warcraft-3/ai-upgrade-costs-and-town-spot.md) |
 | WC3 event-trigger queueing, synchronous `TriggerExecute`, coroutine context | [docs/games/warcraft-3/trigger-events.md](docs/games/warcraft-3/trigger-events.md) |
 | WC3 timer-dialog mission countdowns, stock FDF HUD, local visibility, save/load identity | [docs/games/warcraft-3/timer-dialogs.md](docs/games/warcraft-3/timer-dialogs.md) |
@@ -307,7 +310,9 @@ Key flags: `-prefix <Name>` sets the struct and function prefix; `-root <FrameNa
   unique to one game's design, such as WC3 Gold/Lumber, SC2 Minerals/Vespene, or WoW talent points; it is not limited
   to character, race, or spell names. If a new `common/`, `client/`, `renderer/`, or `server/` symbol is only consumed
   by logic in one `games/<game>/` directory, that is itself the signal to move it, regardless of how generic the name
-  sounds. Run the engine-boundary check mechanically with `python3 tools/engine_boundary_audit.py`: it diffs those
+  sounds. A `client/` change that *evaluates* server-supplied parameters (rate, magnitude, curve, mode) is a third
+  violation with no tell-tale name; see [Game Logic Stays in the Game Module](#game-logic-stays-in-the-game-module).
+  Run the engine-boundary check mechanically with `python3 tools/engine_boundary_audit.py`: it diffs those
   directories against `main` and flags new symbols matching the maintained per-game term list and new `#ifdef <GAME>`
   guards. Run it before finishing any diff touching those directories. See PR #412 (`EF_RESOURCE_GOLD_SOURCE` /
   `RESOURCE_GOLD_SOURCE_MIN_DISTANCE` in `common/shared.h` and `CL_BuildCursorTooCloseToGoldSource` in
@@ -343,6 +348,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full engine/game boundary, module
 Key principles inline:
 - Runtime modules communicate through function tables (`R_GetAPI`, `M_GetAPI`, game imports/exports).
 - The server controls what the client draws via state bits in `playerState_t`. The client just reads them.
+- Logic lives in the game module; the client is universal. Send results, never parameters the client must evaluate —
+  see [Game Logic Stays in the Game Module](#game-logic-stays-in-the-game-module).
 - Never hardcode game-specific asset names, animation names, or franchise-specific literals in engine code —
   including enum members, macros, and struct field names in `common/`, `renderer/`, `client/`, `server/`.
   A named boolean for one race/unit/spell (e.g. `RF_BUILDING_FIRE_UNDEAD`) does not belong in a shared enum
@@ -359,6 +366,31 @@ Key principles inline:
   games simply never send that command, which is already harmless without a compile guard. Per-game constants
   live in `games/*/common/ui_constants.h` and resolve via the per-game `-I` include path.
 - **Never widen `entityState_t` or `playerState_t` without asking.** These structs are network contracts — every byte change affects bandwidth, delta compression, and snapshot size. If you need more data in the entity state, discuss with the developer first. Use existing fields, renderer-side caches, or DBC lookups instead.
+
+## Game Logic Stays in the Game Module
+
+Quake 2/3 model: `games/<game>/game/` is `game.dll` and owns logic; `client/` is a universal `client.dll`.
+Full rationale, ownership table and worked example: [docs/architecture/game-client-boundary.md](docs/architecture/game-client-boundary.md).
+
+- **Never evaluate game behaviour in `client/`.** A formula, oscillator, curve, random pick, timer, threshold, or
+  state machine whose inputs came from the server is logic. Evaluate it in the game and send the *result*. This holds
+  even when nothing in the code is named after a game — a generic-looking `CL_*` helper that turns a rate and a
+  magnitude into motion is still game logic in the wrong module.
+- **Send results, not parameters.** New `playerState_t`, `entityState_t`, or message fields must be values the client
+  can use without interpretation (a position, an offset, a registered asset index, a visibility bit). Fields such as
+  magnitude, velocity, mode flags, or rule ids mean the consumer has to know the rule, so the logic travelled with them.
+- **The client's whole job is: decode, interpolate two server samples, predict the local player's own generic input,
+  draw server-authored payloads.** If a change needs more than that, it belongs in the game or in that game's renderer.
+- **Render-rate presentation that needs a game's assets goes in `games/<game>/renderer/`** behind `re.*` (particles,
+  MDX event children, weather, terrain deformation), started by a typed one-shot event the client merely forwards.
+  There is no `cgame`; do not grow one inside `client/`.
+- **Accept the server tick.** A game-evaluated value is sampled at 10 Hz and interpolated. Do not move evaluation into
+  the client to gain frequency; raise it with the developer as a contract question instead.
+- **Follow the Quake 2 precedent before inventing one.** View shake is `p_view.c` kicks (`playerState_t.viewoffset` /
+  `eyeoffset` here), HUD is a server-authored layout, temp entities carry data to draw rather than rules to apply.
+- **Reference failure:** PR 547 added WC3 camera-noise parameters to `playerState_t` and ran the waveform in
+  `client/cl_view.c`. It passed the engine-boundary audit because no symbol was game-named. The audit is necessary,
+  not sufficient — read every `client/` diff for evaluation, not just for names.
 
 ## Game Datagram and Client Mirror Discipline
 

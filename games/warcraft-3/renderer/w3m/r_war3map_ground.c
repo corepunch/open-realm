@@ -5,9 +5,17 @@
 MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[INDEX], 1, 0.5f), 1)
 
 texture_t const *g_groundTextures[MAX_MAP_LAYERS] = { NULL };
+static bool g_warn_missing_terrain_art[MAX_MAP_LAYERS];
+/* Whole-map ground buffer plus the first vertex of each segment's slice (segment count + 1 entries). */
+typedef struct { maplayer_t *layer; uint32_t *first; } groundBatch_t;
+static groundBatch_t g_groundBatches[MAX_MAP_LAYERS];
 
+/* The layers themselves belong to g_groundLayers and are freed with it; only the range tables live here. */
 void R_ResetGroundTextures(void) {
+    FOR_LOOP(i, MAX_MAP_LAYERS) SAFE_DELETE(g_groundBatches[i].first, ri.MemFree);
+    memset(g_groundBatches, 0, sizeof(g_groundBatches));
     memset(g_groundTextures, 0, sizeof(g_groundTextures));
+    memset(g_warn_missing_terrain_art, 0, sizeof(g_warn_missing_terrain_art));
 }
 
 #define GROUND_VERTEX_BUFFER_CAPACITY (SEGMENT_SIZE * SEGMENT_SIZE * 6)
@@ -23,6 +31,8 @@ vec3_t R_GetVertexPosition(war3map_t const *map, uint32_t x, uint32_t y, bool us
         level += 0.5 * TILE_SIZE;
     }
     float z = DECODE_HEIGHT(vert->accurate_height) + level;
+    if (map == tr.world) z += R_W3TerrainOffsetAtPoint(map->center.x + x * TILE_SIZE,
+                                                       map->center.y + y * TILE_SIZE);
     return (vec3_t) {
         .x = map->center.x + x * TILE_SIZE,
         .y = map->center.y + y * TILE_SIZE,
@@ -148,11 +158,30 @@ static uint32_t R_ClipSplatPoly(vec3_t const *src, vec3_t *dst, struct splClip c
     return out;
 }
 
-static void R_MakeSplatTile(war3map_t const *map, uint32_t x, uint32_t y, vec2_t const *mins, float width, float height, color32_t color) {
+typedef struct {
+    war3map_t const *map;
+    uint32_t x, y;
+    vec2_t const *mins, *uv_mins, *uv_maxs;
+    float width, height;
+    color32_t color;
+} splatTileParams_t;
+
+/* Emit one terrain tile of a splat while remapping both whole and clipped polygons into its atlas UV rectangle. */
+static void R_MakeSplatTile(splatTileParams_t const *params) {
     vertex_t geom[6];
     struct splClip clips[4];
     uint32_t num_clips = 0;
-    R_BuildSplatQuad(map, x, y, mins, width, height, color, geom);
+    war3map_t const *map = params->map;
+    vec2_t const *mins = params->mins;
+    vec2_t const *uv_mins = params->uv_mins;
+    vec2_t const *uv_maxs = params->uv_maxs;
+    float const width = params->width, height = params->height;
+
+    R_BuildSplatQuad(map, params->x, params->y, mins, width, height, params->color, geom);
+    FOR_LOOP(i, 6) {
+        geom[i].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[i].texcoord.x);
+        geom[i].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[i].texcoord.y);
+    }
     if (geom[0].position.x >= mins->x && geom[1].position.x <= mins->x + width &&
         geom[0].position.y >= mins->y && geom[2].position.y <= mins->y + height) {
         memcpy(ground_current_vertex, geom, sizeof(geom));
@@ -182,7 +211,14 @@ static void R_MakeSplatTile(war3map_t const *map, uint32_t x, uint32_t y, vec2_t
             FOR_LOOP(j, 3) {
                 vertex_t v = geom[0];
                 v.position = p[j];
-                v.texcoord = (vec2_t){ (p[j].x - mins->x) / width, 1 - (p[j].y - mins->y) / height };
+                {
+                    float const u = (p[j].x - mins->x) / width;
+                    float const vcoord = 1.0f - (p[j].y - mins->y) / height;
+                    v.texcoord = (vec2_t){
+                        LerpNumber(uv_mins->x, uv_maxs->x, u),
+                        LerpNumber(uv_mins->y, uv_maxs->y, vcoord),
+                    };
+                }
                 *ground_current_vertex++ = v;
             }
         }
@@ -252,10 +288,10 @@ static void R_SetupSplatState(texture_t const *texture, splat_shader_t *shader) 
 
 /* Emit terrain-conforming tiles for one splat rect into the shared buffer,
  * flushing to the GPU only when the buffer fills. */
-static void R_GenerateSplatTiles(vec2_t const *mins, vec2_t const *maxs, color32_t color) {
+static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
     int x_start, x_end;
     int y_start, y_end;
-
+    vec2_t const *mins = params->mins, *maxs = params->maxs;
     float const width = maxs->x - mins->x;
     float const height = maxs->y - mins->y;
     if (width <= 0 || height <= 0) {
@@ -280,7 +316,9 @@ static void R_GenerateSplatTiles(vec2_t const *mins, vec2_t const *maxs, color32
                 GROUND_VERTEX_BUFFER_CAPACITY - SPLAT_TILE_MAX_VERTICES) {
                 R_FlushSplatBatch();
             }
-            R_MakeSplatTile(tr.world, (uint32_t)x, (uint32_t)y, mins, width, height, color);
+            R_MakeSplatTile(&MAKE(splatTileParams_t, .map = tr.world, .x = (uint32_t)x, .y = (uint32_t)y,
+                .mins = mins, .uv_mins = params->uv_mins, .uv_maxs = params->uv_maxs,
+                .width = width, .height = height, .color = params->color));
         }
     }
 }
@@ -299,7 +337,8 @@ void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *tex
         R_FlushSplatBatch();
         R_SetupSplatState(texture, g_splat_shader);
     }
-    R_GenerateSplatTiles(mins, maxs, color);
+    R_GenerateSplatTiles(&MAKE(rectSplatParams_t, .mins = mins, .maxs = maxs,
+        .uv_mins = &(vec2_t){ 0, 0 }, .uv_maxs = &(vec2_t){ 1, 1 }, .color = color));
 }
 
 void R_EndSplatBatch(void) {
@@ -328,6 +367,11 @@ static void R_ResetBlightLayer(void) {
     if (blight_layer.buffer) R_ReleaseVertexArrayObject((buffer_t *)blight_layer.buffer);
     memset(&blight_layer, 0, sizeof(blight_layer));
     blight_layer_valid = false;
+    blight_layer_generation = ~0u;
+}
+
+/* The Blight mesh is baked on terrain heights; a deformation rebuild must rebake it on the next draw. */
+void R_InvalidateBlightLayer(void) {
     blight_layer_generation = ~0u;
 }
 
@@ -466,83 +510,114 @@ static bool R_BlightTileCacheUpdate(viewDef_t const *view) {
     return true;
 }
 
+/* Draw an immediate terrain-conforming splat using an explicit texture-atlas rectangle. */
+void R_RenderRectSplatUV(rectSplatParams_t const *params)
+{
+    if (!params || !tr.world || !params->mins || !params->maxs || !params->uv_mins ||
+        !params->uv_maxs || !params->texture) return;
+    R_SetupSplatState(params->texture, params->shader);
+    R_GenerateSplatTiles(params);
+    R_FlushSplatBatch();
+    R_SetSplatDepthBias(false);
+    R_Call(glDepthMask, GL_TRUE);
+}
+
 void R_RenderRectSplat(vec2_t const *mins,
                        vec2_t const *maxs,
                        texture_t const *texture,
                        splat_shader_t *shader,
                        color32_t color)
 {
-    if (!tr.world || !texture) {
-        return;
-    }
-    R_SetupSplatState(texture, shader);
-    R_GenerateSplatTiles(mins, maxs, color);
-    R_FlushSplatBatch();
-    R_SetSplatDepthBias(false);
-    R_Call(glDepthMask, GL_TRUE);
+    vec2_t const uv_mins = { 0, 0 }, uv_maxs = { 1, 1 };
+    R_RenderRectSplatUV(&MAKE(rectSplatParams_t, .mins = mins, .maxs = maxs,
+        .uv_mins = &uv_mins, .uv_maxs = &uv_maxs, .texture = texture, .shader = shader, .color = color));
 }
 
-maplayer_t *R_BuildMapSegmentLayer(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t layer) {
-    maplayer_t *mapLayer = ri.MemAlloc(sizeof(maplayer_t));
-    PATHSTR zBuffer;
-    if (g_groundTextures[layer] == NULL) {
-        w3TerrainArt_t const *terrain = R_TerrainArt(map->grounds[layer]);
-        if (terrain->file && terrain->dir) {
-            snprintf(zBuffer, sizeof(zBuffer), "%s\\%s.blp", terrain->dir, terrain->file);
-            g_groundTextures[layer] = R_LoadTexture(zBuffer);
-        } else {
-            return NULL;
-        }
+/* Resolve and cache one ground layer's tileset texture; a missing TerrainArt row is reported once per layer. */
+static texture_t const *R_GroundLayerTexture(war3map_t const *map, uint32_t layer) {
+    PATHSTR path;
+    w3TerrainArt_t const *terrain;
+    if (layer >= MAX_MAP_LAYERS) return NULL;
+    if (g_groundTextures[layer]) return g_groundTextures[layer];
+    terrain = R_TerrainArt(map->grounds[layer]);
+    if (terrain && terrain->file && terrain->dir) {
+        snprintf(path, sizeof(path), "%s\\%s.blp", terrain->dir, terrain->file);
+        return g_groundTextures[layer] = R_LoadTexture(path);
     }
-    mapLayer->texture = g_groundTextures[layer];
-    mapLayer->type = MAPLAYERTYPE_GROUND;
+    if (!g_warn_missing_terrain_art[layer]) {
+        fprintf(stderr, "WC3 renderer: missing terrain art for ground layer %u (rawcode %u)\n", layer, map->grounds[layer]);
+        g_warn_missing_terrain_art[layer] = true;
+    }
+    return NULL;
+}
+
+/* Bake one segment's tiles for a ground layer into the scratch buffer and return the vertex count. */
+static uint32_t R_BakeGroundSegment(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t layer) {
     ground_current_vertex = ground_vertex_buffer;
-    for (uint32_t x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
-        for (uint32_t y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
-            R_MakeTile(map, x, y, layer, mapLayer->texture);
-        }
-    }
-    mapLayer->num_vertices = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
-    mapLayer->buffer = R_MakeVertexArrayObject(ground_vertex_buffer, mapLayer->num_vertices);
-    return mapLayer;
+    for (uint32_t x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++)
+        for (uint32_t y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++)
+            R_MakeTile(map, x, y, layer, g_groundTextures[layer]);
+    return (uint32_t)(ground_current_vertex - ground_vertex_buffer);
 }
 
+/* One whole-map vertex buffer per ground texture keeps the ground at one draw call per layer instead of one
+ * per segment per layer. Tiles are baked segment by segment and each segment's first vertex is recorded, so
+ * a terrain deformation re-bakes only its own slice in place (R_UpdateGroundSegment). */
 maplayer_t *R_BuildGroundLayerGlobal(war3map_t const *map, uint32_t layer) {
+    uint32_t const segs_x = (map->width - 1) / SEGMENT_SIZE, segs_y = (map->height - 1) / SEGMENT_SIZE;
     maplayer_t *mapLayer;
-    PATHSTR zBuffer;
+    vertex_t *whole, *cursor;
+    uint32_t *first;
 
-    if (g_groundTextures[layer] == NULL) {
-        w3TerrainArt_t const *terrain = R_TerrainArt(map->grounds[layer]);
-        if (terrain->file && terrain->dir) {
-            sprintf(zBuffer, "%s\\%s.blp", terrain->dir, terrain->file);
-            g_groundTextures[layer] = R_LoadTexture(zBuffer);
-        } else {
-            return NULL;
-        }
-    }
-
+    if (!R_GroundLayerTexture(map, layer)) return NULL;
     /* Construction scratch must not remain resident (or leak when the next map is larger). */
-    vertex_t *whole_map_buffer = ri.MemAlloc(sizeof(vertex_t) * (map->width - 1) * (map->height - 1) * 6);
-
+    whole = cursor = ri.MemAlloc(sizeof(vertex_t) * (map->width - 1) * (map->height - 1) * 6);
+    first = ri.MemAlloc(sizeof(uint32_t) * (segs_x * segs_y + 1));
+    FOR_LOOP(sy, segs_y) FOR_LOOP(sx, segs_x) {
+        uint32_t const count = R_BakeGroundSegment(map, sx, sy, layer);
+        first[sx + sy * segs_x] = (uint32_t)(cursor - whole);
+        memcpy(cursor, ground_vertex_buffer, count * sizeof(vertex_t));
+        cursor += count;
+    }
+    first[segs_x * segs_y] = (uint32_t)(cursor - whole);
+    /* Tiles past the last complete segment are static: such maps reject deformation, so they need no range. */
+    ground_current_vertex = cursor;
+    for (uint32_t x = 0; x < map->width - 1; x++)
+        for (uint32_t y = 0; y < map->height - 1; y++)
+            if (x >= segs_x * SEGMENT_SIZE || y >= segs_y * SEGMENT_SIZE)
+                R_MakeTile(map, x, y, layer, g_groundTextures[layer]);
+    cursor = ground_current_vertex;
+    ground_current_vertex = NULL;
+    if (cursor == whole) {
+        ri.MemFree(whole); ri.MemFree(first);
+        return NULL;
+    }
     mapLayer = ri.MemAlloc(sizeof(maplayer_t));
     mapLayer->texture = g_groundTextures[layer];
     mapLayer->type = MAPLAYERTYPE_GROUND;
-    ground_current_vertex = whole_map_buffer;
-    for (uint32_t x = 0; x < map->width - 1; x++) {
-        for (uint32_t y = 0; y < map->height - 1; y++) {
-            R_MakeTile(map, x, y, layer, mapLayer->texture);
-        }
-    }
-    mapLayer->num_vertices = (uint32_t)(ground_current_vertex - whole_map_buffer);
-    if (mapLayer->num_vertices)
-        mapLayer->buffer = R_MakeVertexArrayObject(whole_map_buffer, mapLayer->num_vertices);
-    ri.MemFree(whole_map_buffer);
-    ground_current_vertex = NULL;
-    if (!mapLayer->num_vertices) {
-        ri.MemFree(mapLayer);
-        return NULL;
-    }
+    mapLayer->num_vertices = (uint32_t)(cursor - whole);
+    mapLayer->buffer = R_MakeVertexArrayObject(whole, mapLayer->num_vertices);
+    ri.MemFree(whole);
+    g_groundBatches[layer] = (groundBatch_t){ .layer = mapLayer, .first = first };
     return mapLayer;
+}
+
+/* Re-bake one segment of every ground batch after its vertex heights changed. A tile's vertex count depends
+ * on its ground type and cliff flags, never on height, so the slice is overwritten where it already lives. */
+void R_UpdateGroundSegment(war3map_t const *map, uint32_t sx, uint32_t sy) {
+    uint32_t const index = sx + sy * ((map->width - 1) / SEGMENT_SIZE);
+    FOR_LOOP(layer, MAX_MAP_LAYERS) {
+        groundBatch_t const *batch = &g_groundBatches[layer];
+        uint32_t count;
+        if (!batch->layer) continue;
+        count = R_BakeGroundSegment(map, sx, sy, layer);
+        ground_current_vertex = NULL;
+        if (count != batch->first[index + 1] - batch->first[index]) {
+            fprintf(stderr, "WC3 renderer: ground layer %u segment (%u,%u) re-baked %u vertices, expected %u\n", layer, sx, sy, count, batch->first[index + 1] - batch->first[index]);
+            continue;
+        }
+        if (count) R_UpdateVertexArrayObject(batch->layer->buffer, batch->first[index], ground_vertex_buffer, count);
+    }
 }
 
 void R_RenderFlatRectSplat(vec2_t const *mins,
@@ -618,7 +693,9 @@ vec3_t CM_PointIntoHeightmap(vec3_t const *point) {
 }
 
 float R_GetHeightMapValue(int x, int y) {
-    return GetWar3MapVertexHeight(GetWar3MapVertex(tr.world, x, y));
+    return GetWar3MapVertexHeight(GetWar3MapVertex(tr.world, x, y)) +
+        R_W3TerrainOffsetAtPoint(tr.world->center.x + x * TILE_SIZE,
+                                 tr.world->center.y + y * TILE_SIZE);
 }
 
 vec3_t R_PointFromHeightmap(vec3_t const *point) {

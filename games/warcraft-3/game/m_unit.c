@@ -1123,8 +1123,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     return false;
 }
 
-/* Create a new runtime unit; explicit JASS creation must not reuse a nearby
- * entity because ReplaceUnitBJ destroys the returned replacement handle. */
+/* CreateUnit must leave authored scenery (pedestals, props) exactly where the script put it. */
 static bool unit_create_is_static_scenery(edict_t const *unit) {
     UnitData_t const *data = unit ? unit->data.UnitData : NULL;
     UnitBalance_t const *balance = unit ? unit->data.UnitBalance : NULL;
@@ -1140,6 +1139,8 @@ static bool unit_create_is_static_scenery(edict_t const *unit) {
            weapons->attacksEnabled == 0;
 }
 
+/* Create a new runtime unit; explicit JASS creation must not reuse a nearby
+ * entity because ReplaceUnitBJ destroys the returned replacement handle. */
 edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, float facing) {
     /* CreateUnit returns an immediately usable unit. SP_SpawnAtLocation's
      * presentation birth is for callers that own a spawn lifecycle; applying

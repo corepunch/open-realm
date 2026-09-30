@@ -983,12 +983,56 @@ uint32_t SetTerrainPathable(jass_t *j) {
     (void)jass_checkboolean(j, 4);
     return 0;
 }
+static uint32_t TerrainDeformEmit(jass_t *j, terrainDeform_t *deformation) {
+    uint32_t id = G_SendTerrainDeformation(deformation);
+    uint32_t *handle = jass_newhandle(j, sizeof(*handle), "terraindeformation");
+    if (!handle) return 1;
+    *handle = id;
+    return 1;
+}
+
+uint32_t TerrainDeformCrater(jass_t *j) {
+    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_CRATER };
+    deformation.data[0] = jass_checknumber(j, 1); deformation.data[1] = jass_checknumber(j, 2);
+    deformation.data[2] = jass_checknumber(j, 3); deformation.data[3] = jass_checknumber(j, 4);
+    deformation.duration_ms = MAX(0, jass_checkinteger(j, 5));
+    deformation.flags = jass_checkboolean(j, 6) ? TERRAIN_DEFORM_PERMANENT : 0;
+    return TerrainDeformEmit(j, &deformation);
+}
 uint32_t TerrainDeformRipple(jass_t *j) {
-    (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checknumber(j, 3); (void)jass_checknumber(j, 4);
-    (void)jass_checkinteger(j, 5); (void)jass_checkinteger(j, 6);
-    (void)jass_checknumber(j, 7); (void)jass_checknumber(j, 8); (void)jass_checknumber(j, 9);
-    (void)jass_checkboolean(j, 10);
-    return jass_pushnullhandle(j, "terraindeformation");
+    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_RIPPLE };
+    deformation.data[0] = jass_checknumber(j, 1); deformation.data[1] = jass_checknumber(j, 2);
+    deformation.data[2] = jass_checknumber(j, 3); deformation.data[3] = jass_checknumber(j, 4);
+    deformation.duration_ms = MAX(0, jass_checkinteger(j, 5));
+    deformation.count = MAX(0, jass_checkinteger(j, 6));
+    deformation.data[4] = jass_checknumber(j, 7); deformation.data[5] = jass_checknumber(j, 8);
+    deformation.data[6] = jass_checknumber(j, 9); deformation.flags = jass_checkboolean(j, 10) ? TERRAIN_DEFORM_LIMIT_NEGATIVE : 0;
+    return TerrainDeformEmit(j, &deformation);
+}
+uint32_t TerrainDeformWave(jass_t *j) {
+    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_WAVE };
+    FOR_LOOP(i, 8) deformation.data[i] = jass_checknumber(j, i + 1);
+    deformation.duration_ms = MAX(0, jass_checkinteger(j, 9));
+    deformation.count = MAX(0, jass_checkinteger(j, 10));
+    return TerrainDeformEmit(j, &deformation);
+}
+uint32_t TerrainDeformRandom(jass_t *j) {
+    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_RANDOM };
+    FOR_LOOP(i, 5) deformation.data[i] = jass_checknumber(j, i + 1);
+    deformation.duration_ms = MAX(0, jass_checkinteger(j, 6));
+    deformation.update_ms = MAX(0, jass_checkinteger(j, 7));
+    return TerrainDeformEmit(j, &deformation);
+}
+uint32_t TerrainDeformStop(jass_t *j) {
+    uint32_t *handle = jass_checkhandle(j, 1, "terraindeformation");
+    int32_t fade_ms = MAX(0, jass_checkinteger(j, 2));
+    if (handle) G_StopTerrainDeformation(*handle, (uint32_t)fade_ms);
+    return 0;
+}
+uint32_t TerrainDeformStopAll(jass_t *j) {
+    (void)j;
+    G_StopAllTerrainDeformations();
+    return 0;
 }
 uint32_t SetCampaignMenuRaceEx(jass_t *j) {
     //int32_t campaignIndex = jass_checkinteger(j, 1); /* TODO: wire to campaign UI */

@@ -94,12 +94,12 @@ Quake 2:
 ### Remote client → server
 
 1. Client calls `CL_Connect(host, port)` which resolves the hostname via
-   `NET_StringToAdr` and sends an out-of-band `"connect 9\n<userinfo>"` datagram to the
+   `NET_StringToAdr` and sends an out-of-band `"connect <version>\n<userinfo>"` datagram to the
    server (the version comes from `BZ_PROTOCOL_VERSION`).
 2. The server's `SV_ReadPackets` reads the datagram, checks that the payload
    starts with `"connect"`, validates the protocol version, and calls `SV_DirectConnect(from, userinfo)`
    to allocate a new client slot with `NA_IP` type. Missing or mismatched versions are rejected before allocation.
-3. The server replies `"client_connect 9"`; the client validates that version before clearing its state
+3. The server replies `"client_connect <version>"`; the client validates that version before clearing its state
    and sending the `"new"` command. This also rejects an old server's unversioned reply.
 4. From this point the normal `clc_*` / `svc_*` message exchange proceeds over
    UDP, identical to the loopback exchange.
@@ -165,10 +165,15 @@ are unchanged. `net.entity_delta_preserves_radian_headings` covers signed, wrapp
 headings; `sc2_control.snapshot_preserves_authored_placement` exercises the codec and renderer together.
 See [coordinate contracts](../../AXIS.md).
 
-Protocol version 15 adds target-noise and source-noise vectors plus presentation flags to
-`playerState_t`. Camera noise is evaluated on the client, but its parameters are sent in
-player-state deltas; mixed version 14/15 peers therefore cannot decode these snapshots
-consistently and are rejected by the versioned handshake.
+`playerState_t.viewoffset` and `playerState_t.eyeoffset` are generic, game-evaluated transient offsets
+of the look-at target and the derived orbit eye (camera shake). They follow Quake 2's `viewoffset` /
+`kick_angles` split: the game module samples whatever waveform it owns once per server frame, the
+values ride ordinary player-state deltas (no bytes while zero), and the client only interpolates the
+previous and current sample before re-aiming the view. They are deliberately separate from
+`vieworigin`, so game logic, input focus movement and camera getters keep reading a steady camera.
+Protocol 15 briefly sent WC3 noise parameters (magnitude, velocity, `vertOnly`) and evaluated the
+waveform in `client/cl_view.c`; protocol 17 replaced that with these offsets, and older peers are
+rejected by the versioned handshake.
 
 ## Key files
 
@@ -333,6 +338,14 @@ mode and image regression exposed that omission. Tests cover all 32 slots,
 unchanged values and clears. Protocol 14 rejects older peers at connection time.
 Version 13 introduced this stat mask; version 14 separates pointer interaction
 values from resolved game-renderer modes and adds pointer input-policy flags.
+
+## Terrain-deformation events (protocol 16)
+
+Protocol 16 adds Warcraft III's transient `TE_TERRAIN_DEFORM`,
+`TE_TERRAIN_DEFORM_STOP`, and `TE_TERRAIN_DEFORM_STOP_ALL` event payloads. Older
+clients cannot parse those event types, so protocol 15 and older peers are rejected during
+the connection handshake before gameplay messages are exchanged. The event
+payloads remain transient and are not part of entity snapshots or saves.
 
 The generic cursor presentation stats carry a registered model, an opaque
 game-owned interaction, a registered cursor image and generic input-policy flags. WC3 resolves race skins and

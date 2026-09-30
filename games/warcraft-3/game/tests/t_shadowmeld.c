@@ -407,7 +407,7 @@ TEST(wc3_shadowmeld, hide_state_changes_invalidate_command_card) {
         T_ASSERT(G_CommandButtonToggleOn(fix.unit, &active_item, false, -1));
         T_EQ(GetAbilityIndex(active_item.ability->proc), GetAbilityIndex(CAbilityShadowMeld));
     }
-    T_EQ(G_CommandButtonValue("normal", "alternate", true), "alternate");
+    T_STREQ(G_CommandButtonValue("normal", "alternate", true), "alternate");
     {
         abilityitem_t item = S_AbilityItem(ID_ASHM);
         gameCommandButton_t button;
@@ -431,7 +431,7 @@ TEST(wc3_shadowmeld, hide_state_changes_invalidate_command_card) {
     T_ASSERT(unit_issueimmediateorder(fix.unit, "stop"));
     T_ASSERT(!fix.unit->shadowmeld.hide_order_active);
     T_ASSERT(client->commands_dirty);
-    T_EQ(G_CommandButtonValue("normal", "alternate", false), "normal");
+    T_STREQ(G_CommandButtonValue("normal", "alternate", false), "normal");
     {
         abilityitem_t item = S_AbilityItem(ID_ASHM);
         T_ASSERT(!G_CommandButtonToggleOn(fix.unit, &item, false, -1));

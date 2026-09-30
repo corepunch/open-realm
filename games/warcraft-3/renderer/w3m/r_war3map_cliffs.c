@@ -91,7 +91,7 @@ float GetAccurateHeightAtPoint(float sx, float sy) {
     float d = GetWar3MapVertex(tr.world, fx + 1, fy + 1)->accurate_height;
     float ab = LerpNumber(a, b, x - fx);
     float cd = LerpNumber(c, d, x - fx);
-    return DECODE_HEIGHT(LerpNumber(ab, cd, y - fy));
+    return DECODE_HEIGHT(LerpNumber(ab, cd, y - fy)) + R_W3TerrainOffsetAtPoint(sx, sy);
 }
 
 static float GetAccurateWaterLevelAtPoint(float sx, float sy) {

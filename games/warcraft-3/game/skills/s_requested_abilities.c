@@ -2,6 +2,12 @@
 
 #define ID_EARTHQUAKE MAKEFOURCC('A', 'O', 'e', 'q')
 #define ID_EARTHQUAKE_BUFF MAKEFOURCC('B', 'O', 'e', 'q')
+/* HACK: retail Earthquake's ground shake has not been traced, so these are visual guesses chosen only to make
+ * the deformation path observable in game. Replace them once the retail effect is measured. */
+#define EARTHQUAKE_DEFORM_DURATION_MS 1000 // ms; one pulse spans the 1 s damage tick so pulses join without a gap
+#define EARTHQUAKE_DEFORM_UPDATE_MS 200 // ms; five random height fields per pulse, slow enough to read as ground motion
+#define EARTHQUAKE_DEFORM_MIN_DELTA -48.0f // world units; lowest random vertex offset, large enough to see at game zoom
+#define EARTHQUAKE_DEFORM_MAX_DELTA 48.0f // world units; highest random vertex offset, symmetric with the minimum
 #define ID_CHAIN_LIGHTNING_VISIT MAKEFOURCC('C', 'L', 'v', 's')
 #define CHAIN_LIGHTNING_JUMP_MS 250
 #define CHAIN_LIGHTNING_BOLT_MS 2000
@@ -63,9 +69,22 @@ static void radial_damage_status(edict_t *caster, vec2_t point, abilityitem_t co
     }
 }
 
-static bool earthquake_hits_destructable(edict_t *target, float radius, vec2_t const *origin) {
+/* Retail AOeq/SNeq masks author no relationship token; until retail's reading of that
+ * omission is verified, keep Earthquake enemy-only rather than hitting the caster's own base. */
+static bool earthquake_allows_unit(uint32_t code, cstring_t targets, edict_t *caster, edict_t *target) {
+    bool const relationship = S_SpellTargetHasToken(targets, "friend", NULL) ||
+        S_SpellTargetHasToken(targets, "enemy", NULL) || S_SpellTargetHasToken(targets, "neutral", NULL);
+    return S_SpellIsAliveTarget(target) && S_SpellAllowsAreaTarget(code, caster, target) &&
+        (relationship || S_SpellIsEnemy(caster, target));
+}
+
+static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, float radius, vec2_t const *origin) {
     if (!target || !target->inuse || (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS)) return false;
     if (!G_IsDestructable(target) || target->destructable.dead) return false;
+    if (targets && *targets) {
+        if (target->targtype == TARG_TREE && !S_SpellTargetHasToken(targets, "tree", NULL)) return false;
+        if (target->targtype == TARG_DEBRIS && !S_SpellTargetHasToken(targets, "debris", NULL)) return false;
+    }
     return Vector2_distance(&target->s.origin2, origin) <= radius;
 }
 
@@ -75,13 +94,27 @@ float S_EarthquakeMoveReduction(edict_t const *unit) {
     return MIN(1.0f, MAX(0.0f, S_SpellData(ID_EARTHQUAKE, level, 3)));
 }
 
-static edict_t *spell_begin_area_presentation(edict_t *owner, uint32_t code, vec2_t const *point) {
+static uint32_t spell_effect_code(uint32_t code, uint32_t level) {
+    cstring_t effect_id = G_AbilityLevel(code, level)->efctID;
+    return effect_id && strlen(effect_id) >= 4 ? FS_SLKKey(effect_id) : code;
+}
+
+static edict_t *spell_begin_area_presentation(edict_t *owner, uint32_t code, uint32_t level,
+                                               vec2_t const *point) {
     edict_t *effect;
+    uint32_t effect_code = spell_effect_code(code, level);
     int loop_sound;
-    G_PlayAbilityEffectSound(code, point);
+    if (G_AbilityEffectSoundIndex(code, false)) G_PlayAbilityEffectSound(code, point);
+    else if (effect_code != code) G_PlayAbilityEffectSound(effect_code, point);
     effect = G_SpawnOwnedAbilityEffectAtPoint(owner, code, WC3_EFFECT_AREA_EFFECT, 0, point);
     if (!effect) effect = G_SpawnOwnedAbilityEffectAtPoint(owner, code, WC3_EFFECT_EFFECT, 0, point);
+    if (!effect && effect_code != code)
+        effect = G_SpawnOwnedAbilityEffectAtPoint(owner, effect_code, WC3_EFFECT_AREA_EFFECT, 0, point);
+    if (!effect && effect_code != code)
+        effect = G_SpawnOwnedAbilityEffectAtPoint(owner, effect_code, WC3_EFFECT_EFFECT, 0, point);
     loop_sound = G_AbilityEffectSoundIndex(code, true);
+    if (!loop_sound && effect_code != code)
+        loop_sound = G_AbilityEffectSoundIndex(effect_code, true);
     if (effect && loop_sound) effect->s.sound = (uint16_t)loop_sound;
     return effect;
 }
@@ -96,11 +129,17 @@ void earthquake_think(edict_t *ent) {
     abilityitem_t item = S_AbilityItem(ent->class_id);
     abilityitem_t const *spell = &item;
     cstring_t buff = spell_buff(spell, level);
+    cstring_t targets = G_AbilityLevel(ent->class_id, level)->targs;
     float radius = S_SpellNumber(ent->class_id, ABILITY_NUMBER_AREA, level);
     float damage = S_SpellData(ent->class_id, level, 2);
     if (now >= ent->spawn_time) { spell_end_area_presentation(ent); S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
-    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent->owner, target) &&
+    G_SendTerrainDeformation(&(terrainDeform_t){ .type = TERRAIN_DEFORM_RANDOM,
+        .data = { ent->s.origin2.x, ent->s.origin2.y, radius,
+                  EARTHQUAKE_DEFORM_MIN_DELTA, EARTHQUAKE_DEFORM_MAX_DELTA },
+        .duration_ms = EARTHQUAKE_DEFORM_DURATION_MS,
+        .update_ms = EARTHQUAKE_DEFORM_UPDATE_MS });
+    FILTER_EDICTS(target, earthquake_allows_unit(ent->class_id, targets, ent->owner, target) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= radius) {
         if (G_UnitIsStructure(target)) {
             S_SpellDamage(target, ent->owner, (int)damage);
@@ -108,7 +147,7 @@ void earthquake_think(edict_t *ent) {
             unit_addtimedstatus(target, buff, level, 1.5f);
         }
     }
-    FILTER_EDICTS(target, earthquake_hits_destructable(target, radius, &ent->s.origin2))
+    FILTER_EDICTS(target, earthquake_hits_destructable(target, targets, radius, &ent->s.origin2))
         G_DestructableApplyDamage(target, ent->owner, damage);
     ent->freetime = now + 1000;
 }
@@ -864,7 +903,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityEarthquake) {
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellData(spell->code, level, 1)) * 1000.0f);
     thinker->think = earthquake_think;
-    spell_begin_area_presentation(thinker, spell->code, &st.point);
+    spell_begin_area_presentation(thinker, spell->code, level, &st.point);
     earthquake_think(thinker);
 }
 /* Name=Far Sight
@@ -879,7 +918,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFarSight) {
     thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->think = far_sight_think;
-    spell_begin_area_presentation(thinker, spell->code, &st.point);
+    spell_begin_area_presentation(thinker, spell->code, level, &st.point);
     far_sight_think(thinker);
 }
 /* Resurrection operates on nearby ordinary corpses; Heroes retain their separate altar revival lifecycle. */

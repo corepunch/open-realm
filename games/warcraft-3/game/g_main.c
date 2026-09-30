@@ -795,6 +795,38 @@ static void G_ClientInput(edict_t *ent, inputCmd_t const *cmd) {
     }
 }
 
+/* TODO: retail's camera-noise waveform is undocumented. This deterministic oscillator keeps the native's
+ * magnitude/velocity/vertOnly inputs and source/target independence until a retail trace replaces it. */
+#define CAMERA_NOISE_RATE_Y 1.371 // ratio; detunes the Y oscillator from X so the shake does not trace a line
+#define CAMERA_NOISE_RATE_Z 0.733 // ratio; detunes Z from both X and Y for the same reason
+#define CAMERA_NOISE_PHASE_Y 1.7 // radians; starts Y away from the X zero crossing
+#define CAMERA_NOISE_PHASE_Z 3.1 // radians; starts Z away from the X and Y zero crossings
+#define CAMERA_NOISE_SOURCE_PHASE 2.2 // radians; keeps source noise out of lockstep with target noise
+
+/* Camera shake is game logic, as view kicks are in Quake 2's p_view.c: sample the oscillator once per
+ * server frame and hand the client a plain offset to interpolate. Either zero input clears the noise.
+ *
+ * Sampling limit: this runs at the 10 Hz server tick (FRAMETIME) and the client lerps linearly between
+ * samples, so the visible shake cannot contain motion faster than 5 Hz. Any velocity above ~31 rad/s
+ * aliases, and Blizzard.j's earthquake velocities (magnitude * 10^richter) are orders of magnitude above
+ * that, so they show up as a fresh pseudo-random offset each tick rather than a smooth wave. How that
+ * compares with retail's shake is unchecked. Do not move the evaluation into client/ to gain frequency;
+ * see docs/architecture/game-client-boundary.md. */
+static vec3_t G_CameraNoiseOffset(gameClient_t const *client, cameraNoiseSlot_t slot, double phase) {
+    float const magnitude = client->camera.noise[slot].magnitude;
+    float const velocity = client->camera.noise[slot].velocity;
+
+    if (magnitude == 0.0f || velocity == 0.0f) return (vec3_t){ 0 };
+    /* Blizzard.j earthquake velocities reach 1e5+; float phase loses whole cycles after a few minutes. */
+    phase += G_Time() * 0.001 * (double)velocity;
+    if (client->camera.noise[slot].vert_only) return (vec3_t){ 0, 0, (float)sin(phase) * magnitude };
+    return (vec3_t){
+        (float)sin(phase) * magnitude,
+        (float)sin(phase * CAMERA_NOISE_RATE_Y + CAMERA_NOISE_PHASE_Y) * magnitude,
+        (float)sin(phase * CAMERA_NOISE_RATE_Z + CAMERA_NOISE_PHASE_Z) * magnitude,
+    };
+}
+
 static void G_RunClients(void) {
     float cinefade = G_Cinefade();
     G_UpdateUnitResponsePresentation();
@@ -836,6 +868,8 @@ static void G_RunClients(void) {
                 .znear = client->camera.state.near_z,
                 .zfar = client->camera.state.far_z });
         }
+        client->ps.viewoffset = G_CameraNoiseOffset(client, CAMERA_NOISE_TARGET, 0.0);
+        client->ps.eyeoffset = G_CameraNoiseOffset(client, CAMERA_NOISE_SOURCE, CAMERA_NOISE_SOURCE_PHASE);
         if (client->camera.pan_active && pan_complete) {
             client->camera.old_state.position = client->camera.pan_destination;
             client->camera.state.position = client->camera.pan_destination;
@@ -1327,6 +1361,12 @@ void G_InitClientUIState(gameClient_t *client) {
         client->ps.client_ui_state = CLIENT_UI_GAME;
 }
 
+/* The server dropped a spawned client. Its player slot, units and alliances stay authoritative; only the
+ * connection-scoped state goes, so an abandoned dialog cannot hold pause and no HUD is serialized to nobody. */
+static void G_ClientDisconnect(edict_t *edict) {
+    G_SetClientConnected(edict, false);
+}
+
 /* Called when a client finishes the connection handshake and is ready to play.
  * The in-game HUD is server-authored through svc_layout; this binds the game
  * client and initializes gameplay state when a map is loaded. */
@@ -1597,6 +1637,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientInput = G_ClientInput;
     globals.PrepareMap = G_PrepareMap;
     globals.ClientBegin = G_ClientBegin;
+    globals.ClientDisconnect = G_ClientDisconnect;
     globals.CanSeeEntity = G_FowPlayerCanSeeEntity;
     globals.IsSnapshotPriorityEntity = G_IsSnapshotPriorityEntity;
     globals.CustomizeEntity = G_CustomizeEntity;

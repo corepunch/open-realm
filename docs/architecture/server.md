@@ -103,8 +103,8 @@ The server fills this struct and passes it to `GetGameAPI`. It provides:
 | `RunFrame` | Advance simulation by one `FRAMETIME` tick |
 | `ClientConnect` | Called when a new client slot is allocated |
 | `ClientBegin` | Called when a client finishes loading the map |
+| `ClientDisconnect` | Quake 2 contract: called once from `SV_DropClient` for a client that had reached `ClientBegin` (`cs_spawned`). The game releases connection-scoped state (WC3: `connected`, modal/pause ownership) and keeps the player's simulation state. Reached by the client's `disconnect` stringcmd (`SV_Disconnect_f`) or a server-side drop. Remote slots then sit in `cs_zombie` for `BZ_CLIENT_ZOMBIE_MSEC`; loopback slots are freed at once. |
 | `ClientThink` | Per-frame input processing for each client |
-| `ClientDisconnect` | Client disconnected — clean up player entity |
 
 ## Entity System
 

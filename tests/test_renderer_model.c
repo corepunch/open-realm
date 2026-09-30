@@ -333,8 +333,6 @@ static int test_minimap_fs_read(cstring_t path, void **buffer) {
 static void test_minimap_fs_free(void *buffer) { free(buffer); }
 void R_WeatherRegisterMap(void) {}
 void R_LightningRegisterMap(void) {}
-void _W3M_RegisterMap(cstring_t map) { (void)map; }
-
 void R_RegisterMap(cstring_t map) {
     if (map && (strstr(map, ".w3m") || strstr(map, ".w3x"))) R_SetMapAssetScope(map);
     else R_SetMapAssetScope(NULL);
@@ -707,6 +705,7 @@ TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
     T_EQ(nverts, 6);
     T_FEQ(verts[0].position.y, 20.0f, 0.001f);
     T_FEQ(verts[1].position.y, -20.0f, 0.001f);
+    MDLX_ForgetRibbonModel(&model);
     if (model.ribbon_states) {
         test_free(model.ribbon_states->trails);
         test_free(model.ribbon_states);
@@ -736,6 +735,7 @@ TEST(renderer_model, mdx_ribbon_second_emit_same_frame_does_not_advance) {
     tr.viewDef.time = 1050;
     T_EQ(MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64), 6);
     T_EQ(model.ribbon_states->trails[0].count, 2);
+    MDLX_ForgetRibbonModel(&model);
     if (model.ribbon_states) {
         test_free(model.ribbon_states->trails);
         test_free(model.ribbon_states);
@@ -770,6 +770,7 @@ TEST(renderer_model, mdx_ribbon_entity_reuse_after_gap_drops_old_edges) {
     T_EQ(nverts, 6);
     FOR_LOOP(i, nverts) /* no streak back to the old impact point */
         T_ASSERT(fabsf(verts[i].position.x - 10000.0f) < 1.0f);
+    MDLX_ForgetRibbonModel(&model);
     if (model.ribbon_states) {
         test_free(model.ribbon_states->trails);
         test_free(model.ribbon_states);
@@ -854,9 +855,19 @@ TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
     tr.viewDef = saved;
 }
 
+enum {
+    TEST_MDX_ID_MDLX = MAKEFOURCC('M','D','L','X'),
+    TEST_MDX_ID_VERS = MAKEFOURCC('V','E','R','S'),
+    TEST_MDX_ID_SEQS = MAKEFOURCC('S','E','Q','S'),
+    TEST_MDX_ID_PIVT = MAKEFOURCC('P','I','V','T'),
+    TEST_MDX_ID_RIBB = MAKEFOURCC('R','I','B','B'),
+    TEST_MDX_ID_KRVS = MAKEFOURCC('K','R','V','S'),
+    TEST_MDX_ID_PREM = MAKEFOURCC('P','R','E','M'),
+    TEST_MDX_ID_KPEV = MAKEFOURCC('K','P','E','V'),
+};
 static void mdx_put_u32(uint8_t **p, uint32_t v) { memcpy(*p, &v, 4); *p += 4; }
 static void mdx_put_f32(uint8_t **p, float v) { memcpy(*p, &v, 4); *p += 4; }
-static void mdx_put_fourcc(uint8_t **p, cstring_t tag) { memcpy(*p, tag, 4); *p += 4; }
+static void mdx_put_fourcc(uint8_t **p, uint32_t tag) { mdx_put_u32(p, tag); }
 
 TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     uint8_t blob[1024] = { 0 };
@@ -866,15 +877,15 @@ TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     uint32_t node_inc = 96, static_bytes = 52, krvs_bytes = 24, emitter_inc;
 
     emitter_inc = 4 + node_inc + static_bytes + krvs_bytes;
-    mdx_put_fourcc(&p, "MDLX");
-    mdx_put_fourcc(&p, "VERS"); mdx_put_u32(&p, 4); mdx_put_u32(&p, 800);
-    mdx_put_fourcc(&p, "SEQS"); mdx_put_u32(&p, 132);
+    mdx_put_fourcc(&p, TEST_MDX_ID_MDLX);
+    mdx_put_fourcc(&p, TEST_MDX_ID_VERS); mdx_put_u32(&p, 4); mdx_put_u32(&p, 800);
+    mdx_put_fourcc(&p, TEST_MDX_ID_SEQS); mdx_put_u32(&p, 132);
     memset(p, 0, 132); memcpy(p, "Stand", 5);
     ((uint32_t *)(p + 80))[0] = 2000; ((uint32_t *)(p + 80))[1] = 3000;
     p += 132;
-    mdx_put_fourcc(&p, "PIVT"); mdx_put_u32(&p, 12);
+    mdx_put_fourcc(&p, TEST_MDX_ID_PIVT); mdx_put_u32(&p, 12);
     mdx_put_f32(&p, 1.0f); mdx_put_f32(&p, 2.0f); mdx_put_f32(&p, 3.0f);
-    mdx_put_fourcc(&p, "RIBB"); mdx_put_u32(&p, emitter_inc);
+    mdx_put_fourcc(&p, TEST_MDX_ID_RIBB); mdx_put_u32(&p, emitter_inc);
     mdx_put_u32(&p, emitter_inc);
     mdx_put_u32(&p, node_inc);
     memset(p, 0, 80); memcpy(p, "BlizRibbon02", 12); p += 80;
@@ -884,7 +895,7 @@ TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     mdx_put_f32(&p, 0.5f);
     mdx_put_u32(&p, 0); mdx_put_u32(&p, 15); mdx_put_u32(&p, 1); mdx_put_u32(&p, 1); mdx_put_u32(&p, 0);
     mdx_put_f32(&p, 0.0f);
-    mdx_put_fourcc(&p, "KRVS"); mdx_put_u32(&p, 1); mdx_put_u32(&p, 0); mdx_put_u32(&p, 0xFFFFFFFF);
+    mdx_put_fourcc(&p, TEST_MDX_ID_KRVS); mdx_put_u32(&p, 1); mdx_put_u32(&p, 0); mdx_put_u32(&p, 0xFFFFFFFF);
     mdx_put_u32(&p, 0); mdx_put_f32(&p, 0.0f);
 
     ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.error = test_error;
@@ -900,6 +911,53 @@ TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     T_NOT_NULL(ribbon->keytracks.Visibility);
     T_EQ(model->num_pivots, 1);
     T_EQ(model->nodes[0], &ribbon->node);
+    MDLX_Release(model);
+}
+
+TEST(renderer_model, mdx_prem_loader_preserves_model_emitter_fields_and_tracks) {
+    uint8_t blob[2048] = { 0 };
+    uint8_t *p = blob;
+    mdxModel_t *model;
+    mdxParticleEmitter1_t *emitter;
+    uint32_t node_inc = 96, static_bytes = 284, kpev_bytes = 24, emitter_inc;
+
+    emitter_inc = 4 + node_inc + static_bytes + kpev_bytes;
+    mdx_put_fourcc(&p, TEST_MDX_ID_MDLX);
+    mdx_put_fourcc(&p, TEST_MDX_ID_VERS); mdx_put_u32(&p, 4); mdx_put_u32(&p, 800);
+    mdx_put_fourcc(&p, TEST_MDX_ID_SEQS); mdx_put_u32(&p, 132);
+    memset(p, 0, 132); memcpy(p, "Stand", 5);
+    ((uint32_t *)(p + 80))[0] = 0; ((uint32_t *)(p + 80))[1] = 1000;
+    p += 132;
+    mdx_put_fourcc(&p, TEST_MDX_ID_PIVT); mdx_put_u32(&p, 12);
+    mdx_put_f32(&p, 0.0f); mdx_put_f32(&p, 0.0f); mdx_put_f32(&p, 0.0f);
+    mdx_put_fourcc(&p, TEST_MDX_ID_PREM); mdx_put_u32(&p, emitter_inc);
+    mdx_put_u32(&p, emitter_inc);
+    mdx_put_u32(&p, node_inc);
+    memset(p, 0, 80); memcpy(p, "ModelEmitter", 12); p += 80;
+    mdx_put_u32(&p, 0); mdx_put_u32(&p, 0xFFFFFFFF);
+    mdx_put_u32(&p, MDLXNODE_ParticleEmitter | MDLXNODE_Unshaded_EmitterUsesMdl);
+    mdx_put_f32(&p, 12.0f); mdx_put_f32(&p, 9.0f); mdx_put_f32(&p, 0.5f); mdx_put_f32(&p, 0.25f);
+    memset(p, 0, 260); memcpy(p, "SharedModels\\Test.mdx", 21); p += 260;
+    mdx_put_f32(&p, 2.5f); mdx_put_f32(&p, 175.0f);
+    mdx_put_fourcc(&p, TEST_MDX_ID_KPEV); mdx_put_u32(&p, 1); mdx_put_u32(&p, 0); mdx_put_u32(&p, 0xFFFFFFFF);
+    mdx_put_u32(&p, 0); mdx_put_f32(&p, 1.0f);
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.error = test_error;
+    model = R_LoadModelMDLX(blob, (uint32_t)(p - blob));
+    T_NOT_NULL(model);
+    emitter = model->emitters1;
+    T_NOT_NULL(emitter);
+    T_STREQ(emitter->node.name, "ModelEmitter");
+    T_ASSERT(emitter->node.flags & MDLXNODE_Unshaded_EmitterUsesMdl);
+    T_FEQ(emitter->EmissionRate, 12.0f, 0.001f);
+    T_FEQ(emitter->Gravity, 9.0f, 0.001f);
+    T_FEQ(emitter->Longitude, 0.5f, 0.001f);
+    T_FEQ(emitter->Latitude, 0.25f, 0.001f);
+    T_STREQ(emitter->path, "SharedModels\\Test.mdx");
+    T_FEQ(emitter->LifeSpan, 2.5f, 0.001f);
+    T_FEQ(emitter->Speed, 175.0f, 0.001f);
+    T_NOT_NULL(emitter->keytracks.Visibility);
+    T_EQ(model->nodes[0], &emitter->node);
     MDLX_Release(model);
 }
 
@@ -1718,7 +1776,14 @@ TEST(renderer_terrain, undead04_waygate_cliff_type_from_native_corners) {
 void R_DrawBuffer(buffer_t const *buffer, uint32_t count) {}
 line3_t R_LineForScreenPoint(viewDef_t const *view, float x, float y) { return (line3_t){0}; }
 texture_t const *R_BlightTexture(void) { return texture_load_result; }
-w3TerrainArt_t const *R_TerrainArt(uint32_t id) { T_ASSERT(false); return NULL; }
+w3TerrainArt_t const *R_TerrainArt(uint32_t id) { (void)id; return NULL; }
+void R_BuildCameraHeightMap(cameraHeightBuild_t const *build) { (void)build; }
+void R_FreeCameraHeightMap(cameraHeightMap_t *map) { (void)map; }
+void R_ShutdownFogOfWar(void) {}
+void R_InitFogOfWar(uint32_t width, uint32_t height) { (void)width; (void)height; }
+maplayer_t *R_BuildMapSegmentWater(war3map_t const *map, uint32_t sx, uint32_t sy) {
+    (void)map; (void)sx; (void)sy; return NULL;
+}
 static struct { uint32_t enables, disables, offsets; float factor, units; } splat_bias;
 static void test_splat_enable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) splat_bias.enables++; }
 static void test_splat_disable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) splat_bias.disables++; }
@@ -1728,10 +1793,123 @@ static void test_splat_polygon_offset(GLfloat factor, GLfloat units) {
 #define glEnable test_splat_enable
 #define glDisable test_splat_disable
 #define glPolygonOffset test_splat_polygon_offset
+static struct { uint32_t calls, first, count; float z; } ground_update;
+static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t const *vertices, uint32_t count) {
+    (void)buffer;
+    ground_update.calls++; ground_update.first = first; ground_update.count = count;
+    ground_update.z = vertices[0].position.z;
+}
+#define R_RenderRectSplatUV R_TestProductionRenderRectSplatUV
+#define R_RenderSplat R_TestProductionRenderSplat
+#define R_UpdateVertexArrayObject test_ground_update
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
+#undef R_UpdateVertexArrayObject
 #undef glEnable
 #undef glDisable
 #undef glPolygonOffset
+#undef R_RenderRectSplatUV
+#undef R_RenderSplat
+#define _W3M_ClearMap R_TestClearMap
+#define _W3M_RegisterMap R_TestUnusedRegisterMap
+#include "games/warcraft-3/renderer/w3m/r_war3map.c"
+#undef _W3M_ClearMap
+#undef _W3M_RegisterMap
+void _W3M_RegisterMap(char const *map) { (void)map; }
+
+TEST(renderer_terrain, null_segment_layer_does_not_drop_existing_layers) {
+    maplayer_t first = {0};
+    mapsegment_t segment = { .layers = &first };
+    R_AddMapSegmentLayer(&segment, NULL);
+    T_ASSERT(segment.layers == &first);
+    R_AddMapSegmentLayer(&segment, &(maplayer_t){0});
+    T_ASSERT(segment.layers != &first);
+    T_ASSERT(segment.layers->next == &first);
+}
+
+/* The ground stays one whole-map buffer per layer; a changed segment overwrites exactly its own slice. */
+TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
+    enum { W = 2 * SEGMENT_SIZE + 1, H = SEGMENT_SIZE + 1, SLICE = SEGMENT_SIZE * SEGMENT_SIZE * 6 };
+    static war3mapVertex_t verts[W * H];
+    war3map_t map = { .width = W, .height = H, .vertices = verts };
+    texture_t texture = { .width = 256, .height = 256 };
+    maplayer_t *layer;
+    float flat_z;
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    memset(verts, 0, sizeof(verts));
+    R_ResetGroundTextures();
+    g_groundTextures[0] = &texture;
+    layer = R_BuildGroundLayerGlobal(&map, 0);
+    T_NOT_NULL(layer);
+    T_EQ(layer->num_vertices, 2 * SLICE);
+    T_EQ(g_groundBatches[0].first[0], 0);
+    T_EQ(g_groundBatches[0].first[1], SLICE);
+    T_EQ(g_groundBatches[0].first[2], 2 * SLICE);
+
+    memset(&ground_update, 0, sizeof(ground_update));
+    R_UpdateGroundSegment(&map, 1, 0);
+    flat_z = ground_update.z;
+    T_EQ(ground_update.calls, 1);
+    T_EQ(ground_update.first, SLICE);
+    T_EQ(ground_update.count, SLICE);
+
+    /* Moving a corner height (what a deformation does) changes the baked height but not the slice size. */
+    verts[SEGMENT_SIZE].accurate_height += 2000;
+    R_UpdateGroundSegment(&map, 1, 0);
+    T_EQ(ground_update.calls, 2);
+    T_EQ(ground_update.count, SLICE);
+    T_ASSERT(ground_update.z > flat_z + 1.0f);
+
+    R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
+    test_free(layer);
+    R_ResetGroundTextures();
+}
+
+TEST(renderer_terrain, deformation_updates_and_expires_height_offsets) {
+    war3map_t map = { .width = SEGMENT_SIZE + 1, .height = SEGMENT_SIZE + 1 };
+    war3map_t const *saved_world = tr.world;
+    viewDef_t saved_view = tr.viewDef;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.world = &map;
+    R_W3SetMapTerrainOffsets(&map);
+    tr.viewDef.time = 100;
+    terrainDeform_t deform = { .id = 77, .type = TERRAIN_DEFORM_CRATER,
+        .data = { 16 * TILE_SIZE, 16 * TILE_SIZE, 96, 30 }, .duration_ms = 1000 };
+    R_W3StartTerrainDeformation(&deform);
+    tr.viewDef.time = 600;
+    R_W3UpdateTerrainDeformations();
+    T_ASSERT(R_W3TerrainOffsetAtPoint(16 * TILE_SIZE, 16 * TILE_SIZE) < -20.0f);
+    tr.viewDef.time = 1200;
+    R_W3UpdateTerrainDeformations();
+    T_FEQ(R_W3TerrainOffsetAtPoint(16 * TILE_SIZE, 16 * TILE_SIZE), 0.0f, 0.001f);
+    R_W3ClearTerrainDeformations();
+    tr.world = saved_world; tr.viewDef = saved_view;
+}
+
+/* Blight is baked on terrain heights, so a deformation rebuild must force a rebake. */
+TEST(renderer_terrain, deformation_rebuild_rebakes_blight_layer) {
+    static war3mapVertex_t verts[(SEGMENT_SIZE + 1) * (SEGMENT_SIZE + 1)];
+    war3map_t map = { .width = SEGMENT_SIZE + 1, .height = SEGMENT_SIZE + 1, .vertices = verts };
+    war3map_t const *saved_world = tr.world;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    memset(verts, 0, sizeof(verts));
+    tr.world = &map;
+    R_W3SetMapTerrainOffsets(&map);
+    R_LoadMapSegments(&map);
+    T_NOT_NULL(g_mapSegments);
+
+    blight_layer_generation = 7;
+    R_W3EmitChangedTerrain();
+    T_EQ(blight_layer_generation, 7);
+    w3_terrain_dirty_segments[0] = 1;
+    R_W3EmitChangedTerrain();
+    T_EQ(blight_layer_generation, ~0u);
+    T_EQ(w3_terrain_dirty_segments[0], 0);
+
+    R_FreeMapSegments();
+    R_W3ClearTerrainDeformations();
+    tr.world = saved_world;
+}
 
 TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
     memset(&splat_bias, 0, sizeof(splat_bias));
@@ -1753,11 +1931,14 @@ TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
         { { -1000, 24 }, { 1000, 1000 } },
         { { -1000, -1000 }, { 1000, 104 } },
     };
+    vec2_t uv_mins = { 0, 0 }, uv_maxs = { 1, 1 };
     FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
     FOR_LOOP(i, 5) {
         vec2_t *mins = &rects[i].mins, *maxs = &rects[i].maxs;
         ground_current_vertex = ground_vertex_buffer;
-        R_MakeSplatTile(&map, 0, 0, mins, maxs->x - mins->x, maxs->y - mins->y, COLOR32_WHITE);
+        R_MakeSplatTile(&MAKE(splatTileParams_t, .map = &map, .mins = mins,
+            .uv_mins = &uv_mins, .uv_maxs = &uv_maxs, .width = maxs->x - mins->x,
+            .height = maxs->y - mins->y, .color = COLOR32_WHITE));
         T_ASSERT(ground_current_vertex > ground_vertex_buffer);
         if (i) T_EQ(ground_current_vertex - ground_vertex_buffer, 9);
         for (vertex_t *v = ground_vertex_buffer; v < ground_current_vertex; v++) {
@@ -1774,12 +1955,15 @@ TEST(renderer_terrain, clipped_splat_follows_both_terrain_triangles) {
     war3mapVertex_t verts[4] = {0};
     war3map_t map = { .width = 2, .height = 2, .vertices = verts };
     vec2_t mins = { 24, 20 }, maxs = { 108, 112 };
+    vec2_t uv_mins = { 0, 0 }, uv_maxs = { 1, 1 };
     FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
     verts[1].level = 1; verts[2].level = 2;
     vec3_t p0 = R_GetVertexPosition(&map, 0, 0, true), p1 = R_GetVertexPosition(&map, 1, 0, true);
     vec3_t p2 = R_GetVertexPosition(&map, 1, 1, true), p3 = R_GetVertexPosition(&map, 0, 1, true);
     ground_current_vertex = ground_vertex_buffer;
-    R_MakeSplatTile(&map, 0, 0, &mins, maxs.x - mins.x, maxs.y - mins.y, COLOR32_WHITE);
+    R_MakeSplatTile(&MAKE(splatTileParams_t, .map = &map, .mins = &mins,
+        .uv_mins = &uv_mins, .uv_maxs = &uv_maxs, .width = maxs.x - mins.x,
+        .height = maxs.y - mins.y, .color = COLOR32_WHITE));
     T_ASSERT(ground_current_vertex > ground_vertex_buffer);
     T_ASSERT(ground_current_vertex - ground_vertex_buffer <= SPLAT_TILE_MAX_VERTICES);
     for (vertex_t *v = ground_vertex_buffer; v < ground_current_vertex; v++) {

@@ -39,7 +39,7 @@ void SV_Configstrings_f(client_t *cl, int argc, cstring_t *argv) {
 
 /* Baselines share the configstring continuation contract, so begin cannot overtake later entity pages. */
 void SV_Baselines_f(client_t *cl, int argc, cstring_t *argv) {
-    entityState_t empty = { 0 };
+    entityState_t empty = { 0 }, base;
     int start = SV_SignonStart(argc, argv, ge->num_edicts);
     uint32_t limit = SV_SignonLimit(&cl->netchan);
     if (cl->state != cs_connected || start < 0) return;
@@ -52,8 +52,13 @@ void SV_Baselines_f(client_t *cl, int argc, cstring_t *argv) {
         edict_t *ent = EDICT_NUM(start);
         if (ent->svflags & SVF_NOCLIENT) continue;
         if (cl->netchan.message.cursize + 512 + 32 > limit) break;
+        /* An edict spawned after SV_CreateBaseline has a zeroed baseline whose number is 0. Sending it as-is
+         * addressed every late entity's empty baseline to entity 0 and wiped that entity's real baseline on
+         * the client, so address each baseline by its own slot. */
+        base = sv.baselines[start];
+        base.number = start;
         MSG_WriteByte(&cl->netchan.message, svc_spawnbaseline);
-        MSG_WriteDeltaEntity(&cl->netchan.message, &empty, &sv.baselines[start], true);
+        MSG_WriteDeltaEntity(&cl->netchan.message, &empty, &base, true);
     }
     char next[32];
     if (start == ge->num_edicts) strlcpy(next, "precache", sizeof(next));
@@ -143,6 +148,13 @@ static void SV_LobbySayClient_f(client_t *cl, int argc, cstring_t *argv) {
     SV_LobbyBroadcastChatFrom(SV_ClientIndex(cl), sender, text);
 }
 
+/* Quake 2 SV_Disconnect_f: the client announces it is leaving. This used to fall through to the game as an
+ * unknown ClientCommand, so the slot stayed spawned and the game never learned the player was gone. */
+void SV_Disconnect_f(client_t *cl, int argc, cstring_t *argv) {
+    (void)argc; (void)argv;
+    SV_DropClient(cl);
+}
+
 typedef struct {
     cstring_t name;
     void (*func)(client_t *client, int argc, cstring_t *argv);
@@ -154,6 +166,7 @@ ucmd_t ucmds[] = {
     { "baselines", SV_Baselines_f },
     { "playerinfo", SV_PlayerInfo_f },
     { "begin", SV_Begin_f },
+    { "disconnect", SV_Disconnect_f },
     { "lobby_say", SV_LobbySayClient_f },
     { NULL }
 };

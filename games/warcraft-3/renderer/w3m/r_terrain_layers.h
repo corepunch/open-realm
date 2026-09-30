@@ -34,7 +34,14 @@ struct MapSegment {
     maplayer_t *layers;
     mapsegment_t *next;
     box3_t bbox;
+    uint32_t sx, sy;
 };
+
+static inline void R_AddMapSegmentLayer(mapsegment_t *segment, maplayer_t *layer) {
+    if (!segment || !layer) return;
+    layer->next = segment->layers;
+    segment->layers = layer;
+}
 
 void R_DrawTerrainSegment(mapsegment_t const *segment, uint32_t mask);
 

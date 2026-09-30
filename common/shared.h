@@ -632,9 +632,9 @@ struct playerState_s {
     float znear;                    // near clip; required camera sample, copied like fov
     float zfar;                     // far clip; required camera sample, copied like fov
     float fov;                      // vertical FOV in degrees; transmitted as NFT_FLOAT for cinematic interpolation
-    vec2_t camera_target_noise;      // {magnitude, velocity}; presentation-only camera target noise
-    vec2_t camera_source_noise;      // {magnitude, velocity}; presentation-only camera source noise
-    uint32_t camera_noise_flags;     // CAMERA_NOISE_* presentation flags
+    /* viewoffset/eyeoffset widen the player-state contract by 24 bytes over protocol 14; approved 2026-09-30. */
+    vec3_t viewoffset;              // world units; game-evaluated transient offset of the look-at target (camera shake); client lerps and adds it
+    vec3_t eyeoffset;               // world units; same for the derived orbit eye; both stay out of vieworigin so game logic reads a steady camera
     uint32_t rdflags;                  // refdef flags (underwater tint, etc.)
     uint32_t uiflags;                  // per-widget HUD visibility bits, set server-side via FDF/svc_layout pipeline
     uint32_t client_ui_state;          // coarse UI mode: CLIENT_UI_LOADING/GAME/CINEMATIC; state machine, not a bitfield like uiflags
@@ -648,9 +648,6 @@ struct playerState_s {
     uint16_t stats[MAX_STATS];        // fast-update integer stats; uint16_t (vs Q3's int) to halve wire size
     cstring_t texts[PLAYERTEXT_COUNT]; // named player text channels used by server-authored UI
 };
-
-#define CAMERA_NOISE_TARGET_VERTICAL (1u << 0)
-#define CAMERA_NOISE_SOURCE_VERTICAL (1u << 1)
 
 _Static_assert(offsetof(player_t, cinematic_portrait) % 4 == 0, "NFT_LONG identity pack requires 4-byte alignment");
 _Static_assert(offsetof(player_t, team) == offsetof(player_t, cinematic_portrait) + 1, "team must follow cinematic_portrait");
@@ -931,7 +928,32 @@ typedef enum {
     /* Generic transient entity highlight. Payload: entity int32_t, RGBA int32_t.
      * The client owns the fixed two-flash lifetime and follows the entity while visible. */
     TE_ENTITY_INDICATOR,
+    /* Transient terrain deformation. Payload is a typed deformation descriptor or stop command. */
+    TE_TERRAIN_DEFORM,
+    TE_TERRAIN_DEFORM_STOP,
+    TE_TERRAIN_DEFORM_STOP_ALL,
 } tempEvent_t;
+
+typedef enum {
+    TERRAIN_DEFORM_CRATER,
+    TERRAIN_DEFORM_RIPPLE,
+    TERRAIN_DEFORM_WAVE,
+    TERRAIN_DEFORM_RANDOM,
+} terrainDeformType_t;
+
+#define TERRAIN_DEFORM_PERMANENT (1u << 0) // flag; the deformation ignores duration_ms and stays until stopped
+#define TERRAIN_DEFORM_LIMIT_NEGATIVE (1u << 1) // flag; heights are clamped at zero so the surface never dips
+
+/* Renderer-owned visual command; this descriptor is sent only in a transient event, never in snapshots or saves. */
+typedef struct {
+    uint32_t id;
+    terrainDeformType_t type;
+    float data[8];
+    uint32_t duration_ms;
+    uint32_t count;
+    uint32_t update_ms;
+    uint32_t flags; /* TERRAIN_DEFORM_* bits; sent as one byte */
+} terrainDeform_t;
 
 typedef enum {
     FT_NONE,

@@ -121,6 +121,8 @@ typedef struct {
     vec3_t origin;
     vec3_t eye;       /* derived rendered eye; camerastate[0] is refreshed from the final orbit view */
     vec3_t viewangles;
+    vec3_t viewoffset; /* server-authored transient look-at offset; interpolated like origin */
+    vec3_t eyeoffset;  /* server-authored transient eye offset */
     float distance;
     float fov;      /* vertical field of view in degrees */
     float znear;
@@ -136,6 +138,7 @@ typedef struct {
     texture_t const *splat;
     cstring_t name;                      /* server-authored world label (NULL = none) */
     uint32_t number;
+    uint32_t generation; /* client-local entity incarnation; not serialized */
     uint32_t owner;                     /* authoritative entity owner/player slot when the game assigns one */
     uint32_t team;
 #ifdef WOW
@@ -302,6 +305,9 @@ typedef struct {
 
     void (*DrawBoundingBox)(box3_t const *box, mat4_t const *modelMatrix, mat4_t const *vpMatrix, color32_t color);
     float (*GetHeightAtPoint)(float x, float y);
+    void (*StartTerrainDeformation)(terrainDeform_t const *deformation);
+    void (*StopTerrainDeformation)(uint32_t id, uint32_t fade_ms);
+    void (*StopAllTerrainDeformations)(void);
     float (*GetCameraHeightAtPoint)(float x, float y);
     bool (*CameraUsesTerrainHeight)(void);
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, uint32_t *number);

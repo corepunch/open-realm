@@ -173,8 +173,8 @@ pass merely by hard-coding retail constants.
 
 ## Remaining gaps
 
-- nested `EVTS` emitted by an `SPN` child model are not recursively dispatched;
-  no stock land-mine requirement for nested events is currently known;
+- renderer-owned `SPN` child models now dispatch their own bounded nested `EVTS`;
+  no additional land-mine-specific presentation gap is known in that path;
 - broader unit/alliance target-mask edge cases not exercised by stock `Amnx`;
 - fuller Root/Unroot gameplay parity remains a separate subsystem concern; mine
   triggering already consumes the current mobile/rooted state when available;

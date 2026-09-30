@@ -231,16 +231,29 @@ target position while still applying camera fields, matching Warsmash's
 separation between setup fields and destination panning.
 
 `CameraSetTargetNoise`, `CameraSetSourceNoise`, and their `...NoiseEx` variants
-are local camera presentation controls. OpenRealm transports magnitude,
-velocity, and `vertOnly` in per-player state, then applies the noise while
-building the final client view matrix: target noise perturbs the look-at point,
-and source noise perturbs the derived eye. The scripted camera state,
-interpolation endpoints, controllers, and `StopCamera` remain unchanged.
-Passing zero magnitude and velocity clears the corresponding noise state.
-`vertOnly` constrains the noise to world Z, as requested by Blizzard's
+are game logic, not client logic. The natives store magnitude, velocity, and
+`vertOnly` in `gameClient_t.camera.noise[]` (saved with the client record).
+`G_RunClients()` evaluates the oscillator once per 10 Hz server frame in
+`G_CameraNoiseOffset()` and writes the result to the generic
+`playerState_t.viewoffset` (target noise) and `playerState_t.eyeoffset` (source
+noise). The shared client knows nothing about noise: it interpolates the two
+most recent offset samples and adds them to the look-at point and derived eye
+while building the view matrix. This is the Quake 2 `p_view.c` split for view
+kicks; see [network.md](../../architecture/network.md).
+
+The offsets never touch `vieworigin`, `viewangles`, or `distance`, so the
+scripted camera state, interpolation endpoints, controllers, `StopCamera`,
+camera getters, input focus movement, and `target_height` all keep reading a
+steady camera. Passing zero magnitude or velocity clears the corresponding
+noise. `vertOnly` constrains the noise to world Z, as requested by Blizzard's
 earthquake helper. Retail's exact waveform is not documented, so OpenRealm uses
-a deterministic smooth oscillator while preserving native ownership,
-magnitude/rate inputs, and source-versus-target semantics.
+a deterministic oscillator (constants in `g_main.c`, marked `TODO`) while
+preserving magnitude/rate inputs and source-versus-target independence. Because
+the waveform is sampled at the server frame rate and interpolated linearly, the
+shake cannot contain motion faster than 5 Hz; Blizzard.j earthquake velocities
+are far above that and therefore read as per-frame pseudo-random jitter. Do not
+move the evaluation into `client/` to gain frequency; if a retail trace shows a
+faster shake is required, raise it with the developer as a contract question.
 
 `SetCameraOrientController` uses the same game-owned controller slot as
 `SetCameraTargetController`, but with distinct ownership semantics. Activating
@@ -262,7 +275,7 @@ natives are not established enough to make the world-camera handoff
 authoritative. Keep that limitation explicit rather than inventing
 model-camera timing semantics.
 
-`SetCameraField` and `AdjustCameraField` reuse the authoritative camera-state interpolation: a new field transition starts from the sampled in-flight camera state, and `StopCamera` freezes an active timed transition at that sampled state instead of snapping to either endpoint. Setter/adjuster angular and FOV values remain in Warcraft's authored degree units; the already-implemented runtime `GetCameraField` keeps its observed retail contract and reports angular/FOV values in radians from the realized player camera. Local pitch/yaw/roll camera fields remain unsupported, matching the camera-setup path. `SetCameraOrientController` remains separate work because Warcraft keeps the camera source fixed while orienting toward a moving unit; that requires a distinct source/controller contract rather than aliasing `SetCameraTargetController`. `SetCinematicCamera` also remains separate because it requires playback of an authored MDX camera track. Keep those limitations explicit rather than inventing controller or model-camera semantics in the scalar camera path.
+`SetCameraField` and `AdjustCameraField` reuse the authoritative camera-state interpolation: a new field transition starts from the sampled in-flight camera state, and `StopCamera` freezes an active timed transition at that sampled state instead of snapping to either endpoint. Setter/adjuster angular and FOV values remain in Warcraft's authored degree units; the already-implemented runtime `GetCameraField` keeps its observed retail contract and reports angular/FOV values in radians from the realized player camera. Local pitch/yaw/roll camera fields remain unsupported, matching the camera-setup path.
 
 `SetCameraQuickPosition` is not a camera movement native. It records Warcraft's spacebar/quick-position recall point for the local player. Assigning that point must leave `camera.state.position` unchanged; treating it like `SetCameraPosition` makes quest discovery and cinematic scripts unexpectedly jump the view when they only intend to set the later spacebar target.
 

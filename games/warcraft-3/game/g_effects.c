@@ -11,6 +11,7 @@ static umove_t wc3_effect_temp_stand;
 static umove_t wc3_effect_birth;
 static umove_t wc3_effect_stand;
 static umove_t wc3_effect_death;
+static uint32_t terrain_deformation_next_id;
 
 static void G_EffectEnterStand(edict_t *effect);
 static void G_EffectLoopStand(edict_t *effect);
@@ -20,6 +21,45 @@ static umove_t wc3_effect_temp_stand = { "stand", NULL, G_FreeEdict };
 static umove_t wc3_effect_birth = { "birth", NULL, G_EffectEnterStand };
 static umove_t wc3_effect_stand = { "stand", NULL, G_EffectLoopStand };
 static umove_t wc3_effect_death = { "death", NULL, G_FreeEdict };
+
+/* Transient renderer command: one temp event per native call, never entity or save state. */
+uint32_t G_SendTerrainDeformation(terrainDeform_t const *deformation) {
+    terrainDeform_t descriptor;
+    vec3_t origin;
+    if (!deformation) return 0;
+    descriptor = *deformation;
+    descriptor.id = ++terrain_deformation_next_id;
+    if (!descriptor.id) descriptor.id = ++terrain_deformation_next_id;
+    origin = (vec3_t){ descriptor.data[0], descriptor.data[1], 0.0f };
+    gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
+    gi.Write(PF_BYTE, &(int32_t){ TE_TERRAIN_DEFORM });
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)descriptor.id });
+    gi.Write(PF_BYTE, &(int32_t){ descriptor.type });
+    FOR_LOOP(i, 8) gi.Write(PF_FLOAT, &descriptor.data[i]);
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)descriptor.duration_ms });
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)descriptor.count });
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)descriptor.update_ms });
+    gi.Write(PF_BYTE, &(int32_t){ (int32_t)descriptor.flags });
+    gi.multicast(&origin, MULTICAST_ALL);
+    return descriptor.id;
+}
+
+void G_StopTerrainDeformation(uint32_t id, uint32_t fade_ms) {
+    vec3_t origin = { 0 };
+    if (!id) return;
+    gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
+    gi.Write(PF_BYTE, &(int32_t){ TE_TERRAIN_DEFORM_STOP });
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)id });
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)fade_ms });
+    gi.multicast(&origin, MULTICAST_ALL);
+}
+
+void G_StopAllTerrainDeformations(void) {
+    vec3_t origin = { 0 };
+    gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
+    gi.Write(PF_BYTE, &(int32_t){ TE_TERRAIN_DEFORM_STOP_ALL });
+    gi.multicast(&origin, MULTICAST_ALL);
+}
 
 static cstring_t G_EffectFieldName(wc3EffectType_t type, bool alternate) {
     switch (type) {

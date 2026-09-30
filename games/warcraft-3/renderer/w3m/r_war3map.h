@@ -12,8 +12,8 @@ static const uint8_t r_cliff_corners[] = { 1, 0, 2, 3 }; /* Native MDX configura
 /* Retail rotates cliff geometry -90 degrees; selecting a rotated filename does not preserve authored UVs/shape. */
 static const mat4_t r_cliff_axes = { .v = {0,-1,0,0, 1,0,0,0, 0,0,1,0, 0,0,0,1} };
 
-maplayer_t *R_BuildMapSegmentLayer(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t layer);
 maplayer_t *R_BuildGroundLayerGlobal(war3map_t const *map, uint32_t layer);
+void R_UpdateGroundSegment(war3map_t const *map, uint32_t sx, uint32_t sy);
 maplayer_t *R_BuildMapSegmentCliffs(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t cliff);
 maplayer_t *R_BuildMapSegmentWater(war3map_t const *map, uint32_t sx, uint32_t sy);
 void R_ResetGroundTextures(void);
@@ -24,10 +24,16 @@ void R_ResetBlightCache(void);
 void R_LoadBlightTexture(uint8_t tileset);
 texture_t const *R_BlightTexture(void);
 void R_UpdateBlightLayer(void);
+void R_InvalidateBlightLayer(void);
 void R_DrawBlightLayer(void);
 void _W3M_ClearMap(void);
 float R_W3CameraHeightAtPoint(float x, float y);
 float R_W3TerrainHeightAtPoint(float x, float y);
+void R_W3StartTerrainDeformation(terrainDeform_t const *deformation);
+void R_W3StopTerrainDeformation(uint32_t id, uint32_t fade_ms);
+void R_W3StopAllTerrainDeformations(void);
+void R_W3UpdateTerrainDeformations(void);
+float R_W3TerrainOffsetAtPoint(float x, float y);
 
 vec2_t GetWar3MapPosition(war3map_t const *war3Map, float x, float y);
 float GetTileDepth(float waterlevel, float height);

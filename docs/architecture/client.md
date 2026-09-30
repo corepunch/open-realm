@@ -128,6 +128,13 @@ model and particles must use that eye rather than the look-at target. `renderer/
 must use the rendered target, since exact snapshot terrain
 can change beneath a camera held steady by the spatial filter. Absolute-height cameras keep ordinary XYZ interpolation.
 
+`viewoffset` and `eyeoffset` are copied onto each `camerastate` sample as well. They are game-evaluated transient offsets
+(camera shake): `Matrix4_getCameraMatrix` lerps the two samples, adds them to the look-at target and the derived eye, and
+rebuilds the view with a world-up `lookAt`. The client holds no waveform, rate or mode for them, which is the
+[game/client boundary](game-client-boundary.md) in practice. Covered by
+`client_camera.server_view_offsets_interpolate_onto_target_and_eye` and
+`net.playerinfo_view_offsets_roundtrip_into_camera_sample`.
+
 Regression coverage: `net.camera_prediction_preserves_terrain_offsets` exercises repeated predictions and pending/acknowledged
 packets; `client_camera.terrain_offsets_interpolate` checks the actual projection and absolute-height path;
 `client_camera.rendered_eye_tracks_orbit_distance` locks the derived eye used by camera-relative rendering;

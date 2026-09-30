@@ -288,6 +288,27 @@ static inline BLEND_MODE MDLX_ParticleBlendMode(uint32_t filter_mode) {
     }
 }
 
+typedef struct mdxParticleEmitter1_s {
+    mdxNode_t node;
+    float EmissionRate;
+    float Gravity;
+    float Longitude;
+    float Latitude;
+    mdxFileName_t path;
+    float LifeSpan;
+    float Speed;
+    struct {
+        mdxKeyTrack_t *EmissionRate;
+        mdxKeyTrack_t *Gravity;
+        mdxKeyTrack_t *Longitude;
+        mdxKeyTrack_t *Latitude;
+        mdxKeyTrack_t *LifeSpan;
+        mdxKeyTrack_t *Speed;
+        mdxKeyTrack_t *Visibility;
+    } keytracks;
+    struct mdxParticleEmitter1_s *next;
+} mdxParticleEmitter1_t;
+
 typedef struct mdxParticleEmitter_s {
     mdxNode_t node;
     float Speed;
@@ -433,6 +454,7 @@ typedef struct mdxModel_s {
     mdxHelper_t *helpers;
     mdxCamera_t *cameras;
     mdxGlobalSequence_t *globalSequences;
+    mdxParticleEmitter1_t *emitters1;
     mdxParticleEmitter_t *emitters;
     mdxRibbonEmitter_t *ribbons;
     mdxRibbonInstance_t *ribbon_states;

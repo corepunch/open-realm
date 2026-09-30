@@ -62,7 +62,10 @@ The `flags` field uses the following bitmasks:
 | `CollisionShape` | `8192` | Physics collision volume |
 | `RibbonEmitter` | `16384` | Ribbon/trail emitter |
 
-Runtime `EVTS` consumers are documented in [MDX Event Objects](../mdx-event-objects.md): `SND` resolves animation sounds and `SPN` resolves `Splats\SpawnData.slk` child models.
+Runtime `EVTS` consumers are documented in [MDX Event Objects](../mdx-event-objects.md): `SND` resolves animation sounds, `SPN` resolves `Splats\SpawnData.slk` child models, `SPL`/`FPT` resolve `Splats\SplatData.slk` terrain splats/footprints, and `UBR` resolves `Splats\UberSplatData.slk` terrain splats.  `SPN` children carry their own event-crossing state so nested `SND`/`SPN`/`SPL`/`FPT`/`UBR` events can execute within a bounded presentation depth.
+
+`PREM` (ParticleEmitter1) is parsed as its own model-emitter record rather than as `PRE2`.  The loader preserves the static `EmissionRate`, `Gravity`, `Longitude`, `Latitude`, `Path`, `LifeSpan`, and `InitVelocity` values plus `KPEE`, `KPEG`, `KPLN`, `KPLT`, `KPEL`, `KPES`, and `KPEV` tracks and the `EmitterUsesMDL` / `EmitterUsesTGA` node flags.  Runtime model-particle emission is still intentionally unsupported; parsing first prevents the renderer from discarding the authored dependency while emission direction, child animation, and TGA-mode behavior remain to be implemented from verified retail cases.
+
 
 ## Keyframe Tracks (Animated Values)
 

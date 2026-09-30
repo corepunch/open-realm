@@ -151,6 +151,8 @@ struct game_export {
     /* Read destination metadata and write the loading layout into the multicast buffer, before LoadMap. */
     bool (*PrepareMap)(cstring_t mapFilename);
     void (*ClientBegin)(edict_t *ent);
+    /* Quake 2 ClientDisconnect: a client that completed ClientBegin has left; release what it owned. */
+    void (*ClientDisconnect)(edict_t *ent);
     bool (*CanSeeEntity)(uint32_t player, edict_t const *ent);
     /* Cheap predicate, called for each visible candidate to preserve it under saturation. */
     bool (*IsSnapshotPriorityEntity)(uint32_t player, edict_t const *ent);

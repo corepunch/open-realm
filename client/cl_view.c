@@ -174,19 +174,6 @@ static void Matrix4_getPreviewLightMatrix(vec3_t const *sunangles, vec3_t const 
     Matrix4_multiply(&proj, &view, output);
 }
 
-static vec3_t CL_CameraNoiseOffset(vec2_t noise, bool vertical_only, float phase_offset) {
-    float phase;
-
-    if (noise.x == 0.0f || noise.y == 0.0f) return (vec3_t){ 0 };
-    phase = cl.time * 0.001f * noise.y + phase_offset;
-    if (vertical_only) return (vec3_t){ 0, 0, sinf(phase) * noise.x };
-    return (vec3_t){
-        sinf(phase) * noise.x,
-        sinf(phase * 1.371f + 1.7f) * noise.x,
-        sinf(phase * 0.733f + 3.1f) * noise.x,
-    };
-}
-
 void Matrix4_getCameraMatrix(mat4_t *output) {
     if (!world_loaded) {
         Matrix4_identity(output);
@@ -221,21 +208,19 @@ void Matrix4_getCameraMatrix(mat4_t *output) {
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
     Matrix4_inverse(&view, &inverse);
     cl.viewDef.camerastate[0].eye = (vec3_t){ inverse.v[12], inverse.v[13], inverse.v[14] };
-
-    if (cl.playerstate.camera_target_noise.x != 0.0f || cl.playerstate.camera_source_noise.x != 0.0f) {
-        vec3_t target_noise = CL_CameraNoiseOffset(
-            cl.playerstate.camera_target_noise,
-            (cl.playerstate.camera_noise_flags & CAMERA_NOISE_TARGET_VERTICAL) != 0, 0.0f);
-        vec3_t source_noise = CL_CameraNoiseOffset(
-            cl.playerstate.camera_source_noise,
-            (cl.playerstate.camera_noise_flags & CAMERA_NOISE_SOURCE_VERTICAL) != 0, 2.2f);
-        vec3_t noisy_target = Vector3_add(&origin, &target_noise);
-        vec3_t noisy_eye = Vector3_add(&cl.viewDef.camerastate[0].eye, &source_noise);
-        vec3_t direction = Vector3_sub(&noisy_target, &noisy_eye);
-
-        cl.viewDef.target = noisy_target;
-        cl.viewDef.camerastate[0].eye = noisy_eye;
-        Matrix4_lookAt(&view, &noisy_eye, &direction, &(vec3_t){0, 0, 1});
+    /* The game evaluates view offsets (camera shake) once per server frame, as Quake 2 does for kick angles;
+     * the client only interpolates the two samples and re-aims, so it needs no game-specific waveform.
+     * The samples arrive at the 10 Hz server tick, so this lerp is all the motion there is: nothing faster
+     * than 5 Hz. That is the accepted cost of keeping the waveform in the game module. */
+    vec3_t viewoffset = Vector3_lerp(&a->viewoffset, &b->viewoffset, cl.viewDef.lerpfrac);
+    vec3_t eyeoffset = Vector3_lerp(&a->eyeoffset, &b->eyeoffset, cl.viewDef.lerpfrac);
+    if (Vector3_lengthsq(&viewoffset) > 0.0f || Vector3_lengthsq(&eyeoffset) > 0.0f) {
+        vec3_t target = Vector3_add(&origin, &viewoffset);
+        vec3_t eye = Vector3_add(&cl.viewDef.camerastate[0].eye, &eyeoffset);
+        vec3_t direction = Vector3_sub(&target, &eye);
+        cl.viewDef.target = target;
+        cl.viewDef.camerastate[0].eye = eye;
+        Matrix4_lookAt(&view, &eye, &direction, &(vec3_t){0, 0, 1});
     } else if (distance > 0.0f && CL_GameCameraUsesWorldUp()) {
         /* Some game cameras orbit a target and require a world-up basis to keep low shots upright. */
         vec3_t direction = Vector3_sub(&origin, &cl.viewDef.camerastate[0].eye);
@@ -322,6 +307,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.tint_valid = ent->tint_valid;
     re.tint = ent->tint_valid ? ent->tint : COLOR32_WHITE;
     re.number = ent->current.number;
+    re.generation = ent->presentation_generation;
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
 #ifndef USE_SHADOWMAPS
@@ -808,20 +794,36 @@ static float v_test_camera_z(void) {
     return Matrix4_multiply_vector3(&inv, &(vec3_t){ 0, 0, -1 }).z + 1.0f;
 }
 
-TEST(client_camera, camera_noise_vertical_only_changes_only_z) {
-    uint32_t saved_time = cl.time;
-    vec3_t offset;
+/* View offsets are server samples: the client lerps them and moves the target and eye, nothing more. */
+TEST(client_camera, server_view_offsets_interpolate_onto_target_and_eye) {
+    viewDef_t saved = cl.viewDef;
+    refExport_t api = re;
+    bool loaded = world_loaded;
+    vec3_t steady_eye;
+    re.GetWindowSize = v_test_window; re.CameraUsesTerrainHeight = v_test_absolute;
+    world_loaded = true;
+    cl.viewDef = (viewDef_t){ .viewport = { 0, 0, 1, 1 } };
+    cl.viewDef.camerastate[1] = (viewCamera_t){
+        .origin = { 100, 200, 300 }, .viewangles = { -35, 0, 25 },
+        .distance = 1650, .fov = 60, .znear = 1, .zfar = 5000
+    };
+    cl.viewDef.camerastate[0] = cl.viewDef.camerastate[1];
+    cl.viewDef.lerpfrac = 0.5f;
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+    steady_eye = cl.viewDef.camerastate[0].eye;
 
-    cl.time = 250;
-    offset = CL_CameraNoiseOffset((vec2_t){ 10.0f, 4.0f }, true, 0.0f);
-    T_FEQ(offset.x, 0.0f, 0.001f);
-    T_FEQ(offset.y, 0.0f, 0.001f);
-    T_ASSERT(fabsf(offset.z) > 0.001f);
-    offset = CL_CameraNoiseOffset((vec2_t){ 0.0f, 4.0f }, false, 0.0f);
-    T_FEQ(offset.x, 0.0f, 0.001f);
-    T_FEQ(offset.y, 0.0f, 0.001f);
-    T_FEQ(offset.z, 0.0f, 0.001f);
-    cl.time = saved_time;
+    cl.viewDef.camerastate[1].viewoffset = (vec3_t){ 0, 0, 10 };
+    cl.viewDef.camerastate[0].viewoffset = (vec3_t){ 0, 0, 30 };
+    cl.viewDef.camerastate[0].eyeoffset = (vec3_t){ 8, -4, 0 };
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+
+    T_FEQ(cl.viewDef.target.x, 100.0f, 0.001f);
+    T_FEQ(cl.viewDef.target.y, 200.0f, 0.001f);
+    T_FEQ(cl.viewDef.target.z, 320.0f, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].eye.x, steady_eye.x + 4.0f, 0.01f);
+    T_FEQ(cl.viewDef.camerastate[0].eye.y, steady_eye.y - 2.0f, 0.01f);
+    T_FEQ(cl.viewDef.camerastate[0].eye.z, steady_eye.z, 0.01f);
+    cl.viewDef = saved; re = api; world_loaded = loaded;
 }
 
 /* Sky and particles consume the same interpolated eye used to build the final view. */

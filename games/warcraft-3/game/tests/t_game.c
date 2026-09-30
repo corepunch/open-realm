@@ -1037,9 +1037,9 @@ TEST(wc3_game, ingame_options_commands_write_categories_then_sound_window) {
     frameDef_t *root, *backdrop, *main_panel, *options_root;
     frameDef_t *categories, *bottom, *gameplay, *video, *sound, *network;
     cstring_t open_options[] = { "wc3_menu_options" };
-    uint32_t open_options_count = ARRAY_COUNT(open_options);
+    uint32_t open_options_count = sizeof(open_options) / sizeof(*open_options); /* ARRAY_COUNT() names this very variable, so it self-initialised */
     cstring_t open_sound[] = { "wc3_menu_options_sound" };
-    uint32_t open_sound_count = ARRAY_COUNT(open_sound);
+    uint32_t open_sound_count = sizeof(open_sound) / sizeof(*open_sound); /* ARRAY_COUNT() names this very variable, so it self-initialised */
 
     setup_test_world();
     UI_ClearTemplates();
@@ -3532,6 +3532,11 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.pan_start = (vec2_t){ 10.0f, 20.0f };
     game.clients[0].camera.pan_destination = (vec2_t){ 110.0f, 220.0f };
     game.clients[0].camera.pan_rate = (vec2_t){ 100.0f, 200.0f };
+    game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].magnitude = 9.5f;
+    game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].velocity = 3.25f;
+    game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].vert_only = true;
+    game.clients[0].ps.viewoffset = (vec3_t){ 1.5f, -2.25f, 3.75f };
+    game.clients[0].ps.eyeoffset = (vec3_t){ -4.5f, 5.25f, -6.75f };
     game.clients[0].modal_flags = WC3_MODAL_CLIENT | WC3_MODAL_QUEST;
     game.clients[0].quest_dialog_open = true;
     game.clients[0].canvas = UI_CANVAS_WIDE;
@@ -3570,6 +3575,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.target_controller = NULL;
     game.clients[0].camera.target_inherit_orientation = false;
     game.clients[0].camera.orient_eye = (vec3_t){ 0.0f, 0.0f, 0.0f };
+    memset(game.clients[0].camera.noise, 0, sizeof(game.clients[0].camera.noise));
+    game.clients[0].ps.viewoffset = (vec3_t){ 0 };
+    game.clients[0].ps.eyeoffset = (vec3_t){ 0 };
     G_ClearCameraPan(&game.clients[0]);
     game.clients[0].rally_indicator = NULL;
     saved_quest->discovered = saved_quest->required = saved_quest->enabled = false;
@@ -3668,6 +3676,16 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(game.clients[0].camera.pan_destination.y, 220.0f, 0.001f);
     T_FEQ(game.clients[0].camera.pan_rate.x, 100.0f, 0.001f);
     T_FEQ(game.clients[0].camera.pan_rate.y, 200.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].magnitude, 9.5f, 0.001f);
+    T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].velocity, 3.25f, 0.001f);
+    T_ASSERT(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].vert_only);
+    T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_TARGET].magnitude, 0.0f, 0.001f);
+    T_FEQ(game.clients[0].ps.viewoffset.x, 1.5f, 0.001f);
+    T_FEQ(game.clients[0].ps.viewoffset.y, -2.25f, 0.001f);
+    T_FEQ(game.clients[0].ps.viewoffset.z, 3.75f, 0.001f);
+    T_FEQ(game.clients[0].ps.eyeoffset.x, -4.5f, 0.001f);
+    T_FEQ(game.clients[0].ps.eyeoffset.y, 5.25f, 0.001f);
+    T_FEQ(game.clients[0].ps.eyeoffset.z, -6.75f, 0.001f);
     T_EQ(game.clients[0].modal_flags, 0);
     T_ASSERT(!game.clients[0].quest_dialog_open);
     /* The window class belongs to the reconnecting client, which reports it again before begin. */
@@ -4775,6 +4793,7 @@ TEST(wc3_save, round_trip_jass_globals) {
         "  integer savedInteger = 41\n"
         "  real savedReal = 2.5\n"
         "  boolean savedBoolean = true\n"
+        "  terraindeformation savedDeformation = null\n"
         "  string savedString = \"before\"\n"
         "  code savedCode = function SavedCallback\n"
         "  unit savedNull = null\n"
@@ -4813,6 +4832,7 @@ TEST(wc3_save, round_trip_jass_globals) {
         "  return true\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
+        "  set savedDeformation = TerrainDeformCrater(64.0, 96.0, 48.0, 8.0, 1000, false)\n"
         "  set savedPlayer = Player(0)\n"
         "  set savedPlayerAlias = savedPlayer\n"
         "  set savedUnit = CreateUnit(savedPlayer, 'hpea', 0.0, 0.0, 0.0)\n"
@@ -4848,6 +4868,7 @@ TEST(wc3_save, round_trip_jass_globals) {
         "  set savedArray[4095] = 95\n"
         "endfunction\n"
         "function mutate takes nothing returns nothing\n"
+        "  set savedDeformation = TerrainDeformCrater(128.0, 160.0, 32.0, 4.0, 500, false)\n"
         "  set savedInteger = 0\n"
         "  set savedReal = 0.0\n"
         "  set savedBoolean = false\n"
@@ -4875,6 +4896,7 @@ TEST(wc3_save, round_trip_jass_globals) {
         "  set savedArray[4095] = 0\n"
         "endfunction\n"
         "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(savedDeformation == null, \"renderer-only deformation handle survived save/load\")\n"
         "  call BJassAssert(savedInteger == 41, \"integer snapshot mismatch\")\n"
         "  call BJassAssert(savedReal == 2.5, \"real snapshot mismatch\")\n"
         "  call BJassAssert(savedBoolean, \"boolean snapshot mismatch\")\n"

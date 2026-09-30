@@ -802,6 +802,12 @@ static void SC2_RunFrame(void) {
     CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
 }
 
+/* Selection is per-connection presentation that SC2_ClientBegin seeds again; units and player state stay. */
+static void SC2_ClientDisconnect(edict_t *ent) {
+    uint32_t const player = SC2_ClientPlayer(ent);
+    FOR_LOOP(i, globals.num_edicts) sc2_edicts[i].selected &= ~(1 << player);
+}
+
 static void SC2_ClientBegin(edict_t *ent) {
     uint32_t number = SC2_EdictNumber(ent);
 
@@ -917,6 +923,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.Shutdown              = SC2_Shutdown;
     globals.RunFrame              = SC2_RunFrame;
     globals.ClientBegin           = SC2_ClientBegin;
+    globals.ClientDisconnect      = SC2_ClientDisconnect;
     globals.PrepareMap            = SC2_PrepareMap;
     globals.ClientCommand         = SC2_ClientCommand;
     globals.ClientInput = SC2_ClientInput;
