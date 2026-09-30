@@ -352,7 +352,7 @@ static ability_t abilitylist[] = {
     // TODO: AIas a_unknown  /* Item Attack Speed Bonus */
     // TODO: AIan a_simple_spell  /* Item Animate Dead */
     // TODO: AIrs a_item_reincarnation  /* Item Resurrection */
-    // TODO: AIms a_move_speed_bonus  /* Item Move Speed Bonus */
+    { "AIms", CAbilityMoveSpeedBonus, AB_PASSIVE },  /* Item Move Speed Bonus */
     // TODO: AIgo a_attack_mod  /* Chest of Gold */
     // TODO: AIlu a_item_heal_aoe  /* Bundle of Lumber */
     // TODO: AIfa a_agility_mod  /* Flare Gun */
@@ -1059,11 +1059,15 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
 
 bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
     uint32_t seen[MAX_ABILITIES * 2 + MAX_HERO_ABILITIES] = {0}, count = 0;
+    bool aggregate = msg == A_MOVE_SPEED_BONUS, handled = false;
     if (!ent) return false;
     FOR_LOOP(i, num_innate) {
         abilityCall_t invoke = call ? *call : MAKE(abilityCall_t, 0);
         invoke.item = innate_items + i;
-        if (S_AbilityMessage(ent, msg, &invoke)) return true;
+        if (S_AbilityMessage(ent, msg, &invoke)) {
+            handled = true;
+            if (!aggregate) return true;
+        }
     }
 #define DISPATCH_UNIT_ABILITY(code_) do { \
         uint32_t const code = (code_); bool duplicate = false; \
@@ -1076,7 +1080,9 @@ bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *c
                 if (item.ability) { \
                     abilityCall_t invoke = call ? *call : MAKE(abilityCall_t, 0); \
                     invoke.item = &item; \
-                    if (S_AbilityMessage(ent, msg, &invoke)) return true; \
+                    if (S_AbilityMessage(ent, msg, &invoke)) { \
+                        handled = true; if (!aggregate) return true; \
+                    } \
                 } \
             } \
         } \
@@ -1093,7 +1099,7 @@ bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *c
         if (ent->heroabilities[i].level && ent->heroabilities[i].code)
             DISPATCH_UNIT_ABILITY(ent->heroabilities[i].code);
 #undef DISPATCH_UNIT_ABILITY
-    return false;
+    return handled;
 }
 
 void S_EnableAbility(edict_t *ent, uint32_t code) {

@@ -390,6 +390,8 @@ public class MapPathfinding extends GhidraScript {
         {"6f15ff40", "Mover_SetSpeedCap", "Publish fine cap; strict old length greater calls zero-delta commit without facing notify, integrating old velocity first and updating fine moving bit. 756 complete original/C cases; repeated public zero-elapsed low setter raw exact."},
         {"6f15fc70", "Math_ClampVectorLength", "Strict length-over-cap normalization via original inverse square root then cap multiplication. Tiny/zero vector guard remains original. Complete cap-transition oracle verifies signed/oblique/zero cases."},
         {"6f071570", "Math_ReciprocalSquareRoot", "ECX output, EDX scalar input; original software square root 071480 followed by reciprocal 0711e0, EAX returns output pointer. Cap-transition normalization composition verified."},
+        {"6f48f410", "Unit_GetMaximumFlatMoveSpeedBonus", "ECX Unit, stack4 scalar output, RET4. Traverse attached list through canonical payload resolver and virtual184; max(0,contributions), never sum.126 full original/C compositions; repeated actual TFT Boots60 queries on a RoC-format map."},
+        {"6f569830", "CAbilityMoveSpeedBonus_GetContribution", "ECX AIms, stack4 output, RET4, EAX output pointer; copies scalar88. Repeated owned Hero Boots on a RoC-format map show authored60 and max across two distinct attached objects. DataA writer remains separately required."},
         {"6f2148f0", "Jass_SetTerrainPathable", "Native registration; negates Boolean then updates fine-map high-bit mask."}
     };
 

@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "Current39 executable original-code oracle scripts,36 selected exact/frozen variants,20 explicit live/profile/repeat contracts and86 archived capture audits. Other research is not independently accepted corpus evidence.",
+  "scope": "Current39 executable original-code oracle scripts,37 selected exact/frozen variants,22 explicit live/profile/repeat contracts and90 archived capture audits. Other research is not independently accepted corpus evidence.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -10282,6 +10282,593 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "oracle-speed-bonus-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_speed.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "speed-bonus-engine.json",
+      "expected_exit": 0,
+      "expected_status": "original-engine-exact",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "engine_bonus_cases": {
+          "equal": 126
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original speed oracle including126 max-of-attached-AIms compositions compared with production C; controlled bonus inputs and ordinary bounds. Authored source ingestion and original bonus writer excluded.",
+      "exclusions": [
+        "Stock profile/SLK ingestion, bonus88 producers, class-registration/cache-miss construction, other buff speed modifiers",
+        "Polymorph alternate profile",
+        "unit194==5 with20bit8000 branch",
+        "unit20bit08000000 special cap",
+        "Suppression counter7c nonzero; all tested calls use ordinary production",
+        "Nonfinite inputs",
+        "Setter publication with nonzero mover velocity/clipping or attached group",
+        "CGameUI notification work with non-null UI instance"
+      ]
+    },
+    {
+      "id": "capture-item-speed-verified",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/item-speed-verified-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/item-speed-verified-261001.jsonl",
+        "sha256": "22db14feb2d2fe7d895aa028524c3f31a1afdbff93bda0bb723636e96b8d9b78",
+        "bytes": 184823,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "b97079cf776fbfbab759fbfebbd797fc26c87a0c470c9aa2779caed5380a1ed8",
+            "wc3_pathfinding_probe.j": "5c77dd1715cb8df35fd823f9e5a16d19bf2dfa3cb86ada8d97ff00d1edd9210f",
+            "make_wc3_pathfinding_map.py": "c67379483d65ebaa77d5d5ebb9bced72da5df9ffd32c247fa91b049c7afcea68",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "b6e600035be9427d61c159dc80bc3d622ddcf33ab3d868ed1c927cfff6203b6b"
+          },
+          "map": "Maps\\PathingRE-ItemSpeed-Hero-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/item-speed-verified-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen Hero Boots query/publication capture; stronger contracts retain quiet and explicit-publication scenes separately.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "capture-item-speed-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/item-speed-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/item-speed-repeat-261001.jsonl",
+        "sha256": "d6ab82faffa91215c59fa3f30149c0e706b1c7a99e776ad31e28bce222f5d9bc",
+        "bytes": 184823,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "b97079cf776fbfbab759fbfebbd797fc26c87a0c470c9aa2779caed5380a1ed8",
+            "wc3_pathfinding_probe.j": "5c77dd1715cb8df35fd823f9e5a16d19bf2dfa3cb86ada8d97ff00d1edd9210f",
+            "make_wc3_pathfinding_map.py": "c67379483d65ebaa77d5d5ebb9bced72da5df9ffd32c247fa91b049c7afcea68",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "b6e600035be9427d61c159dc80bc3d622ddcf33ab3d868ed1c927cfff6203b6b"
+          },
+          "map": "Maps\\PathingRE-ItemSpeed-Hero-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/item-speed-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen Hero Boots query/publication capture; stronger contracts retain quiet and explicit-publication scenes separately.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "capture-item-speed-publish-first",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/item-speed-publish-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/item-speed-publish-first-261001.jsonl",
+        "sha256": "92cb91a7f99ab8aa5e28db89417d03515c049254e45e891d76eb7a203030bbfb",
+        "bytes": 190803,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "b97079cf776fbfbab759fbfebbd797fc26c87a0c470c9aa2779caed5380a1ed8",
+            "wc3_pathfinding_probe.j": "759aa3a8bdf4d8bc5c8eda815b36005c8d1b9300b2805a12aab71bf480c7cf3c",
+            "make_wc3_pathfinding_map.py": "5da7cb57f6204f0a78fbffd7d626e140f060251788e48bd402e128e8979a8c2b",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "031b585af0ab02422a87e20d0ec19e133310b82eaaa047b951a93963605fcc37"
+          },
+          "map": "Maps\\PathingRE-ItemSpeed-Publish-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/item-speed-publish-first-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen Hero Boots query/publication capture; stronger contracts retain quiet and explicit-publication scenes separately.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "capture-item-speed-publish-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/item-speed-publish-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/item-speed-publish-repeat-261001.jsonl",
+        "sha256": "7b343f06389959f0cc18869033531b225d8e2a3649d1969928d5a61e07c4ff7b",
+        "bytes": 190805,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "b97079cf776fbfbab759fbfebbd797fc26c87a0c470c9aa2779caed5380a1ed8",
+            "wc3_pathfinding_probe.j": "759aa3a8bdf4d8bc5c8eda815b36005c8d1b9300b2805a12aab71bf480c7cf3c",
+            "make_wc3_pathfinding_map.py": "5da7cb57f6204f0a78fbffd7d626e140f060251788e48bd402e128e8979a8c2b",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "031b585af0ab02422a87e20d0ec19e133310b82eaaa047b951a93963605fcc37"
+          },
+          "map": "Maps\\PathingRE-ItemSpeed-Publish-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/item-speed-publish-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen Hero Boots query/publication capture; stronger contracts retain quiet and explicit-publication scenes separately.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "live-item-speed-quiet-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_item_speed.py",
+        "{archive}/runtime/item-speed-verified-261001.jsonl",
+        "--compare",
+        "{archive}/runtime/item-speed-repeat-261001.jsonl",
+        "--scene",
+        "quiet",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-item-speed-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/item-speed-verified-261001.jsonl",
+        "sha256": "22db14feb2d2fe7d895aa028524c3f31a1afdbff93bda0bb723636e96b8d9b78",
+        "bytes": 184823,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "b97079cf776fbfbab759fbfebbd797fc26c87a0c470c9aa2779caed5380a1ed8",
+            "wc3_pathfinding_probe.j": "5c77dd1715cb8df35fd823f9e5a16d19bf2dfa3cb86ada8d97ff00d1edd9210f",
+            "make_wc3_pathfinding_map.py": "c67379483d65ebaa77d5d5ebb9bced72da5df9ffd32c247fa91b049c7afcea68",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "b6e600035be9427d61c159dc80bc3d622ddcf33ab3d868ed1c927cfff6203b6b"
+          },
+          "map": "Maps\\PathingRE-ItemSpeed-Hero-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "live-item-speed-quiet-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "public_speed_calls": {
+          "equal": 10
+        },
+        "exact_speed_compositions": {
+          "equal": 5
+        },
+        "exact_velocity_commits": {
+          "equal": 102
+        },
+        "repeated": {
+          "equal": true
+        },
+        "passed": {
+          "equal": true
+        },
+        "cached_cap_commits": {
+          "minimum": 1
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Repeated retail Hero Boots maximum, immutable default, retained movement cap and explicit setter/order publication; original bonus field writer, other modifiers and whole engine clock cadence excluded.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/item-speed-repeat-261001.jsonl",
+            "sha256": "d6ab82faffa91215c59fa3f30149c0e706b1c7a99e776ad31e28bce222f5d9bc",
+            "bytes": 184823,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+                "wc3_pathfinding.js": "b97079cf776fbfbab759fbfebbd797fc26c87a0c470c9aa2779caed5380a1ed8",
+                "wc3_pathfinding_probe.j": "5c77dd1715cb8df35fd823f9e5a16d19bf2dfa3cb86ada8d97ff00d1edd9210f",
+                "make_wc3_pathfinding_map.py": "c67379483d65ebaa77d5d5ebb9bced72da5df9ffd32c247fa91b049c7afcea68",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "b6e600035be9427d61c159dc80bc3d622ddcf33ab3d868ed1c927cfff6203b6b"
+              },
+              "map": "Maps\\PathingRE-ItemSpeed-Hero-261001.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 4000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
+    },
+    {
+      "id": "live-item-speed-publish-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_item_speed.py",
+        "{archive}/runtime/item-speed-publish-first-261001.jsonl",
+        "--compare",
+        "{archive}/runtime/item-speed-publish-repeat-261001.jsonl",
+        "--scene",
+        "publish",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-item-speed-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/item-speed-publish-first-261001.jsonl",
+        "sha256": "92cb91a7f99ab8aa5e28db89417d03515c049254e45e891d76eb7a203030bbfb",
+        "bytes": 190803,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "b97079cf776fbfbab759fbfebbd797fc26c87a0c470c9aa2779caed5380a1ed8",
+            "wc3_pathfinding_probe.j": "759aa3a8bdf4d8bc5c8eda815b36005c8d1b9300b2805a12aab71bf480c7cf3c",
+            "make_wc3_pathfinding_map.py": "5da7cb57f6204f0a78fbffd7d626e140f060251788e48bd402e128e8979a8c2b",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "031b585af0ab02422a87e20d0ec19e133310b82eaaa047b951a93963605fcc37"
+          },
+          "map": "Maps\\PathingRE-ItemSpeed-Publish-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "live-item-speed-publish-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "public_speed_calls": {
+          "equal": 18
+        },
+        "exact_speed_compositions": {
+          "equal": 12
+        },
+        "exact_velocity_commits": {
+          "equal": 92
+        },
+        "repeated": {
+          "equal": true
+        },
+        "passed": {
+          "equal": true
+        },
+        "cached_cap_commits": {
+          "minimum": 1
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Repeated retail Hero Boots maximum, immutable default, retained movement cap and explicit setter/order publication; original bonus field writer, other modifiers and whole engine clock cadence excluded.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/item-speed-publish-repeat-261001.jsonl",
+            "sha256": "7b343f06389959f0cc18869033531b225d8e2a3649d1969928d5a61e07c4ff7b",
+            "bytes": 190805,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+                "wc3_pathfinding.js": "b97079cf776fbfbab759fbfebbd797fc26c87a0c470c9aa2779caed5380a1ed8",
+                "wc3_pathfinding_probe.j": "759aa3a8bdf4d8bc5c8eda815b36005c8d1b9300b2805a12aab71bf480c7cf3c",
+                "make_wc3_pathfinding_map.py": "5da7cb57f6204f0a78fbffd7d626e140f060251788e48bd402e128e8979a8c2b",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "031b585af0ab02422a87e20d0ec19e133310b82eaaa047b951a93963605fcc37"
+              },
+              "map": "Maps\\PathingRE-ItemSpeed-Publish-261001.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 4000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -10347,7 +10934,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "49c78e254ba1ce1fb2670e1619e5e5c63314226388d885eb8fd923da3d4e966d"
+      "sha256": "b8366c944cba08b68069e1241c1b6de82bbda733a757033a98ec28355546b7fe"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -10516,6 +11103,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-speed-drop-1.27.json",
       "sha256": "75deeabc1aa48f78caf3d41ac3850f1ebde132f591b146c8d0f28f2ddb9a03e3"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-flat-speed-bonus-1.27.json",
+      "sha256": "f652ef2b171ef52da52518b1282ac15f21ecb7a3b3a0569776ba193b56822898"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-item-speed-1.27.json",
+      "sha256": "4479d8bb26e503155b7f77600bddb5e7b42ff9bd458185bce51c9f183746478e"
     }
   ]
 }

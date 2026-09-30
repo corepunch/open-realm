@@ -787,6 +787,7 @@ typedef enum {
     A_ATTACK_DAMAGE_BONUS, /* Active status ability query: return additive attack damage. */
     A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
     A_TARGET_REMOVED,    /* Active move owner: call->removed_target is semantically removed, still allocated. */
+    A_MOVE_SPEED_BONUS,  /* Aggregate all owners into call->move_speed_bonus; no stop-first dispatch. */
 } abilityMsg_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call)
@@ -815,6 +816,7 @@ struct ability_call_s {
         cstring_t classname;
         uint32_t level;
         bool enabled;
+        float *move_speed_bonus; /* A_MOVE_SPEED_BONUS: maximum nonnegative flat contribution. */
         struct { edict_t *producer; edict_t *item; } queue; /* A_QUEUE_*: owning producer and queued item. */
         unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
         struct { heroabilitystatus_t *slot; uint32_t ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
@@ -1651,6 +1653,7 @@ struct edict_s {
         routePath_t path; /* mover-owned waypoint cache; geometry contract shared with other server games */
         uint32_t group_id; /* Move-owned active selection identity; independent of waypoint ring reuse. */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
+        float flat_speed_bonus; /* AIms maximum last published by a speed setter/order, independent of live inventory. */
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
         vec2_t velocity;    /* committed Move velocity in world units/second; software scalar cancellation retains its bits */
         bool turn_blocked;  /* translation decision from the heading error before this tick's turn */

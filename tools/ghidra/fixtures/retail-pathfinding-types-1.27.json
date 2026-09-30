@@ -1001,6 +1001,18 @@
           "evidence": "9249d0 text terminator;925210 decimal integer token reads length"
         }
       ]
+    },
+    {
+      "name": "WC3MoveSpeedBonusPrefix",
+      "length": 140,
+      "fields": [
+        {
+          "offset": 136,
+          "name": "flat_bonus",
+          "type": "WC3PathScalar",
+          "evidence": "569830 virtual184 original reads; repeated live Boots60 source"
+        }
+      ]
     }
   ],
   "methods": [
@@ -2989,6 +3001,42 @@
           "name": "input",
           "type": "ptr:WC3PathScalar",
           "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f48f410",
+      "name": "Unit_GetMaximumFlatMoveSpeedBonus",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f569830",
+      "name": "CAbilityMoveSpeedBonus_GetContribution",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3MoveSpeedBonusPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
         }
       ]
     }

@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**80 done / 261 tasks; 181 remaining.** Counts describe this backlog,
+**81 done / 262 tasks; 181 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -25,7 +25,7 @@ Completed evidence now sits next to its specific remaining extension.
 | ROUTE — Route progression and yielding | 2 | 9 |
 | TARGET — Pursuit and arrival policy | 2 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
-| MOVE — Stepping and callbacks | 3 | 11 |
+| MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
 | GROUP — Shared movement groups | 11 | 6 |
 | FORM — Formation and regrouping | 2 | 10 |
@@ -502,6 +502,8 @@ and turn producers still belong to01.1. MOVE-01.5 explicitly adds the engine
 low-cap transition discovered during the next public travel capture. It closes
 zero-elapsed immediate vector clamping, with nonzero-elapsed owner-clock
 production retained by NUM-02.3 and temporary-effect restoration by01.2.
+MOVE-01.6 explicitly adds the missing flat-bonus engine query and saved
+publication state; it does not close the original bonus writer or other effects.
 
 ### MOVE-01 — Movement parameters
 
@@ -511,6 +513,8 @@ production retained by NUM-02.3 and temporary-effect restoration by01.2.
 - [x] **MOVE-01.4** Split ordinary nonhero public speed setter/current/default getters and authored limits from01.1: preserve integer umvs/umis/umas map fields, clamp profile bounds before current speed, retain explicit zero across save/load and ignore movement-disabled setters. Evidence: [authored speed limits reach Move](retail-pathfinding-engine.md#authored-speed-limits-reach-move),1846 original/C clamp/gate cases, repeated120 public calls/26 publications/153 captured commits, actual public-order and saved-step regressions. Hero defaults, special caps/effect-stack ordering, immediate low-cap integration and clock cadence remain01.1/2/NUM-02.3.
 
 - [x] **MOVE-01.5** Explicitly add immediate low-cap vector publication during public Move: reproduce the engine retaining old fast velocity, port verified zero-delta normalization without changing pose/facing, preserve higher-cap velocity and save/load subsequent motion. Evidence: [speed drops clamp existing velocity immediately](retail-pathfinding-engine.md#speed-drops-clamp-existing-velocity-immediately),756 complete original/C transitions and repeated public during-travel zero-elapsed clamp/128 captured commits. Original nonzero-elapsed integration is independently composed; engine owner clocks and temporary-effect restoration remain NUM-02.3/01.2.
+
+- [x] **MOVE-01.6** Explicitly add the missing AIms engine contribution: aggregate the maximum nonnegative authored flat bonus across native/item owners, preserve rawcode aliases and item-use permission, distinguish public query from the bonus last published by a setter/new Move order, and save/reload retained-cap motion. Evidence: [flat bonuses retain their publication state](retail-pathfinding-engine.md#flat-bonuses-retain-their-publication-state),126 complete original/C compositions, repeated quiet and explicit-publication Boots scenes, actual public inventory/Move and eight-step save regression. Original bonus88 writer, broader temporary effects, mixed cohort notification and owner-clock timing remain01.1/2/3 and NUM-02.3.
 
 ### MOVE-02 — Stepping
 

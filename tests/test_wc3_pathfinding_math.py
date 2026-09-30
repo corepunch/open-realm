@@ -24,6 +24,7 @@ from verify_wc3_heading_aliases import verify as verify_heading_aliases
 from verify_wc3_arrival_trace import verify as verify_arrival, configure as configure_arrival
 from verify_wc3_speed_inputs import verify as verify_speed_inputs, digest as speed_digest
 from verify_wc3_speed_drop import verify as verify_speed_drop, digest as speed_drop_digest
+from verify_wc3_item_speed import verify as verify_item_speed, digest as item_speed_digest
 
 
 class PathingMathTests(unittest.TestCase):
@@ -75,6 +76,45 @@ class PathingMathTests(unittest.TestCase):
                     engine.pathing_speed_limits(inputs, output)
                     self.assertEqual(list(output), case['output'], case['input'])
                     self.assertEqual(list(inputs), case['input'])
+
+    def test_flat_speed_bonus_matches_original_maximum_and_clamp_composition(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-flat-speed-bonus-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']), 126)
+        for engine in self.engines:
+            engine.pathing_speed_bonus.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            for _ in range(2):
+                for case in fixture['cases']:
+                    inputs = (ctypes.c_uint32 * 8)(*case['input'])
+                    output = (ctypes.c_uint32 * 3)()
+                    engine.pathing_speed_bonus(inputs, output)
+                    self.assertEqual(list(output), case['output'])
+                    self.assertEqual(list(inputs), case['input'])
+
+    def test_item_speed_observer_rejects_wrong_maximum_identity_and_publication(self):
+        scenes = json.loads((ROOT / 'tools/ghidra/fixtures/retail-public-item-speed-1.27.json').read_text())['scenes']
+        for fixture in scenes.values():
+            rows = [dict(event='metadata', sha256=fixture['binary_sha256'], source_sha256=fixture['source_sha256'],
+                         owned=True, motionEvents=True, velocityEvents=True, taskEvents=True)]
+            rows += copy.deepcopy(fixture['sample'])
+            for tick, label in [(0, fixture['start_label']), (10, 'order_accepted'), *[(t, 'sample') for t in range(1, 301)], (300, 'complete')]:
+                rows.append(dict(event='marker', value=f'PATHTRACE tick={tick} label={label} x=0 y=0 order=851986'))
+            rows.append(dict(event='trace-end', installed=True, counts=fixture['counts']))
+            for engine in self.engines:
+                with patch('verify_wc3_item_speed.verify_motion', return_value={'passed': True}):
+                    self.assertGreater(verify_item_speed(rows, engine, fixture)['cached_cap_commits'], 0)
+                    for event, key in [('speed-flat-bonus', 'authored'), ('speed-flat-maximum', 'output'), ('speed-composition', 'base'), ('speed-native', 'output'), ('velocity-commit', 'before')]:
+                        changed = copy.deepcopy(rows)
+                        row = next(r for r in changed if r.get('event') == event)
+                        if key == 'before': row[key][6] ^= 1
+                        else: row[key] ^= 1
+                        adjusted = dict(fixture, speed_sha256=item_speed_digest(changed))
+                        with self.assertRaises(ValueError): verify_item_speed(changed, engine, adjusted)
+                    changed = copy.deepcopy(rows)
+                    attached = [r for r in changed if r.get('event') == 'speed-flat-bonus' and r['case'] == 'item_two']
+                    attached[1]['ability'] = attached[0]['ability']
+                    with self.assertRaises(ValueError): verify_item_speed(changed, engine, fixture)
+                    for changed in (rows[:-1], rows + [dict(type='error')], [r for r in rows if r.get('event') != 'speed-flat-maximum']):
+                        with self.assertRaises(ValueError): verify_item_speed(changed, engine, fixture)
 
     def test_speed_cap_transition_matches_original_clock_vector_and_occupancy(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-speed-cap-transition-1.27.json').read_text())

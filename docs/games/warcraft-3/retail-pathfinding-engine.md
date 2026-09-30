@@ -2088,3 +2088,70 @@ Validation: full Classic and TFT suites each pass42,055 assertions in2,198
 cases; all120 pathfinding tool tests pass. Forced debug and ordinary movement
 builds each pass2,861 assertions in168 cases per schema. The fresh five-entry
 corpus passes, and both boundary audits are clean.
+
+
+## Flat bonuses retain their publication state
+
+MOVE-01.6 registers and implements concrete `CAbilityMoveSpeedBonus` (`AIms`).
+Its typed contribution query reads DataA through the actual authored rawcode.
+The query visits every native owner and usable carried item, retaining
+`max(0, contributions)`. Different aliases, reversed dominance, negative
+values and duplicate Boots do not turn that maximum into a sum. Backpack
+permission excludes carried item effects while preserving native owners.
+Move adds the flat maximum with retail software arithmetic before the existing
+status multipliers and authored speed limits. Upstream multiplier composition
+is still outside this bounded port.
+
+The public speed getter and an existing mover's cap are separate retail states.
+Two repeated quiet captures show the Hpal getter changing270→330 with Boots,
+staying330 with two copies, and returning270 when both are removed. Every
+actual velocity commit still uses the original270 cap. A second repeated scene
+shows `SetUnitMoveSpeed(270)` publishing330 with Boots equipped, a new Move
+order publishing330 again, removal changing the getter back to270 while the
+committed cap remains330, and a following setter restoring270 with the verified
+immediate vector clamp. Engine Move now retains the last published flat bonus
+and refreshes it on accepted Move orders and public setters. Inventory queries
+remain current; inventory changes alone do not rewrite that saved Move state.
+
+These captures use a RoC-format map with the active TFT AIms row. Extracted
+original `war3.mpq` AbilityData supplies `Data11=40`; `War3x.mpq` supplies
+`DataA1=60`, matching the actual contribution field and public outputs in this
+run. Stock bspd's ItemData attaches AIms. The engine reads the table and schema,
+including aliases, instead of hardcoding either40 or60. The source-table
+hashes and selected row values are retained in
+`retail-public-item-speed-1.27.json`. The original writer of ability+88 and
+complete campaign/game-mode table selection remain required work.
+
+The complete original speed oracle now compares126 attached-bonus compositions
+with production C, preserving max-before-add-before-multiply-before-clamp order.
+Frozen outputs replay twice at O0/O2. The quiet scene repeats ten public calls,
+five compositions,101 decisions and102 velocity/position/facing commits. The
+published scene repeats18 public calls,12 compositions,91 decisions and92
+commits, including four cap transitions and three bridge publications. All
+three raw digests match between each pair. The strict verifier rejects altered
+source, maximum, attached identity, defaults and caps, including a cap change
+without an observed publication. Broader effects and engine owner clocks are
+not inferred from these records.
+
+Actual public CreateUnit/CreateItem/UnitAddItem/UnitRemoveItem/Move/setter
+regressions check both queried speed and physical steps. The first engine
+fixture omitted the item's model field; it was corrected before accepting
+evidence. A valid-fixture absence control then reproduces the missing-bonus
+failures; restoring the implementation passes56 assertions. Additional alias
+and transport tests pass12 assertions. Saving after the last Boots removal
+retains the previously published60 contribution and reproduces eight following
+position/velocity samples word for word. A later setter clears it and clamps
+the vector. This private movement field advances W3SV to61, with exact-version
+rejection covering60; JSVM remains7 and shared network contracts are unchanged.
+
+Ghidra persists385 descriptive functions,24 partial layouts,144 verified fields
+and124 explicit prototypes. The original maximum-list traversal, AIms getter
+and typed bonus88 field are saved and read back in
+`item-speed-types-readback.json`. The fresh seven-entry checkpoint is
+`item-speed-corpus-fresh-261001/corpus-results.json` under the local report root.
+
+Validation: Classic and TFT each pass42,128 assertions in2,200 cases, and all
+122 pathfinding tool tests pass. Forced debug and ordinary movement checks
+each pass2,929 assertions in170 cases per schema. The seven fresh corpus
+entries pass, the concrete ability registry audit runs, and both boundary
+audits and relative links are clean.

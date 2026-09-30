@@ -1212,10 +1212,11 @@ void move_start_displacement(edict_t *self, vec2_t const *target) {
 }
 
 /* Effective current move speed of a unit (runtime override, else data table). */
-static float unit_effective_speed(edict_t *ent) {
+static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     if (M_UnitMoveDisabled(ent)) return 0;
     float speed = (ent->unitinfo.move_flags & BZ_UNIT_SPEED_SET) || ent->unitinfo.MoveSpeed > 0
         ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
+    speed = wc3_add(speed, bonus);
     uint32_t level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
     speed *= 1.0f + S_UnholyMoveBonus(ent);
@@ -1243,9 +1244,16 @@ static float unit_effective_speed(edict_t *ent) {
     return wc3_speed_limit_update(&limits);
 }
 
+/* Retail inventory changes update the queried maximum without publishing
+ * an existing mover cap. Public setters and new orders publish that maximum.
+ * TODO: MOVE-01.2 covers other effect notifications and their timing. */
+static float unit_effective_speed(edict_t *ent) {
+    return unit_effective_speed_with_bonus(ent, ent->movement.flat_speed_bonus);
+}
+
 /* Public current speed shares the status/profile consumer used by stepping
  * and group caps. It is independent of a particular group's slower cap. */
-float S_UnitMoveSpeed(edict_t *ent) { return ent ? unit_effective_speed(ent) : 0; }
+float S_UnitMoveSpeed(edict_t *ent) { return ent ? unit_effective_speed_with_bonus(ent, S_MoveSpeedBonus(ent)) : 0; }
 
 float S_UnitDefaultMoveSpeed(edict_t const *ent) {
     /* TODO: MOVE-01.1 recovers the hero-specific default-speed contribution;
@@ -1257,6 +1265,7 @@ void S_SetUnitMoveSpeed(edict_t *ent, float speed) {
     if (!ent || M_UnitMoveDisabled(ent)) return;
     ent->unitinfo.MoveSpeed = speed;
     ent->unitinfo.move_flags |= BZ_UNIT_SPEED_SET;
+    ent->movement.flat_speed_bonus = S_MoveSpeedBonus(ent);
     wc3Velocity_t v = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
         .limit = unit_effective_speed(ent) };
     if (wc3_velocity_cap_world(&v)) ent->movement.velocity = (vec2_t){v.vel[0], v.vel[1]};
@@ -1269,7 +1278,7 @@ void S_SetUnitMoveSpeed(edict_t *ent, float speed) {
 static float move_group_speed(edict_t *const *units, uint32_t count) {
     float slowest = 0;
     FOR_LOOP(i, count) {
-        float const s = unit_effective_speed(units[i]);
+        float const s = S_UnitMoveSpeed(units[i]);
         if (s > 0 && (slowest == 0 || s < slowest)) {
             slowest = s;
         }
@@ -1766,6 +1775,7 @@ void order_move(edict_t *self, edict_t *target) {
                 (long)(self - g_edicts), self->s.origin2.x, self->s.origin2.y,
                 target->s.origin2.x, target->s.origin2.y, (long)(target - g_edicts));
 #endif
+    self->movement.flat_speed_bonus = S_MoveSpeedBonus(self);
     move_reset_progress(self);
     unit_setmove(self, &move_move_walk);
     /* No route heading exists at submission time. Hold the stand pose instead

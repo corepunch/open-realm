@@ -385,6 +385,141 @@ done:
     game.constants.minUnitSpeed = old_minimum; game.constants.maxUnitSpeed = old_maximum;
 }
 
+/* Original AIms virtual184 and live TFT Boots on a RoC-format map supply60; list aggregation
+ * keeps the largest nonnegative flat bonus before multiplication and clamps. */
+TEST(wc3_movement, public_boots_pickup_and_removal_reach_current_speed_and_steps) {
+    reset_entities(); setup_test_world();
+    const char ability_slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataC1\"\nC;Y1;X5;K\"DataD1\"\nC;Y1;X6;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AIms\"\nC;Y2;X2;K\"AIms\"\nC;Y2;X3;K\"60\"\n"
+        "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X3;K\"6\"\n"
+        "C;Y3;X4;K\"1\"\nC;Y3;X5;K\"1\"\nC;Y3;X6;K\"1\"\nE\n";
+    const char item_slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\nC;Y1;X4;K\"file\"\n"
+        "C;Y2;X1;K\"bspd\"\nC;Y2;X2;K\"AIms\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"Objects\\\\InventoryItems\\\\TreasureChest\\\\treasurechest.mdl\"\nE\n";
+    slkTestData_t *abilities = parse_slk_string(ability_slk), *old_abilities = G_SetSLKRows("AbilityData", abilities);
+    slkTestData_t *items = parse_slk_string(item_slk), *old_items = G_SetSLKRows("ItemData", items);
+    T_ASSERT(run_test_jass(
+        "globals\n unit bootsUnit\n item bootsOne\n item bootsTwo\n real bootsDefault\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set bootsUnit = CreateUnit(Player(0), 'Hpal', 320.0, 320.0, 90.0)\n"
+        " call UnitAddAbility(bootsUnit, 'AInv')\n call SetUnitMoveSpeed(bootsUnit, 270.0)\n"
+        " set bootsDefault = GetUnitDefaultMoveSpeed(bootsUnit)\n"
+        " set bootsOne = CreateItem('bspd', 256.0, 320.0)\n set bootsTwo = CreateItem('bspd', 192.0, 320.0)\nendfunction\n"
+        "function BeginBootsMove takes nothing returns nothing\n"
+        " call BJassAssert(IssuePointOrder(bootsUnit, \"move\", 320.0, 1800.0), \"boots move admitted\")\nendfunction\n"
+        "function PickupBootsOne takes nothing returns nothing\n"
+        " call BJassAssert(UnitAddItem(bootsUnit, bootsOne), \"first boots admitted\")\n"
+        " call BJassAssert(GetUnitMoveSpeed(bootsUnit) == 330.0, \"first flat bonus reaches public getter\")\nendfunction\n"
+        "function PickupBootsTwo takes nothing returns nothing\n"
+        " call BJassAssert(UnitAddItem(bootsUnit, bootsTwo), \"second boots admitted\")\n"
+        " call BJassAssert(GetUnitMoveSpeed(bootsUnit) == 330.0, \"duplicate flat bonuses use maximum\")\nendfunction\n"
+        "function RemoveBootsOne takes nothing returns nothing\n"
+        " call UnitRemoveItem(bootsUnit, bootsOne)\n"
+        " call BJassAssert(GetUnitMoveSpeed(bootsUnit) == 330.0, \"remaining boots retain bonus\")\nendfunction\n"
+        "function PublishBootsSpeed takes nothing returns nothing\n"
+        " call SetUnitMoveSpeed(bootsUnit, 270.0)\nendfunction\n"
+        "function RemoveBootsTwo takes nothing returns nothing\n"
+        " call UnitRemoveItem(bootsUnit, bootsTwo)\n"
+        " call BJassAssert(GetUnitMoveSpeed(bootsUnit) == 270.0, \"last boots restore base\")\n"
+        " call BJassAssert(GetUnitDefaultMoveSpeed(bootsUnit) == bootsDefault, \"item bonus keeps immutable default\")\nendfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('H','p','a','l')) unit = g_edicts + i;
+    T_NOT_NULL(unit);
+    if (unit) {
+        unit->health.value = unit->health.max_value = 1000; unit->stand = unit_stand; unit_stand(unit);
+        jass_callbyname(level.vm, "BeginBootsMove", false);
+        char const *phases[] = {"PickupBootsOne", "PickupBootsTwo", "RemoveBootsOne", "RemoveBootsTwo"};
+        FOR_LOOP(i, sizeof(phases) / sizeof(*phases)) {
+            jass_callbyname(level.vm, phases[i], false);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_FEQ(S_UnitMoveSpeed(unit), i == 3 ? 270 : 330, .001f);
+            if (i == 1) {
+                jass_callbyname(level.vm, "PublishBootsSpeed", false);
+                jass_callbyname(level.vm, "BeginBootsMove", false);
+                T_ASSERT(!jass_rterror_pending(level.vm));
+            }
+            vec2_t before = unit->s.origin2;
+            unit->currentmove->think(unit);
+            T_FEQ(Vector2_distance(&unit->s.origin2, &before), i == 0 ? 27 : 33, .01f);
+        }
+        /* The last item has gone but its published cap remains until a setter.
+         * Saving must retain that distinction as well as the following steps. */
+        cstring_t file = "/tmp/openwarcraft3-boots-published-speed-save.bin";
+        T_EQ(unit->movement.flat_speed_bonus, 60);
+        T_ASSERT(WriteGame(file));
+        uint32_t expected[8][4];
+        FOR_LOOP(i, 8) {
+            unit->currentmove->think(unit);
+            expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
+            expected[i][2] = wc3_float_bits(unit->movement.velocity.x); expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
+        }
+        T_ASSERT(ReadGame(file));
+        T_EQ(unit->movement.flat_speed_bonus, 60);
+        T_EQ(S_UnitMoveSpeed(unit), 270);
+        FOR_LOOP(i, 8) {
+            unit->currentmove->think(unit);
+            T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
+        }
+        jass_callbyname(level.vm, "PublishBootsSpeed", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(unit->movement.flat_speed_bonus, 0);
+        T_FEQ(Vector2_len(&unit->movement.velocity), 270, .01f);
+        vec2_t before = unit->s.origin2;
+        unit->currentmove->think(unit);
+        T_FEQ(Vector2_distance(&unit->s.origin2, &before), 27, .01f);
+        remove(file);
+    }
+    reset_entities();
+    G_SetSLKRows("AbilityData", old_abilities); free_slk_rows(abilities);
+    G_SetSLKRows("ItemData", old_items); free_slk_rows(items);
+}
+
+TEST(wc3_movement, flat_speed_bonus_aliases_reduce_all_sources_and_ignore_transport_items) {
+    reset_entities(); setup_test_world();
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y8;X4\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\nC;Y2;X4;K\"1\"\n"
+        "C;Y3;X1;K\"Aivb\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X3;K\"6\"\nC;Y3;X4;K\"0\"\n"
+        "C;Y4;X1;K\"A001\"\nC;Y4;X2;K\"AIms\"\nC;Y4;X3;K\"50\"\n"
+        "C;Y5;X1;K\"A002\"\nC;Y5;X2;K\"AIms\"\nC;Y5;X3;K\"25\"\n"
+        "C;Y6;X1;K\"A003\"\nC;Y6;X2;K\"AIms\"\nC;Y6;X3;K\"-10\"\n"
+        "C;Y7;X1;K\"A004\"\nC;Y7;X2;K\"AIms\"\nC;Y7;X3;K\"25\"\n"
+        "C;Y8;X1;K\"A005\"\nC;Y8;X2;K\"AIms\"\nC;Y8;X3;K\"75\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    UnitAbilities_t native = {.abilList = "AInv,A004,A005"}, lower = {.abilList = "AInv,A004"};
+    UnitAbilities_t transport = {.abilList = "Aivb"};
+    ItemData_t stronger = {.abilList = "A001"}, weaker = {.abilList = "A002"}, negative = {.abilList = "A003"};
+    edict_t *unit = make_moving_unit(320, 320);
+    unit->data.UnitAbilities = &native;
+    S_SetUnitMoveSpeed(unit, 270);
+    T_EQ(S_UnitMoveSpeed(unit), 345); /* All native contributors must be visited. */
+    T_EQ(unit->movement.flat_speed_bonus, 75);
+    ItemData_t *profiles[] = {&stronger, &weaker, &negative};
+    FOR_LOOP(i, sizeof(profiles) / sizeof(*profiles)) {
+        edict_t *item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 64 + i * 32, 320);
+        item->targtype = TARG_ITEM; item->data.ItemData = profiles[i];
+        item->item.inventory_slot = -1; item->item.in_world = true;
+        T_ASSERT(G_PickupItem(unit, item));
+    }
+    T_EQ(S_UnitMoveSpeed(unit), 345);
+    unit->data.UnitAbilities = &lower;
+    T_EQ(S_UnitMoveSpeed(unit), 320); /* Item50 beats native25, never sums. */
+    T_ASSERT(G_DetachItemAtScripted(unit, 0));
+    T_EQ(S_UnitMoveSpeed(unit), 295);
+    unit->data.UnitAbilities = &transport;
+    T_ASSERT(!G_InventoryCanUseItems(unit));
+    T_EQ(S_UnitMoveSpeed(unit), 270);
+    S_SetUnitMoveSpeed(unit, 270);
+    T_EQ(unit->movement.flat_speed_bonus, 0);
+    reset_entities(); G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_movement, map_movement_profiles_inherit_and_bind_to_created_units) {
     reset_entities(); setup_test_world();
     uint32_t base_id = MAKEFOURCC('h','f','o','o');

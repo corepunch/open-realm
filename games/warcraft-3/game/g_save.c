@@ -77,9 +77,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format60 retains retail Move state and camera noise/view offsets, with the
- * upstream camera target-mode enum. Both parents' earlier layouts are rejected. */
-static uint32_t const save_version = 60;
+/* Format61 retains the flat speed bonus last published to Move independently
+ * of the current inventory. Earlier edict layouts are rejected. */
+static uint32_t const save_version = 61;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2037,8 +2037,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-57.bin",
         "/tmp/openwarcraft3-wc3-save-version-58.bin",
         "/tmp/openwarcraft3-wc3-save-version-59.bin",
+        "/tmp/openwarcraft3-wc3-save-version-60.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60 };
 
     reset_entities();
     setup_test_world();

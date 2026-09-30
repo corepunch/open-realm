@@ -5,6 +5,7 @@ Full calls through real ability lists, profile hash lookup and startup
 constant initializers; exact independent soft-float reference.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -24,7 +25,12 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary',required=True,type=Path)
     parser.add_argument('--report',required=True,type=Path)
+    parser.add_argument('--engine-library',type=Path)
+    parser.add_argument('--fixture',type=Path)
     args=parser.parse_args();binary=args.binary.read_bytes()
+    engine=ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine: engine.pathing_speed_bonus.argtypes=[ctypes.POINTER(ctypes.c_uint32)]*2
+    bonus_cases=[]
     digest=hashlib.sha256(binary).hexdigest()
     if digest!='d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
         parser.error('requires retail game.dll 1.27.1.7085')
@@ -140,6 +146,14 @@ def main():
         assert sum(a==0x6f569830 for a,_ in trace)==len(bonuses)
         assert sum(a==0x6f04ce00 for a,_ in trace)==len(rows)
         if not outer:assert [(a,v) for a,v in trace if a==0x6f5fc962]==[(0x6f5fc962,raw)]
+        if category=='move_speed_bonus':
+            inputs=[additive,*list(bonuses),*([0]*(2-len(bonuses))),multiplier,pmin,pmax,constants[4],constants[5]]
+            outputs=[observed_base,raw,read(output)]
+            if engine:
+                actual=(ctypes.c_uint32*3)()
+                engine.pathing_speed_bonus((ctypes.c_uint32*8)(*inputs),actual)
+                assert list(actual)==outputs,(inputs,list(actual),outputs)
+            bonus_cases.append(dict(input=inputs,output=outputs))
         counts[category]+=1;no_buff_query_count+=1
         return read(output)
     for base_speed,additive,multiplier,pmin,pmax,status in itertools.product(
@@ -266,6 +280,8 @@ def main():
         exclusions=['Stock profile/SLK ingestion, bonus88 producers, class-registration/cache-miss construction, other buff speed modifiers','Polymorph alternate profile','unit194==5 with20bit8000 branch','unit20bit08000000 special cap','Suppression counter7c nonzero; all tested calls use ordinary production','Nonfinite inputs',
                     'Setter publication with nonzero mover velocity/clipping or attached group',
                     'CGameUI notification work with non-null UI instance'])
+    if args.fixture: args.fixture.write_text(json.dumps(dict(binary_sha256=digest,cases=bonus_cases,scope='Complete original Move speed plus attached AIms maximum; controlled DataA values and ordinary limits'),separators=(',',':'))+'\n')
+    report['engine_bonus_cases']=len(bonus_cases) if engine else 0
     args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 
 

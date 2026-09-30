@@ -273,6 +273,41 @@ function install(module) {
                     fineFlagsAfter:this.mover.add(0x98).readPointer().add(0x40).readU32()});
             }
         });
+        hook(0x48f410, {
+            onEnter(args) {
+                this.output = args[0];
+                this.row = speedCase ? {case:speedCase, unit:this.context.ecx.toString()} : null;
+            },
+            onLeave() {
+                if (!this.row) return;
+                bump('speed-flat-maximum');
+                emit('speed-flat-maximum', {...this.row, output:this.output.readU32()});
+            }
+        });
+        hook(0x569830, {
+            onEnter(args) {
+                this.output = args[0];
+                this.row = speedCase ? {case:speedCase, ability:this.context.ecx.toString(),
+                    authored:this.context.ecx.add(0x88).readU32()} : null;
+            },
+            onLeave() {
+                if (!this.row) return;
+                bump('speed-flat-bonus');
+                emit('speed-flat-bonus', {...this.row, output:this.output.readU32()});
+            }
+        });
+        hook(0x5fc900, {
+            onEnter(args) {
+                this.output = args[0];
+                this.row = speedCase ? {case:speedCase, ability:this.context.ecx.toString(),
+                    base:this.context.ecx.add(0x70).readU32(), multiplier:this.context.ecx.add(0x78).readU32()} : null;
+            },
+            onLeave() {
+                if (!this.row) return;
+                bump('speed-composition');
+                emit('speed-composition', {...this.row, output:this.output.readU32()});
+            }
+        });
         const speedNatives = new Map();
         for (const [name, rva] of [['GetUnitMoveSpeed',0x203d30],
                                   ['GetUnitDefaultMoveSpeed',0x203a90], ['SetUnitMoveSpeed',0x2154e0]]) {

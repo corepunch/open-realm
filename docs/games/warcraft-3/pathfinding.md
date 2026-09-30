@@ -327,3 +327,10 @@ through the verified retail fine-coordinate arithmetic. Higher caps preserve
 the vector; eight following movement samples remain bit-identical across
 save/load. See [the original and repeated live evidence](retail-pathfinding-engine.md#speed-drops-clamp-existing-velocity-immediately). Nonzero-elapsed owner-clock
 production and temporary speed-effect restoration remain open.
+
+
+Move now consumes authored AIms flat bonuses through the largest usable
+native/item contribution. The current getter reflects inventory changes;
+physical stepping retains the bonus last published by a setter or accepted
+Move order, as observed in retail. That retained state survives save/load. See
+[flat bonus publication evidence](retail-pathfinding-engine.md#flat-bonuses-retain-their-publication-state).

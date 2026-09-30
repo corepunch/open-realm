@@ -6,6 +6,8 @@ globals
     unit udg_PathProbeTarget = null
     unit udg_PathProbeBuilding = null
     unit udg_PathProbeBuilder = null
+    item udg_PathProbeBootsOne = null
+    item udg_PathProbeBootsTwo = null
     fogmodifier udg_PathProbeFog = null
     timer udg_PathProbeTimer = null
     integer udg_PathProbeTick = 0
@@ -217,6 +219,43 @@ function PathProbeTick takes nothing returns nothing
         set numericX = GetUnitMoveSpeed(udg_PathProbeUnit)
         set numericY = GetUnitDefaultMoveSpeed(udg_PathProbeUnit)
         call Preload("PATHSPEED done=travel")
+    endif
+    if (PATH_PROBE_SCENARIO == 34 or PATH_PROBE_SCENARIO == 35) then
+        if udg_PathProbeTick == 1 then
+            call Preload("PATHSPEED case=item_baseline")
+        elseif udg_PathProbeTick == 20 then
+            call Preload("PATHSPEED case=item_one")
+            if not UnitAddItem(udg_PathProbeUnit, udg_PathProbeBootsOne) then
+                call PathProbeRecord("item_one_failed")
+            endif
+        elseif PATH_PROBE_SCENARIO == 35 and udg_PathProbeTick == 22 then
+            call Preload("PATHSPEED case=item_publish_set")
+            call SetUnitMoveSpeed(udg_PathProbeUnit, 270.0)
+        elseif PATH_PROBE_SCENARIO == 35 and udg_PathProbeTick == 23 then
+            call Preload("PATHSPEED case=item_reissue")
+            if not IssuePointOrder(udg_PathProbeUnit, "move", -1936.0, -144.0) then
+                call PathProbeRecord("item_reissue_failed")
+            endif
+        elseif udg_PathProbeTick == 25 then
+            call Preload("PATHSPEED case=item_two")
+            if not UnitAddItem(udg_PathProbeUnit, udg_PathProbeBootsTwo) then
+                call PathProbeRecord("item_two_failed")
+            endif
+        elseif udg_PathProbeTick == 30 then
+            call Preload("PATHSPEED case=item_remove_one")
+            call UnitRemoveItem(udg_PathProbeUnit, udg_PathProbeBootsOne)
+        elseif udg_PathProbeTick == 35 then
+            call Preload("PATHSPEED case=item_remove_two")
+            call UnitRemoveItem(udg_PathProbeUnit, udg_PathProbeBootsTwo)
+        elseif PATH_PROBE_SCENARIO == 35 and udg_PathProbeTick == 36 then
+            call Preload("PATHSPEED case=item_publish_restore")
+            call SetUnitMoveSpeed(udg_PathProbeUnit, 270.0)
+        endif
+        if udg_PathProbeTick == 1 or udg_PathProbeTick == 20 or udg_PathProbeTick == 25 or udg_PathProbeTick == 30 or udg_PathProbeTick == 35 or (PATH_PROBE_SCENARIO == 35 and (udg_PathProbeTick == 22 or udg_PathProbeTick == 23 or udg_PathProbeTick == 36)) then
+            set numericX = GetUnitMoveSpeed(udg_PathProbeUnit)
+            set numericY = GetUnitDefaultMoveSpeed(udg_PathProbeUnit)
+            call Preload("PATHSPEED done=item")
+        endif
     endif
     if PATH_PROBE_SCENARIO == 23 and udg_PathProbeTick == 1 then
         call PathProbeNumericInputs()
@@ -469,6 +508,9 @@ function PathProbeInit takes nothing returns nothing
     if PATH_PROBE_SCENARIO == 18 then
         set crowdType = 'hgry'
     endif
+    if (PATH_PROBE_SCENARIO == 34 or PATH_PROBE_SCENARIO == 35) then
+        set crowdType = 'Hpal'
+    endif
     set udg_PathProbeUnit = CreateUnit(Player(0), crowdType, -1936.0, -976.0, 90.0)
     if PATH_PROBE_SCENARIO == 21 then
         call SetUnitFacing(udg_PathProbeUnit, 0.0)
@@ -522,6 +564,9 @@ function PathProbeInit takes nothing returns nothing
     if PATH_PROBE_SCENARIO == 32 then
         set udg_PathProbeCrowd[0] = CreateUnit(Player(0), 'h001', -2304.0, -1216.0, 90.0)
         set udg_PathProbeCrowd[1] = CreateUnit(Player(0), 'halt', -2560.0, -1216.0, 90.0)
+    elseif (PATH_PROBE_SCENARIO == 34 or PATH_PROBE_SCENARIO == 35) then
+        set udg_PathProbeBootsOne = CreateItem('bspd', -2240.0, -976.0)
+        set udg_PathProbeBootsTwo = CreateItem('bspd', -2304.0, -976.0)
     else
         call SetUnitMoveSpeed(udg_PathProbeUnit, 100.0)
     endif

@@ -8,6 +8,11 @@ typedef struct {
     bool disabled;
 } wc3SpeedLimit_t;
 
+/* Original48f410 keeps max(0, attached virtual184 bonuses), including AIms. */
+static inline float wc3_speed_bonus_max(float current, float bonus) {
+    return bonus > current ? bonus : current;
+}
+
 /* Original5fc900 ordinary profile-bound tail. A zero profile bound selects
  * Misc's default; a nonzero bound is first clamped to the immutable1..522
  * domain. Defaults themselves are copied unchanged. Special ability/type

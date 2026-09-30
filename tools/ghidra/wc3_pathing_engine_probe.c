@@ -30,6 +30,17 @@ void pathing_speed_cap_world(uint32_t const input[3], uint32_t output[3]) {
     output[0] = wc3_float_bits(v.vel[0]); output[1] = wc3_float_bits(v.vel[1]);
 }
 
+/* Base, two attached bonuses, multiplier, authored/default profile bounds. */
+void pathing_speed_bonus(uint32_t const input[8], uint32_t output[3]) {
+    float bonus = wc3_speed_bonus_max(0, wc3_float(input[1]));
+    bonus = wc3_speed_bonus_max(bonus, wc3_float(input[2]));
+    float raw = wc3_mul(wc3_add(wc3_float(input[0]), bonus), wc3_float(input[3]));
+    wc3SpeedLimit_t s = { .value = raw, .minimum = wc3_float(input[4]), .maximum = wc3_float(input[5]),
+        .default_minimum = wc3_float(input[6]), .default_maximum = wc3_float(input[7]) };
+    output[0] = wc3_float_bits(bonus); output[1] = wc3_float_bits(raw);
+    output[2] = wc3_float_bits(wc3_speed_limit_update(&s));
+}
+
 void pathing_speed_limits(uint32_t const input[6], uint32_t output[3]) {
     wc3SpeedLimit_t s = { .value = wc3_float(input[0]), .minimum = wc3_float(input[1]),
         .maximum = wc3_float(input[2]), .default_minimum = wc3_float(input[3]),
