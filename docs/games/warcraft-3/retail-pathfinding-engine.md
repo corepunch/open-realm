@@ -883,8 +883,9 @@ the final manifest checks the complete repeat object, preserving every assertion
 ## Widget escape idle admission
 
 The accepted widget escape in MAP-03.4 installs a real Move for an idle occupant,
-then completes after seven original group ticks with a supplied terrain-only query mask
-while its widget footprint remains registered ([original journey](retail-pathfinding-search.md#widget-produced-escape-through-arrival)).
+then completes after thirteen original group ticks with its Footman query mask
+produced by the original getters/bridge and retained throughout. A separate
+seven-tick terrain-only control preserves the historical fixture. Its widget footprint remains registered ([original journey](retail-pathfinding-search.md#widget-produced-escape-through-arrival)).
 The engine previously only set `movement.displacement_active` and a walk animation;
 its stand thinker never consumed that target. A construction-margin fixture using
 `G_DisplaceBuildOccupants`, `G_StartHumanConstruction`, a live JASS VM and normal
@@ -925,3 +926,15 @@ summary SHA256
 `69fdc4610b6e8bfa4fe3615d6c5ed87079e7ebb3dfc518c2f428ef2af99fcb49`.
 MAP-03.4 is deliberately still unchecked pending the original produced mask;
 the strict terrain-only journey is supporting bounded evidence.
+
+
+MAP-03.4 stock-mask checkpoint: fresh
+`map-03.4-stock-final-corpus/corpus-results.json` reproduces **133/133** declared
+outcomes with unchanged source fingerprints at completion. Manifest SHA256:
+`8a6a9e6aeeab8b7ad79e85fa024ba0a37f5775e8887b6836f8a11d828848efc8`.
+Summary SHA256:
+`39754dca2b4d64f4b966f407fef683b48d019f5f762fec08ad417917af61850d`.
+Full ROC/TFT suites pass37,126 assertions in2,142 engine tests each;85 pathfinding
+tool tests and both WC3/SC2 production builds pass. The original-mask extension
+adds no engine representation or frame-cadence change. The earlier idle admission
+fix remains active; inside-footprint escape integration remains MAP-03.7.

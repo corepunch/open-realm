@@ -808,11 +808,11 @@ Stable script/report `widget-masks-uninterrupted-stable.py/.json`, SHA256
 staged snapshot is retained as superseded evidence.
 
 
-The MAP-03.4 supporting journey follows that accepted idle-unit order without replacing
+The historical terrain-only control follows that accepted idle-unit order without replacing
 its proposal or removing the widget footprint. It explicitly supplies individual path
 query mask`02000000` before travel: terrain-only, with no low widget mask bits.
 That intervention does not recover the public movement-class mask producer;
-MAP-03.4 remains open until the original produced mask/regions are retained. Empty search buffers and scheduler storage are
+The stock-mask extension below closes that requirement. Empty search buffers and scheduler storage are
 provisioned, then original `16c150` performs fresh search. The three-point route is
 `[target, (7.5,7.5), start]`; both start and intermediate cells retain widget A's
 blocking record. Original `054190` advances seven intervals of1/32 second, with
@@ -849,3 +849,61 @@ The supplied terrain-only query mask permits those occupied cells in this fixtur
 it does not prove the public retail exclusion policy. Recover the actual movement-class
 mask and exclusion/region producer before integrating inside-footprint behavior.
 Do not clear the whole footprint or bypass unrelated terrain/unit collision.
+
+
+### Stock Footman mask through widget escape
+
+MAP-03.4 now also runs the accepted widget escape with the observed Footman
+profile: rawcode`hfoo`, category`ca`, query`2`. Original`678b50/678b60` load the
+unit rawcode, execute the original`198420` profile hash lookup through
+`690c20/690c80`, and original`05c7e0` publishes category/query through the
+Unit+164 mover bridge **before** uninterrupted widget admission.`05c7b0` retains
+the fine-region high byte and replaces its low24 category bits;`05c770/168c40`
+produce owned-path mask`02000002`. That word remains unchanged on every travel
+tick. No terrain-only mask is written in this variant.
+
+The retained footprint changes the route to
+`[target, (7.5,8.5), (6.5,8.5), start]`. The original group reaches the unchanged
+widget proposal after **13** intervals of1/32 second. Every raw position and
+velocity matches its frozen original witness; position integration also matches
+the independent software-scalar model. Fine-route index progresses2→1→0,
+then becomes invalid as arrival clears the route. Route count, points, indices
+and flags are frozen and checked on every tick in both variants. Arrival drains
+the original task/user queues; two more clock intervals restore all group/path,
+order/task payload and wrapper free lists. Footprint region words remain active.
+
+Fixture:`tools/ghidra/fixtures/retail-widget-footman-escape-1.27.json`.
+Normalized travel SHA256:
+`89cc3f45a5b13db6d1b633c7ed8413cfac7680fa8c3c45dc8088c6c6a7aefc7e`.
+The profile words come from archived live`movement-profile-stock-raw.jsonl`,
+SHA256`cf8532cdde7740c937fe5b9a50825b6848f253f80857e7782e1be6d2c384ed0a`.
+The fixture supplies that cache hit, a blank Footman presentation resource,
+custom radius8, pools and direct group cadence. It executes the authentic mask
+getters and bridge, not full`6945a0` class/ability notification or authored cache
+parsing. Those remain BASE-03.1/MAP-02; this closes one composed widget escape,
+not public construction or whole-engine trajectory parity.
+
+Ghidra persists the rawcode+30 field,16-byte mover bridge identity prefix,
+query/category setters/getters and refresh caller. Saved metadata:
+`map-03.4-ghidra-final-stock-types.json`:312 names,20 layouts,124 fields and78
+explicit prototypes. Public build native`206a20` and placement gate`66f050`
+also have persistent descriptive names/comments; unverified parameters remain
+untyped.
+
+Eight complete owned Frida captures preserve the attempted public producers:
+scripted Town Hall creation, pathing toggles and construction order variants.
+They do **not** call`654090` or produce an escape. Native`206a20` accepts placement
+statuses0/45, then requires`69dd60` status0 before admission. Both the initial
+ramp site and a nearby flat W3E vertex patch return44 before order validation.
+The final footprint observer identifies`66fba0` callback dispatch→`68f700`→
+`6800f0`: query8 returns blocked at`(-2160,-720)` or`(-2736,-784)`, sets
+placement context+34 to1, stops raster iteration and returns44. Thus vertex
+flags alone do not certify buildability; no controller or terrain-only cause
+is inferred. Raw captures`runtime/map-03.4-widget-*-raw.jsonl` embed tool/map
+hashes; exact tool sources are archived beside each. The generic corpus audit
+admits their complete negative status, not positive escape evidence.
+Authored RoC`UnitData.slk` maps`htow` to`PathTextures\16x16Simple.tga`;
+`UnitUI.slk` prevents placement on`unbuildable`. The actual texture is16×16,
+with a12×12 walk-blocking interior and blue build-blocking coverage across all
+256 pixels. A5×5 terrain vertex patch does not resolve ground-texture, object
+or generated buildability masks. The public producer remains MAP-03.3.

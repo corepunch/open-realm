@@ -7,12 +7,13 @@ Also executes full CUnit inherited widget reapply/removal through original resou
 lookup, pose/heading adapters, snapping and refresh gate. Widget creation, cache
 miss allocation and authored resource decoding are excluded. One accepted callback
 continues through actual order/task factories, user queue, Move task acceptance,
-fresh search and seven elapsed ticks to arrival/reclamation with the blocking
+fresh search and seven/thirteen elapsed ticks to arrival/reclamation with the blocking
 footprint retained. Shipped CRT math is loaded unchanged. Destruction stops at
 genuine Storm403; this fixture advances the group directly, not the whole owner.
-Travel explicitly supplies terrain-only mask02000000. The original movement-class
-mask producer and public widget exclusion policy remain MAP-03.4; retained
-widget records alone do not prove that they block this supplied query mask.
+The default control supplies terrain-only mask02000000. The --stock-mask variant
+executes original observed Footman profile getters/bridge before admission and
+retains02000002 through thirteen ticks. Cache/unit backing and radius8 remain
+supplied; full6945a0 class notification and public creation are separate scopes.
 """
 import argparse
 import hashlib
@@ -33,6 +34,7 @@ def main():
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--fixture', type=Path, default=Path(__file__).with_name('fixtures') / 'retail-widget-escape-journey-1.27.json')
+    parser.add_argument('--stock-mask', action='store_true', help='publish observed Footman profile masks through original getters/bridge before admission')
     args = parser.parse_args()
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
@@ -806,6 +808,32 @@ def main():
     for address in (0x6f071da0, 0x6f5fda10, 0x6f690490):
         uc.hook_add(UC_HOOK_CODE, observe_task_dispatch, begin=address, end=address)
     run(0x6f15fb40, occupant_mover)
+    if args.stock_mask:
+        # Observed hfoo category/query; custom radius8 and blank presentation
+        # cache remain supplied backing, not authored resource decoding.
+        write(occupant + 0x30, 0x68666f6f)
+        write(key_ptr, 0x68666f6f)
+        run(0x6f198420, key_ptr)
+        footman_hash = uc.reg_read(UC_X86_REG_EAX)
+        write(radius_entry, footman_hash)
+        write(radius_entry + 0x14, 0x68666f6f)
+        write(radius_entry + 0x1ac, 0xca, 2)
+        footman_resource = extra + 0x26000
+        uc.mem_write(footman_resource, bytes(uc.mem_read(resource_entry, 0x100)))
+        write(footman_resource + 4, footman_hash)
+        write(footman_resource + 0x18, 0x68666f6f)
+        write(footman_resource + 0xcc, 0)
+        write(resource_entry + 8, footman_resource)
+        write(resource_bucket, 4)  # Chain next pointer is row+8, preserving vtable bytes.
+        run(0x6f1657c0, current_path)
+        run(0x6f678b50, occupant)
+        query_mask = uc.reg_read(UC_X86_REG_EAX)
+        run(0x6f678b60, occupant)
+        category = uc.reg_read(UC_X86_REG_EAX)
+        assert (query_mask, category) == (2, 0xca)
+        run(0x6f05c7e0, occupant + 0x164, category, query_mask)
+        assert words(current_path + 0x9c, 1) == [0x02000002]
+        assert words(grid_objects[1] + 0x34, 1) == [0x010000ca]
     pre_dispatch_unit_references = words(occupant + 4, 1)[0]
     order_attempts.clear()
     proposals.clear()
@@ -859,8 +887,8 @@ def main():
         group_identity=words(group + 0x14, 2), path_identity=words(path + 0x14, 2), events=dispatch_events,
         scope='One uninterrupted original6544f0 invocation with all provisioning before entry; full680320 cancellation, real factories, user-order publication, task dispatch and Move acceptance return. Group/path/membership, callback reference release and final widget refresh asserted. Stock-style speed bounds and shipped original CRT math provisioned; no travel/arrival claim.')
     # Follow the exact widget-produced command; preserve footprint records and
-    # its original random proposal. Supply search/scheduler storage and a
-    # terrain-only individual mask: this is not the public class-mask producer.
+    # its original random proposal. Stock mode retains its produced mask;
+    # the default control supplies a terrain-only individual mask.
     from verify_wc3_pathing_numeric import multiply
     uc.mem_map(0x10200000, 0x90000)
     nodes, search_heap, member_route, group_route, member_coarse = [0x10200000 + n for n in (0, 0x30000, 0x60000, 0x64000, 0x68000)]
@@ -875,8 +903,10 @@ def main():
         write(ptr + 0x60, member_coarse if ptr == current_path else group_route + 0x2000)
         write(ptr + 0x6c, 1024, 0)
     write(current_path + 0x84, 700 | (400 << 16))
-    write(current_path + 0x9c, 0x02000000)
-    assert words(current_path + 0x9c, 1) == [0x02000000]
+    if not args.stock_mask:
+        write(current_path + 0x9c, 0x02000000)
+    travel_mask = 0x02000002 if args.stock_mask else 0x02000000
+    assert words(current_path + 0x9c, 1) == [travel_mask]
     for row in range(16):
         for kind, (limit, reload, budget) in enumerate(((5000, 3, 800), (2000, 2, 300), (400, 2, 900), (700, 1, 1100))):
             write(0x6fd53a90 + row * 0x70 + kind * 0x1c, limit | (reload << 16), budget, 0, 0, 0, 0, 0)
@@ -911,6 +941,7 @@ def main():
     floats(clock + 0x48, 8)
     floats(xptr, 1 / 32)
     trajectory = []
+    route_states = []
     for tick in range(1, 129):
         if words(occupant + 0x174, 1) == [0xffffffff]:break
         run(0x6f054190, xptr, edx=clock)
@@ -921,13 +952,22 @@ def main():
         assert actual_position == expected_position, (tick, actual_position, expected_position)
         trajectory.append(dict(tick=tick, position_bits=actual_position, velocity_bits=words(occupant_mover + 0x80, 2)))
         assert [words(obj + 0x34, 1)[0] for obj in objects[0]] == footprint_before
+        assert words(current_path + 0x9c, 1) == [travel_mask]
+        count = words(current_path + 0x50, 1)[0]
+        route_states.append(dict(tick=tick, fine_count=count,
+                                 fine_index=words(current_path + 0x74,1)[0],
+                                 adaptive_index=words(current_path + 0x78,1)[0],
+                                 flags=words(current_path + 0x88,1)[0],
+                                 route=words(member_route,count * 2)))
     travel_outcome = dict(initial_route=initial_route, trajectory=trajectory, arrivals=arrival_observations,
                          task_head=words(occupant + 0x174, 2), user_head=words(occupant + 0x19c, 2),
                          queue_count=words(occupant + 0x1b4, 1)[0], action=words(occupant + 0x194, 1)[0],
                          scope='Exact widget proposal and blocking footprint retained; original fresh search and up to128 elapsed group ticks. Outcome observed, not forced.')
-    assert len(trajectory) == 7 and len(arrival_observations) == 1
+    arrival_tick = 13 if args.stock_mask else 7
+    assert len(trajectory) == arrival_tick and len(arrival_observations) == 1
     assert arrival_observations[0]['user_head'] == order_identity
-    assert initial_route == target_grid + [bits(7.5), bits(7.5)] + source_grid
+    intermediate = [bits(7.5), bits(8.5), bits(6.5), bits(8.5)] if args.stock_mask else [bits(7.5)] * 2
+    assert initial_route == target_grid + intermediate + source_grid
     assert active_widget_cell(7, 7)  # The intermediate route point also lies in A's footprint.
     assert words(occupant + 0x174, 2) == words(occupant + 0x19c, 2) == words(occupant + 0x1a8, 2) == [0xffffffff] * 2
     assert words(occupant + 0x1b4, 1) == words(occupant + 0x194, 1) == words(ability + 0x20, 1) == [0]
@@ -953,13 +993,14 @@ def main():
         returned_payloads[hex(rawcode)] = count
     assert words(wrapper_pool + 0x18, 1) == [0]
     assert words(registry + 0x48, 1) == [5]
-    travel_outcome.update(outcome='arrived', arrival_tick=7, footprint_start_and_middle_cells_active=True,
+    travel_outcome.update(outcome='arrived', arrival_tick=arrival_tick, footprint_start_and_middle_cells_active=True,
                           payload_free_lists_restored=returned_payloads, registry_live_after_cleanup=5,
-                          scope='Unchanged widget footprint and original proposal; fresh original search returns three points including occupied start/intermediate cells, arrival after7ticks, task/user queues drain, group/path and all order/task payloads/wrappers reclaimed.')
+                          scope=f'Unchanged widget footprint/proposal; fresh original search, arrival after{arrival_tick}ticks, queues drain and group/path/payload/wrapper reclamation. Query mask{travel_mask:08x}; stock mode uses original getter/bridge before admission, control supplies terrain-only mask.')
     frozen = json.loads(args.fixture.read_text())
     escape_words = {key: value for key, value in travel_outcome.items() if key != 'scope'}
     assert frozen['binary_sha256'] == digest and frozen['crt_sha256'] == crt_digest
-    assert frozen['supplied_query_mask'] == 0x02000000
+    assert frozen['supplied_query_mask'] == travel_mask
+    assert frozen['route_states'] == route_states, 'widget escape route progression differs from frozen original states'
     assert frozen['target_world_bits'] == list(proposals[0]) and frozen['target_grid_bits'] == target_grid
     assert escape_words == frozen['travel'], 'widget escape journey differs from frozen original words/lifetimes'
     travel_digest = hashlib.sha256(json.dumps(escape_words, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
@@ -1055,7 +1096,9 @@ def main():
         assert levels() != blocked
     report = dict(binary_sha256=digest, lifecycle_cases=cases, raster_bounds_rebuild_stages=stages,
                   actual_callback_calls=total_callbacks, actual_cell_records=total_records,
-                  widget_escape_arrival_tick=7, widget_escape_supplied_query_mask=0x02000000,
+                  widget_escape_arrival_tick=arrival_tick, widget_escape_supplied_query_mask=travel_mask,
+                  widget_escape_original_mask_publication=args.stock_mask, widget_escape_route_states=route_states,
+                  widget_escape_profile=dict(rawcode='hfoo', category=0xca, query=2, radius_world_bits=bits(8)) if args.stock_mask else None,
                   widget_escape_trajectory_sha256=travel_digest,
                   widget_escape_fixture_sha256=hashlib.sha256(args.fixture.read_bytes()).hexdigest(),
                   travel_outcome=travel_outcome, full_displacement_returns=full_displacement_returns, displacement_evidence=displacement_evidence, crt_sha256=crt_digest,
@@ -1073,7 +1116,7 @@ def main():
                   snapping='World-coordinate truncation toward zero to a multiple of 64, plus sign(value) * (32 * ((rotated_extent >> 1) & 1) + 16 * (rotated_extent & 1)); exercised strictly inside world bounds.',
                   sequence='A insert, overlapping B insert, A remove, B remove; explicit bounds rebuild after every raster',
                   entries=['6f22e9c0', '6f652b40', '6f650a70', '6f063e50', '6f14d9e0', '6f22f1d0', '6f04e0b0', '6f15d360', '6f6514d0', '6f6524c0', '6f344760', '6f058900', '6f252b30', '6f22f410', '6f651160', '6f6544f0', '6f78bc90', '6f744040', '6f04c5d0', '6f05ef40', '6f654090', '6f674280', '6f1b7130', '6f69dd60', '6f600620', '6f69bd80', '6f680970', '6f689a60', '6f650c00', '6f063b40', '6f14dae0', '6f1cbfb0', '6f680320', '6f673fe0', '6f691c70', '6f67abe0', '6f5fd270', '6f67df00', '6f16c150', '6f054190', '6f5fa7a0'],
-                  scope='Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return, then preserves the footprint through fresh search, seven direct group ticks, arrival and reclamation. Full owner cadence remains excluded. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free.')
+                  scope='Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return, then preserves footprint records through fresh search, the declared seven/13-tick variant, arrival and reclamation; default terrain-only mask is supplied, stock mode executes original observed profile getters/bridge before admission. Full owner cadence remains excluded. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free.')
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))

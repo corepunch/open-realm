@@ -1057,17 +1057,20 @@
           "equal": "7d91e8aa712afb8a5025e9b0f98d2a19479f4b4c19bc7973abb6a49079bb4c0c"
         },
         "widget_escape_fixture_sha256": {
-          "equal": "05ab9311f04d6248ddae1cb70c2fe6f7108be8f85afa8e1fe6192664528bd452"
+          "equal": "f6883dcd25d87f4c6d26d2b5a2af2f9f14d28a230454315f5dddb7f82c521a2d"
         },
         "widget_escape_supplied_query_mask": {
           "equal": 33554432
+        },
+        "widget_escape_original_mask_publication": {
+          "equal": false
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return, then executes fresh search and seven elapsed direct group ticks to arrival with the widget footprint retained. Frozen exact position/velocity words, callback identity, drained queues and reclaimed group/path/order/task storage are checked. Full owner cadence and public widget creation remain excluded. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free. Travel explicitly supplies terrain-only individual query mask02000000; original class-mask producer and public widget exclusion policy remain MAP-03.4. Retained widget records do not prove they block this query.",
+      "scope": "Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return, then executes fresh search and seven elapsed direct group ticks to arrival with the widget footprint retained. Frozen exact position/velocity words, callback identity, drained queues and reclaimed group/path/order/task storage are checked. Full owner cadence and public widget creation remain excluded. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free. Travel explicitly supplies terrain-only individual query mask02000000; the separate stock-mask variant executes original profile getter/bridge publication before admission. This default does not certify that variant. Retained widget records do not prove they block this query.",
       "exclusions": []
     },
     {
@@ -5857,6 +5860,549 @@
       "exclusions": [
         "Original compiled decimal literal producer, pointer aliases, Pow and full engine trajectory remain excluded."
       ]
+    },
+    {
+      "id": "widget-footman-escape",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_widget_masks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--stock-mask",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-widget-footman-escape-1.27.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "widget-footman-escape-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "lifecycle_cases": {
+          "minimum": 1
+        },
+        "widget_escape_arrival_tick": {
+          "equal": 13
+        },
+        "widget_escape_trajectory_sha256": {
+          "equal": "89cc3f45a5b13db6d1b633c7ed8413cfac7680fa8c3c45dc8088c6c6a7aefc7e"
+        },
+        "widget_escape_fixture_sha256": {
+          "equal": "4227bc8110d44fa0726590e2ab0e6d7cbc638dbdf0ecc831688919cc80ffbaf7"
+        },
+        "widget_escape_supplied_query_mask": {
+          "equal": 33554434
+        },
+        "widget_escape_original_mask_publication": {
+          "equal": true
+        },
+        "widget_escape_profile": {
+          "equal": {
+            "rawcode": "hfoo",
+            "category": 202,
+            "query": 2,
+            "radius_world_bits": 1090519040
+          }
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Observed live Footman category/query in supplied profile cache; original getters and05c7e0 bridge publish mask02000002 before uninterrupted widget admission. Retain that mask/registered footprint through fresh search and13 direct group ticks to arrival and complete queue/task/order/group/path reclamation; frozen raw positions/velocities and identities. Existing Unit/Move/class/pools, radius8 and blank presentation cache supplied. Excludes full6945a0 notification, public widget creation, authored resource decode, full-owner cadence and independent RNG seed model.",
+      "exclusions": []
+    },
+    {
+      "id": "capture-map-03.4-widget-escape",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/map-03.4-widget-escape-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/map-03.4-widget-escape-raw.jsonl",
+        "sha256": "f908c8360f943a13debdb0a43bb3d02e8ca89162230c6c91c3d43b2ee6b5f82d",
+        "bytes": 45886,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+            "wc3_pathfinding.js": "e49c60867d3cdc5db5907c4a163515ded56c88ffb8a8e4ff107d400a7b704ff8",
+            "wc3_pathfinding_probe.j": "7c364d893f31f6ce35ea3d0eb4e7ea056500e9269c90fec16581848caba702b4",
+            "make_wc3_pathfinding_map.py": "89c8a1dc34d7dca4ff06e3235d893919f90d55433596a89a7f97086025b70318",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "map": "8f3d0ea702f52edd9923888a3dc5827a7527894f8679b61f8d1793c26b4e42d6"
+          },
+          "map": "Maps\\PathingRE-WidgetEscape1.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true,
+          "motionEvents": false,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false
+        }
+      },
+      "report": "captures/map-03.4-widget-escape-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned negative widget producer experiment. Scripted creation/pathing toggles or rejected Town Hall build do not execute654090 or produce an escape; retain this absence, not positive escape/trajectory proof.",
+      "exclusions": [
+        "Source/map hashes are embedded and exact tool sources archived adjacent to capture. No full public escape or original mask initialization proof is inferred from an idle occupant."
+      ]
+    },
+    {
+      "id": "capture-map-03.4-widget-pathing",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/map-03.4-widget-pathing-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/map-03.4-widget-pathing-raw.jsonl",
+        "sha256": "6e2066082bda51b9f593b6ab08ea602e91d2f2fdef2303cd00b7d9c936e1145a",
+        "bytes": 46998,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+            "wc3_pathfinding.js": "e49c60867d3cdc5db5907c4a163515ded56c88ffb8a8e4ff107d400a7b704ff8",
+            "wc3_pathfinding_probe.j": "6698c462fec363244cae07b017449e4b6e819b7b347341d8f3a71c5981ac7fc3",
+            "make_wc3_pathfinding_map.py": "89c8a1dc34d7dca4ff06e3235d893919f90d55433596a89a7f97086025b70318",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "map": "d1a68f55c9596152e934d46b4ecff256d2893b2487fcc9e032caaa3612591dd7"
+          },
+          "map": "Maps\\PathingRE-WidgetEscape2.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true,
+          "motionEvents": false,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false
+        }
+      },
+      "report": "captures/map-03.4-widget-pathing-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned negative widget producer experiment. Scripted creation/pathing toggles or rejected Town Hall build do not execute654090 or produce an escape; retain this absence, not positive escape/trajectory proof.",
+      "exclusions": [
+        "Source/map hashes are embedded and exact tool sources archived adjacent to capture. No full public escape or original mask initialization proof is inferred from an idle occupant."
+      ]
+    },
+    {
+      "id": "capture-map-03.4-widget-build",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/map-03.4-widget-build-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/map-03.4-widget-build-raw.jsonl",
+        "sha256": "679cc118f39392e813c325c1027d68732b2ed99a32b804fa7e6e7f1de6803601",
+        "bytes": 42895,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+            "wc3_pathfinding.js": "540163330d4e83d0e6e130d3456cd5d132db536a686ab403ce4fcc44aec77c86",
+            "wc3_pathfinding_probe.j": "b5df0432e915c88e02dfad33b8c71ac6bcd18e6f9eb3788a91ed2042890509ab",
+            "make_wc3_pathfinding_map.py": "7f2a69e0360406c1dbc984ebdb8f568cb5cae4c5da541d88f93dcb68264d0e2c",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "map": "108eedb5a6dc5232a779f4b5623fa41c26dc8383e6edfd61e6766d616846f9bf"
+          },
+          "map": "Maps\\PathingRE-WidgetBuildEscape1.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true,
+          "motionEvents": false,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false
+        }
+      },
+      "report": "captures/map-03.4-widget-build-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned negative widget producer experiment. Scripted creation/pathing toggles or rejected Town Hall build do not execute654090 or produce an escape; retain this absence, not positive escape/trajectory proof.",
+      "exclusions": [
+        "Source/map hashes are embedded and exact tool sources archived adjacent to capture. No full public escape or original mask initialization proof is inferred from an idle occupant."
+      ]
+    },
+    {
+      "id": "capture-map-03.4-widget-build-user",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/map-03.4-widget-build-user-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/map-03.4-widget-build-user-raw.jsonl",
+        "sha256": "bf8281d1f5bc431359572b2ab98beba5e15f23879fcbf2119d03fa3856f60218",
+        "bytes": 42897,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+            "wc3_pathfinding.js": "540163330d4e83d0e6e130d3456cd5d132db536a686ab403ce4fcc44aec77c86",
+            "wc3_pathfinding_probe.j": "da5ffa9db8a2dbe026d7c2d439311d431e886e3be43b5b84cc41d021e2694573",
+            "make_wc3_pathfinding_map.py": "7f2a69e0360406c1dbc984ebdb8f568cb5cae4c5da541d88f93dcb68264d0e2c",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "map": "7fa03d7b81a5c700616cbb980789c18228b2aa854803c8067bfeec51f1218103"
+          },
+          "map": "Maps\\PathingRE-WidgetBuildEscape2.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true,
+          "motionEvents": false,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false
+        }
+      },
+      "report": "captures/map-03.4-widget-build-user-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned negative widget producer experiment. Scripted creation/pathing toggles or rejected Town Hall build do not execute654090 or produce an escape; retain this absence, not positive escape/trajectory proof.",
+      "exclusions": [
+        "Source/map hashes are embedded and exact tool sources archived adjacent to capture. No full public escape or original mask initialization proof is inferred from an idle occupant."
+      ]
+    },
+    {
+      "id": "capture-map-03.4-widget-build-gates",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/map-03.4-widget-build-gates-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/map-03.4-widget-build-gates-raw.jsonl",
+        "sha256": "96f16b014a1bccf9fbf758e9cc4b1cd4c2c26fff4ccaf60cbc5a2dd1abf4fed1",
+        "bytes": 43064,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+            "wc3_pathfinding.js": "00fc8cf6772f4f4984c0bc8bfc52dae07b72331c76c269d8202b39c78f3a2666",
+            "wc3_pathfinding_probe.j": "da5ffa9db8a2dbe026d7c2d439311d431e886e3be43b5b84cc41d021e2694573",
+            "make_wc3_pathfinding_map.py": "7f2a69e0360406c1dbc984ebdb8f568cb5cae4c5da541d88f93dcb68264d0e2c",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "map": "7fa03d7b81a5c700616cbb980789c18228b2aa854803c8067bfeec51f1218103"
+          },
+          "map": "Maps\\PathingRE-WidgetBuildEscape2.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true,
+          "motionEvents": false,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false
+        }
+      },
+      "report": "captures/map-03.4-widget-build-gates-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned negative widget producer experiment. Scripted creation/pathing toggles or rejected Town Hall build do not execute654090 or produce an escape; retain this absence, not positive escape/trajectory proof.",
+      "exclusions": [
+        "Source/map hashes are embedded and exact tool sources archived adjacent to capture. No full public escape or original mask initialization proof is inferred from an idle occupant."
+      ]
+    },
+    {
+      "id": "capture-map-03.4-widget-build-branches",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/map-03.4-widget-build-branches-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/map-03.4-widget-build-branches-raw.jsonl",
+        "sha256": "ffea883ba1b71e512e4434d070bd4d19695f9316eecb5e26add829e7d3acb301",
+        "bytes": 43082,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+            "wc3_pathfinding.js": "b5c9f57e20624977abd3b6f1849980211bd06ca98b6f31873fec13da72bf0fe5",
+            "wc3_pathfinding_probe.j": "da5ffa9db8a2dbe026d7c2d439311d431e886e3be43b5b84cc41d021e2694573",
+            "make_wc3_pathfinding_map.py": "7f2a69e0360406c1dbc984ebdb8f568cb5cae4c5da541d88f93dcb68264d0e2c",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "map": "7fa03d7b81a5c700616cbb980789c18228b2aa854803c8067bfeec51f1218103"
+          },
+          "map": "Maps\\PathingRE-WidgetBuildEscape2.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true,
+          "motionEvents": false,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false
+        }
+      },
+      "report": "captures/map-03.4-widget-build-branches-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned negative widget producer experiment. Scripted creation/pathing toggles or rejected Town Hall build do not execute654090 or produce an escape; retain this absence, not positive escape/trajectory proof.",
+      "exclusions": [
+        "Source/map hashes are embedded and exact tool sources archived adjacent to capture. No full public escape or original mask initialization proof is inferred from an idle occupant."
+      ]
+    },
+    {
+      "id": "capture-map-03.4-widget-build-flat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/map-03.4-widget-build-flat-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/map-03.4-widget-build-flat-raw.jsonl",
+        "sha256": "f41c1f813e6439fcf8d2bb9ca0df8cd48cedcf3833cfe36d867523221fc01f94",
+        "bytes": 49711,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+            "wc3_pathfinding.js": "21930e4ef322cbb6bfdba5c9cfd2fc4f354b76e4334f1b995e17d13bcfbca810",
+            "wc3_pathfinding_probe.j": "45bc5bc1c4861888b46a044b552f88a0ed014789cd7561694b925ef61b6be04e",
+            "make_wc3_pathfinding_map.py": "7f2a69e0360406c1dbc984ebdb8f568cb5cae4c5da541d88f93dcb68264d0e2c",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "map": "0273b1a1acdd4c6fe63bf929576061075ab19a83f8c7efd5561baf5fb2185a88"
+          },
+          "map": "Maps\\PathingRE-WidgetBuildEscape3.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true,
+          "motionEvents": false,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false
+        }
+      },
+      "report": "captures/map-03.4-widget-build-flat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned negative Town Hall placement comparison: ramp and original flat terrain both return44 before order validation. Four direct status44 assignments are not reached; the callback dispatcher also propagates status. No positive escape or terrain-specific cause inferred.",
+      "exclusions": [
+        "Source/map hashes are embedded and exact tool sources archived adjacent to capture. No full public escape or original mask initialization proof is inferred from an idle occupant."
+      ]
+    },
+    {
+      "id": "capture-map-03.4-widget-build-footprint",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/map-03.4-widget-build-footprint-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/map-03.4-widget-build-footprint-raw.jsonl",
+        "sha256": "ae152511301cd9ddb0afcf8d63269ad7ce6c2e04e28d60bd3c3eb1217689785c",
+        "bytes": 62699,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+            "wc3_pathfinding.js": "b5b42536f3a66f7c355fb0af92d94629df774f57ce1c1705ac7e3baddbddbbb4",
+            "wc3_pathfinding_probe.j": "45bc5bc1c4861888b46a044b552f88a0ed014789cd7561694b925ef61b6be04e",
+            "make_wc3_pathfinding_map.py": "7f2a69e0360406c1dbc984ebdb8f568cb5cae4c5da541d88f93dcb68264d0e2c",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "map": "0273b1a1acdd4c6fe63bf929576061075ab19a83f8c7efd5561baf5fb2185a88"
+          },
+          "map": "Maps\\PathingRE-WidgetBuildEscape3.w3m",
+          "seconds": 60.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true,
+          "motionEvents": false,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false
+        }
+      },
+      "report": "captures/map-03.4-widget-build-footprint-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned footprint observer comparison: ramp and flat-vertex Town Hall placements return44 through68f700;6800f0 query8 sees a blocked sampled point, sets context+34=1, and stops iteration. Vertex flags alone do not establish buildability. No positive widget escape/trajectory proof.",
+      "exclusions": [
+        "Source/map hashes are embedded and exact tool sources archived adjacent to capture. No full public escape or original mask initialization proof is inferred from an idle occupant."
+      ]
     }
   ],
   "fixtures": [
@@ -5922,7 +6468,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "1a9e28840d78135cb3db36fcfbdbf55d9857fd62abbeafa1dccf486d0440e952"
+      "sha256": "f2e4d2bd563b18cbfeb0c3bdcc7029cfc057168526f53c371a6915e300d5d94c"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -5986,7 +6532,11 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-widget-escape-journey-1.27.json",
-      "sha256": "05ab9311f04d6248ddae1cb70c2fe6f7108be8f85afa8e1fe6192664528bd452"
+      "sha256": "f6883dcd25d87f4c6d26d2b5a2af2f9f14d28a230454315f5dddb7f82c521a2d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-widget-footman-escape-1.27.json",
+      "sha256": "4227bc8110d44fa0726590e2ab0e6d7cbc638dbdf0ecc831688919cc80ffbaf7"
     }
   ]
 }

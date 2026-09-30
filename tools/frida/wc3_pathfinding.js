@@ -144,6 +144,136 @@ function install(module) {
         });
     }
     if (config.widgetEvents) {
+        const placements = new Map();
+        let placementSerial = 0;
+        // The registered build native admits placement statuses 0/45, then
+        // requires order validation0. Observe which original gate rejects it.
+        hook(0x66f050, {
+            onEnter(args) {
+                this.recordPlacement = widgetScenario;
+                if (!this.recordPlacement) return;
+                this.placementId = ++placementSerial;
+                placements.set(this.threadId, this.placementId);
+                this.row = {placementId:this.placementId, unitId:this.context.ecx.toUInt32(),
+                    x:this.context.edx.readU32(), y:args[0].readU32(), builder:args[3].toString()};
+            },
+            onLeave(result) {
+                if (!this.recordPlacement) return;
+                bump('widget-placement');
+                if (counts['widget-placement'] <= config.samples)
+                    emit('widget-placement', {...this.row, result:result.toUInt32()});
+                placements.delete(this.threadId);
+            }
+        });
+        // These four instructions assign status 0x44. Keep their distinct
+        // sites observable until the caller's rejection policy is recovered.
+        for (const rva of [0x66f452, 0x66f475, 0x66f4c1, 0x66fb1d]) {
+            hook(rva, {
+                onEnter() {
+                    const placementId = placements.get(this.threadId);
+                    if (!placementId) return;
+                    bump('widget-placement-branch');
+                    if (counts['widget-placement-branch'] <= config.samples)
+                        emit('widget-placement-branch', {placementId, site:rva,
+                            eax:this.context.eax.toUInt32(), ecx:this.context.ecx.toUInt32(),
+                            esi:this.context.esi.toUInt32(), edi:this.context.edi.toUInt32(),
+                            ebx:this.context.ebx.toUInt32()});
+                }
+            });
+        }
+        hook(0x68f700, {
+            onEnter(args) {
+                this.placementId = placements.get(this.threadId);
+                if (!this.placementId) return;
+                this.placementContext = args[1];
+                this.before = ints(this.placementContext, 23);
+            },
+            onLeave(result) {
+                if (!this.placementId) return;
+                bump('widget-footprint-check');
+                if (counts['widget-footprint-check'] <= config.samples)
+                    emit('widget-footprint-check', {placementId:this.placementId,
+                        before:this.before, after:ints(this.placementContext,23), result:result.toUInt32()});
+            }
+        });
+        hook(0x6800f0, {
+            onEnter(args) {
+                this.placementId = placements.get(this.threadId);
+                if (!this.placementId) return;
+                this.placementContext = args[3];
+                this.row = {placementId:this.placementId, point:ints(this.context.ecx,2),
+                    cellFlags:args[2].toUInt32(), masks:this.placementContext.add(4).readU16(),
+                    before:ints(this.placementContext.add(0x2c),4)};
+            },
+            onLeave(result) {
+                if (!this.placementId) return;
+                bump('widget-placement-cell');
+                if (counts['widget-placement-cell'] <= config.samples)
+                    emit('widget-placement-cell', {...this.row,
+                        after:ints(this.placementContext.add(0x2c),4), result:result.toUInt32()});
+            }
+        });
+        hook(0x04e060, {
+            onEnter(args) {
+                this.placementId = placements.get(this.threadId);
+                if (!this.placementId) return;
+                this.row = {placementId:this.placementId,
+                    point:[this.context.ecx.readU32(),this.context.edx.readU32()],
+                    query:args[0].toUInt32(), mode:args[1].toUInt32()};
+            },
+            onLeave(result) {
+                if (!this.placementId) return;
+                bump('widget-placement-query');
+                if (counts['widget-placement-query'] <= config.samples)
+                    emit('widget-placement-query', {...this.row, result:result.toUInt32()});
+            }
+        });
+        hook(0x69dd60, {
+            onEnter(args) {
+                this.recordCheck = widgetScenario;
+                if (!this.recordCheck) return;
+                this.row = {unit:this.context.ecx.toString(), order:args[0].toUInt32()};
+            },
+            onLeave(result) {
+                if (!this.recordCheck) return;
+                bump('widget-order-check');
+                if (counts['widget-order-check'] <= config.samples)
+                    emit('widget-order-check', {...this.row, result:result.toUInt32()});
+            }
+        });
+        // Read canonical mover identity without calling retail or mutating it.
+        const escapeState = unit => {
+            const identity = ints(unit.add(0x16c), 2), id = identity[0] >>> 0;
+            const row = {unit:unit.toString(), rawcode:unit.add(0x30).readU32(), identity,
+                flags:unit.add(0x5c).readU32(), world:ints(unit.add(0x284),2),
+                taskHead:ints(unit.add(0x174),2), orderHead:ints(unit.add(0x19c),2)};
+            if (id === 0xffffffff) return {...row, mover:null};
+            const registry = base.add(0xd68610).readPointer(), alternate = (id & 0x80000000) !== 0;
+            const index = id & 0x7fffffff, limit = registry.add(alternate ? 0x3c : 0x1c).readU32();
+            if (index >= limit) throw new Error('widget occupant mover outside registry');
+            const slot = registry.add(alternate ? 0x2c : 0xc).readPointer().add(index*8);
+            if (slot.readS32() !== -2) throw new Error('widget occupant mover is not live');
+            const mover = slot.add(4).readPointer();
+            if (mover.add(0x18).readS32() !== identity[1]) throw new Error('widget occupant mover epoch differs');
+            const path = mover.add(0xa8).readPointer(), region = mover.add(0x98).readPointer();
+            return {...row, mover:mover.toString(), pose:ints(mover.add(0x78),4),
+                pathMask:path.isNull() ? null : path.add(0x9c).readU32(),
+                regionMask:region.isNull() ? null : region.add(0x34).readU32()};
+        };
+        hook(0x654090, {
+            onEnter() {
+                this.recordEscape = widgetScenario;
+                if (!this.recordEscape) return;
+                this.unit = this.context.ecx;
+                this.row = {context:ints(this.context.edx,8), before:escapeState(this.unit)};
+            },
+            onLeave(result) {
+                if (!this.recordEscape) return;
+                bump('widget-escape');
+                if (counts['widget-escape'] <= config.samples)
+                    emit('widget-escape', {...this.row, result:result.toUInt32(), after:escapeState(this.unit)});
+            }
+        });
         for (const [rva, method] of [[0x6501a0, 'create'], [0x650c00, 'destroy'],
                                      [0x6514d0, 'remove-mask'], [0x6544f0, 'reapply']]) {
             hook(rva, {
@@ -667,7 +797,8 @@ function install(module) {
         if (value.startsWith('PATHSTOCK ')) emit('stock-marker', {value});
         if (value.startsWith('PATHHOLD ')) emit('hold-marker', {value});
         if (value.startsWith('PATHTRACE ')) {
-            if (value.includes('label=start_widget_lifecycle ')) widgetScenario = true;
+            if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
+                widgetScenario = true;
             emit('marker', {value});
             if (!value.includes('label=sample ')) snapshotCells(value);
         }

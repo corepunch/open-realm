@@ -659,6 +659,12 @@
           "evidence": "2039d0/1eef90 canonical wrapper checks"
         },
         {
+          "offset": 48,
+          "name": "rawcode",
+          "type": "u32",
+          "evidence": "678b50/678b60 thunk loads Unit+30 before690c20/690c80 profile lookup"
+        },
+        {
           "offset": 372,
           "name": "internal_head",
           "type": "WC3PathIdentity",
@@ -849,6 +855,18 @@
           "name": "origin_y",
           "type": "WC3PathScalar",
           "evidence": "65464b..64e stores snapped origin"
+        }
+      ]
+    },
+    {
+      "name": "WC3UnitMoverBridge",
+      "length": 16,
+      "fields": [
+        {
+          "offset": 8,
+          "name": "mover_identity",
+          "type": "WC3PathIdentity",
+          "evidence": "05c770/05c7b0 canonical lookup; Unit+164 bridge embeds Unit+16c identity"
         }
       ]
     }
@@ -1924,6 +1942,139 @@
           "name": "context",
           "type": "ptr:WC3WidgetEscapeContext",
           "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f168c40",
+      "name": "Path_SetQueryMask",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "mask",
+          "type": "ptr:u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f05c770",
+      "name": "UnitMoverBridge_SetQueryMask",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "query",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f05c7b0",
+      "name": "UnitMoverBridge_SetCategory",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "category",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f05c7e0",
+      "name": "UnitMoverBridge_PublishPathingProfile",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "category",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "query",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f678b50",
+      "name": "CUnit_GetPathingQueryMask",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f678b60",
+      "name": "CUnit_GetPathingCategory",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f690c20",
+      "name": "UnitProfile_GetPathingQueryMask",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "rawcode",
+          "type": "u32",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f690c80",
+      "name": "UnitProfile_GetPathingCategory",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "rawcode",
+          "type": "u32",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f6945a0",
+      "name": "CUnit_RefreshMoverPathingProfile",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
         }
       ]
     }

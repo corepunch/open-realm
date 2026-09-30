@@ -129,5 +129,106 @@
     },
     "registry_live_after_cleanup": 5
   },
-  "supplied_query_mask": 33554432
+  "supplied_query_mask": 33554432,
+  "route_states": [
+    {
+      "tick": 1,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 2,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 3,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 4,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 5,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 6,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 7,
+      "fine_count": 0,
+      "fine_index": 4294967295,
+      "adaptive_index": 4294967295,
+      "flags": 1048576,
+      "route": []
+    }
+  ],
+  "route_source_report_sha256": "cbf5837ed6ac91fe38450403195fd948496a7ca1d01eff48ee2f5fc5830f5629"
 }

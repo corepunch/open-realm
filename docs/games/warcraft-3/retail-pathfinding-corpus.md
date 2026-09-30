@@ -11,7 +11,7 @@ production-engine parity. Engine comparisons are named explicitly.
 ## Inventory and acceptance
 
 BASE-05.1 records all **32** `verify_wc3_pathing_*.py` oracle scripts, **12**
-selected variants, **61** archived JSONL captures and **nine** stronger live-input
+selected variants, **69** archived JSONL captures and **nine** stronger live-input
 replays from the documented report
 root. Ghidra exports, reducer attempts and other scratch reports support those
 experiments; they are not additional independently accepted corpus entries.
@@ -24,15 +24,18 @@ restored-valid checks). Cdecl stack, callee registers, SEH and Unit references
 are checked. Existing VM backing is supplied; full construction stays excluded.
 GROUP-04.1 adds callback-mutation checks to the motion oracle. GROUP-04.3 adds
 three variants: open/wall callback-timed mover reuse and a missing-registry-alias
-counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. NUM-01.5/06 add one repeated public numeric/parser and parsed Move admission capture; NUM-01.8 adds one48-pair public-angle repeat. The inventory now has **124 entries**; fixture hashes and Ghidra
-annotation-script fingerprints cover those extensions. See [callback reuse](retail-pathfinding-movement.md#callback-timed-handle-reclamation-and-reuse).
+counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. NUM-01.5/06 add one repeated public numeric/parser and parsed Move admission capture; NUM-01.8 adds one48-pair public-angle repeat. The inventory now has **133 entries**; fixture hashes and Ghidra
+annotation-script fingerprints cover those extensions. MAP-03.4 adds the
+original-mask Footman escape variant and eight complete negative public-widget
+producer captures. Frozen route states cover every tick of both seven/thirteen
+tick variants; negative captures do not imply a successful escape. See [callback reuse](retail-pathfinding-movement.md#callback-timed-handle-reclamation-and-reuse).
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
 | 32 ordinary oracles, frozen owner baseline and its full current-order native query variant, five pair fixtures, two engine comparisons, two callback-reuse variants two callback-completion variants two completion/reuse journeys and two survivor replacement journeys | `verified` | Oracle assertions and the listed report checks must pass within their stated scope |
 | Two native adaptive size-2 cases | `known-reference-difference`, exit1 | Preserve the four retail/reference reachability differences, one per traversal lane |
 | Two modified adaptive controls and one missing-registry-alias control | `counterfactual-control`, exit0 | Deliberate hierarchy/result interventions explain the native difference; they do not certify native behavior |
-| 54 completed archives | `archive-consistent` | Current generic analyzer accepts the frozen capture; omitted scenario requirements remain omitted |
+| 62 completed archives | `archive-consistent` | Current generic analyzer accepts the frozen capture; omitted scenario requirements remain omitted |
 | Seven incomplete/failed archives | `archive-rejected`, exit1 | Retain their diagnostic rejection and grant no live evidence |
 | Five numerical replays and one profile replay | `live-exact-replay` / `live-profile-replay` | Captured raw decisions/commits or getter/publication words match the stronger checker; three entries also compare a repeat capture |
 
@@ -145,3 +148,15 @@ this corpus does not close the whole-replacement READY gates.
 `group-04.5-survivor-retarget-frozen-corpus/corpus-results.json` freshly reproduces120/120 declared outcomes with unchanged source fingerprints. Two new four-case matrices run original680320 survivor point replacement after completion/reuse, actual new-request route/layout, new-goal arrival and old/new group teardown. The production velocity adapter matches638 commits exactly. The engine server-frame regression independently checks slot preservation, ownership reset and arrival; its full tests pass without a speculative behavior change. Same-group pursuit refresh and the current-order public query remain separately assigned tasks.
 
 ORDER-01.6 adds `live-order-lifecycle-repeat`: two complete owned public-JASS captures, all300 timer samples each and320 identical timer/health markers. The analyzer rejects historical/animation-derived current heads, missing Hold damage, incomplete captures and changed repeats. `retail-order-lifecycle-1.27.json` records generated-map/observer hashes separately after capture; it does not upgrade old header provenance or certify raw float/whole-engine trajectory parity. ORDER-01.7/08 integrate the bounded Hold/Follow engine query slices; synchronous target-removal timing remains01.15.
+
+
+MAP-03.4 stock-mask checkpoint: fresh
+`map-03.4-stock-final-corpus/corpus-results.json` reproduces **133/133** declared
+outcomes with unchanged source fingerprints at completion. Manifest SHA256:
+`8a6a9e6aeeab8b7ad79e85fa024ba0a37f5775e8887b6836f8a11d828848efc8`.
+Summary SHA256:
+`39754dca2b4d64f4b966f407fef683b48d019f5f762fec08ad417917af61850d`.
+Full ROC/TFT suites pass37,126 assertions in2,142 engine tests each;85 pathfinding
+tool tests and both WC3/SC2 production builds pass. The original-mask extension
+adds no engine representation or frame-cadence change. The earlier idle admission
+fix remains active; inside-footprint escape integration remains MAP-03.7.

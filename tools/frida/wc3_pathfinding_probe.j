@@ -5,6 +5,7 @@ globals
     unit array udg_PathProbeCrowd
     unit udg_PathProbeTarget = null
     unit udg_PathProbeBuilding = null
+    unit udg_PathProbeBuilder = null
     fogmodifier udg_PathProbeFog = null
     timer udg_PathProbeTimer = null
     integer udg_PathProbeTick = 0
@@ -128,19 +129,59 @@ function PathProbeTick takes nothing returns nothing
     if PATH_PROBE_SCENARIO == 22 then
         call PathProbeOrderLifecycle()
     endif
+    if PATH_PROBE_SCENARIO == 26 and udg_PathProbeTick == 5 then
+        call PathProbeRecord("before_widget_build_ramp")
+        if IssueBuildOrderById(udg_PathProbeBuilder, 'htow', GetUnitX(udg_PathProbeUnit), GetUnitY(udg_PathProbeUnit)) then
+            call PathProbeRecord("widget_build_ramp_accepted")
+        else
+            call PathProbeRecord("widget_build_ramp_rejected")
+        endif
+    endif
+    if PATH_PROBE_SCENARIO == 26 and udg_PathProbeTick == 10 then
+        // Original W3E: this5x5 vertex rectangle has one terrain layer,
+        // no ramp/water/boundary flags. Keep all original map data intact.
+        call SetUnitPosition(udg_PathProbeUnit, -2560.0, -1024.0)
+        call SetUnitPosition(udg_PathProbeBuilder, -2864.0, -1024.0)
+        call PathProbeRecord("before_widget_build")
+        if IssueBuildOrderById(udg_PathProbeBuilder, 'htow', GetUnitX(udg_PathProbeUnit), GetUnitY(udg_PathProbeUnit)) then
+            call PathProbeRecord("widget_build_accepted")
+        else
+            call PathProbeRecord("widget_build_rejected")
+        endif
+    endif
+    if PATH_PROBE_SCENARIO == 25 and udg_PathProbeTick == 10 then
+        call PathProbeRecord("before_widget_create")
+        set udg_PathProbeBuilding = CreateUnit(Player(0), 'htow', GetUnitX(udg_PathProbeUnit), GetUnitY(udg_PathProbeUnit), 0.0)
+        if udg_PathProbeBuilding != null then
+            call PathProbeRecord("after_widget_create")
+            call Preload("PATHWIDGET tick=10 x=" + R2S(GetUnitX(udg_PathProbeBuilding)) + " y=" + R2S(GetUnitY(udg_PathProbeBuilding)))
+        else
+            call PathProbeRecord("widget_create_failed")
+        endif
+    endif
+    if PATH_PROBE_SCENARIO == 25 and udg_PathProbeTick == 20 then
+        call PathProbeRecord("before_widget_pathing_off")
+        call SetUnitPathing(udg_PathProbeBuilding, false)
+        call PathProbeRecord("after_widget_pathing_off")
+    endif
+    if PATH_PROBE_SCENARIO == 25 and udg_PathProbeTick == 30 then
+        call PathProbeRecord("before_widget_pathing_on")
+        call SetUnitPathing(udg_PathProbeBuilding, true)
+        call PathProbeRecord("after_widget_pathing_on")
+    endif
     if PATH_PROBE_SCENARIO == 21 and udg_PathProbeTick == 200 then
         call SetUnitTurnSpeed(udg_PathProbeUnit, 0.125)
         call SetUnitPropWindow(udg_PathProbeUnit, 0.5)
         call Preload("PATHSTOCK tick=200 turn=" + R2S(GetUnitTurnSpeed(udg_PathProbeUnit)) + " window=" + R2S(GetUnitPropWindow(udg_PathProbeUnit)) + " defaultTurn=" + R2S(GetUnitDefaultTurnSpeed(udg_PathProbeUnit)) + " defaultWindow=" + R2S(GetUnitDefaultPropWindow(udg_PathProbeUnit)))
     endif
-    if PATH_PROBE_SCENARIO == 19 and udg_PathProbeTick == @REMOVE_TICK@ then
+    if (PATH_PROBE_SCENARIO == 19 or PATH_PROBE_SCENARIO == 25) and udg_PathProbeTick == @REMOVE_TICK@ then
         call PathProbeRecord("before_widget_remove")
         call Preload("PATHWIDGET tick=" + I2S(udg_PathProbeTick) + " x=" + R2S(GetUnitX(udg_PathProbeBuilding)) + " y=" + R2S(GetUnitY(udg_PathProbeBuilding)))
         call RemoveUnit(udg_PathProbeBuilding)
         set udg_PathProbeBuilding = null
         call PathProbeRecord("after_widget_remove")
     endif
-    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 then
+    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 then
         call PathProbeRecord("before_order")
         if (PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) then
             if IssueTargetOrder(udg_PathProbeUnit, "smart", udg_PathProbeTarget) then
@@ -302,6 +343,11 @@ function PathProbeInit takes nothing returns nothing
     local integer crowdType = 'hfoo'
     call PreloadGenClear()
     call PreloadGenStart()
+    if PATH_PROBE_SCENARIO == 26 then
+        // The cinematic map configures Player0 as neutral before this hook.
+        // Use a human controller before creating the construction worker.
+        call SetPlayerController(Player(0), MAP_CONTROL_USER)
+    endif
     if PATH_PROBE_SCENARIO == 18 then
         set crowdType = 'hgry'
     endif
@@ -353,6 +399,11 @@ function PathProbeInit takes nothing returns nothing
     call SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 1800.0, 0.0)
     call SelectUnit(udg_PathProbeUnit, true)
     call PathProbeRecord("start_@NAME@")
+    if PATH_PROBE_SCENARIO == 26 then
+        call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 100000)
+        call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_LUMBER, 100000)
+        set udg_PathProbeBuilder = CreateUnit(Player(0), 'hpea', -2240.0, -976.0, 0.0)
+    endif
     if PATH_PROBE_SCENARIO == 19 then
         call PathProbeRecord("before_widget_create")
         set udg_PathProbeBuilding = CreateUnit(Player(0), 'hhou', -1936.0, -560.0, 0.0)

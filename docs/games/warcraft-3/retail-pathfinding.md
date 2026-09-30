@@ -39,8 +39,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists 18 partial layouts,115 verified
-  fields and46 instruction-established prototypes with explicit register/stack
+  `MapPathfindingTypes.java` also persists 20 partial layouts,124 verified
+  fields and78 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
