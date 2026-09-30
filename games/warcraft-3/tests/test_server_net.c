@@ -135,6 +135,10 @@ static void test_set_camera(edict_t *ent, inputCmd_t const *cmd) {
     test_camera_calls++; test_camera_ent = ent; test_camera_pos = cmd->focus;
 }
 
+static uint32_t test_disconnect_calls;
+static edict_t *test_disconnect_ent;
+static void test_client_disconnect(edict_t *ent) { test_disconnect_calls++; test_disconnect_ent = ent; }
+
 static void test_spawn_entities(void);
 
 static bool test_prepare_map(cstring_t filename) {
@@ -199,6 +203,8 @@ static void reset_server_state(int max_players) {
     test_ge.LoadMap = test_load_map;
     test_ge.GetWorldBounds = CM_GetWorldBounds;
     test_ge.Shutdown = test_game_shutdown;
+    test_ge.ClientDisconnect = test_client_disconnect;
+    test_disconnect_calls = 0; test_disconnect_ent = NULL;
     test_ge.CustomizeEntity = test_customize_entity;
     test_ge.WriteClientDatagram = test_write_client_datagram;
     ge = &test_ge;
@@ -1606,6 +1612,46 @@ TEST(server_net, udp_signon_addresses_late_entity_baseline_to_its_own_slot) {
     T_EQ(bases, 3);
     sv.baselines = NULL;
     close(sock); NET_Shutdown();
+}
+
+/* Quake 2 contract: a spawned client that leaves is reported to the game exactly once, a client that never
+ * reached begin is not, and the client's own "disconnect" stringcmd is a server command rather than game input. */
+TEST(server_net, dropped_spawned_client_notifies_game_once) {
+    uint8_t buf[64];
+    sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    netadr_t remote_a = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 40) };
+    netadr_t remote_b = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 41) };
+    netadr_t local = { .type = NA_LOOPBACK };
+
+    NET_Shutdown(); reset_server_state(3);
+    SV_DirectConnect(&remote_a, "\\name\\A");
+    SV_DirectConnect(&remote_b, "\\name\\B");
+    T_EQ(svs.num_clients, 2);
+    svs.clients[0].state = cs_spawned; svs.clients[0].edict = &test_edicts[0];
+    svs.clients[1].edict = &test_edicts[1];
+
+    SV_DropClient(&svs.clients[1]);
+    T_EQ(test_disconnect_calls, 0);
+    T_EQ(svs.clients[1].state, cs_zombie);
+
+    MSG_WriteString(&msg, "disconnect");
+    SV_ExecuteUserCommand(&msg, &svs.clients[0]);
+    T_EQ(test_disconnect_calls, 1);
+    T_ASSERT(test_disconnect_ent == &test_edicts[0]);
+    T_EQ(svs.clients[0].state, cs_zombie);
+    T_NULL(svs.clients[0].edict);
+    SV_DropClient(&svs.clients[0]);
+    T_EQ(test_disconnect_calls, 1);
+
+    /* Loopback has no stale datagrams to absorb, so its slot is reusable at once. */
+    svs.clients[2] = (client_t){ .state = cs_spawned, .edict = &test_edicts[2] };
+    svs.clients[2].netchan.remote_address = local;
+    SZ_Init(&svs.clients[2].netchan.message, svs.clients[2].netchan.message_buf, MAX_MSGLEN);
+    svs.num_clients = 3;
+    SV_DropClient(&svs.clients[2]);
+    T_EQ(test_disconnect_calls, 2);
+    T_EQ(svs.clients[2].state, cs_free);
+    SV_Shutdown(); NET_Shutdown();
 }
 
 TEST(server_net, udp_signon_without_baselines_disconnects_client) {

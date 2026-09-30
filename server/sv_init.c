@@ -120,17 +120,25 @@ static client_t *SV_AllocClientSlot(uint32_t *clientnum) {
     return &svs.clients[*clientnum];
 }
 
-/* Tell the peer it cannot continue signon, then retain its address briefly to reject stale packets. */
+/* Quake 2 SV_DropClient: tell the game a spawned player left, tell the peer, then keep a remote address
+ * as a zombie briefly so stale datagrams are rejected. Loopback has no stale datagrams, and a lingering
+ * zombie would push the next local connect off slot 0, so that slot is released at once. */
 void SV_DropClient(client_t *cl) {
+    uint32_t const clientnum = (uint32_t)(cl - svs.clients);
     if (!cl || cl < svs.clients || cl >= svs.clients + MAX_CLIENTS ||
         cl->state == cs_free || cl->state == cs_zombie)
         return;
+    if (cl->state == cs_spawned && cl->edict) ge->ClientDisconnect(cl->edict);
     MSG_WriteByte(&cl->netchan.message, svc_disconnect);
     Netchan_Transmit(NS_SERVER, &cl->netchan);
     cl->state = cs_zombie;
     cl->drop_time = svs.realtime;
     cl->edict = NULL;
-    SV_LobbyRemoveClient((uint32_t)(cl - svs.clients));
+    SV_LobbyRemoveClient(clientnum);
+    if (cl->netchan.remote_address.type == NA_LOOPBACK) {
+        memset(cl, 0, sizeof(*cl));
+        SV_TrimClientSlots();
+    }
 }
 
 static void SV_ClearLobbyClients(void) {

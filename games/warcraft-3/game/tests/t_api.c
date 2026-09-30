@@ -1727,6 +1727,23 @@ TEST(wc3_api, camera_runtime_getters_report_interpolated_state_and_eye) {
     currentplayer = NULL;
 }
 
+/* A leaving client must not keep the simulation paused behind a dialog nobody can close. */
+TEST(wc3_api, client_disconnect_export_releases_connection_and_modal_state) {
+    edict_t *player = &g_edicts[0];
+
+    setup_test_world();
+    player->client = &game.clients[0];
+    G_SetClientConnected(player, true);
+    T_ASSERT(player->client->connected);
+    player->client->quest_dialog_open = true;
+    player->client->modal_flags = WC3_MODAL_QUEST;
+
+    globals.ClientDisconnect(player);
+    T_ASSERT(!player->client->connected);
+    T_ASSERT(!player->client->quest_dialog_open);
+    T_EQ(player->client->modal_flags, 0);
+}
+
 /* The natives only store inputs; the game frame turns them into plain view offsets and leaves the logical
  * camera (vieworigin, angles, distance, target height) untouched so scripts and input read a steady view. */
 TEST(wc3_api, camera_noise_is_evaluated_by_the_game_into_view_offsets) {
