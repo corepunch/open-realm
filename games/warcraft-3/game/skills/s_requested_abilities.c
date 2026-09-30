@@ -2,11 +2,12 @@
 
 #define ID_EARTHQUAKE MAKEFOURCC('A', 'O', 'e', 'q')
 #define ID_EARTHQUAKE_BUFF MAKEFOURCC('B', 'O', 'e', 'q')
-/* Provisional visual values for testing; these are not verified retail parameters. */
-#define EARTHQUAKE_DEFORM_DURATION_MS 1000
-#define EARTHQUAKE_DEFORM_UPDATE_MS 200
-#define EARTHQUAKE_DEFORM_MIN_DELTA -48.0f
-#define EARTHQUAKE_DEFORM_MAX_DELTA 48.0f
+/* HACK: retail Earthquake's ground shake has not been traced, so these are visual guesses chosen only to make
+ * the deformation path observable in game. Replace them once the retail effect is measured. */
+#define EARTHQUAKE_DEFORM_DURATION_MS 1000 // ms; one pulse spans the 1 s damage tick so pulses join without a gap
+#define EARTHQUAKE_DEFORM_UPDATE_MS 200 // ms; five random height fields per pulse, slow enough to read as ground motion
+#define EARTHQUAKE_DEFORM_MIN_DELTA -48.0f // world units; lowest random vertex offset, large enough to see at game zoom
+#define EARTHQUAKE_DEFORM_MAX_DELTA 48.0f // world units; highest random vertex offset, symmetric with the minimum
 #define ID_CHAIN_LIGHTNING_VISIT MAKEFOURCC('C', 'L', 'v', 's')
 #define CHAIN_LIGHTNING_JUMP_MS 250
 #define CHAIN_LIGHTNING_BOLT_MS 2000
@@ -68,22 +69,6 @@ static void radial_damage_status(edict_t *caster, vec2_t point, abilityitem_t co
     }
 }
 
-static bool earthquake_target_token(cstring_t targets, cstring_t token) {
-    char value[32];
-    cstring_t cursor = targets;
-
-    while (cursor && *cursor) {
-        size_t len = 0;
-        while (*cursor == ',' || isspace((unsigned char)*cursor)) cursor++;
-        while (*cursor && *cursor != ',' && len + 1 < sizeof(value)) value[len++] = *cursor++;
-        while (len && isspace((unsigned char)value[len - 1])) len--;
-        value[len] = '\0';
-        if (!strcasecmp(value, token)) return true;
-        while (*cursor && *cursor != ',') cursor++;
-    }
-    return false;
-}
-
 static bool earthquake_allows_unit(uint32_t code, edict_t *caster, edict_t *target) {
     return S_SpellIsAliveTarget(target) && S_SpellAllowsTarget(code, caster, target);
 }
@@ -92,8 +77,8 @@ static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, flo
     if (!target || !target->inuse || (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS)) return false;
     if (!G_IsDestructable(target) || target->destructable.dead) return false;
     if (targets && *targets) {
-        if (target->targtype == TARG_TREE && !earthquake_target_token(targets, "tree")) return false;
-        if (target->targtype == TARG_DEBRIS && !earthquake_target_token(targets, "debris")) return false;
+        if (target->targtype == TARG_TREE && !S_SpellTargetHasToken(targets, "tree", NULL)) return false;
+        if (target->targtype == TARG_DEBRIS && !S_SpellTargetHasToken(targets, "debris", NULL)) return false;
     }
     return Vector2_distance(&target->s.origin2, origin) <= radius;
 }

@@ -65,7 +65,7 @@ static float R_W3DeformationValue(wc3TerrainDeformation_t const *deform, float x
         if (!deform->stop_fade_ms || now - deform->stop_time >= deform->stop_fade_ms) return 0.0f;
         fade *= deform->stop_base_fade *
                 (1.0f - R_W3SmoothStep((float)(now - deform->stop_time) / deform->stop_fade_ms));
-    } else if (!p->permanent) {
+    } else if (!(p->flags & TERRAIN_DEFORM_PERMANENT)) {
         if (!duration || elapsed >= duration) return 0.0f;
         fade *= sinf((float)M_PI * elapsed / duration);
     }
@@ -92,7 +92,7 @@ static float R_W3DeformationValue(wc3TerrainDeformation_t const *deform, float x
             if (q > 1.0f || q < inner) return 0.0f;
             shape = p->data[3] * sinf((q - elapsed / period) * cycles * 2.0f * (float)M_PI) *
                     R_W3SmoothStep((1.0f - q) / MAX(0.001f, 1.0f - inner));
-            if (p->limit_negative) shape = MAX(0.0f, shape);
+            if (p->flags & TERRAIN_DEFORM_LIMIT_NEGATIVE) shape = MAX(0.0f, shape);
         }
         break;
     case TERRAIN_DEFORM_WAVE:
@@ -249,7 +249,7 @@ void R_W3StopTerrainDeformation(uint32_t id, uint32_t fade_ms) {
             deform->stopping = true;
             deform->stop_time = tr.viewDef.time;
             deform->stop_fade_ms = fade_ms;
-            if (deform->params.permanent) deform->stop_base_fade = 1.0f;
+            if (deform->params.flags & TERRAIN_DEFORM_PERMANENT) deform->stop_base_fade = 1.0f;
             else {
                 uint32_t elapsed = tr.viewDef.time - deform->start_time;
                 deform->stop_base_fade = deform->params.duration_ms
@@ -409,7 +409,7 @@ void R_W3UpdateTerrainDeformations(void) {
             w3_terrain_rebuild_pending = true;
             continue;
         }
-        if (!deform->stopping && !deform->params.permanent &&
+        if (!deform->stopping && !(deform->params.flags & TERRAIN_DEFORM_PERMANENT) &&
             (!deform->params.duration_ms || now - deform->start_time >= deform->params.duration_ms)) {
             deform->active = false;
             w3_terrain_rebuild_pending = true;

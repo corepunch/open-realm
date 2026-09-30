@@ -370,7 +370,7 @@ bool S_SpellIsFriend(edict_t *caster, edict_t *target) {
     return G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
-static bool spell_target_has_token(cstring_t targets, cstring_t full, cstring_t short_name) {
+bool S_SpellTargetHasToken(cstring_t targets, cstring_t full, cstring_t short_name) {
     char token[32];
     cstring_t cursor = targets;
 
@@ -404,8 +404,8 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
     }
     structure = G_UnitIsStructure(target);
     {
-        bool const allows_hero = spell_target_has_token(targets, "hero", NULL);
-        bool const allows_nonhero = spell_target_has_token(targets, "nonhero", "nonh");
+        bool const allows_hero = S_SpellTargetHasToken(targets, "hero", NULL);
+        bool const allows_nonhero = S_SpellTargetHasToken(targets, "nonhero", "nonh");
         if ((allows_hero || allows_nonhero) &&
             !(G_UnitIsHero(target) ? allows_hero : allows_nonhero)) return false;
     }

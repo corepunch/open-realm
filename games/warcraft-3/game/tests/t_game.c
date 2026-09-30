@@ -1037,9 +1037,9 @@ TEST(wc3_game, ingame_options_commands_write_categories_then_sound_window) {
     frameDef_t *root, *backdrop, *main_panel, *options_root;
     frameDef_t *categories, *bottom, *gameplay, *video, *sound, *network;
     cstring_t open_options[] = { "wc3_menu_options" };
-    uint32_t open_options_count = ARRAY_COUNT(open_options);
+    uint32_t open_options_count = sizeof(open_options) / sizeof(*open_options); /* ARRAY_COUNT() names this very variable, so it self-initialised */
     cstring_t open_sound[] = { "wc3_menu_options_sound" };
-    uint32_t open_sound_count = ARRAY_COUNT(open_sound);
+    uint32_t open_sound_count = sizeof(open_sound) / sizeof(*open_sound); /* ARRAY_COUNT() names this very variable, so it self-initialised */
 
     setup_test_world();
     UI_ClearTemplates();

@@ -938,7 +938,7 @@ uint32_t TerrainDeformCrater(jass_t *j) {
     deformation.data[0] = jass_checknumber(j, 1); deformation.data[1] = jass_checknumber(j, 2);
     deformation.data[2] = jass_checknumber(j, 3); deformation.data[3] = jass_checknumber(j, 4);
     deformation.duration_ms = MAX(0, jass_checkinteger(j, 5));
-    deformation.permanent = jass_checkboolean(j, 6);
+    deformation.flags = jass_checkboolean(j, 6) ? TERRAIN_DEFORM_PERMANENT : 0;
     return TerrainDeformEmit(j, &deformation);
 }
 uint32_t TerrainDeformRipple(jass_t *j) {
@@ -948,7 +948,7 @@ uint32_t TerrainDeformRipple(jass_t *j) {
     deformation.duration_ms = MAX(0, jass_checkinteger(j, 5));
     deformation.count = MAX(0, jass_checkinteger(j, 6));
     deformation.data[4] = jass_checknumber(j, 7); deformation.data[5] = jass_checknumber(j, 8);
-    deformation.data[6] = jass_checknumber(j, 9); deformation.limit_negative = jass_checkboolean(j, 10);
+    deformation.data[6] = jass_checknumber(j, 9); deformation.flags = jass_checkboolean(j, 10) ? TERRAIN_DEFORM_LIMIT_NEGATIVE : 0;
     return TerrainDeformEmit(j, &deformation);
 }
 uint32_t TerrainDeformWave(jass_t *j) {
