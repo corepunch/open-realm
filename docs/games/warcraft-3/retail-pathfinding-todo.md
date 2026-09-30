@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**75 done / 256 tasks; 181 remaining.** Counts describe this backlog,
+**76 done / 257 tasks; 181 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -22,7 +22,7 @@ Completed evidence now sits next to its specific remaining extension.
 | FINE — Fine search | 5 | 6 |
 | ACC — Adaptive search | 1 | 10 |
 | NUM — Numbers and random state | 16 | 12 |
-| ROUTE — Route progression and yielding | 1 | 9 |
+| ROUTE — Route progression and yielding | 2 | 9 |
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 1 | 11 |
@@ -97,7 +97,7 @@ FOOT-01.4 now applies the verified class footprint to nearby routing, destinatio
 correction and actual Move stepping. FOOT-01.5 now uses that geometry for
 long/shared expansion, flow sampling, class-aware cache reuse and unreachable
 fallbacks. ROUTE-02.1 now ports all-class segment sampling, software normalization
-and original next-point/progressively-farther waypoint selection. FINE-01.5 now routes location orders around idle ground units and rechecks retained segments, with exact192 original mixed-chain/C searches and fresh hfoo/hgry profile/velocity evidence. FINE-02.2 now retains nearest partial routes and resumes actual Move after idle blocker removal. BASE-02.4 now ports the captured water/amphibious masks, WPM derivation and ground object categories. Next port exact fine-route endpoints and check arrival against the original order; retain FOOT-04 admission scopes.
+and original next-point/progressively-farther waypoint selection. FINE-01.5 now routes location orders around idle ground units and rechecks retained segments, with exact192 original mixed-chain/C searches and fresh hfoo/hgry profile/velocity evidence. FINE-02.2 now retains nearest partial routes and resumes actual Move after idle blocker removal. BASE-02.4 now ports the captured water/amphibious masks, WPM derivation and ground object categories. ROUTE-01.3 now preserves exact fine-route source/goal coordinates. Next check command arrival inputs and port their verified range/heading policy; retain FOOT-04 admission scopes.
 Keep dynamic eligibility and full-trajectory gates explicit.
 Numeric inventory/alias leaves remain open, but do not expand them ahead of a
 concrete routing, stepping, collision or arrival payoff. MOVE-02.3 now connects
@@ -117,14 +117,14 @@ correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinati
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
 (NUM-01.8). Ghidra mapping persists360
-names,23 layouts,142 fields,119 x86 prototypes and35 scalar globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has165
+names,23 layouts,142 fields,119 x86 prototypes and35 scalar globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has166
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | ROUTE-01.1 | Verified fine parent chains and original reconstruction | Exact fractional endpoints in the engine; keep coarse scope explicit |
+| 1 | TARGET-01.2 | Original range predicates and produced Move tasks | Command range/heading inputs and an engine arrival correction |
 | 2 | FOOT-04 | Verified static and idle-object geometry | Public placement/teleport admission contracts and engine consumers |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
@@ -408,10 +408,14 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 
 Evidence: [route evidence][R]. Tools/artifacts: routes, refill, segment, yield, transition.
 
+ROUTE-01.3 explicitly splits the engine fine reconstruction port and its expanded
+eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope.
+
 ### ROUTE-01 — Reconstruction
 
 - [ ] **ROUTE-01.1** Extend fine/coarse endpoint reconstruction to oblique directions and every class; assert exact coordinates, rounding and route order.
 - [ ] **ROUTE-01.2** Exercise empty/partial buffers, invalid starts and one growth/index limit; assert return code and next public advance state.
+- [x] **ROUTE-01.3** Port fine reconstruction coordinates and endpoint replacement into Move's nearby route adapter.3840 original eight-direction parent chains match raw C coordinate words with reuse at O0/O2; exact source, one-node source-before-goal and matching/nonmatching destination cells are explicit. Eight actual engine endpoint failures are reproduced/fixed across four classes. The partial-wall Move now keeps a fractional original goal through obstruction/removal/resume. Coarse reconstruction and buffer growth remain01.1/01.2. Evidence: [fine route endpoints](retail-pathfinding-engine.md#exact-fine-route-endpoints).
 
 ### ROUTE-02 — Segment checks
 

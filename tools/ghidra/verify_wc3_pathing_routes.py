@@ -5,6 +5,7 @@ No function stubs. Preallocated route storage and four observed initialized
 runtime constants are supplied explicitly; search/placement are separate.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -19,7 +20,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--all-directions', action='store_true', help='extend fine chains to every cardinal/diagonal direction')
+    parser.add_argument('--fixture', type=Path, help='freeze exact original fine coordinate words')
+    parser.add_argument('--engine-library', type=Path, help='compare production fine reconstruction')
     args = parser.parse_args()
+    engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine:
+        engine.pathing_fine_reconstruct.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_uint32)]
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -75,9 +82,11 @@ def main():
         return [struct.unpack('<ff', machine.mem_read(data + i * 8, 8)) for i in range(count)]
 
     fine_cases = 0
-    for length, ox, oy, delta in itertools.product(range(1, 6), (-2, 0, 10, 1000), (-2, 0, 10, 1000),
-                                                  ((0, 0), (.125, .875), (.999, .001), (1, 0), (0, 1), (-.01, 0))):
-        points = [(ox + i, oy + i) for i in range(length)]
+    frozen = []
+    directions = ((-1,-1),(0,-1),(1,-1),(-1,0),(1,0),(-1,1),(0,1),(1,1)) if args.all_directions else ((1,1),)
+    for length, ox, oy, delta, direction in itertools.product(range(1, 6), (-2, 0, 10, 1000), (-2, 0, 10, 1000),
+                                                  ((0, 0), (.125, .875), (.999, .001), (1, 0), (0, 1), (-.01, 0)), directions):
+        points = [(ox + direction[0] * i, oy + direction[1] * i) for i in range(length)]
         start = (ox + .25, oy + .75)
         # Round reference input to the same float32 values supplied to x86.
         goal = struct.unpack('<ff', struct.pack('<ff', points[-1][0] + delta[0], points[-1][1] + delta[1]))
@@ -88,6 +97,18 @@ def main():
         actual = reconstruct(0x6f147dc0, points, start, goal)
         if actual != expected:
             raise RuntimeError(f'fine reconstruction mismatch points={points} goal={goal}: {actual} != {expected}')
+        input_words = list(struct.unpack('<IIII', struct.pack('<ffff', *start, *goal)))
+        actual_words = list(struct.unpack('<' + 'I' * (2 * len(actual)), b''.join(struct.pack('<ff', *v) for v in actual)))
+        if engine:
+            inp = (ctypes.c_uint32 * 5)(length, *input_words)
+            cells = (ctypes.c_int32 * (2 * length))(*(v for point in points for v in point))
+            for repeat in range(2):
+                output = (ctypes.c_uint32 * 129)()
+                engine.pathing_fine_reconstruct(inp, cells, output)
+                if output[0] != len(actual) or list(output[1:1+2*output[0]]) != actual_words:
+                    raise RuntimeError('production fine reconstruction words differ')
+        if args.fixture:
+            frozen.append(dict(cells=points, input=input_words, output=actual_words))
         fine_cases += 1
 
     accelerated_cases = 0
@@ -112,6 +133,10 @@ def main():
     report = dict(binary_sha256=digest, fine_cases=fine_cases, accelerated_cases=accelerated_cases,
                   mismatches=[], runtime_constants=constants,
                   scope='original reconstruction/float helpers/container append; synthetic valid parent chains; preallocated storage; tag only on middle node; no smoothing or destination placement')
+    if engine:
+        report.update(engine_queries=fine_cases, engine_repeats=fine_cases, engine_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest())
+    if args.fixture:
+        args.fixture.write_text(json.dumps(dict(binary_sha256=digest, scope='Original147dc0 fine coordinate words; preallocated valid parent chains, eight directions and lengths1..5. Coarse policy and buffer growth separate.', cases=frozen), separators=(',', ':')) + '\n')
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(f'{fine_cases} fine / {accelerated_cases} accelerated reconstruction cases; all pass')

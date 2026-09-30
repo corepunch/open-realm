@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "Current37 executable original-code oracle scripts,32 selected exact/frozen variants,17 explicit live/profile/repeat contracts and79 archived capture audits. Ghidra decompiles, reduction attempts and scratch reports support research but are not independently accepted corpus entries.",
+  "scope": "Current37 executable original-code oracle scripts,33 selected exact/frozen variants,17 explicit live/profile/repeat contracts and79 archived capture audits. Ghidra decompiles, reduction attempts and scratch reports support research but are not independently accepted corpus entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -9173,6 +9173,46 @@
         "support surfaces",
         "whole trajectory fidelity"
       ]
+    },
+    {
+      "id": "oracle-fine-reconstruction-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_routes.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--all-directions",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-reconstruction-engine.json",
+      "expected_exit": 0,
+      "expected_status": "original-model-engine-exact",
+      "checks": {
+        "mismatches": {
+          "length": 0
+        },
+        "fine_cases": {
+          "equal": 3840
+        },
+        "engine_queries": {
+          "equal": 3840
+        },
+        "engine_repeats": {
+          "equal": 3840
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Original fine reconstruction in eight directions over valid parent chains, exact source/destination replacement including one-node cases and nonmatching goal cells; production C matches raw words with reuse. Existing9216 coarse cases remain original/model only.",
+      "exclusions": []
     }
   ],
   "fixtures": [
@@ -9379,6 +9419,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-fine-movement-profiles-1.27.json",
       "sha256": "7aca71375fa4771f3138c3021a6b8bed232f9642fbfde4ec3d70e10ebf9afbf5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-reconstruction-1.27.json",
+      "sha256": "bc00d479b56de85b8802be636be9ff3893fa23c237876885a35621f93547ebea"
     }
   ]
 }

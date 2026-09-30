@@ -39,6 +39,22 @@ class FineSearchTests(unittest.TestCase):
             for raw, original in enumerate(fixture['wpm_masks']):
                 self.assertEqual(engine.pathing_wpm_flags(raw) & 0xc6, (original >> 24) & 0xc6, raw)
 
+    def test_fine_reconstruction_words_match_original_in_every_direction(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-fine-reconstruction-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']), 3840)
+        for engine in self.engines:
+            engine.pathing_fine_reconstruct.argtypes = [ctypes.POINTER(ctypes.c_uint32),
+                                                       ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_uint32)]
+            for case in fixture['cases']:
+                inp = (ctypes.c_uint32 * 5)(len(case['cells']), *case['input'])
+                cells = (ctypes.c_int32 * (2 * len(case['cells'])))(*(v for p in case['cells'] for v in p))
+                for repeat in range(2):
+                    output = (ctypes.c_uint32 * 129)()
+                    engine.pathing_fine_reconstruct(inp, cells, output)
+                    with self.subTest(input=case['input'], cells=case['cells'], repeat=repeat, opt=engine._name):
+                        self.assertEqual(output[0] * 2, len(case['output']))
+                        self.assertEqual(list(output[1:1+2*output[0]]), case['output'])
+
     def graph(self, case):
         # The original footprint oracle owns this graph, independently of the
         # search policy. Production's initial world adapter keeps its own legality.

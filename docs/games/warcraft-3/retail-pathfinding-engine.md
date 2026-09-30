@@ -1838,3 +1838,45 @@ Ghidra saves and reads back the three getter/publication contracts, retaining
 layout changes. All112 pathfinding tool tests pass. Both Classic/TFT suites pass41,868 assertions in2,188 cases;
 debug pathfinding passes524 assertions in72 cases, and WC3/SC2/WoW production
 builds and both boundary audits pass.
+
+## Exact fine route endpoints
+
+ROUTE-01.3 ports original `147dc0` into the production nearby-route adapter.
+Node centres use the already-verified truncated integer conversion and scalar
+add-half. The destination-first chain then copies the exact source into its
+last entry. It compares the first point's floored coordinates with the supplied
+destination and copies that exact destination only when both match. A one-node
+chain can consequently become the exact goal after source replacement.
+
+The original oracle expands from480 diagonal chains to **3,840 eight-direction
+chains**, lengths1..5, negative/positive origins and matching/nonmatching goal
+cells. Original software arithmetic and append execute without stubs. Frozen
+raw inputs/coordinate words in `retail-fine-reconstruction-1.27.json` match the
+production helper at O0/O2 with repeated storage; the fresh original/C oracle
+also matches. The existing9,216 coarse cases remain original/model evidence.
+
+The engine regression first reproduced eight failures: all four classes turned
+`(19.875,17.125)` into `(19.5,17.5)`. The route adapter now retains the admitted
+fractional world destination when it selects the complete endpoint. Partial
+requests supply the nearest cell centre to reconstruction, following `148100`;
+they cannot substitute the original fractional goal or claim completion. The
+idle-wall actual Move scenario now orders `(19.875,4.125)`, retains its centre
+approach, advances, then resumes toward that same fractional order after actor
+removal. It still respects the existing arrival tolerance; full retail arrival
+range/heading behavior remains TARGET-01.2.
+
+Source/destination admission continues through the existing engine policy;
+this port does not certify public invalid starts, capacity growth, coarse
+coordinates or complete world-to-fine numerical parity. Those remain
+FOOT-04/ROUTE-01.1/01.2/NUM-02.3. The helper consumes valid internal parent chains
+and the existing bounded route storage, without actor/save/network changes.
+Reports: `fine-reconstruction-eight-directions-engine.json` and
+`fine-reconstruction-final-corpus/corpus-results.json`; the fine endpoint and
+existing partial-search entries pass2/2. Ghidra saves the reconstruction contract
+alongside the existing360 function annotations and119 prototypes.
+
+Validation: both Classic/TFT suites pass41,880 assertions in2,189 cases; all113
+pathfinding tool tests pass. Release/debug pathfinding passes536 assertions
+in73 cases; the production WC3 build passes. Both boundary audits are clean.
+The first umbrella run overlapped a production link and an asset CLI saw an
+incomplete shared library; the serialized rerun passes.

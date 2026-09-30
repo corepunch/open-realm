@@ -219,7 +219,21 @@ uint32_t pathing_footprint(uint32_t const input[6], uint8_t const *cells) {
     return 1;
 }
 
-#include "games/warcraft-3/common/wc3_pathing_segment.h"
+#include "games/warcraft-3/common/wc3_pathing_route.h"
+void pathing_fine_reconstruct(uint32_t const *input, int32_t const *cells, uint32_t *out) {
+    wc3FineNode_t nodes[64];
+    wc3FineVector_t points[64];
+    assert(input[0] > 0 && input[0] <= 64);
+    for (uint32_t i = 0; i < input[0]; i++) nodes[i] = (wc3FineNode_t){.pos = {cells[2*i], cells[2*i+1]}, .parent = (int)i - 1};
+    wc3FineReconstruct_t query = {nodes, input[0], (int)input[0] - 1,
+        {wc3_float(input[1]), wc3_float(input[2])}, {wc3_float(input[3]), wc3_float(input[4])}};
+    out[0] = wc3_fine_reconstruct(&query, points, 64);
+    for (uint32_t i = 0; i < out[0]; i++) {
+        out[1+2*i] = wc3_float_bits(points[i].x);
+        out[2+2*i] = wc3_float_bits(points[i].y);
+    }
+}
+
 typedef struct {
     uint32_t const *query, *objects;
     uint8_t const *cells;

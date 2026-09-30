@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **165 entries**: **37** distinct original-code oracle
-scripts plus **32** declared variants, **79** archived JSONL audits and **17**
+The inventory now has **166 entries**: **37** distinct original-code oracle
+scripts plus **33** declared variants, **79** archived JSONL audits and **17**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 64 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 65 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 72 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -322,3 +322,12 @@ those observations, all256 original WPM words and384 all-mask fine-search cases.
 engine entry in a fresh four-entry run. No whole165-entry rerun is claimed.
 See [engine masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries)
 for actual Move/footprint/command regressions and explicit support/trajectory gaps.
+
+## Fine reconstruction endpoint words
+
+`oracle-fine-reconstruction-engine` compares all3,840 original eight-direction
+fine chains with production C coordinate words and repeated storage. Its compact
+fixture is hash-pinned;9,216 coarse reconstructions remain original/model only.
+The fresh endpoint/partial two-entry run passes; it does not claim the whole
+166-entry inventory. See [fine route endpoints](retail-pathfinding-engine.md#exact-fine-route-endpoints)
+for the engine fractional-order regression and remaining admission/arrival gaps.

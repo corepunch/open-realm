@@ -681,6 +681,25 @@ TEST(wc3_pathfinding, move_segments_use_retail_first_sample_strips) {
 /* Live ground-crowd Frida fine queries reject idle Footman objects with
  * category010000ca/flags0 under mask02000002. An idle unit ahead must affect
  * routing before it becomes a one-step local collision. */
+/* Original147dc0 replaces a successful fine endpoint with the exact supplied
+ * destination when floors match. Cell centres would change fractional orders. */
+TEST(wc3_pathfinding, fine_route_retains_fractional_destination_for_every_class) {
+    uint8_t cells[24 * 24] = {0};
+    static float const radii[] = {0.25f, 0.5f, 1.f, 1.5f};
+    vec2_t source = {4.25f, 4.75f}, target = {19.875f, 17.125f}, out;
+    reset_entities();
+    setup_test_world();
+    setup_test_pathmap(24, 24, cells);
+    FOR_LOOP(i, sizeof(radii) / sizeof(*radii)) {
+        pathAccelParams_t query = {&source, &target, radii[i], CM_PATHING_UNWALKABLE};
+        T_ASSERT(G_FindMovePathWaypoint(&query, &out));
+        T_EQ(out.x, target.x);
+        T_EQ(out.y, target.y);
+    }
+    reset_entities();
+    setup_test_world();
+}
+
 TEST(wc3_pathfinding, nearby_move_routes_around_idle_unit_footprint) {
     uint8_t cells[24 * 24] = {0};
     vec2_t target = {19.5f, 4.5f};
@@ -814,7 +833,7 @@ TEST(wc3_pathfinding, nearby_move_replans_when_idle_object_enters_retained_segme
  * idle-unit wall must still give Move a useful approach turn. */
 TEST(wc3_pathfinding, nearby_move_retains_partial_approach_to_idle_object_wall) {
     uint8_t cells[24 * 24] = {0};
-    vec2_t target = {19.5f, 4.5f};
+    vec2_t target = {19.875f, 4.125f};
     edict_t *wall[24];
     uint32_t old_time = level.time;
     reset_entities();

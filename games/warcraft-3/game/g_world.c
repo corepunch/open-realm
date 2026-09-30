@@ -1,5 +1,5 @@
 #include "g_local.h"
-#include "../common/wc3_pathing_segment.h"
+#include "../common/wc3_pathing_route.h"
 
 typedef struct { int size; uint8_t flags; uint32_t objects; } moveFineGraph_t;
 static wc3FineBox_t move_objects[MAX_ENTITIES];
@@ -270,22 +270,24 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
         .width = pathmap.width, .height = pathmap.height, .budget = BZ_WC3_FINE_WORK,
         .edges = move_fine_edges, .data = &graph };
     int at = wc3_fine_search(&move_fine, &req);
+    bool complete = at >= 0;
     /* Original148100 retains the nearest admitted chain after exhaustion.
      * Location Move can approach that endpoint without replacing its order. */
     if (at < 0 && input->units) at = (int)move_fine.nearest;
-    uint32_t count = 0;
-    while (at >= 0) {
-        wc3FineNode_t const *node = &move_fine.nodes[at];
-        assert(count < BZ_WC3_FINE_NODES);
-        move_fine_points[count++] = (wc3FineVector_t){node->pos.x + 0.5f, node->pos.y + 0.5f};
-        at = node->parent;
-    }
+    if (at < 0) return false;
+    wc3FinePoint_t endpoint = move_fine.nodes[at].pos;
+    wc3FineReconstruct_t route = {move_fine.nodes, move_fine.count, at,
+        {a.x * pathmap.width, a.y * pathmap.height},
+        complete ? (wc3FineVector_t){b.x * pathmap.width, b.y * pathmap.height}
+                 : wc3_route_center(endpoint)};
+    uint32_t count = wc3_fine_reconstruct(&route, move_fine_points, BZ_WC3_FINE_NODES);
     if (count < 2) return false;
     wc3FineSegment_t query = { .start = {a.x * pathmap.width, a.y * pathmap.height},
         .cls = (unsigned)graph.size - 1, .cell = move_cell_ok, .data = &graph };
     uint32_t chosen = wc3_segment_waypoint(&query, (wc3FineRoute_t){move_fine_points, count - 1});
     wc3FineVector_t point = move_fine_points[chosen];
-    *out = CM_GetDenormalizedMapPosition(point.x / pathmap.width, point.y / pathmap.height);
+    /* Preserve admitted world words when the selected point is the exact goal. */
+    *out = complete && chosen == 0 ? target : CM_GetDenormalizedMapPosition(point.x / pathmap.width, point.y / pathmap.height);
     return true;
 }
 
