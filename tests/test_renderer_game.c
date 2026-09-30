@@ -132,15 +132,16 @@ TEST(renderer_game, entity_camera_event_state_invalidates_when_model_has_no_even
     tr.viewDef.rdflags = RDF_USE_ENTITY_CAMERA;
     tr.render_phase = RENDER_PHASE_SOLID;
     R_UpdateEntityPresentation(&entity);
-    wc3EventState_t *state = R_W3CameraEventState(&entity);
-    T_NOT_NULL(state);
+    T_EQ(camera_event_state_count, 1);
+    wc3EventState_t *state = &camera_event_states[0].state;
     T_ASSERT(state->valid);
     T_EQ(state->model, &model_with_events);
 
     entity.model = &model_without_events;
     R_UpdateEntityPresentation(&entity);
-    state = R_W3CameraEventState(&entity);
-    T_NOT_NULL(state);
+    /* Inspect retained state directly: calling R_W3CameraEventState here would
+     * itself perform the invalidation and let a broken update path pass. */
+    state = &camera_event_states[0].state;
     T_ASSERT(!state->valid);
     T_NULL(state->model);
 

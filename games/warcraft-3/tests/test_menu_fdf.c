@@ -3402,6 +3402,7 @@ TEST(menu_fdf, campaign_backdrops_play_birth_before_stand) {
         "UI\\FrameDef\\Glue\\MapListBox.fdf",
     };
     menuImport_t saved = mi;
+    char expected_stand[32];
 
     test_glue_setup();
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
@@ -3433,7 +3434,14 @@ TEST(menu_fdf, campaign_backdrops_play_birth_before_stand) {
     T_ASSERT(captured_glue_view.rdflags & RDF_ISOLATED_PARTICLES);
     M_Refresh(M_Time() + 500);
     singlePlayerMenuScreen.draw();
-    T_STREQ(captured_entity_anim, "Stand");
+    snprintf(expected_stand, sizeof(expected_stand), "Stand@%.4f",
+             (float)(M_Time() % 1000) / 1000.0f);
+    T_STREQ(captured_entity_anim, expected_stand);
+    M_Refresh(M_Time() + 250);
+    singlePlayerMenuScreen.draw();
+    snprintf(expected_stand, sizeof(expected_stand), "Stand@%.4f",
+             (float)(M_Time() % 1000) / 1000.0f);
+    T_STREQ(captured_entity_anim, expected_stand);
 
     Cmd_ExecuteString("menu_single_player_campaign_orc");
     singlePlayerMenuScreen.draw();
@@ -3443,12 +3451,16 @@ TEST(menu_fdf, campaign_backdrops_play_birth_before_stand) {
     T_STREQ(captured_entity_anim, "Birth@0.5000");
     M_Refresh(M_Time() + 500);
     singlePlayerMenuScreen.draw();
-    T_STREQ(captured_entity_anim, "Stand");
+    snprintf(expected_stand, sizeof(expected_stand), "Stand@%.4f",
+             (float)(M_Time() % 1000) / 1000.0f);
+    T_STREQ(captured_entity_anim, expected_stand);
 
     test_skip_menu_transitions = true;
     Cmd_ExecuteString("menu_single_player_campaign_human");
     singlePlayerMenuScreen.draw();
-    T_STREQ(captured_entity_anim, "Stand");
+    snprintf(expected_stand, sizeof(expected_stand), "Stand@%.4f",
+             (float)(M_Time() % 1000) / 1000.0f);
+    T_STREQ(captured_entity_anim, expected_stand);
     test_skip_menu_transitions = false;
 
     remove(test_campaign_progress_path);
