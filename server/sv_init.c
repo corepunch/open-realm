@@ -124,10 +124,11 @@ static client_t *SV_AllocClientSlot(uint32_t *clientnum) {
  * as a zombie briefly so stale datagrams are rejected. Loopback has no stale datagrams, and a lingering
  * zombie would push the next local connect off slot 0, so that slot is released at once. */
 void SV_DropClient(client_t *cl) {
-    uint32_t const clientnum = (uint32_t)(cl - svs.clients);
+    uint32_t clientnum;
     if (!cl || cl < svs.clients || cl >= svs.clients + MAX_CLIENTS ||
         cl->state == cs_free || cl->state == cs_zombie)
         return;
+    clientnum = (uint32_t)(cl - svs.clients); /* after the range check: the subtraction is undefined for a foreign pointer */
     if (cl->state == cs_spawned && cl->edict) ge->ClientDisconnect(cl->edict);
     MSG_WriteByte(&cl->netchan.message, svc_disconnect);
     Netchan_Transmit(NS_SERVER, &cl->netchan);

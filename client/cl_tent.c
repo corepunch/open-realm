@@ -209,15 +209,16 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
                 deformation.count = (uint32_t)MAX(0, count);
                 deformation.update_ms = (uint32_t)MAX(0, update_ms);
                 deformation.flags = (uint32_t)MSG_ReadByte(msg);
-                if (deformation.id && deformation.type <= TERRAIN_DEFORM_RANDOM)
-                    re.StartTerrainDeformation(&deformation);
+                /* The renderer owns the descriptor: it rejects and logs an id or type it cannot draw, so the
+                 * courier must not pre-filter on a type list it has no business knowing. */
+                re.StartTerrainDeformation(&deformation);
             }
             break;
         case TE_TERRAIN_DEFORM_STOP:
             {
                 uint32_t const id = (uint32_t)MSG_ReadLong(msg);
                 uint32_t const fade_ms = (uint32_t)MSG_ReadLong(msg);
-                if (id) re.StopTerrainDeformation(id, fade_ms);
+                re.StopTerrainDeformation(id, fade_ms);
             }
             break;
         case TE_TERRAIN_DEFORM_STOP_ALL:
