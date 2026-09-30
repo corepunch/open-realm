@@ -30,12 +30,12 @@ uint32_t G_SendTerrainDeformation(terrainDeform_t const *deformation) {
     descriptor = *deformation;
     descriptor.id = ++terrain_deformation_next_id;
     if (!descriptor.id) descriptor.id = ++terrain_deformation_next_id;
-    origin = (vec3_t){ descriptor.data[0], descriptor.data[1], 0.0f };
+    origin = (vec3_t){ descriptor.origin.x, descriptor.origin.y, 0.0f };
     gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
     gi.Write(PF_BYTE, &(int32_t){ TE_TERRAIN_DEFORM });
     gi.Write(PF_LONG, &(int32_t){ (int32_t)descriptor.id });
     gi.Write(PF_BYTE, &(int32_t){ descriptor.type });
-    FOR_LOOP(i, 8) gi.Write(PF_FLOAT, &descriptor.data[i]);
+    FOR_LOOP(i, TERRAIN_DEFORM_FLOATS) gi.Write(PF_FLOAT, &descriptor.data[i]);
     gi.Write(PF_LONG, &(int32_t){ (int32_t)descriptor.duration_ms });
     gi.Write(PF_LONG, &(int32_t){ (int32_t)descriptor.count });
     gi.Write(PF_LONG, &(int32_t){ (int32_t)descriptor.update_ms });

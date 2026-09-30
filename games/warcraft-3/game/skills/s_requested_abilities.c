@@ -142,8 +142,8 @@ void earthquake_think(edict_t *ent) {
     if (now >= ent->spawn_time) { spell_end_area_presentation(ent); S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
     G_SendTerrainDeformation(&(terrainDeform_t){ .type = TERRAIN_DEFORM_RANDOM,
-        .data = { ent->s.origin2.x, ent->s.origin2.y, radius,
-                  EARTHQUAKE_DEFORM_MIN_DELTA, EARTHQUAKE_DEFORM_MAX_DELTA },
+        .random = { .origin = ent->s.origin2, .radius = radius,
+                    .min_delta = EARTHQUAKE_DEFORM_MIN_DELTA, .max_delta = EARTHQUAKE_DEFORM_MAX_DELTA },
         .duration_ms = EARTHQUAKE_DEFORM_DURATION_MS,
         .update_ms = EARTHQUAKE_DEFORM_UPDATE_MS });
     FILTER_EDICTS(target, earthquake_allows_unit(ent->class_id, targets, ent->owner, target) &&
