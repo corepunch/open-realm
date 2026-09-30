@@ -370,6 +370,11 @@ static void R_ResetBlightLayer(void) {
     blight_layer_generation = ~0u;
 }
 
+/* The Blight mesh is baked on terrain heights; a deformation rebuild must rebake it on the next draw. */
+void R_InvalidateBlightLayer(void) {
+    blight_layer_generation = ~0u;
+}
+
 void R_ResetBlightCache(void) {
     R_ResetBlightLayer();
     SAFE_DELETE(blight_tiles.active, ri.MemFree);

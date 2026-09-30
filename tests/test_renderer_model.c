@@ -1886,6 +1886,31 @@ TEST(renderer_terrain, deformation_updates_and_expires_height_offsets) {
     tr.world = saved_world; tr.viewDef = saved_view;
 }
 
+/* Blight is baked on terrain heights, so a deformation rebuild must force a rebake. */
+TEST(renderer_terrain, deformation_rebuild_rebakes_blight_layer) {
+    static war3mapVertex_t verts[(SEGMENT_SIZE + 1) * (SEGMENT_SIZE + 1)];
+    war3map_t map = { .width = SEGMENT_SIZE + 1, .height = SEGMENT_SIZE + 1, .vertices = verts };
+    war3map_t const *saved_world = tr.world;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    memset(verts, 0, sizeof(verts));
+    tr.world = &map;
+    R_W3SetMapTerrainOffsets(&map);
+    R_LoadMapSegments(&map);
+    T_NOT_NULL(g_mapSegments);
+
+    blight_layer_generation = 7;
+    R_W3EmitChangedTerrain();
+    T_EQ(blight_layer_generation, 7);
+    w3_terrain_dirty_segments[0] = 1;
+    R_W3EmitChangedTerrain();
+    T_EQ(blight_layer_generation, ~0u);
+    T_EQ(w3_terrain_dirty_segments[0], 0);
+
+    R_FreeMapSegments();
+    R_W3ClearTerrainDeformations();
+    tr.world = saved_world;
+}
+
 TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
     memset(&splat_bias, 0, sizeof(splat_bias));
     R_SetSplatDepthBias(true);
