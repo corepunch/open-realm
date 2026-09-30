@@ -3111,6 +3111,7 @@ bool move_displacement_reached(edict_t *);
 void order_stop(edict_t *);
 void order_attackmove(edict_t *, edict_t *);
 void order_patrol(edict_t *, edict_t *);
+bool S_IssuePatrolOrder(edict_t *, edict_t *, uint32_t);
 void order_patrol_resume(edict_t *);
 void order_follow(edict_t *, edict_t *);
 void order_follow_resume(edict_t *);

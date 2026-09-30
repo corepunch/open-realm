@@ -4005,6 +4005,137 @@ TEST(wc3_api, current_order_follow_target_removal_is_synchronous) {
     }
 }
 
+TEST(wc3_api, current_order_patrol_owns_native_reversal_and_pending_activation) {
+    char const *filename = "/tmp/openwarcraft3-wc3-current-order-patrol-save-test.bin";
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit subject = null\n"
+        "endglobals\n"
+        "function verifyPatrol takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(subject) == OrderId(\"patrol\"), \"persistent Patrol owns its public head\")\n"
+        "endfunction\n"
+        "function verifyIdle takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(subject) == 0, \"retired Patrol has no current head\")\n"
+        "endfunction\n"
+        "function patrol takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(subject, \"patrol\", 384.0, 64.0), \"public Patrol accepted\")\n"
+        "  call verifyPatrol()\n"
+        "endfunction\n"
+        "function reject takes nothing returns nothing\n"
+        "  call BJassAssert(not IssuePointOrder(subject, \"missingorder\", 512.0, 64.0), \"invalid replacement rejected\")\n"
+        "  call verifyPatrol()\n"
+        "endfunction\n"
+        "function stop takes nothing returns nothing\n"
+        "  call BJassAssert(IssueImmediateOrder(subject, \"stop\"), \"Stop accepted\")\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function move takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(subject, \"move\", 192.0, 64.0), \"point Move accepted\")\n"
+        "endfunction\n"
+        "function kill takes nothing returns nothing\n"
+        "  call KillUnit(subject)\n"
+        "  call verifyIdle()\n"
+        "  call BJassAssert(not IssuePointOrder(subject, \"patrol\", 384.0, 64.0), \"dead Patrol rejected\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set subject = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->collision = 8; unit->unitinfo.MoveSpeed = 256;
+    unit->movetype = MOVETYPE_STEP; unit->svflags |= SVF_MONSTER;
+    unit->think = monster_think; unit->stand = unit_stand; unit->die = unit_die;
+    unit_stand(unit); gi.LinkEntity(unit);
+    jass_callbyname(level.vm, "patrol", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NOT_NULL(unit->movement.patrol_a); T_NOT_NULL(unit->movement.patrol_b);
+    if (!unit->movement.patrol_a || !unit->movement.patrol_b) return;
+    jass_callbyname(level.vm, "reject", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    unsigned reversals = 0;
+    edict_t *last = unit->movement.patrol_target;
+    for (int frame = 0; frame < 100; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+        if (unit->movement.patrol_target != last) {
+            reversals++; last = unit->movement.patrol_target;
+        }
+    }
+    T_ASSERT(reversals >= 2);
+    jass_callbyname(level.vm, "verifyPatrol", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 128}, true, 0, 0));
+    T_EQ(unit->order_queue.count, 1);
+    T_ASSERT(WriteGame(filename));
+    jass_callbyname(level.vm, "stop", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 0);
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyPatrol", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 1);
+    jass_callbyname(level.vm, "move", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 0);
+    T_NULL(unit->movement.patrol_a);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "patrol", &(vec2_t){448, 64}, true, 0, 0));
+    T_EQ(unit->order_queue.count, 1);
+    for (int frame = 0; frame < 120 && unit->current_order_id != G_OrderId("patrol"); frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_EQ(unit->order_queue.count, 0);
+    jass_callbyname(level.vm, "verifyPatrol", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &(vec2_t){192, 64}) <= 64);
+    T_FEQ(unit->movement.patrol_a->s.origin.x, unit->s.origin.x, 0.001f);
+    T_FEQ(unit->movement.patrol_a->s.origin.y, unit->s.origin.y, 0.001f);
+    T_FEQ(unit->movement.patrol_b->s.origin.x, 448, 0.001f);
+    T_FEQ(unit->movement.patrol_b->s.origin.y, 64, 0.001f);
+    jass_callbyname(level.vm, "kill", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_FreeEdict(unit); level.time += 1001;
+    jass_callbyname(level.vm, "main", false);
+    T_ASSERT(find_test_unit(MAKEFOURCC('h','p','e','a')) == unit);
+    jass_callbyname(level.vm, "verifyIdle", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+TEST(wc3_api, current_order_patrol_ui_uses_same_pending_owner) {
+    void (*write)(pfWriteType_t, void const *) = gi.Write;
+    void (*unicast)(edict_t *) = gi.unicast;
+    cstring_t command[] = { "button", "CmdPatrol" };
+    setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *clent = g_edicts;
+    clent->client = game.clients;
+    gi.Write = selection_native_test_write; gi.unicast = selection_native_test_unicast;
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
+    unit->health.value = unit->health.max_value = 100;
+    unit->collision = 8; unit->unitinfo.MoveSpeed = 256;
+    unit->movetype = MOVETYPE_STEP; unit->svflags |= SVF_MONSTER;
+    unit->think = monster_think; unit->stand = unit_stand; unit->die = unit_die;
+    unit_stand(unit); gi.LinkEntity(unit); G_SelectEntity(clent->client, unit);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){192, 64}, false, 0, 0));
+    G_ClientCommand(clent, 2, command);
+    T_ASSERT(clent->client->menu.supports_order_queue);
+    T_NOT_NULL(clent->client->menu.on_location_selected);
+    clent->client->menu.order_queued = true;
+    T_ASSERT(clent->client->menu.on_location_selected(clent, &(vec2_t){448, 64}));
+    T_EQ(unit->current_order_id, G_OrderId("move")); T_EQ(unit->order_queue.count, 1);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 120 && unit->current_order_id != G_OrderId("patrol"); frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_EQ(unit->current_order_id, G_OrderId("patrol")); T_EQ(unit->order_queue.count, 0);
+    T_NOT_NULL(unit->movement.patrol_a);
+    clent->client->menu.order_queued = false;
+    T_ASSERT(clent->client->menu.on_location_selected(clent, &(vec2_t){512, 256}));
+    T_EQ(unit->current_order_id, G_OrderId("patrol"));
+    T_FEQ(unit->movement.patrol_b->s.origin.x, 512, 0.001f);
+    T_FEQ(unit->movement.patrol_b->s.origin.y, 256, 0.001f);
+    gi.Write = write; gi.unicast = unicast;
+}
+
 TEST(wc3_api, issued_order_context_ignores_spell_metadata) {
     setup_test_world();
     g_edicts[0].client = &game.clients[0];

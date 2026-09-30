@@ -45,6 +45,15 @@ void order_patrol(edict_t *self, edict_t *b) {
     order_patrol_resume(self);
 }
 
+/* Record the admitted public command; endpoint reversals and combat resumes retain it. */
+bool S_IssuePatrolOrder(edict_t *self, edict_t *target, uint32_t order_id) {
+    if (!self || !target) return false;
+    order_patrol(self, target);
+    if (self->goalentity != target || self->currentmove != &patrol_move_walk) return false;
+    self->current_order_id = order_id;
+    return true;
+}
+
 static bool patrol_selectlocation(edict_t *clent, vec2_t const *location) {
     bool any = false;
 
@@ -52,10 +61,8 @@ static bool patrol_selectlocation(edict_t *clent, vec2_t const *location) {
         if ((ent->aiflags & AI_IMMOBILE) || ent->data.UnitBalance->speed <= 0) {
             continue;
         }
-        vec2_t target = *location;
-        CM_ClosestPathablePointForRadiusFlags(location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
-        order_patrol(ent, Waypoint_add(&target));
-        any = true;
+        if (G_IssueUnitPointOrder(ent, "patrol", location, clent->client->menu.order_queued, clent->client->ps.number, 0))
+            any = true;
     }
     if (any) G_SendPointConfirmation(clent, location, false);
     return any;
@@ -64,4 +71,5 @@ static bool patrol_selectlocation(edict_t *clent, vec2_t const *location) {
 BZ_COMMAND_PROC(AbilityPatrol) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_location_selected = patrol_selectlocation;
+    clent->client->menu.supports_order_queue = true;
 }

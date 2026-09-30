@@ -5630,7 +5630,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "3cad0c3be3bf07427f47cb21d88f6d8108eecaf4af42b0224f86bb47aa162fed"
+      "sha256": "a9a8bfaf05794ccb996a2d0a83359db9b7700853445181b59c3c83e92a6417a2"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",

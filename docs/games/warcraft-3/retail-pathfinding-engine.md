@@ -496,7 +496,7 @@ The FIFO calls these owners again at activation; it must not make a pending
 entry current merely because the issued event was published. Generic
 `S_UnitAbilityOrderAccepted` is a post-accept hook, not universal head activation.
 
-Ghidra now persists **277 names,17 partial layouts,110 fields and44 explicit
+Ghidra now persists **277 names,18 partial layouts,115 fields and45 explicit
 x86 prototypes**. New names cover Hold creation/enter/leave, Patrol/Attack Move
 creation, Smart target dispatch and the shared owner/interception roots.
 Move20 bit200 is named in the existing Move prefix; instruction labels at
@@ -506,6 +506,55 @@ existing field/type/offset/comment and total size is preserved. Actual mapper
 rename/retype/omission controls all reject the change before resolution;
 `order-01.6-ghidra-owner-types.json` is the final readback. This refinement does
 not install inferred calling conventions or discard another analyst's fields.
+
+
+## Current Patrol ownership
+
+ORDER-01.9 integrates public point Patrol with command851991. The previous
+native whitelist rejected Patrol, while the selected-unit UI called an internal
+procedure without recording its current identity or using the player FIFO.
+The test-first native/UI witnesses fail against the committed engine. Native
+and selected-unit commands now reach `S_IssuePatrolOrder` in `s_patrol.c`; that
+owner records the public ID only after Patrol owns the installed move. UI Shift
+uses the existing FIFO and advertises queue support. Endpoint reversals retain
+the ID, and queued activation records it when the prior command completes.
+
+The public-native regression runs real server frames through repeated endpoint
+reversal, rejected replacement, queued point state, save/load, Move replacement,
+queued Patrol activation, Stop, death/dead rejection and actual edict reuse. The
+UI regression issues the real `button CmdPatrol` command, queues behind Move,
+advances server frames and then replaces the endpoints with an immediate click.
+Its fixture initializes a JASS VM before entering the server scheduler; the
+initial fixture crash was a null VM, not a production Patrol/HUD failure.
+
+The existing repeated public order-lifecycle capture supplies actual no-enemy
+reversal: tick150 starts at(-1968,-464), tick172 reaches(-1937.086,-155.213),
+and tick179 returns to(-1946.351,-243.171). Current head851991 remains active.
+The analyzer now requires approach within64 world units of the authored endpoint,
+then return by more than64 units under that same head. Negative controls reject
+stationary, outbound-only, truncated and wrong-head traces. The threshold admits
+the observed coarse timer samples; it is not a recovered retail stop distance.
+`order-01.9-patrol-reversal-audit.json` rechecks both complete captures and the
+unchanged320-marker repeat digest. No new observer/map provenance is claimed.
+
+Ghidra persists `WC3PatrolEndpointsPrefix`, a104-byte partial prefix containing
+only command24 and scalar coordinates48/50/5c/64, plus the verified ECX Move /
+stack4 event / RET4 dispatcher ABI. Labels5fe04a,5fe059 and5fe114 retain the
+primary/alternate endpoint reads and d0175 return-task creation. Complete
+original construction, queued-origin capture timing, blocked-route endpoint
+policy and automatic combat/resume remain ORDER-01.18. This integration closes
+public current ownership and no-enemy lifecycle, not whole Patrol trajectory
+or numerical/clock parity.
+
+Validation for01.9: the full normal suite passes80 tool tests and37,010 assertions
+in2,138 engine tests, after correcting the stale unknown-order Patrol fixture.
+All six current-order regressions pass257 checks with DEBUG_JASS, followed by
+normal library restoration. WC3/SC2 production builds pass. Fresh strict corpus
+`order-01.9-patrol-corpus/corpus-results.json` passes122/122 and rechecks source
+fingerprints unchanged at completion. Manifest SHA256:
+`e267f21ac2a21ca6d9fe397538d60cd5467fe3580e9231e976a7d2df2c5f5705`;
+summary SHA256:
+`b2ad131dd8491f5f67ccc866304f8c9d42fae1e55d30ae75f1be4632c5233871`.
 
 ## Current Follow and Hold ownership
 

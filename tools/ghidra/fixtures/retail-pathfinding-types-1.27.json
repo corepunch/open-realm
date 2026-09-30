@@ -767,6 +767,42 @@
           "evidence": "061320 payload resolution"
         }
       ]
+    },
+    {
+      "name": "WC3PatrolEndpointsPrefix",
+      "length": 104,
+      "fields": [
+        {
+          "offset": 36,
+          "name": "command",
+          "type": "u32",
+          "evidence": "common user-head command24; public Patrol851991"
+        },
+        {
+          "offset": 72,
+          "name": "primary_x",
+          "type": "WC3PathScalar",
+          "evidence": "5fe04a reads order48"
+        },
+        {
+          "offset": 80,
+          "name": "primary_y",
+          "type": "WC3PathScalar",
+          "evidence": "5fe053 reads order50"
+        },
+        {
+          "offset": 92,
+          "name": "alternate_x",
+          "type": "WC3PathScalar",
+          "evidence": "5fe059 reads order5c"
+        },
+        {
+          "offset": 100,
+          "name": "alternate_y",
+          "type": "WC3PathScalar",
+          "evidence": "5fe05f reads order64"
+        }
+      ]
     }
   ],
   "methods": [
@@ -1446,6 +1482,24 @@
           "name": "move",
           "type": "ptr:WC3MoveSpeedPrefix",
           "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f5fdff0",
+      "name": "Move_CreatePatrolTasks",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "move",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
         }
       ]
     }

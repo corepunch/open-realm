@@ -838,6 +838,7 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
         order_attackmove(self, waypoint);
         return true;
     }
+    if (!strcmp(order, "patrol")) return S_IssuePatrolOrder(self, waypoint, G_OrderId(order));
     return false;
 }
 
@@ -934,7 +935,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         }
     }
     if ((self->aiflags & AI_IMMOBILE) && strcmp(order, "attackground")) return false;
-    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
+    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") && strcmp(order, "patrol") &&
         strcmp(order, "attackground")) return false;
 
     if (queue && G_UnitHasActiveOrder(self)) {

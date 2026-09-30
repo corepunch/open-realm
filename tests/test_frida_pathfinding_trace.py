@@ -17,6 +17,27 @@ def capture(*searches, calls=None):
 
 
 class PathTraceTests(unittest.TestCase):
+    def test_patrol_reversal_requires_approach_and_return_under_current_head(self):
+        markers = [dict(tick=t, label='sample', x=-1936.0,
+                        y=-464.0 + 14 * min(t - 150, 44 - (t - 150)), order=851991)
+                   for t in range(150, 180)]
+        errors = []
+        trace.check_patrol_reversal(markers, errors)
+        self.assertEqual(errors, [])
+        for mode in ('stationary', 'outbound_only', 'wrong_head', 'truncated'):
+            changed = [dict(m) for m in markers]
+            if mode == 'stationary':
+                for m in changed: m['y'] = -464.0
+            elif mode == 'outbound_only':
+                for m in changed: m['y'] = -464.0 + 10 * (m['tick'] - 150)
+            elif mode == 'wrong_head':
+                changed[-1]['order'] = 0
+            else:
+                changed.pop()
+            errors = []
+            trace.check_patrol_reversal(changed, errors)
+            self.assertIn('Patrol lacks endpoint approach and return under its current head', errors)
+
     def test_order_lifecycle_rejects_historical_or_animation_derived_heads(self):
         changes = [(0, 'start_order_lifecycle', 0), (10, 'point_move_accepted', 851986),
                    (30, 'hold_accepted', 0), (60, 'defend_accepted', 0), (65, 'undefend_accepted', 0),
@@ -42,7 +63,12 @@ class PathTraceTests(unittest.TestCase):
         trace.check_order_lifecycle(markers[1:], errors)
         self.assertIn('public order lifecycle transitions differ from fixture', errors)
         rows = capture()
-        rows[1:1] = [dict(event='marker', value=f"PATHTRACE tick={m['tick']} label={m['label']} x=0 y=0 order={m['order']}") for m in markers]
+        for m in markers:
+            m['x'], m['y'] = -1936.0, -464.0
+            if 150 <= m['tick'] < 180:
+                t = m['tick'] - 150
+                m['y'] += 14 * min(t, 44 - t)
+        rows[1:1] = [dict(event='marker', value=f"PATHTRACE tick={m['tick']} label={m['label']} x={m['x']} y={m['y']} order={m['order']}") for m in markers]
         rows[1:1] = [dict(event='hold-marker', value='PATHHOLD tick=200 life=420.000'),
                      dict(event='hold-marker', value='PATHHOLD tick=220 life=409.606')]
         self.assertEqual(trace.analyze(rows, 'order_lifecycle')['violations'], [])

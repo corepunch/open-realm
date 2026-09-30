@@ -384,6 +384,19 @@ def check_order_lifecycle(markers, violations):
     return transitions
 
 
+def check_patrol_reversal(markers, violations):
+    """The authored Patrol must approach (-1936,-144), then return while head851991 remains active."""
+    samples = [m for m in markers if m['label'] == 'sample' and 150 <= m['tick'] < 180]
+    if (len(samples) == 30 and [m['tick'] for m in samples] == list(range(150, 180)) and
+        all(m['order'] == 851991 and math.isfinite(m.get('x', math.nan)) and
+            math.isfinite(m.get('y', math.nan)) for m in samples)):
+        distances = [math.hypot(m['x'] + 1936, m['y'] + 144) for m in samples]
+        closest = min(distances)
+        if closest < 64 and distances[0] > closest + 128 and distances[-1] > closest + 64:
+            return
+    violations.append('Patrol lacks endpoint approach and return under its current head')
+
+
 def analyze(rows, scenario=None):
     violations, summaries = [], {}
     metadata = [r for r in rows if r.get('event') == 'metadata']
@@ -599,6 +612,7 @@ def analyze(rows, scenario=None):
             violations.append('scenario obstacle transition markers missing or duplicated')
         if scenario == 'order_lifecycle':
             check_order_lifecycle(markers, violations)
+            check_patrol_reversal(markers, violations)
             hold = [r.get('value', '') for r in rows if r.get('event') == 'hold-marker']
             damage = [re.fullmatch(r'PATHHOLD tick=(200|220) life=(-?[\d.]+)', value) for value in hold]
             if (len(damage) != 2 or not all(damage) or
