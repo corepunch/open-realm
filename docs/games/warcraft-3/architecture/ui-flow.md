@@ -130,7 +130,10 @@ PRE2 spawn velocity follows the emitter node's transformed local direction, whic
 into the camera view. Its accumulator honors the authored per-second rate during normal frames and limits catch-up after
 long stalls to 100 ms. Particle batches temporarily disable face culling and restore the previous state so the
 camera-facing tail quads are visible. The isolated scene keeps menu rain separate from the active map's particle list.
-This is MDX model-particle rendering, not the map/JASS weather system.
+On scene-model load, the background plays its authored `Birth` sequence for the duration reported by the MDX renderer,
+then holds `Stand`. The archived `ui_skip_transitions` cvar defaults to `0`; setting it to `1` skips this intro, panel
+Birth/Death sequences, and sampled panel movement while still running the screen handoff callbacks. This is MDX
+model-particle rendering, not the map/JASS weather system.
 `UI_GotoGluePanel(GLUEDEST, exited, changed)` accepts `{panel, tab, page}`. `tab` selects an authored left-panel pose;
 `page` distinguishes content pages that share that pose (Options Gameplay, Video, and Sound). Each `GLUELAYER` retains
 its own current/target destination, phase, and start time. The right layer uses only the panel family. RoC and TFT share

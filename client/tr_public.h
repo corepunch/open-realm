@@ -297,6 +297,8 @@ typedef struct {
     void (*DrawSprite)(drawSprite_t const *sprite);
     bool (*DrawCursor)(drawCursor_t const *cursor);
     bool (*SetEntityAnimFrame)(model_t const *model, cstring_t anim, renderEntity_t *entity);
+    /* Authored named-sequence duration in milliseconds, when exposed by the model format. */
+    bool (*GetModelAnimationDuration)(model_t const *model, cstring_t anim, uint32_t *duration);
     void (*DrawText)(drawText_t const *drawText);
     vec2_t (*GetTextSize)(drawText_t const *drawText);
     bool (*GetModelInfo)(model_t *model, modelInfo_t *info);

@@ -558,6 +558,13 @@ bool R_SetEntityAnimFrame(model_t const *model, cstring_t anim, renderEntity_t *
     return M2_SetEntitySequenceFrame(model->m2, anim, entity);
 }
 
+bool R_GetModelAnimationDuration(model_t const *model, cstring_t anim, uint32_t *duration) {
+    (void)model;
+    (void)anim;
+    (void)duration;
+    return false;
+}
+
 void R_DrawSprite(drawSprite_t const *sprite) {
     (void)sprite;
 }
