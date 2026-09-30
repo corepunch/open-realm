@@ -40,6 +40,7 @@ void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source
     (void)source_model;
     (void)source_instance_id;
 }
+void R_ReleaseEntityCameraEvents(uintptr_t instance_id) { (void)instance_id; }
 void R_DrawEntities(void) {
     drawn = tr.viewDef;
     entities++;

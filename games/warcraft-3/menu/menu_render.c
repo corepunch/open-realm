@@ -836,7 +836,7 @@ static void UI_DrawPortrait(frameDef_t const *frame, rect_t const *rect) {
 
     renderEntity_t entity = {0};
     entity.model = model;
-    entity.instance_id = (uintptr_t)frame;
+    entity.instance_id = frame->camera_event_instance_id;
     entity.scale = 1.0f;
     entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
     renderer->SetEntityAnimFrame(model, "Stand", &entity);

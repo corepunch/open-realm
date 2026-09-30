@@ -305,6 +305,7 @@ typedef struct {
     bool (*GetModelInfo)(model_t *model, modelInfo_t *info);
     bool (*GetEntityOverheadPosition)(renderEntity_t const *entity, vec3_t *out);
     bool (*GetEntityAttachmentPosition)(renderEntity_t const *entity, cstring_t prefix, vec3_t *out);
+    void (*ReleaseEntityCameraEvents)(uintptr_t instance_id);
 
     void (*DrawBoundingBox)(box3_t const *box, mat4_t const *modelMatrix, mat4_t const *vpMatrix, color32_t color);
     float (*GetHeightAtPoint)(float x, float y);

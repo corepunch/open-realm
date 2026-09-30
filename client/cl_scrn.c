@@ -929,7 +929,8 @@ void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen) {
 
     renderEntity_t entity = {0};
     entity.model = draw; entity.scale = 1.0f;
-    entity.instance_id = (uintptr_t)frame;
+    entity.instance_id = ((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1)) |
+                         ((uintptr_t)layout_current_layer << 10) | frame->number;
     entity.team = frame->stat;
     entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
     re.SetEntityAnimFrame(draw, anim, &entity);
@@ -1457,6 +1458,13 @@ void SCR_SetLayoutLayer(uint32_t layer, handle_t data) {
 
 void SCR_ClearLayoutLayer(uint32_t layer) {
     if (layer < MAX_LAYOUT_LAYERS) layout_layers[layer] = NULL;
+}
+
+void SCR_ReleaseLayoutCameraEvents(uint32_t layer) {
+    if (layer >= MAX_LAYOUT_LAYERS || !re.ReleaseEntityCameraEvents) return;
+    uintptr_t const prefix = ((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1)) | ((uintptr_t)layer << 10);
+    FOR_LOOP(number, MAX_LAYOUT_OBJECTS)
+        re.ReleaseEntityCameraEvents(prefix | number);
 }
 
 void SCR_ClearLayoutResources(void) {

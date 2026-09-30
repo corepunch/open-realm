@@ -1133,6 +1133,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetModelInfo = R_GetModelInfo,
         .GetEntityOverheadPosition = R_GetEntityOverheadPosition,
         .GetEntityAttachmentPosition = R_GetEntityAttachmentPosition,
+        .ReleaseEntityCameraEvents = R_ReleaseEntityCameraEvents,
         .DrawBoundingBox = R_DrawBoundingBox,
         .GetHeightAtPoint = R_GetHeightAtPoint,
         .StartTerrainDeformation = R_StartTerrainDeformation,
