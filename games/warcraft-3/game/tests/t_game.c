@@ -4614,6 +4614,78 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     level.events = old_events; remove(filename);
 }
 
+TEST(wc3_save, issued_order_context_survives_unread_and_sleeping_callbacks) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-issued-order-context-save-test.bin";
+    reset_entities(); setup_test_world();
+    /* Player events register on the reserved client edict, outside world use. */
+    g_edicts[0].client = &game.clients[0];
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "  integer started = 0\n"
+        "  integer finished = 0\n"
+        "endglobals\n"
+        "function checkOrder takes integer index returns nothing\n"
+        "  if index <= 2 then\n"
+        "    call BJassAssert(GetIssuedOrderId() == OrderId(\"move\"), \"first callback retains Move ID\")\n"
+        "    call BJassAssert(GetOrderPointX() == 192.0 and GetOrderPointY() == 64.0, \"first callback retains Move point\")\n"
+        "  else\n"
+        "    call BJassAssert(GetIssuedOrderId() == OrderId(\"smart\"), \"second callback retains Smart ID\")\n"
+        "    call BJassAssert(GetOrderPointX() == 256.0 and GetOrderPointY() == 96.0, \"second callback retains Smart point\")\n"
+        "  endif\n"
+        "  call BJassAssert(GetOrderedUnit() == testUnit, \"saved callback retains its ordered unit\")\n"
+        "endfunction\n"
+        "function onPoint takes nothing returns nothing\n"
+        "  local integer index\n"
+        "  set started = started + 1\n"
+        "  set index = started\n"
+        "  call checkOrder(index)\n"
+        "  call TriggerSleepAction(0.1)\n"
+        "  call checkOrder(index)\n"
+        "  set finished = finished + 1\n"
+        "endfunction\n"
+        "function verifySleeping takes nothing returns nothing\n"
+        "  call BJassAssert(started == 4 and finished == 0, \"both event families suspend for both submissions\")\n"
+        "endfunction\n"
+        "function verifyFinished takes nothing returns nothing\n"
+        "  call BJassAssert(started == 4 and finished == 4, \"all saved callbacks resume exactly once\")\n"
+        "endfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"move\", 192.0, 64.0), \"Move accepted\")\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"smart\", 256.0, 96.0), \"Smart accepted\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, null)\n"
+        "  call TriggerRegisterUnitEvent(t, testUnit, EVENT_UNIT_ISSUED_POINT_ORDER)\n"
+        "  call TriggerAddAction(t, function onPoint)\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) {
+            unit = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->stand = unit_stand; unit_stand(unit);
+    jass_callbyname(level.vm, "issue", true); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(WriteGame(filename)); T_ASSERT(ReadGame(filename));
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifySleeping", true); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_ASSERT(WriteGame(filename)); T_ASSERT(ReadGame(filename));
+    level.time += 200; jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyFinished", true); jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_active_move_group) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-move-group-save-test.bin";
     reset_entities(); setup_test_world();

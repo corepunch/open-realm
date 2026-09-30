@@ -629,6 +629,138 @@
           "evidence": "150d50 factory /167900 pool return; native owner958 lifecycle"
         }
       ]
+    },
+    {
+      "name": "WC3UnitOrdersPrefix",
+      "length": 440,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "existing original CUnit vtable6fb77eb0"
+        },
+        {
+          "offset": 4,
+          "name": "references",
+          "type": "u32",
+          "evidence": "1eef90 balanced handle references; complete point-order lifecycle oracle"
+        },
+        {
+          "offset": 12,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "2039d0/1eef90 canonical wrapper checks"
+        },
+        {
+          "offset": 372,
+          "name": "internal_head",
+          "type": "WC3PathIdentity",
+          "evidence": "complete original task-chain dispatch"
+        },
+        {
+          "offset": 412,
+          "name": "user_head",
+          "type": "WC3PathIdentity",
+          "evidence": "2039d0 current-order query"
+        },
+        {
+          "offset": 424,
+          "name": "user_tail",
+          "type": "WC3PathIdentity",
+          "evidence": "680320/693490 complete FIFO oracle"
+        },
+        {
+          "offset": 436,
+          "name": "user_count",
+          "type": "u32",
+          "evidence": "complete point-order admission and reclamation"
+        }
+      ]
+    },
+    {
+      "name": "WC3OrderPrefix",
+      "length": 84,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "original COrderTarget construction"
+        },
+        {
+          "offset": 4,
+          "name": "references",
+          "type": "u32",
+          "evidence": "complete original order reference lifecycle"
+        },
+        {
+          "offset": 12,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "complete original order registration"
+        },
+        {
+          "offset": 36,
+          "name": "command",
+          "type": "u32",
+          "evidence": "2039d0 current and685cd0 issued-order queries"
+        },
+        {
+          "offset": 68,
+          "name": "point_x",
+          "type": "WC3FloatMini",
+          "evidence": "247520 setter;685cf0 reads value48"
+        },
+        {
+          "offset": 76,
+          "name": "point_y",
+          "type": "WC3FloatMini",
+          "evidence": "247520 setter;685d30 reads value50"
+        }
+      ]
+    },
+    {
+      "name": "WC3AgentWrapperPrefix",
+      "length": 88,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "original canonical agent wrapper"
+        },
+        {
+          "offset": 12,
+          "name": "agent_tag",
+          "type": "u32",
+          "evidence": "2039d0/1eef90 require2b61676c"
+        },
+        {
+          "offset": 16,
+          "name": "base_tag",
+          "type": "u32",
+          "evidence": "supplied original canonical agent backing2b616761"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "054530 canonical generation"
+        },
+        {
+          "offset": 32,
+          "name": "retired",
+          "type": "u32",
+          "evidence": "2039d0/061320 reject nonzero"
+        },
+        {
+          "offset": 84,
+          "name": "payload",
+          "type": "ptr:void",
+          "evidence": "061320 payload resolution"
+        }
+      ]
     }
   ],
   "methods": [
@@ -1204,6 +1336,73 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f2039d0",
+      "name": "Jass_GetUnitCurrentOrder",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1eef90",
+      "name": "Jass_ResolveUnitHandle",
+      "returns": "ptr:WC3UnitOrdersPrefix",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f061320",
+      "name": "AgentIdentity_ResolvePayload",
+      "returns": "ptr:void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "identity",
+          "type": "ptr:WC3PathIdentity",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f2005b0",
+      "name": "Jass_GetIssuedOrderId",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": []
+    },
+    {
+      "address": "6f201010",
+      "name": "Jass_GetOrderPointX",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": []
+    },
+    {
+      "address": "6f201060",
+      "name": "Jass_GetOrderPointY",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": []
+    },
+    {
+      "address": "6f200f70",
+      "name": "Jass_GetOrderPointLoc",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": []
     }
   ],
   "globals": [

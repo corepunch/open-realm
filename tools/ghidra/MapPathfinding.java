@@ -8,6 +8,16 @@ import ghidra.program.model.symbol.SourceType;
 public class MapPathfinding extends GhidraScript {
     static final String HASH = "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236";
     static final String[][] ROWS = {
+        {"6f2039d0", "Jass_GetUnitCurrentOrder", "Registered live native209a0b (placeholder727800 is not the implementation). Cdecl stack4 JASS unit handle. Original1eef90 resolves existing Unit, rechecks canonical wrapper tag2b61676c and retired20, then resolves Unit19c/1a0 live user head via061320; return order24 command or0. Does not read historical issued-event state."},
+        {"6f1eef90", "Jass_ResolveUnitHandle", "ECX encoded handle. Contextd687a8+1c VM,285fe0 handle table uses (handle-100000)*12+4;1d73b0 checks real virtual1c type against2b773375 and retains/releases refs. Canonical Unit wrapper tag/lifetime checks. Supplied existing VM/Unit backing is not full JASS VM construction proof."},
+        {"6f061320", "AgentIdentity_ResolvePayload", "ECX pointer to slot/generation.054530 canonical resolver then wrapper20 retirement check; return wrapper54 payload orNULL. Used by current user-order head and event order snapshot traversal."},
+        {"6f2005b0", "Jass_GetIssuedOrderId", "Live registration208723. No arguments.2037e0 event type selects player38/39/40 via201d20 then265f90, or unit75/76/77 via200f40; then685cd0 reads the event-held order's24 command. Other event types return0. Callback ownership is distinct from Unit19c live head."},
+        {"6f201010", "Jass_GetOrderPointX", "Live registration208737. No arguments; software scalar resultEAX. Player event39 or unit76 selects callback-held order,685cf0 reads retained COrderTarget48 X. Missing context returnsd3c744 zero. No last-issued Unit cache lookup."},
+        {"6f201060", "Jass_GetOrderPointY", "Live registration20874b. No arguments; software scalar resultEAX. Player event39 or unit76 selects callback-held order,685d30 reads retained COrderTarget50 Y. Missing context returnsd3c744 zero."},
+        {"6f200f70", "Jass_GetOrderPointLoc", "Live registration20875f. No arguments. Same callback order as point X/Y; original20e630 constructs location from retained scalars. Unrelated event type returns0; absent eligible order uses zero-point location."},
+        {"6f685cd0", "Order_GetCommand", "ECX order,6857c0 validates original COrder type then returns24 command; failed validation returns internal sentineld0142. Issued-order native reaches this on the callback-held order."},
+        {"6f685cf0", "Order_GetPointX", "Original6860d0 validates COrderTarget, copies scalar48 through caller output pointer; absent matching order copiesd3c744 zero. Native201010 consumes output word inEAX."},
+        {"6f685d30", "Order_GetPointY", "Original6860d0 validates COrderTarget, copies scalar50 through caller output pointer; absent matching order copiesd3c744 zero. Native201060 consumes output word inEAX."},
         {"6f14ec50", "Path_Create", "ECX pointer-to-path output, EDX activation context, stack4 activate ret4. Original166130 owner958 pool then150d50 allocation; optional real virtualc activation166060. Baseline owned paths now use this factory, preserving registration order and frozen trajectories while accounting two owned paths plus group path."},
         {"6f150d50", "PathPool_Allocate", "ECX owner958 pool; stack4 previous,stack8 next ret8; EAX path object (explicit LEA EAX,[ESI+4] at150db2, decompiler prior void was wrong). Pop free allocation header14 or native allocator/constructor; increment live18 and allocation1c, initialize links4/8 and objectc/10 tags6c5e7061. Native baseline uses supplied recycled backing; heap failure/empty pool remains unverified."},
         {"6f166130", "PathPool_GetOwnerPool", "No arguments, EAX globald53a48 owner+958. Pool prefix verified free-header14/live18/allocation1c; no complete factory layout claim."},
@@ -273,7 +283,14 @@ public class MapPathfinding extends GhidraScript {
         // Validate the whole batch before touching existing annotations.
         for (String[] row : ROWS) {
             Function f = getFunctionAt(toAddr(row[0]));
-            if (f == null) throw new Exception("Missing function " + row[0]);
+            if (f == null) {
+                // Verified native registration and complete decoded switch;
+                // Ghidra initially had instructions but no function at2005b0.
+                if (!row[0].equals("6f2005b0") || getInstructionAt(toAddr(row[0])) == null ||
+                    getFunctionContaining(toAddr(row[0])) != null)
+                    throw new Exception("Missing function " + row[0]);
+                continue;
+            }
             // Explicit migration of our earlier order/task misidentification.
             boolean taskCorrection =
                 (row[0].equals("6f691260") && f.getName().equals("Unit_PopInternalOrderHead")) ||
@@ -284,6 +301,8 @@ public class MapPathfinding extends GhidraScript {
         }
         for (String[] row : ROWS) {
             Function f = getFunctionAt(toAddr(row[0]));
+            if (f == null) f = createFunction(toAddr(row[0]), row[1]);
+            if (f == null) throw new Exception("Cannot create verified native " + row[0]);
             f.setName(row[1], SourceType.USER_DEFINED);
             f.setComment(row[2] + "\nRecovered descriptive name, not an original debug symbol. "
                 + "See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 " + HASH);

@@ -26,6 +26,14 @@ The versioned layout retains the authoritative `level.timeofday` record and game
 
 Version 40 added the region registry to the level stream, region IDs to saved event registrations, and region context to the JASS snapshot (snapshot format 6). The exact-version guard rejects version 39 saves; the existing regression test confirms this. This remains a compatibility break for existing saves, even though the added data is limited to region-backed trigger state.
 
+ORDER-01.5 extends the semantic JASS snapshot to version7 with callback
+`eventType`. Issued-order value/point/target snapshots already use the existing
+game-event fields; event type gates now remain correct after a yielded callback
+is restored. Both unread issued-order events and sleeping actions have round-trip
+coverage. Outer W3SV version56 and the network protocol are unchanged, but the
+embedded exact-version guard rejects a version6 JASS snapshot. See
+[immutable issued-order callbacks](issued-target-order-events.md#immutable-callback-ownership).
+
 One possible compatibility design is to retain the version 39 header and base payload byte-for-byte, then put version-40-only region state in a tagged, length-delimited extension after the JASS snapshot and before the existing checksum footer. The new reader would parse the optional extension; a version-39 reader could continue parsing the known base payload and ignore the remaining bytes after its snapshot. The extension would need its own schema/version and strict bounds, while the existing footer checksum would cover it. Before adopting this design, verify the trailing-byte behavior with an actual version-39 reader and move every version-40-only field—including region handle and coroutine context data—out of the base payload. This is a proposal only; implementing it requires a separate save-format change and compatibility tests.
 
 Version 41 persists region and region-event handle generations and exhaustion state. This keeps each recycled handle's `GetHandleId` unique during a session and stable across save/load. The exact-version guard rejects version 40 saves as well as earlier versions.

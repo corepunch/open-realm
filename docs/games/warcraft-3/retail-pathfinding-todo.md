@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**46 done / 218 tasks; 172 remaining.** Counts describe this backlog,
+**47 done / 219 tasks; 172 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -26,7 +26,7 @@ Completed evidence now sits next to its specific remaining extension.
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 0 | 11 |
-| ORDER — Orders and reclamation | 5 | 17 |
+| ORDER — Orders and reclamation | 6 | 17 |
 | GROUP — Shared movement groups | 11 | 6 |
 | FORM — Formation and regrouping | 2 | 10 |
 | SEP — Repulsion and spatial records | 2 | 10 |
@@ -49,6 +49,8 @@ owned-path factory/accounting prerequisite discovered during04.5; it does not
 replace the remaining survivor refresh/reuse acceptance. GROUP-04.8 explicitly
 splits04.5's complete released/reused-member survivor journey from its actual
 refresh/new-destination producer requirement; both leaves remain required.
+ORDER-01.5 explicitly splits01.4's immutable issued-event callback ownership
+from the active current-order query; both remain required for the original item.
 
 ## Work next
 
@@ -59,7 +61,9 @@ match production exactly; the server-frame engine regression preserves the old
 slot through edict reuse and reaches the replacement goal. Its inactive goal
 cache is separate from active order ownership. The engine's public current-order
 native still aliases the historical issued-event array, so that concrete query
-lifecycle is next. Ghidra persists257 names,14 layouts,90 fields and34 x86
+lifecycle is next. ORDER-01.5 fixes immutable issued-event metadata through
+delayed/reentrant and saved/suspended callbacks; it does not fix current-order
+state. Ghidra persists267 names,17 layouts,109 fields and41 x86
 prototypes. The strict corpus has120 declared outcomes. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
@@ -424,7 +428,8 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 - [x] **ORDER-01.1** 24 generated point-order chains arrive and reclaim queues/pools; 288 internal tasks complete. Evidence: [queued arrival][arrival], O `queued_order_arrival_cases=24`; open fine grid and explicit group ticks.
 - [ ] **ORDER-01.2** Enumerate remaining arrival/can't-path early exits and unit-state gates; add one full-dispatch witness per branch, including unit+280 bit40.
 - [ ] **ORDER-01.3** Run one blocked-goal recovery chain through retries and final failure/next-order dispatch; assert unwind and cleanup rather than only notification.
-- [ ] **ORDER-01.4** Trace retail `GetUnitCurrentOrder` and separate OpenRealm's active order query from historical issued-event ID storage. Test ordinary point move admission, replacement, Stop and natural arrival through public natives/server frames, including save/load and edict reuse; preserve queued issued-event callback context. Discovered while04.5 confirmed idle movement with a retained goal cache: current engine native delegates to `G_GetIssuedOrderId`, which returns the last publisher array entry rather than active queue state. Assign uncovered non-movement order domains to BASE-03.1 before closing this bounded movement query lifecycle.
+- [ ] **ORDER-01.4** Trace retail `GetUnitCurrentOrder` and separate OpenRealm's active order query from historical issued-event ID storage. Test ordinary point move admission, replacement, Stop and natural arrival through public natives/server frames, including save/load and edict reuse. Immutable issued-event callbacks are explicitly split into01.5 and remain a prerequisite. Discovered while04.5 confirmed idle movement with a retained goal cache: current engine native delegates to `G_GetIssuedOrderId`, which returns the last publisher array entry rather than active queue state. Assign uncovered non-movement order domains to BASE-03.1 before closing this bounded movement query lifecycle.
+- [x] **ORDER-01.5** Preserve accepted issued-order IDs, points and targets in queued and suspended event contexts, independently of subsequent per-unit orders. Verify delayed Move/Smart/Stop, reentrant point replacement, both target event families, unread-event save/load and sleeping-callback save/load; exclude unrelated spell metadata through the retail event-type gates. Evidence: [immutable issued-order callbacks](issued-target-order-events.md#immutable-callback-ownership), failing public-native regression followed by engine fix, JASS snapshot7, persisted Ghidra getters/prototypes and full tests. Active query state remains01.4; complete original event producer/subscriber mutation graph remains ORDER-03/BASE-03.1.
 
 ### ORDER-02 — User/internal queues
 

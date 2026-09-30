@@ -3544,6 +3544,172 @@ TEST(wc3_api, immediate_order_publishes_order_event_context) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+/* Publishing another order before dispatch, or inside an action, must not
+ * rewrite the issued order captured for conditions and queued actions. */
+TEST(wc3_api, issued_order_context_is_frozen_across_replacement_and_reentry) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "  integer pointConditions = 0\n"
+        "  integer pointActions = 0\n"
+        "  integer stopActions = 0\n"
+        "endglobals\n"
+        "function checkPoint takes integer index returns nothing\n"
+        "  local integer id = OrderId(\"move\")\n"
+        "  local real x = 192.0\n"
+        "  local real y = 64.0\n"
+        "  local location p\n"
+        "  if index == 2 then\n"
+        "    set id = OrderId(\"smart\")\n"
+        "    set x = 256.0\n"
+        "    set y = 96.0\n"
+        "  elseif index == 3 then\n"
+        "    set x = 320.0\n"
+        "    set y = 128.0\n"
+        "  endif\n"
+        "  call BJassAssert(GetIssuedOrderId() == id, \"callback must retain its submitted order ID\")\n"
+        "  call BJassAssert(GetOrderPointX() == x and GetOrderPointY() == y, \"callback must retain its submitted point\")\n"
+        "  set p = GetOrderPointLoc()\n"
+        "  call BJassAssert(GetLocationX(p) == x and GetLocationY(p) == y, \"order location must use callback snapshot\")\n"
+        "  call RemoveLocation(p)\n"
+        "endfunction\n"
+        "function pointCondition takes nothing returns boolean\n"
+        "  set pointConditions = pointConditions + 1\n"
+        "  call checkPoint(pointConditions)\n"
+        "  return true\n"
+        "endfunction\n"
+        "function onPoint takes nothing returns nothing\n"
+        "  set pointActions = pointActions + 1\n"
+        "  call checkPoint(pointActions)\n"
+        "  if pointActions == 1 then\n"
+        "    call BJassAssert(IssuePointOrder(testUnit, \"move\", 320.0, 128.0), \"reentrant replacement accepted\")\n"
+        "    call checkPoint(1)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function onStop takes nothing returns nothing\n"
+        "  set stopActions = stopActions + 1\n"
+        "  call BJassAssert(GetIssuedOrderId() == OrderId(\"stop\"), \"immediate callback must retain Stop ID\")\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(pointConditions == 3 and pointActions == 3 and stopActions == 1, \"each submission publishes once\")\n"
+        "endfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"move\", 192.0, 64.0), \"initial Move accepted\")\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"smart\", 256.0, 96.0), \"replacement Smart accepted\")\n"
+        "  call BJassAssert(IssueImmediateOrder(testUnit, \"stop\"), \"Stop accepted\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger p = CreateTrigger()\n"
+        "  local trigger s = CreateTrigger()\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(p, Player(0), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, null)\n"
+        "  call TriggerAddCondition(p, Condition(function pointCondition))\n"
+        "  call TriggerAddAction(p, function onPoint)\n"
+        "  call TriggerRegisterUnitEvent(s, testUnit, EVENT_UNIT_ISSUED_ORDER)\n"
+        "  call TriggerAddAction(s, function onStop)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->stand = unit_stand;
+    unit_stand(unit);
+    jass_callbyname(level.vm, "issue", true); jass_runevents(level.vm);
+    G_RunEvents(); jass_runevents(level.vm);
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", true); jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, issued_order_context_ignores_spell_metadata) {
+    setup_test_world();
+    g_edicts[0].client = &game.clients[0];
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer spellEvents = 0\n"
+        "endglobals\n"
+        "function onSpell takes nothing returns nothing\n"
+        "  set spellEvents = spellEvents + 1\n"
+        "  call BJassAssert(GetSpellAbilityId() == 'AHbz', \"spell retains its own scalar metadata\")\n"
+        "  call BJassAssert(GetSpellTargetX() == 112.0, \"spell retains its own point metadata\")\n"
+        "  call BJassAssert(GetIssuedOrderId() == 0, \"spell callback has no issued order ID\")\n"
+        "  call BJassAssert(GetOrderPointX() == 0.0, \"spell callback has no order point X\")\n"
+        "  call BJassAssert(GetOrderPointY() == 0.0, \"spell callback has no order point Y\")\n"
+        "  call BJassAssert(GetOrderPointLoc() == null, \"spell callback has no order location\")\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(spellEvents == 1, \"spell callback executes once\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_SPELL_EFFECT, null)\n"
+        "  call TriggerAddAction(t, function onSpell)\n"
+        "endfunction\n"));
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 32);
+    G_PublishEventWithPoint(&(gameEventPointParams_t){ .edict = unit,
+        .type = EVENT_PLAYER_UNIT_SPELL_EFFECT, .value = MAKEFOURCC('A','H','b','z'),
+        .point = &(vec2_t){112, 224} });
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, issued_target_context_is_frozen_across_replacement) {
+    setup_test_world();
+    g_edicts[0].client = &game.clients[0];
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit mover = null\n"
+        "  unit first = null\n"
+        "  unit second = null\n"
+        "  integer targetEvents = 0\n"
+        "endglobals\n"
+        "function onTarget takes nothing returns nothing\n"
+        "  set targetEvents = targetEvents + 1\n"
+        "  if targetEvents <= 2 then\n"
+        "    call BJassAssert(GetIssuedOrderId() == OrderId(\"move\"), \"first target order ID frozen\")\n"
+        "    call BJassAssert(GetOrderTargetUnit() == first, \"first target ownership frozen\")\n"
+        "  else\n"
+        "    call BJassAssert(GetIssuedOrderId() == OrderId(\"smart\"), \"second target order ID frozen\")\n"
+        "    call BJassAssert(GetOrderTargetUnit() == second, \"second target ownership frozen\")\n"
+        "  endif\n"
+        "  call BJassAssert(GetOrderPointX() == 0.0, \"target order does not expose point metadata\")\n"
+        "endfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "  call BJassAssert(IssueTargetOrder(mover, \"move\", first), \"first follow accepted\")\n"
+        "  call BJassAssert(IssueTargetOrder(mover, \"smart\", second), \"replacement follow accepted\")\n"
+        "  call BJassAssert(IssueImmediateOrder(mover, \"stop\"), \"follow interruption accepted\")\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(targetEvents == 4, \"both event families publish each target once\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "  set first = CreateUnit(Player(0), 'hfoo', 192.0, 64.0, 0.0)\n"
+        "  set second = CreateUnit(Player(0), 'hfoo', 256.0, 96.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), ConvertPlayerUnitEvent(40), null)\n"
+        "  call TriggerRegisterUnitEvent(t, mover, EVENT_UNIT_ISSUED_TARGET_ORDER)\n"
+        "  call TriggerAddAction(t, function onTarget)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *unit = &g_edicts[i];
+        if (!unit->inuse || (unit->class_id != MAKEFOURCC('h','p','e','a') &&
+                             unit->class_id != MAKEFOURCC('h','f','o','o'))) continue;
+        unit->health.value = unit->health.max_value = 100;
+        unit->svflags |= SVF_MONSTER;
+        unit->stand = unit_stand; unit_stand(unit);
+    }
+    jass_callbyname(level.vm, "issue", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_api, build_placement_publishes_point_order_event_context) {
     gameClient_t *client = &game.clients[0];
     edict_t *builder;

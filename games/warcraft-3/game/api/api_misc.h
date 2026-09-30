@@ -667,23 +667,38 @@ uint32_t GetOrderedUnit(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 uint32_t GetIssuedOrderId(jass_t *j) {
-    return jass_pushinteger(j, G_GetIssuedOrderId(jass_getcontext(j)->unit));
+    jassContext_t const *context = jass_getcontext(j);
+    switch (context->eventType) {
+    case EVENT_PLAYER_UNIT_ISSUED_ORDER:
+    case EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER:
+    case EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER:
+    case EVENT_UNIT_ISSUED_ORDER:
+    case EVENT_UNIT_ISSUED_POINT_ORDER:
+    case EVENT_UNIT_ISSUED_TARGET_ORDER:
+        return jass_pushinteger(j, context->eventValue);
+    default:
+        return jass_pushinteger(j, 0);
+    }
+}
+static vec2_t api_order_point(jass_t *j) {
+    jassContext_t const *context = jass_getcontext(j);
+    if (context->hasPoint && (context->eventType == EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER ||
+                             context->eventType == EVENT_UNIT_ISSUED_POINT_ORDER))
+        return context->point;
+    return (vec2_t){0, 0};
 }
 uint32_t GetOrderPointX(jass_t *j) {
-    vec2_t point = { 0.0f, 0.0f };
-    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
-    return jass_pushnumber(j, point.x);
+    return jass_pushnumber(j, api_order_point(j).x);
 }
 uint32_t GetOrderPointY(jass_t *j) {
-    vec2_t point = { 0.0f, 0.0f };
-    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
-    return jass_pushnumber(j, point.y);
+    return jass_pushnumber(j, api_order_point(j).y);
 }
 uint32_t GetOrderPointLoc(jass_t *j) {
-    vec2_t point = { 0.0f, 0.0f };
+    EVENTTYPE const type = jass_getcontext(j)->eventType;
+    if (type != EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER && type != EVENT_UNIT_ISSUED_POINT_ORDER)
+        return jass_pushnullhandle(j, "location");
     API_ALLOC(vec2_t, location);
-    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
-    *location = point;
+    *location = api_order_point(j);
     return 1;
 }
 uint32_t GetOrderTarget(jass_t *j) {
