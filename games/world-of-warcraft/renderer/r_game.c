@@ -140,6 +140,10 @@ void R_DrawWorld(void) {
     Wow_DrawWorld();
 }
 
+void R_DrawEntityCameraEventSpawns(model_t const *source_model) {
+    (void)source_model;
+}
+
 void R_DrawTerrainShadows(void) {
     Wow_DrawTerrainShadows();
 }
