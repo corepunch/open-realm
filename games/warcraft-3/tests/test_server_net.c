@@ -1564,6 +1564,50 @@ TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines)
     close(sock); NET_Shutdown();
 }
 
+/* An edict spawned after SV_CreateBaseline keeps a zeroed baseline whose number is 0. Signon must still
+ * address that empty baseline to the edict's own slot, or it overwrites entity 0's baseline on the client. */
+TEST(server_net, udp_signon_addresses_late_entity_baseline_to_its_own_slot) {
+    uint8_t buf[MAX_MSGLEN];
+    sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    entityState_t baselines[3] = { { .number = 0, .model = 7 }, { .number = 1, .model = 8 } };
+    uint32_t bases = 0;
+    NET_Shutdown(); reset_server_state(2);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 24));
+    int sock = open_client_socket();
+    T_ASSERT(sock >= 0);
+    struct timeval timeout = { .tv_sec = 1 };
+    T_EQ(setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)), 0);
+    send_connect_oob(sock, PORT_SERVER + 24); pump_server_connects();
+    T_ASSERT(recv_client_connect_oob(sock));
+    fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) & ~O_NONBLOCK);
+    sv.state = ss_game;
+    FOR_LOOP(i, 3) test_edicts[i].s = (entityState_t){ .number = i, .model = i + 100 };
+    sv.baselines = baselines;
+    ge->num_edicts = 3;
+    MSG_WriteString(&msg, "baselines");
+    SV_ExecuteUserCommand(&msg, &svs.clients[0]);
+    int size = recv(sock, buf, sizeof(buf), 0);
+    T_ASSERT(size > 0);
+    msg.cursize = MAX(size, 0); msg.readcount = 0;
+    while (msg.readcount < msg.cursize) {
+        int op = MSG_ReadByte(&msg);
+        if (op == svc_spawnbaseline) {
+            uint32_t bits;
+            entityState_t ent = { 0 };
+            int num = MSG_ReadEntityBits(&msg, &bits);
+            MSG_ReadDeltaEntity(&msg, &ent, num, bits);
+            T_EQ(num, bases); T_EQ(ent.model, baselines[bases].model);
+            bases++;
+        } else {
+            T_EQ(op, svc_mirror);
+            T_STREQ(MSG_ReadString2(&msg), "precache");
+        }
+    }
+    T_EQ(bases, 3);
+    sv.baselines = NULL;
+    close(sock); NET_Shutdown();
+}
+
 TEST(server_net, udp_signon_without_baselines_disconnects_client) {
     uint8_t buf[MAX_MSGLEN];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
