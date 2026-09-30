@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**70 done / 254 tasks; 184 remaining.** Counts describe this backlog,
+**71 done / 254 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -22,7 +22,7 @@ Completed evidence now sits next to its specific remaining extension.
 | FINE — Fine search | 2 | 8 |
 | ACC — Adaptive search | 1 | 10 |
 | NUM — Numbers and random state | 16 | 12 |
-| ROUTE — Route progression and yielding | 0 | 10 |
+| ROUTE — Route progression and yielding | 1 | 9 |
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 1 | 11 |
@@ -96,7 +96,10 @@ into Move-owned nearby detours, including retention when a generic field is read
 FOOT-01.4 now applies the verified class footprint to nearby routing, destination
 correction and actual Move stepping. FOOT-01.5 now uses that geometry for
 long/shared expansion, flow sampling, class-aware cache reuse and unreachable
-fallbacks. Next port the all-class segment sampler and admission scopes.
+fallbacks. ROUTE-02.1 now ports all-class segment sampling, software normalization
+and original next-point/progressively-farther waypoint selection. Next compose
+mixed dynamic eligibility and target exclusion through full fine requests,
+with a concrete engine obstruction/route payoff; retain FOOT-04 admission scopes.
 Keep dynamic eligibility and full-trajectory gates explicit.
 Numeric inventory/alias leaves remain open, but do not expand them ahead of a
 concrete routing, stepping, collision or arrival payoff. MOVE-02.3 now connects
@@ -408,7 +411,7 @@ Evidence: [route evidence][R]. Tools/artifacts: routes, refill, segment, yield, 
 
 ### ROUTE-02 — Segment checks
 
-- [ ] **ROUTE-02.1** Sweep segment direction and length across footprint classes, with endpoints touching corners; assert sampled cells and endpoint inclusion.
+- [x] **ROUTE-02.1** Sweep static segment direction/length across four classes and ground/flight masks, including exact corner endpoints and length1 boundaries. All43,244 original sampler results/cell sequences match C at O0/O2;8,064 short segments query no cells. Original software normalizer words and123 supplied-chain waypoint selection/commit calls match. Engine direct/step/retention checks and fine waypoint selection consume the port; four first-sample strip misses are reproduced/fixed and actual wall-gap steering retains original choices. Endpoint admission and dynamic eligibility remain FOOT-04/FINE-01.2/03 and02.2. Evidence: [engine sampler and waypoints](retail-pathfinding-engine.md#retail-segment-sampling-and-waypoint-selection).
 - [ ] **ROUTE-02.2** Hit blocker candidate capacity with ordered objects, then change one obstruction between samples; assert cap/order and the resulting waypoint choice.
 
 ### ROUTE-03 — Dynamic route composition

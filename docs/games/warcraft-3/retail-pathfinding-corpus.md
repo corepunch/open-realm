@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **157 entries**: **37** distinct original-code oracle
-scripts plus **27** declared variants, **79** archived JSONL audits and **14**
+The inventory now has **158 entries**: **37** distinct original-code oracle
+scripts plus **28** declared variants, **79** archived JSONL audits and **14**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 59 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 60 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 72 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -260,6 +260,19 @@ class/cover geometry. Its84 original dynamic validations remain original-only.
 `retail-footprint-endpoints-1.27.json` freezes the static inputs/results for
 asset-free O0/O2 tests. The selected fresh run is
 `foot-engine-validated-final-corpus/corpus-results.json`; no full157-entry rerun is
-claimed. Engine nearest-ring correction, Bresenham sampling and long shared
-fields retain the explicit limitations in the
+claimed. Engine nearest-ring correction and the then-current Bresenham/long-field
+adapters retain the explicit historical limits in the
 [class integration](retail-pathfinding-engine.md#retail-collision-classes-reach-routing-and-stepping).
+
+
+## All-class sampler and waypoint engine comparison
+
+`oracle-segment-engine` compares43,244 complete original samples with C result
+and every queried cell, across four classes, two masks, sixteen directions,
+seven positions and eight lengths. The frozen sampler fixture retains results
+and a digest of ordered cell queries; asset-free tests repeat at O0/O2. Sixteen
+original normalizer word triples and123 original selection/commit indices on the
+reachable frozen fine chains also match. The class0 baseline entry remains
+unchanged in scope. Fresh selected `segments-engine-validated-corpus/corpus-results.json`
+passes both entries; no full158-entry run is claimed. See [engine consumers and
+limits](retail-pathfinding-engine.md#retail-segment-sampling-and-waypoint-selection).

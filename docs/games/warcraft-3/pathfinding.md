@@ -13,6 +13,10 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 Move's scalar turn update and scripted movement-window gate now use
 [verified retail arithmetic](retail-pathfinding-engine.md). Static class footprints now also reach [routing, destinations and actual steps](retail-pathfinding-engine.md#retail-collision-classes-reach-routing-and-stepping). This is an incremental
 integration; the routing/velocity pipeline does not yet have full retail parity.
+[Retail segment sampling and waypoint selection](retail-pathfinding-engine.md#retail-segment-sampling-and-waypoint-selection)
+now drive direct/step/retention checks and nearby route turns. Long shared fields
+use the same class geometry, while their SPFA/interpolation policy remains the
+engine algorithm.
 Individual stepping now consumes the same existing status/aura speed composition as
 selection-group caps. Actual Cripple/Bloodlust Move/expiry tests cover slowing,
 boosting and mixed-speed formations; see [effective-speed integration](retail-pathfinding-engine.md#effective-speed-reaches-actual-movement).
@@ -79,7 +83,7 @@ Plain right-click movement is different from an interaction order: `move_selectl
 
 Game routing no longer uses the old lifetime quota of two synchronous whole-map flow-field bakes. That quota avoided repeated handheld stalls, but after it was spent a later uncached move order received generation 0 forever and generic steering fell back toward the raw target. A reachable order behind trees/buildings could therefore stop even though the static router could have found a route.
 
-`CM_RequestHeatmapForRadius()` is the game-facing shared-cache miss path. A cache hit returns its generation immediately; a miss starts one resumable reverse shortest-path job and returns 0 until the job completes. `G_RunFrame()` advances that job after entity simulation through `CM_ProcessPathJobs()`. The default relaxation budget is 32,768 queue pops per frame and is runtime-tunable with:
+`G_RequestMovePathField()` supplies WC3 class geometry to the shared-cache miss path. A cache hit returns its generation immediately; a miss starts one resumable reverse shortest-path job and returns 0 until the job completes. `G_RunFrame()` advances that job after entity simulation through `CM_ProcessPathJobs()`. The default relaxation budget is 32,768 queue pops per frame and is runtime-tunable with:
 
 ```sh
 +set wc3_path_work_budget 32768

@@ -1,9 +1,11 @@
 """Production WC3 search against frozen original-x86 static searches."""
 import ctypes
+import hashlib
 import json
 import itertools
 from pathlib import Path
 import subprocess
+import struct
 import sys
 import tempfile
 import unittest
@@ -92,6 +94,53 @@ class FineSearchTests(unittest.TestCase):
                     cells[blocker[1] * width + blocker[0]] = fixture['query']
                 query = (ctypes.c_uint32 * 6)(radius, *pos, width, height, fixture['query'])
                 self.assertEqual(engine.pathing_footprint(query, cells), expected)
+
+    def test_original_sampled_segments_match_results_and_cell_order(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-sampled-segments-1.27.json').read_text())
+        self.assertEqual(len(fixture['configs']), 7168)
+        for engine in self.engines:
+            engine.pathing_segment.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint8),
+                                               ctypes.POINTER(ctypes.c_int32)]
+            engine.pathing_segment_normalize.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint32)]
+            for case in fixture['normalizers']:
+                inp, out = (ctypes.c_uint32 * 2)(*case['input']), (ctypes.c_uint32 * 3)()
+                engine.pathing_segment_normalize(inp, out)
+                self.assertEqual(list(out), case['result'])
+            digest = hashlib.sha256(); count = 0
+            for config in fixture['configs']:
+                inp = (ctypes.c_uint32 * 9)(*config['start'], *config['direction'], config['length'],
+                                          config['class'], *fixture['dimensions'], config['mask'])
+                for blocker, expected in zip(config['blockers'], config['results']):
+                    cells = (ctypes.c_uint8 * 256)(); out = (ctypes.c_int32 * 1026)()
+                    if blocker is not None: cells[blocker[1] * 16 + blocker[0]] = config['mask']
+                    engine.pathing_segment(inp, cells, out)
+                    self.assertEqual(out[0], expected, (engine._name, config, blocker))
+                    self.assertLessEqual(out[1], 512)
+                    digest.update(struct.pack('<2I', out[0], out[1]))
+                    for i in range(out[1]): digest.update(struct.pack('<2i', out[2 + 2*i], out[3 + 2*i]))
+                    count += 1
+            self.assertEqual(count, 43244)
+            self.assertEqual(digest.hexdigest(), fixture['visit_digest'])
+
+    def test_original_waypoint_selection_and_commit_indices(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-sampled-segments-1.27.json').read_text())
+        route_file = ROOT / 'tools/ghidra/fixtures' / fixture['route_fixture']
+        self.assertEqual(hashlib.sha256(route_file.read_bytes()).hexdigest(), fixture['route_fixture_sha256'])
+        routes = json.loads(route_file.read_text())
+        self.assertEqual(len(fixture['route_cases']), 123)
+        for engine in self.engines:
+            engine.pathing_segment_waypoint.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint8),
+                                                        ctypes.POINTER(ctypes.c_uint32)]
+            engine.pathing_segment_waypoint.restype = ctypes.c_uint32
+            for result in fixture['route_cases']:
+                case = routes['cases'][result['case']]
+                words = [struct.unpack('<I', struct.pack('<f', v + .5))[0] for p in reversed(case['path']) for v in p]
+                start = [struct.unpack('<I', struct.pack('<f', v + .5))[0] for v in routes['start']]
+                raw = bytes.fromhex(routes['maps'][case['fixture']])
+                inp = (ctypes.c_uint32 * 7)(*start, case['size_class'], len(case['path']) - 1, *routes['dimensions'], 2)
+                cells = (ctypes.c_uint8 * len(raw))(*(2 if v else 0 for v in raw))
+                points = (ctypes.c_uint32 * len(words))(*words)
+                self.assertEqual(engine.pathing_segment_waypoint(inp, cells, points), result['selected'])
 
     def test_zero_budget_counts_rejected_iteration_and_reuse_recovers(self):
         case = self.fixture['cases'][0]

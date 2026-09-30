@@ -215,3 +215,43 @@ uint32_t pathing_footprint(uint32_t const input[6], uint8_t const *cells) {
         if (cells[(uint32_t)y * input[3] + (uint32_t)x] & input[5]) return 0;
     return 1;
 }
+
+#include "games/warcraft-3/common/wc3_pathing_segment.h"
+typedef struct {
+    uint32_t width, height, mask, count;
+    uint8_t const *cells;
+    int32_t *out;
+} segmentProbe_t;
+static bool segment_probe_cell(void const *data, wc3FinePoint_t pos) {
+    segmentProbe_t *probe = (segmentProbe_t *)data;
+    if (probe->out) {
+        assert(probe->count < 512);
+        probe->out[2 + 2 * probe->count] = pos.x;
+        probe->out[3 + 2 * probe->count++] = pos.y;
+    }
+    return pos.x >= 0 && pos.y >= 0 && pos.x < (int)probe->width && pos.y < (int)probe->height &&
+           !(probe->cells[pos.y * probe->width + pos.x] & probe->mask);
+}
+void pathing_segment(uint32_t const *input, uint8_t const *cells, int32_t *out) {
+    segmentProbe_t probe = {input[6], input[7], input[8], 0, cells, out};
+    wc3FineSegment_t query = { {wc3_float(input[0]), wc3_float(input[1])},
+                              {wc3_float(input[2]), wc3_float(input[3])}, wc3_float(input[4]),
+                              input[5], segment_probe_cell, &probe };
+    out[0] = wc3_segment_test(&query);
+    out[1] = probe.count;
+}
+void pathing_segment_normalize(uint32_t const *input, uint32_t *out) {
+    float dir[] = {wc3_float(input[0]), wc3_float(input[1])};
+    out[0] = wc3_float_bits(wc3_segment_normalize(dir));
+    out[1] = wc3_float_bits(dir[0]); out[2] = wc3_float_bits(dir[1]);
+}
+uint32_t pathing_segment_waypoint(uint32_t const *input, uint8_t const *cells, uint32_t const *words) {
+    segmentProbe_t probe = {input[4], input[5], input[6], 0, cells, NULL};
+    wc3FineVector_t points[128];
+    assert(input[3] < 128);
+    for (uint32_t i = 0; i <= input[3]; i++)
+        points[i] = (wc3FineVector_t){wc3_float(words[2*i]), wc3_float(words[2*i + 1])};
+    wc3FineSegment_t query = { .start = {wc3_float(input[0]), wc3_float(input[1])},
+        .cls = input[2], .cell = segment_probe_cell, .data = &probe };
+    return wc3_segment_waypoint(&query, (wc3FineRoute_t){points, input[3]});
+}

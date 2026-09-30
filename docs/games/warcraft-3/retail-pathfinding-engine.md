@@ -1427,8 +1427,9 @@ the budget. A ready generic field previously replaced the mover's retained
 turn; nearby reachable detours now retain the fine turn through travel.
 
 The wrapper now uses the [retail class shape](#retail-collision-classes-reach-routing-and-stepping) below,
-while keeping nearest-ring endpoint correction and the farthest-visible-cell
-adapter. FINE-01.4 originally retained the prior ceil-radius shape. Search work stays bounded to
+while keeping nearest-ring endpoint correction. The [segment port](#retail-segment-sampling-and-waypoint-selection)
+now replaces its initial farthest-visible-cell adapter with the original selection
+loop. FINE-01.4 originally retained the prior ceil-radius shape. Search work stays bounded to
 2,048 queue attempts for endpoints within48 cells per axis. One reusable game
 scratch block is832KiB; its sparse hash avoids allocating or clearing one node
 per map cell on each request. No saved edict or network layout changes. Direct
@@ -1482,9 +1483,9 @@ already legal. This static equivalence does not infer dynamic object eligibility
 Move consumes the shape in its nearby search, direct line, waypoint retention,
 step validator, displacement failure check, selection destination reservations
 and ordinary point-order correction. Destination correction still uses the
-existing nearest-ring policy. Line validation still uses Bresenham/corner
-sampling; original `168d30` sampling is a separate required port. Long shared
-fields now consume the same class bounds as described below. These partial
+existing nearest-ring policy. The [segment port](#retail-segment-sampling-and-waypoint-selection)
+now replaces Bresenham/corner sampling with original `168d30` sampling. Long shared
+fields consume the same class bounds as described below. These partial
 policies remain visible rather than being described as complete retail parity.
 
 `foot-corridors-original.json` executes24 complete original searches, reuse
@@ -1557,4 +1558,73 @@ Ghidra's saved `16ee80/1492b0` comments link the additional engine consumers.
 There are no wire, edict or save layout changes. The shared SPFA field and
 interpolated steering are still the engine algorithm, not the retail adaptive
 hierarchy or full-trajectory replacement; FOOT-01.5 closes geometry consistency
-only. Next port the all-class sampled segment and its waypoint consumer.
+only. The subsequent [segment port](#retail-segment-sampling-and-waypoint-selection)
+now connects the all-class sampled segment and its waypoint consumer.
+
+
+## Retail segment sampling and waypoint selection
+
+`wc3_pathing_segment.h` ports `168d30` and its four directional footprint
+consumers `149440/149630/149970/149cc0`. It uses the existing exact software
+add/multiply/floor/integer helpers. Sample distance starts at1 and increases
+by1 while strictly below the supplied length; unchanged cells are skipped.
+Previous cell starts at0,0. Neither endpoint is queried by the sampler itself,
+and lengths at most1 perform no cell query. Class0 tests the current cell, then
+X/Y predecessor-side cells for a diagonal code. Larger classes test entering
+rows/columns; diagonal codes use a horizontal strip of size+1 followed by a
+vertical strip of size. They are not complete squares at every sampled point.
+
+`wc3_segment_normalize` ports `168280`: compute software-float squared length
+and sqrt, then multiply both components by the reciprocal only above length1.
+The original cardinal3 vector yields length3.0000576973 and direction0.9999808669.
+Using native sqrt or ideal direction1 changes the final sample. Sixteen original
+normalizer input/output word triples match C. The full sampler comparison also
+checks every composed sample coordinate, query order and early rejection.
+
+`G_MovePathLineIsPathable` now uses the sampler for direct routing, cached-turn
+retention and swept Move checks. It retains explicit full-footprint source and
+destination admission before sampling. That admission is an engine adapter;
+FOOT-04 still owns the original public clamping/exclusion policy. Coordinates
+still enter through the current game's world-to-grid transform. The callback
+uses static ground/flight bits; dynamic retail eligibility/suppression is not
+inferred from this port. Move's separate live-unit collision policy still applies.
+
+`wc3_segment_waypoint` ports the `167bf0` candidate loop. The next route point
+is accepted unchecked; progressively farther points are tested until the first
+failure, then the last accepted index is returned. `G_FindMovePathWaypoint`
+reconstructs destination-first points from the verified search parents and uses
+that loop. Its initial farthest-to-nearest visibility scan could choose past a
+rejected nearer candidate and was not the original policy. The extra reusable
+point array is128KiB; total static fine-search/selection scratch is about960KiB.
+No saved/network fields change.
+
+The asset-free `retail-sampled-segments-1.27.json` freezes43,244 complete original
+static sampler calls across four classes, both masks, sixteen cardinal/oblique/
+45-degree directions, seven interior/edge/corner positions and eight lengths.
+It includes8,064 unchecked short-segment cases and both sides of length1.
+Original calls use real cell/footprint routines without code replacements.
+The result and queried-cell sequence digest is
+`4c1235cbdf7aa53b3be95c43cb2ca12c5436514bb0db9231623e3326296746e4`.
+C matches at O0/O2. The same oracle supplies123 complete `167bf0/165e60`
+selection/commit calls on the reachable frozen fine chains, across all four
+classes. It verifies the selected index/point and restoration of self suppression.
+Those are supplied cell-centred chains, not evidence for all retail reconstruction
+coordinates or public admission.
+
+The engine first reproduced four missed first-sample strips, one per class,
+with blockers outside both legal endpoint footprints. All four now reject.
+The actual Move steering test uses original wall-gap selection indices11/6/2/0,
+which select11.5/10.5,15.5/13.5,18.5/17.5 and19.5/19.5. Retention still passes after
+the mover advances. The clear-waypoint regression now checks retail sampling
+rather than the superseded Bresenham predicate. Existing actual detour, worker,
+group, unreachable, orders and save/load regressions remain required.
+
+The full Classic/TFT suite passes41,733 assertions in2,178 WC3 cases per variant,
+plus103 pathfinding tool tests; the production WC3 build passes. Fresh selected
+corpus results are in
+`segments-engine-validated-corpus/corpus-results.json`: class0 baseline and new
+all-class/C entry pass. No full158-entry rerun is claimed. Ghidra saves360 names
+with119 existing prototypes unchanged and links both sampler and waypoint
+consumers to their production helpers. Next integrate mixed dynamic eligibility
+and target exclusion through the full fine request; shared adaptive routing and
+whole trajectories remain separate required work.

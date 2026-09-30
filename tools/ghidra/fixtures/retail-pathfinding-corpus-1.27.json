@@ -8442,6 +8442,64 @@
       ],
       "scope": "1184 complete original static endpoint validations compare production C class/cover geometry; original dynamic84 validations still run without a C parity claim; excludes dynamic Move separation and full trajectories",
       "exclusions": []
+    },
+    {
+      "id": "oracle-segment-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_segment.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}",
+        "--all-classes"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "all-class-segment-waypoint-engine-exact.json",
+      "expected_exit": 0,
+      "expected_status": "original-model-engine-exact",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "sampler_cases": {
+          "equal": 43244
+        },
+        "engine_queries": {
+          "equal": 43244
+        },
+        "configs": {
+          "equal": 7168
+        },
+        "route_cases": {
+          "equal": 123
+        },
+        "engine_route_queries": {
+          "equal": 123
+        },
+        "unchecked_short_segments": {
+          "equal": 8064
+        },
+        "visit_digest": {
+          "equal": "4c1235cbdf7aa53b3be95c43cb2ca12c5436514bb0db9231623e3326296746e4"
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original static all-class segment samples and cell order match C, including oblique/cardinal/45-degree directions and map/corner/length boundaries; original normalized words and123 waypoint selection/commit cases match; engine endpoint admission remains an explicit adapter",
+      "exclusions": [
+        "dynamic object eligibility/suppression",
+        "public start/goal admission",
+        "reconstruction coordinates outside the supplied cell-centred chains",
+        "full trajectories"
+      ]
     }
   ],
   "fixtures": [
@@ -8624,6 +8682,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-footprint-endpoints-1.27.json",
       "sha256": "f37355cbb2198f83f8d804c2397377ddd9020f83bcc8d6cdac32f0863539f501"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-sampled-segments-1.27.json",
+      "sha256": "8fe0a4d4fb6677d1111b4df863b92e8e433a2fe66ed239fe53731f42c66b1163"
     }
   ]
 }

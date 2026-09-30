@@ -451,40 +451,17 @@ TEST(wc3_pathfinding, nearby_detour_accelerator_returns_clear_waypoint) {
     T_ASSERT(!CM_LineIsWalkableForRadius(&from, &target, 0.0f));
     T_ASSERT(CM_FindPathWaypoint(&params, &waypoint));
     T_ASSERT(G_FindMovePathWaypoint(&params, &waypoint));
-    T_ASSERT(CM_LineIsWalkableForRadius(&from, &waypoint, 0.0f));
+    pathAccelParams_t line = params; line.target = &waypoint;
+    T_ASSERT(G_MovePathLineIsPathable(&line));
     T_ASSERT(waypoint.y > 7.0f);
 }
 
 /* Cell chains frozen from the original 1.27 DLL, verify_wc3_pathing_grid.py.
  * Keep the current line-legality adapter explicit; retail smoothing is separate. */
 TEST(wc3_pathfinding, mover_detours_follow_retail_fine_routes) {
-    static vec2_t const chains[4][20] = {
-        {
-            {4.5f,4.5f}, {5.5f,5.5f}, {6.5f,6.5f}, {7.5f,7.5f}, {8.5f,8.5f},
-            {9.5f,9.5f}, {10.5f,10.5f}, {11.5f,10.5f}, {12.5f,10.5f}, {13.5f,10.5f},
-            {14.5f,11.5f}, {15.5f,12.5f}, {16.5f,13.5f}, {16.5f,14.5f}, {17.5f,15.5f},
-            {18.5f,16.5f}, {18.5f,17.5f}, {18.5f,18.5f}, {19.5f,19.5f}
-        },
-        {
-            {4.5f,4.5f}, {5.5f,5.5f}, {6.5f,6.5f}, {7.5f,7.5f}, {8.5f,8.5f},
-            {9.5f,9.5f}, {10.5f,10.5f}, {11.5f,11.5f}, {12.5f,11.5f}, {13.5f,11.5f},
-            {14.5f,12.5f}, {15.5f,13.5f}, {16.5f,14.5f}, {17.5f,15.5f}, {18.5f,16.5f},
-            {18.5f,17.5f}, {18.5f,18.5f}, {19.5f,19.5f}
-        },
-        {
-            {4.5f,4.5f}, {5.5f,5.5f}, {6.5f,6.5f}, {7.5f,7.5f}, {8.5f,8.5f},
-            {9.5f,9.5f}, {10.5f,10.5f}, {11.5f,11.5f}, {12.5f,12.5f}, {13.5f,12.5f},
-            {14.5f,13.5f}, {15.5f,14.5f}, {16.5f,15.5f}, {17.5f,16.5f}, {18.5f,17.5f},
-            {18.5f,18.5f}, {19.5f,19.5f}
-        },
-        {
-            {4.5f,4.5f}, {5.5f,5.5f}, {6.5f,6.5f}, {7.5f,7.5f}, {8.5f,8.5f},
-            {9.5f,9.5f}, {10.5f,10.5f}, {11.5f,11.5f}, {12.5f,12.5f}, {13.5f,13.5f},
-            {14.5f,14.5f}, {15.5f,15.5f}, {16.5f,16.5f}, {17.5f,17.5f}, {18.5f,18.5f},
-            {19.5f,19.5f}
-        },
-    };
-    static int const lengths[] = { 19, 18, 17, 16 };
+    /* Original167bf0/165e60 on these complete frozen chains; destination-
+     * first selected indices11/6/2/0 from cases8/12/16/20 in segment fixture. */
+    static vec2_t const selected[] = {{11.5f,10.5f}, {15.5f,13.5f}, {18.5f,17.5f}, {19.5f,19.5f}};
     uint8_t cells[24 * 24] = {0};
     vec2_t from = {4.5f, 4.5f}, target = {19.5f, 19.5f}, actual;
     pathAccelParams_t params = { &from, &target, 0, CM_PATHING_UNWALKABLE };
@@ -495,12 +472,7 @@ TEST(wc3_pathfinding, mover_detours_follow_retail_fine_routes) {
         memset(cells, 0, sizeof(cells));
         for (int y = 0; y < 24; y++) cells[y * 24 + 12] = y < 10 || y >= 10 + gap ? 2 : 0;
         setup_test_pathmap(24, 24, cells);
-        vec2_t expected = from;
-        for (int i = lengths[gap - 1] - 1; i > 0; i--) {
-            if (!CM_LineIsPathableForRadiusFlags(&from, &chains[gap - 1][i], 0, CM_PATHING_UNWALKABLE)) continue;
-            expected = chains[gap - 1][i];
-            break;
-        }
+        vec2_t expected = selected[gap - 1];
         T_ASSERT(G_FindMovePathWaypoint(&params, &actual));
         T_FEQ(actual.x, expected.x, 0.001f);
         T_FEQ(actual.y, expected.y, 0.001f);
@@ -585,6 +557,30 @@ TEST(wc3_pathfinding, retail_collision_classes_fit_their_cardinal_corridors) {
             unit->currentmove->think(unit);
             T_ASSERT(unit->s.origin.y > from.y);
         }
+    }
+    reset_entities();
+    setup_test_world();
+}
+
+/* 168d30's initial previous cell0,0 makes a positive cardinal first sample
+ * use southeast entering strips. These predecessor-side blockers are outside
+ * both endpoint footprints; Bresenham omitted every one. */
+TEST(wc3_pathfinding, move_segments_use_retail_first_sample_strips) {
+    static float const radii[] = {0.f, 0.5f, 1.f, 1.5f};
+    static int const blockers[][2] = {{9,7},{9,6},{10,6},{10,5}};
+    vec2_t from = {8.25f,8.75f}, target = {11.25f,8.75f};
+    uint8_t cells[16 * 16];
+    for (int i = 0; i < 4; i++) {
+        reset_entities();
+        setup_test_world();
+        memset(cells, 0, sizeof(cells));
+        cells[blockers[i][1] * 16 + blockers[i][0]] = CM_PATHING_UNWALKABLE;
+        setup_test_pathmap(16, 16, cells);
+        pathAccelParams_t query = { &from, &target, radii[i], CM_PATHING_UNWALKABLE };
+        T_ASSERT(G_MovePathPointIsPathable(&query));
+        pathAccelParams_t end = query; end.from = &target;
+        T_ASSERT(G_MovePathPointIsPathable(&end));
+        T_ASSERT(!G_MovePathLineIsPathable(&query));
     }
     reset_entities();
     setup_test_world();

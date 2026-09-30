@@ -1019,6 +1019,15 @@ retry compositions are verified below.
 
 Oracle: `verify_wc3_pathing_blockers.py` → `blocker-collector-oracle.json`.
 
+### Engine segment and waypoint integration
+
+The [engine port](retail-pathfinding-engine.md#retail-segment-sampling-and-waypoint-selection)
+now covers all four static directional footprint consumers, software normalization
+and the original selection loop. Its43,244 complete original sampler comparisons
+and123 supplied-chain selection/commit comparisons match C at O0/O2. The earlier
+class0/cardinal baseline remains valid; dynamic object composition, reconstruction
+coordinates and public endpoint admission remain explicitly separate.
+
 ## Fine-route refill and admission
 
 `6f167ce0` compares the unsigned fine index `+74` with fine count `+50`.

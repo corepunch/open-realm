@@ -1,8 +1,9 @@
 #include "g_local.h"
-#include "../common/wc3_pathing_fine.h"
+#include "../common/wc3_pathing_segment.h"
 
 typedef struct { int size; uint8_t flags; } moveFineGraph_t;
 static wc3FineSearch_t move_fine;
+static wc3FineVector_t move_fine_points[BZ_WC3_FINE_NODES];
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
 static bool entity_is_live_walkable_surface(edict_t const *ent) {
@@ -126,29 +127,28 @@ bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out) {
     return true;
 }
 
-/* TODO: retain Bresenham/corner sampling until the all-class retail sampled
- * segment port is verified. Both adapters now consume the same class shape. */
+static bool move_segment_cell(void const *data, wc3FinePoint_t pos) {
+    uint8_t const *flags = data;
+    return is_pathable_node_original_flags(pos.x, pos.y, *flags);
+}
+
+/* Engine admission checks both endpoints; the recovered interior sampler
+ * itself leaves them unchecked and starts its previous cell at0,0. */
 bool G_MovePathLineIsPathable(pathAccelParams_t const *params) {
     if (!params || !params->from || !params->target) return false;
     if (!pathmap.width || !pathmap.height) return true;
+    pathAccelParams_t end = *params; end.from = params->target;
+    if (!G_MovePathPointIsPathable(params) || !G_MovePathPointIsPathable(&end)) return false;
     vec2_t a = CM_GetNormalizedMapPosition(params->from->x, params->from->y);
     vec2_t b = CM_GetNormalizedMapPosition(params->target->x, params->target->y);
-    int x = (int)floorf(a.x * pathmap.width), y = (int)floorf(a.y * pathmap.height);
-    int bx = (int)floorf(b.x * pathmap.width), by = (int)floorf(b.y * pathmap.height);
-    int dx = abs(bx - x), dy = abs(by - y), sx = x < bx ? 1 : -1, sy = y < by ? 1 : -1;
-    int err = dx - dy, guard = dx + dy + 2;
-    moveFineGraph_t graph = move_foot_shape(params);
-    while (guard-- > 0) {
-        if (!move_foot_ok(&graph, (wc3FinePoint_t){x,y})) return false;
-        if (x == bx && y == by) return true;
-        int twice = 2 * err;
-        bool step_x = twice > -dy, step_y = twice < dx;
-        if (step_x && step_y && (!move_foot_ok(&graph, (wc3FinePoint_t){x + sx,y}) ||
-                                !move_foot_ok(&graph, (wc3FinePoint_t){x,y + sy}))) return false;
-        if (step_x) { err -= dy; x += sx; }
-        if (step_y) { err += dx; y += sy; }
-    }
-    return false;
+    uint8_t flags = normalize_blocked_flags(params->blocked_flags);
+    wc3FineSegment_t query = { .start = {a.x * pathmap.width, a.y * pathmap.height},
+        .cls = wc3_fine_class(params->radius / pathmap_cell_world_size()),
+        .cell = move_segment_cell, .data = &flags };
+    query.direction[0] = wc3_sub(b.x * pathmap.width, query.start[0]);
+    query.direction[1] = wc3_sub(b.y * pathmap.height, query.start[1]);
+    query.length = wc3_segment_normalize(query.direction);
+    return wc3_segment_test(&query);
 }
 
 /* For a legal current footprint, checking the new square and both diagonal
@@ -170,8 +170,8 @@ static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
     return edges;
 }
 
-/* Return the farthest currently visible point on the verified fine cell chain;
- * Move retains this turn while it travels. Geometry stays in the game world. */
+/* Reconstruct destination-first points, then use the original next-point /
+ * progressively farther selection policy. Move retains the selected turn. */
 bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
     vec2_t source, target;
     if (!params || !params->from || !params->target || !out || !pathmap.width || !pathmap.height) return false;
@@ -186,15 +186,21 @@ bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
         .width = pathmap.width, .height = pathmap.height, .budget = BZ_WC3_FINE_WORK,
         .edges = move_fine_edges, .data = &graph };
     int at = wc3_fine_search(&move_fine, &req);
+    uint32_t count = 0;
     while (at >= 0) {
         wc3FineNode_t const *node = &move_fine.nodes[at];
-        if (node->parent < 0) return false;
-        vec2_t point = CM_GetDenormalizedMapPosition((node->pos.x + 0.5f) / pathmap.width, (node->pos.y + 0.5f) / pathmap.height);
-        pathAccelParams_t line = *params; line.target = &point;
-        if (G_MovePathLineIsPathable(&line)) { *out = point; return true; }
+        assert(count < BZ_WC3_FINE_NODES);
+        move_fine_points[count++] = (wc3FineVector_t){node->pos.x + 0.5f, node->pos.y + 0.5f};
         at = node->parent;
     }
-    return false;
+    if (count < 2) return false;
+    uint8_t flags = graph.flags;
+    wc3FineSegment_t query = { .start = {a.x * pathmap.width, a.y * pathmap.height},
+        .cls = (unsigned)graph.size - 1, .cell = move_segment_cell, .data = &flags };
+    uint32_t chosen = wc3_segment_waypoint(&query, (wc3FineRoute_t){move_fine_points, count - 1});
+    wc3FineVector_t point = move_fine_points[chosen];
+    *out = CM_GetDenormalizedMapPosition(point.x / pathmap.width, point.y / pathmap.height);
+    return true;
 }
 
 /* WC3 Way Gate entry selection uses the shared router's static grid, but this
