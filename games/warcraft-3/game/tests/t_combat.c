@@ -1705,6 +1705,7 @@ TEST(wc3_combat, attack_recovery_respects_cooldown_and_backswing) {
     attack_melee_cooldown(u);
     T_FEQ(u->wait, 1.2f, 0.001f);   /* cooldown - damagePoint wins */
 
+    u->attack_cooldown_active = false;
     u->attack1.cooldown = 1.0f;
     u->attack1.damagePoint = 0.5f;
     u->attack1.backswingPoint = 0.8f;
@@ -1713,6 +1714,7 @@ TEST(wc3_combat, attack_recovery_respects_cooldown_and_backswing) {
 
     /* If cooldown has elapsed by damage point but backswing remains, the
      * attack still cannot begin its next swing before backswing completes. */
+    u->attack_cooldown_active = false;
     u->attack1.cooldown = 0.4f;
     u->attack1.damagePoint = 0.5f;
     u->attack1.backswingPoint = 0.2f;
@@ -1771,6 +1773,63 @@ TEST(wc3_combat, cooldown_range_buffer_holds_then_chases_at_ready_time) {
     attacker->attack_cooldown_active = true;
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "walk");
+}
+
+TEST(wc3_combat, attack_animation_end_does_not_restart_swing_cooldown) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+    vec2_t const origin = attacker->s.origin2;
+    uint32_t swing_cooldown_end;
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.damageBase = 10.0f;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.rangeBuffer = 40.0f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damagePoint = 0.03f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "attack");
+    T_ASSERT(attacker->attack_cooldown_active);
+    swing_cooldown_end = attacker->attack_cooldown_end_time;
+
+    /* Commit a real hit at damage point while a finite animation remains
+     * active. The weapon cooldown began at swing start. */
+    attach_stub_anim(attacker);
+    attacker->wait = FRAMETIME / 1000.0f;
+    attacker->currentmove->think(attacker);
+    T_ASSERT(target->health.value < target->health.max_value);
+    T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
+
+    /* The attack animation's end callback happens later than damage point.
+     * It must preserve the existing swing deadline rather than start a second
+     * cooldown from animation completion. */
+    level.time += 600;
+    target->s.origin2.x = 130.0f;
+    attacker->currentmove->endfunc(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_FEQ(attacker->s.origin2.x, origin.x, 0.001f);
+    T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
+    T_ASSERT(attacker->attack_cooldown_active);
+    T_ASSERT(attacker->attack_cooldown_remaining < 0.5f);
+
+    /* The same target becomes too far for the buffer, so chase begins. */
+    target->s.origin2.x = 150.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+
+    /* Returning inside buffered range before the original swing deadline
+     * stops the chase; it must not start another swing early. */
+    target->s.origin2.x = 130.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_ASSERT(attacker->attack_cooldown_active);
+    T_ASSERT(attacker->attack_cooldown_remaining > 0.0f);
+    T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
 }
 
 TEST(wc3_combat, attack_max_range_uses_both_unit_collision_edges) {
