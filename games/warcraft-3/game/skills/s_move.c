@@ -16,6 +16,7 @@
 #include "games/warcraft-3/common/wc3_math.h"
 #include "games/warcraft-3/common/wc3_pathing_arrival.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
+#include "games/warcraft-3/common/wc3_pathing_formation.h"
 
 /* With move-time collision (block-and-slide), "blocked" now means the unit
  * could not take a step this frame because it was boxed in — common and
@@ -1810,6 +1811,31 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     if (num_units == 0) {
         return false;
     }
+    wc3FormationMember_t members[WC3_FORMATION_MEMBERS];
+    bool const retail_layout = num_units <= WC3_FORMATION_MEMBERS;
+    if (retail_layout) {
+        box2_t const bounds = CM_GetWorldBounds();
+        float mean[2] = {0};
+        FOR_LOOP(i, num_units) {
+            members[i].position[0] = wc3_div(wc3_sub(units[i]->s.origin2.x, bounds.min.x), 32);
+            members[i].position[1] = wc3_div(wc3_sub(units[i]->s.origin2.y, bounds.min.y), 32);
+            members[i].radius = wc3_div(units[i]->collision, 32);
+            members[i].rank = units[i]->data.UnitData->formationRank;
+            FOR_LOOP(k, 2) mean[k] = wc3_add(mean[k], members[i].position[k]);
+        }
+        float const reciprocal = wc3_recip(wc3_float(wc3_from_int(num_units)));
+        float const dx = wc3_sub(wc3_div(wc3_sub(location->x, bounds.min.x), 32), wc3_mul(mean[0], reciprocal));
+        float const dy = wc3_sub(wc3_div(wc3_sub(location->y, bounds.min.y), 32), wc3_mul(mean[1], reciprocal));
+        wc3Formation_t formation = { members, num_units, dx == 0 && dy == 0 ? 0 : wc3_atan2(dy, dx) };
+        wc3_formation_layout(&formation);
+        /* TODO: FORM-03 owns the original clock prediction and refresh-to-motion
+         * chain. Initial engine orders use current committed fine positions. */
+    } else {
+        /* TODO: FORM-02.3 must establish the original twelve-slot bucket caller
+         * precondition before extending it to our larger engine selections. */
+        fprintf(stderr, "WC3 movement: %u-member formation exceeds verified retail domain; retaining source offsets\n",
+                num_units);
+    }
     /* A multi-unit move travels at the slowest member's speed so the group
      * stays together (WC3).  A lone unit keeps its own speed (cap 0). */
     float const group_speed = num_units > 1 ? move_group_speed(units, num_units) : 0;
@@ -1818,7 +1844,13 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 
     FOR_LOOP(i, num_units) {
         edict_t *ent = units[i];
-        vec2_t preferred = move_preferred_slot(ent, &center, location, spacing, num_units);
+        vec2_t preferred;
+        if (retail_layout) {
+            preferred.x = wc3_add(location->x, wc3_mul(members[i].offset[0], 32));
+            preferred.y = wc3_add(location->y, wc3_mul(members[i].offset[1], 32));
+        } else {
+            preferred = move_preferred_slot(ent, &center, location, spacing, num_units);
+        }
         vec2_t target;
 
         if (!move_find_reserved_slot(location,

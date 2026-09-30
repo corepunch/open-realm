@@ -4194,6 +4194,86 @@ TEST(wc3_movement, unit_stops_inside_goal_arrival_range) {
     T_EQ(unit->current_order_id, 0);
 }
 
+/* Frozen complete original16a5b0 engine-order-rank-witness: two front-rank
+ * members and one rear rank. The old preserved-source-offset heuristic puts
+ * all three at the same X and cannot reproduce this row assignment. */
+TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[128 * 128] = {0};
+    CM_SetupTestPathmap(128, 128, cells);
+    CM_SetupTestWorldBounds(&(box2_t){ .min = {-2048, -2048}, .max = {2048, 2048} });
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0]; clent->client->ps.number = 0;
+    edict_t *units[3];
+    UnitData_t rows[3];
+    uint32_t const targets[3][2] = {{0x44845555u, 0xc27fffffu}, {0x44845555u, 0x427fffffu}, {0x445caaaau, 0x0u}};
+    FOR_LOOP(i, 3) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -640, (int)i * 200 - 200);
+        rows[i] = *units[i]->data.UnitData; rows[i].formationRank = i == 2 ? 1 : 0;
+        units[i]->data.UnitData = rows + i;
+        units[i]->collision = 16; units[i]->selected = 1;
+        units[i]->stand = unit_stand; units[i]->movetype = MOVETYPE_STEP;
+        unit_stand(units[i]); gi.LinkEntity(units[i]);
+    }
+    vec2_t const destination = {1000, 0};
+    T_ASSERT(move_selectlocation(clent, &destination));
+    FOR_LOOP(i, 3) {
+        T_NOT_NULL(units[i]->goalentity);
+        T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x), targets[i][0]);
+        T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.y), targets[i][1]);
+        T_ASSERT(units[i]->goalentity->secondarygoal == units[0]->goalentity->secondarygoal);
+        T_EQ(units[i]->goalentity->secondarygoal->s.origin2.x, destination.x);
+        T_EQ(units[i]->goalentity->secondarygoal->s.origin2.y, destination.y);
+    }
+    clent->client->menu.order_queued = true;
+    T_ASSERT(move_selectlocation(clent, &destination));
+    FOR_LOOP(i, 3) {
+        T_EQ(units[i]->order_queue.count, 1);
+        unitOrder_t const *queued = units[i]->order_queue.entries + units[i]->order_queue.head;
+        T_EQ(wc3_float_bits(queued->point.x), targets[i][0]);
+        T_EQ(wc3_float_bits(queued->point.y), targets[i][1]);
+        T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x), targets[i][0]);
+    }
+    clent->client->menu.order_queued = false;
+    FOR_LOOP(frame, 8) {
+        level.time += FRAMETIME;
+        FOR_LOOP(i, 3) units[i]->currentmove->think(units[i]);
+        CM_ProcessPathJobs(4096);
+    }
+    FOR_LOOP(i, 3) T_ASSERT(units[i]->s.origin2.x > -640);
+    cstring_t file = "/tmp/openwarcraft3-ranked-formation-save.bin";
+    uint32_t expected[8][3][4];
+    T_ASSERT(WriteGame(file));
+    FOR_LOOP(frame, 8) {
+        level.time += FRAMETIME;
+        FOR_LOOP(i, 3) {
+            units[i]->currentmove->think(units[i]);
+            expected[frame][i][0] = wc3_float_bits(units[i]->s.origin2.x);
+            expected[frame][i][1] = wc3_float_bits(units[i]->s.origin2.y);
+            expected[frame][i][2] = wc3_float_bits(units[i]->movement.velocity.x);
+            expected[frame][i][3] = wc3_float_bits(units[i]->movement.velocity.y);
+        }
+        CM_ProcessPathJobs(4096);
+    }
+    T_ASSERT(ReadGame(file));
+    FOR_LOOP(frame, 8) {
+        level.time += FRAMETIME;
+        FOR_LOOP(i, 3) {
+            units[i]->currentmove->think(units[i]);
+            T_EQ(wc3_float_bits(units[i]->s.origin2.x), expected[frame][i][0]);
+            T_EQ(wc3_float_bits(units[i]->s.origin2.y), expected[frame][i][1]);
+            T_EQ(wc3_float_bits(units[i]->movement.velocity.x), expected[frame][i][2]);
+            T_EQ(wc3_float_bits(units[i]->movement.velocity.y), expected[frame][i][3]);
+        }
+        CM_ProcessPathJobs(4096);
+    }
+    FOR_LOOP(i, 3) {
+        T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x), targets[i][0]);
+        T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.y), targets[i][1]);
+    }
+    remove(file); reset_entities();
+}
+
 TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
     reset_entities();
     edict_t *clent = alloc_test_unit(0, 0.0f, 0.0f);

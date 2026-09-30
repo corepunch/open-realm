@@ -393,3 +393,19 @@ consumption of the last published cap. Both scenes repeat three word digests.
 The invalid Footman-inventory attempt remains an unaccepted diagnostic archive
 (`item-speed-first-261001.jsonl`); its explicit admission-failure markers
 prevent using it as a Boots experiment.
+
+
+## Exact mixed formation geometry
+
+The existing `oracle-motion` and `motion-engine-exact` entries now require865
+complete formation layouts, including720 mixed-radius/rank/heading/tie/moving
+clock cases. The engine entry additionally requires865 raw production C
+comparisons. The frozen `retail-formation-layout-1.27.json` input/output fixture
+is hash-pinned in the inventory and replayed twice at O0/O2 by the repository
+math tests. The inventory remains188 entries; these are strengthened existing
+entries rather than a new original-code script.
+
+Fresh outcomes live in `formation-corpus-final-261001/corpus-results.json`.
+The enlarged geometry domain does not certify larger-than-twelve groups,
+original UI selection production or the complete refresh-to-motion engine
+chain. The existing archival captures are unchanged.

@@ -2155,3 +2155,66 @@ Validation: Classic and TFT each pass42,128 assertions in2,200 cases, and all
 each pass2,929 assertions in170 cases per schema. The seven fresh corpus
 entries pass, the concrete ability registry audit runs, and both boundary
 audits and relative links are clean.
+
+
+## Ranked formation layout reaches group orders
+
+`wc3_pathing_formation.h` ports the complete original `16a5b0` geometry for
+one through twelve members: authored rank buckets, the one/multiple-rank
+capacity tables and radius threshold1.5, common row width, strict backwards
+selection-sort ties, row/rank spacing, member-order mean and paired-trig
+rotation. Every scalar operation uses the verified software arithmetic.
+The supplied positions are fine-grid predicted positions; the pure helper
+leaves clock ownership to its caller.
+
+`verify_wc3_pathing_motion.py` now compares865 complete original layouts with
+production C raw offset words. The144 existing uniform layouts remain checked
+against their independent model. Another720 cover mixed radii .25/.5/1.5/2,
+one/multiple ranks, four headings, unique/equal/nearly equal projections,
+stationary/moving members, both owner-clock domains and differing epochs,
+counts2/3/5/9/12, and both group bit20 states. Both spacing-global sets are
+initialized to the same2/2.5/5.5 values in this binary. The final case freezes
+the actual engine regression inputs. Repository fixture
+`retail-formation-layout-1.27.json` retains inputs and raw outputs; O0/O2
+production probes repeat every comparison and verify input immutability.
+The thirteen-member probe rejects before reading member data or changing
+output slots; this is an engine guard, not a claim about retail's larger domain.
+
+`move_selectlocation` now feeds current committed fine positions, collision
+radii and typed `UnitData.formationRank` into that layout. It assigns the exact
+software-scaled offsets to both immediate orders and Shift-queued orders,
+then applies the existing static destination admission and reservation policy.
+The actual regression selects three radius16 units at(-640,-200),(-640,0),
+(-640,200), with ranks0/0/1, and moves east to(1000,0). The old source-offset
+heuristic fails all six target coordinates. Retail places the first two in a
+front row at raw X44845555, Yc27fffff/427fffff; the rear member receives
+X445caaaa,Y00000000. The regression asserts all target words, shared route
+ownership, queued target words and unchanged active targets after Shift. All three
+members advance toward their assigned rows, and eight further ticks after
+save/load reproduce all96 pose/velocity words and retain the target words.
+
+The engine currently derives its initial heading from selection mean to goal.
+Original group heading production, clock prediction during submission,
+subsequent refresh/held-member classification, and narrow-passage regrouping
+remain FORM-01/03/04/05. Selections above twelve retain the prior source-offset
+engine policy with an explicit bounded diagnostic, pending the original
+caller precondition in FORM-02.3. This integrates proven geometry while keeping
+those remaining contracts visible. No private entity or save layout changes.
+
+Ghidra persists the five refined layout function comments, descriptive names
+for rank-row layout, row sorting and mean calculation, and the partial
+`WC3FormationRankBucket` a4-byte structure: count0, diameter94, row width98,
+integer capacity9c and scalar capacitya0. The twelve-entry index and projected
+position arrays remain unnamed gaps in this partial schema. Readback is
+`formation-types-readback.json`; fresh original and production comparisons
+are `formation-corpus-final-261001/corpus-results.json`. The preliminary
+fresh run rejected missing comparison-count report fields; that reporting
+omission was corrected before accepting the final run.
+
+
+Validation: the complete Classic and TFT suites each pass42,267 assertions in
+2,201 cases, with123 pathfinding tool tests. Forced debug and optimized release
+movement checks each pass3,068 assertions in171 cases, including the139-assertion formation/queue/
+resume regression. Ghidra readback now has25 layouts,149 fields,124 explicit
+prototypes and43 scalar globals plus the original native registry. Boundary
+and documentation-link audits are clean.

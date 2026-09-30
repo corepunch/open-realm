@@ -8,11 +8,13 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**81 done / 262 tasks; 181 remaining.** Counts describe this backlog,
+**83 done / 263 tasks; 180 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
 Completed evidence now sits next to its specific remaining extension.
+FORM-02.4 explicitly owns the immediate engine layout integration; FORM-01/03
+retain the original group heading, clock prediction and refresh-to-motion chain.
 
 | Area | Done | Remaining |
 | --- | ---: | ---: |
@@ -28,7 +30,7 @@ Completed evidence now sits next to its specific remaining extension.
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
 | GROUP — Shared movement groups | 11 | 6 |
-| FORM — Formation and regrouping | 2 | 10 |
+| FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 2 | 10 |
 | GATE — Way Gates | 1 | 10 |
 | E2E — Combined scenarios and handoff | 1 | 18 |
@@ -641,8 +643,9 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 ### FORM-02 — Layout geometry
 
 - [x] **FORM-02.1** 144 complete layouts and 48 refresh cases are recorded. Evidence: [formation layout][formation-layout]; mixed moving radii and untested size domains remain excluded.
-- [ ] **FORM-02.2** Run mixed-radius/oblique layouts with equal sort keys; assert assignments, row dimensions, centering and rotation.
+- [x] **FORM-02.2** Run mixed-radius/oblique layouts with equal sort keys; assert assignments, row dimensions, centering and rotation. Evidence: [exact formation geometry](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders),865 complete original/production C raw-word cases, including720 mixed moving/radius/rank/heading/tie/clock-domain cases. Larger caller domains and live group producer remain02.3/FORM-05.
 - [ ] **FORM-02.3** Test moving members and sizes at/beyond the twelve-member table boundary; establish the original caller precondition or exact supported behavior.
+- [x] **FORM-02.4** Explicit engine integration split from02.2/03: consume the verified twelve-member layout in actual selection Move and Shift queues, using authored ranks, fine-grid radii, strict tie assignment and software centering/rotation. Evidence: [ranked group orders](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders), actual three-member regression fails all six destination coordinates before the port and passes exact destination/queue words afterward. Larger selections retain the diagnosed existing engine policy pending02.3; clock prediction, original heading producer and refresh-to-motion remain FORM-01/03.
 
 ### FORM-03 — Layout-to-motion chain
 

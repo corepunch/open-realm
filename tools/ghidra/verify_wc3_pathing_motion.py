@@ -55,6 +55,7 @@ def main():
     parser.add_argument('--engine-library', type=Path, help='compiled wc3_pathing_engine_probe.c; compare decision/angle bits')
     parser.add_argument('--world-velocity-fixture', type=Path, help='export world-adapted original velocity/facing words including small-speed cutoffs')
     parser.add_argument('--facing-fixture', type=Path, help='export original committed facing inputs/results')
+    parser.add_argument('--formation-fixture', type=Path, help='export complete original formation inputs/offset words')
     parser.add_argument('--heading-fixture', type=Path, help='export raw original vector-heading errors for asset-free C replay')
     args = parser.parse_args()
     if args.world_velocity_fixture and not args.engine_library:parser.error('--world-velocity-fixture requires --engine-library for exact guard comparisons')
@@ -962,6 +963,23 @@ def main():
     depth_gap=float(bytes(machine.mem_read(0x6fa91eb0,32)).split(bytes([0]),1)[0])
     for address in [0x6fd541bc,0x6fd541c8]: floats(address,rank_gap)
     for address in [0x6fd541c4,0x6fd541d0]: floats(address,depth_gap)
+    formation_raw_cases=[]
+    def exact_formation(name):
+        count=read(group+0x38)[0]
+        inputs=[count,read(group+0x70)[0]]
+        for n in range(count):
+            actor=read(members+n*0x2c+0x14)[0]
+            clock=owner+(0x68 if read(actor+0x14)[0]&0x80000000 else 0x14)
+            inputs += read(actor+0x78,4)+read(actor+0x70,2)+read(clock+0x40,3)+read(actor+0x90)+[(read(actor+0xd8)[0]>>12)&15]
+        run(0x6f16a5b0,group)
+        outputs=[1]
+        for n in range(count):outputs += read(members+n*0x2c+0xc,2)
+        if engine:
+            engine.pathing_formation.argtypes=[ctypes.POINTER(ctypes.c_uint32)]*2
+            actual=(ctypes.c_uint32*len(outputs))()
+            engine.pathing_formation((ctypes.c_uint32*len(inputs))(*inputs),actual)
+            assert list(actual)==outputs,(name,inputs,list(actual),outputs)
+        formation_raw_cases.append(dict(name=name,flags=read(group+0x80)[0],input=inputs,output=outputs))
     full_layout_cases=0
     full_layout_error=0
     for count,radius,pattern,group_flags in itertools.product(range(1,13),[0.25,1.5],range(3),[0,0x20]):
@@ -999,13 +1017,40 @@ def main():
                 if start+cap<len(ids): row_position-=diam+depth_gap
             row_position-=rank_gap
         mean=[sum(p[k] for p in expected)/count for k in [0,1]]
-        run(0x6f16a5b0,group)
+        exact_formation("uniform-%d-%s-%d-%d"%(count,radius,pattern,group_flags))
         for n,point in enumerate(expected):
             actual=[scalar(members+n*0x2c+0xc+k*4) for k in [0,1]]
             error=max(abs(actual[k]-(point[k]-mean[k])) for k in [0,1])
             assert error<0.0001,(count,radius,pattern,group_flags,n,actual,point,mean,error,rank_gap,depth_gap)
             full_layout_error=max(full_layout_error,error)
         full_layout_cases+=1
+    mixed_formation_cases=0
+    for count,pattern,heading,shape,elapsed,flags in itertools.product([2,3,5,9,12],range(3),[0,.5,pi/2,3.1],range(3),[0,.125],[0,0x20]):
+        machine.mem_write(group,bytes(0x100));machine.mem_write(members,bytes(0x400))
+        write(group+0x28,members);write(group+0x38,count);write(group+0x80,flags);floats(group+0x70,heading)
+        for domain in (0,0x80000000):
+            clock=owner+(0x68 if domain else 0x14)
+            floats(clock+0x40,.25);write(clock+0x44,1);floats(clock+0x48,.5)
+        for n,actor in enumerate(row_actors[:count]):
+            machine.mem_write(actor,bytes(0x100));write(members+n*0x2c+0x14,actor)
+            rank=0 if pattern==0 else n%(pattern+1)*3
+            write(actor+0xd8,rank<<12);write(actor+0x14,0x80000000 if n&1 else 0)
+            floats(actor+0x70,.25-elapsed-(n%3)*.03125);write(actor+0x74,0 if n&1 else 1)
+            position=(n*.25,(n%3)*.5) if shape==0 else ((8,8) if shape==1 else ((n%2)*.125,-n*.03125))
+            velocity=(0,0) if shape==1 else ((n%3)*.125-.125,.25)
+            floats(actor+0x78,*position,*velocity);floats(actor+0x90,[.25,.5,1.5,2][n%4])
+        exact_formation("mixed-%d-%d-%s-%d-%s-%d"%(count,pattern,heading,shape,elapsed,flags))
+        mixed_formation_cases+=1
+    # Actual engine selection witness: two front-rank Footmen and one rear,
+    # facing east, radius16 world units, exact32-unit fine coordinates.
+    machine.mem_write(group,bytes(0x100));machine.mem_write(members,bytes(0x400))
+    write(group+0x28,members);write(group+0x38,3)
+    floats(owner+0x54,0);write(owner+0x58,0);floats(owner+0x5c,.5)
+    for n,actor in enumerate(row_actors[:3]):
+        machine.mem_write(actor,bytes(0x100));write(members+n*0x2c+0x14,actor)
+        floats(actor+0x78,44,57.75+n*6.25,0,0);floats(actor+0x90,.5);write(actor+0xd8,(1 if n==2 else 0)<<12)
+    exact_formation('engine-order-rank-witness')
+    if args.formation_fixture:args.formation_fixture.write_text(json.dumps(dict(binary_sha256=digest,cases=formation_raw_cases,scope='Complete original layout; uniform baseline plus mixed radii, oblique headings, ties, velocity prediction and both clock domains; count<=12'),separators=(',',':'))+'\n')
     formation_refresh_cases=0
     refresh_destination=system+0x1d100
     for count,delta,prior_heading,special in itertools.product([1,3,6],[(0,0),(4,0),(0,4),(-4,0)],[0,0.5],[0,0x200]):
@@ -2860,6 +2905,9 @@ def main():
                             'full owner singleton executes scheduler and visual-facing updates with empty shared/separation lists; two controlled post-arrival repulsors also execute alternating separation; active singleton plus eligible repulsor also composes; crowded active groups and mixed profiles remain open',
                             'accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed',
                             'elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open'])
+    assert len(formation_raw_cases) == 865 and mixed_formation_cases == 720
+    report.update(exact_formation_cases=len(formation_raw_cases), mixed_formation_cases=mixed_formation_cases,
+                  engine_formation_cases=len(formation_raw_cases) if engine else 0)
     if engine:
         report.update(engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest(),
                       engine_exact_decision_cases=cases, engine_exact_angle_cases=len(normalization),

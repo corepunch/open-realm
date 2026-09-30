@@ -1013,6 +1013,42 @@
           "evidence": "569830 virtual184 original reads; repeated live Boots60 source"
         }
       ]
+    },
+    {
+      "name": "WC3FormationRankBucket",
+      "length": 164,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "member_count",
+          "type": "u32",
+          "evidence": "16cb80/16d270/16a5b0 original layout865 raw comparisons; arrays remain unnamed gaps"
+        },
+        {
+          "offset": 148,
+          "name": "diameter",
+          "type": "WC3PathScalar",
+          "evidence": "16cb80/16d270/16a5b0 original layout865 raw comparisons; arrays remain unnamed gaps"
+        },
+        {
+          "offset": 152,
+          "name": "row_width",
+          "type": "WC3PathScalar",
+          "evidence": "16cb80/16d270/16a5b0 original layout865 raw comparisons; arrays remain unnamed gaps"
+        },
+        {
+          "offset": 156,
+          "name": "row_capacity",
+          "type": "u32",
+          "evidence": "16cb80/16d270/16a5b0 original layout865 raw comparisons; arrays remain unnamed gaps"
+        },
+        {
+          "offset": 160,
+          "name": "scalar_capacity",
+          "type": "WC3PathScalar",
+          "evidence": "16cb80/16d270/16a5b0 original layout865 raw comparisons; arrays remain unnamed gaps"
+        }
+      ]
     }
   ],
   "methods": [

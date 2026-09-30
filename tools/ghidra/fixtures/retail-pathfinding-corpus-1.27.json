@@ -362,6 +362,12 @@
         },
         "group_callback_mutation_digest": {
           "equal": "7f56b7d4603f449c8139791d508944cf5ae91d86c116abc6a3b3079016ac34ac"
+        },
+        "exact_formation_cases": {
+          "equal": 865
+        },
+        "mixed_formation_cases": {
+          "equal": 720
         }
       },
       "evidence": [
@@ -376,7 +382,8 @@
         "integration with general float rounding and mixed-object occupancy",
         "full owner singleton executes scheduler and visual-facing updates with empty shared/separation lists; two controlled post-arrival repulsors also execute alternating separation; active singleton plus eligible repulsor also composes; crowded active groups and mixed profiles remain open",
         "accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed",
-        "elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open"
+        "elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open",
+        "formation layout is bounded to twelve members; larger caller precondition and full clock/refresh-to-motion engine chain remain open"
       ]
     },
     {
@@ -1769,6 +1776,15 @@
         },
         "engine_exact_heading_error_cases": {
           "minimum": 1
+        },
+        "exact_formation_cases": {
+          "equal": 865
+        },
+        "mixed_formation_cases": {
+          "equal": 720
+        },
+        "engine_formation_cases": {
+          "equal": 865
         }
       },
       "evidence": [
@@ -1783,7 +1799,8 @@
         "integration with general float rounding and mixed-object occupancy",
         "full owner singleton executes scheduler and visual-facing updates with empty shared/separation lists; two controlled post-arrival repulsors also execute alternating separation; active singleton plus eligible repulsor also composes; crowded active groups and mixed profiles remain open",
         "accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed",
-        "elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open"
+        "elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open",
+        "formation layout is bounded to twelve members; larger caller precondition and full clock/refresh-to-motion engine chain remain open"
       ]
     },
     {
@@ -10934,7 +10951,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "b8366c944cba08b68069e1241c1b6de82bbda733a757033a98ec28355546b7fe"
+      "sha256": "e946a88566e035b48d9cc0e04a66870f4a8fafb2b16f972d352b99e99c6480b9"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -11111,6 +11128,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-item-speed-1.27.json",
       "sha256": "4479d8bb26e503155b7f77600bddb5e7b42ff9bd458185bce51c9f183746478e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-formation-layout-1.27.json",
+      "sha256": "694e7e1cc07bbd4f02194ee2a47832202ef8b7ad5025f2fdb490d0cea7518957"
     }
   ]
 }

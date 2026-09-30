@@ -53,6 +53,24 @@ class PathingMathTests(unittest.TestCase):
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
 
+    def test_formation_matches_original_mixed_ranks_radii_sort_ties_and_clocks(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-formation-layout-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']), 865)
+        for engine in self.engines:
+            engine.pathing_formation.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            for _ in range(2):
+                for case in fixture['cases']:
+                    inputs = (ctypes.c_uint32 * len(case['input']))(*case['input'])
+                    output = (ctypes.c_uint32 * len(case['output']))()
+                    engine.pathing_formation(inputs, output)
+                    self.assertEqual(list(output), case['output'], case['name'])
+                    self.assertEqual(list(inputs), case['input'])
+            # Reject the unproved larger caller domain before touching member data.
+            inputs = (ctypes.c_uint32 * 2)(13, 0)
+            output = (ctypes.c_uint32 * 3)(99, 123, 456)
+            engine.pathing_formation(inputs, output)
+            self.assertEqual(list(output), [0, 123, 456])
+
     def test_arrival_matches_complete_original_predicate_words(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-arrival-predicate-1.27.json').read_text())
         for engine in self.engines:

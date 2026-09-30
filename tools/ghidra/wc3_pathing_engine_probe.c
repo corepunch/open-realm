@@ -3,6 +3,7 @@
 #include "games/warcraft-3/common/wc3_pathing_masks.h"
 #include "games/warcraft-3/common/wc3_pathing_arrival.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
+#include "games/warcraft-3/common/wc3_pathing_formation.h"
 
 /* Existing mover image70..8c, current clock, new cap and fine flags. */
 void pathing_speed_cap(uint32_t const input[13], uint32_t output[10]) {
@@ -28,6 +29,26 @@ void pathing_speed_cap_world(uint32_t const input[3], uint32_t output[3]) {
     wc3Velocity_t v = { .vel = {wc3_float(input[0]), wc3_float(input[1])}, .limit = wc3_float(input[2]) };
     output[2] = wc3_velocity_cap_world(&v);
     output[0] = wc3_float_bits(v.vel[0]); output[1] = wc3_float_bits(v.vel[1]);
+}
+
+/* Count/heading then eleven words per member: pose, velocity, old/current
+ * clock words and span, radius and authored rank. Inputs remain untouched. */
+void pathing_formation(uint32_t const *input, uint32_t *output) {
+    wc3FormationMember_t members[WC3_FORMATION_MEMBERS] = {0};
+    wc3Formation_t f = { .members = members, .count = input[0], .heading = wc3_float(input[1]) };
+    if (f.count > WC3_FORMATION_MEMBERS) { output[0] = 0; return; }
+    for (unsigned i = 0; i < f.count; i++) {
+        uint32_t const *row = input + 2 + i * 11;
+        wc3Clock_t old = { wc3_float(row[4]), row[5], wc3_float(row[8]) };
+        wc3Clock_t current = { wc3_float(row[6]), row[7], wc3_float(row[8]) };
+        members[i].position[0] = wc3_float(row[0]); members[i].position[1] = wc3_float(row[1]);
+        float velocity[2] = {wc3_float(row[2]), wc3_float(row[3])};
+        wc3_integrate(members[i].position, velocity, wc3_elapsed(&current, &old));
+        members[i].radius = wc3_float(row[9]); members[i].rank = row[10];
+    }
+    output[0] = wc3_formation_layout(&f);
+    for (unsigned i = 0; i < f.count; i++)
+        for (unsigned k = 0; k < 2; k++) output[1 + i * 2 + k] = wc3_float_bits(members[i].offset[k]);
 }
 
 /* Base, two attached bonuses, multiplier, authored/default profile bounds. */
