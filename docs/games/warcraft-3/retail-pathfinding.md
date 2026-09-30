@@ -26,6 +26,7 @@ crowd trajectory tests.
 | [Separation](retail-pathfinding-separation.md) | Authored repulsion, candidate order/filtering, displacement, occupancy links and reclamation |
 | [Experiments](retail-pathfinding-experiments.md) | Copied-map workflow, controls, terrain divergence, Way Gates and bounded capture commands |
 | [Engine integration](retail-pathfinding-engine.md) | Exact scalar/velocity C replay, authored and scripted windows, repeat captures and remaining numerical gaps |
+| [Corpus](retail-pathfinding-corpus.md) | Versioned oracle/archive inventory, known adaptive differences, strict fresh-report runner and provenance limits |
 
 The ledger below is the current status authority. Evidence files preserve
 addresses, numerical contracts, fixture limits and artifacts; a local test's
@@ -100,7 +101,7 @@ Counts overlap; do not sum them into a coverage percentage.
 | ORDER — completion/lifetime | **S/O/C/L:** 1,536 completion + next-prepass cases; real CUnit bridge; 12 subscriber prefixes; 144 full arrival calls including next-task rejection/acceptance and group/path preparation plus36 fresh fine-search ticks and78 elapsed travel/arrival/reclamation trajectories including fine/adaptive/full-owner wall detours and one active singleton plus repulsor; 288 full ordinary-point order producers/984 direct point-task producers/24 produced-chain queued-order arrivals and four two-order FIFO cases, with34 complete initial unit admissions; live d016b acceptance/arrival and blocked-goal recovery; 432 generic queue pops/releases; 216 retained-ref notifications; 8 zero-ref reclaim cycles/6 factory reuses | UI/network producers feeding the verified unit-admission-to-arrival composition; broader obstacle/adaptive/crowd travel; alternate can't-path branches; callback reentrancy/user-order progression; cancellation variants; live registration, populated targets/relations/subscriptions; negative-domain/repeating requests and heap ordering |
 | SEP — separation/spatial | **S/O/C/L:** filters/cooldown, candidate order/stamps, arithmetic slices, overlap PRNG, endpoint validation, bounds/lazy links/reclamation; Footman/Gryphon controls; 16 post-arrival pair ticks (10 accepted/4 blocked attempts) and 43 separation updates within an active-singleton owner trajectory | Exact per-neighbor live replay; full numeric parity; config/category/rank producers; mixed owners/blocked repulsion; allocation failure/growth, stamp repair, full scheduling |
 | GATE — special edges | **S/O/C/L:** native/source/ID chains, sentinel handling, active/inactive traversal, outside approach, cached retarget and disable→walking; ordinary transition oracle | Destroy during approach; fresh retarget order; disabled edge over impassable terrain; overlapping/multiple gates; ID exhaustion/reuse; unreachable exits and mover eligibility |
-| E2E — reproducibility/parity | **O/C/L:** hash guards, independent references for selected routines, bounded manifests/captures/analyzers; producer-built point/FIFO baseline with42 frozen snapshots and two identical repeats | Broader unified intermediate-state/trajectory corpus; full order-to-arrival/failure compositions; eventual OpenRealm differential runner |
+| E2E — reproducibility/parity | **O/C/L:** hash guards, independent references for selected routines, bounded manifests/captures/analyzers; producer-built point/FIFO baseline with42 frozen snapshots and two identical repeats; BASE-05 versioned corpus and111 fresh expected outcomes, retaining native differences, counterfactual controls and rejected archives | Broader unified intermediate-state/trajectory corpus; historical observer/map provenance gaps; full order-to-arrival/failure compositions; eventual OpenRealm differential runner |
 
 ## Next work and completion criteria
 
@@ -170,6 +171,9 @@ Standard invocations use `tools/ghidra/verify_wc3_pathing_<suffix>.py` with
 Special adaptive fixtures/interventions retain their full commands in
 [search evidence](retail-pathfinding-search.md#size-2-traversal-and-a-reduced-hierarchy-witness):
 some intentionally return exit 1 to reproduce a retail/reference difference.
+The [corpus manifest and runner](retail-pathfinding-corpus.md) collect all32
+oracle scripts, selected exact/frozen variants and archived captures with
+explicit expected outcomes; a known difference remains a difference.
 
 | Script suffix | Report | Extra arguments |
 | --- | --- | --- |

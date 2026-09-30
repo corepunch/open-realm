@@ -1,0 +1,5000 @@
+{
+  "version": 1,
+  "target": {
+    "build": "1.27.1.7085",
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
+  },
+  "evidence_levels": {
+    "S": "static/assembly",
+    "O": "isolated original-code oracle",
+    "C": "composed original-code calls",
+    "L": "controlled live retail witness"
+  },
+  "placeholders": {
+    "python": "Python with Unicorn for original-code oracles; ordinary Python suffices for archive audit.",
+    "binary": "Matching local game.dll; sibling msvcr120.dll for composed movement.",
+    "report": "Fresh per-entry output, never a historical report.",
+    "archive": "Local report root containing the frozen JSONL inputs.",
+    "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
+  },
+  "scope": "Current 32 executable original-code oracle scripts, selected exact/frozen variants, exact live/profile replays, intentional adaptive differences/controls and all 61 JSONL captures under the documented archive root. Ghidra decompiles, reduction attempts and other scratch reports are supporting research, not independently accepted corpus entries.",
+  "entries": [
+    {
+      "id": "oracle-adaptive",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_adaptive.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-class1-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "differences": {
+          "length": 0
+        },
+        "cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "complete original adaptive requests, size input 0 (size 1), traversal lane 0, no warp; original parent reducer; supplied base classifications; compare reachability only against base 8-neighbour corner-safe graph",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-arrival",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_arrival.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "arrival-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Execute the original mover arrival predicate with synthetic fine-grid inputs.\n\nNo function stubs. Covers distance, heading tolerance and forced-range flag;\nalso checks the target-order range arithmetic slice with supplied locals.\nAlso executes the post-Path_Advance result slice and forced-arrival clearing.\nDoes not emulate the full order lifecycle or mover stepping.\n",
+      "exclusions": "Distance and angular math observed from original helpers, not independently reimplemented."
+    },
+    {
+      "id": "oracle-blockers",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_blockers.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "blocker-collector-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "collector_calls": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original next-step blocker collector: real lazy-chain traversal and append.\n\nSynthetic cells/objects, preallocated vector, no stubs or retail bytes.\nChecks null static-blocker tokens, eligibility, stamps, ordering and 32 cap.\nComposes next-step and fine-advance decisions, including real retry initialization.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-cells",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_cells.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "parent-cell-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "mismatches": {
+          "length": 0
+        },
+        "cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "valid 00/01/10 classes; byte +6 markers; clipped 2x2 children; metadata preservation",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-footprints",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_footprints.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--exhaustive"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "footprint-occupancy-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "mismatches": {
+          "length": 0
+        },
+        "mask_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "mask consumers; composed terrain rings/bounds; high-byte and single-link dynamic predicate; excludes multi-link chains, allocation and initial footprint validity",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-grid",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_grid.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-grid-request-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "mismatches": {
+          "length": 0
+        },
+        "cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "original core loop and full setup/search/reconstruction request; allocation/reset/stamp reuse; direct initialized storage and -1/0/1 runtime constants; static terrain only; Dijkstra reference uses recovered footprint graph; no path-owned admission or smoothing",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-lifetime",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_lifetime.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "lifetime-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "zero_reference_release_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original COrderPoint/CTaskPoint construction, deferred release, last-reference reclamation and reuse.\n\nRuns unmodified retail code with real vtables and preallocated allocator blocks.\nNo retail bytes, code patches, replacement callbacks or external allocator stubs.\n",
+      "exclusions": [
+        "Preallocated CDataAllocator blocks; external heap growth not executed",
+        "Manually registered wrapper and class table; live wrapper/class registration not executed",
+        "Empty payload subscriptions/relationships/children; point-owned object null or retained ref2\u21921, final owned-object destruction untested",
+        "Positive handle domain; no nested callbacks or nonempty request heap"
+      ]
+    },
+    {
+      "id": "oracle-load_masks",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_load_masks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "load-masks-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "wpm_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Bounded original decoded-byte consumer loops, all 256 WPM masks, all 256 four-valued decoded-byte channel combinations, OR-preservation of prior terrain/occupancy, padded destination dimensions, row flip and zero dimensions. No parser, decompressor, archive or full loader. Oversized nonzero masks null-write in this isolated consumer; malformed-file reachability unproven.",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-map_construction",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_map_construction.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "map-construction-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "loader_constructor_prefix_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original 78b0a0\u21927425a0\u219273db20 bounds producer; original 04c860\u219215ab60 prefix stops at 14efe0 factory entry; full 14c8e0/151760 base-map initializers with real registry/preallocated storage; produced origin consumed by 04d870. Additionally 25 complete loader calls execute six map and two search-system factories, registration, maintenance-request scheduling, scale assignment, search/map links and hierarchy construction. No-file branch: no terrain deserialization; reusable pool entries and preallocated tables. Real repeating proximity maintenance clears supplied dirty empty cells/stamp wrap, preserves terrain edit and stale hierarchy across three deadlines. Explicit rebuild sees terrain edit. Release frees both search identities/pools then stops before external dirty-buffer free; full map release/reload unexecuted.",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-maps",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_maps.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "maps-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "coordinate_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original calls; exact dyadic world inputs; terrain high-bit set/clear, cell selection, no implicit hierarchy mutation; clipped base/parent updates and metadata preservation against independent model. Synthetic maps; constructors, actual origin producers, objects and non-dyadic rounding excluded.",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-motion",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_motion.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "motion-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "move_owner_active_separation_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original mover speed/heading update with exact binary-fraction inputs.\n\nNo stubs or retail bytes. Tests speed/heading update, angle-error composition and parameter setters;\nposition integration, group decisions/formations/completion, deferred release, and full\narrival dispatch with actual terrain support refresh, task completion, next-task acceptance/rejection,\nfresh fine/adaptive searches, elapsed obstacle detours, owner scheduling/visual settling,\nand controlled two-mover separation with an active-order eligibility composition.\nSee report counts/exclusions.\n",
+      "exclusions": [
+        "non-binary-fraction rounding",
+        "angle-error bit parity",
+        "group target-speed adjustment, adaptive intermediate-waypoint progression, crowded ticks and cant-path consumers",
+        "integration with general float rounding and mixed-object occupancy",
+        "full owner singleton executes scheduler and visual-facing updates with empty shared/separation lists; two controlled post-arrival repulsors also execute alternating separation; active singleton plus eligible repulsor also composes; crowded active groups and mixed profiles remain open",
+        "accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed",
+        "elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open"
+      ]
+    },
+    {
+      "id": "oracle-numeric",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_numeric.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "numeric-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "composed_normalizer_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers.",
+      "exclusions": [
+        "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
+        "Full spatial mutation after bounds construction",
+        "General simulation trajectories and trigonometry",
+        "Independent derivation of reciprocal table values; reference reads authoritative binary constants",
+        "Non-power-of-two map scales are not asserted to be producer-reachable"
+      ]
+    },
+    {
+      "id": "oracle-order_tasks",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "order-tasks-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "replacement_arrival_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original point-order production and complete task-chain dispatch through movement acceptance.\n\nRuns unmodified retail code with real vtables and preallocated allocator blocks.\nNo retail bytes, code patches, replacement callbacks or external allocator stubs.",
+      "exclusions": [
+        "Preallocated original factory/pool capacity and seeded class registry; external heap growth and global registration not executed",
+        "COrderTarget is constructed and registered by original code; command fields are controlled fixture data, coordinates set through original FloatMini setters",
+        "Ordinary point target only: invalid target identity and order68=0; target units/items/destructibles/waygates and local-target branch excluded",
+        "UI notification singleton absent; stockhfoo terrain transform executes shippedCRT; user input/network admission remains separate",
+        "Every composed first admission executes680320(order,1,1) with complete fixture; factory-created order command/coordinates remain controlled input and UI/network producer is excluded",
+        "Group ticks are orchestrated explicitly; new successor group receives its first actual tick after predecessor group cleanup at the same simulation time",
+        "Move-only attached behavior: registered ability list, original20event registration and Unitself action/state subscriptions; unrelated abilities/presentation subscribers absent",
+        "Class caches: Amov-to-Bply/BUsl/Asla false and ordt-to-+ord true are preexisting fixture entries; cache-miss class construction excluded",
+        "680320 mode1 tuple also exists at233de0/233e17 statically; its caller/input policy not executed; mode0 corresponds to original widget654090 call tuple. Unit198=0 and no69b2f0 rejection in tested modes",
+        "Open16x16 fine grid; runtime obstacles, adaptive search and multiunit conflicts not included in this composed corpus",
+        "Standalone raw signed-zero/subnormal/negative radius copying does not establish producer reachability",
+        "Optional retained object tests use genuine registered COrderTarget as a raw reference-contract fixture, not a claim of gameplay target class reachability"
+      ]
+    },
+    {
+      "id": "oracle-queue",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_queue.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-queue-loop-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "mismatches": {
+          "length": 0
+        },
+        "relaxation_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "original heap/container/relaxation/list; loop cases stub only expansion to no-neighbours/optional special flag; preallocated storage; no complete map search",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-range",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_range.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "range-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Exact retail point-range predicate, including mover lookup and prediction.\n\nFull 05b440 calls; no stubs. Models reuse independently verified numeric bits.",
+      "exclusions": [
+        "Point predicate invalid/stale mover handles; object faults covered separately",
+        "Nonfinite producer inputs",
+        "Point predicate clock domain1; epoch wrap in both predicates",
+        "Object predicate nonfinite inputs and upstream handle validation",
+        "Full order dispatch composition"
+      ]
+    },
+    {
+      "id": "oracle-refill",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_refill.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "refill-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "formation_destination_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Compose original fine-route refill, admission, search and indexed output.\n\nNo stubs or retail bytes. Synthetic preallocated maps; compares path-owned\nrefill with the complete underlying request from identical initial state.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-refresh",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_refresh.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "refresh-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "reload_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Verify target refresh countdown and distance-dependent reload in retail x86.\n\nFull non-reload routine; reload slice starts after member position conversion,\nwith synthetic fine-grid position locals. No function stubs; original distance\nand deterministic float helpers execute. Clamp is checked independently from\nthe observed original integer candidate, not IEEE float approximations.\nAlso covers request flag setter and request-to-group copy; complete group\ncompletion routine with zero members; sampler tail with explicit callback result\nand nonzero countdown; temporary arrival-range override/restore slices. These\nslices do not execute target resolution, visibility, or member movement.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-replan",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_replan.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "replan-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Verify destination-cell change and timestamp gating in original retail x86.\n\nNo stubs; synthetic coordinates, owner counter and path timestamps. Does not\nexecute target tracking, path reset, admission or movement.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-reset",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_reset.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "reset-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "reset_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Verify original route reset and destination assignment without stubs.\n\nSynthetic path containers retain preallocated storage; queued paths use a\nvalid single-entry scheduler list. Does not execute mover stop callbacks.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-retry",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_retry.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "retry-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "selection_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original retry consumption and post-distance retry selection; no stubs.\n\nFull terminal routine with null target and pre-existing nonzero retry count.\nSelection slices supply the computed squared distance and resolved group;\noriginal owner PRNG executes. Does not emulate group-handle resolution.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-routes",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_routes.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "route-reconstruction-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "mismatches": {
+          "length": 0
+        },
+        "fine_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "original reconstruction/float helpers/container append; synthetic valid parent chains; preallocated storage; tag only on middle node; no smoothing or destination placement",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-scheduler",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_scheduler.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "scheduler-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "class_transition_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Verify retail scheduler initialization, FIFO admission and interval gates.\n\nOriginal x86 executes without stubs; synthetic requests isolate scheduling.\nNo movement, caller work charging, or simulation timing is emulated.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-search",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_search.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-heuristic-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "mismatches": {
+          "length": 0
+        },
+        "cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "fresh-node relaxation; goal origin; signed deltas [-256,256]; enqueue stubbed; no complete-search optimality claim",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-segment",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_segment.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "segment-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "sampler_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Execute the original straight-segment sampler with real footprint/cell checks.\n\nCardinal unit directions avoid assuming unrecovered normalization parity.\nChecks visited-cell order, early rejection and endpoint/short-segment behavior.\nAlso runs complete waypoint selection and index/point commit for class zero.\nThe composed model uses measured original normalization outputs, not a\nbit-parity replacement normalizer. No stubs or retail bytes included.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-separation",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_separation.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "separation-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "filter_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original separation candidate filter and cooldown primitives.\n\nNo stubs; synthetic candidate/query structures and supplied vector locals.\nAlso executes non-overlap pair accumulation and output damping/clamping slices.\nAlso executes random overlap directions and their pair accumulation.\nExecutes rectangle/cell enumeration with preallocated candidate storage.\nExecutes the full displacement validator with terrain and dynamic objects.\nExecutes occupancy-bound construction up to the spatial-map mutation call.\nDoes not execute query bound construction, position resolution, displacement\napplication or complete crowd movement.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-spatial",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_spatial.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "spatial-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "rectangle_updates": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Execute retail spatial rectangle mutation and its real cell-link writers.\n\nSynthetic 8x8 maps with preallocated link capacity; no stubs or imported\nallocator. Checks lazy removal records, chain order, counters and dirty bits, then\nconsumes the resulting chains with the full original separation query.\nAlso executes dirty-cell and full-map cleanup, checks stable query order and reuses reclaimed links.\nContains no retail bytes; requires the hash-matched local DLL and Unicorn.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-speed",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_speed.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "speed-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Original CAbilityMove speed producer, clamps and concrete AIms aggregation.\n\nFull calls through real ability lists, profile hash lookup and startup\nconstant initializers; exact independent soft-float reference.",
+      "exclusions": [
+        "Stock profile/SLK ingestion, bonus88 producers, class-registration/cache-miss construction, other buff speed modifiers",
+        "Polymorph alternate profile",
+        "unit194==5 with20bit8000 branch",
+        "unit20bit08000000 special cap",
+        "Suppression counter7c nonzero; all tested calls use ordinary production",
+        "Nonfinite inputs",
+        "Setter publication with nonzero mover velocity/clipping or attached group",
+        "CGameUI notification work with non-null UI instance"
+      ]
+    },
+    {
+      "id": "oracle-target",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_target.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "target-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "chain_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Execute retail target identity lookup, bounded cells and full perimeter scans.\n\nNo stubs. Synthetic map and mixed object/search-metadata chains, hash-checked\noriginal x86. Tests these predicates only, not a complete moving-unit request.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-transition",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_transition.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "transition-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "selector_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original accelerated route lookahead and ordinary index transitions.\n\nSynthetic preallocated routes; no stubs or shipped retail code. Cardinal\npower-of-two edge lengths isolate control flow from approximate square roots.\n",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-waypoint",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_waypoint.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "waypoint-acceptance-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "mismatches": {
+          "length": 0
+        },
+        "cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "original acceptance branch; 165d10 stubbed successful, no teleport; excludes exact boundary rounding",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-widget_masks",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_widget_masks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "widget-masks-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "lifecycle_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free.",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-yield",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_yield.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "yield-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "countdown_gate_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original moving-blocker yielding, including actual handle resolution.\n\nSynthetic registered movers/groups, real arithmetic and identity/countdown\nwriters. No stubs; contains no retail executable bytes.\n",
+      "exclusions": []
+    },
+    {
+      "id": "adaptive-size2",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_adaptive.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--size-input",
+        "1"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-size2-oracle.json",
+      "expected_exit": 1,
+      "expected_status": "known-reference-difference",
+      "checks": {
+        "differences": {
+          "length": 4
+        },
+        "stored_size": {
+          "equal": 2
+        },
+        "promotion_disabled": {
+          "equal": false
+        },
+        "forced_east_boundary": {
+          "equal": false
+        }
+      },
+      "intervention": null,
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Size-2 requests in all four lanes. Native cases must retain all four known retail/reference reachability differences; modified hierarchy/result cases are diagnostic controls.",
+      "exclusions": [
+        "This reference is not a retail replacement. Counterfactual outcomes do not certify native behavior."
+      ]
+    },
+    {
+      "id": "adaptive-size2-passage",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_adaptive.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--size-input",
+        "1",
+        "--map-json",
+        "tools/ghidra/fixtures/pathing-adaptive-size2-passage.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-minimal37-all-lanes.json",
+      "expected_exit": 1,
+      "expected_status": "known-reference-difference",
+      "checks": {
+        "differences": {
+          "length": 4
+        },
+        "stored_size": {
+          "equal": 2
+        },
+        "promotion_disabled": {
+          "equal": false
+        },
+        "forced_east_boundary": {
+          "equal": false
+        }
+      },
+      "intervention": null,
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Size-2 requests in all four lanes. Native cases must retain all four known retail/reference reachability differences; modified hierarchy/result cases are diagnostic controls.",
+      "exclusions": [
+        "This reference is not a retail replacement. Counterfactual outcomes do not certify native behavior."
+      ]
+    },
+    {
+      "id": "adaptive-size2-flat",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_adaptive.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--size-input",
+        "1",
+        "--map-json",
+        "tools/ghidra/fixtures/pathing-adaptive-size2-passage.json",
+        "--disable-promotion"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-minimal37-flat-all-lanes.json",
+      "expected_exit": 0,
+      "expected_status": "counterfactual-control",
+      "checks": {
+        "differences": {
+          "length": 0
+        },
+        "stored_size": {
+          "equal": 2
+        },
+        "promotion_disabled": {
+          "equal": true
+        },
+        "forced_east_boundary": {
+          "equal": false
+        }
+      },
+      "intervention": "Mark all parent cells mixed; original native hierarchy is not preserved.",
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Size-2 requests in all four lanes. Native cases must retain all four known retail/reference reachability differences; modified hierarchy/result cases are diagnostic controls.",
+      "exclusions": [
+        "This reference is not a retail replacement. Counterfactual outcomes do not certify native behavior."
+      ]
+    },
+    {
+      "id": "adaptive-size2-single-veto",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_adaptive.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--size-input",
+        "1",
+        "--map-json",
+        "tools/ghidra/fixtures/pathing-adaptive-size2-passage.json",
+        "--east-boundary",
+        "18",
+        "13",
+        "--force-east-boundary",
+        "--trace-graph"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-minimal37-single-veto-all-lanes.json",
+      "expected_exit": 0,
+      "expected_status": "counterfactual-control",
+      "checks": {
+        "differences": {
+          "length": 0
+        },
+        "stored_size": {
+          "equal": 2
+        },
+        "promotion_disabled": {
+          "equal": false
+        },
+        "forced_east_boundary": {
+          "equal": true
+        }
+      },
+      "intervention": "Override one selected east boundary rejection result; not native behavior.",
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Size-2 requests in all four lanes. Native cases must retain all four known retail/reference reachability differences; modified hierarchy/result cases are diagnostic controls.",
+      "exclusions": [
+        "This reference is not a retail replacement. Counterfactual outcomes do not certify native behavior."
+      ]
+    },
+    {
+      "id": "owner-baseline",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--producer-baseline"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "base-06.5-frozen-baseline.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "producer_cases": {
+          "length": 2
+        },
+        "identical_repeats": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Both frozen point/FIFO owner scenarios repeat twice through arrival and final idle.",
+      "exclusions": [
+        "Seeded class cache, capacity and exact-dyadic controlled clock boundaries remain assigned in BASE-06.4."
+      ]
+    },
+    {
+      "id": "shared-pair",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--shared-pair",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "fixture": "tools/ghidra/fixtures/retail-shared-pair-1.27.json"
+      },
+      "report": "shared-pair-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeat_digests": {
+          "equal": [
+            "fc29e310cdbe5b8b1f2e62bf7ac03f784fa277d060b3cd7aa34165039c5c0c73",
+            "fc29e310cdbe5b8b1f2e62bf7ac03f784fa277d060b3cd7aa34165039c5c0c73"
+          ]
+        },
+        "exact_world_velocity_commits": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Two original owner runs, complete frozen states and exact production C world-velocity/facing commits.",
+      "exclusions": [
+        "Controlled producers/class cache/storage; current stock hfoo mask category only; no public formation admission or retail clock claim."
+      ]
+    },
+    {
+      "id": "shared-pair-maskless-wall",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--shared-pair",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-wall-maskless-1.27.json",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "fixture": "tools/ghidra/fixtures/retail-shared-pair-wall-maskless-1.27.json"
+      },
+      "report": "shared-pair-maskless-wall-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeat_digests": {
+          "equal": [
+            "60637aaec72387184cbfcf34ccb60cb6d76efb5f596cd6fb4ea81bd98507d1f9",
+            "60637aaec72387184cbfcf34ccb60cb6d76efb5f596cd6fb4ea81bd98507d1f9"
+          ]
+        },
+        "exact_world_velocity_commits": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Two original owner runs, complete frozen states and exact production C world-velocity/facing commits.",
+      "exclusions": [
+        "Controlled producers/class cache/storage; current stock hfoo mask category only; no public formation admission or retail clock claim."
+      ]
+    },
+    {
+      "id": "shared-pair-ground-open",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--shared-pair",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-ground-open-1.27.json",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "fixture": "tools/ghidra/fixtures/retail-shared-pair-ground-open-1.27.json"
+      },
+      "report": "shared-pair-ground-open-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeat_digests": {
+          "equal": [
+            "62ee245012478fc03779b2b06c8fd6e3b1899bb43caa35ee47f06cf099aa2a76",
+            "62ee245012478fc03779b2b06c8fd6e3b1899bb43caa35ee47f06cf099aa2a76"
+          ]
+        },
+        "exact_world_velocity_commits": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Two original owner runs, complete frozen states and exact production C world-velocity/facing commits.",
+      "exclusions": [
+        "Controlled producers/class cache/storage; current stock hfoo mask category only; no public formation admission or retail clock claim."
+      ]
+    },
+    {
+      "id": "shared-pair-ground-wall",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--shared-pair",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "fixture": "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json"
+      },
+      "report": "shared-pair-ground-wall-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeat_digests": {
+          "equal": [
+            "08c3390272a97ca3fe362963dccd16fe0a8c5885ec6cb3d161675fbb5e3199d2",
+            "08c3390272a97ca3fe362963dccd16fe0a8c5885ec6cb3d161675fbb5e3199d2"
+          ]
+        },
+        "exact_world_velocity_commits": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Two original owner runs, complete frozen states and exact production C world-velocity/facing commits.",
+      "exclusions": [
+        "Controlled producers/class cache/storage; current stock hfoo mask category only; no public formation admission or retail clock claim."
+      ]
+    },
+    {
+      "id": "shared-pair-ground-reversal",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--shared-pair",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-ground-reversal-1.27.json",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "fixture": "tools/ghidra/fixtures/retail-shared-pair-ground-reversal-1.27.json"
+      },
+      "report": "shared-pair-ground-reversal-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeat_digests": {
+          "equal": [
+            "6bd48162c2fb883f6f775aa096e342d9c19e70cfd0d123cfe561547162a1f5e4",
+            "6bd48162c2fb883f6f775aa096e342d9c19e70cfd0d123cfe561547162a1f5e4"
+          ]
+        },
+        "exact_world_velocity_commits": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Two original owner runs, complete frozen states and exact production C world-velocity/facing commits.",
+      "exclusions": [
+        "Controlled producers/class cache/storage; current stock hfoo mask category only; no public formation admission or retail clock claim."
+      ]
+    },
+    {
+      "id": "numeric-engine-exact",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_numeric.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "numeric-engine-exact-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "composed_normalizer_cases": {
+          "minimum": 1
+        },
+        "engine_exact_cases": {
+          "nonempty": true
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels.",
+      "exclusions": [
+        "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
+        "Full spatial mutation after bounds construction",
+        "General simulation trajectories and trigonometry",
+        "Independent derivation of reciprocal table values; reference reads authoritative binary constants",
+        "Non-power-of-two map scales are not asserted to be producer-reachable"
+      ]
+    },
+    {
+      "id": "motion-engine-exact",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_motion.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "motion-engine-exact-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "move_owner_active_separation_cases": {
+          "minimum": 1
+        },
+        "engine_exact_world_velocity_cases": {
+          "equal": 1040
+        },
+        "engine_exact_heading_error_cases": {
+          "minimum": 1
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original mover speed/heading update with exact binary-fraction inputs.\n\nNo stubs or retail bytes. Tests speed/heading update, angle-error composition and parameter setters;\nposition integration, group decisions/formations/completion, deferred release, and full\narrival dispatch with actual terrain support refresh, task completion, next-task acceptance/rejection,\nfresh fine/adaptive searches, elapsed obstacle detours, owner scheduling/visual settling,\nand controlled two-mover separation with an active-order eligibility composition.\nSee report counts/exclusions.\n Also compare production C words with executed original kernels.",
+      "exclusions": [
+        "non-binary-fraction rounding",
+        "angle-error bit parity",
+        "group target-speed adjustment, adaptive intermediate-waypoint progression, crowded ticks and cant-path consumers",
+        "integration with general float rounding and mixed-object occupancy",
+        "full owner singleton executes scheduler and visual-facing updates with empty shared/separation lists; two controlled post-arrival repulsors also execute alternating separation; active singleton plus eligible repulsor also composes; crowded active groups and mixed profiles remain open",
+        "accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed",
+        "elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open"
+      ]
+    },
+    {
+      "id": "capture-blocked-goal",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/blocked-goal.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/blocked-goal.jsonl",
+        "sha256": "a4a18b5fd1a6abdd22577f887eb729b8e4618aa0c411183517a3c743c9dd28f6",
+        "bytes": 85263,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-BlockedGoal.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null
+        }
+      },
+      "report": "captures/blocked-goal-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-facing-stock-turn-raw",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/facing-stock-turn-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/facing-stock-turn-raw.jsonl",
+        "sha256": "d21d4072db02f0b290bc19db72868bb8a866d5b861bbfe7d46e0e17451d3215a",
+        "bytes": 217738,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-StockTurn.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 300,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": true
+        }
+      },
+      "report": "captures/facing-stock-turn-raw-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-arrival-retry",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-arrival-retry.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-arrival-retry.jsonl",
+        "sha256": "1bbf0de84d556f2ee30d6d3bb89a34e3a70f6f1e0a4e2ddfec7f6be7151c22fe",
+        "bytes": 101572,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathProbe-follow.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 400,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-arrival-retry-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-arrival",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-arrival.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-arrival.jsonl",
+        "sha256": "b607179e9e7a5a586f253f5c69525306418fd1dddd8eea00c7b019adb8848abf",
+        "bytes": 87317,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathProbe-follow.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 400,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-arrival-audit.json",
+      "expected_exit": 1,
+      "expected_status": "archive-rejected",
+      "checks": {
+        "violations": {
+          "equal": [
+            "missing successful observer completion",
+            "sample count differs from emitted searches",
+            "fine: counters smaller than emitted sample count",
+            "acc: counters smaller than emitted sample count"
+          ]
+        }
+      },
+      "capture_complete": false,
+      "capture_failures": [],
+      "evidence": [],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-fog-force",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-fog-force.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-fog-force.jsonl",
+        "sha256": "6766e55fa753f2b87be548ce6b8162e48b436122e62a704da647fea669413e32",
+        "bytes": 126886,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-FollowFog.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-fog-force-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-fog-perimeter",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-fog-perimeter.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-fog-perimeter.jsonl",
+        "sha256": "6654e7e2930fab4cb43566b386e9c995e21305100eaa23a4e67d16f4d882fd1c",
+        "bytes": 127123,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-FollowFog.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-fog-perimeter-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-fog-reacquire",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-fog-reacquire.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-fog-reacquire.jsonl",
+        "sha256": "cf110c3895cd6b3b3037ed10f7373f434a7a55ebb74724fddbaa69e4de79fcb6",
+        "bytes": 350469,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-FollowFogReacquire.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-fog-reacquire-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-fog",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-fog.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-fog.jsonl",
+        "sha256": "0811299e27331e39ddb4f87ee48ff69715c13d4f9ebfd7b0cc9a779684f3414c",
+        "bytes": 125297,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-FollowFog.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-fog-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-invisible-event",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-invisible-event.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-invisible-event.jsonl",
+        "sha256": "ef17c0f2df7205c0f44b57dc24823efe7c58201fb242c167defffb6a143f7818",
+        "bytes": 122666,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-FollowInvisible.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-invisible-event-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-invisible-stop",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-invisible-stop.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-invisible-stop.jsonl",
+        "sha256": "3175636a7c09199ac5bf7b8697577659404cbb7b2dbcaa5c0c8190453e43b0d6",
+        "bytes": 121965,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-FollowInvisible.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-invisible-stop-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-invisible",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-invisible.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-invisible.jsonl",
+        "sha256": "bdc04e74b8d4ac2081fced2d61373e7b2e7d4c08bcdf56574cf0efec74b0e214",
+        "bytes": 119660,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-FollowInvisible.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-invisible-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-refresh",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-refresh.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-refresh.jsonl",
+        "sha256": "101a3b5f8e820aff8f0d5b5d734d9e5720de3b435e939c1cbcd9d918d0c62919",
+        "bytes": 281351,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathProbe-follow_walk.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-refresh-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-retry",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-retry.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-retry.jsonl",
+        "sha256": "55b0f40bae4031583140458ee4b0a3bab9c1ceca663b908555aeaa867f06d8d6",
+        "bytes": 100869,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathProbe-follow.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 400,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-retry-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-shift-reset",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-shift-reset.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-shift-reset.jsonl",
+        "sha256": "bb3222b6520cfece6fd953357149e07045243b531748b18ba93eb64bb95c0ee5",
+        "bytes": 112636,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathProbe-follow_shift.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 400,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-shift-reset-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-shift",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-shift.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-shift.jsonl",
+        "sha256": "484f301ece6f0249ca0f2e7936601a406de62db98194d330694ce4ea306a75f9",
+        "bytes": 108876,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathProbe-follow_shift.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 400,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-shift-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow-walk",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow-walk.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow-walk.jsonl",
+        "sha256": "5b923543a26121e2e09ee8889c0b14f46aa19f9fe4948264f0e4f87f15d8170f",
+        "bytes": 259080,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathProbe-follow_walk.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-walk-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-follow",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/follow.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/follow.jsonl",
+        "sha256": "f940652c7d521df028fc7a005fc909732c7be03eae8b940f51d412cf26080050",
+        "bytes": 604,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathProbe-follow.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 400,
+          "watchCell": null
+        }
+      },
+      "report": "captures/follow-audit.json",
+      "expected_exit": 1,
+      "expected_status": "archive-rejected",
+      "checks": {
+        "violations": {
+          "equal": [
+            "missing successful observer completion",
+            "sample count differs from emitted searches",
+            "capture contains observer/controller errors"
+          ]
+        }
+      },
+      "capture_complete": false,
+      "capture_failures": [
+        "Command '['xdotool', 'search', '--onlyvisible', '--name', 'Warcraft III', 'windowfocus', '--sync', 'key', 'space']' returned non-zero exit status 1."
+      ],
+      "evidence": [],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-gate-approach",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/gate-approach.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/gate-approach.jsonl",
+        "sha256": "70445c9002f07afa3ae5ad75ca897de6d0350ff8cafdc9a47c0690b774395aa3",
+        "bytes": 39159,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-gate-approach.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": null
+        }
+      },
+      "report": "captures/gate-approach-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-gate-disable",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/gate-disable.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/gate-disable.jsonl",
+        "sha256": "0a9a8f97116b1605a5a9902df2ef3b5c6c25897bd0f935c56c2a275696721ef1",
+        "bytes": 40333,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-gate_disable.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": null
+        }
+      },
+      "report": "captures/gate-disable-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-gate-off",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/gate-off.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/gate-off.jsonl",
+        "sha256": "863b0725ac31c2fbc4b568b4ec4edbf4cb5ba112d8a03159d3ab086ae80e75e9",
+        "bytes": 42346,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-gate_off.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": [
+            163,
+            71
+          ]
+        }
+      },
+      "report": "captures/gate-off-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-gate-retarget",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/gate-retarget.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/gate-retarget.jsonl",
+        "sha256": "16990a4b37576758fe40649da047149ff2e1cc13c1d5c6e95f8efad70bea8673",
+        "bytes": 39434,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-gate_retarget.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": null
+        }
+      },
+      "report": "captures/gate-retarget-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-gate-tail",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/gate-tail.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/gate-tail.jsonl",
+        "sha256": "01453604e2a6993f08e783ae71e7abec6189a472c82cf78ad0848221be54b16f",
+        "bytes": 39228,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-gate-tail.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": null
+        }
+      },
+      "report": "captures/gate-tail-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-gate",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/gate.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/gate.jsonl",
+        "sha256": "ca4f4ea640d3c42d4d05a1712ca0f031721228e6a40b34976a84aef293782cc6",
+        "bytes": 41046,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-gate.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": [
+            163,
+            71
+          ]
+        }
+      },
+      "report": "captures/gate-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-ground-crowd-blockers-entry",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/ground-crowd-blockers-entry.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/ground-crowd-blockers-entry.jsonl",
+        "sha256": "f2269ca707e0c3b09d9770b7c357a85b157b248ddd2aa7f5b7cc896c3f637a21",
+        "bytes": 816382,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1500,
+          "watchCell": null,
+          "blockers": true
+        }
+      },
+      "report": "captures/ground-crowd-blockers-entry-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-ground-crowd-blockers",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/ground-crowd-blockers.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/ground-crowd-blockers.jsonl",
+        "sha256": "a8ba482bec7dc6d3e9c670f9efaff6252baeeda67d1b0a45d0c2ba6d2f021119",
+        "bytes": 42764,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1500,
+          "watchCell": null,
+          "blockers": true
+        }
+      },
+      "report": "captures/ground-crowd-blockers-audit.json",
+      "expected_exit": 1,
+      "expected_status": "archive-rejected",
+      "checks": {
+        "violations": {
+          "equal": [
+            "missing successful observer completion",
+            "sample count differs from emitted searches",
+            "capture contains observer/controller errors",
+            "acc: counters smaller than emitted sample count"
+          ]
+        }
+      },
+      "capture_complete": false,
+      "capture_failures": [
+        "script has been destroyed"
+      ],
+      "evidence": [],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-ground-crowd-yield",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/ground-crowd-yield.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/ground-crowd-yield.jsonl",
+        "sha256": "ab6347aca78410667334ec7bc0af317198bbf6606cf4a9487646470eedd96fb8",
+        "bytes": 788521,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1500,
+          "watchCell": null,
+          "blockers": false
+        }
+      },
+      "report": "captures/ground-crowd-yield-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-heading-stock-turn-raw",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/heading-stock-turn-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/heading-stock-turn-raw.jsonl",
+        "sha256": "706e08f32d2e905568734a7216cdb0c61d31405eca71f1c0aa1d95f37de78e6b",
+        "bytes": 222423,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-StockTurn.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": true
+        }
+      },
+      "report": "captures/heading-stock-turn-raw-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-heading-stock-turn-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/heading-stock-turn-repeat.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/heading-stock-turn-repeat.jsonl",
+        "sha256": "c550ad7de54cf95c659a399d2acd0fe26e25e2fad327a24f782219da0dea8a77",
+        "bytes": 222423,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-StockTurn.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": true
+        }
+      },
+      "report": "captures/heading-stock-turn-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-insert",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/insert.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/insert.jsonl",
+        "sha256": "6e10b2b7f423837bd989390bea9359e59f64d33984ca66b1d2201a549641d088",
+        "bytes": 39547,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Insert.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/insert-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-interlude-control-180",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/interlude-control-180.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/interlude-control-180.jsonl",
+        "sha256": "c4936d82345bebf4c9c9f02f564b0a8c82805b9581315278c3762bdcc2a7b9a4",
+        "bytes": 12098,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\Campaign\\Human02Interlude.w3m",
+          "seconds": 180.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/interlude-control-180-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-interlude-control",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/interlude-control.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/interlude-control.jsonl",
+        "sha256": "081bf07db9aa73bba78c2003e9f61dbad55a4053d7eee00377c2c108d2d620de",
+        "bytes": 1333,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\Campaign\\Human02Interlude.w3m",
+          "seconds": 60.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 100
+        }
+      },
+      "report": "captures/interlude-control-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-motion-integration-open",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/motion-integration-open.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/motion-integration-open.jsonl",
+        "sha256": "b2df615b3caa525a1ec427fb0756d19e0f39424c919d6e0dce5da12a6f78f870",
+        "bytes": 125242,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Open.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 300,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true
+        }
+      },
+      "report": "captures/motion-integration-open-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-motion-integration-turn-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/motion-integration-turn-repeat.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/motion-integration-turn-repeat.jsonl",
+        "sha256": "6e2cd994ba2a5df53f269e3d27d24d3c28479c649772bd652c2891aa29a0d94a",
+        "bytes": 130273,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-TurnExact.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 500,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true
+        }
+      },
+      "report": "captures/motion-integration-turn-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-motion-integration-turn",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/motion-integration-turn.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/motion-integration-turn.jsonl",
+        "sha256": "4b82651a1b72992513bcddc06dc9689754871eb407f377450d75045cfc7b4da1",
+        "bytes": 130272,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-TurnExact.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 500,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true
+        }
+      },
+      "report": "captures/motion-integration-turn-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-movement-profile-stock-raw",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/movement-profile-stock-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/movement-profile-stock-raw.jsonl",
+        "sha256": "cf8532cdde7740c937fe5b9a50825b6848f253f80857e7782e1be6d2c384ed0a",
+        "bytes": 74899,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-StockTurn.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": true
+        }
+      },
+      "report": "captures/movement-profile-stock-raw-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-open-relative",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/open-relative.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/open-relative.jsonl",
+        "sha256": "5deb9769197e458c05987aab4b6290a68845bb89e83a6dab62419c3059c022d7",
+        "bytes": 38244,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Open.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/open-relative-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-open",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/open.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/open.jsonl",
+        "sha256": "4147c1aac4e58197b4efe28e3ed6b986e3133aceb3b6c799ea0e98c2b1782d82",
+        "bytes": 587,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Z:\\GitHub\\wc3-analysis\\reports\\pathfinding-1.27\\runtime\\PathProbe-open.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/open-audit.json",
+      "expected_exit": 1,
+      "expected_status": "archive-rejected",
+      "checks": {
+        "violations": {
+          "equal": [
+            "missing successful observer completion",
+            "sample count differs from emitted searches",
+            "capture contains observer/controller errors"
+          ]
+        }
+      },
+      "capture_complete": false,
+      "capture_failures": [
+        "script has been destroyed"
+      ],
+      "evidence": [],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-owner-change",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/owner-change.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/owner-change.jsonl",
+        "sha256": "9a50620ae4dc428c14c5f955a847e8fec4fcdd535325131214298ca25c523a31",
+        "bytes": 39922,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathProbe-owner_change.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 300,
+          "watchCell": null
+        }
+      },
+      "report": "captures/owner-change-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-reconstruction-constants",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/reconstruction-constants.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/reconstruction-constants.jsonl",
+        "sha256": "1a0870385ff004f4adbf5c5761284c925e30a08037ce5b47bfd699f5781254bf",
+        "bytes": 1795,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-gate-approach.w3m",
+          "seconds": 30.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": null
+        }
+      },
+      "report": "captures/reconstruction-constants-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-remove-reorder20-cells",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/remove-reorder20-cells.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/remove-reorder20-cells.jsonl",
+        "sha256": "867b085a4be039d146b47abb3215cc92f2595f140484f68ebe69d56a372711ef",
+        "bytes": 49418,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-RemoveReorder20.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": [
+            163,
+            78
+          ]
+        }
+      },
+      "report": "captures/remove-reorder20-cells-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-remove-reorder20-retry",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/remove-reorder20-retry.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/remove-reorder20-retry.jsonl",
+        "sha256": "357ddc7c5f05e8a7685d0aae2147a978a35b3b1b83c131a34d54d2beaa430d84",
+        "bytes": 43670,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-RemoveReorder20.w3m",
+          "seconds": 150.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/remove-reorder20-retry-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-remove-reorder20",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/remove-reorder20.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/remove-reorder20.jsonl",
+        "sha256": "1a5484aee0ac1f76f5b8bb9b223b9a862387e7d4196040750fd59b552393b8fa",
+        "bytes": 1184,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-RemoveReorder20.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/remove-reorder20-audit.json",
+      "expected_exit": 1,
+      "expected_status": "archive-rejected",
+      "checks": {
+        "violations": {
+          "equal": [
+            "missing successful observer completion",
+            "sample count differs from emitted searches"
+          ]
+        }
+      },
+      "capture_complete": false,
+      "capture_failures": [],
+      "evidence": [],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-remove",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/remove.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/remove.jsonl",
+        "sha256": "1b62c7047fc04fd0cc58bb2f3f0335d277ab1dce4824ac029fe9dc27c649ecc7",
+        "bytes": 40083,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Remove.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/remove-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-remove20-display94",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/remove20-display94.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/remove20-display94.jsonl",
+        "sha256": "97dab7311f9b029a27316a9f734e9eea47c7d264f78c540cbf6c58a204e9fef7",
+        "bytes": 40849,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Remove20.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/remove20-display94-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-remove20-retry",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/remove20-retry.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/remove20-retry.jsonl",
+        "sha256": "6081954bd596508d3c97b0e9619517783d26919616db5c8dba7b7a8f80bba8ad",
+        "bytes": 2146,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Remove20.w3m",
+          "seconds": 150.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/remove20-retry-audit.json",
+      "expected_exit": 1,
+      "expected_status": "archive-rejected",
+      "checks": {
+        "violations": {
+          "equal": [
+            "missing successful observer completion",
+            "sample count differs from emitted searches",
+            "capture contains observer/controller errors"
+          ]
+        }
+      },
+      "capture_complete": false,
+      "capture_failures": [
+        "Command '['xdotool', 'search', '--onlyvisible', '--name', 'Warcraft III', 'windowfocus', '--sync', 'key', 'space']' returned non-zero exit status 1."
+      ],
+      "evidence": [],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-remove20",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/remove20.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/remove20.jsonl",
+        "sha256": "fc07835d6080df37747b558874ced242baf49af070724869f857e220a9ce7de8",
+        "bytes": 1312,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Remove20.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/remove20-audit.json",
+      "expected_exit": 1,
+      "expected_status": "archive-rejected",
+      "checks": {
+        "violations": {
+          "equal": [
+            "missing successful observer completion",
+            "sample count differs from emitted searches",
+            "capture contains observer/controller errors"
+          ]
+        }
+      },
+      "capture_complete": false,
+      "capture_failures": [
+        "script has been destroyed"
+      ],
+      "evidence": [],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-separation-control",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/separation-control.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/separation-control.jsonl",
+        "sha256": "04f541346a2312f9cf61b7b4a591d397f7a9beee2150aa4c62effa1fa931d378",
+        "bytes": 144447,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Control.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 500,
+          "watchCell": null
+        }
+      },
+      "report": "captures/separation-control-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-separation-crowd-air",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/separation-crowd-air.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/separation-crowd-air.jsonl",
+        "sha256": "a1667c6662ebc91b1b59fa3d2d77b304ba5a4c407506fa642fd69cfa45b189be",
+        "bytes": 924084,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-CrowdAir.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1500,
+          "watchCell": null
+        }
+      },
+      "report": "captures/separation-crowd-air-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-separation-crowd",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/separation-crowd.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/separation-crowd.jsonl",
+        "sha256": "0da5e31a895673d7df9f1408ffa134e12504bc8b7806af55a1fbbe61c610ef04",
+        "bytes": 713867,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1500,
+          "watchCell": null
+        }
+      },
+      "report": "captures/separation-crowd-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-stock-turn-raw",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/stock-turn-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/stock-turn-raw.jsonl",
+        "sha256": "e74ba02935a3526b19e2fc26d4f7c9d8a76852b20ecda4f9745e989ed690b7f3",
+        "bytes": 199170,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-StockTurn.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true
+        }
+      },
+      "report": "captures/stock-turn-raw-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-task-blocked-goal",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/task-blocked-goal.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/task-blocked-goal.jsonl",
+        "sha256": "0eda15259ff0083397526a29048b09832c3bef49dccae18c17f0ca22424bdc2d",
+        "bytes": 92250,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-BlockedGoal.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true
+        }
+      },
+      "report": "captures/task-blocked-goal-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-task-crowd-air",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/task-crowd-air.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/task-crowd-air.jsonl",
+        "sha256": "996e4ab860501c9d11a3fc0f24592b6e13abf949f21964a8ef63f1775eb34941",
+        "bytes": 989631,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-CrowdAir.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false
+        }
+      },
+      "report": "captures/task-crowd-air-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-task-follow-fog-reacquire",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/task-follow-fog-reacquire.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/task-follow-fog-reacquire.jsonl",
+        "sha256": "470336f7ddb063aa64767c5370d7ce22951772c4e6ba199e55c094d71639ee72",
+        "bytes": 357624,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-FollowFogReacquire.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true
+        }
+      },
+      "report": "captures/task-follow-fog-reacquire-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-task-open",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/task-open.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/task-open.jsonl",
+        "sha256": "0dc6064fe7dcc9447c99a3b99538d59ed273dd6ad26929662ce4729adf65b962",
+        "bytes": 74245,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Open.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true
+        }
+      },
+      "report": "captures/task-open-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-task-reorder",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/task-reorder.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/task-reorder.jsonl",
+        "sha256": "c625ea5ec10bee1065f5ca7a653d8f3c340537cadf7a71285f5a3ced5279fe5d",
+        "bytes": 93345,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-RemoveReorder20.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true
+        }
+      },
+      "report": "captures/task-reorder-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-velocity-turn-raw",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/velocity-turn-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/velocity-turn-raw.jsonl",
+        "sha256": "e101a097c0741f13ca9fd8c79612a420d4ab0edab50eb7799f8cfea6cb2b1989",
+        "bytes": 204688,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-TurnExact.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true
+        }
+      },
+      "report": "captures/velocity-turn-raw-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-velocity-turn-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/velocity-turn-repeat.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/velocity-turn-repeat.jsonl",
+        "sha256": "5e5226d918cda2ffc73fdb34c16fc98e537d449922019eb86d61c0302ec032b6",
+        "bytes": 204687,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-TurnExact.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true
+        }
+      },
+      "report": "captures/velocity-turn-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-wall",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/wall.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/wall.jsonl",
+        "sha256": "54a07db9b2b57d7f1b4a3aca81439216b972041fcd5e34dd37a2ef07fa03b6fb",
+        "bytes": 39284,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Wall.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 200
+        }
+      },
+      "report": "captures/wall-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-widget-lifecycle-cells",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/widget-lifecycle-cells.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/widget-lifecycle-cells.jsonl",
+        "sha256": "9b5d689a4d0145b10fb83eed3a824e51d2a4a57bf41044139df71d7c07d010b4",
+        "bytes": 86230,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-WidgetLifecycle.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": [
+            163,
+            78
+          ],
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true
+        }
+      },
+      "report": "captures/widget-lifecycle-cells-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-widget-lifecycle",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/widget-lifecycle.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/widget-lifecycle.jsonl",
+        "sha256": "7f231de1402b66a52573814757e6a72c26effc2e294c6736f55218e3eb98bd89",
+        "bytes": 82085,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-WidgetLifecycle.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true
+        }
+      },
+      "report": "captures/widget-lifecycle-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "capture-widget-placement",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/widget-placement.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/widget-placement.jsonl",
+        "sha256": "99b6840589003babe302c90ccf734b1ec936e4bc1de55affca5edc17b9769a03",
+        "bytes": 86459,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-WidgetPlacement.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": [
+            156,
+            94
+          ],
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true
+        }
+      },
+      "report": "captures/widget-placement-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Historical observer source hash and original map/data hashes were not embedded in trace metadata; no exact fresh live reproduction is claimed. BASE-04 format and per-scenario provenance records own this gap."
+      ]
+    },
+    {
+      "id": "live-motion-open",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_motion_trace.py",
+        "{archive}/runtime/motion-integration-open.jsonl",
+        "--scenario",
+        "open",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/motion-integration-open.jsonl",
+        "sha256": "b2df615b3caa525a1ec427fb0756d19e0f39424c919d6e0dce5da12a6f78f870",
+        "bytes": 125242,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-Open.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 300,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true
+        }
+      },
+      "additional_captures": [],
+      "report": "live-motion-open-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-replay",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "exact_decisions": {
+          "equal": 182
+        },
+        "stopped_decisions": {
+          "equal": 0
+        },
+        "movers": {
+          "equal": 1
+        },
+        "decision_sha256": {
+          "equal": "71f6aff3e9169954337be618d6bf36d771fda15e7b1b1ca10747763bfef2cf60"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete captured speed/heading helper decisions; excludes velocity trig and position integration",
+      "exclusions": [
+        "Archived live inputs replayed through current C or profile verifier; not a new capture. Whole engine trajectory/cadence remains open."
+      ]
+    },
+    {
+      "id": "live-motion-turn-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_motion_trace.py",
+        "{archive}/runtime/motion-integration-turn.jsonl",
+        "--scenario",
+        "turn",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}",
+        "--compare",
+        "{archive}/runtime/motion-integration-turn-repeat.jsonl"
+      ],
+      "inputs": {
+        "capture": "runtime/motion-integration-turn.jsonl",
+        "sha256": "4b82651a1b72992513bcddc06dc9689754871eb407f377450d75045cfc7b4da1",
+        "bytes": 130272,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-TurnExact.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 500,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/motion-integration-turn-repeat.jsonl",
+            "sha256": "6e2cd994ba2a5df53f269e3d27d24d3c28479c649772bd652c2891aa29a0d94a",
+            "bytes": 130273,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "map": "Maps\\PathingRE-TurnExact.w3m",
+              "seconds": 130.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 500,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-motion-turn-repeat-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-replay",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "exact_decisions": {
+          "equal": 191
+        },
+        "stopped_decisions": {
+          "equal": 9
+        },
+        "movers": {
+          "equal": 1
+        },
+        "decision_sha256": {
+          "equal": "bd4402a6d290d58d1caf9fc6f3a0d375538a40f1e9f274cba707aeac169c6444"
+        },
+        "repeat_equal": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete captured speed/heading helper decisions; excludes velocity trig and position integration",
+      "exclusions": [
+        "Archived live inputs replayed through current C or profile verifier; not a new capture. Whole engine trajectory/cadence remains open."
+      ]
+    },
+    {
+      "id": "live-velocity-turn-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_motion_trace.py",
+        "{archive}/runtime/velocity-turn-raw.jsonl",
+        "--scenario",
+        "turn",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}",
+        "--compare",
+        "{archive}/runtime/velocity-turn-repeat.jsonl"
+      ],
+      "inputs": {
+        "capture": "runtime/velocity-turn-raw.jsonl",
+        "sha256": "e101a097c0741f13ca9fd8c79612a420d4ab0edab50eb7799f8cfea6cb2b1989",
+        "bytes": 204688,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-TurnExact.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/velocity-turn-repeat.jsonl",
+            "sha256": "5e5226d918cda2ffc73fdb34c16fc98e537d449922019eb86d61c0302ec032b6",
+            "bytes": 204687,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "map": "Maps\\PathingRE-TurnExact.w3m",
+              "seconds": 130.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-velocity-turn-repeat-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-replay",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "exact_decisions": {
+          "equal": 191
+        },
+        "stopped_decisions": {
+          "equal": 9
+        },
+        "movers": {
+          "equal": 1
+        },
+        "decision_sha256": {
+          "equal": "bd4402a6d290d58d1caf9fc6f3a0d375538a40f1e9f274cba707aeac169c6444"
+        },
+        "exact_velocity_commits": {
+          "equal": 192
+        },
+        "exact_position_commits": {
+          "equal": 192
+        },
+        "exact_facing_commits": {
+          "equal": 192
+        },
+        "velocity_sha256": {
+          "equal": "b1f3acf293d750142136d18534a9492330fcacd2fe7fc2cfa7d26f5aac6616f8"
+        },
+        "repeat_equal": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete captured scalar decisions, velocity and position/clock commits; facing commits included; whole engine cadence remains excluded",
+      "exclusions": [
+        "Archived live inputs replayed through current C or profile verifier; not a new capture. Whole engine trajectory/cadence remains open."
+      ]
+    },
+    {
+      "id": "live-heading-stock-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_motion_trace.py",
+        "{archive}/runtime/heading-stock-turn-raw.jsonl",
+        "--scenario",
+        "stock_turn",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}",
+        "--compare",
+        "{archive}/runtime/heading-stock-turn-repeat.jsonl"
+      ],
+      "inputs": {
+        "capture": "runtime/heading-stock-turn-raw.jsonl",
+        "sha256": "706e08f32d2e905568734a7216cdb0c61d31405eca71f1c0aa1d95f37de78e6b",
+        "bytes": 222423,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-StockTurn.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": true
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/heading-stock-turn-repeat.jsonl",
+            "sha256": "c550ad7de54cf95c659a399d2acd0fe26e25e2fad327a24f782219da0dea8a77",
+            "bytes": 222423,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "map": "Maps\\PathingRE-StockTurn.w3m",
+              "seconds": 130.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "headingEvents": true
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-heading-stock-repeat-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-replay",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "exact_decisions": {
+          "equal": 183
+        },
+        "stopped_decisions": {
+          "equal": 1
+        },
+        "movers": {
+          "equal": 1
+        },
+        "decision_sha256": {
+          "equal": "a196f7870702c122bcb2253bcfea544d13d42011034d3a1bbbbde15da6798119"
+        },
+        "exact_heading_errors": {
+          "equal": 183
+        },
+        "heading_sha256": {
+          "equal": "b391f4d1125b2965d6d83b7f93ea98d414d9d3eefa468e78f95a40acc9fc09d8"
+        },
+        "exact_velocity_commits": {
+          "equal": 184
+        },
+        "exact_position_commits": {
+          "equal": 184
+        },
+        "exact_facing_commits": {
+          "equal": 184
+        },
+        "velocity_sha256": {
+          "equal": "7a1d7783e9c680144b4ea61592d9604673b293e1871b6a992cbf709b65d6aa70"
+        },
+        "repeat_equal": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete captured scalar decisions, velocity and position/clock commits; facing commits included; whole engine cadence remains excluded",
+      "exclusions": [
+        "Archived live inputs replayed through current C or profile verifier; not a new capture. Whole engine trajectory/cadence remains open."
+      ]
+    },
+    {
+      "id": "live-facing-stock",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_motion_trace.py",
+        "{archive}/runtime/facing-stock-turn-raw.jsonl",
+        "--scenario",
+        "stock_turn",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/facing-stock-turn-raw.jsonl",
+        "sha256": "d21d4072db02f0b290bc19db72868bb8a866d5b861bbfe7d46e0e17451d3215a",
+        "bytes": 217738,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-StockTurn.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 300,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": true
+        }
+      },
+      "additional_captures": [],
+      "report": "live-facing-stock-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-replay",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "exact_decisions": {
+          "equal": 183
+        },
+        "stopped_decisions": {
+          "equal": 1
+        },
+        "movers": {
+          "equal": 1
+        },
+        "decision_sha256": {
+          "equal": "a196f7870702c122bcb2253bcfea544d13d42011034d3a1bbbbde15da6798119"
+        },
+        "exact_heading_errors": {
+          "equal": 183
+        },
+        "heading_sha256": {
+          "equal": "b391f4d1125b2965d6d83b7f93ea98d414d9d3eefa468e78f95a40acc9fc09d8"
+        },
+        "exact_velocity_commits": {
+          "equal": 184
+        },
+        "exact_position_commits": {
+          "equal": 184
+        },
+        "exact_facing_commits": {
+          "equal": 184
+        },
+        "velocity_sha256": {
+          "equal": "7a1d7783e9c680144b4ea61592d9604673b293e1871b6a992cbf709b65d6aa70"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete captured scalar decisions, velocity and position/clock commits; facing commits included; whole engine cadence remains excluded",
+      "exclusions": [
+        "Archived live inputs replayed through current C or profile verifier; not a new capture. Whole engine trajectory/cadence remains open."
+      ]
+    },
+    {
+      "id": "live-stock-profile",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_profile_trace.py",
+        "{archive}/runtime/movement-profile-stock-raw.jsonl",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/movement-profile-stock-raw.jsonl",
+        "sha256": "cf8532cdde7740c937fe5b9a50825b6848f253f80857e7782e1be6d2c384ed0a",
+        "bytes": 74899,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-StockTurn.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": true
+        }
+      },
+      "additional_captures": [],
+      "report": "live-stock-profile-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "live-profile-replay",
+      "checks": {
+        "binary_sha256": {
+          "equal": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+        },
+        "rawcode": {
+          "equal": 1751543663
+        },
+        "category": {
+          "equal": 202
+        },
+        "query_mask": {
+          "equal": 2
+        },
+        "path_mask": {
+          "equal": 33554434
+        },
+        "publications": {
+          "equal": [
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ]
+          ]
+        },
+        "passed": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Stock hfoo profile getters and packed publication, including full completion/count checks.",
+      "exclusions": [
+        "Archived live inputs replayed through current C or profile verifier; not a new capture. Whole engine trajectory/cadence remains open."
+      ]
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "tools/ghidra/fixtures/pathing-adaptive-size2-passage.json",
+      "sha256": "421f23fd06817864d8a067901c7802e0093970665c4b6854f055e81fb6d0296d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-committed-facing-1.27.json",
+      "sha256": "3b6e78261ab7ead79be36f7a7232177a10f161224b0346c4036644482bb358ba"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-ground-profile-1.27.json",
+      "sha256": "2a6144c9a2375c6d786296457d0cc47faf9a5532517b0529bfa642e41a9e9f9e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-heading-errors-1.27.json",
+      "sha256": "480b78f19c67f3126577d7f582f4a32c7351fb1d952818c3f5d861fa26ef74b9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-motion-snapshot-1.27.json",
+      "sha256": "53f31191c44cfcffe78c7972df38609d232af31e1465d5de3fd424cb20dd509a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-owner-baseline-1.27.json",
+      "sha256": "89ff21fecb35e1f459499ae69a7f88095b805c017ae2b132a1b8b71a1c75f481"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-owner-baseline-states-1.27.json",
+      "sha256": "cdb2e6e146042d40d3983d3be9c7e12145ed20cce606d6a32ec9e919eee1871b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+      "sha256": "d5a893efe80c9eaafb9ac950f64b0b57191be96cc5f8165a7c6c1f2507a5b57a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-shared-pair-ground-open-1.27.json",
+      "sha256": "44ad2c2ea51f7f54e5e2cce9adbc80c52a9d9494de8f10950a9bd62de9d452be"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-shared-pair-ground-reversal-1.27.json",
+      "sha256": "cf58e1014f4be466f099f6b4d2046136ced70fdf037e0bd9a4c366ae988d7bf2"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json",
+      "sha256": "268571d198602eed7203ba36d20d563738c0ed6279c7cffd84105dd23c043a3d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-shared-pair-wall-maskless-1.27.json",
+      "sha256": "9940d081b37638225db0b15b818e3b75d5a3d4abfea73ecba23f4fef42277102"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-turn-velocity-1.27.json",
+      "sha256": "59e6f6cf4a5183dec04f20a91db03d8fa5417e1bf9dded6ff98c5182cbd6a964"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-wall-pair-velocity-1.27.json",
+      "sha256": "eb277222d813f9f12d0928ff050c1cfac955b5dc4b56b0dfe2ebc92c29005a14"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-world-velocity-1.27.json",
+      "sha256": "f1c2af521eff6c4eebfd54ffbf7750158f8fcb27389f120ffe6e6b8c2b810a05"
+    }
+  ]
+}

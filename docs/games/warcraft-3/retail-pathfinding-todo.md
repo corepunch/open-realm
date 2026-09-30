@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**36 done / 211 tasks; 175 remaining.** Counts describe this backlog,
+**39 done / 211 tasks; 172 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -16,7 +16,7 @@ Completed evidence now sits next to its specific remaining extension.
 
 | Area | Done | Remaining |
 | --- | ---: | ---: |
-| BASE — Baseline and reproducibility | 7 | 13 |
+| BASE — Baseline and reproducibility | 10 | 10 |
 | MAP — Map construction and lifetime | 3 | 16 |
 | FOOT — Footprints and query policy | 1 | 8 |
 | FINE — Fine search | 1 | 8 |
@@ -42,7 +42,9 @@ exclusion of NUM-02.2; it is closed independently of whole-trajectory NUM-02.3.
 
 ## Work next
 
-Start with **BASE-05.1**. GROUP-02.3 now has original terrain edits, stock
+Start with **GROUP-04.1**. BASE-05.1/02/03 now have the versioned corpus,
+strict runner and111 expected outcomes reproduced in a fresh directory,
+including native adaptive differences and rejected archives. GROUP-02.3 has original terrain edits, stock
 Footman mask getters/publication, opposing detours, independent tick19/25
 arrivals, exact46 C commits, cleanup and maskless/open/reversal controls.
 The supplied class cache and unexecuted ability-notification traversal retain
@@ -50,9 +52,9 @@ BASE-03.1; other movement profiles remain BASE-02.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | BASE-05.1 | Existing reports and captures | Corpus inventory including intentional adaptive mismatches |
-| 2 | GROUP-04.1 | GROUP-02.3 | Member identity removal/reuse from callbacks while survivor completes |
-| 3 | NUM-01.2 | Verified scalar/heading slices | Remaining arithmetic inventory and exact numerical integration |
+| 1 | GROUP-04.1 | GROUP-02.3 | Member identity removal/reuse from callbacks while survivor completes |
+| 2 | NUM-01.2 | Verified scalar/heading slices | Remaining trig/conversion ABI, constants and public input-domain inventory |
+| 3 | MAP-03.4 | Existing widget admission | Footprint refresh and complete escape-order arrival/failure |
 
 MAP-03.4 (widget escape to arrival/failure) also has existing fixtures. Use
 the per-area dependencies and finish one bounded task before starting another.
@@ -130,9 +132,9 @@ Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks,
 
 ### BASE-05 — Corpus runner
 
-- [ ] **BASE-05.1** Inventory existing oracles/captures in one manifest with command, inputs, report, expected status and evidence level; include intentional adaptive mismatches.
-- [ ] **BASE-05.2** Add a runner that executes that manifest and fails on a missing report, truncated capture, hash mismatch or unexpected exit/result.
-- [ ] **BASE-05.3** Run the manifest from a fresh output directory; record per-case status and reproducible commands without relying on stale reports.
+- [x] **BASE-05.1** Inventory existing oracles/captures in one manifest with command, inputs, report, expected status and evidence level; include intentional adaptive mismatches. Evidence: [corpus inventory](retail-pathfinding-corpus.md#inventory-and-acceptance), version1 `retail-pathfinding-corpus-1.27.json`; all32 oracle scripts,12 variants,61 archives and six stronger live-input replays. Historical source/map provenance limits remain explicit.
+- [x] **BASE-05.2** Add a runner that executes that manifest and fails on a missing report, truncated capture, hash mismatch or unexpected exit/result. Same evidence; `run_wc3_pathfinding_corpus.py` requires fresh outputs and explicit report contracts. Asset-free rejection regressions cover changed/stale/missing inputs and reports; known reference differences cannot become passes.
+- [x] **BASE-05.3** Run the manifest from a fresh output directory; record per-case status and reproducible commands without relying on stale reports. Evidence: [fresh checkpoint](retail-pathfinding-corpus.md#fresh-checkpoint), `base-05.3-fresh-provenance-corpus-20260929/corpus-results.json`: all111 declared outcomes reproduced, including two native adaptive differences, two counterfactual controls and seven rejected archives. Original-code, C and archived-live scope remain separate; no new live capture or whole-replacement claim.
 
 ### BASE-06 — One frozen ordinary-move baseline
 
