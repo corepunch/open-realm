@@ -1310,6 +1310,27 @@ TEST(wc3_movement, turn_lag_does_not_step_away_from_route_heading) {
     T_FEQ(unit->s.origin.y, unit->s.origin2.y, 0.001f);
 }
 
+TEST(wc3_movement, turn_lag_facing_must_agree_with_resolved_route_heading) {
+    enum { CELLS = 64 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    edict_t *goal = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 0.0f);
+
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+    unit->goalentity = goal;
+    unit->unitinfo.MoveSpeed = 190.0f;
+    unit->s.angle = 0.0f;
+    unit->movement.heading = (float)M_PI;
+    unit->movement.flow_direct = true;
+
+    unit_moveindirection(unit);
+
+    T_ASSERT(unit->s.origin2.x < 0.0f);
+    T_FEQ(unit->s.origin.x, unit->s.origin2.x, 0.001f);
+}
+
 /* Retail WC3 does not leave a worker orbiting an unreachable tree buried in a
  * forest.  The clicked tree remains authoritative while a route exists; once
  * the collision-sized flow field reaches its closest legal approach point and

@@ -320,7 +320,8 @@ static void unit_moveindirection_policy(edict_t *self,
         Vector2_distance(&origin, &progress_goal) + 0.001f;
     /* A lagging facing is useful while turning around an obstacle, but it must
      * not carry a unit away from the heading selected by the route solver. */
-    if (facing_progress && move_is_valid_policy(self, &by_facing, collision_policy)) {
+    if (Vector2_dot(&facing_dir, &heading_dir) >= 0.0f && facing_progress &&
+        move_is_valid_policy(self, &by_facing, collision_policy)) {
         unit_commit_step(self, &by_facing);
         return;
     }
