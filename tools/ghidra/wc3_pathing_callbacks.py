@@ -75,6 +75,10 @@ def reuse_member(machine, context, run):
     assert read(0x6fd6860c)==[registry]
     missing=spec.get('missing_spatial_registry',False)
     if missing:write(0x6fd6860c,0)  # Explicit fixture counterfactual, never native parity.
+    if spec.get('complete_before_reuse'):
+        call(dict(entry=0x6f16d4e0,receiver=group,arguments=[members+44*victim]))
+        assert read(actor+0x9c,2)==[0xffffffff]*2
+        assert read(actor+0x80,2)==[0,0]
     call(dict(entry=0x6f16eb20,receiver=actor,arguments=[0]))
     assert read(path_pool+0x14,3)==[path-4,2,before_path_pool[2]]
     assert read(path-4)==[before_path_pool[0]]
@@ -120,9 +124,14 @@ def reuse_member(machine, context, run):
     for row in before_rows:row[5]='mover'+str(movers.index(row[5]))
     survivor_row[5]='mover'+str(survivor)
     # Only scalar counters and explicit identity tokens survive normalization.
+    if spec.get('complete_before_reuse'):
+        before['path_pool']=before_path_pool
+        released['path_pool']=[path-4,2,before_path_pool[2]]
+        after['path_pool']=read(path_pool+0x14,3)
     for phase in (before,released,after):
         phase['mover_pool'][0]=bool(phase['mover_pool'][0])
         phase['spatial_pool'][0]=bool(phase['spatial_pool'][0])
+        if 'path_pool' in phase:phase['path_pool'][0]=bool(phase['path_pool'][0])
     return dict(inputs=spec,before=before,released=released,after=after,old_handles=old_handles,
                 before_rows=before_rows,surviving_row=survivor_row,callbacks=callbacks,
                 later_callback_order=[survivor],reused_same_storage=True,old_generation_rejected=True)

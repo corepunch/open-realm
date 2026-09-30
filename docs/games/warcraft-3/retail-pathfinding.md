@@ -118,7 +118,7 @@ Counts overlap; do not sum them into a coverage percentage.
 
 [Executable research backlog](retail-pathfinding-todo.md#work-next): numbered
 tasks, acceptance checks, completed evidence and the READY gate. Start with
-**GROUP-04.4**; the backlog names their dependencies and
+**GROUP-04.4/07/08**; the backlog names their dependencies and
 finish artifacts. The areas below describe the sequence, not additional tasks.
 
 1. **ORDER + GROUP + MOVE:** join the verified initial-admission/FIFO chain

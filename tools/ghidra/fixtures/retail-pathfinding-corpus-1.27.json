@@ -5199,6 +5199,116 @@
         "C"
       ],
       "scope": "Original member completion at slot54 entry, real arrival notification/task draining, then original owner survivor movement and cleanup; supplied existing Unit/Move backing; mover destruction/reuse and complete gameplay callback graph excluded"
+    },
+    {
+      "id": "completed-member-reuse-open",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--shared-pair",
+        "--callback-finish",
+        "--completed-member-reuse",
+        "--finish-fixture",
+        "tools/ghidra/fixtures/retail-completed-member-reuse-1.27.json",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "fixture": "tools/ghidra/fixtures/retail-completed-member-reuse-1.27.json",
+        "parent_fixture": "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "completed-member-reuse-open.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "callback_finish_cases": {
+          "equal": 4
+        },
+        "exact_world_velocity_commits": {
+          "equal": 48
+        },
+        "exported_original_expectations": {
+          "equal": false
+        },
+        "cases_sha256": {
+          "equal": "54067d8b76fdb2b5b2fdaf38337d8a8cebdec144e40e213e594d0e7a2fb99e7a"
+        },
+        "parent_fixture_sha256": {
+          "equal": "d5a893efe80c9eaafb9ac950f64b0b57191be96cc5f8165a7c6c1f2507a5b57a"
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Original member completion at slot54 entry, real arrival notification/task draining, original mover destruction/reallocation, then original owner survivor movement and cleanup; supplied existing Unit/Move and recycled allocator backing; actual RemoveUnit callback graph, replacement owned path/movement and actual formation refresh excluded"
+    },
+    {
+      "id": "completed-member-reuse-wall",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--shared-pair",
+        "--callback-finish",
+        "--completed-member-reuse",
+        "--finish-fixture",
+        "tools/ghidra/fixtures/retail-completed-member-reuse-wall-1.27.json",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "fixture": "tools/ghidra/fixtures/retail-completed-member-reuse-wall-1.27.json",
+        "parent_fixture": "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json",
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "completed-member-reuse-wall.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "callback_finish_cases": {
+          "equal": 4
+        },
+        "exact_world_velocity_commits": {
+          "equal": 130
+        },
+        "exported_original_expectations": {
+          "equal": false
+        },
+        "cases_sha256": {
+          "equal": "d13956929d895117ec8d62f69345ea49e9adcd64338f30337bd58221364a9753"
+        },
+        "parent_fixture_sha256": {
+          "equal": "268571d198602eed7203ba36d20d563738c0ed6279c7cffd84105dd23c043a3d"
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Original member completion at slot54 entry, real arrival notification/task draining, original mover destruction/reallocation, then original owner survivor movement and cleanup; supplied existing Unit/Move and recycled allocator backing; actual RemoveUnit callback graph, replacement owned path/movement and actual formation refresh excluded"
     }
   ],
   "fixtures": [
@@ -5289,6 +5399,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-callback-finish-wall-1.27.json",
       "sha256": "b2b3b7ec6bbdf0603cfbea883f87eaff58359ad2f2b99edb5d97062e3e6d22fa"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-completed-member-reuse-1.27.json",
+      "sha256": "ceea5ba7b62e1afafb53bcda68277237e59adde0b71571d3018e2c8337845528"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-completed-member-reuse-wall-1.27.json",
+      "sha256": "9b04bb9446a9bd01a26fa3a1e13ddb28b90b8db217b6702eae4a238939b53538"
     }
   ]
 }

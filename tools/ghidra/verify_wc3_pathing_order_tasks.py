@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--producer-baseline', action='store_true', help='compose no-file map and mover producers before the owner baseline')
     parser.add_argument('--shared-pair', action='store_true', help='compose two admitted units into one original shared request and run owner through arrival')
     parser.add_argument('--callback-finish', action='store_true', help='complete one member during an original callback, then run the survivor through natural arrival')
+    parser.add_argument('--completed-member-reuse', action='store_true', help='after controlled member completion, destroy/reallocate its mover and run the original survivor to arrival; requires --callback-finish')
     parser.add_argument('--finish-fixture', type=Path, default=Path(__file__).parent/'fixtures/retail-callback-finish-1.27.json')
     parser.add_argument('--record-finish-fixture', type=Path, help='export all four original completion/survivor repeat expectations')
     parser.add_argument('--callback-reuse', action='store_true', help='original callback-timed mover release/reallocation, generation and pool verification')
@@ -36,6 +37,7 @@ def main():
     args = parser.parse_args()
     manifest,expectations=load_manifest(args.baseline_manifest) if args.producer_baseline or args.shared_pair else (None,None)
     if args.record_pair_fixture and not args.shared_pair:parser.error('--record-pair-fixture requires --shared-pair')
+    if args.completed_member_reuse and not args.callback_finish:parser.error('--completed-member-reuse requires --callback-finish')
     if args.callback_finish and (not args.shared_pair or args.callback_reuse):parser.error('--callback-finish requires --shared-pair and excludes --callback-reuse')
     if args.record_finish_fixture and not args.callback_finish:parser.error('--record-finish-fixture requires --callback-finish')
     if args.record_finish_fixture and args.record_finish_fixture.exists():parser.error('finish expectation destination already exists')
@@ -810,7 +812,7 @@ def main():
                 member_lifecycle.append(dict(entry=hex(address),owner_tick=read(owner+0x538)[0],
                     count=count,identities=[row[:2] for row in rows],offsets=[row[3:5] for row in rows],
                     destinations=[row[6:8] for row in rows],group_point=read(group+0x54,2),
-                    mover_paths=[read(read(m+0xa8)[0]+0x14,2) for m in (mover,pair['mover'])],
+                    mover_paths=[read(read(m+0xa8)[0]+0x14,2) if read(m+0xa8)[0] else None for m in (mover,pair['mover'])],
                     mover_identities=[read(m+0x14,2) for m in (mover,pair['mover'])]))
             teardown=read(read(group)[0]+0x10)[0]
             lifecycle_hooks=[machine.hook_add(UC_HOOK_CODE,observe_members,begin=a,end=a) for a in
@@ -879,9 +881,14 @@ def main():
         write(clock+0x48,manifest['clock']['span_bits'] if producer_setup else 0x41000000)
         write(inputs,manifest['clock']['advance_bits'] if producer_setup else 0x3d000000)
         if shared_pair and args.callback_finish:
-            from wc3_pathing_callbacks import finish_member
-            accepted['callback_finish']=finish_member(machine,dict(group=group,stack=stack,stop=stop,
-                movers=[mover,pair['mover']],spec=pair_fixture['inputs']['callback_finish']),run)
+            from wc3_pathing_callbacks import finish_member,reuse_member
+            context=dict(owner=owner,registry=registry,inputs=inputs,group=group,stack=stack,stop=stop,
+                movers=[mover,pair['mover']],spec=pair_fixture['inputs']['callback_finish'])
+            accepted['callback_finish']=(reuse_member if args.completed_member_reuse else finish_member)(machine,context,run)
+            if args.completed_member_reuse:
+                base_live_count-=1  # Original owned path released; replacement mover has none.
+                completed_unit_point=read(unit+0x284,2)
+                write(inputs,manifest['clock']['advance_bits'])  # Factory output used this scratch word.
             normalized_states.append(snapshot('callback_finish'))
         trajectory=[]
         replacement_evidence=None
@@ -1007,13 +1014,16 @@ def main():
         step('release')
         assert read(group+0x38)[0]==0
         for offset,objects_to_free in [(0x678,group_objects),(0x958,path_objects)]:
-            retained_paths=(2 if pair else 1) if producer_setup and offset==0x958 else 0
+            retained_paths=((1 if args.completed_member_reuse else 2) if pair else 1) if producer_setup and offset==0x958 else 0
             assert read(owner+offset+0x18)[0]==retained_paths
             free=[];ptr=read(owner+offset+0x14)[0]
             while ptr:
                 assert ptr not in free
                 free.append(ptr);ptr=read(ptr)[0]
-            assert set(free)=={obj-4 for obj in objects_to_free}
+            expected_free={obj-4 for obj in objects_to_free}
+            if args.completed_member_reuse and offset==0x958:
+                expected_free.add((current_path,pair['path'])[pair_fixture['inputs']['callback_finish']['victim']]-4)
+            assert set(free)==expected_free
         assert all(read(factory+0xc)[0]==0 for name,raw,factory,vt,psize in classes)
         free_payloads={}
         for n,(name,raw,factory,vt,psize) in enumerate(classes):
@@ -1029,7 +1039,9 @@ def main():
         assert read(registry+0x48)[0]==base_live_count
         assert read(unit+4)[0]==4
         assert read(clock+0x20)[0]==1
-        assert read(unit+0x284,2)==[w+0x02800000 for w in trajectory[-1]['position']]
+        expected_unit_point=(completed_unit_point if args.completed_member_reuse and pair_fixture['inputs']['callback_finish']['victim']==0
+            else [w+0x02800000 for w in trajectory[-1]['position']])
+        assert read(unit+0x284,2)==expected_unit_point
         if replacement_target:
             assert read(replacement_wrapper+0x14,4)==[0xffffffff,0xffffffff,0,0]
             assert read(replacement_wrapper+0x54)[0]==0
@@ -1072,7 +1084,10 @@ def main():
             assert teardown_events[0]['mover_paths']==prepares[-1]['mover_paths']
             assert teardown_events[0]['mover_identities']==prepares[-1]['mover_identities']
             assert read(owner+0x3b8)[0]==0
-            assert all(read(m+0xa8)[0] and read(m+0x14,2)!=[0xffffffff]*2 for m in (mover,pair['mover']))
+            survivor=1-pair_fixture['inputs']['callback_finish']['victim']
+            assert all(read(m+0x14,2)!=[0xffffffff]*2 for m in (mover,pair['mover']))
+            assert read((mover,pair['mover'])[survivor]+0xa8)[0]
+            assert bool(read((mover,pair['mover'])[1-survivor]+0xa8)[0])!=args.completed_member_reuse
             assert [c['cap'] for c in speed_caps[:2]]==[0x40800000]*2
             survivor=1-pair_fixture['inputs']['callback_finish']['victim']
             expected_cap=0x41000000 if survivor==0 else 0x40800000
@@ -1080,6 +1095,13 @@ def main():
             assert all(c['member_identity']==read((mover,pair['mover'])[survivor]+0x14,2) for c in speed_caps[2:])
             accepted['member_lifecycle']=member_lifecycle
             accepted['speed_caps']=speed_caps
+            if args.completed_member_reuse:
+                accepted['callback_finish']['cleanup']=dict(path_pool=read(owner+0x958+0x18,2),
+                    group_live=read(owner+0x678+0x18)[0],registry_live=read(registry+0x48)[0],
+                    mover_identities=[read(m+0x14,2) for m in (mover,pair['mover'])],
+                    mover_paths=teardown_events[0]['mover_paths'],
+                    unit_refs=[read(u+4)[0] for u in (unit,pair['unit'])],
+                    user_queues_empty=True,internal_tasks_empty=True,owner_lists_empty=True)
         for hook in owner_hooks+pair_hooks+lifecycle_hooks:machine.hook_del(hook)
         accepted.update(owner_frames=owner_frames,initial_route=initial_route,trajectory=trajectory,arrival_tick=tick,
                         user_order_reclaimed=True,producer_setup=setup,initial_state=initial_state,
@@ -1094,6 +1116,7 @@ def main():
             for victim in (0,1):
                 pair_fixture=copy.deepcopy(pair_fixture)
                 pair_fixture['inputs']['callback_finish']=dict(trigger=trigger,victim=victim,second_speed_world_bits=0x43000000)
+                if args.completed_member_reuse:pair_fixture['inputs']['callback_finish']['complete_before_reuse']=True
                 repeats=[dispatch_case(0,0,0,tuple(pair_fixture['inputs']['target_bits']),
                     owner_updates=True,producer_setup=True,shared_pair=True) for _ in range(2)]
                 states=[dict(output(c),callback_finish=c['callback_finish'],member_lifecycle=c['member_lifecycle'],speed_caps=c['speed_caps']) for c in repeats]
@@ -1102,7 +1125,8 @@ def main():
                 outcomes.append(states[0]);repeat_digests.append([canonical_digest(c) for c in states])
         frozen=dict(version=1,build=dict(game_sha256=digest,crt_sha256=crt_digest),
             parent_fixture_sha256=hashlib.sha256(args.pair_fixture.read_bytes()).hexdigest(),
-            scope='Original member completion at slot54 entry, real arrival notification/task draining, then original owner survivor movement and cleanup; supplied existing Unit/Move backing; mover destruction/reuse and complete gameplay callback graph excluded',
+            scope=('Original member completion at slot54 entry, real arrival notification/task draining, original mover destruction/reallocation, then original owner survivor movement and cleanup; supplied existing Unit/Move and recycled allocator backing; actual RemoveUnit callback graph, replacement owned path/movement and actual formation refresh excluded' if args.completed_member_reuse else
+                'Original member completion at slot54 entry, real arrival notification/task draining, then original owner survivor movement and cleanup; supplied existing Unit/Move backing; mover destruction/reuse and complete gameplay callback graph excluded'),
             cases=outcomes,cases_sha256=canonical_digest(outcomes))
         if args.record_finish_fixture:
             args.record_finish_fixture.parent.mkdir(parents=True,exist_ok=True)

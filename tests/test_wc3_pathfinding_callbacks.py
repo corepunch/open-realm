@@ -37,6 +37,39 @@ class CallbackMachine:
 
 
 class CallbackFixtures(unittest.TestCase):
+    def test_completed_member_reuse_retains_full_survivor_journey(self):
+        for suffix in ('','-wall'):
+            fixture=json.loads((FIXTURES/('retail-completed-member-reuse'+suffix+'-1.27.json')).read_text())
+            control=json.loads((FIXTURES/('retail-callback-finish'+suffix+'-1.27.json')).read_text())
+            canonical=json.dumps(fixture['cases'],sort_keys=True,separators=(',',':')).encode()
+            self.assertEqual(hashlib.sha256(canonical).hexdigest(),fixture['cases_sha256'])
+            self.assertEqual(len(fixture['cases']),4)
+            self.assertEqual({(c['callback_finish']['inputs']['trigger'],c['callback_finish']['inputs']['victim'])
+                for c in fixture['cases']},set(itertools.product(range(2),repeat=2)))
+            for case,unchanged in zip(fixture['cases'],control['cases']):
+                mutation=case['callback_finish'];victim=mutation['inputs']['victim'];survivor=1-victim
+                self.assertTrue(mutation['inputs']['complete_before_reuse'])
+                old,new=mutation['old_handles'][0],mutation['after']['new_identity']
+                self.assertEqual(old[0],new[0]);self.assertNotEqual(old[1],new[1])
+                self.assertEqual(mutation['after']['old_handle_results'],[0]*4)
+                self.assertEqual(mutation['surviving_row'],mutation['before_rows'][survivor])
+                self.assertEqual([mutation[p]['path_pool'][1] for p in ('before','released','after')],[3,2,2])
+                allocations=mutation['before']['path_pool'][2]
+                self.assertEqual(mutation['released']['path_pool'][2],allocations)
+                self.assertEqual(mutation['after']['path_pool'][2],allocations)
+                cleanup=mutation['cleanup']
+                self.assertEqual(cleanup['path_pool'],[1,allocations])
+                self.assertEqual(cleanup['group_live'],0);self.assertEqual(cleanup['unit_refs'],[4,4])
+                self.assertIsNone(cleanup['mover_paths'][victim])
+                self.assertIsNotNone(cleanup['mover_paths'][survivor])
+                self.assertTrue(cleanup['user_queues_empty'] and cleanup['internal_tasks_empty'] and cleanup['owner_lists_empty'])
+                self.assertEqual(case['arrival_tick'],unchanged['arrival_tick'])
+                # Reclaimed actor state changes, but the original survivor's
+                # complete raw motion remains equal to completion without reuse.
+                keys=('position','velocity') if survivor==0 else ('second_position','second_velocity')
+                self.assertEqual([[t[k] for k in keys] for t in case['trajectory']],
+                                 [[t[k] for k in keys] for t in unchanged['trajectory']])
+
     def test_original_call_restores_cpu_and_retains_memory_even_on_failed_validation(self):
         registers=SimpleNamespace(**{'UC_X86_REG_'+name:name for name in
                   ('EAX','EBX','ESI','EDI','EBP','ESP','ECX','EDX','EIP')})

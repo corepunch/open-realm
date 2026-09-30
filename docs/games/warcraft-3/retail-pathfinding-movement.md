@@ -2220,3 +2220,59 @@ remain undefined. No native heap-allocation or full-world lifetime claim is
 made by this prefix.
 
 Fresh validation is `group-04.7-native-path-factory-validated-corpus/corpus-results.json`: all116 declared outcomes reproduced, including frozen singleton/FIFO/pair trajectories, callback reuse on open/wall maps, the missing-registry-alias control, completion/survivor journeys and retained adaptive differences. Source hashes still matched at completion. `LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test` passed76 Python tool tests and36678/36678 assertions in2126 tests for each RoC/TFT schema (`/tmp/wc3-group-04.7-native-path-factory-validated-full-suite.log`). The first validation attempt correctly rejected the old annotation-schema checksum; only the fresh validated run is the checkpoint. GROUP-04.7 is closed; actual refresh and complete survivor/reuse composition remains GROUP-04.5.
+
+
+## Completed-member reuse through survivor arrival
+
+GROUP-04.8 splits the bounded released/reused-member lifecycle from04.5's
+actual formation refresh/new-destination requirement. Its O composition is
+`verify_wc3_pathing_order_tasks.py --shared-pair --callback-finish
+--completed-member-reuse --finish-fixture FIXTURE --pair-fixture PARENT
+--engine-library LIBRARY --report REPORT`. The controlled original slot54
+boundary invokes `16d4e0 FinishMember` before `16eb20 Mover_Destroy`, then
+`14ee90` reallocates the same mover storage with a new canonical generation.
+The original prepass resumes and prunes the old row. Only original clock/owner
+updates drive the survivor's remaining decisions, commits, arrival, teardown
+and visual settling; no member, route or callback implementation is replaced.
+
+Each open/wall fixture covers both victim roles and both callback positions,
+with two identical complete original runs per case. The exact survivor raw
+trajectory also equals the frozen completion-without-reuse control. The
+reclaimed actor's state changes independently; comparing the survivor alone
+preserves that distinction instead of claiming an unchanged whole world.
+
+| Frozen fixture | First/second victim survivor arrival | Exact production world velocity commits |
+| --- | --- | ---: |
+| `retail-completed-member-reuse-1.27.json` | tick13 / tick7 |48|
+| `retail-completed-member-reuse-wall-1.27.json` | tick42 / tick19 |130|
+
+The open cases digest is
+`54067d8b76fdb2b5b2fdaf38337d8a8cebdec144e40e213e594d0e7a2fb99e7a`;
+the wall digest is
+`d13956929d895117ec8d62f69345ea49e9adcd64338f30337bd58221364a9753`.
+Exports are `group-04.8-completed-reuse-open-export-v2.json` and
+`group-04.8-completed-reuse-wall-export.json` under the report root. The export
+flag is explicit; strict replay uses committed frozen files and forbids
+export-as-verification. C comparisons cover all178 observed velocity commits,
+not full engine routing/cadence equivalence.
+
+At final cleanup owner958 has live1/allocation5: the survivor's owned path
+remains, the retired actor's owned path is on the free list, and all group paths
+are released. The group live count is0; both Unit references return to4, both
+user queues/internal task chains are empty, and group/visual owner lists are
+empty. Old mover/path/spatial handles remain rejected after storage reuse;
+the survivor's complete44-byte row is unchanged at pruning. Absent replacement
+paths are represented as null, never reads through address0. Ghidra persists
+this composition in FinishMember/Mover_Destroy comments and is saved.
+
+Scope remains controlled completion before reclamation. The actual gameplay
+`RemoveUnit` callback graph and replacement Unit/Move binding are BASE-03.1;
+the replacement actor is not admitted to movement and has no owned path. This
+case neither creates a new destination nor reruns formation layout: the
+survivor retains its old slot until arrival. Those actual refresh producers
+remain04.5. OpenRealm's active cohort speed, stale member exclusion, independent
+cohort IDs, edict reuse and save/load handling were integrated in04.4; this
+composition confirms those lifecycle boundaries without requiring a retail
+pool abstraction in the inline-route engine.
+
+Fresh validation is `group-04.8-completed-reuse-frozen-corpus/corpus-results.json`:118/118 declared outcomes, including the two newly frozen exact engine comparisons. All source fingerprints matched at completion. `LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test` passed77 Python tool tests and36678/36678 assertions in2126 tests per RoC/TFT schema (`/tmp/wc3-group-04.8-completed-reuse-full-suite.log`). GROUP-04.8 is closed; actual formation refresh/new destinations remains04.5.
