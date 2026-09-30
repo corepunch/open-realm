@@ -482,18 +482,90 @@ static uint32_t sc2_UnitTechTreeUnitCount(jass_t *j)     { return jass_pushinteg
 static uint32_t sc2_UnitTechTreeUpgradeCount(jass_t *j)  { return jass_pushinteger(j, 0); }
 
 static uint32_t sc2_UnitGroupIdle(jass_t *j)             { return jass_pushboolean(j, false); }
-static uint32_t sc2_UnitGroupFilter(jass_t *j)           { return jass_pushinteger(j, 0); }
 static uint32_t sc2_UnitGroupAlliance(jass_t *j)         { return jass_pushnullhandle(j, "unitgroup"); }
 static uint32_t sc2_UnitGroupFilterAlliance(jass_t *j)   { return jass_pushnullhandle(j, "unitgroup"); }
 static uint32_t sc2_UnitGroupFilterPlane(jass_t *j)      { return jass_pushnullhandle(j, "unitgroup"); }
 static uint32_t sc2_UnitGroupFilterThreat(jass_t *j)     { return jass_pushnullhandle(j, "unitgroup"); }
 static uint32_t sc2_UnitGroupFromId(jass_t *j)           { return jass_pushnullhandle(j, "unitgroup"); }
 static uint32_t sc2_UnitGroupTestPlane(jass_t *j)        { return jass_pushboolean(j, false); }
-static uint32_t sc2_UnitFilter(jass_t *j)                { return jass_pushnullhandle(j, "unitfilter"); }
-static uint32_t sc2_UnitFilterMatch(jass_t *j)           { return jass_pushboolean(j, false); }
-static uint32_t sc2_UnitFilterSetState(jass_t *j)        { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_UnitFilterStr(jass_t *j)             { return jass_pushnullhandle(j, "unitfilter"); }
-static uint32_t sc2_UnitGroup(jass_t *j)                 { return jass_pushnullhandle(j, "unitgroup"); }
+
+/* Unit queries must return live registry members; an empty placeholder causes
+ * campaign defeat conditions to fire even while Raynor and Marines survive. */
+typedef struct { uint64_t required, excluded; } sc2UnitFilter_t;
+static sc2UnitFilter_t sc2_filters[4096];
+static uint32_t sc2_filter_n=1;
+static uint32_t sc2_UnitFilter(jass_t *j) {
+    sc2UnitFilter_t filter={
+        (uint32_t)jass_checkinteger(j,1) | ((uint64_t)(uint32_t)jass_checkinteger(j,2)<<32),
+        (uint32_t)jass_checkinteger(j,3) | ((uint64_t)(uint32_t)jass_checkinteger(j,4)<<32)};
+    if (sc2_filter_n==4096) { jass_rterror(j,"Galaxy unit filter table full"); return 0; }
+    uint32_t h=sc2_filter_n++; sc2_filters[h]=filter;
+    return jass_pushlighthandle(j,(handle_t)(uintptr_t)h,"unitfilter");
+}
+static sc2UnitFilter_t *sc2_unit_filter(jass_t *j,int arg) {
+    uint32_t h=(uint32_t)(uintptr_t)jass_checkhandle(j,arg,"unitfilter");
+    if (h>=sc2_filter_n) { jass_rterror(j,"Invalid Galaxy unit filter"); return &sc2_filters[0]; }
+    return &sc2_filters[h];
+}
+static bool sc2_filter_match(jass_t *j,int32_t h,int player,sc2UnitFilter_t const *filter) {
+    if (!sc2_unit_handle_live(h)) return false;
+    sc2UnitState_t *u=sc2_galaxy_unit_state ? sc2_galaxy_unit_state(sc2_gunits[h-1]) : NULL;
+    if (!u) return false;
+    /* Visibility/cloak/construction require systems not yet implemented.
+     * Reject such queries explicitly instead of falsely satisfying conditions. */
+    uint64_t supported=((1ull<<28)-1) | (1ull<<33) | (1ull<<35) | (1ull<<37) | (1ull<<38) | (1ull<<39);
+    if ((filter->required|filter->excluded)&~supported) { jass_rterror(j,"Unsupported Galaxy unit filter bits"); return false; }
+    uint64_t flags=u->target_flags;
+    int owner=sc2_galaxy_unit_owner ? sc2_galaxy_unit_owner(sc2_gunits[h-1]) : -1;
+    if (owner==player) flags|=(1ull<<1)|(1ull<<2);
+    else if (!owner) flags|=1ull<<3;
+    else if (player>=0 && player<32 && owner<32 && (sc2_players[player].alliances[owner]&1)) flags|=1ull<<2;
+    else flags|=1ull<<4;
+    bool air=sc2_galaxy_unit_is_flying && sc2_galaxy_unit_is_flying(sc2_gunits[h-1]);
+    flags&=~((1ull<<5)|(1ull<<6)); flags|=1ull<<(air?5:6);
+    if (u->vitals[1].max_value>0) flags|=1ull<<24;
+    if (u->vitals[2].max_value>0) flags|=1ull<<25;
+    if (!SC2_UnitAlive(u)) flags|=1ull<<33;
+    if (u->states&(1u<<SC2_UNIT_HIDDEN)) flags|=1ull<<35;
+    if (u->states&(1u<<SC2_UNIT_INVULNERABLE)) flags|=1ull<<37;
+    if (u->vitals[1].value>0) flags|=1ull<<38;
+    if (u->vitals[2].value>0) flags|=1ull<<39;
+    return (flags & filter->required)==filter->required && !(flags & filter->excluded);
+}
+static uint32_t sc2_UnitFilterMatch(jass_t *j) {
+    int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,1,"unit");
+    return jass_pushboolean(j,sc2_filter_match(j,h,jass_checkinteger(j,2),sc2_unit_filter(j,3)));
+}
+static uint32_t sc2_UnitFilterSetState(jass_t *j) {
+    sc2UnitFilter_t *f=sc2_unit_filter(j,1); int bit=sc2_checked_index(j,2,64),state=sc2_checked_index(j,3,3);
+    f->required&=~(1ull<<bit); f->excluded&=~(1ull<<bit);
+    if (state==1) f->required|=1ull<<bit; if (state==2) f->excluded|=1ull<<bit;
+    return 0;
+}
+static uint32_t sc2_query_units(jass_t *j,bool from_group) {
+    cstring_t type=jass_checkstring(j,1); int player=jass_checkinteger(j,2);
+    int32_t source=(int32_t)(uintptr_t)jass_checkhandle(j,3,from_group?"unitgroup":"region");
+    sc2UnitFilter_t *filter=sc2_unit_filter(j,4); int max=jass_checkinteger(j,5);
+    int32_t result=sc2_group_new(j,sc2_unit_groups,&sc2_unit_group_n,NULL);
+    if (!result) return 0;
+    if (from_group && (source<=0 || source>=sc2_unit_group_n)) { jass_rterror(j,"Invalid source unit group"); return 0; }
+    if (!from_group && (source<0 || source>=sc2_region_n)) { jass_rterror(j,"Invalid query region"); return 0; }
+    uint32_t count=from_group ? sc2_unit_groups[source].count : sc2_gunit_n;
+    for (uint32_t i=0;i<count && (max<=0 || sc2_unit_groups[result].count<max);i++) {
+        int32_t h=from_group ? sc2_unit_groups[source].items[i] : (int32_t)i+1;
+        if (!sc2_unit_handle_live(h)) continue;
+        sc2UnitState_t *u=sc2_galaxy_unit_state ? sc2_galaxy_unit_state(sc2_gunits[h-1]) : NULL;
+        if (!u || (type && *type && strcmp(type,u->type))) continue;
+        if (player!=-1 && (!sc2_galaxy_unit_owner || sc2_galaxy_unit_owner(sc2_gunits[h-1])!=player)) continue;
+        sc2GPoint_t point;
+        if (!from_group && source && (!sc2_unit_location_handle(h,&point) || !sc2_region_has_point(&sc2_regions[source],point))) continue;
+        if (sc2_filter_match(j,h,player,filter)) sc2_group_append(j,&sc2_unit_groups[result],h);
+    }
+    return jass_pushlighthandle(j,(handle_t)(uintptr_t)result,"unitgroup");
+}
+static uint32_t sc2_UnitGroup(jass_t *j) { return sc2_query_units(j,false); }
+static uint32_t sc2_UnitGroupFilter(jass_t *j) { return sc2_query_units(j,true); }
 
 /* UnitType */
 static uint32_t sc2_UnitTypeFromString(jass_t *j)          { return jass_pushstring(j, ""); }

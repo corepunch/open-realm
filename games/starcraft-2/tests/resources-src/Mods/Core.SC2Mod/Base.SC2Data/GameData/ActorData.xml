@@ -10,7 +10,7 @@
         <RandomScaleRange value="1.000000,1.000000"/>
         <EditorFlags index="NoAutoRotate" value="1"/>
     </CActorDoodad>
-    <CActorUnit id="MarineActor">
+    <CActorUnit id="MarineActor"><UnitIcon value="Assets/Textures/MarineIcon.dds"/><PortraitModel value="MarinePortrait"/><Wireframe><Image value="Assets/Textures/MarineWire.dds"/></Wireframe>
         <Model value="MarineCoreModel"/>
         <DeathArray index="Normal" ModelLink="MarineDeath"/>
     </CActorUnit>

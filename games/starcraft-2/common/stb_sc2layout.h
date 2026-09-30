@@ -23,7 +23,7 @@
 /* Constants                                                                   */
 /* -------------------------------------------------------------------------- */
 #define SC2_MAX_FRAMES     4096
-#define SC2_MAX_TEMPLATES  4096
+#define SC2_MAX_TEMPLATES  8192 // native GameUI needs independent inherited descendants; deep instances exceed 4096
 #define SC2_MAX_INCLUDES   128
 #define SC2_MAX_ANCHORS    4
 #define SC2_MAX_CONSTANTS  256
@@ -190,6 +190,8 @@ typedef struct sc2BaseFrame_s {
     rect_t texcoord;
     cstring_t text;
     uint32_t stat;
+    cstring_t onclick, tooltip;
+    uint8_t hotkey;
     uiLabel_t label;
     color32_t text_color;
     struct {
@@ -222,6 +224,9 @@ typedef struct {
     UINAME resource;
     UINAME texture_type;
     int layer;
+    uint32_t state_count;
+    rect_t coords;
+    bool has_coords;
     uint32_t flags;
 } sc2ParsedTexture_t;
 
@@ -524,6 +529,18 @@ cstring_t SC2_LayoutResolveConstant(cstring_t name) {
 static void SC2_ParseFrameAttrs(void *node, sc2Frame_t *frame);
 static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame);
 
+static sc2Frame_t *SC2_CloneFrameTree(sc2Frame_t const *source, sc2Frame_t *parent) {
+    sc2Frame_t *clone=SC2_AddTemplate();
+    if (!clone) return NULL;
+    *clone=*source; clone->parent=parent; clone->resolved_frame=NULL;
+    clone->template_path[0]=0; clone->num_children=0;
+    for (int i=0;i<source->num_children;i++) {
+        sc2Frame_t *child=SC2_CloneFrameTree(source->children[i],clone);
+        if (child) clone->children[clone->num_children++]=child;
+    }
+    return clone;
+}
+
 static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
     if (!tmpl) return;
 
@@ -606,15 +623,31 @@ static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
         }
     }
 
-    for (int i = 0; i < tmpl->num_children && frame->num_children < SC2_MAX_CHILDREN; i++) {
-        sc2Frame_t *clone = SC2_AddTemplate();
-        if (!clone) break;
-        *clone = *tmpl->children[i];
-        clone->template_path[0] = '\0';
-        clone->parent = frame;
-        clone->resolved_frame = NULL;
-        frame->children[frame->num_children++] = clone;
+    /* Preserve template draw order while merging named overrides. In particular,
+     * MinimapButton's Icon must draw after NormalImage, even when authored first
+     * in the instance. Independent deep trees prevent shared runtime state. */
+    sc2Frame_t *children[SC2_MAX_CHILDREN];
+    int child_count=0;
+    for (int i=0;i<tmpl->num_children;i++) {
+        sc2Frame_t *override=NULL;
+        for (int j=0;j<frame->num_children;j++)
+            if (!strcasecmp(frame->children[j]->name,tmpl->children[i]->name)) { override=frame->children[j]; break; }
+        if (child_count==SC2_MAX_CHILDREN) { fprintf(stderr,"SC2_Layout: child overflow on '%s'\n",frame->name); break; }
+        if (override) { SC2_ResolveTemplate(override,tmpl->children[i]); children[child_count++]=override; }
+        else {
+            sc2Frame_t *clone=SC2_CloneFrameTree(tmpl->children[i],frame);
+            if (clone) children[child_count++]=clone;
+        }
     }
+    for (int i=0;i<frame->num_children;i++) {
+        bool inherited=false;
+        for (int j=0;j<child_count;j++) if (children[j]==frame->children[i]) inherited=true;
+        if (inherited) continue;
+        if (child_count==SC2_MAX_CHILDREN) { fprintf(stderr,"SC2_Layout: child overflow on '%s'\n",frame->name); break; }
+        children[child_count++]=frame->children[i];
+    }
+    memcpy(frame->children,children,(size_t)child_count*sizeof(*children));
+    frame->num_children=child_count;
 }
 
 static sc2Frame_t *SC2_ResolveTemplatePath(cstring_t path) {
@@ -627,6 +660,19 @@ static sc2Frame_t *SC2_ResolveTemplatePath(cstring_t path) {
         if (t) return t;
     }
     return NULL;
+}
+
+/* Resolve definitions before copying them: XML parents are indexed before
+ * their children, and stock same-file templates reference later siblings. */
+static void SC2_ResolveDefinition(sc2Frame_t *frame, int depth) {
+    if (depth>32) { fprintf(stderr,"SC2_Layout: cyclic template on '%s'\n",frame->name); return; }
+    for (int i=0;i<frame->num_children;i++) SC2_ResolveDefinition(frame->children[i],depth+1);
+    if (!frame->template_path[0]) return;
+    sc2Frame_t *tmpl=SC2_ResolveTemplatePath(frame->template_path);
+    if (!tmpl || tmpl==frame) return;
+    SC2_ResolveDefinition(tmpl,depth+1);
+    SC2_ResolveTemplate(frame,tmpl);
+    frame->template_path[0]=0;
 }
 
 static void SC2_ParseInclude(void *node) {
@@ -753,6 +799,30 @@ static void SC2_ParseTexture(void *node, sc2Frame_t *frame, int layer_override) 
 
     if (frame->num_textures <= layer)
         frame->num_textures = layer + 1;
+}
+
+static void SC2_ParseStateCount(void *node, sc2Frame_t *frame) {
+    int layer=0, count=1;
+    xmlGetAttrInt(node,"layer",&layer); xmlGetAttrInt(node,"val",&count);
+    if (layer<0 || layer>=SC2_MAX_TEXTURES || count<=0) return;
+    frame->textures[layer].state_count=count;
+    if (frame->num_textures<=layer) frame->num_textures=layer+1;
+}
+static void SC2_ParseTextureCoords(void *node, sc2Frame_t *frame) {
+    int layer=0; xmlGetAttrInt(node,"layer",&layer);
+    if (layer<0 || layer>=SC2_MAX_TEXTURES) return;
+    static const struct { cstring_t name; size_t offset; } fields[]={
+        {"left",offsetof(rect_t,x)}, {"top",offsetof(rect_t,y)}, {"right",offsetof(rect_t,w)}, {"bottom",offsetof(rect_t,h)},
+    };
+    rect_t coords={0,0,1,1};
+    FOR_LOOP(i,sizeof(fields)/sizeof(*fields)) {
+        cstring_t value=SC2_XmlGetProp(node,fields[i].name);
+        if (value) *(float *)((char *)&coords+fields[i].offset)=strtof(value,NULL);
+        SC2_XmlFree(value);
+    }
+    coords.w-=coords.x; coords.h-=coords.y;
+    frame->textures[layer].coords=coords; frame->textures[layer].has_coords=true;
+    if (frame->num_textures<=layer) frame->num_textures=layer+1;
 }
 
 static void SC2_ParseModel(void *node, sc2Frame_t *frame) {
@@ -959,11 +1029,9 @@ static bool SC2_ParseFrameField(void *node, sc2Frame_t *frame) {
                 }
                 break;
             }
-            case SC2_FIELD_STATE_COUNT: {
-                int layer = 0;
-                xmlGetAttrInt(node, "layer", &layer);
+            case SC2_FIELD_STATE_COUNT:
+                SC2_ParseStateCount(node,frame);
                 break;
-            }
         }
         frame->flags |= f->present;
         return true;
@@ -995,6 +1063,8 @@ typedef struct {
 static const sc2ChildTag_t sc2_child_tags[] = {
     { "Anchor",  SC2_ParseAnchor },
     { "Texture", SC2_ParseTextureTag },
+    { "StateCount", SC2_ParseStateCount },
+    { "TextureCoords", SC2_ParseTextureCoords },
     { "Model",   SC2_ParseModel },
     { "Camera",  SC2_ParseCamera },
     { "Frame",   SC2_ParseChildFrame },
@@ -1045,16 +1115,8 @@ static void SC2_ParseDescNode(void *node) {
      * them and double the child list.  Leave template_path set on NOT FOUND so
      * the global pass can retry after all files are loaded (handles forward refs). */
     int templates_end = sc2_layout.num_templates;
-    for (int i = templates_before; i < templates_end; i++) {
-        sc2Frame_t *frame = &sc2_layout.templates[i];
-        if (frame->template_path[0]) {
-            sc2Frame_t *tmpl = SC2_ResolveTemplatePath(frame->template_path);
-            if (tmpl) {
-                SC2_ResolveTemplate(frame, tmpl);
-                frame->template_path[0] = '\0';
-            }
-        }
-    }
+    for (int i=templates_before;i<templates_end;i++) SC2_ResolveDefinition(&sc2_layout.templates[i],0);
+
 }
 
 FRAMETYPE SC2_MapFrameType(sc2FrameType sc2_type) {
@@ -1125,20 +1187,10 @@ FRAMETYPE SC2_MapFrameType(sc2FrameType sc2_type) {
     }
 }
 
-static cstring_t SC2_ParseRelativeName(cstring_t relative, cstring_t parent_name) {
-    if (!relative) return NULL;
-    if (!strcasecmp(relative, "$parent")) return parent_name;
-    if (!strcasecmp(relative, "$root")) return NULL;
-    if (!strncasecmp(relative, "$parent/", 8)) return relative + 8;
-    return relative;
-}
-
 static void SC2_ResolveAnchors(sc2Frame_t *src, sc2BaseFrame_t *dst) {
     if (src->flags & SC2_FRAME_HAS_WIDTH) dst->size.width = src->width;
     if (src->flags & SC2_FRAME_HAS_HEIGHT) dst->size.height = src->height;
 
-    sc2Frame_t *parent = src->parent;
-    cstring_t parent_name = parent ? parent->name : NULL;
 
     for (int i = 0; i < src->num_anchors; i++) {
         sc2ParsedAnchor_t *a = &src->anchors[i];
@@ -1162,32 +1214,72 @@ static void SC2_ResolveAnchors(sc2Frame_t *src, sc2BaseFrame_t *dst) {
         p->targetPos = (uiFramePointPos_t)target_idx;
         p->offset = is_x ? (float)a->offset : -(float)a->offset;
 
-        cstring_t resolved_name = SC2_ParseRelativeName(a->relative, parent_name);
-        if (!resolved_name || !strcasecmp(resolved_name, parent_name)) {
+        p->relative_index = (uint32_t)-1;
+        if (!a->relative[0] || !strcasecmp(a->relative, "$parent"))
             p->relative_index = dst->parent_index;
-        } else if (!strcasecmp(a->relative, "$root")) {
+        else if (!strcasecmp(a->relative, "$root"))
             p->relative_index = 0;
-        } else {
-            p->relative_name = resolved_name;
-        }
+        else
+            p->relative_name = a->relative;
+
+    }
+    /* Stock images pin both edges to the same center while declaring a size.
+     * Encode this as a center constraint, rather than a zero-width stretch. */
+    sc2BaseFramePoint_t *axes[]={dst->points.x,dst->points.y};
+    for (int axis=0;axis<2;axis++) {
+        sc2BaseFramePoint_t *p=axes[axis];
+        if (!p[FPP_MIN].used || !p[FPP_MAX].used) continue;
+        if (p[FPP_MIN].targetPos!=FPP_MID || p[FPP_MAX].targetPos!=FPP_MID ||
+            p[FPP_MIN].relative_index!=p[FPP_MAX].relative_index || p[FPP_MIN].offset!=p[FPP_MAX].offset) continue;
+        p[FPP_MID]=p[FPP_MIN]; p[FPP_MIN].used=p[FPP_MAX].used=false;
     }
 }
 
+/* Native paths are relative to the instance, not global template names.
+ * Repeated names (Icon, NormalImage, NameLabel) are common in GameUI. */
+static uint32_t SC2_ResolveFramePath(uint32_t source, cstring_t path) {
+    uint32_t cursor = source;
+    char part[128];
+    if (strncasecmp(path, "$parent", 7) && strncasecmp(path, "$root", 5)) {
+        cursor = sc2_layout.frames[source].parent_index;
+        if (cursor == UINT32_MAX) cursor = 0;
+    }
+    while (*path) {
+        cstring_t slash = strpbrk(path,"/\\");
+        size_t len = slash ? (size_t)(slash-path) : strlen(path);
+        if (!len || len >= sizeof(part)) return UINT32_MAX;
+        memcpy(part, path, len); part[len] = 0;
+        if (!strcasecmp(part, "$parent")) {
+            if (cursor == UINT32_MAX) return UINT32_MAX;
+            cursor = sc2_layout.frames[cursor].parent_index;
+        } else if (!strcasecmp(part, "$root")) cursor = 0;
+        else {
+            uint32_t found = UINT32_MAX;
+            for (uint32_t i=0; i<(uint32_t)sc2_layout.num_frames; i++)
+                if (sc2_layout.frames[i].parent_index == cursor &&
+                    !strcasecmp(sc2_layout.frames[i].name, part)) { found=i; break; }
+            /* An absolute path may include its root name. */
+            if (found == UINT32_MAX && cursor == 0 && !strcasecmp(sc2_layout.frames[0].name, part)) found=0;
+            if (found == UINT32_MAX) return UINT32_MAX;
+            cursor = found;
+        }
+        if (!slash) break;
+        path = slash+1;
+    }
+    return cursor;
+}
+
 static void SC2_ResolveNamedRelatives(void) {
-    for (uint32_t i = 0; i < (uint32_t)sc2_layout.num_frames; i++) {
-        sc2BaseFrame_t *dst = &sc2_layout.frames[i];
-        for (int axis = 0; axis < 2; axis++) {
-            sc2BaseFramePoint_t *pts = axis == 0 ? dst->points.x : dst->points.y;
-            for (int j = 0; j < FPP_COUNT; j++) {
-                cstring_t look_name = pts[j].relative_name;
-                if (!look_name) continue;
-                for (uint32_t m = 0; m < (uint32_t)sc2_layout.num_frames; m++) {
-                    if (sc2_layout.frames[m].name && !strcasecmp(sc2_layout.frames[m].name, look_name)) {
-                        pts[j].relative_index = m;
-                        break;
-                    }
-                }
-                pts[j].relative_name = NULL;
+    for (uint32_t i=0; i<(uint32_t)sc2_layout.num_frames; i++) {
+        sc2BaseFrame_t *dst=&sc2_layout.frames[i];
+        for (int axis=0; axis<2; axis++) {
+            sc2BaseFramePoint_t *pts=axis ? dst->points.y : dst->points.x;
+            for (int j=0; j<FPP_COUNT; j++) {
+                if (!pts[j].relative_name) continue;
+                pts[j].relative_index=SC2_ResolveFramePath(i, pts[j].relative_name);
+                if (pts[j].relative_index == UINT32_MAX)
+                    fprintf(stderr, "SC2_Layout: unresolved anchor '%s' on '%s'\n", pts[j].relative_name, dst->name);
+                pts[j].relative_name=NULL;
             }
         }
     }
@@ -1236,6 +1328,12 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     }
 
     SC2_ResolveAnchors(frame, dst);
+    dst->texcoord=(rect_t){0,0,1,1};
+    if (frame->num_textures) {
+        sc2ParsedTexture_t const *tex=&frame->textures[0];
+        if (tex->has_coords) dst->texcoord=tex->coords;
+        if (tex->state_count>1) dst->texcoord.h/=tex->state_count;
+    }
 
     if (frame->type == SC2_FRAMETYPE_MODEL && frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE)
         dst->image = sc2_layout_import.ModelIndex ? (uint32_t)sc2_layout_import.ModelIndex(frame->textures[0].resource) : 0;
@@ -1415,11 +1513,8 @@ sc2Frame_t *SC2_LayoutFindTemplate(cstring_t name) {
 }
 
 sc2BaseFrame_t *SC2_LayoutFindFrameByType(sc2FrameType type) {
-    for (int i = 0; i < sc2_layout.num_templates; i++) {
-        sc2Frame_t *tmpl = &sc2_layout.templates[i];
-        if (tmpl->type == type && tmpl->resolved_frame)
-            return tmpl->resolved_frame;
-    }
+    for (int i=0;i<sc2_layout.num_frames;i++)
+        if (sc2_layout.frames[i].sc2_type==type) return &sc2_layout.frames[i];
     return NULL;
 }
 

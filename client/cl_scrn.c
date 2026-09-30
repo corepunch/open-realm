@@ -1004,7 +1004,7 @@ void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen) {
 
 /* Resolve the generic transient command-button alert tint from an absolute client/server clock deadline. */
 static color32_t SCR_CommandButtonColor(uiFrame_t const *frame) {
-    color32_t color = COLOR32_WHITE;
+    color32_t color = frame ? frame->color : COLOR32_WHITE;
     uint32_t deadline;
     float phase, pulse;
 

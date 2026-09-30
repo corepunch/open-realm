@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>    
+    <Constant name="ColorMinimapButtonIcon" val="40,125,75"/>
+    <Constant name="ColorMinimapButtonIcon_Prot" val="110,170,255"/>
+    <Constant name="ColorMinimapButtonIcon_Terr" val="40,125,75"/>
+    <Constant name="ColorMinimapButtonIcon_Zerg" val="245,140,70"/>    
+
+    <Frame type="MinimapPanelTooltip" name="MinimapPanelTooltipTemplate" template="StandardTemplates/StandardGameTooltip">
+        <MaxWidth val="350"/>
+
+        <Frame type="Label" name="TipLabel">
+            <Style val="@@StandardTooltip"/>
+            <Anchor side="Top" relative="$parent" pos="Min" offset="15"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="15"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="-15"/>
+        </Frame>
+    </Frame>
+
+    <Frame type="Button" name="MinimapButtonTemplate">
+        <NormalImage val="NormalImage"/>
+        <HoverImage val="HoverImage"/>
+        <HighlightOnHover val="true"/>
+        <HighlightOnFocus val="true"/>
+        <Width val="48"/>
+        <Height val="48"/>        
+        <ClickSound val="@UI_MiniMapPanelButtonSelect"/>
+
+        <Frame type="Image" name="NormalImage">
+            <Anchor side="Top" relative="$parent" pos="Mid" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Mid" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Mid" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Mid" offset="0"/>
+            <Width val="54"/>
+            <Height val="54"/>
+            
+            <Texture val="@@UI/TechGlossarySmallButtonNormal" layer="0"/>
+            <StateCount val="2" layer="0"/>
+            <DescFlags val="Internal"/>
+        </Frame>
+
+        <Frame type="Image" name="HoverImage">
+            <Anchor side="Top" relative="$parent" pos="Mid" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Mid" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Mid" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Mid" offset="0"/>
+            <Width val="54"/>
+            <Height val="54"/>
+            
+            <Texture val="@@UI/TechGlossarySmallButtonHover" layer="0"/>
+            <StateCount val="2" layer="0"/>
+            <DescFlags val="Internal"/>
+        </Frame>
+        
+        <Frame type="Image" name="Icon">
+            <RenderPriority val="600"/>
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+            <TextureType val="Normal"/>
+            <LayerColor val="##ColorMinimapButtonIcon"/>
+        </Frame>
+    </Frame>
+
+    <Frame type="MinimapPanel" name="MinimapPanelTemplate">
+        <Frame type="MinimapPanelTooltip" name="MinimapPanelTooltip" template="MinimapPanel/MinimapPanelTooltipTemplate"/>
+
+        <Frame type="Minimap" name="Minimap">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="25"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="31"/>
+            <Width val="291"/>
+            <Height val="286"/>
+            <TooltipFrame val="MinimapPanelTooltip"/>
+        </Frame>
+
+        <Frame type="Button" name="PingButton" template="MinimapPanel/MinimapButtonTemplate">
+            <Anchor side="Right" relative="$parent" pos="Max" offset="-6"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="-226"/>
+            <Frame type="Image" name="Icon">
+                <Texture val="@UI/MinimapPing"/>
+            </Frame>
+        </Frame>
+
+        <Frame type="Button" name="TerrainButton" template="MinimapPanel/MinimapButtonTemplate">
+            <Anchor side="Right" relative="$parent" pos="Max" offset="-6"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="-176"/>
+            <Frame type="Image" name="Icon">
+                <Texture val="@UI/MinimapTerrain"/>
+            </Frame>
+        </Frame>
+
+        <Frame type="Button" name="ColorButton" template="MinimapPanel/MinimapButtonTemplate">
+            <Anchor side="Right" relative="$parent" pos="Max" offset="-6"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="-124"/>
+            <Frame type="Image" name="Icon">
+                <Texture val="@UI/MinimapColor"/>
+            </Frame>
+        </Frame>
+
+        <Frame type="Image" name="ClearSelectionBackground">
+            <Anchor side="Top" relative="$parent/ColorButton" pos="Max" offset="10"/>
+            <Anchor side="Left" relative="$parent/ColorButton" pos="Mid" offset="0"/>
+            <Anchor side="Right" relative="$parent/ColorButton" pos="Mid" offset="0"/>
+            <Texture val="@UI/ClearSelectionBackground" layer="0"/>
+        </Frame>
+
+        <Frame type="Button" name="ClearSelectionButton" template="MinimapPanel/MinimapButtonTemplate">
+            <Anchor side="Left" relative="$parent/ClearSelectionBackground" pos="Mid" offset="0"/>
+            <Anchor side="Right" relative="$parent/ClearSelectionBackground" pos="Mid" offset="0"/>
+            <Anchor side="Top" relative="$parent/ClearSelectionBackground" pos="Mid" offset="0"/>
+            <Anchor side="Bottom" relative="$parent/ClearSelectionBackground" pos="Mid" offset="0"/>
+            <Frame type="Image" name="Icon">
+                <Texture val="@UI/ClearSelection"/>
+            </Frame>
+        </Frame>
+    </Frame>
+</Desc>

@@ -1,52 +1,54 @@
-/*
- * hud_command.c — SC2 command panel (ability button grid).
- *
- * The CommandPanel frame houses the per-unit ability buttons.
- * Dynamic button data (icon, onclick command, tooltip) is stamped
- * on CommandButton child frames before writing.
- */
-
+/* Native CUnit.CardLayouts selects the card; CButton supplies its artwork and hotkey. */
 #include "hud.h"
-#include <ctype.h>
 
-/* SC2 command buttons need runtime icon assignment; template defaults only
- * define the button shell/background and leave the command art blank. */
-void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, uint32_t count, sc2BaseFrame_t *root) {
-    static cstring_t icon_paths[] = {
-        "Assets/Textures/icon-mineral.dds",
-        "Assets/Textures/icon-gas.dds",
-        "Assets/Textures/icon-supply.dds",
-        "Assets/Textures/icon-highyieldmineral.dds",
-        "Assets/Textures/ui_idlepeon_normalpressed_terran.dds",
-        "Assets/Textures/ai_avatar.dds",
-        "Assets/Textures/ui_warpin_normalpressed.dds",
-        "Assets/Textures/ui_controlgroup_normalpressed_terran.dds",
-    };
-    if (!frames || !root) return;
-    static bool logged_once;
-    int stamped = 0;
+static char sc2_command_click[SC2_COMMAND_SLOTS][160];
+static char sc2_command_tip[SC2_COMMAND_SLOTS][512];
 
-    for (uint32_t i = 0; i < count; i++) {
-        sc2BaseFrame_t *btn = &frames[i];
-        int slot = 0;
-        if (btn->sc2_type != SC2_FRAMETYPE_COMMAND_BUTTON) continue;
-        if (btn->parent_index == (uint32_t)-1 || btn->parent_index != root->number) continue;
-        if (btn->name && strlen(btn->name) >= 2 &&
-            isdigit((unsigned char)btn->name[strlen(btn->name) - 2]) &&
-            isdigit((unsigned char)btn->name[strlen(btn->name) - 1]))
-            slot = (btn->name[strlen(btn->name) - 2] - '0') * 10 + (btn->name[strlen(btn->name) - 1] - '0');
-
-        RESOURCE icon = gi.ImageIndex(icon_paths[slot % (sizeof(icon_paths) / sizeof(*icon_paths))]);
-        for (uint32_t j = 0; j < count; j++) {
-            sc2BaseFrame_t *child = &frames[j];
-            if (child->parent_index != btn->number || child->sc2_type != SC2_FRAMETYPE_IMAGE) continue;
-            if (!child->name) continue;
-            if (!strcasecmp(child->name, "NormalImage") || !strcasecmp(child->name, "HoverImage"))
-                child->image = icon, stamped++;
-        }
+bool SC2_HUD_CommandEnabled(edict_t const *unit, cstring_t abilcmd) {
+    if (!unit || !SC2_UnitAlive(&unit->unit) || (unit->unit.states & (1u<<SC2_UNIT_PAUSED))) return false;
+    char ability[64], command[64];
+    if (sscanf(abilcmd,"%63[^,],%63s",ability,command)!=2) return false;
+    for (int i=0;i<unit->unit.abil_n;i++) {
+        sc2UnitAbil_t const *abil=&unit->unit.abils[i];
+        if (strcmp(abil->link,ability)) continue;
+        return !abil->disabled && !abil->hidden && SC2_CommandSupported(ability,command);
     }
-    if (!logged_once) {
-        fprintf(stderr, "SC2_HUD: stamped command icon textures on %d image frames\n", stamped);
-        logged_once = true;
+    return false;
+}
+void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, uint32_t count, sc2BaseFrame_t *root, edict_t const *unit) {
+    if (!frames || !root) return;
+    sc2UnitPresentation_t presentation={0};
+    if (unit) SC2_MapUnitPresentation(unit->unit.type,&presentation);
+    for (uint32_t i=0;i<count;i++) {
+        sc2BaseFrame_t *btn=&frames[i]; int slot;
+        if (btn->sc2_type!=SC2_FRAMETYPE_COMMAND_BUTTON || btn->parent_index!=root->number) continue;
+        if (!btn->name || sscanf(btn->name,"CommandButton%2d",&slot)!=1 || slot>=SC2_COMMAND_SLOTS) continue;
+        btn->type=FT_FRAME; btn->image=0; btn->onclick=NULL; btn->tooltip=NULL; btn->hotkey=0;
+        /* Empty slots remain geometry carriers: later buttons anchor to them. */
+        for (uint32_t j=0;j<count;j++) if (frames[j].parent_index==btn->number) {
+            frames[j].ui_flags|=SC2_UIFLAG_HIDDEN;
+            if (frames[j].sc2_type==SC2_FRAMETYPE_IMAGE) frames[j].image=0;
+        }
+        for (int n=0;n<SC2_COMMAND_SLOTS;n++) {
+            sc2CardButton_t const *card=&presentation.cards[n];
+            if (!*card->face || card->row*5+card->column!=(uint32_t)slot) continue;
+            sc2ButtonFace_t face;
+            if (!SC2_MapButtonFace(card->face,&face)) { fprintf(stderr,"SC2 HUD: unresolved button '%s' for '%s'\n",card->face,unit->unit.type); continue; }
+            bool enabled=SC2_HUD_CommandEnabled(unit,card->abilcmd);
+            bool hidden=false;
+            for (int a=0;a<unit->unit.abil_n;a++) {
+                size_t len=strlen(unit->unit.abils[a].link);
+                if (!strncmp(card->abilcmd,unit->unit.abils[a].link,len) && card->abilcmd[len]==',' && unit->unit.abils[a].hidden) hidden=true;
+            }
+            if (hidden) continue;
+            btn->type=FT_COMMANDBUTTON; btn->image=gi.ImageIndex(face.icon);
+            btn->color=enabled ? COLOR32_WHITE : (color32_t){96,96,96,255};
+            cstring_t name=SC2_HUD_Localized(face.name), key=SC2_HUD_Localized(face.hotkey);
+            snprintf(sc2_command_tip[slot],sizeof(sc2_command_tip[slot]),"%s%s",name,enabled ? "" : " (unavailable)");
+            btn->tooltip=sc2_command_tip[slot];
+            snprintf(sc2_command_click[slot],sizeof(sc2_command_click[slot]),"button %s",card->abilcmd);
+            btn->onclick=enabled ? sc2_command_click[slot] : NULL;
+            btn->hotkey=enabled && strlen(key)==1 ? (uint8_t)key[0] : 0;
+        }
     }
 }

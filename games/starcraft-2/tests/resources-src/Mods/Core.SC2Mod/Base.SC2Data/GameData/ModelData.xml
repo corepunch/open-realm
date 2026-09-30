@@ -23,4 +23,4 @@
     </CModel>
     <CModel id="VariantChild" parent="BillboardTall"/>
     <CModel id="VariantZero" parent="BillboardTall"><VariationCount value="0"/></CModel>
-</Catalog>
+<CModel id="PortraitBase"><Model value="Assets/Portraits/##id##.m3"/><Image value="Assets/Textures/##id##_Static.dds"/></CModel><CModel id="MarinePortrait" parent="PortraitBase"/></Catalog>

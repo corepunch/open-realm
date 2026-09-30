@@ -26,6 +26,7 @@ typedef struct {
     float normal[24], custom[64];
     float speed, height, radius, supplies_used, supplies_made, kills, resources;
     uint32_t states, map_id;
+    uint64_t target_flags; /* CUnit attributes/flags/planes, ETargetFilter bits */
     uint32_t ai_options; /* c_unitAIOption* bits; stored for the AI, which does not read them yet */
     char type[64];
     sc2UnitAbil_t abils[SC2_UNIT_ABILS];

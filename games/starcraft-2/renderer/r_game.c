@@ -1,5 +1,6 @@
 #include "renderer/r_game.h"
 #include "games/starcraft-2/common/sc2_coords.h"
+#include "games/starcraft-2/common/sc2_minimap.h"
 #include "renderer/r_shader.h"
 #include "m3/r_m3.h"
 #include "games/starcraft-2/common/sc2_map.h"
@@ -229,8 +230,23 @@ void R_SetupTextureMatrix(void) {
 
 void R_DrawMinimap(rect_t const *screen, cstring_t map) {
     if (map) { fprintf(stderr, "R_DrawMinimap: static preview unsupported for %s\n", map); return; }
-    texture_t const *tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
-    R_DrawImage(tex, screen, &MAKE(rect_t, 0, 0, 1, 1), COLOR32_WHITE);
+    texture_t const *tex=tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
+    R_DrawImage(tr.viewDef.game_variant & SC2_MINIMAP_HIDE_TERRAIN ? tr.texture[TEX_WHITE] : tex,
+        screen,&MAKE(rect_t,0,0,1,1),tr.viewDef.game_variant & SC2_MINIMAP_HIDE_TERRAIN ? MAKE(color32_t,0,0,0,255) : COLOR32_WHITE);
+    FOR_LOOP(i,tr.viewDef.num_entities) {
+        renderEntity_t const *entity=&tr.viewDef.entities[i];
+        uint32_t contact=EFX_GAME_VARIANT_GET(entity->effect_flags);
+        if (!contact || (entity->flags & RF_HIDDEN)) continue;
+        vec2_t point,world={entity->origin.x,entity->origin.y};
+        if (!R_WorldToMinimap(&world,&point)) continue;
+        /* This canvas uses native pixels, including minimap contacts. */
+        rect_t marker={point.x-2,point.y-2,4,4};
+        bool alliance=tr.viewDef.game_variant & SC2_MINIMAP_ALLIANCE_COLORS;
+        R_DrawImage(alliance ? tr.texture[TEX_WHITE] : tr.texture[TEX_TEAM_COLOR+(entity->team & TEAM_MASK)],
+            &marker,&MAKE(rect_t,0,0,1,1),alliance ? SC2_MinimapContactColor(contact) : COLOR32_WHITE);
+    }
+    R_DrawMinimapCameraRect(screen);
+    R_DrawMinimapBorder(screen,MAKE(color32_t,160,160,160,255));
 }
 
 
@@ -284,6 +300,8 @@ void R_StopAllTerrainDeformations(void) { }
 
 float R_GetCameraHeightAtPoint(float x, float y) { return R_SC2GetCameraHeightAtPoint(x, y); }
 bool R_CameraUsesTerrainHeight(void) { return true; }
+
+vec2_t R_WorldOrigin(void) { return SC2_MapBounds().min; }
 
 vec2_t R_WorldSize(void) {
     return R_SC2WorldSize();

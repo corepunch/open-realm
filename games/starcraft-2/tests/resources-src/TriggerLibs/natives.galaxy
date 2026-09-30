@@ -114,3 +114,9 @@ native int   UnitGetOwner (unit inUnit);
 native abilcmd  AbilityCommand (string inAbil, int inCmdIndex);
 native order    OrderTargetingPoint (abilcmd inAbilCmd, point inPoint);
 native order    OrderTargetingUnit (abilcmd inAbilCmd, unit inUnit);
+
+native unitfilter UnitFilter (int inRequired1, int inRequired2, int inExcluded1, int inExcluded2);
+native bool UnitFilterMatch (unit inUnit, int inPlayer, unitfilter inFilter);
+native void UnitFilterSetState (unitfilter inFilter, int inType, int inState);
+native unitgroup UnitGroup (string type, int player, region r, unitfilter filter, int maxCount);
+native unitgroup UnitGroupFilter (string type, int player, unitgroup g, unitfilter filter, int maxCount);

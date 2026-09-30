@@ -22,6 +22,7 @@ static void SC2_UnitInit(edict_t *ent,sc2MapObject_t const *object) {
     sc2UnitState_t *u=&ent->unit;
     *u=(sc2UnitState_t){.initialized=true,.map_id=object->id,.states=1u<<SC2_UNIT_SELECTABLE};
     snprintf(u->type,sizeof(u->type),"%s",object->name);
+    u->target_flags=SC2_MapUnitTargetFlags(u->type);
     for (int i=0;i<3;i++) {
         int p=i*4; u->vitals[i]=(sc2Vital_t){object->unit_properties[p],object->unit_properties[p+2],object->unit_properties[p+3]};
         SC2_UnitSetProperty(u,p,u->vitals[i].value);
@@ -37,6 +38,7 @@ static void SC2_UnitInit(edict_t *ent,sc2MapObject_t const *object) {
 static void SC2_UnitChanged(void *ptr) {
     edict_t *ent=ptr; sc2UnitState_t *u=SC2_UnitState(ent);
     if (!u) return;
+    uint32_t selected_before=ent->selected;
     bool dead=!SC2_UnitAlive(u), was_dead=!!(ent->svflags & SVF_DEADMONSTER);
     if (dead) ent->svflags |= SVF_DEADMONSTER; else ent->svflags &= ~SVF_DEADMONSTER;
     if (dead != was_dead) {
@@ -46,6 +48,7 @@ static void SC2_UnitChanged(void *ptr) {
     if (u->states & (1u<<SC2_UNIT_HIDDEN)) ent->s.renderfx |= RF_HIDDEN;
     else ent->s.renderfx &= ~RF_HIDDEN;
     if (dead || (u->states & (1u<<SC2_UNIT_HIDDEN)) || !(u->states & (1u<<SC2_UNIT_SELECTABLE))) ent->selected=0;
+    if (selected_before!=ent->selected) sc2_level.selection_dirty|=selected_before;
     ent->s.stats[ENT_HEALTH]=(uint8_t)(SC2_UnitProperty(u,1)*255/100);
     ent->s.stats[ENT_MANA]=(uint8_t)(SC2_UnitProperty(u,5)*255/100);
     ent->move.speed=u->speed; ent->move.height=u->height;
@@ -54,6 +57,7 @@ static void SC2_UnitChanged(void *ptr) {
 static void SC2_UnitRemove(void *ptr) {
     edict_t *ent=ptr;
     if (SC2_EdictNumber(ent)>=SC2_MAX_EDICTS || !ent->inuse) return;
+    sc2_level.selection_dirty|=ent->selected;
     gi.UnlinkEntity(ent); ent->inuse=false; ent->selected=0;
     memset(&ent->move,0,sizeof(ent->move));
     memset(&ent->unit,0,sizeof(ent->unit));
@@ -66,6 +70,7 @@ static void SC2_UnitSetOwner(void *ptr,int player,bool change_color) {
         if (ent->s.player >= 31) { fprintf(stderr,"SC2 UnitSetOwner: team color %u cannot fit the existing snapshot override\n",ent->s.player); return; }
         ent->s.effect_flags |= (ent->s.player+1)<<EFX_TEAM_COLOR_SHIFT;
     }
+    sc2_level.selection_dirty|=ent->selected;
     ent->s.player=player; ent->selected=0;
 }
 /* Script selection skips the ownership test player input needs, but never selects the dead or hidden. */

@@ -6,7 +6,7 @@ The SC2 game module owns Galaxy lifecycle through `games/starcraft-2/game/galaxy
 
 1. `SC2_LoadMap` passes its authoritative map directory to `galaxy_set_script_dir`; `galaxy_open` loads its `MapScript.galaxy` through VFS.
 2. Galaxy `include` directives load NativeLib, LibertyLib, and CampaignLib once per VM.
-3. `galaxy_start` calls `InitGlobals` and then `InitTriggers`. `InitLibs` remains unsupported and emits a startup warning.
+3. `galaxy_start` calls the loaded NativeLib `libNtve_InitVariables`, then `InitGlobals` and `InitTriggers`. Full `InitLibs` remains unsupported and emits a startup warning.
 4. `SC2_ClientBegin` calls `galaxy_fire_mapinit` after the local client enters the map.
 5. `SC2_RunFrame` calls `galaxy_tick` to resume yielded trigger coroutines.
 6. `SC2_Shutdown` calls `galaxy_close`.
@@ -178,9 +178,9 @@ opaque handles dereferenced a missing JASS type declaration in `var_eq`.
 Skipping `InitGlobals` left `gv_p1_USER` at zero instead of its authored value 1 and left objective counters unset. The current startup
 restores map globals before trigger registration. Attempting the complete authored `InitMap` stopped at `TriggerAddEventDialogControl` in `libNtve_InitLib`. Dialog, purchase, chat, and key callbacks now store their filters. `InitLibs` stays unwired until a UI path publishes those events and the library's other missing natives are real. A no-op binding is not that contract. See [Event callbacks](#event-callbacks).
 
-The authored startup is `InitMap` → `InitLibs` → `InitGlobals` → `InitTriggers`. Current startup only performs the last two.
+The authored startup is `InitMap` → `InitLibs` → `InitGlobals` → `InitTriggers`. Current startup performs NativeLib variable initialization followed by the last two map phases. NativeLib owns the cinematic player group; leaving it null caused the intro cleanup to keep the client in cinematic mode, blocking ground input. Liberty/Campaign library initialization and library UI/AI triggers still need their missing native producers, including mercenary-panel selection.
 `InitGlobals` restoring the script's player number does not fix the separate client/lobby/native-owner mapping described in the
-[HUD pipeline](hud-layout-pipeline.md#selectioninfopanel-status).
+[HUD pipeline](hud-layout-pipeline.md#selected-unit-presentation-september-2026).
 
 ### History That Explained the Failure
 
@@ -297,3 +297,10 @@ On macOS, the first sandboxed GUI run could not reach a usable GL context: SDL h
 reproduce the Galaxy crash. A run with display-service access reached the actual mission. Do not interpret a headless GL failure as
 script evidence. Fast-forward is for script/simulation validation; use wall-clock pacing for rendering, sound timing, input, or
 screenshots. Retain the engine's bounded-run flags in either case.
+
+AbilityCommand and OrderGetAbilityCommand now return opaque `abilcmd` handles,
+matching their native declarations. Getters and event responses use the same
+representation. Repeated `(ability, command index)` requests share immutable
+identities, preventing library command tables from exhausting the handle pool.
+Regression coverage includes storing a command in a script variable before using
+it, nullable any-order filters, and 2,000 repeated identity requests.

@@ -9,10 +9,10 @@ placed army. `UnitCargoCreate` asks the game for the transport's owner and creat
 cargo for that owner. `UnitGetOwner` uses the same game callback.
 
 Shared `client/cl_input.c` handles click/rectangle selection and right-click orders
-exactly as WC3. `SC2_CustomizeEntity` marks scenery and foreign units unselectable.
-`select` replaces membership (including empty requests), validates ownership, and
+exactly as WC3. `SC2_CustomizeEntity` marks scenery and nonselectable units unselectable.
+`select` replaces membership (including empty requests), validates unit visibility and selectability, and
 returns `svc_set_selection`. The existing snapshot path publishes `RF_SELECTED`;
-no new network fields or HUD layouts are involved. `smartpoint` moves the selected
+the game updates the selected-unit HUD through the existing layout protocol. `smartpoint` moves the selected
 owned mobile units, and `smart` uses a target entity's position. Selection must
 never suppress the next point order: the shared input already separates the two.
 
@@ -38,8 +38,7 @@ intervals instead of assigning absolute server time as an animation frame.
 
 SC2's pre-existing terrain adapter still initializes an open terrain grid and
 bakes static entity obstacles. Decoding SC2 navigation/pathing layers, richer
-formation assignment, full WC3-style local unit avoidance, combat, alliances,
-selection of foreign units, and shift order queues remain separate work.
+formation assignment, full WC3-style local unit avoidance, full combat parity, alliance mechanics, and shift order queues remain separate work.
 
 ## Model feedback
 
@@ -98,3 +97,22 @@ Startup logs identify Galaxy-created entity numbers. After the drop, `cmd select
 <ids...>` and `cmd smartpoint <x> <y>` exercise the same authoritative commands as
 mouse input. `select 0` clears the rings. Use the shared group recall twice to
 center the camera on selected units.
+
+## Command card and diagnostics
+
+The selected unit's authored card now routes Move, Stop, Hold Position, Patrol and
+Attack to `game/skills/s_orders.c`. Point commands retain a pending target until a
+valid click or Escape. Stop interrupts movement; Hold stays in place; Patrol stores
+both endpoints. Attack uses the authored weapon range, period and direct effect
+damage, plus unit armor. Projectile travel, bonuses, effect chains and the complete
+SC2 ability catalog remain unimplemented.
+
+`cmd unitinfo` reports selected entity, owner, vital state, position, current order,
+movement and pending targeting to stderr. Use this alongside screenshots to verify
+that visible command controls affect simulation. `cmd select <entity>` is useful
+for isolating HUD presentation from renderer picking.
+
+TRaynor01's defeat trigger needs real UnitGroup and UnitFilter queries. Returning
+an empty stub group falsely declared defeat despite live army units. The native
+query now matches authored attributes/planes/flags, ownership, regions and supported
+runtime state bits. Unsupported filter semantics produce an explicit VM error.

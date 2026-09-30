@@ -667,6 +667,26 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
         T_EQ(SC2_MapUnitLinks("Missing", SC2_LINK_ABIL, links, 8), 0);
     }
 
+    {
+        sc2UnitPresentation_t presentation;
+        sc2ButtonFace_t face;
+        T_ASSERT(SC2_MapUnitPresentation("Marine", &presentation));
+        T_STREQ(presentation.name, "Unit/Name/Marine");
+        T_FEQ(presentation.armor, 2, 0.001f);
+        T_STREQ(presentation.icon, "Assets/Textures/MarineIcon.dds");
+        T_STREQ(presentation.wireframe, "Assets/Textures/MarineWire.dds");
+        T_STREQ(presentation.portrait_image, "Assets\\Textures\\MarinePortrait_Static.dds");
+        T_STREQ(presentation.cards[0].face, "Stop");
+        T_EQ(presentation.cards[0].row, 1); T_EQ(presentation.cards[0].column, 3);
+        T_ASSERT(!*presentation.cards[1].face);
+        T_ASSERT(SC2_MapButtonFace("Stop", &face));
+        T_STREQ(face.name, "Button/Name/Stop");
+        T_STREQ(face.hotkey, "Button/Hotkey/Stop");
+        T_STREQ(face.icon, "Assets/Textures/Stop.dds");
+        T_ASSERT(SC2_MapUnitTargetFlags("Marine") & (1ull << 9));
+        T_ASSERT(!(SC2_MapUnitTargetFlags("Marine") & (1ull << 26)));
+    }
+
     T_STREQ(map->map_name, "SC2 Tiny Fixture");
     T_EQ(map->MapInfo.fourcc, MAKEFOURCC('I','p','a','M'));
     T_EQ(map->MapInfo.width, 8);

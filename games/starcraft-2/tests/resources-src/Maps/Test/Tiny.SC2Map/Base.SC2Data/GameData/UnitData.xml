@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="us-ascii"?>
 <Catalog>
-    <CUnit id="Marine">
+    <CUnit id="Marine"><FlagArray index="PreventDefeat" value="0"/><CardLayouts><LayoutButtons index="0" Face="Stop" Type="AbilCmd" AbilCmd="stop,Stop" Row="1" Column="3"/><LayoutButtons index="1" removed="1"/></CardLayouts>
         <Actor value="MarineActor"/>
         <Footprint value="FootprintMarine"/>
         <Mover value="Ground"/>
