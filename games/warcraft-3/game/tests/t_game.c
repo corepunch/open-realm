@@ -3794,6 +3794,7 @@ SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
 SAVE_INT_FIELD_TEST(field_projectile_attack_type_round_trip, projectile_attack_type, ATK_PIERCE)
 SAVE_INT_FIELD_TEST(field_attack_cooldown_active_round_trip, attack_cooldown_active, 1)
+SAVE_FLOAT_FIELD_TEST(field_attack_cooldown_remaining_round_trip, attack_cooldown_remaining, 0.75f)
 TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-artillery-profile.bin";
     field_t const *desc = find_save_field("artillery");
