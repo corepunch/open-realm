@@ -711,7 +711,7 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     }
     clent->client->camera.target_height = ps->vieworigin.z;
     clent->client->camera.old_state = clent->client->camera.state;
-    clent->client->camera.target_inherit_orientation = false;
+    clent->client->camera.target_mode = CAMERA_TARGET_FOLLOW;
     if (mapinfo) {
         FOR_LOOP(i, mapinfo->num_techAvailabilities) {
             mapTechAvailability_t const *tech = mapinfo->techAvailabilities + i;

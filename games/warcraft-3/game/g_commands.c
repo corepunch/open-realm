@@ -2610,7 +2610,7 @@ static void CMD_PortraitCameraDown(edict_t *clent, uint32_t argc, cstring_t argv
     G_ClientSetCameraPosition(clent, &target->s.origin2);
     clent->client->camera.target_controller = target;
     clent->client->camera.target_offset = (vec2_t){ 0, 0 };
-    clent->client->camera.target_orient_only = false;
+    clent->client->camera.target_mode = CAMERA_TARGET_FOLLOW;
 }
 
 static void CMD_QuickCamera(edict_t *clent, uint32_t argc, cstring_t argv[]) {
@@ -2656,7 +2656,7 @@ CLIENTCOMMAND(Camera) {
         G_ClientSetCameraPosition(clent, &target->s.origin2);
         client->camera.target_controller = target;
         client->camera.target_offset = (vec2_t){ 0, 0 };
-        client->camera.target_orient_only = false;
+        client->camera.target_mode = CAMERA_TARGET_FOLLOW;
         return;
     }
     fprintf(stderr, "usage: camera <move <x> <y>|selected>\n");
