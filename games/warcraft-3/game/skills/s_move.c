@@ -132,13 +132,16 @@ static float unit_apply_earthquake_speed(edict_t const *unit, float speed) {
     return MIN(speed, MAX(EARTHQUAKE_MIN_MOVE_SPEED, speed * (1.0f - reduction)));
 }
 
+static float move_active_group_speed(edict_t const *self);
+
 static float unit_current_speed(edict_t const *self) {
     float speed = self->unitinfo.MoveSpeed > 0
         ? self->unitinfo.MoveSpeed
         : self->data.UnitBalance->speed;
     speed = unit_apply_earthquake_speed(self, speed);
-    if (self->movement.group_speed > 0 && self->movement.group_speed < speed && unit_is_walking(self)) {
-        speed = self->movement.group_speed;
+    if (unit_is_walking(self)) {
+        float cap = self->movement.group_id ? move_active_group_speed(self) : self->movement.group_speed;
+        if (cap > 0 && cap < speed) speed = cap;
     }
     return speed;
 }
@@ -1076,6 +1079,7 @@ void move_reset_progress(edict_t *self) {
     self->movement.worker_avoid_heading = self->s.angle;
     self->movement.worker_avoid_blocked_frames = 0;
     self->movement.worker_avoid_active = false;
+    self->movement.group_id = 0;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
     self->movement.turn_blocked = false;
     self->movement.velocity = (vec2_t){0};
@@ -1149,6 +1153,38 @@ static float move_group_speed(edict_t *const *units, uint32_t count) {
         }
     }
     return slowest;
+}
+
+/* Retail re-resolves ownership before speed selection. A cohort token keeps
+ * this contract independent of the cyclic waypoint storage. The full retail
+ * member flags, shared override and decision/commit arrays remain GROUP-04.6. */
+static float move_active_group_speed(edict_t const *self) {
+    float slowest = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *member = g_edicts + i;
+        if (!member->inuse || member->movement.group_id != self->movement.group_id ||
+            M_IsDead(member) || !unit_is_walking(member) || !member->currentmove->think ||
+            !member->goalentity)
+            continue;
+        float speed = unit_effective_speed(member);
+        if (speed > 0 && (slowest == 0 || speed < slowest)) slowest = speed;
+    }
+    return slowest;
+}
+
+static uint32_t move_allocate_group_id(void) {
+    bool used;
+    do {
+        if (++level.next_move_group_id == 0) ++level.next_move_group_id;
+        used = false;
+        FOR_LOOP(i, globals.num_edicts) {
+            if (g_edicts[i].inuse && g_edicts[i].movement.group_id == level.next_move_group_id) {
+                used = true;
+                break;
+            }
+        }
+    } while (used);
+    return level.next_move_group_id;
 }
 
 bool move_should_arrive(edict_t *ent, float move_distance) {
@@ -1585,6 +1621,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     /* A multi-unit move travels at the slowest member's speed so the group
      * stays together (WC3).  A lone unit keeps its own speed (cap 0). */
     float const group_speed = num_units > 1 ? move_group_speed(units, num_units) : 0;
+    uint32_t group_id = num_units > 1 && !clent->client->menu.order_queued ? move_allocate_group_id() : 0;
     route_waypoint = clent->client->menu.order_queued ? NULL : Waypoint_add(location);
 
     FOR_LOOP(i, num_units) {
@@ -1622,7 +1659,10 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
             G_ClearUnitOrderQueue(ent);
             ent->movement.holding_position = false;
             order_move(ent, waypoint);
-            ent->movement.group_speed = group_speed;  /* after order_move, which resets it */
+            if (ent->goalentity == waypoint && ent->currentmove == &move_move_walk) {
+                ent->movement.group_id = group_id;
+                ent->movement.group_speed = group_speed;
+            }
             issued = true;
         }
     }

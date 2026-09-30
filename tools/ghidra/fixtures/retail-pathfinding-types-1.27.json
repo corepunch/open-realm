@@ -551,6 +551,60 @@
           "evidence": "1c53f0 original producer"
         }
       ]
+    },
+    {
+      "name": "WC3FloatMini",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "u32",
+          "evidence": "5f9f9d..be constructor writes a9de14; original247520 virtual0"
+        },
+        {
+          "offset": 4,
+          "name": "value",
+          "type": "WC3PathScalar",
+          "evidence": "247520 assigns pointed scalar"
+        }
+      ]
+    },
+    {
+      "name": "WC3MoveSpeedPrefix",
+      "length": 132,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "u32",
+          "evidence": "Existing Move concrete vtable b62794"
+        },
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "ptr:void",
+          "evidence": "6005d0 owning unit payload; canonical wrapper is distinct"
+        },
+        {
+          "offset": 108,
+          "name": "additive",
+          "type": "WC3FloatMini",
+          "evidence": "5fee60 setter;5f9f9d..be embedded constructor storage"
+        },
+        {
+          "offset": 116,
+          "name": "multiplier",
+          "type": "WC3FloatMini",
+          "evidence": "5fcd80 initialization stores scalar1"
+        },
+        {
+          "offset": 128,
+          "name": "slow_count",
+          "type": "u32",
+          "evidence": "speed oracle enter/exit publication"
+        }
+      ]
     }
   ],
   "methods": [
@@ -765,6 +819,140 @@
           "name": "object",
           "type": "ptr:WC3SpatialPrefix",
           "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f1699c0",
+      "name": "PathGroup_Destroy",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f16d4e0",
+      "name": "PathGroup_FinishMember",
+      "returns": "void",
+      "convention": "__stdcall",
+      "parameters": [
+        {
+          "name": "member",
+          "type": "ptr:WC3PathMember",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f16b060",
+      "name": "PathGroup_SelectSpeedCap",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f16a5b0",
+      "name": "PathGroup_LayoutFormation",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f16d990",
+      "name": "PathGroup_RefreshFormationPoint",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f5fee60",
+      "name": "CAbilityMove_AssignSpeed",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "speed",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f6005d0",
+      "name": "CAbilityMove_PublishSpeed",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f247520",
+      "name": "FloatMini_Assign",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "mini",
+          "type": "ptr:WC3FloatMini",
+          "storage": "ECX"
+        },
+        {
+          "name": "value",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "notify",
+          "type": "u32",
+          "storage": 8
         }
       ]
     }

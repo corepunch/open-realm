@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**41 done / 213 tasks; 172 remaining.** Counts describe this backlog,
+**43 done / 215 tasks; 172 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -27,7 +27,7 @@ Completed evidence now sits next to its specific remaining extension.
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 0 | 11 |
 | ORDER — Orders and reclamation | 5 | 16 |
-| GROUP — Shared movement groups | 6 | 7 |
+| GROUP — Shared movement groups | 8 | 7 |
 | FORM — Formation and regrouping | 2 | 10 |
 | SEP — Repulsion and spatial records | 2 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -41,25 +41,28 @@ NUM-02.4 was added explicitly to own the previously unassigned committed-facing
 exclusion of NUM-02.2; it is closed independently of whole-trajectory NUM-02.3.
 GROUP-04.1's callback removal/reuse and refreshed survivor requirement is split
 into GROUP-04.1/03/04: callback pruning, generation-safe reuse, and the refreshed
-survivor journey. All three are required to satisfy the original acceptance item.
+survivor journey. GROUP-04.4 is now explicitly split further into completed-member
+survivor travel (04.4), actual refresh/new destinations and reuse composition (04.5),
+and full engine group storage/phase integration (04.6). All leaves are required
+to satisfy the original combined acceptance item.
 
 ## Work next
 
-Start with **GROUP-04.4**. GROUP-04.1/03 now cover callback-boundary unbind/detach
-and original mover reclamation/reuse, generation rejection, exact survivor rows,
-registry/pool accounting, open/wall repeats and a missing-registry-alias
-counterexample. Ghidra layouts, explicit operand ABI and both registry aliases
-are persisted. BASE-05.1/02/03 now have the versioned corpus,
-strict runner and111 expected outcomes reproduced in a fresh directory,
-including native adaptive differences and rejected archives. GROUP-02.3 has original terrain edits, stock
-Footman mask getters/publication, opposing detours, independent tick19/25
-arrivals, exact46 C commits, cleanup and maskless/open/reversal controls.
-The supplied class cache and unexecuted ability-notification traversal retain
-BASE-03.1; other movement profiles remain BASE-02.1.
+Start with **GROUP-04.5**. GROUP-04.2/04 now cover original callback completion,
+mixed-speed survivor arrival on open/wall routes, stable reserved offsets and
+all-invalid empty teardown retaining individual mover/path identities. Move
+integrates active cohort speed with independent identity, wrap/reuse and
+save/load tests. Removal alone does not refresh the original fixed-goal layout;
+04.5 must compose the actual refresh producer and new destinations. Full retail
+member storage, flags, shared overrides, queued membership and decision/commit
+phases remain04.6. Ghidra persists247 names,13 layouts,87 fields and22 x86
+prototypes. The strict corpus has116 declared outcomes, including preserved
+native differences and rejected archives. Supplied existing Unit/Move backing
+and class notification traversal still retain BASE-03.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | GROUP-04.4 | GROUP-04.1/03 | Refreshed survivor journey, cleanup and applicable Move group integration |
+| 1 | GROUP-04.5 | GROUP-04.1/03/04 | Actual refresh/new survivor destinations after mutation and reclaimed mover reuse |
 | 2 | NUM-01.2 | Verified scalar/heading slices | Remaining trig/conversion ABI, constants and public input-domain inventory |
 | 3 | MAP-03.4 | Existing widget admission | Footprint refresh and complete escape-order arrival/failure |
 
@@ -476,9 +479,11 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 ### GROUP-04 — Membership mutation
 
 - [x] **GROUP-04.1** Cancel/detach a member during movement callbacks; verify reverse callback iteration and subsequent identity/ownership re-resolution, swap-removal order and every surviving row word. Preserve the original producers and distinguish controlled callback-boundary requests from a complete gameplay callback graph. Evidence: [callback-timed mutations](retail-pathfinding-movement.md#callback-timed-membership-mutation), frozen `retail-callback-mutations-1.27.json`,68 cases and two fresh strict corpus repeats. Handle reuse, full gameplay notification graph and survivor refresh/arrival remain open.
-- [ ] **GROUP-04.2** Complete the last member and run an all-invalid prepass; assert empty-group teardown, owner unlink and retained mover-owned state.
+- [x] **GROUP-04.2** Complete the last member and run an all-invalid prepass; assert empty-group teardown, owner unlink and retained mover-owned state. Evidence: [callback completion and empty teardown](retail-pathfinding-movement.md#callback-completion-surviving-cohort-and-empty-teardown), open/wall frozen completion fixtures. The last invalid row is pruned, actual group virtual10 runs at count0, group/path pools return and owner unlinks; individual mover/path identities remain owned.
 - [x] **GROUP-04.3** After GROUP-04.1, reclaim and reuse a member's handle through original producers during a callback; prove generation rejection, later iteration and registry/pool accounting. A pre-invalidated slot does not satisfy callback-timed reuse. Evidence: [callback-timed handle reuse](retail-pathfinding-movement.md#callback-timed-handle-reclamation-and-reuse), frozen open/wall reuse fixtures, four trigger/victim combinations each repeated twice, actual destructor/factory/activation, same-address/slot new generation and exact survivor row. Both registry aliases are supplied from the original creation contract; the omitted-alias counterfactual retains stale spatial slots and certifies no fidelity. Full gameplay RemoveUnit callback graph and survivor arrival remain open.
-- [ ] **GROUP-04.4** After GROUP-04.1/03, compose mutation, layout refresh, new destinations, decisions and commits through the survivor's natural arrival and cleanup. Verify repeat trajectories and integrate applicable group behavior into Move.
+- [x] **GROUP-04.4** Complete a member at an original callback boundary, then compose the surviving mixed-speed cohort through natural arrival and cleanup; verify repeat raw trajectories and integrate active membership/speed into Move. Evidence: [completion/survivor journeys](retail-pathfinding-movement.md#callback-completion-surviving-cohort-and-empty-teardown), two frozen fixtures, four trigger/victim cases each repeated twice and178 exact C commits; [engine cohort correction](retail-pathfinding-engine.md#active-move-cohort-speed) reproduces six stale-cap failures before fixing them and covers identity wrap, edict reuse and save/load. Fixed-goal survivor offsets/destinations stay unchanged; actual refresh/reuse composition and full engine phases are explicitly split below.
+- [ ] **GROUP-04.5** After GROUP-04.1/03/04, compose actual formation refresh and new survivor destinations after callback mutation and original mover reclamation/reuse. Run original owner decisions/commits through survivor natural arrival and cleanup, preserving removed/reused Unit/Move/order ownership and repeat raw trajectories. Directly calling a layout helper does not prove the actual refresh producer; removal alone does not trigger it in the verified fixed-goal journeys.
+- [ ] **GROUP-04.6** Replace the engine cohort scan/static queued cap with Move-owned persistent retail group/member storage, generation/ownership checks, eligibility flags/shared override, queued activation/detachment and separate all-member decisions then commits. Integrate verified refresh/new destinations, teardown and save/load; compare intermediate group state and complete trajectories under the original clock contract.
 
 ## FORM — Formation and regrouping
 

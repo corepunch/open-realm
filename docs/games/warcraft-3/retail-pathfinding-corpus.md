@@ -20,12 +20,12 @@ expected exit/status, report checks, evidence level, scope and exclusions.
 Repository numerical/scenario fixtures carry SHA256 checksums separately.
 GROUP-04.1 adds callback-mutation checks to the motion oracle. GROUP-04.3 adds
 three variants: open/wall callback-timed mover reuse and a missing-registry-alias
-counterfactual. The inventory now has **114 entries**; fixture hashes and Ghidra
+counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. The inventory now has **116 entries**; fixture hashes and Ghidra
 annotation-script fingerprints cover those extensions. See [callback reuse](retail-pathfinding-movement.md#callback-timed-handle-reclamation-and-reuse).
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 32 ordinary oracles, frozen owner baseline, five pair fixtures, two engine comparisons, two callback-reuse variants | `verified` | Oracle assertions and the listed report checks must pass within their stated scope |
+| 32 ordinary oracles, frozen owner baseline, five pair fixtures, two engine comparisons, two callback-reuse variants and two callback-completion variants | `verified` | Oracle assertions and the listed report checks must pass within their stated scope |
 | Two native adaptive size-2 cases | `known-reference-difference`, exit1 | Preserve the four retail/reference reachability differences, one per traversal lane |
 | Two modified adaptive controls and one missing-registry-alias control | `counterfactual-control`, exit0 | Deliberate hierarchy/result interventions explain the native difference; they do not certify native behavior |
 | 54 completed archives | `archive-consistent` | Current generic analyzer accepts the frozen capture; omitted scenario requirements remain omitted |

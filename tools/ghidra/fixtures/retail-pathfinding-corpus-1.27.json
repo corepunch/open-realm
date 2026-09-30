@@ -5091,6 +5091,114 @@
       "evidence": [],
       "scope": "Original mover release/reallocation at original slot54 entry; supplied existing Unit/Move and spare allocator backing; gameplay RemoveUnit callback graph, replacement owned path and survivor arrival excluded",
       "intervention": "Clear6860c retirement registry alias before the original mover destructor. This deliberately invalid baseline retains two stale spatial slots; it is a diagnostic control and certifies no native parity."
+    },
+    {
+      "id": "callback-finish-open",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--shared-pair",
+        "--callback-finish",
+        "--finish-fixture",
+        "tools/ghidra/fixtures/retail-callback-finish-1.27.json",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "fixture": "tools/ghidra/fixtures/retail-callback-finish-1.27.json",
+        "parent_fixture": "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "callback-finish-open.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "callback_finish_cases": {
+          "equal": 4
+        },
+        "exact_world_velocity_commits": {
+          "equal": 48
+        },
+        "exported_original_expectations": {
+          "equal": false
+        },
+        "cases_sha256": {
+          "equal": "280033d83bf1155013b0b12248017fdce69b6c8547f46d0938610e963e036733"
+        },
+        "parent_fixture_sha256": {
+          "equal": "d5a893efe80c9eaafb9ac950f64b0b57191be96cc5f8165a7c6c1f2507a5b57a"
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Original member completion at slot54 entry, real arrival notification/task draining, then original owner survivor movement and cleanup; supplied existing Unit/Move backing; mover destruction/reuse and complete gameplay callback graph excluded"
+    },
+    {
+      "id": "callback-finish-wall",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--shared-pair",
+        "--callback-finish",
+        "--finish-fixture",
+        "tools/ghidra/fixtures/retail-callback-finish-wall-1.27.json",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "fixture": "tools/ghidra/fixtures/retail-callback-finish-wall-1.27.json",
+        "parent_fixture": "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json",
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "callback-finish-wall.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "callback_finish_cases": {
+          "equal": 4
+        },
+        "exact_world_velocity_commits": {
+          "equal": 130
+        },
+        "exported_original_expectations": {
+          "equal": false
+        },
+        "cases_sha256": {
+          "equal": "da6688056c1895fe4f16025d3de233364592d56c95228300e93a2a623f0c0016"
+        },
+        "parent_fixture_sha256": {
+          "equal": "268571d198602eed7203ba36d20d563738c0ed6279c7cffd84105dd23c043a3d"
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Original member completion at slot54 entry, real arrival notification/task draining, then original owner survivor movement and cleanup; supplied existing Unit/Move backing; mover destruction/reuse and complete gameplay callback graph excluded"
     }
   ],
   "fixtures": [
@@ -5156,7 +5264,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "977ade87df1e12726fb66213f55f9a371f94979c809eea1f7ad8bdbb0b0069f3"
+      "sha256": "32d5a0c499d09efc790abfe0c5cbde27981aebb67c07319fa5437dd7b5b7875d"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -5173,6 +5281,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-callback-reuse-missing-alias-1.27.json",
       "sha256": "516275839ce5da3cd293032d83b245360cb71f11e9d0b1edb029559121acd275"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-callback-finish-1.27.json",
+      "sha256": "1406d276f74d48f80116239254fdf5cba3e68606e4550cb5c2017c1dbd049658"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-callback-finish-wall-1.27.json",
+      "sha256": "b2b3b7ec6bbdf0603cfbea883f87eaff58359ad2f2b99edb5d97062e3e6d22fa"
     }
   ]
 }

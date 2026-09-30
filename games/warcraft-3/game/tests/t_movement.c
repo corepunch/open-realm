@@ -3802,6 +3802,74 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     T_FEQ(unit_movedistance(fast), 10.0f * 100.0f / (float)FRAMETIME, 0.01f);
 }
 
+/* A selection's cap follows its active members, not the speed captured at
+ * submission. Retail PrepareMembers re-resolves ownership before each commit. */
+TEST(wc3_movement, group_move_refreshes_survivor_speed) {
+    FOR_LOOP(change, 6) {
+        reset_entities(); setup_test_world();
+        edict_t *clent = alloc_test_unit(0, 0, 0);
+        clent->client = &game.clients[0];
+        edict_t *fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+        edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+        edict_t *units[] = { fast, slow };
+        FOR_LOOP(i, 2) {
+            units[i]->selected = 1 << clent->client->ps.number;
+            units[i]->stand = unit_stand;
+            unit_stand(units[i]);
+        }
+        fast->unitinfo.MoveSpeed = 300; slow->unitinfo.MoveSpeed = 100;
+        T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+        T_FEQ(unit_movedistance(fast), 10.0f * 100 / FRAMETIME, 0.001f);
+        switch (change) {
+        case 0: T_ASSERT(unit_issueimmediateorder(slow, "stop")); break;
+        case 1: G_FreeEdict(slow); break;
+        case 2: slow->stand(slow); break;
+        case 3: T_ASSERT(unit_issueorder(slow, "move", &(vec2_t){800, 0})); break;
+        case 4: G_SetHealth(slow, 0); break;
+        case 5: slow->unitinfo.MoveSpeed = 200; break;
+        }
+        T_FEQ(unit_movedistance(fast), 10.0f * (change == 5 ? 200 : 300) / FRAMETIME, 0.001f);
+    }
+}
+
+TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
+    reset_entities(); setup_test_world();
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0];
+    edict_t *a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t *b = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    edict_t *c = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 128);
+    edict_t *d = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 128);
+    edict_t *units[] = {a,b,c,d};
+    FOR_LOOP(i, 4) { units[i]->stand = unit_stand; unit_stand(units[i]); }
+    a->unitinfo.MoveSpeed = c->unitinfo.MoveSpeed = 300;
+    b->unitinfo.MoveSpeed = 100; d->unitinfo.MoveSpeed = 200;
+    a->selected = b->selected = 1 << clent->client->ps.number;
+    level.next_move_group_id = 0;
+    T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+    uint32_t first_group = a->movement.group_id;
+    T_ASSERT(first_group != 0 && first_group == b->movement.group_id);
+    a->selected = b->selected = 0;
+    c->selected = d->selected = 1 << clent->client->ps.number;
+    level.next_move_group_id = UINT32_MAX;
+    T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+    T_ASSERT(c->movement.group_id != 0 && c->movement.group_id != first_group);
+    T_EQ(c->movement.group_id, d->movement.group_id);
+    T_FEQ(unit_movedistance(a), 10.0f * 100 / FRAMETIME, 0.001f);
+    T_FEQ(unit_movedistance(c), 10.0f * 200 / FRAMETIME, 0.001f);
+    uint32_t saved_time = level.time;
+    G_FreeEdict(b); level.time += 1001;
+    edict_t *replacement = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    T_ASSERT(replacement == b);
+    replacement->stand = unit_stand; unit_stand(replacement);
+    replacement->unitinfo.MoveSpeed = 50;
+    T_ASSERT(unit_issueorder(replacement, "move", &(vec2_t){400, 0}));
+    T_EQ(replacement->movement.group_id, 0);
+    T_FEQ(unit_movedistance(a), 10.0f * 300 / FRAMETIME, 0.001f);
+    T_FEQ(unit_movedistance(c), 10.0f * 200 / FRAMETIME, 0.001f);
+    level.time = saved_time;
+}
+
 /* A lone unit keeps its own speed (no group cap). */
 TEST(wc3_movement, single_unit_move_keeps_own_speed) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);

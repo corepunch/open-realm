@@ -120,3 +120,38 @@ def reuse_member(machine, context, run):
     return dict(inputs=spec,before=before,released=released,after=after,old_handles=old_handles,
                 before_rows=before_rows,surviving_row=survivor_row,callbacks=callbacks,
                 later_callback_order=[survivor],reused_same_storage=True,old_generation_rejected=True)
+
+
+def finish_member(machine, context, run):
+    """Complete one original member at slot54 entry, then resume and prune."""
+    from unicorn import UC_HOOK_CODE
+    from unicorn.x86_const import UC_X86_REG_ECX,UC_X86_REG_ESP,UC_X86_REG_EIP
+    def read(address,count=1):return list(struct.unpack('<%dI'%count,machine.mem_read(address,4*count)))
+    def write(address,*words):machine.mem_write(address,struct.pack('<%dI'%len(words),*(w & 0xffffffff for w in words)))
+    group,stack,stop,movers,spec=(context[k] for k in ('group','stack','stop','movers','spec'))
+    victim,trigger=spec['victim'],spec['trigger']
+    members=read(group+0x28)[0]
+    before=[read(members+n*44,11) for n in range(2)]
+    pending=True;callbacks=[]
+    def boundary(uc,address,length,data):
+        nonlocal pending
+        actor=uc.reg_read(UC_X86_REG_ECX)
+        if pending and actor==movers[trigger]:pending=False;uc.emu_stop()
+        else:callbacks.append(movers.index(actor))
+    hook=machine.hook_add(UC_HOOK_CODE,boundary,begin=0x6f16fa00,end=0x6f16fa00)
+    write(stack,stop);machine.reg_write(UC_X86_REG_ESP,stack);machine.reg_write(UC_X86_REG_ECX,group)
+    machine.emu_start(0x6f16bc10,stop,count=2000000)
+    assert not pending and machine.reg_read(UC_X86_REG_EIP)==0x6f16fa00
+    invoke_preserving_context(machine,dict(entry=0x6f16d4e0,receiver=group,
+        arguments=[members+44*victim],stack=0x2000e000,stop=stop))
+    assert read(movers[victim]+0x9c,2)==[0xffffffff]*2
+    assert read(movers[victim]+0x80,2)==[0,0]
+    machine.emu_start(machine.reg_read(UC_X86_REG_EIP),stop,count=2000000);machine.hook_del(hook)
+    assert machine.reg_read(UC_X86_REG_EIP)==stop and machine.reg_read(UC_X86_REG_ESP)==stack+4
+    assert read(group+0x38)==[1] and read(members,11)==before[1-victim]
+    assert callbacks==[n for n in (1,0) if n>=trigger or n!=victim],(spec,callbacks)
+    after=read(members,11)
+    for row in before+[after]:row[5]='mover'+str(movers.index(row[5]))
+    return dict(inputs=spec,before_rows=before,surviving_row=after,callback_order=callbacks,
+                completed_member_detached=True,retained_mover_identity=read(movers[victim]+0x14,2),
+                retained_mover_path_identity=read(read(movers[victim]+0xa8)[0]+0x14,2))

@@ -13,6 +13,9 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 Move's scalar turn update and scripted movement-window gate now use
 [verified retail arithmetic](retail-pathfinding-engine.md). This is an incremental
 integration; the routing/velocity pipeline does not yet have full retail parity.
+Simultaneous selection Move orders now [refresh their active cohort speed](retail-pathfinding-engine.md#active-move-cohort-speed)
+after member completion, replacement, death/removal and speed changes; reserved
+destinations remain stable.
 
 Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach keeps live-unit collision and uses collision-sized resource-worker local avoidance.
 

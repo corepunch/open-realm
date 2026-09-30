@@ -50,6 +50,40 @@ class CallbackFixtures(unittest.TestCase):
                 self.assertEqual(machine.registers,saved)
                 self.assertEqual(machine.memory[0x1000],b'request effect')
 
+    def test_completed_member_survivor_and_empty_group_teardown(self):
+        for suffix,ticks in (('',{0:13,1:7}),('-wall',{0:42,1:19})):
+            fixture=json.loads((FIXTURES/('retail-callback-finish'+suffix+'-1.27.json')).read_text())
+            canonical=json.dumps(fixture['cases'],sort_keys=True,separators=(',',':')).encode()
+            self.assertEqual(hashlib.sha256(canonical).hexdigest(),fixture['cases_sha256'])
+            self.assertEqual(len(fixture['cases']),4)
+            self.assertEqual({(c['callback_finish']['inputs']['trigger'],c['callback_finish']['inputs']['victim'])
+                for c in fixture['cases']},set(itertools.product(range(2),repeat=2)))
+            for case in fixture['cases']:
+                mutation=case['callback_finish'];victim=mutation['inputs']['victim'];survivor=1-victim
+                self.assertEqual(mutation['surviving_row'],mutation['before_rows'][survivor])
+                self.assertEqual(case['arrival_tick'],ticks[victim])
+                events=case['member_lifecycle']
+                prepares=[e for e in events if e['entry']=='0x6f16bc10']
+                destroys=[e for e in events if e['entry']=='0x6f1699c0']
+                self.assertEqual(prepares[-1]['identities'],[[0xffffffff]*2])
+                self.assertEqual(len(destroys),1);self.assertEqual(destroys[0]['count'],0)
+                self.assertEqual(destroys[0]['mover_paths'],prepares[-1]['mover_paths'])
+                self.assertEqual(destroys[0]['mover_identities'],prepares[-1]['mover_identities'])
+                # Removal alone is not a formation refresh. The original layout
+                # occurs once for the pair; the survivor keeps its reserved slot.
+                layouts=[e for e in events if e['entry']=='0x6f16a5b0']
+                self.assertEqual(len(layouts),1);self.assertEqual(layouts[0]['count'],2)
+                for state in case['normalized_states']:
+                    rows=state['group']['members']
+                    if len(rows)==1 and rows[0][:2]==mutation['surviving_row'][:2]:
+                        self.assertEqual(rows[0][3:5],mutation['surviving_row'][3:5])
+                        self.assertEqual(rows[0][6:8],mutation['surviving_row'][6:8])
+                caps=case['speed_caps'];self.assertEqual([c['cap'] for c in caps[:2]],[0x40800000]*2)
+                expected=0x41000000 if survivor==0 else 0x40800000
+                self.assertTrue(any(c['cap']==expected for c in caps[2:]))
+                self.assertTrue(case['user_order_reclaimed'] and case['shared_pair_completed'])
+                self.assertFalse(case['normalized_states'][-1]['group']['active'])
+
     def test_reused_slot_has_new_generation_and_exact_survivor(self):
         for name in ('retail-callback-reuse-1.27.json','retail-callback-reuse-wall-1.27.json'):
             fixture=json.loads((FIXTURES/name).read_text())

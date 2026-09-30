@@ -2099,3 +2099,71 @@ policy, runtime wall edits during travel, widget escape, mixed speeds, class
 notification ownership, populated repulsion or production clock cadence.
 Next bounded owner extension: **GROUP-04.3**, reclaim/reuse a member identity from movement callbacks while
 its shared group is travelling; callback-boundary cancellation/pruning is now [verified](#callback-timed-membership-mutation). public entry sharing remains **GROUP-01.1**.
+
+## Callback completion, surviving cohort and empty teardown
+
+`verify_wc3_pathing_order_tasks.py --shared-pair --callback-finish` composes
+original `16d4e0` member completion at an actual `16fa00` slot54 entry, resumes
+the callback/prepass, then uses only original `15aa80` owner updates through the
+survivor's natural arrival, deferred order/task reclamation and visual idle.
+The four trigger/victim combinations each run twice from fresh state. The
+open and stock-ground wall fixtures retain every normalized owner snapshot,
+trajectory word, member row, decision/commit ordering and lifecycle event.
+
+The second existing Move uses the original `5fee60 → 247520 → 6005d0` speed
+producer to publish128 world units/sec against the first member's256. Its
+supplied existing ability includes the embedded FloatMini vtables written by
+constructor `5f9f9d..be`; supplying only values70/78 is insufficient for this
+setter. This fixes fixture backing, not the open BASE-03.1 class-construction
+and complete gameplay callback graph requirements.
+
+| Frozen fixture | Survivor after completing first / second member | Exact production C world commits |
+| --- | --- | ---: |
+| `retail-callback-finish-1.27.json` | tick13 / tick7 | 48 |
+| `retail-callback-finish-wall-1.27.json` | tick42 / tick19 | 130 |
+
+Original shared speed is4 grid units/sec while both members are active.
+Completing the slower second member changes the subsequent first-member cap
+to8. Completing the first member leaves the second cap4. Every later commit
+belongs to the survivor and follows its decision; the independent production
+world adapter matches all178 observed commits exactly. These comparisons
+verify the velocity kernel, not the engine's whole group trajectory.
+
+Membership removal alone **does not rerun formation layout** in these fixed
+point journeys. The retained44-byte row is exact immediately after pruning;
+its reserved offset and destination remain unchanged through travel. The
+observed `16d990 → 16a5b0` layout occurs once with both initial members. A
+subsequent actual refresh producer must be composed before claiming new
+survivor offsets or destinations (GROUP-04.5).
+
+After the remaining member arrives, the following real prepass starts with
+one `-1/-1` member identity, prunes it and reaches group virtual10 `1699c0`
+with count0. The destructor clears shared ownership, unlinks the group,
+releases its group-owned route and unregisters/returns the group. The owner
+head is null; both individual movers retain their original canonical identity
+and owned-path identity. User queues/internal tasks drain, all five payload
+factory free lists return, wrapper pools return and references reach their
+pre-order values. This is GROUP-04.2 evidence; group teardown does not destroy
+individual mover paths.
+
+Open cases SHA256:
+`280033d83bf1155013b0b12248017fdce69b6c8547f46d0938610e963e036733`.
+Wall cases SHA256:
+`da6688056c1895fe4f16025d3de233364592d56c95228300e93a2a623f0c0016`.
+Reports are `group-04.4-finish-{open,wall}-final-export.json` and the strict
+`group-04.4-validated-frozen-corpus/` replay. Exports require an explicit new
+filename and complete identical repeats; ordinary replay verifies the frozen
+case digest and entire result.
+
+Ghidra now persists247 role names,13 partial layouts,87 verified fields and22
+explicit x86 prototypes. `16b060` returns its output pointer in EAX, verified
+from both return paths; `16d4e0` consumes the member pointer on stack4 and
+returns with ret4. `MapPathfindingTypes.java` preserves these contracts and
+metadata readback is `group-04.4-ghidra-survivor-types-final.json`. Move+7c
+remains undefined because constructor zero does not establish its semantics.
+
+The applicable engine correction is [active cohort speed](retail-pathfinding-engine.md#active-move-cohort-speed).
+Full callback-timed mover reuse followed by actual formation refresh and new
+survivor destinations remains GROUP-04.5. Retail member flags, shared overrides,
+queued cohort handoff and all-decisions-before-commits remain GROUP-04.6; these
+slices do not close full engine fidelity or certify a live retail witness.

@@ -1627,6 +1627,7 @@ struct edict_s {
         edict_t *flow_fallback_goal;
         moveFallbackState_t flow_fallback_state;
         routePath_t path; /* persistent WC3 accelerator state shared with other server games */
+        uint32_t group_id; /* Move-owned active selection identity; independent of waypoint ring reuse. */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
         vec2_t velocity;    /* committed Move velocity in world units/second; software scalar cancellation retains its bits */
@@ -2066,6 +2067,7 @@ struct level_locals {
     struct {
         uint32_t base, cursor, count;
     } waypoints;
+    uint32_t next_move_group_id; /* Zero is ungrouped; allocation excludes every live unit identity. */
     quest_t quests[MAX_QUESTS];
     uint16_t alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;

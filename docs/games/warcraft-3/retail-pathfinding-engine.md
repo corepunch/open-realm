@@ -353,3 +353,38 @@ deterministic state.
 Next numerical integration: connect committed velocity/clocks to the [admission-to-owner baseline](retail-pathfinding-todo.md#work-next).
 Extend the same C probe and exact-word comparator before changing those stages.
 The full replacement still needs the [READY gates](retail-pathfinding-todo.md#ready--start-the-faithful-replacement).
+
+## Active Move cohort speed
+
+The original [callback completion journeys](retail-pathfinding-movement.md#callback-completion-surviving-cohort-and-empty-teardown)
+re-resolve group ownership before selecting the minimum eligible member
+maximum. OpenRealm previously kept the speed captured at selection submission:
+a fast300 member stayed capped at100 after the slow member stopped, arrived,
+received a replacement Move, died or was removed. A production order regression
+reproduced all six failures, including runtime100→200 speed override,
+before changing `s_move.c` (`/tmp/wc3-group-survivor-before-fix-valid-order.log`).
+
+Move now assigns an explicit nonzero cohort identity to accepted simultaneous
+selection orders. Speed queries compute the minimum effective speed of the
+currently live, alive, actively walking members with that identity. Replacement
+Move clears the previous identity through `move_reset_progress`; standing,
+terminal hold, death and edict removal exclude the member from the next query.
+The existing reserved destination is retained, matching the original fixed-goal
+mutation witnesses. Single-unit orders retain their own speed.
+
+Cohort identity is separate from `goalentity->secondarygoal`, which belongs to
+route caching and uses a cyclic waypoint ring. Allocation skips zero and every
+identity still stored by a live entity, including on uint32 wrap. Reusing a
+freed unit edict initializes ungrouped state; an unrelated Move toward the same
+point cannot inherit the old cohort. Tests cover independent groups at the same
+endpoint, wrap, actual edict reuse and active-group save/load with post-load
+Stop. Save format56 persists both per-unit identity and the level allocation
+cursor and rejects55/older records.
+
+This is a bounded group-lifecycle correction. Cohort speed queries currently
+scan live edicts; the upcoming Move-owned retail member storage should replace
+that scan together with the verified member flags, shared parameter owner and
+separate decision/commit passes (GROUP-04.6). Queued selections still use the
+existing per-unit queued speed value; cohort activation/handoff remains part
+of that task. The engine still uses its existing simulation cadence and route
+solver, so this change does not claim exact retail trajectories.

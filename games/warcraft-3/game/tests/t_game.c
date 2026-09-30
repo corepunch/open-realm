@@ -4614,6 +4614,33 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     level.events = old_events; remove(filename);
 }
 
+TEST(wc3_save, round_trip_active_move_group) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-move-group-save-test.bin";
+    reset_entities(); setup_test_world();
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0];
+    edict_t *fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    fast->stand = slow->stand = unit_stand;
+    unit_stand(fast); unit_stand(slow);
+    fast->unitinfo.MoveSpeed = 300; slow->unitinfo.MoveSpeed = 100;
+    fast->selected = slow->selected = 1 << clent->client->ps.number;
+    T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+    uint32_t group_id = fast->movement.group_id;
+    T_ASSERT(group_id && slow->movement.group_id == group_id);
+    uint32_t next_id = level.next_move_group_id;
+    T_ASSERT(WriteGame(filename));
+    fast->movement.group_id = slow->movement.group_id = 0;
+    level.next_move_group_id = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(fast->movement.group_id, group_id); T_EQ(slow->movement.group_id, group_id);
+    T_EQ(level.next_move_group_id, next_id);
+    T_FEQ(unit_movedistance(fast), 10.0f * 100 / FRAMETIME, 0.001f);
+    T_ASSERT(unit_issueimmediateorder(slow, "stop"));
+    T_FEQ(unit_movedistance(fast), 10.0f * 300 / FRAMETIME, 0.001f);
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_waypoint_references) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-waypoint-save-test.bin";
     vec2_t destination = { 192.0f, 96.0f };
