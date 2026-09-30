@@ -21,10 +21,15 @@ SPNxSomeSpawn
 frustum culling, but only for client-visible entities and only in the color
 pass.  The shadow-map pass must not play sounds or create duplicate children.
 Entity-camera scenes keep their event clocks separately from game edict numbers
-and draw retained `SPN` children in the source model's camera view. UI entities
-use synthetic numbers, so sharing the edict-indexed clock can reseed an event
-on every frame; omitting the camera child pass makes one-frame effects such as
-the main-menu Infernal meteor disappear immediately after spawning.
+and draw retained `SPN` children in the source model's camera view. Each live
+camera entity supplies a stable, unique `renderEntity_t.instance_id`; that key
+is independent of both the model and the synthetic entity number, so two
+instances of one model do not share an event clock or retained child. Replacing
+an instance ID's model or evicting its bounded event-clock entry clears that
+instance's retained children. UI entities use synthetic numbers, so sharing the
+edict-indexed clock can reseed an event on every frame; omitting the camera
+child pass makes one-frame effects such as the main-menu Infernal meteor
+disappear immediately after spawning.
 
 Current runtime consumers are:
 

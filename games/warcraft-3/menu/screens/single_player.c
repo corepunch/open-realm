@@ -563,6 +563,8 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
             ? scene_time - campaign_background_last_render_time : 0;
         renderEntity_t entity = {0};
         entity.model = model;
+        entity.number = MAX_GAME_ENTITIES - 3;
+        entity.instance_id = (uintptr_t)&campaign_background_model;
         entity.scale = 1.0f;
         entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
         if (renderer->SetEntityAnimFrame) {

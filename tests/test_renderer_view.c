@@ -36,6 +36,10 @@ void R_SetupGL(bool light) { (void)light; }
 void R_RevertSettings(void) {}
 void R_RenderFogOfWar(void) {}
 uint32_t R_GetFogOfWarTexture(void) { return 0; }
+void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source_instance_id) {
+    (void)source_model;
+    (void)source_instance_id;
+}
 void R_DrawEntities(void) {
     drawn = tr.viewDef;
     entities++;

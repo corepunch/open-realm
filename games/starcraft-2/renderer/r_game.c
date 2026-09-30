@@ -280,8 +280,9 @@ void R_DrawWorld(void) {
     R_SC2DrawWorld();
 }
 
-void R_DrawEntityCameraEventSpawns(model_t const *source_model) {
+void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source_instance_id) {
     (void)source_model;
+    (void)source_instance_id;
 }
 
 void R_DrawTerrainShadows(void) {
