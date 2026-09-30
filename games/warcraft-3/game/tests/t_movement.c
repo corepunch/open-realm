@@ -4942,6 +4942,40 @@ TEST(wc3_movement, unload_all_command_and_instant_dispatch) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_movement, zeppelin_unload_moves_to_selected_point_before_ejecting) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    cstring_t drop[] = { "button", "Adro" };
+    edict_t *clent = &g_edicts[0];
+    vec2_t destination = { 512, 512 };
+    setup_test_world();
+    edict_t *transport = cargo_unload_transport();
+    transport->svflags |= SVF_MONSTER;
+    transport->movetype = MOVETYPE_STEP;
+    transport->collision = 0;
+    G_SelectEntity(clent->client, transport);
+    level.time = 1000;
+    G_ClientCommand(clent, 2, drop);
+    T_NOT_NULL(clent->client->menu.on_location_selected);
+    T_ASSERT(clent->client->menu.on_location_selected(clent, &destination));
+    T_EQ(transport->cargo.count, 3);
+    T_ASSERT(transport->movement.cargo_unload_pending);
+    T_EQ(transport->goalentity->s.origin2.x, destination.x);
+    T_EQ(transport->goalentity->s.origin2.y, destination.y);
+    for (int i = 0; i < 300 && transport->movement.cargo_unload_pending; i++) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
+    T_ASSERT(!transport->movement.cargo_unload_pending);
+    T_ASSERT(transport->s.origin2.x > 400 && transport->s.origin2.y > 400);
+    T_EQ(transport->cargo.count, 2);
+    gi.Write = old_write; gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_movement, unload_all_round_trip_resumes_remaining_cargo) {
     cstring_t filename = "/tmp/openwarcraft3-cargo-unload-save.bin";
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);

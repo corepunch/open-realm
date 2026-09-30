@@ -1654,6 +1654,7 @@ struct edict_s {
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
         bool holding_position;
         bool explicit_allied_attack;
+        bool cargo_unload_pending; /* Adro: unload after point-move arrival */
     } movement;
     edictStat_t health;
     edictStat_t mana;
