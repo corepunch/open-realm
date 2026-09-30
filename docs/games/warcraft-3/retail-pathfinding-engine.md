@@ -1264,3 +1264,102 @@ WC3 cases in both fixture variants and93 pathfinding tool tests. Fresh corpus
 75 archive audits,12 strict live contracts), with every recorded source
 fingerprint unchanged. NUM-01.16 is closed. The next producer experiment is
 NUM-01.13, with the shipped CRT now analyzed and saved in the same Ghidra project.
+
+## Public decimal byte grammar and CRT locale
+
+NUM-01.13 closes the original default-locale byte classifier and its public
+S2R producer. The engine's existing ASCII digit predicate is already correct
+for this domain; the new regression preserves that result through authored
+object data, public string natives, hashtable words and Move admission.
+No unobserved locale behavior is substituted into the parser.
+
+The exact sibling `msvcr120.dll` has SHA256
+`86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f`.
+Preferred base is10000000; table/function addresses below are RVAs.
+
+| Original CRT entry/state | Recovered contract |
+| --- | --- |
+| `isdigit`0f1d5 | Cdecl integer; ever-changed flag0 reads `pctype[C]&4`; nonzero calls `_isdigit_l(C,NULL)` |
+| `_isdigit_l`12652 | Single-byte locale directly indexes signed-byte prefix; multibyte locale delegates to `_isctype_l` |
+| `_isctype`8957d / `_isctype_l`895ac | Default global table versus explicit locale; `_isctype_l` direct-table range is only-1..255 |
+| Locale context0f764 | ECX context, stack4 optional locale pair, RET4; explicit pair avoids TLS; null reconciles TLS/shared state and owns a temporary ownlocale bit |
+| `_wsetlocale`132b8 / write1335c | A non-C requested locale sets the ever-changed flag1; returning to C does not reset it |
+| Ever-changed globaldf7c4 / pctype globaldf858 | Captured native values0 and pointer toRVA1158 |
+| Default localeinfodfa84 | Verified `mb_cur_max`+74=1 and `pctype`+90 points toRVA1158 |
+| Table1058..1357 | 128 signed-prefix words plus256 byte words; digit bit4 only on ASCII48..57 |
+
+Original070de0 promotes input bytes as signed `char`, so80..ff reaches
+`isdigit` as-128..-1. All of those entries have digit mask0. It stops at the
+first rejected byte while retaining the preceding scalar; the optional sign,
+single decimal point and nine-significant-digit rule remain unchanged.
+The entire384-word table digest is
+`e7304be1d56c85907c3c409a5252fba8b5b51fa74aeb8fa4703b67e8427d7d3f`.
+
+`verify_wc3_pathing_decimal_ctype.py` executes1,409 original classifier calls:
+384 each for default `isdigit`, explicit-default `_isdigit_l` and `_isctype`,
+plus257 direct-domain `_isctype_l` calls. Another1,020 original070de0 calls
+cover bytes01..ff with four prefix/suffix shapes. All match the independent
+integer scalar model and production C at-O0/-O2, retaining text/output guards,
+nonvolatile registers, stack cleanup and observed signed argument promotion.
+Classifier digest `24428fc4fc4d87a3878d9973d2dcc574b13aa5ed1189d4a5efc60d9d6b590c48`;
+parser digest `ea16cf01eaa14b274f4b819e4668bd9b2d173f90f9643054b45c7b2ab472d87a`.
+Reports: `num-01.13-decimal-ctype-o0.json` and `-o2.json`.
+
+The live producer changes only the copied map's Footman `unam` object field
+to the128 raw bytes80..ff. `GetUnitName` and `SubString` supply each byte to
+public S2R. Two further calls parse Move coordinates with80/ff before a trailing
+digit. Both complete captures repeat514 parser/native outputs and1,040 actual
+CRT digit observations, including locale flag0, original table RVA1158 and
+the exact parsed point-task destination.
+
+| Public byte input | Result word |
+| --- | --- |
+| A byte80..ff alone | `00000000` |
+| `12` + byte + `34` | `41400000` (12) |
+| `.5` + byte + `7` | `3f000000` (0.5) |
+| `-` + byte + `0.2` | `00000000` |
+| `-1936.25` +80 +`9` | `c4f20801` |
+| `-144.125` +ff +`9` | `c3102000` |
+
+Frozen fixture: `retail-public-byte-inputs-1.27.json`. Strict checker:
+`verify_wc3_byte_inputs.py`; report `num-01.13-live-byte-repeat.json`.
+The full byte/classifier/native sequence digest is
+`fab4d0567d4df888159c71243a4f682b0ab0470fe671c2be8d2fdeef91ccec44`.
+Raw files are `runtime/num-01.13-bytes-move-{first,repeat}-raw.jsonl`, with exact
+ten source files and map copies adjacent. `--byte-events` checks the loaded
+CRT path, timestamp and image size before installing its read-only classifier
+observer. The default byte producer is not inferred from formatted R2S text.
+
+Wine can substitute its built-in CRT while reporting the sibling DLL's path.
+The PE-header guard rejected that capture; it is retained as
+`runtime/num-01.13-bytes-crt-mismatch-raw.jsonl`. In the owned isolated Wine
+prefix, `AppDefaults\\war3.exe\\DllOverrides` sets `msvcr120=native`.
+Earlier captures without this CRT-header guard are not retroactively certified
+as native-CRT observations. The accepted probes use75-second process bounds
+and send the loading key at30 seconds; they retain timer300 completion.
+
+Other rejected producer attempts are retained in the runtime archive: raw
+Latin-1 JASS source containing80..ff crashes during compilation; this is not
+a public S2R result or a complete lexical rejection proof. WTS/GetLocalizedString
+returns empty byte slices, while a direct `TRIGSTR_999999` literal remains the
+reference text. Raw input capture exposes both substitutions. Use the verified
+unit-name object field instead. Rejected attempts never become numeric evidence.
+
+`wc3_shipped_crt.py` maps the original CRT and applies HIGHLOW relocations
+without replacing code. The general numeric oracle now uses its actual
+`isdigit` instead of an ASCII stub; all previous numerical digests remain fixed.
+Alternative locale construction, TLS startup and `_isctype_l` Windows multibyte
+services are excluded. No direct Game.dll locale-setting import/symbol was
+found; absence alone is not a proof of dynamic unreachability.
+
+Ghidra stores `/CRT/msvcr120.dll` in the same project. `MapPathfindingCRT.java`
+verifies its executable hash, preserves incompatible fields, saves three
+partial layouts/eight function roles/seven globals and the explicit context
+ABI, then writes `num-01.13-ghidra-crt-types.json`. Undefined prefix bytes stay
+undefined. The engine regression `pathfinding_decimal_high_bytes_match_retail_words`
+passes2,054 assertions without a production behavior change. Full `make test`
+passes40,186 assertions/2,163 WC3 tests in each fixture variant and96 pathfinding
+tool tests; WC3/SC2 production builds pass. Fresh `num-01.13-validated-corpus/corpus-results.json` passes150/150 declared
+outcomes (60 oracles,77 archive audits,13 strict live contracts), with all63
+recorded source fingerprints unchanged. NUM-01.13 is closed; reachable alias
+producer work remains NUM-01.12.

@@ -105,6 +105,73 @@ TEST(wc3_api, pathfinding_decimal_destination_uses_retail_parser) {
     reset_entities();
 }
 
+/* Retail NUM-01.13: an authored unit-name byte string reaches SubString/S2R and Move. */
+TEST(wc3_api, pathfinding_decimal_high_bytes_match_retail_words) {
+    static uint32_t const expected[] = {0x00000000u, 0x41400000u, 0x3f000000u, 0x00000000u};
+    char bytes[129];
+    FOR_LOOP(i, 128) bytes[i] = (char)(128+i);
+    bytes[128] = 0;
+    unitModification_t name = {
+        .modID = MAKEFOURCC('u','n','a','m'), .type = mod_string, .data = (handle_t)bytes
+    };
+    unitData_t original = {
+        .originalUnitID = MAKEFOURCC('h','f','o','o'), .numbeOfModifications = 1, .modifications = &name
+    };
+    mapInfo_t mapinfo = {.num_originalUnits = 1, .originalUnits = &original};
+    reset_entities();
+    setup_test_world();
+    mapInfo_t const *saved_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local hashtable values = InitHashtable()\n"
+        "  local unit mover = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  local string source = GetUnitName(mover)\n"
+        "  local string byte = \"\"\n"
+        "  local integer i = 0\n"
+        "  local real x = 0.0\n"
+        "  local real y = 0.0\n"
+        "  call BJassAssert(StringLength(source) == 128, \"authored byte source changed\")\n"
+        "  loop\n"
+        "    exitwhen i == 128\n"
+        "    set byte = SubString(source, i, i + 1)\n"
+        "    call SaveReal(values, i, 0, S2R(byte))\n"
+        "    call SaveReal(values, i, 1, S2R(\"12\" + byte + \"34\"))\n"
+        "    call SaveReal(values, i, 2, S2R(\".5\" + byte + \"7\"))\n"
+        "    call SaveReal(values, i, 3, S2R(\"-\" + byte + \"0.2\"))\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "  set x = S2R(\"-1936.25\" + SubString(source, 0, 1) + \"9\")\n"
+        "  set y = S2R(\"-144.125\" + SubString(source, 127, 128) + \"9\")\n"
+        "  call BJassAssert(IssuePointOrder(mover, \"move\", x, y), \"byte-parsed Move rejected\")\n"
+        "endfunction\n"));
+    hashtable_t const *table = &level.hashtables[0];
+    T_EQ(table->num_entries, 512);
+    FOR_LOOP(i, table->num_entries) {
+        uint32_t word;
+        T_EQ(table->entries[i].type, HT_REAL);
+        T_EQ(table->entries[i].parent, (int32_t)(i/4));
+        T_EQ(table->entries[i].child, (int32_t)(i%4));
+        memcpy(&word, &table->entries[i].value.real, sizeof(word));
+        T_EQ(word, expected[i%4]);
+    }
+    edict_t *mover = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(mover);
+    if (mover) {
+        vec2_t point;
+        T_ASSERT(G_GetIssuedOrderPoint(mover, &point));
+        uint32_t word;
+        memcpy(&word, &point.x, sizeof(word));
+        T_EQ(word, 0xc4f20801u);
+        memcpy(&word, &point.y, sizeof(word));
+        T_EQ(word, 0xc3102000u);
+    }
+    reset_entities();
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+}
+
 /* Capture actual VM literal values in their owning hashtable, independently of JASS comparisons. */
 TEST(wc3_api, pathfinding_compiled_literals_match_retail_words) {
     static uint32_t const expected[] = {0xbf85635d, 0x3f19999a, 0x3fc00000, 0xcf000000, 0x7f000000};

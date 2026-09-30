@@ -457,12 +457,15 @@
               "output": 1065353216
             }
           ]
+        },
+        "decimal_crt_sha256": {
+          "equal": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat. NUM-01.8 extends to81309 distinct-storage Asin/Atan/Atan2/Tan helper cases and24420 original registered wrapper cases; paired/public/decimal digests remain frozen, public angle-domain evidence is separate live-public-angle-repeat. NUM-01.10/11 additionally retain81688 floor/ceil/round/truncate calls and aliases; original registered minus-one/zero/one startup entries execute from poisoned storage in table order, with guards/ABI checks. Raw exceptional input words remain helper scope, not public producer proof.",
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (exact shipped CRT isdigit and original C-locale table, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat. NUM-01.8 extends to81309 distinct-storage Asin/Atan/Atan2/Tan helper cases and24420 original registered wrapper cases; paired/public/decimal digests remain frozen, public angle-domain evidence is separate live-public-angle-repeat. NUM-01.10/11 additionally retain81688 floor/ceil/round/truncate calls and aliases; original registered minus-one/zero/one startup entries execute from poisoned storage in table order, with guards/ABI checks. Raw exceptional input words remain helper scope, not public producer proof. NUM-01.13 removes the ASCII classifier stub; existing decimal/public/angle/rounding digests remain frozen.",
       "exclusions": [
         "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
         "Full spatial mutation after bounds construction",
@@ -1719,12 +1722,15 @@
               "output": 1065353216
             }
           ]
+        },
+        "decimal_crt_sha256": {
+          "equal": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat. NUM-01.8 extends to81309 distinct-storage Asin/Atan/Atan2/Tan helper cases and24420 original registered wrapper cases; paired/public/decimal digests remain frozen, public angle-domain evidence is separate live-public-angle-repeat. NUM-01.10/11 compare81688 rounding/alias outputs with production C and execute the original registered shared scalar startup from poisoned storage.",
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (exact shipped CRT isdigit and original C-locale table, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat. NUM-01.8 extends to81309 distinct-storage Asin/Atan/Atan2/Tan helper cases and24420 original registered wrapper cases; paired/public/decimal digests remain frozen, public angle-domain evidence is separate live-public-angle-repeat. NUM-01.10/11 compare81688 rounding/alias outputs with production C and execute the original registered shared scalar startup from poisoned storage. NUM-01.13 removes the ASCII classifier stub; existing decimal/public/angle/rounding digests remain frozen.",
       "exclusions": [
         "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
         "Full spatial mutation after bounds construction",
@@ -7645,6 +7651,363 @@
       "exclusions": [
         "No full lexical rejection grammar or whole movement trajectory equivalence."
       ]
+    },
+    {
+      "id": "oracle-decimal-ctype",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_decimal_ctype.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "decimal-ctype-engine-exact.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "evidence": [
+        "O"
+      ],
+      "checks": {
+        "status": {
+          "equal": "decimal-ctype-exact"
+        },
+        "classifier_cases": {
+          "equal": 1409
+        },
+        "classifier_sha256": {
+          "equal": "24428fc4fc4d87a3878d9973d2dcc574b13aa5ed1189d4a5efc60d9d6b590c48"
+        },
+        "parser_cases": {
+          "equal": 1020
+        },
+        "parser_sha256": {
+          "equal": "ea16cf01eaa14b274f4b819e4668bd9b2d173f90f9643054b45c7b2ab472d87a"
+        },
+        "engine_exact_cases": {
+          "equal": 1020
+        },
+        "ctype_table_sha256": {
+          "equal": "e7304be1d56c85907c3c409a5252fba8b5b51fa74aeb8fa4703b67e8427d7d3f"
+        },
+        "locale_ever_changed": {
+          "equal": 0
+        },
+        "ctype_rva": {
+          "equal": 4440
+        },
+        "default_mb_cur_max": {
+          "equal": 1
+        }
+      },
+      "scope": "NUM-01.13 exact original sibling CRT classifier and C-locale table; 1409 direct/default-explicit calls and1020 original signed-byte S2R parser calls match independent integer scalar model and production C. Guards, stack, nonvolatile registers and raw signed-char producer observations retained.",
+      "exclusions": [
+        "Alternative locale construction, CRT DLL startup/TLS and Windows multibyte _isctype_l values below EOF",
+        "Live producer chain is separately live-public-bytes-repeat"
+      ]
+    },
+    {
+      "id": "capture-num-01.13-bytes-move-first",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/num-01.13-bytes-move-first-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.13-bytes-move-first-raw.jsonl",
+        "sha256": "27ca4c68ac7959b643d08f626775c0798d4ac66b39b86ee1056d85ae680d480e",
+        "bytes": 483124,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "5398d34217f843e89806b4efe38b6eb4b614a68993b38ed7ff6cb796069d9bb3",
+            "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+            "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "ef1529c1470d9296338604c96147bd4b3827654d85c2a05925dfd1c97ec2f284"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 3000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": true,
+          "crt": {
+            "sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f",
+            "timestamp": 1380941030,
+            "imageSize": 974848,
+            "path": "Z:\\run\\media\\lofcz\\ssd_external\\Games\\w3\\msvcr120.dll"
+          }
+        }
+      },
+      "report": "captures/num-01.13-bytes-move-first-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned NUM-01.13 original CRT capture;514 public high-byte S2R calls,1040 classifier observations, raw parsed Move destination and timer300. Adjacent exact10 source files/map retained.",
+      "exclusions": [
+        "Strict byte/locale/native repeat belongs live-public-bytes-repeat"
+      ]
+    },
+    {
+      "id": "capture-num-01.13-bytes-move-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/num-01.13-bytes-move-repeat-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.13-bytes-move-repeat-raw.jsonl",
+        "sha256": "6c24d10aa68c59f4ad047f65cda9658a0ecc76563139fe4878d1015688295443",
+        "bytes": 483126,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "5398d34217f843e89806b4efe38b6eb4b614a68993b38ed7ff6cb796069d9bb3",
+            "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+            "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "ef1529c1470d9296338604c96147bd4b3827654d85c2a05925dfd1c97ec2f284"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 3000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": true,
+          "crt": {
+            "sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f",
+            "timestamp": 1380941030,
+            "imageSize": 974848,
+            "path": "Z:\\run\\media\\lofcz\\ssd_external\\Games\\w3\\msvcr120.dll"
+          }
+        }
+      },
+      "report": "captures/num-01.13-bytes-move-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned NUM-01.13 original CRT capture;514 public high-byte S2R calls,1040 classifier observations, raw parsed Move destination and timer300. Adjacent exact10 source files/map retained.",
+      "exclusions": [
+        "Strict byte/locale/native repeat belongs live-public-bytes-repeat"
+      ]
+    },
+    {
+      "id": "live-public-bytes-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_byte_inputs.py",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-byte-inputs-1.27.json",
+        "--capture",
+        "{archive}/runtime/num-01.13-bytes-move-first-raw.jsonl",
+        "--repeat",
+        "{archive}/runtime/num-01.13-bytes-move-repeat-raw.jsonl",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.13-bytes-move-first-raw.jsonl",
+        "sha256": "27ca4c68ac7959b643d08f626775c0798d4ac66b39b86ee1056d85ae680d480e",
+        "bytes": 483124,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "5398d34217f843e89806b4efe38b6eb4b614a68993b38ed7ff6cb796069d9bb3",
+            "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+            "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "ef1529c1470d9296338604c96147bd4b3827654d85c2a05925dfd1c97ec2f284"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 3000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": true,
+          "crt": {
+            "sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f",
+            "timestamp": 1380941030,
+            "imageSize": 974848,
+            "path": "Z:\\run\\media\\lofcz\\ssd_external\\Games\\w3\\msvcr120.dll"
+          }
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/num-01.13-bytes-move-repeat-raw.jsonl",
+            "sha256": "6c24d10aa68c59f4ad047f65cda9658a0ecc76563139fe4878d1015688295443",
+            "bytes": 483126,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+                "wc3_pathfinding.js": "5398d34217f843e89806b4efe38b6eb4b614a68993b38ed7ff6cb796069d9bb3",
+                "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+                "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "ef1529c1470d9296338604c96147bd4b3827654d85c2a05925dfd1c97ec2f284"
+              },
+              "map": "Maps\\New.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 3000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": false,
+              "velocityEvents": false,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": true,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": true,
+              "crt": {
+                "sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f",
+                "timestamp": 1380941030,
+                "imageSize": 974848,
+                "path": "Z:\\run\\media\\lofcz\\ssd_external\\Games\\w3\\msvcr120.dll"
+              }
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-public-bytes-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-public-bytes-repeat",
+      "checks": {
+        "violations": {
+          "equal": []
+        },
+        "repeat_equal": {
+          "equal": true
+        },
+        "native_cases": {
+          "equal": 514
+        },
+        "parser_cases": {
+          "equal": 514
+        },
+        "digit_cases": {
+          "equal": 1040
+        },
+        "numeric_sha256": {
+          "equal": "35fd4ab8015ca48a4e86dbbe6419939b5885458f4641a647965ea5d96299464b"
+        },
+        "byte_sha256": {
+          "equal": "fab4d0567d4df888159c71243a4f682b0ab0470fe671c2be8d2fdeef91ccec44"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "514 public authored-name/SubString/S2R cases and1040 original CRT classifier words repeat exactly; high-byte parsed coordinates reach Move. Strict native CRT identity, raw input bytes, signed promotion, locale/table state, bracket order, source/map provenance and timer completion.",
+      "exclusions": [
+        "Alternative CRT locale creation and full source lexical grammar",
+        "Prior captures without this native-CRT header guard are not retroactively certified as native-CRT observations"
+      ]
     }
   ],
   "fixtures": [
@@ -7807,6 +8170,14 @@
     {
       "path": "tools/frida/wc3_integer_inputs.json",
       "sha256": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-byte-inputs-1.27.json",
+      "sha256": "f9376eb2311c7c5193ae4ae4197a4ccd875dff6055a12f0b3451cebc9c4c592b"
+    },
+    {
+      "path": "tools/frida/wc3_byte_inputs.json",
+      "sha256": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823"
     }
   ]
 }

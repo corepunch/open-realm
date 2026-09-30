@@ -283,7 +283,9 @@ static inline float wc3_literal(char const *text) {
 
 /* Public S2R's decimal parser070de0: optional sign, one point, nine significant
  * digits, no whitespace skipping/exponents. Scalar scaling also truncates.
- * ASCII digits match the observed CRT grammar; JASS strings are byte strings. */
+ * Exact sibling CRT isdigit0f1d5/default C table accepts only ASCII digits,
+ * including the signed-char table prefix for high bytes. JASS strings are byte
+ * strings. Alternative CRT locale creation remains outside this verified domain. */
 static inline float wc3_decimal(char const *text) {
     if (!text) return 0.0f;
     bool negative = *text == '-';

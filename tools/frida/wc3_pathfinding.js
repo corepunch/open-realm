@@ -7,6 +7,17 @@ const emit = (event, data = {}) => send({event, ms: Date.now(), ...data});
 const bump = kind => {counts[kind] = (counts[kind] || 0) + 1;};
 const ints = (p, n) => Array.from({length: n}, (_, i) => p.add(i * 4).readS32());
 
+// Preserve arbitrary byte strings; UTF-8 readCString would reject some public inputs.
+function cbytes(pointer) {
+    const result = [];
+    for (let i = 0; i < 256; i++) {
+        const byte = pointer.add(i).readU8();
+        if (byte === 0) return result.map(v => v.toString(16).padStart(2,'0')).join('');
+        result.push(byte);
+    }
+    throw new Error('Byte parser input exceeds bounded observer length');
+}
+
 function install(module) {
     if (installed || module.name.toLowerCase() !== 'game.dll') return;
     const base = module.base, pe = base.add(base.add(0x3c).readU32());
@@ -43,13 +54,47 @@ function install(module) {
                 this.numeric = numericCase && numericCase.native === 'S2R' ? {...numericCase} : null;
                 if (!this.numeric) return;
                 this.output = this.context.ecx;
-                this.numeric.text = this.context.edx.readCString();
+                if (config.byteEvents) this.numeric.text_hex = cbytes(this.context.edx);
+                else this.numeric.text = this.context.edx.readCString();
             },
             onLeave() {
                 if (this.numeric) {
                     bump('numeric-parser');
-                    emit('numeric-parser', {...this.numeric, output:this.output.readU32()});
+                    emit(config.byteEvents ? 'numeric-byte-parser' : 'numeric-parser', {...this.numeric, output:this.output.readU32()});
                 }
+            }
+        });
+    }
+    if (config.byteEvents) {
+        const crt = Process.enumerateModules().find(m => m.name.toLowerCase() === 'msvcr120.dll');
+        if (!crt || crt.path.toLowerCase() !== config.crt.path.toLowerCase())
+            throw new Error('Byte capture did not load the hash-checked sibling CRT');
+        const crtpe = crt.base.add(crt.base.add(0x3c).readU32());
+        if (crtpe.add(8).readU32() !== config.crt.timestamp || crtpe.add(80).readU32() !== config.crt.imageSize)
+            throw new Error('Loaded CRT header differs from the pinned sibling: timestamp=' + crtpe.add(8).readU32() + ' size=' + crtpe.add(80).readU32());
+        const defaultLocale = crt.base.add(0xdfa84).readPointer();
+        emit('crt-module', {sha256:config.crt.sha256, path:crt.path,
+            locale_ever_changed:crt.base.add(0xdf7c4).readU32(),
+            ctype_rva:crt.base.add(0xdf858).readPointer().sub(crt.base).toUInt32(),
+            default_mb_cur_max:defaultLocale.add(0x74).readU32(),
+            default_ctype_rva:defaultLocale.add(0x90).readPointer().sub(crt.base).toUInt32()});
+        Interceptor.attach(crt.base.add(0xf1d5), {
+            onEnter(args) {
+                this.digit = numericCase && numericCase.native === 'S2R' ? {...numericCase} : null;
+                if (!this.digit) return;
+                const input = args[0].toInt32();
+                if (input < -128 || input > 255) throw new Error('Public byte classification outside char domain');
+                const table = crt.base.add(0xdf858).readPointer();
+                this.digit.input = input;
+                this.digit.locale_ever_changed = crt.base.add(0xdf7c4).readU32();
+                this.digit.ctype_rva = table.sub(crt.base).toUInt32();
+                this.digit.table_word = table.add(input * 2).readU16();
+            },
+            onLeave(result) {
+                if (!this.digit) return;
+                bump('numeric-digit');
+                if (counts['numeric-digit'] <= config.samples)
+                    emit('numeric-digit', {...this.digit, output:result.toUInt32()});
             }
         });
     }

@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**64 done / 246 tasks; 182 remaining.** Counts describe this backlog,
+**65 done / 246 tasks; 181 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -21,7 +21,7 @@ Completed evidence now sits next to its specific remaining extension.
 | FOOT — Footprints and query policy | 1 | 8 |
 | FINE — Fine search | 1 | 8 |
 | ACC — Adaptive search | 1 | 10 |
-| NUM — Numbers and random state | 14 | 10 |
+| NUM — Numbers and random state | 15 | 9 |
 | ROUTE — Route progression and yielding | 0 | 10 |
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
@@ -83,7 +83,7 @@ Patrol admission/current ownership, endpoint reversal and queued/save lifecycle
 
 ## Work next
 
-Start with **NUM-01.2** remaining numeric inventory, with **NUM-01.13** CRT byte/locale classification as the next producer experiment. NUM-01.16 closes decimal/octal/hex integer wrapping, native inputs and Move/save-load integration. NUM-01.7 closes the compiled decimal producer, raw native words and engine Move/save/load integration; full source grammar remains01.15. NUM-01.10/11 close rounding and shared scalar startup. NUM-01.9 closes terminating Pow/log/exp arithmetic and its public adapter; original nonreturning VM lifetime remains01.14. MAP-03.7 closes retained solid-footprint failure and engine cleanup; exact retry timing stays NUM-02.3. MAP-03.4 now retains the original Footman mask through thirteen-tick arrival and reclamation. GROUP-04.5 now composes actual survivor point
+Start with **NUM-01.2** remaining numeric inventory, with **NUM-01.12** reachable operand aliases as the next producer experiment. NUM-01.13 closes the default CRT byte grammar, exact native CRT identity and public high-byte Move inputs. NUM-01.16 closes decimal/octal/hex integer wrapping, native inputs and Move/save-load integration. NUM-01.7 closes the compiled decimal producer, raw native words and engine Move/save/load integration; full source grammar remains01.15. NUM-01.10/11 close rounding and shared scalar startup. NUM-01.9 closes terminating Pow/log/exp arithmetic and its public adapter; original nonreturning VM lifetime remains01.14. MAP-03.7 closes retained solid-footprint failure and engine cleanup; exact retry timing stays NUM-02.3. MAP-03.4 now retains the original Footman mask through thirteen-tick arrival and reclamation. GROUP-04.5 now composes actual survivor point
 replacement through680320, original new-request refresh/layout, new-goal arrival
 and both groups' final reclamation on open/wall maps. The638 velocity commits
 match production exactly; the server-frame engine regression preserves the old
@@ -98,7 +98,7 @@ correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinati
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
 (NUM-01.8). Ghidra mapping persists340
-names,23 layouts,142 fields,104 x86 prototypes and35 scalar globals. The strict corpus has146
+names,23 layouts,142 fields,104 x86 prototypes and35 scalar globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has150
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
@@ -106,7 +106,7 @@ existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
 | 1 | NUM-01.2 | Verified scalar/heading/Pow/rounding/startup/literal slices | Remaining arithmetic/conversion ABI and producer ownership inventory |
-| 2 | NUM-01.13 | Exact shipped CRT isdigit0f1d5 and active locale globals | Original byte classifier, public high-byte inputs and engine regression |
+| 2 | NUM-01.12 | Verified scalar ABI plus actual movement caller sites | Reachable pointer-alias inventory and composed operation-order witnesses |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
 decimal CRT grammar/locale, source lexer domains and original nonreturning VM
@@ -344,7 +344,7 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 - [x] **NUM-01.10** Split01.2's floor/ceil/round/truncate conversion contracts: original ECX/EDX ABI, signed-zero and adjacent-integer boundaries, raw exceptional words, output aliases and independent models/C; retain round's scalar-add-half operation order, original map-dimension caller sites and ceil's actual nonmovement callers. Integrate reusable proven scalar primitives without guessing unobserved gameplay consumers. Evidence: [scalar rounding and shared startup](retail-pathfinding-engine.md#scalar-rounding-and-shared-startup),81,688 exact original/model/C calls per-O0/-O2, unchanged digest0bab35aa, output aliases/ABI guards, saved helper names/prototypes and production raw-word primitives. No unrelated gameplay ceil call is substituted.
 - [x] **NUM-01.11** Split01.2's shared scalar constant startup: recover the actual minus-one/zero/one initializer functions and registration order, execute them from poisoned storage without replacing writes, verify exact words and bounded write regions; annotate producers and remove supplied-constant assumptions where these initializers can execute. Other discovered initialization families stay inventory01.2 until assigned explicitly. Evidence: [scalar rounding and shared startup](retail-pathfinding-engine.md#scalar-rounding-and-shared-startup), original registered001dd0/001a80/001b80 entries execute from poisoned storage in CRT table ordera7cdb8..c0; numeric and power oracles preserve guards/ABI and frozen numerical digests. Saved initializer names, globals and99 prototypes; fresh138/138 corpus.
 - [ ] **NUM-01.12** Split01.2's reachable operand-alias producers: distinguish helper alias tests from actual pointer relationships in movement callers, reproduce each reachable alias or prove its exclusion, and integrate any observed operation-order difference with regressions.
-- [ ] **NUM-01.13** Split01.2's decimal CRT grammar/locale: identify the exact sibling CRT digit classifier and active locale producer, compare all relevant byte values and public high-byte inputs, and preserve accepted/rejected domains in the engine parser. Existing ASCII/S2R evidence alone does not close this item.
+- [x] **NUM-01.13** Split01.2's decimal CRT grammar/locale: identify the exact sibling CRT digit classifier and active locale producer, compare all relevant byte values and public high-byte inputs, and preserve accepted/rejected domains in the engine parser. Evidence: [public decimal byte grammar](retail-pathfinding-engine.md#public-decimal-byte-grammar-and-crt-locale), exact shipped CRT isdigit0f1d5, original C-table signed prefix and _wsetlocale1335c ever-changed flag producer;1,409 original classifier and1,020 composed parser/model/C calls per-O0/-O2 with guards. Repeated514 public authored-name/SubString/S2R calls and1,040 classifier observations retain bytes80..ff and exact high-byte Move coordinates. Engine public object-name/hashtable/Move regression passes2,054 assertions; existing ASCII parser is already correct in the observed default C locale. Numeric oracle now executes original CRT instead of an ASCII stub. Saved3 CRT types/8 roles/7 globals/context ABI; strict byte verifier rejects missing bytes, changed locale/identity and misplaced case observations. Alternative locale creation and invalid source syntax are explicitly outside this captured domain.
 - [ ] **NUM-01.14** Split01.2's nonreturning power VM lifetime: identify actual public script scheduling/watchdog/error behavior for reachable converted negative signed exponents with bounded process controls, then match the proven engine lifetime/error policy. Keep helper instruction-budget stops separate from VM evidence; no unbounded live script or fabricated numeric result.
 
 

@@ -165,6 +165,7 @@ def main():
     sources.update((REPO/'tools/frida').glob('*pathfinding*'))
     sources.update(REPO/entry['command'][1] for entry in manifest['entries'])
     sources.add(REPO/'tools/ghidra/generate_wc3_math_tables.py')
+    sources.add(REPO/'tools/ghidra/wc3_shipped_crt.py')
     sources.update((REPO/'tools/ghidra').glob('MapPathfinding*.java'))
     sources.add(Path(__file__))
     if build:

@@ -10,39 +10,32 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-BASE-05.1 records all **32** `verify_wc3_pathing_*.py` oracle scripts, **12**
-selected variants, **69** archived JSONL captures and **nine** stronger live-input
-replays from the documented report
-root. Ghidra exports, reducer attempts and other scratch reports support those
-experiments; they are not additional independently accepted corpus entries.
-Every entry supplies an argument vector, inputs, fresh report filename,
-expected exit/status, report checks, evidence level, scope and exclusions.
-Repository numerical/scenario fixtures carry SHA256 checksums separately.
-ORDER-01.4 adds registered2039d0 at42 frozen singleton/FIFO states plus18
-invalid-backing controls, repeated identically (124 native calls including
-restored-valid checks). Cdecl stack, callee registers, SEH and Unit references
-are checked. Existing VM backing is supplied; full construction stays excluded.
-GROUP-04.1 adds callback-mutation checks to the motion oracle. GROUP-04.3 adds
-three variants: open/wall callback-timed mover reuse and a missing-registry-alias
-counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. NUM-01.5/06 add one repeated public numeric/parser and parsed Move admission capture; NUM-01.8 adds one48-pair public-angle repeat. The inventory now has **138 entries**; fixture hashes and Ghidra
-annotation-script fingerprints cover those extensions. MAP-03.4 adds the
-original-mask Footman escape variant and eight complete negative public-widget
-producer captures. Frozen route states cover every tick of both seven/thirteen
-tick variants; negative captures do not imply a successful escape. See [callback reuse](retail-pathfinding-movement.md#callback-timed-handle-reclamation-and-reuse).
+The inventory now has **150 entries**: **36** distinct original-code oracle
+scripts plus **24** declared variants, **77** archived JSONL audits and **13**
+stronger live contracts. Each entry supplies an argument vector, pinned inputs,
+fresh report filename, expected exit/status, report checks, evidence level,
+scope and exclusions. Repository numerical/scenario fixtures carry SHA256
+checksums separately. Scratch exports and failed producer attempts remain
+outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 32 ordinary oracles, frozen owner baseline and its full current-order native query variant, five pair fixtures, two engine comparisons, two callback-reuse variants two callback-completion variants two completion/reuse journeys and two survivor replacement journeys | `verified` | Oracle assertions and the listed report checks must pass within their stated scope |
-| Two native adaptive size-2 cases | `known-reference-difference`, exit1 | Preserve the four retail/reference reachability differences, one per traversal lane |
-| Two modified adaptive controls and one missing-registry-alias control | `counterfactual-control`, exit0 | Deliberate hierarchy/result interventions explain the native difference; they do not certify native behavior |
-| 62 completed archives | `archive-consistent` | Current generic analyzer accepts the frozen capture; omitted scenario requirements remain omitted |
-| Seven incomplete/failed archives | `archive-rejected`, exit1 | Retain their diagnostic rejection and grant no live evidence |
-| Five numerical replays and one profile replay | `live-exact-replay` / `live-profile-replay` | Captured raw decisions/commits or getter/publication words match the stronger checker; three entries also compare a repeat capture |
+| 55 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
+| Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
+| 70 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| Seven rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
+| Five numerical replays and one profile replay | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
+| Seven public/native/compiler repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
-The three further live entries require repeated public order lifecycle,67
-bracketed numeric/25 parser witnesses, and48 raw public angle pairs, respectively. The new numeric capture
-embeds source and map hashes and compares exact parsed Move destination words;
-it does not certify a full engine trajectory.
+NUM-01.13 adds original CRT byte classification and the complete authored-name
+producer:514 public S2R/parser calls and1,040 classifier observations repeat,
+including raw high-byte Move coordinates. Earlier decimal oracles now execute
+exact shipped CRT code instead of an ASCII digit stub, with all established
+numerical digests unchanged. The byte contract checks loaded CRT identity and
+active default locale, raw input bytes, signed promotion and case brackets.
+See [public decimal bytes](retail-pathfinding-engine.md#public-decimal-byte-grammar-and-crt-locale).
+Public word parity does not establish complete engine trajectory parity.
 
 The native adaptive entries use `--size-input 1`, both with the full seeded
 map corpus and with `pathing-adaptive-size2-passage.json`. The reduced case
@@ -219,3 +212,16 @@ summary SHA256
 Logs: `/tmp/wc3-num-01.10-full-suite.log`,
 `/tmp/wc3-num-01.10-final-corpus.log`,
 `/tmp/wc3-num-01.10-production.log`.
+
+
+NUM-01.13 checkpoint: the native CRT classifier, public high-byte producer,
+raw parsed Move destination and engine object-name/SubString/S2R regression
+are integrated. The fresh `num-01.13-validated-corpus/corpus-results.json`
+passes150/150 outcomes with all63 recorded source hashes unchanged. Manifest
+SHA256 `46392d70bffedb3045a29861e5acf5459897b2d89f952ee75b22dafd3accbf61`;
+summary SHA256 `b7dba2bf7abc87d1521fabf072637fb2662381783f80d04db80d3a8335546aee`.
+All previous numerical/trajectory fingerprints remain fixed. Full `make test`
+passes40,186 assertions/2,163 WC3 cases per Classic/TFT fixture and96 pathfinding
+tool tests; WC3 and SC2 production builds pass. Logs are
+`/tmp/wc3-num13-full-test-registered.log`, `/tmp/wc3-num13-production.log`,
+`/tmp/wc3-num13-validated-corpus.log` and `/tmp/wc3-num13-final-tool-tests.log`.

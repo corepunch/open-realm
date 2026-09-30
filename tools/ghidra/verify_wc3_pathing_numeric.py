@@ -487,17 +487,13 @@ def main():
     # regenerated constants. Arithmetic/interpolation is modeled separately.
     reciprocal_table = list(struct.unpack('<1025I',uc.mem_read(0x6fa810c0,4100)))
     table_hash = hashlib.sha256(uc.mem_read(0x6fa810c0,4100)).hexdigest()
-    # Only imported ASCII isdigit is supplied here; the arithmetic/parser code
-    # executes unchanged. Live public captures use the installed sibling CRT.
-    from unicorn import UC_HOOK_CODE
-    digit_stub = 0x30001000
-    uc.mem_map(digit_stub, 4096)
-    uc.mem_write(digit_stub, b'\xc3')
-    write(0x6fa7c4fc, digit_stub)
-    def ascii_digit(machine, address, size, context):
-        value = read(machine.reg_read(UC_X86_REG_ESP) + 4)
-        machine.reg_write(UC_X86_REG_EAX, int(ord('0') <= value <= ord('9')))
-    uc.hook_add(UC_HOOK_CODE, ascii_digit, begin=digit_stub, end=digit_stub)
+    # Execute the shipped CRT classifier, including its original C-locale table.
+    # The complete byte/locale domain is checked by the separate ctype oracle.
+    from wc3_shipped_crt import load_crt
+    crt = load_crt(uc, args.binary.parent / 'msvcr120.dll')
+    write(0x6fa7c4fc, crt['exports']['isdigit'])
+    assert read(crt['base']+0xdf7c4) == 0
+    assert read(crt['base']+0xdf858) == crt['base']+0x1158
     text_address = 0x10002000
     text_cases = json.loads((Path(__file__).parents[1] / 'frida/wc3_numeric_inputs.json').read_text())['cases']
     texts = [case['input'] for case in text_cases if case['native'] == 'S2R']
@@ -839,7 +835,8 @@ def main():
         public_wrapper_cases=len(public_records), public_wrapper_sha256=public_digest,
         public_wrapper_scope='Original registered cdecl wrappers, raw synthetic words, guards/nonvolatile/stack checks; producer reachability is separately bounded by the live input fixture',
         decimal_cases=len(parser_records), decimal_sha256=parser_digest,
-        decimal_import_scope='ASCII isdigit supplied in isolated parser calls; original scalar arithmetic executes unchanged; sibling CRT is observed separately live',
+        decimal_import_scope='Exact shipped CRT isdigit code and original default C-locale table execute unchanged; DLL startup and alternative locale producers are separately bounded',
+        decimal_crt_sha256=crt['sha256'],
         paired_trig_cases=len(pair_records), paired_trig_alias_cases=pair_aliases, paired_trig_sha256=pair_digest,
         paired_trig_abi='ECX angle pointer, EDX sine pointer, stack4 cosine pointer, RET4; sine stored before cosine',
         engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','sincos','acos','sqrt','reciprocal','divide','fractional','modulo','decimal','integer_float','saturating_integer','asin','atan','atan2','tan','degrees_to_radians','radians_to_degrees')} if engine else {},

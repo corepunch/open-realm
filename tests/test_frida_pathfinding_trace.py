@@ -18,6 +18,8 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/frida'))
 from verify_wc3_integer_inputs import verify as verify_integers, FIXTURE as INTEGER_FIXTURE
 from verify_wc3_literal_inputs import verify as verify_literals, FIXTURE as LITERAL_FIXTURE
+from verify_wc3_byte_inputs import verify as verify_bytes, FIXTURE as BYTE_FIXTURE, source_bytes, expected_digits
+from make_wc3_pathfinding_map import byte_unit_name
 
 HASH = 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236'
 
@@ -29,6 +31,52 @@ def capture(*searches, calls=None):
 
 
 class PathTraceTests(unittest.TestCase):
+    def test_byte_capture_rejects_substituted_producers_locales_and_lost_brackets(self):
+        fixture = json.loads(BYTE_FIXTURE.read_text())
+        rows = [dict(event='metadata', sha256=fixture['target_sha256'], source_sha256=fixture['source_sha256'],
+                     crt=fixture['crt_config'], byteEvents=True, numericEvents=True), copy.deepcopy(fixture['crt_module'])]
+        for case in fixture['cases']:
+            identity = case['id']
+            rows.append(dict(event='numeric-marker', value=f'PATHNUM case={identity} native=S2R'))
+            rows.extend(expected_digits(case))
+            rows.extend([dict(event='numeric-byte-parser', case=identity, native='S2R', text_hex=source_bytes(case).hex(), output=case['output']),
+                         dict(event='numeric-native', case=identity, native='S2R', output=case['output']),
+                         dict(event='numeric-marker', value=f'PATHNUM done={identity} value=completion')])
+        destination = [struct.unpack('<f', struct.pack('<I', w))[0] for w in fixture['move_destination_words']]
+        rows += [dict(event='point-task', destination=destination),
+                 dict(event='marker', value='PATHTRACE tick=10 label=order_accepted x=0 y=0 order=851986'),
+                 dict(event='marker', value='PATHTRACE tick=300 label=complete x=0 y=0 order=0'),
+                 dict(event='trace-end', installed=True, counts={'numeric-native':514, 'numeric-parser':514, 'numeric-digit':1040})]
+        self.assertEqual(verify_bytes(rows, fixture)['violations'], [])
+        for mode in ('producer', 'signed', 'mask', 'table', 'locale', 'crt', 'output', 'bracket', 'count', 'incomplete', 'malformed'):
+            changed = copy.deepcopy(rows)
+            digit = next(r for r in changed if r.get('event') == 'numeric-digit')
+            parsed = next(r for r in changed if r.get('event') == 'numeric-byte-parser')
+            if mode == 'producer': parsed['text_hex'] = '54'  # literal TRIGSTR reference, not high byte
+            elif mode == 'signed': digit['input'] = 128
+            elif mode == 'mask': digit['output'] = 1
+            elif mode == 'table': digit['table_word'] = 4
+            elif mode == 'locale': changed[1]['locale_ever_changed'] = 1
+            elif mode == 'crt': changed[0]['crt']['imageSize'] ^= 1
+            elif mode == 'output': parsed['output'] ^= 1
+            elif mode == 'bracket': changed.insert(-1, changed.pop(3))
+            elif mode == 'count': changed[-1]['counts']['numeric-digit'] -= 1
+            elif mode == 'incomplete': changed.pop()
+            elif mode == 'malformed': parsed['text_hex'] = 'nothex'
+            self.assertTrue(verify_bytes(changed, fixture)['violations'], mode)
+
+    def test_byte_map_preserves_original_modifications_and_custom_objects(self):
+        original = b'hbar'+b'\0'*4+struct.pack('<I',1)+b'unam'+struct.pack('<I',3)+b'Barracks\0'+b'\0'*4
+        custom = struct.pack('<I',1)+b'hfoo'+b'xfoo'+struct.pack('<I',0)
+        source = struct.pack('<II',1,1)+original+custom
+        result = byte_unit_name(source)
+        self.assertEqual(struct.unpack_from('<II',result),(1,2))
+        self.assertEqual(result[8:8+len(original)],original)
+        self.assertEqual(result[-len(custom):],custom)
+        self.assertIn(b'unam'+struct.pack('<I',3)+bytes(range(128,256))+b'\0'*5,result)
+        with self.assertRaisesRegex(ValueError,'already'): byte_unit_name(result)
+        with self.assertRaisesRegex(ValueError,'version1'): byte_unit_name(struct.pack('<I',2)+source[4:])
+
     def test_integer_compiler_capture_rejects_radix_prefix_word_and_caller_changes(self):
         fixture = json.loads(INTEGER_FIXTURE.read_text())
         rows = [dict(event='metadata', sha256=fixture['target_sha256'], source_sha256=fixture['source_sha256'])]

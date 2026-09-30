@@ -6,12 +6,39 @@ import hashlib
 import json
 import math
 import re
+import struct
 import subprocess
 import tempfile
 from pathlib import Path
 
 SCENARIOS = {'open': 0, 'wall': 1, 'insert': 2, 'remove': 3, 'remove_reorder': 4,
-             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29}
+             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29, 'numeric_bytes': 30}
+
+
+def byte_unit_name(data):
+    """Append one Footman name override; retain every original/custom object byte."""
+    version, count = struct.unpack_from('<II', data)
+    if version != 1:
+        raise ValueError('byte fixture requires original version1 unit modifications')
+    cursor = 8
+    for _ in range(count):
+        old, new, modifications = struct.unpack_from('<4s4sI', data, cursor)
+        if old == b'hfoo':
+            raise ValueError('Footman already has an original modification row')
+        cursor += 12
+        for _ in range(modifications):
+            field, kind = struct.unpack_from('<4sI', data, cursor)
+            cursor += 8
+            if kind in (0, 1, 2):
+                cursor += 4
+            elif kind == 3:
+                cursor = data.index(b'\0', cursor)+1
+            else:
+                raise ValueError('unsupported original unit modification type')
+            cursor += 4
+    # hfoo original override: unam string, terminated by null original object ID.
+    row = b'hfoo'+b'\0'*4+struct.pack('<I', 1)+b'unam'+struct.pack('<I', 3)+bytes(range(128,256))+b'\0'*5
+    return data[:4]+struct.pack('<I', count+1)+data[8:cursor]+row+data[cursor:]
 
 
 def numeric_calls(filename="wc3_numeric_inputs.json"):
@@ -26,7 +53,12 @@ def numeric_calls(filename="wc3_numeric_inputs.json"):
         if not re.fullmatch(r'[a-z0-9_]+', identity) or identity in seen:
             raise ValueError('duplicate or invalid numeric case ID')
         seen.add(identity)
-        if name == 'S2R':
+        if case.get('producer') == 'byte_string':
+            if name != 'S2R' or not isinstance(value, dict) or type(value.get('byte')) is not int or not 128 <= value['byte'] <= 255 or any(not isinstance(value.get(k), str) or any(ord(c) < 32 or ord(c) > 126 for c in value[k]) for k in ('prefix','suffix')):
+                raise ValueError('byte fixture requires one high byte and ASCII prefix/suffix')
+            offset = value['byte'] - 128
+            argument = json.dumps(value['prefix']) + ' + SubString(byteSource, ' + str(offset) + ', ' + str(offset+1) + ') + ' + json.dumps(value['suffix'])
+        elif name == 'S2R':
             if not isinstance(value, str) or any(ord(ch) < 32 or ord(ch) > 126 for ch in value):
                 raise ValueError('numeric text fixture requires printable ASCII')
             argument = json.dumps(value)
@@ -75,6 +107,9 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
     probe = probe.replace('@POWER_CASES@', numeric_calls('wc3_power_inputs.json'))
     probe = probe.replace('@LITERAL_CASES@', numeric_calls('wc3_literal_inputs.json'))
     probe = probe.replace('@INTEGER_CASES@', numeric_calls('wc3_integer_inputs.json'))
+    probe = probe.replace('@BYTE_CASES@', numeric_calls('wc3_byte_inputs.json'))
+    # High bytes are string data, not unverified JASS source characters.
+    probe = probe.replace('@BYTE_SOURCE@', 'GetUnitName(udg_PathProbeUnit)')
     probe = probe.replace('@REMOVE_TICK@', str(remove_tick))
     probe = probe.replace('@GATE_Y@', str(float(gate_y))).replace('@GATE_EXIT_Y@', str(float(gate_exit_y)))
     block = re.search(r'^globals\n(.*?)^endglobals\n', probe, re.M | re.S)
@@ -104,6 +139,8 @@ def main():
     members = subprocess.check_output([tool, '-mpq', str(args.base), 'ls']).decode().splitlines()
     if members.count('war3map.j') != 1:
         parser.error('source must have exactly one war3map.j')
+    if args.scenario == 'numeric_bytes' and members.count('war3map.w3u') != 1:
+        parser.error('byte probe requires the original unit modification member')
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='wc3-path-map-') as temp:
         root = Path(temp)
@@ -113,8 +150,11 @@ def main():
             data = subprocess.check_output([tool, '-mpq', str(args.base), 'cat', member])
             if member == 'war3map.j':
                 source = data.decode('utf-8').replace('\r\n', '\n')
-                data = instrument(source, probe, args.scenario, args.remove_tick, args.gate_y, args.gate_exit_y).encode()
+                data = instrument(source, probe, args.scenario, args.remove_tick, args.gate_y, args.gate_exit_y).encode('utf-8')
                 args.output.with_suffix('.j').write_bytes(data)
+            if member == 'war3map.w3u' and args.scenario == 'numeric_bytes':
+                data = byte_unit_name(data)
+                args.output.with_suffix('.w3u').write_bytes(data)
             path = root / str(i)
             path.write_bytes(data)
             command.extend([str(path), member])
@@ -124,7 +164,10 @@ def main():
               'remove_tick': args.remove_tick,
               'gate_y': args.gate_y, 'gate_exit_y': args.gate_exit_y,
               'map_sha256': hashlib.sha256(args.output.read_bytes()).hexdigest(), 'members': members,
-              'changed_members': ['war3map.j'], 'container': 'rebuilt MPQ with original HM3W header; signature not retained'}
+              'changed_members': ['war3map.j', 'war3map.w3u'] if args.scenario == 'numeric_bytes' else ['war3map.j'],
+              'script_encoding': 'UTF-8',
+              'byte_string_source': 'hfoo unam object field, GetUnitName, raw bytes 80..ff' if args.scenario == 'numeric_bytes' else None,
+              'container': 'rebuilt MPQ with original HM3W header; signature not retained'}
     args.output.with_suffix('.json').write_text(json.dumps(result, indent=2) + '\n')
 
 

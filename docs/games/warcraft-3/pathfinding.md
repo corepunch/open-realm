@@ -24,6 +24,11 @@ retains its distinct source-number conversion.
 Compiled decimal/octal/hex integer constants also wrap per digit before I2R and
 Move consumption; [integer source evidence](retail-pathfinding-engine.md#compiled-jass-integer-words)
 includes values wider than64 bits, unary minimum-integer negation and save/load.
+Public S2R byte strings now have [exact original CRT evidence](retail-pathfinding-engine.md#public-decimal-byte-grammar-and-crt-locale):
+only ASCII digits are accepted in the observed default C locale. All bytes80..ff
+terminate parsing, including when a parsed coordinate enters Move. The engine
+regression uses authored object names and public SubString/S2R, preserving the
+byte producer and numerical boundary.
 
 Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach keeps live-unit collision and uses collision-sized resource-worker local avoidance.
 

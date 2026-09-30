@@ -17,6 +17,7 @@ from verify_wc3_motion_trace import verify
 from verify_wc3_pathing_integers import integer_literal_word, source_word as integer_source_word
 from verify_wc3_pathing_literals import literal_word, source_word
 from verify_wc3_pathing_power import corelog, reducedlog, log, exp, power, public as public_power
+from verify_wc3_byte_inputs import source_bytes
 
 
 class PathingMathTests(unittest.TestCase):
@@ -203,6 +204,20 @@ class PathingMathTests(unittest.TestCase):
             for case in fixture['cases']:
                 if case['native'] == 'S2R':
                     self.assertEqual(engine.pathing_decimal(case['input'].encode()), case['output'], case['id'])
+
+    def test_decimal_bytes_match_live_public_words_and_all_byte_domains(self):
+        fixture = json.loads((ROOT/'tools/ghidra/fixtures/retail-public-byte-inputs-1.27.json').read_text())
+        table = reciprocal_table()
+        for engine in self.engines:
+            engine.pathing_decimal.argtypes = [ctypes.c_char_p]
+            engine.pathing_decimal.restype = ctypes.c_uint32
+            for case in fixture['cases']:
+                source = source_bytes(case)
+                self.assertEqual(engine.pathing_decimal(source), case['output'], case['id'])
+                self.assertEqual(decimal_bits(source.decode('latin1'), table), case['output'], case['id'])
+            for byte in range(1, 256):
+                for source in (bytes([byte]), b'12'+bytes([byte])+b'34', b'.5'+bytes([byte])+b'7', b'-'+bytes([byte])+b'0.2'):
+                    self.assertEqual(engine.pathing_decimal(source), decimal_bits(source.decode('latin1'), table), source.hex())
 
     def test_live_open_decision_and_window_boundary(self):
         # Frozen first open-ground Frida decision; the two nonzero significands truncate during addition.

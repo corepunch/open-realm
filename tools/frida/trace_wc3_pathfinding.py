@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--numeric-events', action='store_true', help='capture bracketed public scalar native outputs and decimal parser words')
     parser.add_argument('--literal-events', action='store_true', help='observe compiled long-decimal token words without invoking the compiler')
     parser.add_argument('--integer-events', action='store_true', help='observe compiled long integer token words from original decimal/octal/hex lexer actions')
+    parser.add_argument('--byte-events', action='store_true', help='capture raw byte parser inputs and exact sibling CRT digit/locale observations')
     parser.add_argument('--task-events', action='store_true', help='observe point-task acceptance and arrival queue state')
     parser.add_argument('--motion-events', action='store_true', help='capture raw speed/heading decision bits for numerical replay')
     parser.add_argument('--velocity-events', action='store_true', help='capture raw velocity commits and selected simulation clocks')
@@ -53,7 +54,16 @@ def main():
               'velocityEvents': args.velocity_events, 'headingEvents': args.heading_events,
               'profileEvents': args.profile_events, 'numericEvents': args.numeric_events,
               'literalTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_literal_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.literal_events else [],
-              'integerTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_integer_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.integer_events else []}
+              'integerTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_integer_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.integer_events else [], 'byteEvents': args.byte_events}
+    if args.byte_events:
+        crt = (args.data / 'msvcr120.dll').read_bytes()
+        crt_hash = hashlib.sha256(crt).hexdigest()
+        if crt_hash != '86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f':
+            parser.error('byte capture requires the exact shipped sibling CRT')
+        cp = struct.unpack_from('<I', crt, 0x3c)[0]
+        config['crt'] = dict(sha256=crt_hash, timestamp=struct.unpack_from('<I', crt, cp+8)[0],
+                             imageSize=struct.unpack_from('<I', crt, cp+80)[0],
+                             path='Z:' + str((args.data / 'msvcr120.dll').resolve()).replace('/', '\\'))
     source_paths = [Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
                     Path(__file__).with_name('wc3_pathfinding_probe.j'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
@@ -61,7 +71,8 @@ def main():
                     Path(__file__).with_name('wc3_angle_inputs.json'),
                     Path(__file__).with_name('wc3_power_inputs.json'),
                     Path(__file__).with_name('wc3_literal_inputs.json'),
-                    Path(__file__).with_name('wc3_integer_inputs.json')]
+                    Path(__file__).with_name('wc3_integer_inputs.json'),
+                    Path(__file__).with_name('wc3_byte_inputs.json')]
     provenance = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths}
     map_path = args.data / args.map.replace('\\', '/')
     if args.numeric_events and not map_path.is_file():

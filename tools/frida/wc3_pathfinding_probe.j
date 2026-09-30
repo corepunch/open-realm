@@ -130,6 +130,12 @@ function PathProbeIntegerInputs takes nothing returns nothing
 @INTEGER_CASES@
 endfunction
 
+function PathProbeByteInputs takes nothing returns nothing
+    local real realResult = 0.0
+    local string byteSource = @BYTE_SOURCE@
+@BYTE_CASES@
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
@@ -150,6 +156,9 @@ function PathProbeTick takes nothing returns nothing
     endif
     if PATH_PROBE_SCENARIO == 29 and udg_PathProbeTick == 1 then
         call PathProbeIntegerInputs()
+    endif
+    if PATH_PROBE_SCENARIO == 30 and udg_PathProbeTick == 1 then
+        call PathProbeByteInputs()
     endif
     if PATH_PROBE_SCENARIO == 22 then
         call PathProbeOrderLifecycle()
@@ -214,12 +223,20 @@ function PathProbeTick takes nothing returns nothing
             else
                 call PathProbeRecord("order_rejected")
             endif
-        elseif PATH_PROBE_SCENARIO == 23 then
+        elseif PATH_PROBE_SCENARIO == 23 or PATH_PROBE_SCENARIO == 30 then
             call Preload("PATHNUM case=move_x native=S2R")
-            set numericX = S2R("-1936.25")
+            if PATH_PROBE_SCENARIO == 30 then
+                set numericX = S2R("-1936.25" + SubString(GetUnitName(udg_PathProbeUnit), 0, 1) + "9")
+            else
+                set numericX = S2R("-1936.25")
+            endif
             call Preload("PATHNUM done=move_x value=" + R2S(numericX))
             call Preload("PATHNUM case=move_y native=S2R")
-            set numericY = S2R("-144.125")
+            if PATH_PROBE_SCENARIO == 30 then
+                set numericY = S2R("-144.125" + SubString(GetUnitName(udg_PathProbeUnit), 127, 128) + "9")
+            else
+                set numericY = S2R("-144.125")
+            endif
             call Preload("PATHNUM done=move_y value=" + R2S(numericY))
             if IssuePointOrder(udg_PathProbeUnit, "move", numericX, numericY) then
                 call PathProbeRecord("order_accepted")
