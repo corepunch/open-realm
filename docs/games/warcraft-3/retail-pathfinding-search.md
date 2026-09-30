@@ -785,7 +785,7 @@ observes the complete method return clearing the same collection; heap/region
 accounting is not inferred from that pointer transition.
 
 
-### Widget-produced order through acceptance
+### Widget-produced escape through arrival
 
 One original`6544f0` invocation now returns after order factory`69bd80`,
 `680320` cancellation, `691c70` user-queue publication, `67abe0` dispatch and
@@ -802,7 +802,50 @@ count: proximity storage already held occupant record0 but setup declared zero
 allocated/live entries; pre-entry movement could overwrite it and cycle the
 list. Correct counts1 and original`15fb40` bounds setup fix the fixture without
 clearing cells or changing the proposed target. Unit refs now4→4 across the
-whole call, rather than the staged transient5→4. Travel/arrival remains open.
+whole call, rather than the staged transient5→4. The original admission evidence is now extended through arrival below.
 Stable script/report `widget-masks-uninterrupted-stable.py/.json`, SHA256
 `72c76af33698f54da61029b20fbacac00a370640b8b5d0b1f8da969bdff88525`;
 staged snapshot is retained as superseded evidence.
+
+
+The MAP-03.4 supporting journey follows that accepted idle-unit order without replacing
+its proposal or removing the widget footprint. It explicitly supplies individual path
+query mask`02000000` before travel: terrain-only, with no low widget mask bits.
+That intervention does not recover the public movement-class mask producer;
+MAP-03.4 remains open until the original produced mask/regions are retained. Empty search buffers and scheduler storage are
+provisioned, then original `16c150` performs fresh search. The three-point route is
+`[target, (7.5,7.5), start]`; both start and intermediate cells retain widget A's
+blocking record. Original `054190` advances seven intervals of1/32 second, with
+`16c150` deciding and committing movement. Every position word matches the
+independent scalar integration of the preceding velocity. Seven position/velocity
+pairs are frozen in `tools/ghidra/fixtures/retail-widget-escape-journey-1.27.json`.
+Normalized journey SHA256:
+`7d91e8aa712afb8a5025e9b0f98d2a19479f4b4c19bc7973abb6a49079bb4c0c`.
+
+At tick7 original `5fa7a0` observes user head`[5,105]` and completes the command.
+Task/user heads and tail become invalid, queue/action/Move flags become zero,
+mover group identity becomes invalid, and velocity becomes zero. After two further
+clock intervals the direct group tick releases group/path storage; all order/task
+payload free lists and wrapper storage are restored. Widget region flags remain
+unchanged on every travel tick, and start/intermediate cells are still occupied.
+The oracle's existing destruction-prefix fixture then runs independently; its
+Storm403 boundary remains unchanged.
+
+Report `map-03.4-widget-journey-exact.json` certifies this composed original-code
+journey. It is not a full-owner/public-widget-creation capture: the fixture supplies
+cache, terrain, buffers, pools and unit/Move backing, directly ticks the group,
+and uses the original RNG without an independent seed model. Multiple occupants,
+active-order interrupt/resume, public producer timing and full creation/free remain
+separate backlog requirements. Ghidra now names/types `Widget_ReapplyPathingAndDisplace`
+and `Widget_DisplaceOccupant`, including the32-byte `WC3WidgetEscapeContext` prefix;
+unused offset0 remains undefined. Saved metadata:
+`map-03.4-ghidra-widget-types.json` (301 names,19 layouts,122 fields,69 prototypes).
+
+[Engine idle admission](retail-pathfinding-engine.md#widget-escape-idle-admission)
+executes a construction-margin escape through normal server frames. A discovered
+inside-footprint engine failure is explicitly MAP-03.7: at worker`(0,-64)` inside
+an active9×9 footprint, endpoint validation rejects intermediate occupied cells.
+The supplied terrain-only query mask permits those occupied cells in this fixture;
+it does not prove the public retail exclusion policy. Recover the actual movement-class
+mask and exclusion/region producer before integrating inside-footprint behavior.
+Do not clear the whole footprint or bypass unrelated terrain/unit collision.

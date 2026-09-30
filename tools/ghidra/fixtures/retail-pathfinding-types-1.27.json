@@ -803,6 +803,54 @@
           "evidence": "5fe05f reads order64"
         }
       ]
+    },
+    {
+      "name": "WC3WidgetEscapeContext",
+      "length": 32,
+      "fields": [
+        {
+          "offset": 4,
+          "name": "min_x",
+          "type": "WC3PathScalar",
+          "evidence": "654635..665 stores rectangle;6540bd reads"
+        },
+        {
+          "offset": 8,
+          "name": "min_y",
+          "type": "WC3PathScalar",
+          "evidence": "654635..665 stores rectangle;6540c5 reads"
+        },
+        {
+          "offset": 12,
+          "name": "max_x",
+          "type": "WC3PathScalar",
+          "evidence": "654635..665 stores rectangle;6540cb reads"
+        },
+        {
+          "offset": 16,
+          "name": "max_y",
+          "type": "WC3PathScalar",
+          "evidence": "654635..665 stores rectangle;6540d1 reads"
+        },
+        {
+          "offset": 20,
+          "name": "widget",
+          "type": "ptr:void",
+          "evidence": "654663 writes widget;654116 excludes same unit"
+        },
+        {
+          "offset": 24,
+          "name": "origin_x",
+          "type": "WC3PathScalar",
+          "evidence": "654643..648 stores snapped origin"
+        },
+        {
+          "offset": 28,
+          "name": "origin_y",
+          "type": "WC3PathScalar",
+          "evidence": "65464b..64e stores snapped origin"
+        }
+      ]
     }
   ],
   "methods": [
@@ -1846,6 +1894,36 @@
           "name": "input",
           "type": "ptr:WC3PathScalar",
           "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f6544f0",
+      "name": "Widget_ReapplyPathingAndDisplace",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "widget",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f654090",
+      "name": "Widget_DisplaceOccupant",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "ptr:WC3WidgetEscapeContext",
+          "storage": "EDX"
         }
       ]
     }

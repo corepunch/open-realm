@@ -878,3 +878,50 @@ Manifest SHA256 `667324574a68516357cbcb401e48bca8cd79643e80a1b4b28ff463d5816c239
 summary SHA256 `8466ca0aa96d2a8b72523d8441c3e7ca9743b187baba52d4fab6820facab49b3`.
 The earlier scratch corpus rejected an unsupported dotted report-check key;
 the final manifest checks the complete repeat object, preserving every assertion.
+
+
+## Widget escape idle admission
+
+The accepted widget escape in MAP-03.4 installs a real Move for an idle occupant,
+then completes after seven original group ticks with a supplied terrain-only query mask
+while its widget footprint remains registered ([original journey](retail-pathfinding-search.md#widget-produced-escape-through-arrival)).
+The engine previously only set `movement.displacement_active` and a walk animation;
+its stand thinker never consumed that target. A construction-margin fixture using
+`G_DisplaceBuildOccupants`, `G_StartHumanConstruction`, a live JASS VM and normal
+`globals.RunFrame` reproduces five failures, including zero travel after120 frames.
+
+Move now starts an ordinary temporary Move destination for an idle stand with no
+active user order and no Hold behavior. Existing Move/build walkers retain their
+original behavior and destination and continue consuming the displacement target
+as before. No issued-event publication, queue clearing, persistent field or wire
+change is added. The new server-frame regression verifies escape arrival, current
+Move head then head0, retained construction blocking and replacement public Move
+canceling displacement and arriving at its replacement point. The existing worker
+regression still reaches its later build destination.
+
+This is bounded admission/lifecycle integration, not full widget-path parity.
+A second reproduced case, the same idle worker at`(0,-64)` inside the9×9 active
+footprint, remains immobile because static endpoint validation rejects every
+occupied intermediate cell. The passing margin fixture starts at`(0,-192)`.
+MAP-03.4 remains open for retaining the original produced query mask and region state
+through this journey; the current fixture explicitly supplies mask`02000000`.
+MAP-03.7 owns integrating the recovered self/widget exclusion policy,
+terrain and unrelated-object protection, interrupted escape/Stop cleanup and
+arrival/failure lifetime. Original nearest-edge/jitter proposal generation and
+RNG ownership remain MAP-03.3/NUM-04; no spiral geometry is promoted to retail parity.
+Validation logs retain both failures in `/tmp/wc3-map-03.4-idle-{baseline,fixed}.log`
+and the final margin baseline in `/tmp/wc3-map-03.4-idle-final-baseline.log`.
+
+
+Validation: final `make test` passes85 pathfinding tool tests and37,126 engine
+assertions in2,142 tests per Classic/TFT. The two construction displacement
+regressions pass47 checks with `WC3_DEBUG_BUILD=1` after forcing recompilation
+of the Move source, and pass again after rebuilding normally. WC3/SC2 production
+builds pass. No save or network representation changes.
+Fresh strict `map-03.4-widget-final-corpus/corpus-results.json` passes124/124
+with unchanged source fingerprints. Manifest SHA256
+`72b14dc041e398b499eedbe6dbd9e8db63bc8f5bbbad81844fccdf5c2b07c564`;
+summary SHA256
+`69fdc4610b6e8bfa4fe3615d6c5ed87079e7ebb3dfc518c2f428ef2af99fcb49`.
+MAP-03.4 is deliberately still unchecked pending the original produced mask;
+the strict terrain-only journey is supporting bounded evidence.

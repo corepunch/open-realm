@@ -1112,6 +1112,13 @@ bool move_displacement_reached(edict_t *self) {
 
 void move_start_displacement(edict_t *self, vec2_t const *target) {
     if (!self || !target) return;
+    /* Retail widget escape admits a real Move even for an idle occupant.
+     * A displacement flag alone left the stand thinker running forever.
+     * Existing walkers/builders retain their order and consume this target
+     * temporarily; only an idle stand needs a new Move destination. */
+    if (self->currentmove && self->currentmove->think == ai_stand &&
+        !self->current_order_id && !self->movement.holding_position)
+        S_IssueMoveOrder(self, Waypoint_add(target), G_OrderId("move"));
     move_reset_progress(self);
     self->movement.displacement_target = *target;
     self->movement.displacement_active = true;

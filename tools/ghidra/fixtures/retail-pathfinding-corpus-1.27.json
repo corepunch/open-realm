@@ -1049,13 +1049,25 @@
       "checks": {
         "lifecycle_cases": {
           "minimum": 1
+        },
+        "widget_escape_arrival_tick": {
+          "equal": 7
+        },
+        "widget_escape_trajectory_sha256": {
+          "equal": "7d91e8aa712afb8a5025e9b0f98d2a19479f4b4c19bc7973abb6a49079bb4c0c"
+        },
+        "widget_escape_fixture_sha256": {
+          "equal": "05ab9311f04d6248ddae1cb70c2fe6f7108be8f85afa8e1fe6192664528bd452"
+        },
+        "widget_escape_supplied_query_mask": {
+          "equal": 33554432
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free.",
+      "scope": "Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return, then executes fresh search and seven elapsed direct group ticks to arrival with the widget footprint retained. Frozen exact position/velocity words, callback identity, drained queues and reclaimed group/path/order/task storage are checked. Full owner cadence and public widget creation remain excluded. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free. Travel explicitly supplies terrain-only individual query mask02000000; original class-mask producer and public widget exclusion policy remain MAP-03.4. Retained widget records do not prove they block this query.",
       "exclusions": []
     },
     {
@@ -5910,7 +5922,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "79e320792e6e15647bb000b8c22f819d723f40b2e7544728e1b9b35399246c1d"
+      "sha256": "1a9e28840d78135cb3db36fcfbdbf55d9857fd62abbeafa1dccf486d0440e952"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -5971,6 +5983,10 @@
     {
       "path": "tools/frida/wc3_angle_inputs.json",
       "sha256": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-widget-escape-journey-1.27.json",
+      "sha256": "05ab9311f04d6248ddae1cb70c2fe6f7108be8f85afa8e1fe6192664528bd452"
     }
   ]
 }

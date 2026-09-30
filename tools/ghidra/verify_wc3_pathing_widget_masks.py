@@ -6,8 +6,13 @@ rotated sample geometry, effective occupancy and accelerator classification mode
 Also executes full CUnit inherited widget reapply/removal through original resource-cache
 lookup, pose/heading adapters, snapping and refresh gate. Widget creation, cache
 miss allocation and authored resource decoding are excluded. One accepted callback
-continues through actual order/task factories, user queue and Move task acceptance;
-shipped CRT math is loaded unchanged. Destruction stops at genuine Storm403.
+continues through actual order/task factories, user queue, Move task acceptance,
+fresh search and seven elapsed ticks to arrival/reclamation with the blocking
+footprint retained. Shipped CRT math is loaded unchanged. Destruction stops at
+genuine Storm403; this fixture advances the group directly, not the whole owner.
+Travel explicitly supplies terrain-only mask02000000. The original movement-class
+mask producer and public widget exclusion policy remain MAP-03.4; retained
+widget records alone do not prove that they block this supplied query mask.
 """
 import argparse
 import hashlib
@@ -27,6 +32,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--fixture', type=Path, default=Path(__file__).with_name('fixtures') / 'retail-widget-escape-journey-1.27.json')
     args = parser.parse_args()
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
@@ -853,7 +859,8 @@ def main():
         group_identity=words(group + 0x14, 2), path_identity=words(path + 0x14, 2), events=dispatch_events,
         scope='One uninterrupted original6544f0 invocation with all provisioning before entry; full680320 cancellation, real factories, user-order publication, task dispatch and Move acceptance return. Group/path/membership, callback reference release and final widget refresh asserted. Stock-style speed bounds and shipped original CRT math provisioned; no travel/arrival claim.')
     # Follow the exact widget-produced command; preserve footprint records and
-    # its original random proposal. Only empty search/scheduler storage is supplied.
+    # its original random proposal. Supply search/scheduler storage and a
+    # terrain-only individual mask: this is not the public class-mask producer.
     from verify_wc3_pathing_numeric import multiply
     uc.mem_map(0x10200000, 0x90000)
     nodes, search_heap, member_route, group_route, member_coarse = [0x10200000 + n for n in (0, 0x30000, 0x60000, 0x64000, 0x68000)]
@@ -869,6 +876,7 @@ def main():
         write(ptr + 0x6c, 1024, 0)
     write(current_path + 0x84, 700 | (400 << 16))
     write(current_path + 0x9c, 0x02000000)
+    assert words(current_path + 0x9c, 1) == [0x02000000]
     for row in range(16):
         for kind, (limit, reload, budget) in enumerate(((5000, 3, 800), (2000, 2, 300), (400, 2, 900), (700, 1, 1100))):
             write(0x6fd53a90 + row * 0x70 + kind * 0x1c, limit | (reload << 16), budget, 0, 0, 0, 0, 0)
@@ -948,6 +956,13 @@ def main():
     travel_outcome.update(outcome='arrived', arrival_tick=7, footprint_start_and_middle_cells_active=True,
                           payload_free_lists_restored=returned_payloads, registry_live_after_cleanup=5,
                           scope='Unchanged widget footprint and original proposal; fresh original search returns three points including occupied start/intermediate cells, arrival after7ticks, task/user queues drain, group/path and all order/task payloads/wrappers reclaimed.')
+    frozen = json.loads(args.fixture.read_text())
+    escape_words = {key: value for key, value in travel_outcome.items() if key != 'scope'}
+    assert frozen['binary_sha256'] == digest and frozen['crt_sha256'] == crt_digest
+    assert frozen['supplied_query_mask'] == 0x02000000
+    assert frozen['target_world_bits'] == list(proposals[0]) and frozen['target_grid_bits'] == target_grid
+    assert escape_words == frozen['travel'], 'widget escape journey differs from frozen original words/lifetimes'
+    travel_digest = hashlib.sha256(json.dumps(escape_words, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     # Independent destruction fixture. Full650c00 reaches the real Storm403
     # array free after retiring all four original registered footprint regions.
     mover_regions = [0x10086000, 0x10086080]
@@ -1040,6 +1055,9 @@ def main():
         assert levels() != blocked
     report = dict(binary_sha256=digest, lifecycle_cases=cases, raster_bounds_rebuild_stages=stages,
                   actual_callback_calls=total_callbacks, actual_cell_records=total_records,
+                  widget_escape_arrival_tick=7, widget_escape_supplied_query_mask=0x02000000,
+                  widget_escape_trajectory_sha256=travel_digest,
+                  widget_escape_fixture_sha256=hashlib.sha256(args.fixture.read_bytes()).hexdigest(),
                   travel_outcome=travel_outcome, full_displacement_returns=full_displacement_returns, displacement_evidence=displacement_evidence, crt_sha256=crt_digest,
                   destruction_prefixes=dict(count=len(destructions), stop="6f07c678 Storm403", first_free="collection pointer array", observations=destructions, scope="Actual650c00 flags/pose update then063b40 retires four A regions: registry live8->4, A identities/stamps invalid, pending records6 each, array entries zero. Stops at mandatory Storm403 (return063bb1); array/collection free, widget34 clearing and method refresh not executed. Separate15d360 rebuild removes A-only coverage and preserves translated overlapping B. Region object pool return/compaction not executed."),
                   constructed_order_observation=dict(count=1, entry="6f680320", order=hex(dispatch_orders[0]), scope="Resumed accepted Move prefix through full original69bd80 COrderTarget creation, constructor, identity registration and point initialization; observed during uninterrupted widget execution; see displacement_evidence."),
@@ -1055,7 +1073,7 @@ def main():
                   snapping='World-coordinate truncation toward zero to a multiple of 64, plus sign(value) * (32 * ((rotated_extent >> 1) & 1) + 16 * (rotated_extent & 1)); exercised strictly inside world bounds.',
                   sequence='A insert, overlapping B insert, A remove, B remove; explicit bounds rebuild after every raster',
                   entries=['6f22e9c0', '6f652b40', '6f650a70', '6f063e50', '6f14d9e0', '6f22f1d0', '6f04e0b0', '6f15d360', '6f6514d0', '6f6524c0', '6f344760', '6f058900', '6f252b30', '6f22f410', '6f651160', '6f6544f0', '6f78bc90', '6f744040', '6f04c5d0', '6f05ef40', '6f654090', '6f674280', '6f1b7130', '6f69dd60', '6f600620', '6f69bd80', '6f680970', '6f689a60', '6f650c00', '6f063b40', '6f14dae0', '6f1cbfb0', '6f680320', '6f673fe0', '6f691c70', '6f67abe0', '6f5fd270', '6f67df00', '6f16c150', '6f054190', '6f5fa7a0'],
-                  scope='Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free.')
+                  scope='Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return, then preserves the footprint through fresh search, seven direct group ticks, arrival and reclamation. Full owner cadence remains excluded. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free.')
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))

@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**57 done / 237 tasks; 180 remaining.** Counts describe this backlog,
+**57 done / 238 tasks; 181 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -17,7 +17,7 @@ Completed evidence now sits next to its specific remaining extension.
 | Area | Done | Remaining |
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 10 | 10 |
-| MAP — Map construction and lifetime | 3 | 16 |
+| MAP — Map construction and lifetime | 3 | 17 |
 | FOOT — Footprints and query policy | 1 | 8 |
 | FINE — Fine search | 1 | 8 |
 | ACC — Adaptive search | 1 | 10 |
@@ -37,6 +37,8 @@ Completed evidence now sits next to its specific remaining extension.
 Update these counts when checking, adding or splitting a task. Report progress
 as **IDs closed + artifact + next runnable ID**, not additional raw test counts.
 The denominator changes only when a new task is explicitly added or split.
+MAP-03.7 explicitly adds the inside-footprint engine failure discovered while auditing03.4;
+03.4 remains open because its supporting seven-tick journey supplies a terrain-only mask.
 NUM-01.4 explicitly splits01.2's paired-trig production consumer from its
 remaining arithmetic/conversion and public-domain inventory; both are required.
 NUM-01.5/06 explicitly split the decimal/public-native engine integration from01.2.
@@ -74,7 +76,7 @@ Patrol admission/current ownership, endpoint reversal and queued/save lifecycle
 
 ## Work next
 
-Start with **MAP-03.4**, then **NUM-01.2**. GROUP-04.5 now composes actual survivor point
+Start with **MAP-03.4**, then its engine integration **MAP-03.7**, then **NUM-01.2**. GROUP-04.5 now composes actual survivor point
 replacement through680320, original new-request refresh/layout, new-goal arrival
 and both groups' final reclamation on open/wall maps. The638 velocity commits
 match production exactly; the server-frame engine regression preserves the old
@@ -88,16 +90,17 @@ state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled literal parsing remains01.7. Angle adapters now retain the original inverse/polynomial and public guards
-(NUM-01.8). Ghidra persists299
-names,18 layouts,115 fields and67 x86 prototypes. The strict corpus has124
+(NUM-01.8). Ghidra persists301
+names,19 layouts,122 fields and69 x86 prototypes. The strict corpus has124
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | NUM-01.2 | Verified scalar/heading slices | Remaining trig/conversion ABI, constants and public input-domain inventory |
-| 2 | MAP-03.4 | Existing widget admission | Footprint refresh and complete escape-order arrival/failure |
+| 1 | MAP-03.4 | Widget admission and bounded seven-tick oracle | Retain original produced query masks/regions through escape arrival/failure |
+| 2 | MAP-03.7 | Reproduced inside-footprint engine failure | Integrate recovered escape collision policy and cleanup |
+| 3 | NUM-01.2 | Verified scalar/heading slices | Remaining arithmetic/conversion ABI and public input-domain inventory |
 
 MAP-03.4 (widget escape to arrival/failure) also has existing fixtures. Use
 the per-area dependencies and finish one bounded task before starting another.
@@ -208,9 +211,10 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 - [x] **MAP-03.1** Terrain edit/rebuild/reversal corpus passes 11,664 edits, 216 compositions and 30 clipped updates. Evidence: [terrain edits][map-edits]; other invalidation producers remain separate tasks.
 - [x] **MAP-03.2** Widget rasterization covers 144 overlapping sequences and 96 paired reapply/remove lifecycles. Evidence: [widget lifecycle][widgets]; file loading, growth and full gameplay travel remain excluded.
 - [ ] **MAP-03.3** List spawn, movement, size/pathing changes, construction and removal producers with affected grids and update timing; assign uncovered producers separate IDs.
-- [ ] **MAP-03.4** Continue one widget-produced escape order from accepted admission to arrival/failure; assert footprint refresh and route state throughout.
+- [ ] **MAP-03.4** Continue one widget-produced escape order from accepted admission to arrival/failure; retain its original produced query masks/region state and assert footprint refresh and route state throughout. Supporting [seven-tick journey](retail-pathfinding-search.md#widget-produced-escape-through-arrival) now freezes exact velocity/position, callback/head identity and complete reclamation, but explicitly supplies terrain-only mask02000000 before travel; this is not public widget collision-policy proof. [Idle engine admission](retail-pathfinding-engine.md#widget-escape-idle-admission) is integrated/tested; original movement-class mask producer remains required.
 - [ ] **MAP-03.5** Exercise a resource depletion/removal lifecycle; assert footprint and hierarchy changes before the next request.
 - [ ] **MAP-03.6** Exercise destructible destruction and cache invalidation through the final free; assert the next route no longer sees the dead blocker.
+- [ ] **MAP-03.7** Explicitly add inside-footprint engine escape integration: after03.4 recovers the original movement-class mask/exclusion/region policy, reproduce the idle worker at(0,-64) inside a9×9 active construction footprint, retain terrain/unrelated-object blocking, and verify actual escape arrival/failure and interruption/Stop cleanup through normal server frames. Current endpoint validation rejects every intermediate occupied cell; do not bypass the whole static grid. The(0,-192) margin admission/arrival/replacement regression already passes.
 
 ### MAP-04 — Temporary exclusions
 
