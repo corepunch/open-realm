@@ -96,6 +96,13 @@ buffer_t *R_MakeVertexArrayObject(vertex_t const *vertices, uint32_t size) {
     return buf;
 }
 
+/* Overwrite a vertex range in place. A caller re-baking a fixed-size slice of a large static buffer keeps its
+ * single draw call and avoids recreating the VAO. */
+void R_UpdateVertexArrayObject(buffer_t const *buffer, uint32_t first, vertex_t const *vertices, uint32_t count) {
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
+    R_Call(glBufferSubData, GL_ARRAY_BUFFER, first * sizeof(vertex_t), count * sizeof(vertex_t), vertices);
+}
+
 buffer_t *R_MakeIndexedVertexArrayObject(vertex_t const *vertices, uint32_t num_vertices, uint32_t const *indices, uint32_t num_indices) {
     buffer_t *buf = R_MakeVertexArrayObject(vertices, num_vertices);
 

@@ -434,6 +434,7 @@ vertex_t *R_AddQuad(vertex_t *buffer, rect_t const *screen, rect_t const *uv, co
 vertex_t *R_AddStrip(vertex_t *buffer, rect_t const *screen, color32_t color);
 vertex_t *R_AddWireBox(vertex_t *buffer, box3_t const *box, color32_t color);
 buffer_t *R_MakeVertexArrayObject(vertex_t const *vertices, uint32_t size);
+void R_UpdateVertexArrayObject(buffer_t const *buffer, uint32_t first, vertex_t const *vertices, uint32_t count);
 buffer_t *R_MakeIndexedVertexArrayObject(vertex_t const *vertices, uint32_t num_vertices, uint32_t const *indices, uint32_t num_indices);
 void R_DrawBuffer(buffer_t const *buffer, uint32_t num_vertices);
 void R_DrawBufferRange(buffer_t const *buffer, drawRange_t const *draw);
