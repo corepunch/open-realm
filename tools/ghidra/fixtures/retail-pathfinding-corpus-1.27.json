@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "Current37 executable original-code oracle scripts,33 selected exact/frozen variants,17 explicit live/profile/repeat contracts and79 archived capture audits. Ghidra decompiles, reduction attempts and scratch reports support research but are not independently accepted corpus entries.",
+  "scope": "Current37 executable original-code oracle scripts,34 selected exact/frozen variants,18 explicit live/profile/repeat contracts and82 archived capture audits. Ghidra decompiles, reduction attempts and scratch reports support research but are not independently accepted corpus entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -9213,6 +9213,380 @@
       ],
       "scope": "Original fine reconstruction in eight directions over valid parent chains, exact source/destination replacement including one-node cases and nonmatching goal cells; production C matches raw words with reuse. Existing9216 coarse cases remain original/model only.",
       "exclusions": []
+    },
+    {
+      "id": "oracle-arrival-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_arrival.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "arrival-engine.json",
+      "expected_exit": 0,
+      "expected_status": "original-engine-exact",
+      "checks": {
+        "engine_cases": {
+          "equal": 2342
+        },
+        "passed": {
+          "equal": true
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Complete original16e910 predicate against production C,2342 exact raw distance/heading/range/result cases; supplied geometry and flags.",
+      "exclusions": "Distance and angular math observed from original helpers, not independently reimplemented."
+    },
+    {
+      "id": "capture-arrival-point-first",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/arrival-point-inputs-first-260930.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/arrival-point-inputs-first-260930.jsonl",
+        "sha256": "3920c5d7f490746f08bfc61d6295ea3bfcdc3804dab0ce305bc25c1078399080",
+        "bytes": 54451,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "09e02f9cbedf831893f385ca1f4e5cb0161b65eedefabd3ba38dcaaffe1e5112",
+            "wc3_pathfinding_probe.j": "bdec3692c5c16c074c5870a7a65f0a87c369a0da86841fdad27b9b1511656283",
+            "make_wc3_pathfinding_map.py": "a6ec530c34ec02f5b92bed8cf0baf62b6444a52c175740685cb1fbf1a601821d",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "2e899f44e99ecd699e4ffb6e60eab011e90f1b982c459f6f95b4312e61cc763c"
+          },
+          "map": "Maps\\PathingRE-ArrivalPoint-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/arrival-point-first-audit.json",
+      "expected_exit": 1,
+      "expected_status": "archive-rejected",
+      "checks": {
+        "violations": {
+          "equal": [
+            "capture contains observer/controller errors"
+          ]
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [
+        {
+          "type": "error",
+          "description": "Error: access violation accessing 0x69a68f94",
+          "stack": "Error: access violation accessing 0x69a68f94\n    at onEnter (/script1.js:277)",
+          "fileName": "/script1.js",
+          "lineNumber": 277,
+          "columnNumber": 1
+        }
+      ],
+      "evidence": [],
+      "scope": "Frozen rejected observer capture: completion marker exists, but access violation invalidates the witness; no evidence certified.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "capture-arrival-point-verified",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/arrival-point-inputs-verified-260930.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/arrival-point-inputs-verified-260930.jsonl",
+        "sha256": "f7cfbbb703bb044e24867e319e520e7ff3e748e3306881e0779e17808f98a055",
+        "bytes": 277601,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "245bfd1a8e9516e50d9f477d0009a5ec440c8221cd76f6dd685e28d54c14547e",
+            "wc3_pathfinding_probe.j": "bdec3692c5c16c074c5870a7a65f0a87c369a0da86841fdad27b9b1511656283",
+            "make_wc3_pathfinding_map.py": "a6ec530c34ec02f5b92bed8cf0baf62b6444a52c175740685cb1fbf1a601821d",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "2e899f44e99ecd699e4ffb6e60eab011e90f1b982c459f6f95b4312e61cc763c"
+          },
+          "map": "Maps\\PathingRE-ArrivalPoint-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/arrival-point-verified-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen complete point arrival capture; independent semantic replay is live-point-arrival-repeat.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "capture-arrival-point-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/arrival-point-inputs-repeat-260930.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/arrival-point-inputs-repeat-260930.jsonl",
+        "sha256": "492b7eafa25fa701537f0b8a93ca0be553ada869e5d4de5b0e3cad018f3aea44",
+        "bytes": 277600,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "245bfd1a8e9516e50d9f477d0009a5ec440c8221cd76f6dd685e28d54c14547e",
+            "wc3_pathfinding_probe.j": "bdec3692c5c16c074c5870a7a65f0a87c369a0da86841fdad27b9b1511656283",
+            "make_wc3_pathfinding_map.py": "a6ec530c34ec02f5b92bed8cf0baf62b6444a52c175740685cb1fbf1a601821d",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "2e899f44e99ecd699e4ffb6e60eab011e90f1b982c459f6f95b4312e61cc763c"
+          },
+          "map": "Maps\\PathingRE-ArrivalPoint-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/arrival-point-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen complete point arrival capture; independent semantic replay is live-point-arrival-repeat.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "live-point-arrival-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_arrival_trace.py",
+        "{archive}/runtime/arrival-point-inputs-verified-260930.jsonl",
+        "--compare",
+        "{archive}/runtime/arrival-point-inputs-repeat-260930.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-point-arrival-inputs-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/arrival-point-inputs-verified-260930.jsonl",
+        "sha256": "f7cfbbb703bb044e24867e319e520e7ff3e748e3306881e0779e17808f98a055",
+        "bytes": 277601,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "245bfd1a8e9516e50d9f477d0009a5ec440c8221cd76f6dd685e28d54c14547e",
+            "wc3_pathfinding_probe.j": "bdec3692c5c16c074c5870a7a65f0a87c369a0da86841fdad27b9b1511656283",
+            "make_wc3_pathfinding_map.py": "a6ec530c34ec02f5b92bed8cf0baf62b6444a52c175740685cb1fbf1a601821d",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "2e899f44e99ecd699e4ffb6e60eab011e90f1b982c459f6f95b4312e61cc763c"
+          },
+          "map": "Maps\\PathingRE-ArrivalPoint-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "live-point-arrival-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "arrival_evaluations": {
+          "equal": 183
+        },
+        "final_old_velocity_stops": {
+          "equal": 1
+        },
+        "repeated": {
+          "equal": true
+        },
+        "passed": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Actual zero-range point Move: producer/publication,183 predicted-pose predicates and final old-velocity stop; repeated identical decisions/commits.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/arrival-point-inputs-repeat-260930.jsonl",
+            "sha256": "492b7eafa25fa701537f0b8a93ca0be553ada869e5d4de5b0e3cad018f3aea44",
+            "bytes": 277600,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+                "wc3_pathfinding.js": "245bfd1a8e9516e50d9f477d0009a5ec440c8221cd76f6dd685e28d54c14547e",
+                "wc3_pathfinding_probe.j": "bdec3692c5c16c074c5870a7a65f0a87c369a0da86841fdad27b9b1511656283",
+                "make_wc3_pathfinding_map.py": "a6ec530c34ec02f5b92bed8cf0baf62b6444a52c175740685cb1fbf1a601821d",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "2e899f44e99ecd699e4ffb6e60eab011e90f1b982c459f6f95b4312e61cc763c"
+              },
+              "map": "Maps\\PathingRE-ArrivalPoint-260930.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 4000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -9423,6 +9797,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-fine-reconstruction-1.27.json",
       "sha256": "bc00d479b56de85b8802be636be9ff3893fa23c237876885a35621f93547ebea"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-arrival-predicate-1.27.json",
+      "sha256": "59dc07bf6ba3e0d1752f5504e47dd2d083e13252532706fef7600e020b4a6858"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-point-arrival-inputs-1.27.json",
+      "sha256": "829d58e1613bce81fe601b501555ce125dc2bc12154ea83fcac1585e4ae3b013"
     }
   ]
 }

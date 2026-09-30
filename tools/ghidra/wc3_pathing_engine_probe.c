@@ -1,6 +1,19 @@
 /* Compile as a shared library to compare the same arithmetic used by Move with retail calls. */
 #include "games/warcraft-3/common/wc3_math.h"
 #include "games/warcraft-3/common/wc3_pathing_masks.h"
+#include "games/warcraft-3/common/wc3_pathing_arrival.h"
+
+/* Inputs: source XY, target XY, heading, range, flags. Outputs: distance,
+ * signed heading error, in-range, reached; inputs remain untouched. */
+void pathing_arrival(uint32_t const input[7], uint32_t output[4]) {
+    wc3Arrival_t a = { .source = {wc3_float(input[0]), wc3_float(input[1])},
+        .target = {wc3_float(input[2]), wc3_float(input[3])},
+        .heading = wc3_float(input[4]), .range = wc3_float(input[5]), .flags = input[6] };
+    output[3] = wc3_arrival_update(&a);
+    output[0] = wc3_float_bits(a.distance);
+    output[1] = wc3_float_bits(a.error);
+    output[2] = a.in_range;
+}
 
 uint32_t pathing_wpm_flags(uint32_t flags) { return wc3_wpm_movement_flags(flags); }
 

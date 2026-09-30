@@ -14,6 +14,7 @@
  */
 #include "s_skills.h"
 #include "games/warcraft-3/common/wc3_math.h"
+#include "games/warcraft-3/common/wc3_pathing_arrival.h"
 
 /* With move-time collision (block-and-slide), "blocked" now means the unit
  * could not take a step this frame because it was boxed in — common and
@@ -1532,11 +1533,46 @@ static void move_hold(edict_t *ent) {
     unit_setmove(ent, &move_move_hold);
 }
 
+/* Actual zero-range point Move publishes .49 fine cells. Target approaches
+ * and other ability owners retain their own arrival contract (TARGET-01.2/3).
+ * TODO: NUM-02.3 replaces the current world/frame geometry and integration
+ * with the original fine-grid clock owner; this ports the arrival decision. */
+static bool move_point_arrival(edict_t *ent) {
+    float cell = CM_PathCellWorldSize();
+    float pos[2] = {ent->s.origin2.x, ent->s.origin2.y};
+    float velocity[2] = {ent->movement.velocity.x, ent->movement.velocity.y};
+    wc3_integrate(pos, velocity, 10.0f / FRAMETIME);
+    vec2_t forecast = {pos[0], pos[1]};
+    wc3Arrival_t a = { .source = {pos[0] / cell, pos[1] / cell},
+        .target = {ent->goalentity->s.origin2.x / cell, ent->goalentity->s.origin2.y / cell},
+        .heading = ent->s.angle, .range = wc3_float(0x3efae148) };
+    bool reached = wc3_arrival_update(&a);
+    if (!a.in_range || !M_MoveIsValid(ent, &forecast)) return false;
+    /* Original range acceptance stops translation even while the separate
+     * arrival heading gate still needs a turn. Commit the old velocity step
+     * once, then publish zero; never snap the unit onto the destination. */
+    if (!reached)
+        unit_turn_toward(ent, wc3_vector_heading(wc3_sub(a.target[0], a.source[0]),
+                                                wc3_sub(a.target[1], a.source[1])));
+    ent->s.angle = wc3_facing_angle(ent->s.angle);
+    ent->movement.velocity = (vec2_t){0};
+    unit_commit_step(ent, &forecast);
+    if (reached) {
+        if (!S_UnitAbilityMoveArrive(ent)) ent->stand(ent);
+    }
+    return true;
+}
+
 static void ai_move_walk(edict_t *ent) {
     float distance = M_DistanceToGoal(ent);
     float move_distance = unit_movedistance(ent);
     float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
     bool blocked;
+    bool point_order = (ent->current_order_id == G_OrderId("move") ||
+                        ent->current_order_id == G_OrderId("smart")) &&
+        !move_displacement_active(ent) &&
+        ent->goalentity && level.waypoints.count && ent->goalentity >= g_edicts + level.waypoints.base &&
+        ent->goalentity < g_edicts + level.waypoints.base + level.waypoints.count;
 
     if (S_UnitIsCycloned(ent) || G_UnitStatusLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))
         || S_PurgeIsImmobilized(ent)) {
@@ -1562,7 +1598,9 @@ static void ai_move_walk(edict_t *ent) {
         return;
     }
 
-    if (move_should_arrive(ent, move_distance)) {
+    if (point_order && move_point_arrival(ent)) return;
+
+    if (!point_order && move_should_arrive(ent, move_distance)) {
         /* A point inside the step budget still requires facing inside the propagation window;
          * the old snap bypassed the movement decision and completed the order while turning. */
         unit_changeangle(ent);

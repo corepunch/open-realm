@@ -97,7 +97,7 @@ When neither fine/local steering nor a resumable field resolves a heading, `unit
 
 Plain Move also keeps the stand presentation while that pair is clear. The order switches to walk only after direct steering or a completed flow field supplies a heading; starting the walk pose at order submission made the old facing look like an incorrect first turn during a long route build.
 
-The stepper rejects a collision-free candidate along a turn-lagged facing when it points more than 90 degrees away from the resolved route heading or increases distance to the active goal. The old stepper accepted the facing candidate first, so a short scripted cinematic move could advance in the wrong direction while the unit was still rotating; Human02Interlude then left Jaina on Antonidas's later ride-off path. Construction displacement uses its temporary exit point as the active progress goal until it is reached, after which the unit resumes its original order. `unit_commit_step()` and the arrival snap keep the network/render `origin` synchronized with authoritative `origin2` for the same reason.
+The stepper rejects a collision-free candidate along a turn-lagged facing when it points more than 90 degrees away from the resolved route heading or increases distance to the active goal. The old stepper accepted the facing candidate first, so a short scripted cinematic move could advance in the wrong direction while the unit was still rotating; Human02Interlude then left Jaina on Antonidas's later ride-off path. Construction displacement uses its temporary exit point as the active progress goal until it is reached, after which the unit resumes its original order. `unit_commit_step()` and point Move arrival commits keep the network/render `origin` synchronized with authoritative `origin2` for the same reason.
 
 The regression is `wc3_movement.turn_lag_does_not_step_away_from_route_heading` in `games/warcraft-3/game/tests/t_movement.c`. Run both game variants with:
 
@@ -305,3 +305,5 @@ ground02 and fly04. Map loading derives amphibious blockage from combined
 walk/float blockage; baked ground footprints and command-time unit categories
 block the appropriate lanes. See [mask evidence](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries)
 for the stock profile table, original/C checks and remaining support-surface gaps.
+
+Ordinary public point Move now uses the [verified retail arrival range and heading](retail-pathfinding-engine.md#point-move-arrival), stops at its predicted pose and publishes zero velocity. It no longer snaps to the clicked endpoint; internal approach owners retain their separate arrival policies.

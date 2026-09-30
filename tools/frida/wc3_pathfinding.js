@@ -252,6 +252,32 @@ function install(module) {
         });
     }
     if (config.motionEvents) {
+        // Verified1710a0: ECX mover, one range* stack argument, RET4.
+        hook(0x1710a0, {
+            onEnter(args) {
+                this.mover = this.context.ecx;
+                this.row = {mover:this.mover.toString(), value:args[0].readU32(),
+                    before:this.mover.add(0xb0).readU32(), callerRva:this.returnAddress.sub(base).toUInt32()};
+            },
+            onLeave() {
+                bump('arrival-range');
+                if (counts['arrival-range'] <= config.samples)
+                    emit('arrival-range', {...this.row, after:this.mover.add(0xb0).readU32()});
+            }
+        });
+        // Both bridge point producers normalize world range and clamp to0.49.
+        for (const [rva, rangeArg, kind] of [[0x05c410, 0, 'set'], [0x05b970, 7, 'point']]) {
+            hook(rva, {
+                onEnter(args) {
+                    bump('arrival-input');
+                    if (counts['arrival-input'] <= config.samples)
+                        emit('arrival-input', {kind, bridge:this.context.ecx.toString(),
+                            rawcode:this.context.ecx.sub(0x164).add(0x30).readU32(),
+                            identity:ints(this.context.ecx.add(8),2), worldRange:args[rangeArg].readU32(),
+                            callerRva:this.returnAddress.sub(base).toUInt32()});
+                }
+            });
+        }
         // 170880 is thiscall: speed*, heading*, error*, stop are four stack arguments.
         hook(0x170880, {
             onEnter(args) {
@@ -810,6 +836,9 @@ function install(module) {
             this.mover = this.context.ecx;
             this.angleOut = args[4];
             this.rangeOut = args[5];
+            this.words = {source:ints(args[0],2).map(v=>v>>>0), destination:ints(args[3],2).map(v=>v>>>0),
+                heading:args[1].readU32(), threshold:args[2].readU32(), footprint:this.mover.add(0x90).readU32(),
+                storedRange:this.mover.add(0xb0).readU32(), storedPosition:ints(this.mover.add(0x78),2).map(v=>v>>>0)};
             this.row = {mover: this.mover.toString(),
                 source: [args[0].readFloat(), args[0].add(4).readFloat()],
                 destination: [args[3].readFloat(), args[3].add(4).readFloat()],
@@ -819,6 +848,12 @@ function install(module) {
         onLeave(ret) {
             const row = {...this.row, result: ret.toInt32(),
                 angle: this.angleOut.readFloat(), inRange: this.rangeOut.readU32()};
+            if (config.motionEvents) {
+                bump('arrival-evaluation');
+                if (counts['arrival-evaluation'] <= config.samples)
+                    emit('arrival-evaluation', {...this.words, mover:row.mover, flags:row.flags,
+                        result:row.result, inRange:row.inRange, angle:this.angleOut.readU32()});
+            }
             const previous = arrivalStates.get(row.mover);
             if (arrivalSamples < config.samples && (!previous || row.result !== previous.result ||
                 row.inRange !== previous.inRange || row.threshold !== previous.threshold)) {

@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**76 done / 257 tasks; 181 remaining.** Counts describe this backlog,
+**77 done / 258 tasks; 181 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -23,7 +23,7 @@ Completed evidence now sits next to its specific remaining extension.
 | ACC — Adaptive search | 1 | 10 |
 | NUM — Numbers and random state | 16 | 12 |
 | ROUTE — Route progression and yielding | 2 | 9 |
-| TARGET — Pursuit and arrival policy | 1 | 9 |
+| TARGET — Pursuit and arrival policy | 2 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 1 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
@@ -97,7 +97,7 @@ FOOT-01.4 now applies the verified class footprint to nearby routing, destinatio
 correction and actual Move stepping. FOOT-01.5 now uses that geometry for
 long/shared expansion, flow sampling, class-aware cache reuse and unreachable
 fallbacks. ROUTE-02.1 now ports all-class segment sampling, software normalization
-and original next-point/progressively-farther waypoint selection. FINE-01.5 now routes location orders around idle ground units and rechecks retained segments, with exact192 original mixed-chain/C searches and fresh hfoo/hgry profile/velocity evidence. FINE-02.2 now retains nearest partial routes and resumes actual Move after idle blocker removal. BASE-02.4 now ports the captured water/amphibious masks, WPM derivation and ground object categories. ROUTE-01.3 now preserves exact fine-route source/goal coordinates. Next check command arrival inputs and port their verified range/heading policy; retain FOOT-04 admission scopes.
+and original next-point/progressively-farther waypoint selection. FINE-01.5 now routes location orders around idle ground units and rechecks retained segments, with exact192 original mixed-chain/C searches and fresh hfoo/hgry profile/velocity evidence. FINE-02.2 now retains nearest partial routes and resumes actual Move after idle blocker removal. BASE-02.4 now ports the captured water/amphibious masks, WPM derivation and ground object categories. ROUTE-01.3 now preserves exact fine-route source/goal coordinates. TARGET-01.4 now ports actual point Move minimum-range/heading arrival and the final previous-velocity stop. Continue target/ability producers and simulation-clock phases; retain FOOT-04 admission scopes.
 Keep dynamic eligibility and full-trajectory gates explicit.
 Numeric inventory/alias leaves remain open, but do not expand them ahead of a
 concrete routing, stepping, collision or arrival payoff. MOVE-02.3 now connects
@@ -444,8 +444,9 @@ Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh,
 ### TARGET-01 — Arrival inputs
 
 - [x] **TARGET-01.1** Point-task range has 4,957 exact cases; object range has 948 calls and six invalid-handle probes. Evidence: [range predicates][ranges]; this does not close their gameplay producers.
-- [ ] **TARGET-01.2** Trace point/target order range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values.
+- [ ] **TARGET-01.2** Trace remaining target/command range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values. Ordinary zero-range point Move is independently closed01.4; Patrol, AttackMove, occupied destinations and force/can't-path producer decisions remain here and their owning order tasks.
 - [ ] **TARGET-01.3** Trace one ability-specific approach producer and contrast its range/stop contract with those commands.
+- [x] **TARGET-01.4** Split ordinary zero-range point Move from01.2: capture actual range publication, predicted-pose predicate and final stop; port them into the owning Move ability. Evidence: [point Move arrival](retail-pathfinding-engine.md#point-move-arrival),2342 complete original/C predicate cases, two identical183-evaluation/commit live witnesses, failing actual-order engine regressions then corrected range/heading gate and previous-velocity final step. Full world/grid/clock phases, other owners and force producers remain01.2/3/NUM-02.3; the rejected first observer capture stays explicit.
 
 ### TARGET-02 — Target mutations
 

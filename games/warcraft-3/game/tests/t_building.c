@@ -2514,7 +2514,7 @@ TEST(wc3_building, construction_displacement_starts_idle_move_and_arrives) {
             globals.RunFrame();
             if (!worker->current_order_id) break;
         }
-        T_FEQ(Vector2_distance(&worker->s.origin2, &later), 0, 0.001f);
+        T_ASSERT(Vector2_distance(&worker->s.origin2, &later) <= .49f * CM_PathCellWorldSize() + .001f);
         T_EQ(worker->current_order_id, 0);
         /* Stop owns the interruption, including removal of the temporary target.
          * Normal frames must keep the worker stationary after the command. */

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **166 entries**: **37** distinct original-code oracle
-scripts plus **33** declared variants, **79** archived JSONL audits and **17**
+The inventory now has **171 entries**: **37** distinct original-code oracle
+scripts plus **34** declared variants, **82** archived JSONL audits and **18**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,13 +20,13 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 65 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 66 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 72 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
-| Seven rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
+| 74 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Five numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Eight public/native/compiler/heading repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Nine public/native/compiler/heading/arrival repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 NUM-01.13 adds original CRT byte classification and the complete authored-name
 producer:514 public S2R/parser calls and1,040 classifier observations repeat,
@@ -331,3 +331,17 @@ fixture is hash-pinned;9,216 coarse reconstructions remain original/model only.
 The fresh endpoint/partial two-entry run passes; it does not claim the whole
 166-entry inventory. See [fine route endpoints](retail-pathfinding-engine.md#exact-fine-route-endpoints)
 for the engine fractional-order regression and remaining admission/arrival gaps.
+
+## Point Move arrival engine comparison
+
+`oracle-arrival-engine` compares2342 complete original predicate calls with C raw
+words. `live-point-arrival-repeat` checks actual zero-range input/publication,
+all183 predicted-pose evaluations and commits, the final previous-velocity stop,
+and identical repeat decisions. Both accepted captures and the failed first
+observer capture are individually archived; the latter has no evidence and must
+retain its access-violation rejection. The current inventory is171 entries:
+71 oracle variants from37 scripts,82 archive audits and18 live contracts.
+The asset-free tests preserve all2342 predicate words and reject damaged producer,
+publication, pairing, heading, force and completion records. See
+[point Move arrival](retail-pathfinding-engine.md#point-move-arrival) for the engine
+change and remaining clock/producer limits.

@@ -21,6 +21,7 @@ from verify_wc3_pathing_literals import literal_word, source_word
 from verify_wc3_pathing_power import corelog, reducedlog, log, exp, power, public as public_power
 from verify_wc3_byte_inputs import source_bytes
 from verify_wc3_heading_aliases import verify as verify_heading_aliases
+from verify_wc3_arrival_trace import verify as verify_arrival, configure as configure_arrival
 
 
 class PathingMathTests(unittest.TestCase):
@@ -48,6 +49,46 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_arrival_matches_complete_original_predicate_words(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-arrival-predicate-1.27.json').read_text())
+        for engine in self.engines:
+            engine.pathing_arrival.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            for _ in range(2):
+                for case in fixture['cases']:
+                    inputs = (ctypes.c_uint32 * 7)(*case['input'])
+                    output = (ctypes.c_uint32 * 4)()
+                    engine.pathing_arrival(inputs, output)
+                    self.assertEqual(list(output), case['output'], case['input'])
+                    self.assertEqual(list(inputs), case['input'])
+
+    def test_point_arrival_observer_rejects_missing_or_changed_contract(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-point-arrival-inputs-1.27.json').read_text())
+        rows = [dict(event='metadata', sha256=fixture['binary_sha256'], owned=True,
+                     source_sha256=fixture['source_sha256'], motionEvents=True, velocityEvents=True, taskEvents=True),
+                fixture['input'], fixture['publication'], *fixture['sample'],
+                dict(event='trace-end', installed=True, counts={'arrival-input': 1, 'arrival-range': 1,
+                     'arrival-evaluation': 2, 'velocity-commit': 2})]
+        mutations = []
+        changed = copy.deepcopy(rows); changed.pop(3); mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[1]['worldRange'] = 1; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[2]['after'] ^= 1; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[3]['storedPosition'][0] ^= 1; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[3]['flags'] = 0x10000; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[3], changed[4] = changed[4], changed[3]; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[5]['angle'] ^= 1; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[6]['after'][4] = 1; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[0]['source_sha256']['map'] = '0' * 64; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed.insert(1, dict(type='error')); mutations.append(changed)
+        changed = copy.deepcopy(rows); changed.pop(); mutations.append(changed)
+        for engine in self.engines:
+            configure_arrival(engine)
+            # Motion replay is independently covered; isolate the added producer/pairing checks.
+            with patch('verify_wc3_arrival_trace.verify_motion', return_value={'passed': True}):
+                self.assertEqual(verify_arrival(rows, engine, fixture)['arrival_evaluations'], 2)
+                for changed in mutations:
+                    with self.assertRaises(ValueError):
+                        verify_arrival(changed, engine, fixture)
 
     def power_bridge(self, engine, name, a, b=0):
         proc = getattr(engine, 'pathing_' + name)

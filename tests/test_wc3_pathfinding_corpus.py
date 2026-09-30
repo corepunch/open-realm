@@ -23,12 +23,15 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),70)
-        self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),79)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),17)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),71)
+        self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),82)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),18)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
-        self.assertEqual(len(rejected),7)
-        self.assertTrue(all(not e['evidence'] and not e['capture_complete'] for e in rejected))
+        self.assertEqual(len(rejected),8)
+        self.assertTrue(all(not e['evidence'] for e in rejected))
+        completed_rejections=[e for e in rejected if e['capture_complete']]
+        self.assertEqual([e['id'] for e in completed_rejections],['capture-arrival-point-first'])
+        self.assertTrue(completed_rejections[0]['capture_failures'])
         native=[e for e in entries if e['expected_status']=='known-reference-difference']
         self.assertEqual(len(native),2)
         for entry in native:
@@ -41,7 +44,7 @@ class CorpusTests(unittest.TestCase):
             path=Path(directory)/'manifest.json'
             mutations=[]
             missing=copy.deepcopy(self.manifest)
-            missing['entries']=[e for e in missing['entries'] if e['id']!='oracle-arrival']
+            missing['entries']=[e for e in missing['entries'] if e['command'][1]!='tools/ghidra/verify_wc3_pathing_arrival.py']
             mutations.append(missing)
             changed=copy.deepcopy(self.manifest);changed['fixtures'][0]['sha256']='0'*64;mutations.append(changed)
             changed=copy.deepcopy(self.manifest)

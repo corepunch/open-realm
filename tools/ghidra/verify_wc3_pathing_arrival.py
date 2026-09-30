@@ -7,6 +7,7 @@ Also executes the post-Path_Advance result slice and forced-arrival clearing.
 Does not emulate the full order lifecycle or mover stepping.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -21,6 +22,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine-library', type=Path)
+    parser.add_argument('--fixture', type=Path, help='write raw original predicate inputs/outputs')
     args = parser.parse_args()
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
@@ -66,13 +69,30 @@ def main():
     floats(0x6fd3c740, -1, 0, 1)
     source, destination, heading, threshold, angle, in_range = [system + o for o in (0x200, 0x210, 0x220, 0x224, 0x228, 0x22c)]
     computed_distance = [None]
+    distance_word = [None]
 
     def observe(machine, address, size, user):
         computed_distance[0] = float_at(machine.reg_read(UC_X86_REG_EBP) + 8)
+        distance_word[0] = read(machine.reg_read(UC_X86_REG_EBP) + 8)[0]
 
     machine.hook_add(UC_HOOK_CODE, observe, begin=0x6f16e97a, end=0x6f16e97a)
     tolerance = float_at(0x6fcd53d4)
     rows = []
+    raw_rows = []
+    engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine:
+        engine.pathing_arrival.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+
+    def record():
+        inputs = [*read(source, 2), *read(destination, 2), *read(heading), *read(threshold), *read(system + 0xd8)]
+        outputs = [distance_word[0], read(angle)[0], read(in_range)[0], machine.reg_read(UC_X86_REG_EAX)]
+        if engine:
+            actual = (ctypes.c_uint32 * 4)()
+            words = (ctypes.c_uint32 * 7)(*inputs)
+            engine.pathing_arrival(words, actual)
+            assert list(actual) == outputs, (inputs, list(actual), outputs)
+            assert list(words) == inputs
+        raw_rows.append(dict(input=inputs, output=outputs))
     cases = 0
     for distance, direction, forced in itertools.product(
             [0, 1, 11.25, 11.3125, 11.375, 30],
@@ -97,10 +117,29 @@ def main():
             expected_result = expected_range and abs(actual_angle) <= tolerance
             assert read(in_range)[0] == int(expected_range)
             assert machine.reg_read(UC_X86_REG_EAX) == int(expected_result)
+            record()
             rows.append(dict(distance=distance, computed_distance=computed_distance[0],
                              heading=direction, threshold=float_at(threshold), forced=forced,
                              result=int(expected_result), in_range=int(expected_range), angle=actual_angle))
             cases += 1
+    # Oblique and translated vectors, minimum-range/equality neighbours and
+    # signed angular/deadzone neighbours execute the complete original call.
+    for origin, vector, direction, flags in itertools.product(
+            [(0, 0), (163.5, 91.5), (-100.125, -21.875)],
+            [(0, 0), (.3125, 0), (.3, .4), (-.3, .4), (-.3, -.4), (.3, -.4), (1e-7, 0), (3, 4)],
+            [0, 2e-7, -2e-7, .2, .20000002, -.2, -.20000002, 1.5707963, 3.1415927, 6.2831855],
+            [0, 0x10000]):
+        floats(source, *origin)
+        floats(destination, *(o + v for o, v in zip(origin, vector)))
+        floats(heading, direction)
+        floats(threshold, .49)
+        write(system + 0xd8, flags)
+        run(0x6f16e910, system, source, heading, threshold, destination, angle, in_range)
+        distance_bits = distance_word[0]
+        for limit in set([0x3efae148, distance_bits, max(0, distance_bits - 1), distance_bits + 1]):
+            write(threshold, limit)
+            run(0x6f16e910, system, source, heading, threshold, destination, angle, in_range)
+            record()
     # Original target-order arithmetic slice. Earlier wrapper code converts
     # mover footprints to world units; provide those two locals explicitly.
     range_cases = 0
@@ -143,8 +182,12 @@ def main():
 
     report = dict(binary_sha256=digest, scope=__doc__, passed=True, cases=cases,
                   angle_tolerance=tolerance, range_slice_cases=range_cases, minimum_fine_range=minimum_range, force_result_slice_cases=force_cases,
-                  limitation='Distance and angular math observed from original helpers, not independently reimplemented.',
+                  engine_cases=len(raw_rows) if engine else 0,
+                  limitation='Complete predicate port uses supplied fine-grid geometry/flags; public producer lifecycle and engine cadence are separate.',
                   observations=rows)
+    if args.fixture:
+        fixture = dict(binary_sha256=digest, scope=report['limitation'], cases=raw_rows)
+        args.fixture.write_text(json.dumps(fixture, separators=(',', ':')) + '\n')
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({k: v for k, v in report.items() if k != 'observations'}, indent=2))
 

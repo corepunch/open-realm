@@ -16,8 +16,8 @@ retail minimum (`3a83126f`, approximately 0.001). `unitinfo.move_flags` records
 explicit overrides, including a valid zero movement window.
 
 With an authored or scripted window, translation stops when the **pre-turn** heading error
-is greater than or equal to the window. Turning continues. The same decision
-guards the close-goal Move snap. `movement.turn_blocked` records this tick's
+is greater than or equal to the window. Turning continues. Internal approaches retain this propagation-window decision;
+ordinary public point Move uses the separate arrival contract below. `movement.turn_blocked` records this tick's
 decision and resets with order progress. Both values survive save/load. Save
 format 55 rejects earlier layouts because scalar fields shift edict offsets.
 
@@ -1880,3 +1880,72 @@ pathfinding tool tests pass. Release/debug pathfinding passes536 assertions
 in73 cases; the production WC3 build passes. Both boundary audits are clean.
 The first umbrella run overlapped a production link and an asset CLI saw an
 incomplete shared library; the serialized rerun passes.
+
+## Point Move arrival
+
+TARGET-01.4 ports the actual zero-range point command into Move. Retail
+`MoveBridge_StartPoint` (`05b970`, ECX Unit+164) receives eight stack arguments;
+its last argument, index7, is a pointer to world arrival range. The actual
+`Move_HandlePointTask` caller supplies zero. After division by32 the bridge
+publishes the minimum `3efae148` (approximately0.49 fine cells) through
+`1710a0` to mover+b0. On a32-unit WPM grid this is approximately15.68 world units.
+This is independent of collision size, the step budget and `PropWindow`.
+
+The complete `16e910` predicate subtracts source from target with the retail
+software arithmetic, computes distance and vector bearing, applies the strict
+`3456bf95` angular deadzone, and tests distance<=range (or force bit10000) plus
+absolute heading error<=`3e4ccccd` (approximately0.2 radians). Forced range does
+not bypass the heading gate. A perfect host bearing is not interchangeable:
+for vector(.3125,0), the original computes bearing`3ba9540a`, approximately
+0.005167489 radians. The original/C fixture covers this residual explicitly.
+
+The read-only open-ground point witness records183 evaluations. Every source
+is the next committed position, every stored position is the commit's previous
+position, and the final commit integrates the previous velocity while publishing
+zero new velocity. It stops short of the exact destination. A second owned run
+repeats all183 evaluations/commits and182 ordinary motion decisions exactly.
+`wc3_pathing_arrival.h` implements the predicate; `verify_wc3_pathing_arrival.py`
+compares2342 complete original calls with raw C distance/error/range/result words.
+The asset-free tests run this fixture twice at bothO0 andO2.
+
+`move_point_arrival()` uses the existing engine frame interval to forecast the
+previous velocity step. For active public Move/Smart heads with a waypoint goal,
+it applies the fine-cell range and angular gate, validates the forecast pose,
+commits that pose and publishes zero velocity. While in range but outside the
+arrival heading tolerance it turns in place and retains the order. At completion
+it uses the existing ability-arrival and stand/queued-order lifecycle. It no longer
+snaps these point orders onto their goal. Existing internal approaches, active construction displacement, Patrol
+and AttackMove retain their owning contracts until their producers are verified.
+
+The four `wc3_pathfinding.point_move*` regressions drive actual order submission
+and Move thinkers: nearby stop without snapping, a heading outside0.2 but inside
+the propagation window, the final previous-velocity step, and saved velocity
+with a queued successor. The first three failed against the earlier engine. Tests use the engine cadence; this does **not** certify retail
+clock scheduling, complete world-to-fine coordinate conversion, earlier translation
+phases, occupied-slot force/can't-path decisions or target-order arrival. These remain
+NUM-02.3, TARGET-01.2/3 and the applicable FOOT admission tasks.
+
+Evidence: `arrival-predicate-engine-final.json` and
+`runtime/arrival-point-inputs-repeat-exact.json` under the report root. The new
+`verify_wc3_arrival_trace.py` rejects missing/truncated inputs, publication and
+commit records, wrong hashes, changed mover/force/range, altered raw results,
+wrong predicted-pose pairing, missing final stop and a differing repeat.
+The first capture (`arrival-point-inputs-first-260930.jsonl`) is explicitly rejected:
+the original observer indexed the ninth stack slot instead of the eighth and
+raised an access violation. It remains in the corpus with no certified evidence.
+Use the verified/repeat captures, whose sources/maps are pinned in
+`retail-point-arrival-inputs-1.27.json`.
+
+```sh
+python3 tools/frida/verify_wc3_arrival_trace.py \
+  /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/arrival-point-inputs-verified-260930.jsonl \
+  --compare /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/arrival-point-inputs-repeat-260930.jsonl \
+  --fixture tools/ghidra/fixtures/retail-point-arrival-inputs-1.27.json \
+  --engine-library /tmp/wc3-pathing-engine.so --report /tmp/point-arrival-repeat.json
+```
+
+Validation: Classic and TFT each pass41,926 assertions in2,193 cases; all115
+pathfinding tool tests pass. Debug and release pathfinding each pass573 assertions
+in77 cases, production WC3 builds, and both boundary audits are clean. The fresh
+five-entry arrival corpus passes all expected outcomes, including the rejected
+observer archive. Save remains60; no actor, network or serialized layout changes.

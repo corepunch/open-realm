@@ -164,6 +164,120 @@ static edict_t *make_unit_at(float x, float y) {
     return ent;
 }
 
+/* The live point command publishes a minimum range of .49 fine cells, checks
+ * a separate .2-radian arrival tolerance, and stops at the predicted pose. */
+TEST(wc3_pathfinding, point_move_stops_in_range_without_snapping) {
+    vec2_t target = {138.f, 128.f};
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = make_unit_at(128.f, 128.f);
+    unit->unitinfo.MoveSpeed = 100.f;
+    gi.LinkEntity(unit);
+    T_ASSERT(unit_issueorder(unit, "move", &target));
+    T_EQ(unit->current_order_id, 851986);
+    unit->currentmove->think(unit);
+    T_FEQ(unit->s.origin2.x, 128.f, .00001f);
+    T_FEQ(unit->s.origin2.y, 128.f, .00001f);
+    T_FEQ(unit->movement.velocity.x, 0.f, .00001f);
+    T_EQ(unit->current_order_id, 0);
+    reset_entities();
+    setup_test_world();
+}
+
+TEST(wc3_pathfinding, point_move_arrival_heading_is_stricter_than_propwindow) {
+    vec2_t target = {138.f, 128.f};
+    uint32_t old_time = level.time;
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = make_unit_at(128.f, 128.f);
+    unit->unitinfo.MoveSpeed = 100.f;
+    unit->unitinfo.TurnSpeed = .001f;
+    unit->unitinfo.move_flags |= BZ_UNIT_TURN_SET;
+    unit->s.angle = .21f;
+    gi.LinkEntity(unit);
+    T_ASSERT(unit_issueorder(unit, "move", &target));
+    unit->currentmove->think(unit);
+    T_EQ(unit->current_order_id, 851986);
+    T_FEQ(unit->s.origin2.x, 128.f, .00001f);
+    T_FEQ(unit->movement.velocity.x, 0.f, .00001f);
+    T_ASSERT(unit->s.angle < .21f);
+    for (int tick = 0; tick < 50 && unit->current_order_id; tick++) {
+        level.time += FRAMETIME;
+        unit->currentmove->think(unit);
+    }
+    T_EQ(unit->current_order_id, 0);
+    /* Original vector heading for (.3125, 0) is 3ba9540a, a small
+     * software-math residual; arrival compares against that bearing. */
+    T_ASSERT(fabsf(unit->s.angle - .005167489f) <= .2f);
+    T_FEQ(unit->s.origin2.x, 128.f, .00001f);
+    level.time = old_time;
+    reset_entities();
+    setup_test_world();
+}
+
+TEST(wc3_pathfinding, point_move_arrival_commits_previous_velocity_then_stops) {
+    vec2_t target = {155.f, 128.f};
+    uint32_t old_time = level.time;
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = make_unit_at(128.f, 128.f);
+    unit->unitinfo.MoveSpeed = 100.f;
+    gi.LinkEntity(unit);
+    T_ASSERT(unit_issueorder(unit, "move", &target));
+    unit->currentmove->think(unit);
+    T_EQ(unit->current_order_id, 851986);
+    T_FEQ(unit->s.origin2.x, 138.f, .001f);
+    level.time += FRAMETIME;
+    unit->currentmove->think(unit);
+    T_EQ(unit->current_order_id, 0);
+    T_FEQ(unit->s.origin2.x, 148.f, .001f);
+    T_FEQ(unit->movement.velocity.x, 0.f, .00001f);
+    level.time += FRAMETIME;
+    if (unit->currentmove->think) unit->currentmove->think(unit);
+    T_FEQ(unit->s.origin2.x, 148.f, .001f);
+    level.time = old_time;
+    reset_entities();
+    setup_test_world();
+}
+
+/* Save immediately before the final velocity step with a pending successor.
+ * Restoring must reproduce the same pose/heading/velocity words and FIFO handoff. */
+TEST(wc3_pathfinding, point_move_arrival_replays_saved_velocity_and_queued_successor) {
+    vec2_t target = {155.f, 128.f}, next = {188.f, 128.f};
+    cstring_t file = "/tmp/openwarcraft3-point-arrival-save.bin";
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = make_unit_at(128.f, 128.f);
+    unit->unitinfo.MoveSpeed = 100.f;
+    gi.LinkEntity(unit);
+    T_ASSERT(unit_issueorder(unit, "move", &target));
+    unit->currentmove->think(unit);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &next, true, 0, 0));
+    T_ASSERT(WriteGame(file));
+    unit->currentmove->think(unit);
+    float expected[5] = {unit->s.origin2.x, unit->s.origin2.y, unit->s.angle,
+                         unit->movement.velocity.x, unit->movement.velocity.y};
+    T_EQ(G_UnitQueuedOrderCount(unit), 0);
+    T_EQ(unit->current_order_id, 851986);
+    T_FEQ(unit->s.origin2.x, 148.f, .001f);
+    T_FEQ(unit->goalentity->s.origin2.x, next.x, .00001f);
+    T_ASSERT(ReadGame(file));
+    T_EQ(G_UnitQueuedOrderCount(unit), 1);
+    unit->currentmove->think(unit);
+    float actual[5] = {unit->s.origin2.x, unit->s.origin2.y, unit->s.angle,
+                       unit->movement.velocity.x, unit->movement.velocity.y};
+    T_EQ(memcmp(actual, expected, sizeof(actual)), 0);
+    T_EQ(G_UnitQueuedOrderCount(unit), 0);
+    T_EQ(unit->current_order_id, 851986);
+    T_FEQ(unit->goalentity->s.origin2.x, next.x, .00001f);
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_EQ(unit->current_order_id, 0);
+    T_FEQ(unit->s.origin2.x, 148.f, .001f);
+    remove(file);
+    reset_entities();
+    setup_test_world();
+}
+
 /* -----------------------------------------------------------------------
  * Cache tests
  * --------------------------------------------------------------------- */

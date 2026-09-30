@@ -195,7 +195,7 @@ TEST(wc3_movement, stock_window_turns_before_close_goal_arrival) {
     T_EQ(unit->s.angle, wc3_sub(2, 0.6f));
     T_EQ(unit->currentmove->proc, CAbilityMove);
     FOR_LOOP(i, 4) unit->currentmove->think(unit);
-    T_EQ(unit->s.origin2.x, 10);
+    T_EQ(unit->s.origin2.x, 0);
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
@@ -264,7 +264,7 @@ TEST(wc3_movement, scripted_window_equality_and_zero_keep_turning) {
     T_EQ(unit->s.angle, 0.25f);
 }
 
-/* The close-goal snap must obey the same turn decision as an ordinary step. */
+/* Point arrival keeps turning inside its minimum range without translation. */
 TEST(wc3_movement, scripted_point_order_turns_before_arriving) {
     edict_t *unit = make_scripted_turn_unit();
     vec2_t const goal = {10, 0};
@@ -279,7 +279,7 @@ TEST(wc3_movement, scripted_point_order_turns_before_arriving) {
     T_EQ(unit->s.angle, 0.875f);
     T_EQ(unit->currentmove->proc, CAbilityMove);
     FOR_LOOP(i, 8) unit->currentmove->think(unit);
-    T_EQ(unit->s.origin2.x, 10);
+    T_EQ(unit->s.origin2.x, 0);
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
@@ -3769,7 +3769,7 @@ TEST(wc3_movement, immobile_unit_rejects_ground_move_order) {
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
-TEST(wc3_movement, unit_does_not_overshoot_goal) {
+TEST(wc3_movement, unit_stops_inside_goal_arrival_range) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     vec2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
@@ -3781,10 +3781,12 @@ TEST(wc3_movement, unit_does_not_overshoot_goal) {
         unit->currentmove->think(unit);
     }
 
-    /* After reaching the goal the unit should be exactly at the waypoint,
-     * which keeps scripted cutscene units from visibly stopping short. */
+    /* Retail point Move stops within .49 fine cells without snapping. */
     float dist = M_DistanceToGoal(unit);
-    T_FEQ(dist, 0.0f, 0.01f);
+    T_ASSERT(dist <= .49f * CM_PathCellWorldSize() + .001f);
+    T_EQ(unit->movement.velocity.x, 0);
+    T_EQ(unit->movement.velocity.y, 0);
+    T_EQ(unit->current_order_id, 0);
 }
 
 TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
