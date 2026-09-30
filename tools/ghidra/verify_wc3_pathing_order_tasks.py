@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--producer-baseline', action='store_true', help='compose no-file map and mover producers before the owner baseline')
+    parser.add_argument('--current-order-query', action='store_true', help='execute registered2039d0 current-order native at every singleton/FIFO baseline snapshot')
     parser.add_argument('--shared-pair', action='store_true', help='compose two admitted units into one original shared request and run owner through arrival')
     parser.add_argument('--callback-finish', action='store_true', help='complete one member during an original callback, then run the survivor through natural arrival')
     parser.add_argument('--retarget-survivor', action='store_true', help='replace the survivor point order through original680320 after completion/reuse; requires --completed-member-reuse')
@@ -36,6 +37,8 @@ def main():
     parser.add_argument('--record-pair-fixture', type=Path, help='export a new original shared-pair expectation after complete identical repeats')
     parser.add_argument('--baseline-manifest', type=Path, default=DEFAULT_MANIFEST)
     args = parser.parse_args()
+    if args.current_order_query and (not args.producer_baseline or args.shared_pair):
+        parser.error('--current-order-query requires --producer-baseline and excludes --shared-pair')
     manifest,expectations=load_manifest(args.baseline_manifest) if args.producer_baseline or args.shared_pair else (None,None)
     if args.record_pair_fixture and not args.shared_pair:parser.error('--record-pair-fixture requires --shared-pair')
     if args.retarget_survivor and not args.completed_member_reuse:parser.error('--retarget-survivor requires --completed-member-reuse')
@@ -450,6 +453,15 @@ def main():
         if not producer_setup:floats(host+0x6c,0,0,512,512,0,522)
         write(0x6fd687a8,extra+0x1a000)
         write(extra+0x1a3e0,1)
+        current_order_queries=[]
+        current_order_gates=[]
+        if args.current_order_query:
+            # Existing VM handle array: supplied backing, original native
+            # resolution/type checks/ref accounting, no replacement callbacks.
+            query_vm,query_handles=extra+0x27000,extra+0x28000
+            write(extra+0x1a01c,query_vm)
+            write(query_vm+0x19c,query_handles)
+            write(query_handles+4,unit)
         for entry in [0x6f016290,0x6f0162b0,0x6f0162c0,0x6f0162d0,0x6f016210,0x6f016220,0x6f016230,0x6f016240]:run(entry,0)
         order_class_row=system+0x8400
         order_cache_bucket,order_cache_entry=extra+0x1e000,extra+0x1e040
@@ -540,6 +552,12 @@ def main():
         def snapshot(phase):
             """Raw simulation state with owning pointer fields replaced by identity/role."""
             nonlocal snapshot_group,snapshot_path
+            if args.current_order_query:
+                from wc3_pathing_orders import current_order
+                command=current_order(machine,dict(unit=unit,stack=stack,stop=stop,handle=0x100000))
+                expected=(0xd0014 if flag else 0xd0012) if read(unit+0x1b4)[0] else 0
+                assert command==expected,(phase,'current order',command,expected)
+                current_order_queries.append(dict(phase=phase,order=command,count=read(unit+0x1b4)[0]))
             active=read(owner+0x3b8)[0]
             if active:
                 snapshot_group=active
@@ -699,6 +717,29 @@ def main():
         assert initial_admission['queue_count']==1
         assert read(unit+0x19c,2)==order_identity
         assert read(unit+0x1b4)[0]==1
+        if args.current_order_query:
+            from wc3_pathing_orders import current_order
+            query_context=dict(unit=unit,stack=stack,stop=stop,handle=0x100000)
+            for label,handle in [('null',0),('below_handle_base',0xfffff),('unbound_handle',0x100001)]:
+                command=current_order(machine,dict(query_context,handle=handle))
+                assert command==0,(label,command)
+                current_order_gates.append(dict(gate=label,order=command))
+            # Explicit invalid-backing controls. Restore each word immediately;
+            # complete original producer/lifetime reachability stays BASE-03.1.
+            for label,address,values in [
+                ('unit_generation',unit+0x10,[901]),
+                ('unit_wrapper_retired',unit_wrapper+0x20,[1]),
+                ('unit_wrapper_tag',unit_wrapper+0xc,[0]),
+                ('order_generation',unit+0x1a0,[order_identity[1]+1]),
+                ('order_wrapper_retired',order_wrapper+0x20,[1]),
+                ('empty_head_nonzero_count',unit+0x19c,[-1,-1])]:
+                original=bytes(machine.mem_read(address,4*len(values)))
+                write(address,*values)
+                command=current_order(machine,query_context)
+                machine.mem_write(address,original)
+                assert command==0,(label,command)
+                current_order_gates.append(dict(gate=label,order=command))
+            assert current_order(machine,query_context)==initial_command
         after_chain=chain()
         point_index=next(n for n,t in enumerate(before_chain) if t[2]==0xd016b)
         assert after_chain==before_chain[point_index:]
@@ -1153,6 +1194,9 @@ def main():
         accepted.update(owner_frames=owner_frames,initial_route=initial_route,trajectory=trajectory,arrival_tick=tick,
                         user_order_reclaimed=True,producer_setup=setup,initial_state=initial_state,
                         normalized_states=normalized_states)
+        if args.current_order_query:
+            accepted['current_order_queries']=current_order_queries
+            accepted['current_order_gates']=current_order_gates
         if engine:accepted['verified_velocity_commits']=verified_pair_commits
         return accepted
     if args.callback_finish:
@@ -1245,7 +1289,7 @@ def main():
         return
     if args.producer_baseline:
         assert crt_digest==manifest['build']['crt_sha256']
-        cases=[];repeat_digests=[]
+        cases=[];repeat_digests=[];query_repeat_digests=[]
         for scenario,expected in zip(manifest['scenarios'],expectations['cases']):
             commands=scenario['commands']
             target=tuple(commands[0]['target_bits'])
@@ -1253,10 +1297,20 @@ def main():
             repeats=[dispatch_case(0,0,0,target,second,owner_updates=True,producer_setup=True) for _ in range(2)]
             hashes=[verify_case(case,expected) for case in repeats]
             assert hashes[0]==hashes[1],first_difference(case_output(repeats[0]),case_output(repeats[1]))
+            if args.current_order_query:
+                queries=[dict(states=c['current_order_queries'],gates=c['current_order_gates']) for c in repeats]
+                assert queries[0]==queries[1],first_difference(queries[0],queries[1])
+                query_repeat_digests.append(dict(id=scenario['id'],digests=[canonical_digest(q) for q in queries]))
             cases.append(repeats[0]);repeat_digests.append(dict(id=scenario['id'],digests=hashes))
         report=dict(binary_sha256=digest,crt_sha256=crt_digest,passed=True,producer_cases=cases,
                     manifest_sha256=hashlib.sha256(args.baseline_manifest.read_bytes()).hexdigest(),
                     identical_repeats=repeat_digests)
+        if args.current_order_query:
+            report['current_order_native_calls']=sum(len(c['current_order_queries']) for c in cases)
+            report['current_order_invalid_backing_calls']=sum(len(c['current_order_gates']) for c in cases)
+            report['current_order_executed_native_calls']=2*(report['current_order_native_calls']+
+                report['current_order_invalid_backing_calls']+len(cases))
+            report['current_order_repeat_digests']=query_repeat_digests
         args.report.parent.mkdir(parents=True,exist_ok=True)
         args.report.write_text(json.dumps(report,indent=2)+'\n')
         print(json.dumps(report,indent=2))

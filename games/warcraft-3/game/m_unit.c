@@ -180,6 +180,7 @@ void unit_stand(edict_t *self) {
      * Repair, Harvest, and several cast behaviors. Retire transient state first,
      * then let a pending Shift order become authoritative before installing the
      * idle/default stand behavior. */
+    self->current_order_id = 0;
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
     self->s.ability = 255;
@@ -320,6 +321,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * death, but retire the reversible morph contract immediately. */
     if (self->polymorph.active) self->polymorph.active = false;
     G_ClearUnitOrderQueue(self);
+    self->current_order_id = 0;
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);
     /* Marks belong to their applying abilities, even when another unit lands the killing blow. */
@@ -830,7 +832,7 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     if (!waypoint) return false;
     self->movement.holding_position = false;
     if (!strcmp(order, "smart") || !strcmp(order, "move")) {
-        order_move(self, waypoint);
+        S_IssueMoveOrder(self, waypoint, G_OrderId(order));
         self->movement.group_speed = group_speed;
         return true;
     }

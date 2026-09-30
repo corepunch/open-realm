@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**47 done / 219 tasks; 172 remaining.** Counts describe this backlog,
+**48 done / 220 tasks; 172 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -26,7 +26,7 @@ Completed evidence now sits next to its specific remaining extension.
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 0 | 11 |
-| ORDER — Orders and reclamation | 6 | 17 |
+| ORDER — Orders and reclamation | 7 | 17 |
 | GROUP — Shared movement groups | 11 | 6 |
 | FORM — Formation and regrouping | 2 | 10 |
 | SEP — Repulsion and spatial records | 2 | 10 |
@@ -51,26 +51,30 @@ splits04.5's complete released/reused-member survivor journey from its actual
 refresh/new-destination producer requirement; both leaves remain required.
 ORDER-01.5 explicitly splits01.4's immutable issued-event callback ownership
 from the active current-order query; both remain required for the original item.
+ORDER-01.6 explicitly owns non-point command domains discovered during01.4.
+These remain required for faithful public query coverage and BASE-03.1 must
+index their original producers.
 
 ## Work next
 
-Start with **ORDER-01.4**. GROUP-04.5 now composes actual survivor point
+Start with **ORDER-01.6**. GROUP-04.5 now composes actual survivor point
 replacement through680320, original new-request refresh/layout, new-goal arrival
 and both groups' final reclamation on open/wall maps. The638 velocity commits
 match production exactly; the server-frame engine regression preserves the old
 slot through edict reuse and reaches the replacement goal. Its inactive goal
 cache is separate from active order ownership. The engine's public current-order
-native still aliases the historical issued-event array, so that concrete query
-lifecycle is next. ORDER-01.5 fixes immutable issued-event metadata through
+native now reads explicit ordinary point-Move current state, including queued
+activation, Stop, arrival, save/load and reuse (ORDER-01.4). Other command
+owners remain ORDER-01.6. ORDER-01.5 fixes immutable issued-event metadata through
 delayed/reentrant and saved/suspended callbacks; it does not fix current-order
 state. Ghidra persists267 names,17 layouts,109 fields and41 x86
-prototypes. The strict corpus has120 declared outcomes. Full retail member
+prototypes. The strict corpus has121 declared outcomes. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | ORDER-01.4 | Actual retail2039d0 getter and complete point-order journeys | Separate active/historical query state, movement lifecycle/save/reuse/callback tests |
+| 1 | ORDER-01.6 | Retail2039d0 getter and explicit point-Move current state | Remaining command-owner admission/completion/query contracts and witnesses |
 | 2 | NUM-01.2 | Verified scalar/heading slices | Remaining trig/conversion ABI, constants and public input-domain inventory |
 | 3 | MAP-03.4 | Existing widget admission | Footprint refresh and complete escape-order arrival/failure |
 
@@ -428,8 +432,9 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 - [x] **ORDER-01.1** 24 generated point-order chains arrive and reclaim queues/pools; 288 internal tasks complete. Evidence: [queued arrival][arrival], O `queued_order_arrival_cases=24`; open fine grid and explicit group ticks.
 - [ ] **ORDER-01.2** Enumerate remaining arrival/can't-path early exits and unit-state gates; add one full-dispatch witness per branch, including unit+280 bit40.
 - [ ] **ORDER-01.3** Run one blocked-goal recovery chain through retries and final failure/next-order dispatch; assert unwind and cleanup rather than only notification.
-- [ ] **ORDER-01.4** Trace retail `GetUnitCurrentOrder` and separate OpenRealm's active order query from historical issued-event ID storage. Test ordinary point move admission, replacement, Stop and natural arrival through public natives/server frames, including save/load and edict reuse. Immutable issued-event callbacks are explicitly split into01.5 and remain a prerequisite. Discovered while04.5 confirmed idle movement with a retained goal cache: current engine native delegates to `G_GetIssuedOrderId`, which returns the last publisher array entry rather than active queue state. Assign uncovered non-movement order domains to BASE-03.1 before closing this bounded movement query lifecycle.
-- [x] **ORDER-01.5** Preserve accepted issued-order IDs, points and targets in queued and suspended event contexts, independently of subsequent per-unit orders. Verify delayed Move/Smart/Stop, reentrant point replacement, both target event families, unread-event save/load and sleeping-callback save/load; exclude unrelated spell metadata through the retail event-type gates. Evidence: [immutable issued-order callbacks](issued-target-order-events.md#immutable-callback-ownership), failing public-native regression followed by engine fix, JASS snapshot7, persisted Ghidra getters/prototypes and full tests. Active query state remains01.4; complete original event producer/subscriber mutation graph remains ORDER-03/BASE-03.1.
+- [x] **ORDER-01.4** Trace retail `GetUnitCurrentOrder` and separate OpenRealm's ordinary point-Move current query from historical issued-event ID storage. Verify admission, queued Smart activation, replacement/rejection, Stop and natural arrival through public natives/server frames, including save/load and actual edict reuse. Evidence: [current point-order ownership](retail-pathfinding-engine.md#current-point-order-ownership), registered2039d0 full native at42 frozen states plus18 invalid-backing controls, both cases repeated identically (124 executed calls); failing engine regression followed by Move-owned admission/current state and save57. Immutable callbacks are independently closed01.5. Non-point orders are explicitly01.6 and indexed by BASE-03.1; this does not certify those queries or full original JASS/Unit construction.
+- [x] **ORDER-01.5** Preserve accepted issued-order IDs, points and targets in queued and suspended event contexts, independently of subsequent per-unit orders. Verify delayed Move/Smart/Stop, reentrant point replacement, both target event families, unread-event save/load and sleeping-callback save/load; exclude unrelated spell metadata through the retail event-type gates. Evidence: [immutable issued-order callbacks](issued-target-order-events.md#immutable-callback-ownership), failing public-native regression followed by engine fix, JASS snapshot7, persisted Ghidra getters/prototypes and full tests. Ordinary point active query state is separately01.4; complete original event producer/subscriber mutation graph remains ORDER-03/BASE-03.1.
+- [ ] **ORDER-01.6** Trace and integrate current user-head ownership for the remaining command domains: target Move/Smart/Follow, Patrol, Hold Position, Attack/Attack Move/Attack Ground, Repair/Harvest/Build, ability approaches/channels/instant actions and metadata/toggle orders. Separate public commands from internal locomotion and preserve the current head across metadata changes; cover activation, replacement/rejection, completion/interruption/death, queued handoff, save/load and reuse through owning abilities/public natives/server frames. BASE-03.1 indexes the original producer branches. The point-Move current field is not yet maintained by these owners; queries may return zero or retain the prior point-Move ID, and no historical-event fallback is used. Split this domain matrix into bounded leaves after the producer inventory.
 
 ### ORDER-02 — User/internal queues
 

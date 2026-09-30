@@ -3622,6 +3622,97 @@ TEST(wc3_api, issued_order_context_is_frozen_across_replacement_and_reentry) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_api, current_order_point_move_tracks_active_head_through_server_frames) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-current-order-point-save-test.bin";
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "endglobals\n"
+        "function verifyIdle takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == 0, \"idle unit has no current user order\")\n"
+        "endfunction\n"
+        "function verifyMove takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == OrderId(\"move\"), \"current head stays Move while Smart waits\")\n"
+        "endfunction\n"
+        "function verifySmart takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == OrderId(\"smart\"), \"Smart becomes current only at activation\")\n"
+        "endfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"move\", 192.0, 64.0), \"ordinary Move accepted\")\n"
+        "  call verifyMove()\n"
+        "endfunction\n"
+        "function replace takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"smart\", 320.0, 128.0), \"point replacement accepted\")\n"
+        "  call verifySmart()\n"
+        "  call BJassAssert(not IssuePointOrder(testUnit, \"missingorder\", 64.0, 64.0), \"unsupported replacement rejected\")\n"
+        "  call verifySmart()\n"
+        "endfunction\n"
+        "function stop takes nothing returns nothing\n"
+        "  call BJassAssert(IssueImmediateOrder(testUnit, \"stop\"), \"Stop accepted\")\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function recreate takes nothing returns nothing\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->collision = 8; unit->unitinfo.MoveSpeed = 256;
+    unit->movetype = MOVETYPE_STEP; unit->svflags |= SVF_MONSTER;
+    unit->think = monster_think; unit->stand = unit_stand; unit->die = unit_die;
+    unit_stand(unit); gi.LinkEntity(unit);
+    jass_callbyname(level.vm, "verifyIdle", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "issue", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "smart", &(vec2_t){384, 160}, true, 0, 0));
+    T_EQ(unit->order_queue.count, 1);
+    jass_callbyname(level.vm, "verifyMove", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_rterror_clear(level.vm);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_ASSERT(ReadGame(filename));
+    T_EQ(unit->order_queue.count, 1);
+    jass_callbyname(level.vm, "verifyMove", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_rterror_clear(level.vm);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 240 && unit->order_queue.count; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_EQ(unit->order_queue.count, 0);
+    T_ASSERT(move_is_active_order_walk(unit));
+    jass_callbyname(level.vm, "verifySmart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_rterror_clear(level.vm);
+    jass_callbyname(level.vm, "stop", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_rterror_clear(level.vm);
+    jass_callbyname(level.vm, "issue", false);
+    jass_callbyname(level.vm, "replace", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 240 && move_is_active_order_walk(unit); frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(!move_is_active_order_walk(unit));
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &(vec2_t){320, 128}) <= unit->collision + 16);
+    jass_callbyname(level.vm, "verifyIdle", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started = false;
+    G_FreeEdict(unit); level.time += 1001;
+    jass_callbyname(level.vm, "recreate", false);
+    T_ASSERT(find_test_unit(MAKEFOURCC('h','p','e','a')) == unit);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
 TEST(wc3_api, issued_order_context_ignores_spell_metadata) {
     setup_test_world();
     g_edicts[0].client = &game.clients[0];

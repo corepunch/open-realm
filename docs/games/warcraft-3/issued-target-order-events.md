@@ -91,7 +91,8 @@ The regression for the unrelated location failed before its separate guard in
 JASS context now also preserves `eventType`, so the domain guard survives
 suspension. Semantic JASS snapshot version7 saves that discriminator with the
 existing value and point; version6 snapshots are rejected. The network protocol
-and outer W3SV format56 are unchanged. No historical-array fallback is used on
+were unchanged by the callback fix (outer W3SV56); the subsequent current-head
+field in ORDER-01.4 uses W3SV57. No historical-array fallback is used on
 restore. See [save/load](save-load.md).
 
 Tests cover delayed and reentrant point conditions/actions, target snapshots in
@@ -118,8 +119,8 @@ strict corpus is120/120 at
 summary SHA256 `9c02b58de22f36882871d5c001853fbd5fc29ede107ce9cea3c2dcfe9a3bbfc4`).
 All recorded sources matched at completion. These retain existing original/live
 corpus expectations; the new callback fix is proved by S and engine tests.
-The separate active
-unit query remains [ORDER-01.4](retail-pathfinding-todo.md#order-01--arrival-and-failure).
+The ordinary point-Move active
+unit query is independently [ORDER-01.4](retail-pathfinding-todo.md#order-01--arrival-and-failure).
 
 Validation commands:
 

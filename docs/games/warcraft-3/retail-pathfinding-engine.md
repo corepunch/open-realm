@@ -388,3 +388,76 @@ separate decision/commit passes (GROUP-04.6). Queued selections still use the
 existing per-unit queued speed value; cohort activation/handoff remains part
 of that task. The engine still uses its existing simulation cadence and route
 solver, so this change does not claim exact retail trajectories.
+
+## Current point-order ownership
+
+ORDER-01.4 fixes the ordinary point-Move current query. `GetUnitCurrentOrder`
+previously delegated to historical `G_GetIssuedOrderId`: queued Smart displaced
+the reported Move head before activation; Stop remained reported; natural
+arrival retained the historical command. The public-native/server-frame test
+reproduced all three failures in
+`/tmp/wc3-order-01.4-current-head-before-fix.log` before changing production code.
+The retained idle goal cache is not evidence of an active user order and is
+left intact.
+
+`edict_t.current_order_id` now represents the active user command separately
+from pending FIFO entries, event snapshots and internal locomotion.
+Move's `S_IssueMoveOrder` publishes the ID only when its requested goal and
+ordinary walk behavior are installed. The public point Move/Smart path and
+simultaneous selection path use it; pending insertion does not alter it.
+Queued activation uses the same owner. Generic `unit_stand` retires the old ID
+before starting a queued successor, and death retires it with the order queue.
+Internal spell/interaction approaches still call `order_move` without inventing
+a new public Move ID. The native reads this current field, never event history.
+
+The regression uses public JASS orders and `globals.RunFrame`, verifies queued
+Smart handoff, replacement/rejection, Stop, new-goal arrival and actual edict
+reuse, and saves an active Move with pending Smart. It stops the actor before
+restore, then verifies restored current Move and normal queued execution. The
+selection-group round-trip also checks active command restoration and Stop.
+Save57 includes an explicit `F_INT` descriptor and rejects56/older layouts.
+The network protocol is unchanged.
+
+The original oracle executes the registered cdecl native2039d0, including
+1eef90 handle/type/canonical resolution and061320 head resolution, at all42
+frozen singleton/FIFO states. It checks balanced Unit references, callee
+registers, stack cleanup and the FS exception chain. Nine controls per scenario
+cover null/low/unbound handles, stale Unit generation, retired/bad-tag Unit
+wrapper, stale/retired order head and empty head with a nonzero count. All18
+return zero. Each invalid data word is restored immediately, and a valid
+query checks the retained head again. Both complete scenarios repeat identically:
+124 actual native calls, with unchanged frozen movement/reclamation output.
+Supplied existing VM handle-array backing is explicit; these controls do not
+prove how invalid states arise in the full gameplay producer graph.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_order_tasks.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --producer-baseline --current-order-query --report /tmp/current-order-new.json
+LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test-wc3-engine WC3_PATTERN='wc3_api.current_order_point*'
+```
+
+The strict corpus entry is `owner-current-order-query`.
+This is bounded **O/C plus engine regression** evidence. It does not establish
+full retail engine clock/route parity. The remaining command owners are
+explicitly [ORDER-01.6](retail-pathfinding-todo.md#order-01--arrival-and-failure):
+target Follow/Smart, Hold/Patrol/Attack, economy commands and ability/channel/
+metadata orders do not yet maintain this field consistently. Their queries
+can return zero or retain the previous point-Move ID; there is no guessed
+historical-event fallback. That domain matrix must be traced, split and
+integrated through its owning abilities before claiming whole-query parity.
+
+Validation: `/tmp/wc3-order-01.4-current-head-validated-full-suite.log`
+passed78 Python tool tests and36775/36775 engine assertions across2133 tests
+in each WC3 schema. The first full run correctly rejected the stale53-oracle
+inventory count; the declared new variant raises it to54. The fresh strict
+corpus is121/121 at
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/order-01.4-current-head-corpus/corpus-results.json`
+(manifest SHA256 `eaf61dba2a79609d699bd83970d07f9bde1f64ca1b6e83190c0cbe8ff9f07c8a`;
+summary SHA256 `12d377b5b3e2a31b5bff4b2a815d641c520a4fb9625899e2ce5faa534da1b753`).
+All recorded sources matched at completion. The current-query repeat digests
+are `b9bdf5ae025230a63f64072fa79ad3460ea29b7d1f433983b681e517d8f414bd`
+(singleton) and `e720414033bb01b16c4bd293c40443d0183784a3704b5d5e1945f28864c2b0f1`
+(FIFO). Ghidra saved `Unit_CurrentOrderCommandLoad` at203a23 and EOL comments
+at203a15/203a23 with the head/count distinction and complete native witness.

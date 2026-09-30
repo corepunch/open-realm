@@ -78,7 +78,7 @@ enum {
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format 55 adds committed Move velocity; changed edict offsets reject earlier raw layouts. */
-static uint32_t const save_version = 56;
+static uint32_t const save_version = 57;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -775,6 +775,7 @@ field_t edict_fields[] = {
     F(edict_s, stock, F_STRUCT, 1, stock_fields),
     F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
+    F(edict_s, current_order_id, F_INT),
     F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),
     F(edict_s, item_drop, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spell_item, F_EDICT, 0, FIELD_NONE),

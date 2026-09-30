@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 56, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 57, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -30,7 +30,7 @@ ORDER-01.5 extends the semantic JASS snapshot to version7 with callback
 `eventType`. Issued-order value/point/target snapshots already use the existing
 game-event fields; event type gates now remain correct after a yielded callback
 is restored. Both unread issued-order events and sleeping actions have round-trip
-coverage. Outer W3SV version56 and the network protocol are unchanged, but the
+coverage. This callback change left outer W3SV56 and the network protocol unchanged, but the
 embedded exact-version guard rejects a version6 JASS snapshot. See
 [immutable issued-order callbacks](issued-target-order-events.md#immutable-callback-ownership).
 
@@ -118,7 +118,7 @@ Event handler registrations store type, subject entity index, trigger index, tim
 
 ## JASS Snapshot
 
-The embedded snapshot starts with `JSVM`, snapshot format version 6, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
+The embedded snapshot starts with `JSVM`, snapshot format version 7, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
 
 - mutable scalar globals and sparse array entries;
 - integer, real, boolean, string, code, null, and supported typed-handle values;
@@ -570,3 +570,11 @@ version 53 saves are rejected. The native-setter/steering save regression is
 Format55 adds the committed Move XY velocity. It survives the raw edict save image; stopping/reset clears it in Move. Format54 is rejected because subsequent edict field offsets differ. The alternating-heading movement regression compares uninterrupted and resumed position/velocity words exactly.
 
 Version56 adds Move cohort identity and its level allocation cursor. Active selection groups retain membership and recompute survivor speed after load; a post-load Stop regression verifies the cap changes. The exact-version guard rejects55 and older saves. See [active Move cohort speed](retail-pathfinding-engine.md#active-move-cohort-speed).
+
+Version57 adds the explicit per-unit `current_order_id` (`F_INT`) used by
+ordinary point Move/Smart, separately from the pending FIFO and issued events.
+The active head survives active-plus-queued save/load; Stop and natural arrival
+retire it, and edict reuse starts at zero. Selection groups also retain their
+active Move command. Version56 and older records are rejected. Remaining
+command owners are ORDER-01.6; see
+[current point orders](retail-pathfinding-engine.md#current-point-order-ownership).

@@ -1602,6 +1602,7 @@ struct edict_s {
     bool uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
     vec2_t old_origin;
     unitOrderQueue_t order_queue;
+    uint32_t current_order_id; /* Active user command, distinct from pending FIFO and issued-event history. */
     struct edictWaygate_s {
         vec2_t destination;
         bool destination_set;
@@ -3097,6 +3098,7 @@ bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target);
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot);
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
+void S_IssueMoveOrder(edict_t *, edict_t *, uint32_t);
 bool move_is_active_order_walk(edict_t const *);
 void move_start_displacement(edict_t *, vec2_t const *);
 void move_cancel_displacement(edict_t *);

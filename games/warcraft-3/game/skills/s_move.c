@@ -1600,6 +1600,15 @@ void order_move(edict_t *self, edict_t *target) {
     unit_setanimation(self, "stand");
 }
 
+/* A public point command owns the current user head. Internal approaches use
+ * order_move without replacing that identity. Queue replay comes here only
+ * when this command actually becomes active. */
+void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
+    order_move(self, goal);
+    if (self->goalentity == goal && self->currentmove == &move_move_walk)
+        self->current_order_id = order_id;
+}
+
 /* Handle a right-click move command from the client.
  * Creates a shared waypoint at the clicked map position, issues move orders
  * to all currently selected units, and sends a move-confirmation effect back
@@ -1658,7 +1667,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
             waypoint->secondarygoal = route_waypoint;
             G_ClearUnitOrderQueue(ent);
             ent->movement.holding_position = false;
-            order_move(ent, waypoint);
+            S_IssueMoveOrder(ent, waypoint, G_OrderId("move"));
             if (ent->goalentity == waypoint && ent->currentmove == &move_move_walk) {
                 ent->movement.group_id = group_id;
                 ent->movement.group_speed = group_speed;

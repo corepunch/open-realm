@@ -1287,6 +1287,57 @@
       ]
     },
     {
+      "id": "owner-current-order-query",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--producer-baseline",
+        "--current-order-query"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "order-01.4-current-order-query.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "producer_cases": {
+          "length": 2
+        },
+        "identical_repeats": {
+          "length": 2
+        },
+        "current_order_native_calls": {
+          "equal": 42
+        },
+        "current_order_invalid_backing_calls": {
+          "equal": 18
+        },
+        "current_order_executed_native_calls": {
+          "equal": 124
+        },
+        "current_order_repeat_digests": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Registered2039d0 cdecl native at all42 frozen singleton/FIFO states plus18 invalid-backing controls; both complete scenarios repeat twice with identical query observations, balanced Unit references, callee registers and SEH chain. Supplied existing VM handle array; no code patches or native replacement.",
+      "exclusions": [
+        "Full VM/Unit construction and invalid-backing producer reachability remain BASE-03.1. Non-point command owners and gameplay UI/network caller coverage remain ORDER-01.6/BASE-01."
+      ]
+    },
+    {
       "id": "shared-pair",
       "kind": "oracle",
       "command": [

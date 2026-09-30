@@ -3753,6 +3753,7 @@ SAVE_INT_FIELD_TEST(field_class_id_round_trip, class_id, MAKEFOURCC('h', 'p', 'e
 SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
 SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
 SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
+SAVE_INT_FIELD_TEST(field_current_order_id_round_trip, current_order_id, 851986)
 SAVE_INT_FIELD_TEST(field_summon_ability_round_trip, summon_ability, MAKEFOURCC('A', 'O', 's', 'f'))
 SAVE_INT_FIELD_TEST(field_shared_vision_round_trip, shared_vision, (1u << 0) | (1u << 7))
 SAVE_INT_FIELD_TEST(field_harvested_lumber_round_trip, harvested_lumber, 37)
@@ -4698,6 +4699,8 @@ TEST(wc3_save, round_trip_active_move_group) {
     fast->unitinfo.MoveSpeed = 300; slow->unitinfo.MoveSpeed = 100;
     fast->selected = slow->selected = 1 << clent->client->ps.number;
     T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+    T_EQ(fast->current_order_id, G_OrderId("move"));
+    T_EQ(slow->current_order_id, G_OrderId("move"));
     uint32_t group_id = fast->movement.group_id;
     T_ASSERT(group_id && slow->movement.group_id == group_id);
     uint32_t next_id = level.next_move_group_id;
@@ -4706,9 +4709,12 @@ TEST(wc3_save, round_trip_active_move_group) {
     level.next_move_group_id = 0;
     T_ASSERT(ReadGame(filename));
     T_EQ(fast->movement.group_id, group_id); T_EQ(slow->movement.group_id, group_id);
+    T_EQ(fast->current_order_id, G_OrderId("move"));
+    T_EQ(slow->current_order_id, G_OrderId("move"));
     T_EQ(level.next_move_group_id, next_id);
     T_FEQ(unit_movedistance(fast), 10.0f * 100 / FRAMETIME, 0.001f);
     T_ASSERT(unit_issueimmediateorder(slow, "stop"));
+    T_EQ(slow->current_order_id, 0);
     T_FEQ(unit_movedistance(fast), 10.0f * 300 / FRAMETIME, 0.001f);
     remove(filename);
 }
