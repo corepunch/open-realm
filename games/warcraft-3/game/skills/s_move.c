@@ -1426,12 +1426,8 @@ static void ai_move_walk(edict_t *ent) {
         /* Snap exactly onto the goal only if that spot is actually free; if the
          * goal is occupied (e.g. ordered onto another unit, or an attack target)
          * stop where we are rather than overlapping it. */
-        if (M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
-            ent->s.origin2 = ent->goalentity->s.origin2;
-            ent->s.origin.x = ent->s.origin2.x;
-            ent->s.origin.y = ent->s.origin2.y;
-            gi.LinkEntity(ent);
-        }
+        if (M_MoveIsValid(ent, &ent->goalentity->s.origin2))
+            unit_commit_step(ent, &ent->goalentity->s.origin2);
         if (S_UnitAbilityMoveArrive(ent)) return;
         ent->stand(ent);
     } else {
