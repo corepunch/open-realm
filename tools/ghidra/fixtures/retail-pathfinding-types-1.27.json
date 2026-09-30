@@ -581,6 +581,12 @@
           "evidence": "Existing Move concrete vtable b62794"
         },
         {
+          "offset": 32,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "5ffad0 OR200 Hold;5ffe50 ANDfffffdff leaves Hold; behavior is separate from live user head"
+        },
+        {
           "offset": 48,
           "name": "unit",
           "type": "ptr:void",
@@ -1403,6 +1409,45 @@
       "returns": "u32",
       "convention": "__cdecl",
       "parameters": []
+    },
+    {
+      "address": "6f5fccf0",
+      "name": "Move_CreateHoldTasks",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "move",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f5ffad0",
+      "name": "Move_EnterHoldState",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "move",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f5ffe50",
+      "name": "Move_LeaveHoldState",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "move",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        }
+      ]
     }
   ],
   "globals": [

@@ -3099,6 +3099,7 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot);
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
 void S_IssueMoveOrder(edict_t *, edict_t *, uint32_t);
+bool S_IssueFollowOrder(edict_t *, edict_t *, uint32_t);
 bool move_is_active_order_walk(edict_t const *);
 void move_start_displacement(edict_t *, vec2_t const *);
 void move_cancel_displacement(edict_t *);

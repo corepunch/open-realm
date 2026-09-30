@@ -24,6 +24,23 @@ public class MapPathfindingTypes extends GhidraScript {
         return result;
     }
 
+    // A larger body of evidence may name previously undefined bytes. Preserve
+    // every existing field, type, offset and comment before allowing refinement.
+    private boolean preservesFields(DataType existing, DataType desired) {
+        if (!(existing instanceof Structure) || !(desired instanceof Structure) ||
+            existing.getLength() != desired.getLength()) return false;
+        Structure old = (Structure)existing, next = (Structure)desired;
+        for (DataTypeComponent field : old.getDefinedComponents()) {
+            if (Undefined.isUndefined(field.getDataType())) continue;
+            DataTypeComponent replacement = next.getComponentAt(field.getOffset());
+            if (replacement == null || replacement.getOffset() != field.getOffset() ||
+                !field.getDataType().isEquivalent(replacement.getDataType()) ||
+                !java.util.Objects.equals(field.getFieldName(), replacement.getFieldName()) ||
+                !java.util.Objects.equals(field.getComment(), replacement.getComment())) return false;
+        }
+        return true;
+    }
+
     // Preflight all fields/prototypes before mutating the program database.
     private void validate(JsonObject schema) throws Exception {
         for (JsonElement element : schema.getAsJsonArray("layouts")) {
@@ -117,11 +134,12 @@ public class MapPathfindingTypes extends GhidraScript {
         for (String name : types.keySet()) {
             if (!name.startsWith("WC3")) continue;
             DataType existing = manager.getDataType(CATEGORY, name);
-            if (existing != null && !existing.isEquivalent(types.get(name)))
+            if (existing != null && !existing.isEquivalent(types.get(name)) &&
+                !preservesFields(existing, types.get(name)))
                 throw new Exception("Preserve incompatible existing type " + existing.getPathName());
         }
         for (String name : types.keySet())
-            if (name.startsWith("WC3")) types.put(name, manager.resolve(types.get(name), DataTypeConflictHandler.DEFAULT_HANDLER));
+            if (name.startsWith("WC3")) types.put(name, manager.resolve(types.get(name), DataTypeConflictHandler.REPLACE_HANDLER));
         for (JsonElement element : schema.getAsJsonArray("methods")) {
             JsonObject method = element.getAsJsonObject();
             Function function = getFunctionAt(toAddr(method.get("address").getAsString()));

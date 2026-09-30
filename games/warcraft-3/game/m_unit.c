@@ -784,14 +784,12 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
             return true;
         }
         if ((target->svflags & SVF_MONSTER) && unit_smart_target_is_followable(self, target)) {
-            order_follow(self, target);
-            return self->movement.follow_target == target;
+            return S_IssueFollowOrder(self, target, G_OrderId(order));
         }
         return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f);
     }
     if (!strcmp(order, "move") && (target->svflags & SVF_MONSTER)) {
-        order_follow(self, target);
-        return self->movement.follow_target == target;
+        return S_IssueFollowOrder(self, target, G_OrderId(order));
     }
     if (!strcmp(order, "attack")) {
         if (S_UnitPolymorphed(self)) return false;

@@ -441,12 +441,13 @@ LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test-wc3-engine WC3_PATTERN='wc3_ap
 The strict corpus entry is `owner-current-order-query`.
 This is bounded **O/C plus engine regression** evidence. It does not establish
 full retail engine clock/route parity. The remaining command owners are
-explicitly [ORDER-01.6](retail-pathfinding-todo.md#order-01--arrival-and-failure):
-target Follow/Smart, Hold/Patrol/Attack, economy commands and ability/channel/
-metadata orders do not yet maintain this field consistently. Their queries
-can return zero or retain the previous point-Move ID; there is no guessed
-historical-event fallback. That domain matrix must be traced, split and
-integrated through its owning abilities before claiming whole-query parity.
+indexed by [ORDER-01.6](retail-pathfinding-todo.md#order-01--arrival-and-failure),
+with completed Follow/Hold slices and explicit remaining leaves below:
+Patrol/Attack, economy commands and ability/channel/metadata owners do not yet
+maintain this field consistently. Their queries can return zero or retain the
+previous point-Move ID; there is no guessed historical-event fallback. Those
+remaining leaves must be integrated through their owning abilities before
+claiming whole-query parity; synchronous Follow loss remains01.15.
 
 Validation: `/tmp/wc3-order-01.4-current-head-validated-full-suite.log`
 passed78 Python tool tests and36775/36775 engine assertions across2133 tests
@@ -461,3 +462,127 @@ are `b9bdf5ae025230a63f64072fa79ad3460ea29b7d1f433983b681e517d8f414bd`
 (singleton) and `e720414033bb01b16c4bd293c40443d0183784a3704b5d5e1945f28864c2b0f1`
 (FIFO). Ghidra saved `Unit_CurrentOrderCommandLoad` at203a23 and EOL comments
 at203a15/203a23 with the head/count distinction and complete native witness.
+
+
+## Remaining command-owner inventory
+
+ORDER-01.6 splits the current-query domain by owner. `2039d0` reads the live
+user head; `680320` admits/replaces, `67abe0` classifies and dispatches it,
+`679cc0` delivers to the order-owned ability, and `69b2f0` offers virtual22c
+interception before replacement. These shared roots are **S**, not a complete
+reachable producer graph; BASE-03.1 still owns that graph. In particular,
+copying every accepted publisher ID into current state would misclassify
+metadata, instant actions and internal locomotion.
+
+| Leaf | Engine owner/entry point | Retail starting evidence and remaining contract |
+| --- | --- | --- |
+| ORDER-01.7 | `s_holdpos.c:S_HoldPosition` | Move d0019 creates Hold tasks at5fccf0; user head retires to0 while behavior persists |
+| ORDER-01.8 | `s_move.c:S_IssueFollowOrder`, `order_follow_resume` | Move d0003/d0012 target branches5ff240/5fd270; public Smart/Move retain their IDs at rest |
+| ORDER-01.9 | `s_patrol.c:order_patrol`, `order_patrol_resume` | Move d0017 at5fdff0; native point admission, endpoint reversal, combat resume and queue/save ownership |
+| ORDER-01.10 | `s_attack.c:S_OrderAttack`, Attack Move/Attack Ground | Shared dispatch and Move d0016 at5fe1a0; distinguish public attack IDs from automatic sub-behaviors |
+| ORDER-01.11 | `s_repair.c:S_OrderRepair` | Shared owning-ability dispatch; trace concrete retail repair owner, approach, completion and interruption |
+| ORDER-01.12 | `s_harvest_lumber.c`, `s_goldmine.c` and race-specific resource owners | Smart/Harvest dispatch; inventory early-return admissions and resource-return/internal approaches |
+| ORDER-01.13 | `s_spell.c` plus each concrete ability | Shared owning-ability dispatch; approach, execute, channel, inverse and instant ownership |
+| ORDER-01.14 | Each metadata/toggle owner | Shared interception69b2f0; preserve an existing active head when a metadata action is accepted |
+| ORDER-01.15 | Generic target lifetime dispatch, Move loss handling | Retail RemoveUnit clears Follow synchronously; current engine retirement waits for deferred removal/server frames |
+| ORDER-01.16 | `s_build.c` and race-specific construction owners | Concrete admission, approach, work, interruption and queued build ownership; separate from Harvest |
+
+`m_unit.c` routes public target orders through specialized owners before ordinary
+Follow: item pickup, authored Smart, Acolyte/Gold/Lumber, return resources,
+attack/destructables, target-owned interactions, cargo and repair. Point spells,
+rally metadata, Attack Ground and Attack Move have separate paths. Harvest and
+rally have early returns that do not consistently use the same publisher.
+The FIFO calls these owners again at activation; it must not make a pending
+entry current merely because the issued event was published. Generic
+`S_UnitAbilityOrderAccepted` is a post-accept hook, not universal head activation.
+
+Ghidra now persists **277 names,17 partial layouts,110 fields and44 explicit
+x86 prototypes**. New names cover Hold creation/enter/leave, Patrol/Attack Move
+creation, Smart target dispatch and the shared owner/interception roots.
+Move20 bit200 is named in the existing Move prefix; instruction labels at
+5ffb0f and5ffe8f distinguish retained behavior from current user identity.
+`MapPathfindingTypes.java` permits naming undefined bytes only when every
+existing field/type/offset/comment and total size is preserved. Actual mapper
+rename/retype/omission controls all reject the change before resolution;
+`order-01.6-ghidra-owner-types.json` is the final readback. This refinement does
+not install inferred calling conventions or discard another analyst's fields.
+
+## Current Follow and Hold ownership
+
+**S/L plus engine regression:** the `order_lifecycle` probe uses actual public
+JASS orders on stock hfoo in a copied Human02Interlude terrain. Both final
+owned captures run130 seconds, send the isolated-display loading key at80,
+then record all300 timer samples. All**320** timer/health strings repeat exactly,
+SHA256 `a386b56ddd95c2154127315e65c3afe8b2869fe754db44458e0d67c83712df19`.
+The hashes of the generated map and observer/probe/builder are recorded in
+`fixtures/retail-order-lifecycle-1.27.json`. Those source hashes were recorded
+separately after capture; they are not embedded in the historical JSONL header.
+
+| Stage | Expected and observed current order |
+| --- | --- |
+| Point Move at10 |851986 |
+| Hold at30 |0 immediately and through standing |
+| Accepted Defend/undefend at60/65 |0; these samples do not prove metadata preserves a busy head |
+| Smart ally Follow at80, target moved near at110 |851971 even while stationary |
+| Target Move at120 |851986 even while stationary |
+| RemoveUnit(target) at130 |0 synchronously in retail; engine synchronization is ORDER-01.15 |
+| Stop at140 |0 |
+| Patrol at150, rejected unsupported replacement at170 |851991 |
+| Hold at180 and automatic attack after200 |0; enemy life420.000→409.606 at220 |
+| Target Move at230, KillUnit at240, rejected dead order at250 |851986→0→0 |
+
+The final fixture explicitly researches Rhde and changes the copied campaign's
+0↔1 PASSIVE alliance to hostile, with user/computer controllers. Earlier
+controls had rejected Defend without research, or could not attack because
+Human02Interlude config made players0/1 allies. The paused enemy remains
+vulnerable; the health drop is required by the analyzer. These controls remain
+in the report directory and do not certify the final combat witness.
+
+OpenRealm's prior target Move/Smart path installed Follow without updating its
+current head. The test-first public-native witness failed current-query
+checks before the fix. `S_IssueFollowOrder` now records the actual command only
+when Move owns the installed Follow; internal `order_follow_resume` keeps that
+identity across moving/standing and opportunistic combat. Common completion
+retires the head before queued activation, and death clears it. The regression
+covers queued target activation, standing, resumed pursuit, rejected replacement,
+Stop, saved Follow/pending point Move, target-loss handoff, arrival, death and
+actual edict reuse. Target removal is tested through real server frames because
+OpenRealm defers edict reclamation; synchronous retail loss remains01.15.
+
+Hold needs **no invented persistent851993 head**. The original dispatcher
+creates d0148,d014e,d0177,d0144/action0, and d0177 sets Move20 bit200; d0178
+clears it. The command completes while this behavior remains. The engine's
+public Hold regression verifies head0, cleared pending commands, save/load,
+automatic damage through `globals.RunFrame`, return to Hold after enemy removal
+and replacement by Move. Its minimal attack fixture supplies UnitWeapons,
+SVF_MONSTER/hostile owner and a nonzero authored damage point; omitted fixture
+attack timing was corrected without changing unrelated production attack code.
+
+```sh
+python3 tools/frida/make_wc3_pathfinding_map.py --base /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/Human02Interlude-original.w3m --scenario order_lifecycle --output /run/media/lofcz/ssd_external/Games/w3/Maps/PathingRE-OrderLifecycleNew.w3m
+# Execute the owned trace command twice, each into a new JSONL path:
+DISPLAY=:94 WAYLAND_DISPLAY= WINEDEBUG=-all WINEPREFIX=/home/lofcz/.local/share/open-realm/wine-pathfinding-re /home/lofcz/.local/share/uv/tools/frida-tools/bin/python tools/frida/trace_wc3_pathfinding.py --data /run/media/lofcz/ssd_external/Games/w3 --map 'Maps\PathingRE-OrderLifecycleNew.w3m' --seconds 130 --samples 1000 --task-events --x11-display :94 --continue-at 80 --output /new/orders.jsonl
+python3 tools/frida/analyze_pathfinding_trace.py /first/orders.jsonl --scenario order_lifecycle --compare /second/orders.jsonl --output /new/orders-audit.json
+LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test-wc3-engine WC3_PATTERN='wc3_api.current_order*'
+```
+
+The actual final artifacts are
+`runtime/order-01.6-lifecycle4-{raw,repeat}.jsonl` and
+`order-01.6-lifecycle4-repeat-audit.json`; corpus entry
+`live-order-lifecycle-repeat` rechecks both complete inputs and their repeat.
+Timer position/health text has three decimals. This is not raw float-position,
+full engine clock/trajectory parity, complete Unit/VM construction, all target
+visibility/lifetime paths or all metadata/spell/interaction-owner coverage.
+Current state uses existing save57; issued-event context remains JSVM7 and
+network contracts are unchanged.
+
+Validation checkpoint for ORDER-01.6/07/08: normal full umbrella tests pass
+(`/tmp/wc3-order-01.6-domain-validated-full-suite.log`,79 tool tests and
+36833 engine assertions in2135 tests/schema); DEBUG_JASS and normal current-order
+suites pass, and normal JASS is restored. `openwarcraft3` and `opensc2` production
+builds pass. Strict `order-01.6-domains-validated-corpus/corpus-results.json`
+passes122/122 with all recorded source fingerprints unchanged at completion.
+Manifest SHA256 `667324574a68516357cbcb401e48bca8cd79643e80a1b4b28ff463d5816c2391`;
+summary SHA256 `8466ca0aa96d2a8b72523d8441c3e7ca9743b187baba52d4fab6820facab49b3`.
+The earlier scratch corpus rejected an unsupported dotted report-check key;
+the final manifest checks the complete repeat object, preserving every assertion.

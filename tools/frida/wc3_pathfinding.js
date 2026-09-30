@@ -620,6 +620,7 @@ function install(module) {
         if (value.startsWith('PATHTARGET ')) emit('target-marker', {value});
         if (value.startsWith('PATHWIDGET ')) emit('widget-marker', {value});
         if (value.startsWith('PATHSTOCK ')) emit('stock-marker', {value});
+        if (value.startsWith('PATHHOLD ')) emit('hold-marker', {value});
         if (value.startsWith('PATHTRACE ')) {
             if (value.includes('label=start_widget_lifecycle ')) widgetScenario = true;
             emit('marker', {value});

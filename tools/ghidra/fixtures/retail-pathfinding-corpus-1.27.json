@@ -5472,6 +5472,99 @@
         "C"
       ],
       "scope": "Original controlled member completion, mover destruction/reallocation, then surviving Unit point-order replacement680320 mode1, original new request route/layout and owner updates through new-goal arrival and cleanup; supplied existing Unit/Move and recycled allocator backing; gameplay RemoveUnit/UI/network callers, replacement actor movement and same-group moving-target refresh excluded"
+    },
+    {
+      "id": "live-order-lifecycle-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/order-01.6-lifecycle4-raw.jsonl",
+        "--scenario",
+        "order_lifecycle",
+        "--compare",
+        "{archive}/runtime/order-01.6-lifecycle4-repeat.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/order-01.6-lifecycle4-raw.jsonl",
+        "sha256": "b934d112fd01e673628f833ee275be36456dac27cd845b8618ff1d857de2b316",
+        "bytes": 307404,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "map": "Maps\\PathingRE-OrderLifecycle4.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/order-01.6-lifecycle4-repeat.jsonl",
+            "sha256": "41cb98a3b07501d95b89883cd363accbddd52eb0df8232ef610b792d6d1e4943",
+            "bytes": 307405,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "map": "Maps\\PathingRE-OrderLifecycle4.w3m",
+              "seconds": 130.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 1000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": false,
+              "velocityEvents": false,
+              "headingEvents": false,
+              "profileEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-order-lifecycle-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-order-lifecycle-repeat",
+      "checks": {
+        "violations": {
+          "equal": []
+        },
+        "repeat": {
+          "equal": {
+            "equal": true,
+            "markers": 320,
+            "digests": [
+              "a386b56ddd95c2154127315e65c3afe8b2869fe754db44458e0d67c83712df19",
+              "a386b56ddd95c2154127315e65c3afe8b2869fe754db44458e0d67c83712df19"
+            ]
+          }
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Two complete owned public-JASS admissions with300 samples each: point Move, completed Hold plus observed automatic damage, Defend metadata, persistent Smart/target Move, synchronous target removal, Stop, Patrol/rejected replacement and Follow death/dead rejection. All320 timer and health strings repeat identically. Engine current-head integration is tested separately through public natives/server frames.",
+      "exclusions": [
+        "Timer X/Y and life text has three decimal places; raw float trajectory and full OpenRealm clock/position parity remain open. Full original VM/Unit construction and alternate owner branches remain BASE-03.1/ORDER-01.9..15. The engine synchronous target-removal gap is explicitly ORDER-01.15. Observer/map source hashes were recorded separately after capture, not embedded in trace metadata."
+      ]
     }
   ],
   "fixtures": [
@@ -5537,7 +5630,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "44167abcff1e77697faff5ee9c203d8abb7b12e6d0299d16e599a1431dbc997c"
+      "sha256": "3cad0c3be3bf07427f47cb21d88f6d8108eecaf4af42b0224f86bb47aa162fed"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -5578,6 +5671,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-survivor-retarget-wall-1.27.json",
       "sha256": "5c5b325049a7e1f0a12a6bf24c5814c25b39128cf2dad4267b2f790a5d18c6d5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-order-lifecycle-1.27.json",
+      "sha256": "f75f058abc4ef7fe0a2c74ea73d6c4532a707acf5467b42e9cff4c3404419df0"
     }
   ]
 }

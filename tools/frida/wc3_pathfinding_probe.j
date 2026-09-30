@@ -32,10 +32,82 @@ function PathProbeWall takes boolean passable returns nothing
     endif
 endfunction
 
+// Public admission witness; instantaneous snapshots and intervening samples
+// distinguish persistent commands from metadata and automatic sub-behaviors.
+function PathProbeOrderLifecycle takes nothing returns nothing
+    local boolean accepted = false
+    local string label = ""
+    if udg_PathProbeTick == 10 then
+        set label = "point_move"
+        set accepted = IssuePointOrder(udg_PathProbeUnit, "move", -1936.0, -144.0)
+    elseif udg_PathProbeTick == 30 then
+        set label = "hold"
+        set accepted = IssueImmediateOrder(udg_PathProbeUnit, "holdposition")
+    elseif udg_PathProbeTick == 60 then
+        set label = "defend"
+        set accepted = IssueImmediateOrder(udg_PathProbeUnit, "defend")
+    elseif udg_PathProbeTick == 65 then
+        set label = "undefend"
+        set accepted = IssueImmediateOrder(udg_PathProbeUnit, "undefend")
+    elseif udg_PathProbeTick == 80 then
+        set label = "target_smart"
+        set accepted = IssueTargetOrder(udg_PathProbeUnit, "smart", udg_PathProbeTarget)
+    elseif udg_PathProbeTick == 110 then
+        call SetUnitX(udg_PathProbeTarget, GetUnitX(udg_PathProbeUnit) + 32.0)
+        call SetUnitY(udg_PathProbeTarget, GetUnitY(udg_PathProbeUnit))
+        call PathProbeRecord("target_near")
+    elseif udg_PathProbeTick == 120 then
+        set label = "target_move"
+        set accepted = IssueTargetOrder(udg_PathProbeUnit, "move", udg_PathProbeTarget)
+    elseif udg_PathProbeTick == 140 then
+        set label = "stop"
+        set accepted = IssueImmediateOrder(udg_PathProbeUnit, "stop")
+    elseif udg_PathProbeTick == 130 then
+        call RemoveUnit(udg_PathProbeTarget)
+        call PathProbeRecord("target_removed")
+    elseif udg_PathProbeTick == 150 then
+        set label = "patrol"
+        set accepted = IssuePointOrder(udg_PathProbeUnit, "patrol", -1936.0, -144.0)
+    elseif udg_PathProbeTick == 170 then
+        set label = "invalid"
+        set accepted = IssuePointOrder(udg_PathProbeUnit, "missingorder", -1936.0, -144.0)
+    elseif udg_PathProbeTick == 180 then
+        set label = "hold_again"
+        set accepted = IssueImmediateOrder(udg_PathProbeUnit, "holdposition")
+    elseif udg_PathProbeTick == 200 then
+        set udg_PathProbeBuilding = CreateUnit(Player(1), 'hfoo', GetUnitX(udg_PathProbeUnit) + 32.0, GetUnitY(udg_PathProbeUnit), 0.0)
+        call PauseUnit(udg_PathProbeBuilding, true)
+        call Preload("PATHHOLD tick=200 life=" + R2S(GetUnitState(udg_PathProbeBuilding, UNIT_STATE_LIFE)))
+        call PathProbeRecord("enemy_near")
+    elseif udg_PathProbeTick == 220 then
+        call Preload("PATHHOLD tick=220 life=" + R2S(GetUnitState(udg_PathProbeBuilding, UNIT_STATE_LIFE)))
+        set udg_PathProbeTarget = CreateUnit(Player(0), 'hfoo', -1936.0, -144.0, 0.0)
+    elseif udg_PathProbeTick == 230 then
+        set label = "follow_before_death"
+        set accepted = IssueTargetOrder(udg_PathProbeUnit, "move", udg_PathProbeTarget)
+    elseif udg_PathProbeTick == 240 then
+        call KillUnit(udg_PathProbeUnit)
+        call PathProbeRecord("killed")
+    elseif udg_PathProbeTick == 250 then
+        set label = "dead_move"
+        set accepted = IssueTargetOrder(udg_PathProbeUnit, "move", udg_PathProbeTarget)
+    endif
+    if label != "" then
+        if accepted then
+            call PathProbeRecord(label + "_accepted")
+        else
+            call PathProbeRecord(label + "_rejected")
+        endif
+    endif
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
     set udg_PathProbeTick = udg_PathProbeTick + 1
+    if PATH_PROBE_SCENARIO == 22 then
+        call PathProbeOrderLifecycle()
+    endif
     if PATH_PROBE_SCENARIO == 21 and udg_PathProbeTick == 200 then
         call SetUnitTurnSpeed(udg_PathProbeUnit, 0.125)
         call SetUnitPropWindow(udg_PathProbeUnit, 0.5)
@@ -48,7 +120,7 @@ function PathProbeTick takes nothing returns nothing
         set udg_PathProbeBuilding = null
         call PathProbeRecord("after_widget_remove")
     endif
-    if udg_PathProbeTick == 10 then
+    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 then
         call PathProbeRecord("before_order")
         if (PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) then
             if IssueTargetOrder(udg_PathProbeUnit, "smart", udg_PathProbeTarget) then
@@ -206,12 +278,19 @@ function PathProbeInit takes nothing returns nothing
         call SetUnitFacing(udg_PathProbeUnit, 0.0)
         call Preload("PATHSTOCK tick=0 turn=" + R2S(GetUnitTurnSpeed(udg_PathProbeUnit)) + " window=" + R2S(GetUnitPropWindow(udg_PathProbeUnit)) + " defaultTurn=" + R2S(GetUnitDefaultTurnSpeed(udg_PathProbeUnit)) + " defaultWindow=" + R2S(GetUnitDefaultPropWindow(udg_PathProbeUnit)))
     endif
+    if PATH_PROBE_SCENARIO == 22 then
+        call SetPlayerTechResearched(Player(0), 'Rhde', 1)
+        call SetPlayerController(Player(0), MAP_CONTROL_USER)
+        call SetPlayerController(Player(1), MAP_CONTROL_COMPUTER)
+        call SetPlayerAlliance(Player(0), Player(1), ALLIANCE_PASSIVE, false)
+        call SetPlayerAlliance(Player(1), Player(0), ALLIANCE_PASSIVE, false)
+    endif
     if PATH_PROBE_SCENARIO == 20 then
         call SetUnitFacing(udg_PathProbeUnit, 0.0)
         call SetUnitTurnSpeed(udg_PathProbeUnit, 0.125)
         call SetUnitPropWindow(udg_PathProbeUnit, 0.5)
     endif
-    if (PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) then
+    if (PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) or PATH_PROBE_SCENARIO == 22 then
         if PATH_PROBE_SCENARIO >= 13 and PATH_PROBE_SCENARIO <= 15 then
             call SetPlayerAlliance(Player(0), Player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_PASSIVE, true)
             call SetPlayerAlliance(Player(PLAYER_NEUTRAL_PASSIVE), Player(0), ALLIANCE_PASSIVE, true)

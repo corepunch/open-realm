@@ -3713,6 +3713,223 @@ TEST(wc3_api, current_order_point_move_tracks_active_head_through_server_frames)
     remove(filename);
 }
 
+TEST(wc3_api, current_order_follow_tracks_active_head_through_server_frames) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-current-order-follow-save-test.bin";
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "  unit targetUnit = null\n"
+        "endglobals\n"
+        "function verifySmart takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == OrderId(\"smart\"), \"standing or moving Follow retains Smart\")\n"
+        "endfunction\n"
+        "function verifyMove takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == OrderId(\"move\"), \"target Move retains its public command\")\n"
+        "endfunction\n"
+        "function verifyIdle takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == 0, \"retired Follow has no current command\")\n"
+        "endfunction\n"
+        "function smart takes nothing returns nothing\n"
+        "  call BJassAssert(IssueTargetOrder(testUnit, \"smart\", targetUnit), \"ally Smart accepted\")\n"
+        "  call verifySmart()\n"
+        "endfunction\n"
+        "function move takes nothing returns nothing\n"
+        "  call BJassAssert(IssueTargetOrder(testUnit, \"move\", targetUnit), \"target Move accepted\")\n"
+        "  call verifyMove()\n"
+        "endfunction\n"
+        "function reject takes nothing returns nothing\n"
+        "  call BJassAssert(not IssueTargetOrder(testUnit, \"missingorder\", targetUnit), \"invalid replacement rejected\")\n"
+        "  call verifyMove()\n"
+        "endfunction\n"
+        "function stop takes nothing returns nothing\n"
+        "  call BJassAssert(IssueImmediateOrder(testUnit, \"stop\"), \"Stop accepted\")\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function removeTarget takes nothing returns nothing\n"
+        "  call RemoveUnit(targetUnit)\n"
+        "endfunction\n"
+        "function recreate takes nothing returns nothing\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  set targetUnit = CreateUnit(Player(0), 'hfoo', 512.0, 64.0, 0.0)\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function kill takes nothing returns nothing\n"
+        "  call KillUnit(testUnit)\n"
+        "  call verifyIdle()\n"
+        "  call BJassAssert(not IssueTargetOrder(testUnit, \"move\", targetUnit), \"dead Move rejected\")\n"
+        "  call verifyIdle()\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  set targetUnit = CreateUnit(Player(0), 'hfoo', 512.0, 64.0, 0.0)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    edict_t *target = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(unit); T_NOT_NULL(target);
+    edict_t *actors[] = {unit, target};
+    for (int i = 0; i < 2; i++) {
+        actors[i]->health.value = actors[i]->health.max_value = 100;
+        actors[i]->collision = 8; actors[i]->unitinfo.MoveSpeed = 256;
+        actors[i]->movetype = MOVETYPE_STEP; actors[i]->svflags |= SVF_MONSTER;
+        actors[i]->think = monster_think; actors[i]->stand = unit_stand; actors[i]->die = unit_die;
+        unit_stand(actors[i]); gi.LinkEntity(actors[i]);
+    }
+    jass_callbyname(level.vm, "smart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 128}, true, 0, 0));
+    T_EQ(unit->order_queue.count, 1);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifySmart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 80; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(unit->movement.follow_target == target);
+    T_EQ(unit->order_queue.count, 1);
+    T_ASSERT(M_DistanceToGoal(unit) <= G_FollowStopRange(unit, target) + 16);
+    jass_callbyname(level.vm, "verifySmart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    jass_callbyname(level.vm, "move", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    T_EQ(unit->order_queue.count, 0);
+    jass_callbyname(level.vm, "reject", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    float const old_x = unit->s.origin.x;
+    target->s.origin.x = target->s.origin2.x = 704; gi.LinkEntity(target);
+    for (int frame = 0; frame < 20; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(unit->s.origin.x > old_x);
+    jass_callbyname(level.vm, "verifyMove", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 128}, true, 0, 0));
+    jass_callbyname(level.vm, "removeTarget", false);
+    /* RemoveUnit defers edict reclamation until the event pass completes. */
+    for (int frame = 0; frame < 10 && unit->movement.follow_target; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_NULL(unit->movement.follow_target);
+    T_EQ(unit->order_queue.count, 0);
+    jass_callbyname(level.vm, "verifyMove", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+    for (int frame = 0; frame < 120 && move_is_active_order_walk(unit); frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &(vec2_t){768, 128}) <= unit->collision + 16);
+    jass_callbyname(level.vm, "verifyIdle", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_rterror_clear(level.vm);
+    level.started = false;
+    G_FreeEdict(unit); level.time += 1001;
+    jass_callbyname(level.vm, "recreate", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(find_test_unit(MAKEFOURCC('h','p','e','a')) == unit);
+    target = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    actors[1] = target;
+    for (int i = 0; i < 2; i++) {
+        actors[i]->health.value = actors[i]->health.max_value = 100;
+        actors[i]->collision = 8; actors[i]->unitinfo.MoveSpeed = 256;
+        actors[i]->movetype = MOVETYPE_STEP; actors[i]->svflags |= SVF_MONSTER;
+        actors[i]->think = monster_think; actors[i]->stand = unit_stand; actors[i]->die = unit_die;
+        unit_stand(actors[i]); gi.LinkEntity(actors[i]);
+    }
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){192, 64}, false, 0, 0));
+    T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", target, true, 0));
+    jass_callbyname(level.vm, "verifyMove", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 120 && unit->order_queue.count; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_EQ(unit->order_queue.count, 0);
+    T_ASSERT(unit->movement.follow_target == target);
+    jass_callbyname(level.vm, "verifySmart", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "stop", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "move", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "kill", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 0);
+    remove(filename);
+}
+
+TEST(wc3_api, current_order_hold_is_retired_while_behavior_persists) {
+    static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
+    cstring_t filename = "/tmp/openwarcraft3-wc3-current-order-hold-save-test.bin";
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "endglobals\n"
+        "function verifyHold takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == 0, \"Hold completes its user head while retaining behavior\")\n"
+        "endfunction\n"
+        "function hold takes nothing returns nothing\n"
+        "  call BJassAssert(IssueImmediateOrder(testUnit, \"holdposition\"), \"Hold accepted\")\n"
+        "  call verifyHold()\n"
+        "endfunction\n"
+        "function move takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"move\", 512.0, 64.0), \"Move accepted\")\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testUnit) == OrderId(\"move\"), \"Move replaces retained Hold behavior\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set testUnit = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "endfunction\n"));
+    edict_t *unit = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->collision = 8; unit->unitinfo.MoveSpeed = 256;
+    unit->movetype = MOVETYPE_STEP; unit->svflags |= SVF_MONSTER;
+    unit->think = monster_think; unit->stand = unit_stand; unit->die = unit_die;
+    unit_stand(unit); gi.LinkEntity(unit);
+    jass_callbyname(level.vm, "move", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 128}, true, 0, 0));
+    jass_callbyname(level.vm, "hold", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 0);
+    T_ASSERT(unit->movement.holding_position);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyHold", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_ASSERT(unit->movement.holding_position);
+    /* The minimal MPQ omits UnitWeapons; supply the authored attack contract. */
+    unit->data.UnitWeapons = &weapons;
+    unit->attack1.type = ATK_NORMAL; unit->attack1.range = 64; unit->attack1.cooldown = 0.5f;
+    unit->attack1.damagePoint = 0.2f;
+    unit->attack1.damageBase = 10; unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    unit->runtime.acquisition_range = 600;
+    edict_t *enemy = alloc_test_unit(MAKEFOURCC('h','g','r','u'), 88, 64);
+    enemy->s.player = 1; enemy->targtype = TARG_GROUND; enemy->health.value = enemy->health.max_value = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    enemy->svflags |= SVF_MONSTER;
+    enemy->die = unit_die; gi.LinkEntity(enemy);
+    T_ASSERT(G_FindNearestEnemy(unit, 600) == enemy);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (int frame = 0; frame < 60; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(enemy->health.value < enemy->health.max_value);
+    T_FEQ(unit->s.origin.x, 64, 0.001f); T_FEQ(unit->s.origin.y, 64, 0.001f);
+    jass_callbyname(level.vm, "verifyHold", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_FreeEdict(enemy);
+    for (int frame = 0; frame < 20; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(unit->movement.holding_position);
+    jass_callbyname(level.vm, "verifyHold", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "move", false);
+    T_ASSERT(!jass_rterror_pending(level.vm)); T_ASSERT(!unit->movement.holding_position);
+    remove(filename);
+}
+
 TEST(wc3_api, issued_order_context_ignores_spell_metadata) {
     setup_test_world();
     g_edicts[0].client = &game.clients[0];

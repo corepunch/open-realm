@@ -17,6 +17,47 @@ def capture(*searches, calls=None):
 
 
 class PathTraceTests(unittest.TestCase):
+    def test_order_lifecycle_rejects_historical_or_animation_derived_heads(self):
+        changes = [(0, 'start_order_lifecycle', 0), (10, 'point_move_accepted', 851986),
+                   (30, 'hold_accepted', 0), (60, 'defend_accepted', 0), (65, 'undefend_accepted', 0),
+                   (80, 'target_smart_accepted', 851971), (110, 'target_near', 851971),
+                   (120, 'target_move_accepted', 851986), (130, 'target_removed', 0),
+                   (140, 'stop_accepted', 0), (150, 'patrol_accepted', 851991),
+                   (170, 'invalid_rejected', 851991), (180, 'hold_again_accepted', 0),
+                   (200, 'enemy_near', 0), (230, 'follow_before_death_accepted', 851986),
+                   (240, 'killed', 0), (250, 'dead_move_rejected', 0), (300, 'complete', 0)]
+        markers = [dict(tick=t, label=label, order=order) for t, label, order in changes]
+        markers += [dict(tick=t, label='sample', order=next(o for start, _, o in reversed(changes) if start <= t))
+                    for t in range(1, 301)]
+        errors = []
+        self.assertEqual(trace.check_order_lifecycle(markers, errors), changes)
+        self.assertEqual(errors, [])
+        for tick, invalid_head in [(31, 851993), (61, 852055), (119, 0), (131, 851986), (171, 0), (231, 0), (241, 851986)]:
+            changed = [dict(m) for m in markers]
+            next(m for m in changed if m['label'] == 'sample' and m['tick'] == tick)['order'] = invalid_head
+            errors = []
+            trace.check_order_lifecycle(changed, errors)
+            self.assertIn('public order lifecycle sampled head differs from fixture', errors)
+        errors = []
+        trace.check_order_lifecycle(markers[1:], errors)
+        self.assertIn('public order lifecycle transitions differ from fixture', errors)
+        rows = capture()
+        rows[1:1] = [dict(event='marker', value=f"PATHTRACE tick={m['tick']} label={m['label']} x=0 y=0 order={m['order']}") for m in markers]
+        rows[1:1] = [dict(event='hold-marker', value='PATHHOLD tick=200 life=420.000'),
+                     dict(event='hold-marker', value='PATHHOLD tick=220 life=409.606')]
+        self.assertEqual(trace.analyze(rows, 'order_lifecycle')['violations'], [])
+        errors = []
+        self.assertTrue(trace.compare_order_lifecycle(rows, rows, errors)['equal'])
+        self.assertEqual(errors, [])
+        changed = [dict(row) for row in rows]
+        changed[2]['value'] = 'PATHHOLD tick=220 life=409.000'
+        errors = []
+        self.assertFalse(trace.compare_order_lifecycle(rows, changed, errors)['equal'])
+        self.assertIn('order lifecycle repeat metadata or timer markers differ', errors)
+        rows[2]['value'] = 'PATHHOLD tick=220 life=420.000'
+        self.assertIn('Hold lacks observed automatic damage while current head is retired',
+                      trace.analyze(rows, 'order_lifecycle')['violations'])
+
     def test_widget_scenario_checks_lifecycle_without_terrain_native_edits(self):
         def marker(tick, label):
             return dict(event='marker', value=f'PATHTRACE tick={tick} label={label} x=0 y=0 order=0')

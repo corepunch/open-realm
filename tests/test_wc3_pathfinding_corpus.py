@@ -25,7 +25,7 @@ class CorpusTests(unittest.TestCase):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),54)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),61)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),6)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),7)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),7)
         self.assertTrue(all(not e['evidence'] and not e['capture_complete'] for e in rejected))

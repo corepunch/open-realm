@@ -11,7 +11,7 @@ production-engine parity. Engine comparisons are named explicitly.
 ## Inventory and acceptance
 
 BASE-05.1 records all **32** `verify_wc3_pathing_*.py` oracle scripts, **12**
-selected variants, **61** archived JSONL captures and **six** stronger live-input
+selected variants, **61** archived JSONL captures and **seven** stronger live-input
 replays from the documented report
 root. Ghidra exports, reducer attempts and other scratch reports support those
 experiments; they are not additional independently accepted corpus entries.
@@ -24,7 +24,7 @@ restored-valid checks). Cdecl stack, callee registers, SEH and Unit references
 are checked. Existing VM backing is supplied; full construction stays excluded.
 GROUP-04.1 adds callback-mutation checks to the motion oracle. GROUP-04.3 adds
 three variants: open/wall callback-timed mover reuse and a missing-registry-alias
-counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. The inventory now has **121 entries**; fixture hashes and Ghidra
+counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. The inventory now has **122 entries**; fixture hashes and Ghidra
 annotation-script fingerprints cover those extensions. See [callback reuse](retail-pathfinding-movement.md#callback-timed-handle-reclamation-and-reuse).
 
 | Entries | Expected status | Meaning |
@@ -138,3 +138,5 @@ this corpus does not close the whole-replacement READY gates.
 ## Actual survivor replacement checkpoint
 
 `group-04.5-survivor-retarget-frozen-corpus/corpus-results.json` freshly reproduces120/120 declared outcomes with unchanged source fingerprints. Two new four-case matrices run original680320 survivor point replacement after completion/reuse, actual new-request route/layout, new-goal arrival and old/new group teardown. The production velocity adapter matches638 commits exactly. The engine server-frame regression independently checks slot preservation, ownership reset and arrival; its full tests pass without a speculative behavior change. Same-group pursuit refresh and the current-order public query remain separately assigned tasks.
+
+ORDER-01.6 adds `live-order-lifecycle-repeat`: two complete owned public-JASS captures, all300 timer samples each and320 identical timer/health markers. The analyzer rejects historical/animation-derived current heads, missing Hold damage, incomplete captures and changed repeats. `retail-order-lifecycle-1.27.json` records generated-map/observer hashes separately after capture; it does not upgrade old header provenance or certify raw float/whole-engine trajectory parity. ORDER-01.7/08 integrate the bounded Hold/Follow engine query slices; synchronous target-removal timing remains01.15.

@@ -1414,6 +1414,14 @@ void order_follow(edict_t *self, edict_t *target) {
     order_follow_resume(self);
 }
 
+bool S_IssueFollowOrder(edict_t *self, edict_t *target, uint32_t order_id) {
+    order_follow(self, target);
+    if (!self || self->goalentity != target || self->currentmove != &follow_move_walk)
+        return false;
+    self->current_order_id = order_id;
+    return true;
+}
+
 static umove_t move_move_hold = { "stand", NULL, NULL, CAbilityMove };
 
 bool move_is_terminal_hold(edict_t const *ent) {

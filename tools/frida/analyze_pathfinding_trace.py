@@ -2,6 +2,7 @@
 """Summarize observed path searches, rejecting incomplete or inconsistent witnesses."""
 import argparse
 import collections
+import hashlib
 import json
 import math
 import re
@@ -360,6 +361,29 @@ def target_loss_chains(rows):
     return chains
 
 
+def check_order_lifecycle(markers, violations):
+    """Public command ownership, deliberately independent of trajectory equality."""
+    expected = [(0, 'start_order_lifecycle', 0), (10, 'point_move_accepted', 851986),
+                (30, 'hold_accepted', 0), (60, 'defend_accepted', 0),
+                (65, 'undefend_accepted', 0), (80, 'target_smart_accepted', 851971),
+                (110, 'target_near', 851971), (120, 'target_move_accepted', 851986),
+                (130, 'target_removed', 0), (140, 'stop_accepted', 0),
+                (150, 'patrol_accepted', 851991), (170, 'invalid_rejected', 851991),
+                (180, 'hold_again_accepted', 0), (200, 'enemy_near', 0),
+                (230, 'follow_before_death_accepted', 851986), (240, 'killed', 0),
+                (250, 'dead_move_rejected', 0), (300, 'complete', 0)]
+    transitions = [(m['tick'], m['label'], m['order']) for m in markers if m['label'] != 'sample']
+    if transitions != expected:
+        violations.append('public order lifecycle transitions differ from fixture')
+    phases = [(0, 10, 0), (10, 30, 851986), (30, 80, 0), (80, 120, 851971),
+              (120, 130, 851986), (130, 150, 0), (150, 180, 851991),
+              (180, 230, 0), (230, 240, 851986), (240, 301, 0)]
+    samples = [m for m in markers if m['label'] == 'sample']
+    if any(m['order'] != order for begin, end, order in phases for m in samples if begin <= m['tick'] < end):
+        violations.append('public order lifecycle sampled head differs from fixture')
+    return transitions
+
+
 def analyze(rows, scenario=None):
     violations, summaries = [], {}
     metadata = [r for r in rows if r.get('event') == 'metadata']
@@ -541,7 +565,8 @@ def analyze(rows, scenario=None):
                 tick, label, x, y, order = match.groups()
                 markers.append(dict(tick=int(tick), label=label, x=float(x), y=float(y), order=int(order)))
         labels = [m['label'] for m in markers]
-        if labels.count('start_' + scenario) != 1 or labels.count('complete') != 1 or labels.count('order_accepted') != 1:
+        admission_label = 'point_move_accepted' if scenario == 'order_lifecycle' else 'order_accepted'
+        if labels.count('start_' + scenario) != 1 or labels.count('complete') != 1 or labels.count(admission_label) != 1:
             violations.append('scenario lacks unique start, accepted order, or completion')
         samples = [m for m in markers if m['label'] == 'sample']
         if [m['tick'] for m in samples] != list(range(1, 301)):
@@ -551,6 +576,7 @@ def analyze(rows, scenario=None):
         expected = {'open': {}, 'turn': {}, 'stock_turn': {}, 'wall': {'wall_query_true': 1},
                     'insert': {'before_insert': 1, 'after_insert': 1, 'wall_query_true': 1},
                     'remove': {'before_remove': 1, 'after_remove': 1, 'wall_query_true': 1, 'wall_query_false': 1}}
+        expected['order_lifecycle'] = {}
         expected['remove_reorder'] = {**expected['remove'], 'before_reorder': 1, 'stop_accepted': 1, 'reorder_accepted': 1}
         expected['crowd'] = expected['crowd_air'] = {}
         expected['blocked_goal'] = {'goal_blocked': 1}
@@ -571,6 +597,14 @@ def analyze(rows, scenario=None):
         expected['gate_disable'] = {'gate_active': 1, 'before_gate_disable': 1, 'after_gate_disable': 1}
         if any(labels.count(label) != count for label, count in expected[scenario].items()):
             violations.append('scenario obstacle transition markers missing or duplicated')
+        if scenario == 'order_lifecycle':
+            check_order_lifecycle(markers, violations)
+            hold = [r.get('value', '') for r in rows if r.get('event') == 'hold-marker']
+            damage = [re.fullmatch(r'PATHHOLD tick=(200|220) life=(-?[\d.]+)', value) for value in hold]
+            if (len(damage) != 2 or not all(damage) or
+                [int(m[1]) for m in damage] != [200, 220] or
+                not 0 < float(damage[1][2]) < float(damage[0][2])):
+                violations.append('Hold lacks observed automatic damage while current head is retired')
         if scenario == 'stock_turn':
             stock = [r.get('value') for r in rows if r.get('event') == 'stock-marker']
             if stock != ['PATHSTOCK tick=0 turn=0.600 window=1.047 defaultTurn=0.600 defaultWindow=60.000',
@@ -687,7 +721,7 @@ def analyze(rows, scenario=None):
         states['remove_reorder'] = states['remove']
         states['follow'] = states['follow_shift'] = states['follow_walk'] = states['follow_invisible'] = states['follow_fog'] = states['follow_fog_reacquire'] = []
         states['crowd'] = states['crowd_air'] = []
-        states['widget_lifecycle'] = []
+        states['widget_lifecycle'] = states['order_lifecycle'] = []
         states['blocked_goal'] = [0] * 25
         states['owner_change'] = []
         states['gate'] = states['gate_off'] = []
@@ -723,14 +757,34 @@ def analyze(rows, scenario=None):
             'map_snapshots': [r for r in rows if r.get('event') == 'maps'], 'violations': violations}
 
 
+def compare_order_lifecycle(rows, repeat, violations):
+    violations.extend('repeat: ' + error for error in analyze(repeat, 'order_lifecycle')['violations'])
+    metadata = [[{k: v for k, v in row.items() if k != 'pid'} for row in capture if row.get('event') == 'metadata']
+                for capture in (rows, repeat)]
+    values = [[row['value'] for row in capture if row.get('event') in ('marker', 'hold-marker')]
+              for capture in (rows, repeat)]
+    equal = metadata[0] == metadata[1] and values[0] == values[1]
+    if not equal:
+        violations.append('order lifecycle repeat metadata or timer markers differ')
+    return dict(equal=equal, markers=len(values[0]),
+                digests=[hashlib.sha256(json.dumps(v, separators=(',', ':')).encode()).hexdigest() for v in values])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('trace', type=Path)
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--compare', type=Path, help='require identical complete public order-lifecycle timer/health markers')
     parser.add_argument('--require', choices=['widget', 'task', 'fine', 'acc', 'hierarchy', 'gate', 'arrival', 'reset', 'refresh', 'target-loss', 'target-perimeter', 'retry-exhaustion', 'separation'], action='append', default=[])
-    parser.add_argument('--scenario', choices=['open', 'turn', 'stock_turn', 'wall', 'insert', 'remove', 'remove_reorder', 'gate', 'gate_off', 'gate_retarget', 'gate_disable', 'owner_change', 'follow', 'follow_shift', 'follow_walk', 'follow_invisible', 'follow_fog', 'follow_fog_reacquire', 'blocked_goal', 'crowd', 'crowd_air', 'widget_lifecycle'])
+    parser.add_argument('--scenario', choices=['open', 'turn', 'stock_turn', 'wall', 'insert', 'remove', 'remove_reorder', 'gate', 'gate_off', 'gate_retarget', 'gate_disable', 'owner_change', 'follow', 'follow_shift', 'follow_walk', 'follow_invisible', 'follow_fog', 'follow_fog_reacquire', 'blocked_goal', 'crowd', 'crowd_air', 'widget_lifecycle', 'order_lifecycle'])
     args = parser.parse_args()
-    result = analyze([json.loads(line) for line in args.trace.read_text().splitlines() if line.strip()], args.scenario)
+    if args.compare and args.scenario != 'order_lifecycle':
+        parser.error('--compare requires --scenario order_lifecycle')
+    rows = [json.loads(line) for line in args.trace.read_text().splitlines() if line.strip()]
+    result = analyze(rows, args.scenario)
+    if args.compare:
+        repeat = [json.loads(line) for line in args.compare.read_text().splitlines() if line.strip()]
+        result['repeat'] = compare_order_lifecycle(rows, repeat, result['violations'])
     for kind in args.require:
         present = (len(result['widgets']['paired_create_destroy']) if kind == 'widget' else result['tasks']['accepted'] if kind == 'task' else result['separation_active'] if kind == 'separation' else result['retry_exhaustions'] if kind == 'retry-exhaustion' else result['target_perimeter_hits'] if kind == 'target-perimeter' else len(result['target_loss_chains']) if kind == 'target-loss' else result['target_refresh']['samples'] if kind == 'refresh' else result['stopped_path_resets'] if kind == 'reset' else result['arrival']['arrived'] if kind == 'arrival' else result['gate_traversals']['successful'] if kind == 'gate' else
                    result['hierarchy_updates'] if kind == 'hierarchy' else result['searches'][kind]['sampled'])
