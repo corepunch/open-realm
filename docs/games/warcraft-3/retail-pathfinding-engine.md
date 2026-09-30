@@ -1055,3 +1055,61 @@ Pow call still succeeds. Shared initialization producers, non-ASCII parser
 locale and other arithmetic consumers remain in that inventory; attack's
 separate armor `powf` consumer has not been promoted without its own retail
 producer evidence. No save/network or movement-clock representation changes.
+
+
+## Scalar rounding and shared startup
+
+NUM-01.10/11 extend the independent scalar evidence without changing any frozen
+trajectory. These recovered procedures use ECX output, EDX input, plain RET and
+return the output pointer in EAX; output may alias input.
+
+| Procedure | RVA | Exact contract |
+| --- | --- | --- |
+| Floor | 070c80 | Negative nonzero sub-unit becomes minus-one; both signed zeros become plus-zero; truncate positive fraction or increment negative magnitude; exponent at least150 copies the raw word |
+| Ceil | 070700 | Negative nonzero sub-unit becomes plus-zero; either signed zero and positive sub-unit becomes one; truncate negative fraction or increment positive magnitude; exponent at least150 copies the raw word |
+| Round | 071250 | ScalarAdd(input, immutable half atcd53f4), then Floor; preserve truncating addition before the floor |
+| Truncate | 0715c0 | Exponent below127 becomes plus-zero, below150 masks fraction, otherwise copies raw word; distinct from Floor for negative fractions |
+
+`wc3_math.h` now owns reusable raw-word floor/ceil/round primitives alongside the
+verified truncate primitive. The production arithmetic bridge compares all four
+against original calls. No gameplay call is changed from an unrelated host ceil
+without its original producer evidence. Round is directly used by
+`PathMaps_Load` at04c922/04c951 to construct map dimensions; authored integer map
+bounds in existing fixtures remain unchanged. Ceil has only three recovered
+direct callers,3d93f4/3d9448/3dc7f9, outside the movement caller graph. These sites
+do not prove that synthetic exceptional helper inputs are public gameplay inputs.
+
+Reports `num-01.10-round-startup-O0.json` and `-O2.json` each retain81,688
+rounding calls:20,222 raw inputs and200 output aliases per helper. Both C compiler
+modes match the independent integer models exactly, with digest
+`0bab35aa844a75957939052470982389bcb928b6a619503fc5f56ee69c99f713`.
+The existing paired, decimal, public-angle and power digests are unchanged. The
+asset-free regression includes adjacent integer/half thresholds, both zero
+signs, arbitrary raw words and both C optimization levels.
+
+The shared minus-one, zero and one words are not DLL literals. Three no-argument
+startup entries tail-jump to original070d80:
+
+| Registration slot | Entry | Destination | Output word |
+| --- | --- | --- | --- |
+| a7cdb8 | 001dd0 | d3c740 | bf800000 |
+| a7cdbc | 001a80 | d3c744 | 00000000 |
+| a7cdc0 | 001b80 | d3c748 | 3f800000 |
+
+Original CRT process-attach routine78ee55 dispatches the initializer array
+`[a7cd48,a7ec94)` through `initterm`; these three adjacent slots run in the shown
+order. The numeric and power oracles now execute each actual initializer from
+poisoned storage and check neighboring words, returned destination pointer,
+stack and nonvolatile registers. Original instruction writes are never replaced.
+`num-01.11-power-startup.json` retains24,423 completed calls and173 bounded
+nonreturn controls, with unchanged digest
+`7cf000cfa0a565663f3828dc3186a88efe463c7a9a27ea12494024ba0d13430e`.
+Other isolated movement fixtures may still supply these now producer-verified
+values; this does not claim that their full CRT/heap lifecycle executes.
+
+Ghidra persists the three helper names and three initializer names,99 explicit
+x86 prototypes,22 partial layouts/138 fields and35 scalar globals. Report:
+`num-01.10-ghidra-types.json`. This closes shared startup01.11, not initialization
+of every numeric family. Remaining inventory01.2 must classify those producers;
+actual alias reachability, CRT grammar/locale and nonreturning VM lifetime stay
+01.12/13/14. Compiled literal parsing remains01.7.

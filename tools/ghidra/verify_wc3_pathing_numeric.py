@@ -237,6 +237,29 @@ def floor_word(word):
     return rounded & MASK
 
 
+def ceil_word(word):
+    exponent = ((word >> 23) & 255) - 127
+    negative = bool(word & SIGN and word & ~SIGN)
+    if exponent < 0:
+        return 0 if negative else bits(1)
+    if exponent >= 23:
+        return word
+    mask = (1 << (23 - exponent)) - 1
+    result = word & ~mask
+    if not negative and word & mask:
+        result += mask + 1
+    return result & MASK
+
+
+def round_word(word):
+    return floor_word(add(word, bits(.5)))
+
+
+def truncate_word(word):
+    exponent = ((word >> 23) & 255) - 127
+    return 0 if exponent < 0 else word if exponent >= 23 else word & ~( (1 << (23 - exponent)) - 1 )
+
+
 def integer_word(word):
     exponent = (word >> 23) & 255
     if exponent < 127:
@@ -287,6 +310,37 @@ def decimal_bits(text, table):
     return multiply(value, power) if scale < 0 else divide(value, power, table)
 
 
+def initialize_runtime_scalars(uc, stack, stop):
+    """Execute the original registered minus-one/zero/one initializers with poisoned storage."""
+    from unicorn.x86_const import (UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_EAX,
+        UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
+    preserved = [UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP]
+    def write(address, *words):
+        uc.mem_write(address, struct.pack('<' + 'I' * len(words), *(w & MASK for w in words)))
+    def read(address):
+        return struct.unpack('<I', uc.mem_read(address, 4))[0]
+    # Run the three registered original startup entries from poisoned words.
+    startup = []
+    for index, entry in enumerate((0x6f001dd0, 0x6f001a80, 0x6f001b80)):
+        table = 0x6fa7cdb8 + index * 4
+        target = 0x6fd3c740 + index * 4
+        assert read(table) == entry
+        before = bytes(uc.mem_read(target - 4, 12))
+        write(target, 0xdeadbeef)
+        write(stack, stop)
+        uc.reg_write(UC_X86_REG_ESP, stack)
+        for i, reg in enumerate(preserved):
+            uc.reg_write(reg, 0x12120000 + i)
+        uc.emu_start(entry, stop, count=1000)
+        assert uc.reg_read(UC_X86_REG_EIP) == stop and uc.reg_read(UC_X86_REG_ESP) == stack + 4
+        assert [uc.reg_read(reg) for reg in preserved] == [0x12120000 + i for i in range(4)]
+        assert uc.reg_read(UC_X86_REG_EAX) == target and read(target) == (bits(-1), 0, bits(1))[index]
+        after = bytes(uc.mem_read(target - 4, 12))
+        assert before[:4] == after[:4] and before[8:] == after[8:]
+        startup.append(dict(table=hex(table), entry=hex(entry), target=hex(target), output=read(target)))
+    return startup
+
+
 def main():
     from unicorn import Uc, UC_ARCH_X86, UC_MODE_32
     from unicorn.x86_const import (UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX,
@@ -307,7 +361,7 @@ def main():
             proc = getattr(engine, 'pathing_' + name)
             proc.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
             proc.restype = ctypes.c_uint32
-        for name in ('sin', 'cos', 'acos', 'sqrt', 'reciprocal','fractional'):
+        for name in ('sin', 'cos', 'acos', 'sqrt', 'reciprocal','fractional','floor','ceil','round','truncate'):
             proc = getattr(engine, 'pathing_' + name)
             proc.argtypes = [ctypes.c_uint32]
             proc.restype = ctypes.c_uint32
@@ -335,7 +389,7 @@ def main():
         uc.mem_write(address, struct.pack('<'+'I'*len(words), *(w & MASK for w in words)))
     def read(address):
         return struct.unpack('<I', uc.mem_read(address, 4))[0]
-    write(0x6fd3c740, bits(-1), 0, bits(1))
+    startup = initialize_runtime_scalars(uc, stack, stop)
     def call(entry, a, b=None, alias=0):
         write(left-4, 0xabcdef01, a, 0xabcdef02)
         write(right-4, 0xabcdef03, b or 0, 0xabcdef04)
@@ -400,6 +454,20 @@ def main():
                 assert actual==model(word)
                 if engine and name=='fractional':assert engine.pathing_fractional(word)==actual
         counts[name] = len(unary) + (200 if name in ('floor','fractional') else 0)
+    rounding_records = []
+    for name, entry, model in [('floor', 0x6f070c80, floor_word), ('ceil', 0x6f070700, ceil_word),
+                              ('round', 0x6f071250, round_word), ('truncate', 0x6f0715c0, truncate_word)]:
+        for word in unary:
+            actual = call(entry, word)
+            assert actual == model(word), (name, hex(word), hex(actual), hex(model(word)))
+            if engine:
+                assert getattr(engine, 'pathing_' + name)(word) == actual
+            rounding_records.append([name, word, actual])
+        for word in unary[:200]:
+            actual = call(entry, word, alias=1)
+            assert actual == model(word)
+            rounding_records.append([name + '-alias', word, actual])
+        counts[name] = len(unary) + 200
     root_rng = random.Random(0x71530)
     integer_roots = [0,1,MASK] + [root_rng.getrandbits(32) for _ in range(20000)]
     integer_roots += [root*root+offset for root in range(1,65536,127) for offset in [-1,0,1]]
@@ -756,6 +824,8 @@ def main():
                     'Input preservation, output guard words, binary output aliases either input',
                     'Unary floor/sqrt/reciprocal output aliases input'],
         initialized_constants={'6fd3c740':'-1', '6fd3c744':'0', '6fd3c748':'1'},
+        original_startup_initializers=startup, rounding_cases=len(rounding_records),
+        rounding_sha256=hashlib.sha256(json.dumps(rounding_records,separators=(',',':')).encode()).hexdigest(),
         contracts={'divide':'Raw-word equality returns 1, otherwise reciprocal-table interpolation followed by retail multiply',
                    'sqrt':'Negative and signed-zero inputs return +0; 16-bit integer square root of replicated significand, fixed coefficients b504/b505 and parity scale3504f3, retail multiply',
                    'reciprocal':'1025-word embedded table; index mantissa bits13..22; repeated 13-bit residual interpolation; exponent correction and signed-word range guard',

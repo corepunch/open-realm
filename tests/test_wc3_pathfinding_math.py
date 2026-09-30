@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools/ghidra'))
 sys.path.insert(0, str(ROOT / 'tools/frida'))
-from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits, fractional, modulo, decimal_bits, integer_float, saturating_integer_word, asin_bits, atan_bits, atan2_bits, divide
+from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits, fractional, modulo, decimal_bits, integer_float, saturating_integer_word, asin_bits, atan_bits, atan2_bits, divide, floor_word, ceil_word, round_word, truncate_word
 from generate_wc3_math_tables import sine_table, reciprocal_table, acos_tables
 from verify_wc3_motion_trace import verify
 from verify_wc3_pathing_power import corelog, reducedlog, log, exp, power, public as public_power
@@ -79,6 +79,24 @@ class PathingMathTests(unittest.TestCase):
                                ('exp', bits(536870912), 0)]:
                 self.assertEqual(self.power_bridge(engine, name, a, b), [0, 0xabcdef02])
             self.assertEqual(self.power_bridge(engine, 'power', bits(2), bits(3)), [1, bits(8)])
+
+    def test_rounding_boundaries_and_raw_words_match_independent_models(self):
+        rng = random.Random(0x70110)
+        words = [rng.getrandbits(32) for _ in range(5000)] + [0, 0x80000000, 1, 0x80000001]
+        for value in (-8388608, -2, -1.5, -1, -.5, 0, .5, 1, 1.5, 2, 8388608):
+            words.extend((bits(value) + step) & 0xffffffff for step in range(-4, 5))
+        for engine in self.engines:
+            for name, model in [('floor', floor_word), ('ceil', ceil_word), ('round', round_word),
+                                ('truncate', truncate_word)]:
+                proc = getattr(engine, 'pathing_' + name)
+                proc.argtypes = [ctypes.c_uint32]
+                proc.restype = ctypes.c_uint32
+                for word in words:
+                    self.assertEqual(proc(word), model(word), (name, hex(word)))
+            self.assertEqual(engine.pathing_ceil(0), bits(1))
+            self.assertEqual(engine.pathing_ceil(0x80000000), bits(1))
+            self.assertEqual(engine.pathing_floor(0x80000000), 0)
+            self.assertEqual(engine.pathing_round(bits(-.5)), 0)
 
     def test_integer_reference_and_compiler_optimization_agree(self):
         rng = random.Random(0x12717085)

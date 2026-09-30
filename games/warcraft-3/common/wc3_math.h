@@ -161,6 +161,28 @@ static inline uint32_t wc3_trunc_bits(uint32_t word) {
     return exp < 0 ? 0 : exp >= 23 ? word : word & (UINT32_MAX << (23 - exp));
 }
 
+/* 070c80 masks fractional bits and increments negative magnitude; both zero signs become +0. */
+static inline uint32_t wc3_floor_bits(uint32_t word) {
+    int exp = ((word >> 23) & 255) - 127;
+    if (exp < 0) return word & 0x80000000u && (word & 0x7fffffffu) ? 0xbf800000u : 0;
+    if (exp >= 23) return word;
+    uint32_t mask = (1u << (23 - exp)) - 1u, result = word & ~mask;
+    return result + (word & 0x80000000u && (word & mask) ? mask + 1u : 0);
+}
+
+/* 070700 returns one for either zero sign; only negative nonzero sub-unit words become +0. */
+static inline uint32_t wc3_ceil_bits(uint32_t word) {
+    int exp = ((word >> 23) & 255) - 127;
+    bool neg = word & 0x80000000u && (word & 0x7fffffffu);
+    if (exp < 0) return neg ? 0 : 0x3f800000u;
+    if (exp >= 23) return word;
+    uint32_t mask = (1u << (23 - exp)) - 1u, result = word & ~mask;
+    return result + (!neg && (word & mask) ? mask + 1u : 0);
+}
+
+/* 071250 is scalar-add-half followed by floor; its truncating addition matters near boundaries. */
+static inline uint32_t wc3_round_bits(uint32_t word) { return wc3_floor_bits(wc3_add_bits(word, 0x3f000000u)); }
+
 /* 06fd50 retains the rational log curve's scalar order and explicit numerator doubling. */
 static inline float wc3_ln_core(float value) {
     float ratio = wc3_div(wc3_add(value, -1.0f), wc3_add(value, 1.0f));

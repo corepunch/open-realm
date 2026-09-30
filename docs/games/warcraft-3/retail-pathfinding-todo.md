@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**60 done / 239 tasks; 179 remaining.** Counts describe this backlog,
+**62 done / 244 tasks; 182 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -21,7 +21,7 @@ Completed evidence now sits next to its specific remaining extension.
 | FOOT — Footprints and query policy | 1 | 8 |
 | FINE — Fine search | 1 | 8 |
 | ACC — Adaptive search | 1 | 10 |
-| NUM — Numbers and random state | 10 | 7 |
+| NUM — Numbers and random state | 12 | 10 |
 | ROUTE — Route progression and yielding | 0 | 10 |
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
@@ -45,7 +45,9 @@ NUM-01.5/06 explicitly split the decimal/public-native engine integration from01
 NUM-01.8 explicitly splits the remaining public angle adapter integration from01.2;
 its pointer-alias producers and other conversions remain required.
 NUM-01.9 explicitly splits Pow/log/exp/public-native integration from the other
-remaining numeric inventory; both leaves are required.
+remaining numeric inventory; both leaves are required. NUM-01.10..14 now explicitly
+split01.2 into independent rounding, startup, alias-producer, CRT grammar and VM
+lifetime experiments;01.2 retains their inventory and newly discovered helper ownership.
 NUM-01.7 explicitly adds the distinct compiled-long-literal producer mismatch
 discovered during those captures; it remains required for numerical fidelity.
 NUM-02.4 was added explicitly to own the previously unassigned committed-facing
@@ -78,7 +80,7 @@ Patrol admission/current ownership, endpoint reversal and queued/save lifecycle
 
 ## Work next
 
-Start with the remaining **NUM-01.2** inventory, then **NUM-01.7** compiled literals. NUM-01.9 closes terminating Pow/log/exp arithmetic and its public adapter; original nonreturning VM lifetime remains01.2. MAP-03.7 closes retained solid-footprint failure and engine cleanup; exact retry timing stays NUM-02.3. MAP-03.4 now retains the original Footman mask through thirteen-tick arrival and reclamation. GROUP-04.5 now composes actual survivor point
+Start with **NUM-01.7** compiled literals, then the remaining **NUM-01.2** inventory. NUM-01.10/11 close rounding and shared scalar startup. NUM-01.9 closes terminating Pow/log/exp arithmetic and its public adapter; original nonreturning VM lifetime remains01.2. MAP-03.7 closes retained solid-footprint failure and engine cleanup; exact retry timing stays NUM-02.3. MAP-03.4 now retains the original Footman mask through thirteen-tick arrival and reclamation. GROUP-04.5 now composes actual survivor point
 replacement through680320, original new-request refresh/layout, new-goal arrival
 and both groups' final reclamation on open/wall maps. The638 velocity commits
 match production exactly; the server-frame engine regression preserves the old
@@ -92,16 +94,16 @@ state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled literal parsing remains01.7. Angle adapters now retain the original inverse/polynomial and public guards
-(NUM-01.8). Ghidra persists329
-names,22 layouts,138 fields,93 x86 prototypes and31 scalar globals. The strict corpus has138
+(NUM-01.8). Ghidra mapping persists335
+names,22 layouts,138 fields,99 x86 prototypes and35 scalar globals. The strict corpus has138
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | NUM-01.2 | Verified scalar/heading/Pow slices | Remaining arithmetic/conversion ABI and public input-domain inventory |
-| 2 | NUM-01.7 | Distinct compiled-long-literal mismatch | Original compiler producer, repeated raw-word inputs and engine regression |
+| 1 | NUM-01.7 | Identified lexer925260 and compiled-long-literal mismatch | Original compiler producer, repeated raw-word inputs and engine regression |
+| 2 | NUM-01.2 | Verified scalar/heading/Pow/rounding/startup slices | Remaining arithmetic/conversion ABI and public input-domain inventory |
 
 NUM-01.2 retains constant initialization, reachable operand aliases, remaining
 ceil/round conversions, decimal grammar/locale and the original VM lifetime for
@@ -322,7 +324,7 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 ### NUM-01 — Arithmetic inventory
 
 - [x] **NUM-01.1** 200,330 exact scalar calls, 2,130 normalizations and 864 bounds prefixes are recorded. Evidence: [scalar arithmetic][numeric]; trig and general trajectories remain open.
-- [ ] **NUM-01.2** Inventory remaining ceil/round, integer-power and pointer-alias producer domains; Pow arithmetic/public-adapter integration is explicitly01.9. Inventory other domains with operand ABI, constant initialization and public input domains; link verified scalars and completed paired/decimal/public/angle slices01.4..6/08. Non-ASCII decimal grammar/locale remains explicit here; compiled literal producers are01.7.
+- [ ] **NUM-01.2** Publish the remaining arithmetic/conversion inventory with original caller sites and evidence/task ownership; link verified scalars and completed paired/decimal/public/angle/Pow slices01.4..6/08/09. Explicit extensions01.10..14 own rounding, shared constant initialization, reachable operand aliases, decimal CRT grammar/locale and nonreturning VM lifetime; compiled literal producers remain01.7. Classify any newly discovered numeric helper into existing evidence or an explicit follow-up leaf.
 - [x] **NUM-01.3** Independent integer formula regenerates all 1,025 embedded reciprocal entries exactly; Ghidra references identify a static table consumed by0711e0, with no runtime producer. Same generator also reproduces all 1,025 sine entries. Evidence: [generated tables](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry), report `scalar-trig-engine-exact.json`; historical build-time source is unavailable.
 
 - [x] **NUM-01.4** Split01.2's paired-trig consumer integration: execute original071340 with raw angle words and verified ECX/EDX/stack4/RET4 ABI, independently regenerated sine table, alias/guard/nonvolatile-register controls and optimized/unoptimized C. Integrate shared phase calculation into production velocity without changing any frozen velocity/facing/position words. Evidence: [paired trigonometry](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry),20,032 distinct raw angles plus80,128 aliases through original code/C with guards, independent table model and-O0/-O2 regression; frozen digest01131f85... and122/122 unchanged-trajectory corpus outcomes. Remaining conversion/angle-helper ABI and public-domain inventory stays01.2.
@@ -334,6 +336,12 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 - [x] **NUM-01.8** Split01.2's Asin/Atan/Atan2/Tan and degree/radian public adapter integration: preserve exact inverse-table/polynomial operation order, public domain/zero guards, constants and cdecl operand ABI; verify original distinct-storage helpers and repeat real public-native words, then integrate engine adapters. Evidence: [public angle adapters](retail-pathfinding-engine.md#public-angle-adapters),81,309 original/model/C helper calls,24,420 registered raw-wrapper calls, two identical48-call live captures,25 reproduced engine failures followed by48 exact passing cases, optimized/unoptimized C and saved299 Ghidra names/67 prototypes. Pointer-alias producers, Pow and remaining conversion inventory remain01.2; compiled literals remain01.7.
 
 - [x] **NUM-01.9** Explicitly split01.2's Pow/log/exp implementation: verify original20f990 public guards and0710e0 branching, integer-power wrapping/termination domain, log070f70/06ff20/06fd50 and exp070c20/06fe10 constants/ABI with independent scalar models and optimized/unoptimized C; repeat public-native raw inputs/results and integrate verified terminating Pow calls into engine with test-first regressions. Preserve signed-zero/near-zero and negative-base fractional behavior. Instruction-budget controls must identify nonterminating converted signed exponents without claiming a numeric result or running unbounded live scripts. Remaining ceil/round/alias/init/grammar inventory stays01.2; full trajectory stays02.3. Evidence: [public Pow and exact log/exp arithmetic](retail-pathfinding-engine.md#public-pow-and-exact-logarithmexponential-arithmetic),24,423 completed original/model/C calls,173 bounded signed-loop controls, two identical40-call public captures and27 reproduced engine failures followed by exact native regressions. Optimized/unoptimized C share digest7cf000cf; engine explicitly reports the unobserved nonreturn domain rather than claiming VM watchdog parity. Saved329 names/93 prototypes/31 globals and fresh138/138 corpus.
+
+- [x] **NUM-01.10** Split01.2's floor/ceil/round/truncate conversion contracts: original ECX/EDX ABI, signed-zero and adjacent-integer boundaries, raw exceptional words, output aliases and independent models/C; retain round's scalar-add-half operation order, original map-dimension caller sites and ceil's actual nonmovement callers. Integrate reusable proven scalar primitives without guessing unobserved gameplay consumers. Evidence: [scalar rounding and shared startup](retail-pathfinding-engine.md#scalar-rounding-and-shared-startup),81,688 exact original/model/C calls per-O0/-O2, unchanged digest0bab35aa, output aliases/ABI guards, saved helper names/prototypes and production raw-word primitives. No unrelated gameplay ceil call is substituted.
+- [x] **NUM-01.11** Split01.2's shared scalar constant startup: recover the actual minus-one/zero/one initializer functions and registration order, execute them from poisoned storage without replacing writes, verify exact words and bounded write regions; annotate producers and remove supplied-constant assumptions where these initializers can execute. Other discovered initialization families stay inventory01.2 until assigned explicitly. Evidence: [scalar rounding and shared startup](retail-pathfinding-engine.md#scalar-rounding-and-shared-startup), original registered001dd0/001a80/001b80 entries execute from poisoned storage in CRT table ordera7cdb8..c0; numeric and power oracles preserve guards/ABI and frozen numerical digests. Saved initializer names, globals and99 prototypes; fresh138/138 corpus.
+- [ ] **NUM-01.12** Split01.2's reachable operand-alias producers: distinguish helper alias tests from actual pointer relationships in movement callers, reproduce each reachable alias or prove its exclusion, and integrate any observed operation-order difference with regressions.
+- [ ] **NUM-01.13** Split01.2's decimal CRT grammar/locale: identify the exact sibling CRT digit classifier and active locale producer, compare all relevant byte values and public high-byte inputs, and preserve accepted/rejected domains in the engine parser. Existing ASCII/S2R evidence alone does not close this item.
+- [ ] **NUM-01.14** Split01.2's nonreturning power VM lifetime: identify actual public script scheduling/watchdog/error behavior for reachable converted negative signed exponents with bounded process controls, then match the proven engine lifetime/error policy. Keep helper instruction-budget stops separate from VM evidence; no unbounded live script or fabricated numeric result.
 
 ### NUM-02 — Branch-sensitive arithmetic
 

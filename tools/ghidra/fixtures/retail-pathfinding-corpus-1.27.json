@@ -429,12 +429,40 @@
         },
         "angle_helper_sha256": {
           "equal": "caba85090ffb76bb247fd0a43bf23e1661915cf5d77710299689a8923700f205"
+        },
+        "rounding_cases": {
+          "equal": 81688
+        },
+        "rounding_sha256": {
+          "equal": "0bab35aa844a75957939052470982389bcb928b6a619503fc5f56ee69c99f713"
+        },
+        "original_startup_initializers": {
+          "equal": [
+            {
+              "table": "0x6fa7cdb8",
+              "entry": "0x6f001dd0",
+              "target": "0x6fd3c740",
+              "output": 3212836864
+            },
+            {
+              "table": "0x6fa7cdbc",
+              "entry": "0x6f001a80",
+              "target": "0x6fd3c744",
+              "output": 0
+            },
+            {
+              "table": "0x6fa7cdc0",
+              "entry": "0x6f001b80",
+              "target": "0x6fd3c748",
+              "output": 1065353216
+            }
+          ]
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat. NUM-01.8 extends to81309 distinct-storage Asin/Atan/Atan2/Tan helper cases and24420 original registered wrapper cases; paired/public/decimal digests remain frozen, public angle-domain evidence is separate live-public-angle-repeat.",
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat. NUM-01.8 extends to81309 distinct-storage Asin/Atan/Atan2/Tan helper cases and24420 original registered wrapper cases; paired/public/decimal digests remain frozen, public angle-domain evidence is separate live-public-angle-repeat. NUM-01.10/11 additionally retain81688 floor/ceil/round/truncate calls and aliases; original registered minus-one/zero/one startup entries execute from poisoned storage in table order, with guards/ABI checks. Raw exceptional input words remain helper scope, not public producer proof.",
       "exclusions": [
         "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
         "Full spatial mutation after bounds construction",
@@ -1663,12 +1691,40 @@
         },
         "angle_helper_sha256": {
           "equal": "caba85090ffb76bb247fd0a43bf23e1661915cf5d77710299689a8923700f205"
+        },
+        "rounding_cases": {
+          "equal": 81688
+        },
+        "rounding_sha256": {
+          "equal": "0bab35aa844a75957939052470982389bcb928b6a619503fc5f56ee69c99f713"
+        },
+        "original_startup_initializers": {
+          "equal": [
+            {
+              "table": "0x6fa7cdb8",
+              "entry": "0x6f001dd0",
+              "target": "0x6fd3c740",
+              "output": 3212836864
+            },
+            {
+              "table": "0x6fa7cdbc",
+              "entry": "0x6f001a80",
+              "target": "0x6fd3c744",
+              "output": 0
+            },
+            {
+              "table": "0x6fa7cdc0",
+              "entry": "0x6f001b80",
+              "target": "0x6fd3c748",
+              "output": 1065353216
+            }
+          ]
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat. NUM-01.8 extends to81309 distinct-storage Asin/Atan/Atan2/Tan helper cases and24420 original registered wrapper cases; paired/public/decimal digests remain frozen, public angle-domain evidence is separate live-public-angle-repeat.",
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat. NUM-01.8 extends to81309 distinct-storage Asin/Atan/Atan2/Tan helper cases and24420 original registered wrapper cases; paired/public/decimal digests remain frozen, public angle-domain evidence is separate live-public-angle-repeat. NUM-01.10/11 compare81688 rounding/alias outputs with production C and execute the original registered shared scalar startup from poisoned storage.",
       "exclusions": [
         "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
         "Full spatial mutation after bounds construction",
@@ -6513,6 +6569,28 @@
         },
         "outcome_sha256": {
           "equal": "7cf000cfa0a565663f3828dc3186a88efe463c7a9a27ea12494024ba0d13430e"
+        },
+        "original_startup_initializers": {
+          "equal": [
+            {
+              "table": "0x6fa7cdb8",
+              "entry": "0x6f001dd0",
+              "target": "0x6fd3c740",
+              "output": 3212836864
+            },
+            {
+              "table": "0x6fa7cdbc",
+              "entry": "0x6f001a80",
+              "target": "0x6fd3c744",
+              "output": 0
+            },
+            {
+              "table": "0x6fa7cdc0",
+              "entry": "0x6f001b80",
+              "target": "0x6fd3c748",
+              "output": 1065353216
+            }
+          ]
         }
       },
       "evidence": [
@@ -6830,7 +6908,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "445efea14323333c1ead09277bf016b9d189cc3171b7e3d94c103b437021950a"
+      "sha256": "61e1478360f41f0f3d2654edf7b0db4d858a2eb6786aa1c0f76035f783ae86b8"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",

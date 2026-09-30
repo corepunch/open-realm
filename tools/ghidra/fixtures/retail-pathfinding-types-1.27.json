@@ -2451,6 +2451,81 @@
           "storage": "ECX"
         }
       ]
+    },
+    {
+      "address": "6f070c80",
+      "name": "Math_FloorScalar",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f070700",
+      "name": "Math_CeilScalar",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f071250",
+      "name": "Math_RoundScalar",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f001dd0",
+      "name": "Math_InitMinusOne",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": []
+    },
+    {
+      "address": "6f001a80",
+      "name": "Math_InitZero",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": []
+    },
+    {
+      "address": "6f001b80",
+      "name": "Math_InitOne",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": []
     }
   ],
   "globals": [
@@ -2639,6 +2714,30 @@
       "name": "Math_ExpCoefficient5",
       "type": "WC3PathScalar",
       "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fd3c740",
+      "name": "Math_RuntimeMinusOne",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.10/11 001dd0, CRT registrationa7cdb8; original startup/constant word verified."
+    },
+    {
+      "address": "6fd3c744",
+      "name": "Math_RuntimeZero",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.10/11 001a80, CRT registrationa7cdbc; original startup/constant word verified."
+    },
+    {
+      "address": "6fd3c748",
+      "name": "Math_RuntimeOne",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.10/11 001b80, CRT registrationa7cdc0; original startup/constant word verified."
+    },
+    {
+      "address": "6fcd53f4",
+      "name": "Math_RoundHalf",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.10/11 071250 original add-half rounding operand; original startup/constant word verified."
     }
   ]
 }

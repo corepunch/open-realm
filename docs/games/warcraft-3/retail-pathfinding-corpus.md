@@ -204,3 +204,18 @@ Logs: `/tmp/wc3-num-01.9-final-full-suite.log`,
 `/tmp/wc3-num-01.9-final-corpus.log` and
 `/tmp/wc3-num-01.9-production.log`. Original/model/C digest for both compiler
 modes is `7cf000cfa0a565663f3828dc3186a88efe463c7a9a27ea12494024ba0d13430e`.
+
+
+NUM-01.10/11 strengthen existing numeric/power entries with81,688 exact rounding
+calls and executed original shared scalar initializers. Inventory remains138
+entries; historical trajectory digests are unchanged. Final umbrella tests pass89
+pathfinding tool tests and37,328 assertions in2,157 engine tests per Classic/TFT.
+WC3/SC2 production builds pass. Fresh
+`num-01.10-final-corpus/corpus-results.json` passes138/138 with source fingerprints
+unchanged. Manifest SHA256
+`678dabdaae7123c4934bd5b593bb4f56a157d63723174605da5ff493e31500a1`;
+summary SHA256
+`92e2e4f19572feb153179b2fe9c63ef35de31292c9fefc61b85d9a49613532ee`.
+Logs: `/tmp/wc3-num-01.10-full-suite.log`,
+`/tmp/wc3-num-01.10-final-corpus.log`,
+`/tmp/wc3-num-01.10-production.log`.

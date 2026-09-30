@@ -2,7 +2,7 @@
 """Original Warcraft III 1.27 log/exp/Pow, independent scalar models and explicit nontermination controls."""
 import argparse, ctypes, json, struct, hashlib, random
 from pathlib import Path
-from verify_wc3_pathing_numeric import add, subtract, multiply, divide, reciprocal, integer_word, integer_float, MASK, SIGN, bits
+from verify_wc3_pathing_numeric import add, subtract, multiply, divide, reciprocal, integer_word, integer_float, MASK, SIGN, bits, initialize_runtime_scalars
 from generate_wc3_math_tables import reciprocal_table
 recips=reciprocal_table()
 value=lambda w:struct.unpack('<f',struct.pack('<I',w&MASK))[0]
@@ -87,7 +87,7 @@ def main():
  left,right,output,stack,stop=0x10000100,0x10000200,0x10000300,0x20008000,0x30000000
  write=lambda addr,*words:uc.mem_write(addr,struct.pack('<'+'I'*len(words),*(w&MASK for w in words)))
  read=lambda addr:struct.unpack('<I',uc.mem_read(addr,4))[0]
- write(0x6fd3c740,bits(-1),0,bits(1))
+ startup=initialize_runtime_scalars(uc,stack,stop)
  assert list(struct.unpack('<13I',uc.mem_read(0x6fcd588c,52)))==C
 
  def call(entry,a,b=None,alias=0,budget=50000,expect_stop=True):
@@ -180,9 +180,9 @@ def main():
    words=(ctypes.c_uint32*2)(0xabcdef01,0xabcdef02);getattr(engine,'pathing_'+name)(a,b,words)
    assert list(words)==[0,0xabcdef02],('C-nontermination',name,list(words))
  report=dict(binary_sha256=hashlib.sha256(binary).hexdigest(),verified_calls=len(records),counts=counts,
-  constants=C,nontermination_controls=controls,nontermination_control_count=len(controls),engine_compared=bool(engine),
+  constants=C,original_startup_initializers=startup,nontermination_controls=controls,nontermination_control_count=len(controls),engine_compared=bool(engine),
   outcome_sha256=hashlib.sha256(json.dumps(records,separators=(',',':')).encode()).hexdigest(),
-  scope='Original scalar log/exp/power and registered Pow wrappers; supplied original -1/0/1 globals, immutable DLL constants/table validated. Independent integer scalar model, finite/public guards, sign/near-zero, raw log words, output aliases, ABI guards and nonvolatile registers. Signed negative integer-power exponents stop at declared instruction budgets with no numeric result. Public creation/compiled literals and original VM watchdog excluded.')
+  scope='Original scalar log/exp/power and registered Pow wrappers; original registered -1/0/1 initializers executed from poisoned storage, immutable DLL constants/table validated. Independent integer scalar model, finite/public guards, sign/near-zero, raw log words, output aliases, ABI guards and nonvolatile registers. Signed negative integer-power exponents stop at declared instruction budgets with no numeric result. Public creation/compiled literals and original VM watchdog excluded.')
  args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 
 if __name__=="__main__":main()

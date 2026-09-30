@@ -8,6 +8,12 @@ import ghidra.program.model.symbol.SourceType;
 public class MapPathfinding extends GhidraScript {
     static final String HASH = "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236";
     static final String[][] ROWS = {
+        {"6f070c80", "Math_FloorScalar", "NUM-01.10 ECX output,EDX input,RET plain/EAX output. Negative nonzero exponent<127 ->stored minusone, both zero signs ->pluszero; middle significand mask/negative magnitude increment; exponent>=150 copies raw word. Original distinct/alias/raw-word and independent model/C verified."},
+        {"6f070700", "Math_CeilScalar", "NUM-01.10 ECX output,EDX input,RET plain/EAX output. Exponent<127 negative nonzero ->stored zero, BOTH signed zeros and positive subunits ->stored one. Middle positive magnitude rounding, negative truncation;>=150 rawcopy. Three direct refs3d93f4/3d9448/3dc7f9, no established movement caller."},
+        {"6f071250", "Math_RoundScalar", "NUM-01.10 ECX output,EDX input,RET plain/EAX output. Original ScalarAdd(input,immutable cd53f4 half) ->Math_FloorScalar; truncating addition differs from host round. PathMaps_Load04c860 two dimension callers04c922/04c951; caller input validity belongs BASE-02, raw helper words do not prove public reachability."},
+        {"6f001dd0", "Math_InitMinusOne", "NUM-01.11 no parameters/RET plain. EDX=-1,ECX=d3c740 ->tailjmp070d80; writes bf800000. CRT tablea7cdb8, preceding zeroa7cdbc and onea7cdc0, dispatched by78ee55 process-attach initterm(a7cd48,a7ec94). Poisoned storage original execution checks neighboring words/stack/nonvolatile registers/EAX target."},
+        {"6f001a80", "Math_InitZero", "NUM-01.11 no parameters/RET plain. EDX=0,ECX=d3c744 ->tailjmp070d80; writes pluszero. CRT tablea7cdbc immediately after minusone and before one. Original registered initializer executed, no replacement writes."},
+        {"6f001b80", "Math_InitOne", "NUM-01.11 no parameters/RET plain. EDX=1,ECX=d3c748 ->tailjmp070d80; writes3f800000. CRT tablea7cdc0 immediately after zero. Original registered initializer executed, no replacement writes."},
         {"6f20f990", "Jass_Pow", "Cdecl stack4 base scalar pointer,8 exponent pointer,raw scalar EAX. Strict absolute ScalarSub(base,0)<3a83126f with negative exponent ->0; non-small base plus small exponent ->1; otherwise0710e0. Forty real public calls repeat exactly,27 engine host-pow failures reproduced then exact port. No numeric result is claimed for original signed integer-power nontermination; VM watchdog remains NUM-01.2."},
         {"6f0710e0", "Math_Power", "ECX output,EDX base pointer,stack4 exponent pointer,RET4,output pointer EAX.0715c0 scalar truncation equals exponent and sign nonnegative ->070120 wrapped integer then071180; otherwise exponent-zero base ->0,else070f70 ln magnitude \u00d7 exponent ->070c20 exp. Output aliases retain original operands through locals. Positive2147483648 exponent converts negative signed integer loop; controlled budget proves no return."},
         {"6f070c20", "Math_Exp", "ECX output,EDX input,RET plain,output pointer EAX. Nonnegative/signedzero input ->06fe10 local; negative nonzero toggles sign ->06fe10 ->0711e0 reciprocal. Signed exceptional words preserve raw classification. Original/model/optimized/unoptimized C verified; negative signed integer-power conversion does not terminate."},
@@ -348,7 +354,8 @@ public class MapPathfinding extends GhidraScript {
             if (f == null) {
                 // Verified native registration and complete decoded switch;
                 // Ghidra initially had instructions but no function at2005b0.
-                if (!row[0].equals("6f2005b0") || getInstructionAt(toAddr(row[0])) == null ||
+                if (!(row[0].equals("6f2005b0") || row[0].equals("6f001dd0") ||
+                      row[0].equals("6f001a80") || row[0].equals("6f001b80")) || getInstructionAt(toAddr(row[0])) == null ||
                     getFunctionContaining(toAddr(row[0])) != null)
                     throw new Exception("Missing function " + row[0]);
                 continue;
