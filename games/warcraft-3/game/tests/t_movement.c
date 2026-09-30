@@ -317,6 +317,74 @@ TEST(wc3_movement, public_speed_disabled_owner_ignores_setter) {
     reset_entities(); G_SetMapUnitOverrides(NULL); level.mapinfo = saved; setup_test_world();
 }
 
+TEST(wc3_movement, public_speed_drop_clamps_existing_velocity_before_next_think) {
+    reset_entities(); setup_test_world();
+    cstring_t file = "/tmp/openwarcraft3-speed-drop-save.bin";
+    float old_minimum = game.constants.minUnitSpeed, old_maximum = game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed = 150; game.constants.maxUnitSpeed = 400;
+    T_ASSERT(run_test_jass(
+        "globals\n unit speedUnit\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set speedUnit = CreateUnit(Player(0), 'hpea', 320.0, 320.0, 90.0)\n"
+        " call SetUnitMoveSpeed(speedUnit, 401.0)\n"
+        "endfunction\n"
+        "function BeginSpeedMove takes nothing returns nothing\n"
+        " call BJassAssert(IssuePointOrder(speedUnit, \"move\", 320.0, 1500.0), \"moving speed drop admitted\")\n"
+        "endfunction\n"
+        "function DropSpeed takes nothing returns nothing\n"
+        " call SetUnitMoveSpeed(speedUnit, 100.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 150.0, \"lower cap effective\")\n"
+        "endfunction\n"
+        "function RaiseSpeed takes nothing returns nothing\n"
+        " call SetUnitMoveSpeed(speedUnit, 401.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 400.0, \"raised cap effective\")\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) unit = g_edicts + i;
+    T_NOT_NULL(unit);
+    if (unit) {
+        unit->health.value = unit->health.max_value = 250; unit->stand = unit_stand; unit_stand(unit);
+        jass_callbyname(level.vm, "BeginSpeedMove", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_NOT_NULL(unit->currentmove->think);
+        if (!unit->currentmove->think) goto done;
+        unit->currentmove->think(unit);
+        T_ASSERT(unit->movement.velocity.y > 300);
+        vec2_t position = unit->s.origin2;
+        uint32_t facing = wc3_float_bits(unit->s.angle);
+        jass_callbyname(level.vm, "DropSpeed", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_FEQ(Vector2_len(&unit->movement.velocity), 150, .01f);
+        T_EQ(unit->s.origin2.x, position.x); T_EQ(unit->s.origin2.y, position.y);
+        T_EQ(wc3_float_bits(unit->s.angle), facing);
+        T_ASSERT(WriteGame(file));
+        uint32_t expected[8][4];
+        FOR_LOOP(i, 8) {
+            unit->currentmove->think(unit);
+            expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
+            expected[i][2] = wc3_float_bits(unit->movement.velocity.x); expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
+        }
+        T_ASSERT(ReadGame(file));
+        T_FEQ(Vector2_len(&unit->movement.velocity), 150, .01f);
+        FOR_LOOP(i, 8) {
+            unit->currentmove->think(unit);
+            T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
+        }
+        vec2_t velocity = unit->movement.velocity;
+        position = unit->s.origin2;
+        jass_callbyname(level.vm, "RaiseSpeed", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), wc3_float_bits(velocity.x));
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), wc3_float_bits(velocity.y));
+        T_EQ(unit->s.origin2.x, position.x); T_EQ(unit->s.origin2.y, position.y);
+    }
+done:
+    remove(file);
+    game.constants.minUnitSpeed = old_minimum; game.constants.maxUnitSpeed = old_maximum;
+}
+
 TEST(wc3_movement, map_movement_profiles_inherit_and_bind_to_created_units) {
     reset_entities(); setup_test_world();
     uint32_t base_id = MAKEFOURCC('h','f','o','o');

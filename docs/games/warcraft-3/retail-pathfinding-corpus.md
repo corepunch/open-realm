@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **176 entries**: **38** distinct original-code oracle
-scripts plus **35** declared variants, **84** archived JSONL audits and **19**
+The inventory now has **181 entries**: **39** distinct original-code oracle
+scripts plus **36** declared variants, **86** archived JSONL audits and **20**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,13 +20,13 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 68 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 70 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 76 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 78 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Five numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Nine public/native/compiler/heading/arrival repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Ten public/native/compiler/heading/arrival/speed repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 NUM-01.13 adds original CRT byte classification and the complete authored-name
 producer:514 public S2R/parser calls and1,040 classifier observations repeat,
@@ -359,3 +359,19 @@ contracts. The two new fixtures pin the original raw clamp outputs and actual
 public producer/source/map inputs. The high setter changes a moving cap; the low
 setter occurs after arrival. This bounded witness closes MOVE-01.4, while
 immediate low-cap integration and whole clock/trajectory parity remain open.
+
+
+## Immediate public speed drop
+
+`speed-cap-corpus-final-261001/corpus-results.json` freshly reproduces all five
+new declared outcomes: complete original cap-transition execution, production
+C comparison, two archived travel captures and their strict repeated live
+contract. The inventory is181 entries (39 oracle scripts plus36 variants,
+86 archive audits and20 live contracts). Both retained preliminary corpus
+attempts expose manifest metadata mistakes; neither is accepted as the
+checkpoint. The source archives themselves were unchanged.
+
+`verify_wc3_speed_drop.py` requires the same original scalar cap transition,
+consumption by the next velocity commit, full public native/bridge sequence,
+actor identity, bounds/default words,300 JASS samples and exact repeated
+motion digests. Engine nonzero-elapsed clock production remains excluded.

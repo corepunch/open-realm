@@ -1257,8 +1257,12 @@ void S_SetUnitMoveSpeed(edict_t *ent, float speed) {
     if (!ent || M_UnitMoveDisabled(ent)) return;
     ent->unitinfo.MoveSpeed = speed;
     ent->unitinfo.move_flags |= BZ_UNIT_SPEED_SET;
-    /* TODO: NUM-02.3 ports the immediate15ff40 old-velocity integration/clamp
-     * when publishing a cap below the current velocity. */
+    wc3Velocity_t v = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
+        .limit = unit_effective_speed(ent) };
+    if (wc3_velocity_cap_world(&v)) ent->movement.velocity = (vec2_t){v.vel[0], v.vel[1]};
+    /* TODO: NUM-02.3 supplies the owner clock for nonzero elapsed time before
+     * this clamp. The captured public low-cap witness has zero elapsed time;
+     * it preserves pose/facing and changes velocity immediately. */
 }
 
 /* Slowest move speed across a group, so the whole group travels at it. */

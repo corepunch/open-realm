@@ -253,6 +253,26 @@ function install(module) {
         });
     }
     if (config.motionEvents) {
+        // 15ff40 thiscall(cap*), RET4. Lower caps integrate old velocity before clamping it.
+        hook(0x15ff40, {
+            onEnter(args) {
+                this.mover = this.context.ecx;
+                if (!speedCase) return;
+                const words = (p, n) => Array.from({length:n}, (_,i) => p.add(i*4).readU32());
+                const owner = base.add(0xd53a48).readPointer();
+                const clock = owner.add(this.mover.add(0x14).readU32() & 0x80000000 ? 0x68 : 0x14);
+                this.row = {case:speedCase, mover:this.mover.toString(), value:args[0].readU32(),
+                    before:words(this.mover.add(0x70),8), clock:words(clock.add(0x40),3),
+                    fineFlagsBefore:this.mover.add(0x98).readPointer().add(0x40).readU32()};
+            },
+            onLeave() {
+                if (!this.row) return;
+                bump('speed-cap-change');
+                const words = (p, n) => Array.from({length:n}, (_,i) => p.add(i*4).readU32());
+                emit('speed-cap-change', {...this.row, after:words(this.mover.add(0x70),8),
+                    fineFlagsAfter:this.mover.add(0x98).readPointer().add(0x40).readU32()});
+            }
+        });
         const speedNatives = new Map();
         for (const [name, rva] of [['GetUnitMoveSpeed',0x203d30],
                                   ['GetUnitDefaultMoveSpeed',0x203a90], ['SetUnitMoveSpeed',0x2154e0]]) {

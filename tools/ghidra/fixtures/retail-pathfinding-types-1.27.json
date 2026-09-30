@@ -2937,6 +2937,60 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f15ff40",
+      "name": "Mover_SetSpeedCap",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "cap",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15fc70",
+      "name": "Math_ClampVectorLength",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "vector",
+          "type": "ptr:WC3PathVector2",
+          "storage": "ECX"
+        },
+        {
+          "name": "cap",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f071570",
+      "name": "Math_ReciprocalSquareRoot",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
     }
   ],
   "globals": [

@@ -500,6 +500,16 @@ static inline void wc3_integrate(float pos[2], float const vel[2], float elapsed
     for (unsigned i = 0; i < 2; i++) pos[i] = wc3_add(pos[i], wc3_mul(vel[i], elapsed));
 }
 
+static inline void wc3_velocity_limit(wc3Velocity_t *v) {
+    float sq = wc3_add(wc3_mul(v->vel[0], v->vel[0]), wc3_mul(v->vel[1], v->vel[1]));
+    if (sq < wc3_float(0x3456bf95)) { v->vel[0] = v->vel[1] = 0; return; }
+    float len = wc3_sqrt(sq);
+    if (len > v->limit) {
+        float scale = wc3_mul(v->limit, wc3_recip(len));
+        for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_mul(v->vel[i], scale);
+    }
+}
+
 /* Desired-minus-old is added back before testing length; cancellation truncation is observable. */
 static inline void wc3_velocity_update(wc3Velocity_t *v) {
     float dir[2];
@@ -508,13 +518,28 @@ static inline void wc3_velocity_update(wc3Velocity_t *v) {
         float want = v->speed > 0 ? wc3_mul(v->speed, dir[i]) : 0;
         v->vel[i] = wc3_add(v->vel[i], wc3_sub(want, v->vel[i]));
     }
+    wc3_velocity_limit(v);
+}
+
+/* Original15ff40 changes a cap without requesting a new heading. Only excess
+ * old velocity enters15f7e0, adds a zero delta and clamps through1606e0/15fc70.
+ * The caller commits old velocity through its current clock before this change. */
+static inline bool wc3_velocity_cap(wc3Velocity_t *v) {
     float sq = wc3_add(wc3_mul(v->vel[0], v->vel[0]), wc3_mul(v->vel[1], v->vel[1]));
-    if (sq < wc3_float(0x3456bf95)) { v->vel[0] = v->vel[1] = 0; return; }
-    float len = wc3_sqrt(sq);
-    if (len > v->limit) {
-        float scale = wc3_mul(v->limit, wc3_recip(len));
-        for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_mul(v->vel[i], scale);
-    }
+    float length = wc3_float(wc3_float_bits(wc3_sqrt(sq)) & 0x7fffffffu);
+    if (!(length > v->limit)) return false;
+    for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_add(v->vel[i], 0);
+    wc3_velocity_limit(v);
+    return true;
+}
+
+static inline bool wc3_velocity_cap_world(wc3Velocity_t *v) {
+    wc3Velocity_t grid = *v;
+    for (unsigned i = 0; i < 2; i++) grid.vel[i] = wc3_mul(grid.vel[i], wc3_float(0x3d000000));
+    grid.limit = wc3_mul(grid.limit, wc3_float(0x3d000000));
+    if (!wc3_velocity_cap(&grid)) return false;
+    for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_mul(grid.vel[i], wc3_float(0x42000000));
+    return true;
 }
 
 /* Engine velocities are world units; retail16fe20 measures its guards in32-unit fine cells. */

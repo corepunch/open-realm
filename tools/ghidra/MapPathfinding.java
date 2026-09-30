@@ -387,6 +387,9 @@ public class MapPathfinding extends GhidraScript {
         {"6f168870", "Path_InitRouteIndex", "Mode0 fine index=count-2 if count>1 else count-1; other mode count-1. 72 full refills verify fine use; empty count yields -2 per raw formula, caller preconditions matter."},
         {"6f167ce0", "Path_GetFineWaypoint", "Unsigned index>=count triggers destination selection and path request; denial preserves output, admitted partial route succeeds. 72 static+288 object refills,144 denials,72 cached cases."},
         {"6f168740", "Path_ResetBuffers", "Modes -1/0/1; clears selected counts/indices, optional retry/list/result flags; timestamps and storage preserved. 6912 original-x86 reset cases."},
+        {"6f15ff40", "Mover_SetSpeedCap", "Publish fine cap; strict old length greater calls zero-delta commit without facing notify, integrating old velocity first and updating fine moving bit. 756 complete original/C cases; repeated public zero-elapsed low setter raw exact."},
+        {"6f15fc70", "Math_ClampVectorLength", "Strict length-over-cap normalization via original inverse square root then cap multiplication. Tiny/zero vector guard remains original. Complete cap-transition oracle verifies signed/oblique/zero cases."},
+        {"6f071570", "Math_ReciprocalSquareRoot", "ECX output, EDX scalar input; original software square root 071480 followed by reciprocal 0711e0, EAX returns output pointer. Cap-transition normalization composition verified."},
         {"6f2148f0", "Jass_SetTerrainPathable", "Native registration; negates Boolean then updates fine-map high-bit mask."}
     };
 

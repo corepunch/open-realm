@@ -23,6 +23,7 @@ from verify_wc3_byte_inputs import source_bytes
 from verify_wc3_heading_aliases import verify as verify_heading_aliases
 from verify_wc3_arrival_trace import verify as verify_arrival, configure as configure_arrival
 from verify_wc3_speed_inputs import verify as verify_speed_inputs, digest as speed_digest
+from verify_wc3_speed_drop import verify as verify_speed_drop, digest as speed_drop_digest
 
 
 class PathingMathTests(unittest.TestCase):
@@ -74,6 +75,48 @@ class PathingMathTests(unittest.TestCase):
                     engine.pathing_speed_limits(inputs, output)
                     self.assertEqual(list(output), case['output'], case['input'])
                     self.assertEqual(list(inputs), case['input'])
+
+    def test_speed_cap_transition_matches_original_clock_vector_and_occupancy(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-speed-cap-transition-1.27.json').read_text())
+        for engine in self.engines:
+            engine.pathing_speed_cap.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            engine.pathing_speed_cap_world.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            for _ in range(2):
+                for case in fixture['cases']:
+                    inputs = (ctypes.c_uint32 * 13)(*case['input'])
+                    output = (ctypes.c_uint32 * 10)()
+                    engine.pathing_speed_cap(inputs, output)
+                    self.assertEqual(list(output), case['output'], case['input'])
+                    self.assertEqual(list(inputs), case['input'])
+                    world = [multiply(case['input'][i], 0x42000000) for i in (4, 5, 11)]
+                    expected = [multiply(case['output'][i], 0x42000000) for i in (4, 5)] + [case['output'][9]]
+                    converted = (ctypes.c_uint32 * 3)()
+                    engine.pathing_speed_cap_world((ctypes.c_uint32 * 3)(*world), converted)
+                    self.assertEqual(list(converted), expected)
+
+    def test_speed_drop_observer_rejects_wrong_clock_and_unconsumed_clamp(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-public-speed-drop-1.27.json').read_text())
+        rows = [dict(event='metadata', sha256=fixture['binary_sha256'], source_sha256=fixture['source_sha256'],
+                     owned=True, motionEvents=True, velocityEvents=True, taskEvents=True)]
+        commit = iter(fixture['next_commits'])
+        for r in fixture['sample']:
+            rows.append(copy.deepcopy(r))
+            if r['event'] == 'speed-cap-change': rows.append(copy.deepcopy(next(commit)))
+        for tick, label in [(0, 'start_speed_drop'), (10, 'order_accepted'), *[(t, 'sample') for t in range(1, 301)], (300, 'complete')]:
+            rows.append(dict(event='marker', value=f'PATHTRACE tick={tick} label={label} x=0 y=0 order=851986'))
+        rows.append(dict(event='trace-end', installed=True, counts={'speed-native': 6, 'speed-publication': 2, 'speed-cap-change': 2}))
+        for engine in self.engines:
+            with patch('verify_wc3_speed_drop.verify_motion', return_value={'passed': True}):
+                self.assertEqual(verify_speed_drop(rows, engine, fixture)['immediate_zero_elapsed_clamps'], 1)
+                for event, key in [('speed-cap-change', 'after'), ('speed-cap-change', 'clock'), ('speed-publication', 'identity'), ('velocity-commit', 'before')]:
+                    changed = copy.deepcopy(rows)
+                    row = next(r for r in reversed(changed) if r.get('event') == event)
+                    row[key][4 if key in ('after', 'before') else 0] ^= 1
+                    adjusted = dict(fixture, speed_sha256=speed_drop_digest(changed))
+                    with self.assertRaises(ValueError): verify_speed_drop(changed, engine, adjusted)
+                for changed in (rows[:-1], [r for r in rows if r.get('event') != 'speed-cap-change'],
+                                [*rows, dict(type='error')]):
+                    with self.assertRaises(ValueError): verify_speed_drop(changed, engine, fixture)
 
     def test_public_speed_observer_rejects_damaged_producers_and_travel_cap(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-public-speed-inputs-1.27.json').read_text())

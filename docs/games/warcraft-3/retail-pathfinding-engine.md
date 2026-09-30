@@ -2030,3 +2030,61 @@ with all118 pathfinding tool tests passing. Forced debug and ordinary movement
 builds each pass2,811 assertions in167 cases per schema. The five new corpus
 entries pass their declared outcomes; boundary/menu audits and relative links
 are clean. Production WC3 builds. No whole-trajectory fidelity claim is added.
+
+
+## Speed drops clamp existing velocity immediately
+
+MOVE-01.5 makes public `SetUnitMoveSpeed` update the existing velocity before
+the next Move think. An actual public CreateUnit/Move/setter regression first
+retained the old roughly400-unit velocity after lowering the cap to150. Move
+now uses the verified scalar normalization in fine coordinates, scales back
+to world coordinates and leaves pose and facing intact. Raising the cap
+preserves the current vector. Save/load reproduces the next eight position
+and velocity samples word for word without adding serialized fields.
+
+Original `15ff40` stores the fine cap, compares it strictly against the
+software square root of the old vector and calls `15f7e0` with a zero delta
+and no facing notification only when that length exceeds the cap. This
+integrates old velocity through `1603d0`, then uses `1606e0/15fc70` to clamp
+and update the fine object's moving bit. Original `071570` computes inverse
+square root through the existing square-root/reciprocal helpers. The tiny
+vector guard and small numerical overshoot from the original normalization
+remain intact. Higher caps do not integrate or reset the vector.
+
+`verify_wc3_pathing_speed_caps.py` executes the complete original function
+with real constructed spatial maps, clocks and existing movers, without
+function stubs. All756 cases match production C scalar composition, including
+444 entering old-velocity integration. Signed and oblique vectors, zero/tiny
+caps, both owner-clock domains, epoch changes and nonzero elapsed intervals
+are covered. O0/O2 tests replay frozen outputs twice and independently verify
+the world-coordinate adapter. This does not establish engine owner-clock
+production or retail spatial-cache lifecycle parity.
+
+Two owned75-second captures, `runtime/speed-drop-first-260930.jsonl` and
+`runtime/speed-drop-repeat-260930.jsonl`, raise the stock Footman to400 at
+tick20 and lower it to150 at tick30, both during travel. They agree on six
+public calls, two publications, two cap transitions,127 motion decisions
+and128 velocity/position/facing commits. The low transition has exactly
+zero elapsed time; raw velocity changes from `[31c80000,4147ffff]` to
+`[31160009,40960008]`, with pose/facing unchanged. The next normal commit
+consumes that clamped vector. This closes the bounded immediate clamp;
+temporary-effect restoration and nonzero-elapsed engine timing remain
+MOVE-01.2 and NUM-02.3.
+
+The strict verifier pins sources/maps, admission/completion,300 samples,
+actor identity and immutable defaults, rejects altered clocks and unconsumed
+vectors, and repeats all three raw digests. Fixtures are
+`retail-speed-cap-transition-1.27.json` and
+`retail-public-speed-drop-1.27.json`. The fresh five-entry checkpoint is
+`speed-cap-corpus-final-261001/corpus-results.json` under the local report root.
+
+Ghidra persists383 named functions,23 partial layouts,143 verified fields
+and122 explicit prototypes; `speed-cap-types-readback.json` records the
+saved cap, normalization and reciprocal-square-root ABIs. Existing scalar
+globals and registry labels remain separate. Save60, JSVM7 and actor/network
+layouts are unchanged.
+
+Validation: full Classic and TFT suites each pass42,055 assertions in2,198
+cases; all120 pathfinding tool tests pass. Forced debug and ordinary movement
+builds each pass2,861 assertions in168 cases per schema. The fresh five-entry
+corpus passes, and both boundary audits are clean.

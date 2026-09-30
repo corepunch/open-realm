@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "Current38 executable original-code oracle scripts,35 selected exact/frozen variants,19 explicit live/profile/repeat contracts and84 archived capture audits. Other research is not independently accepted corpus evidence.",
+  "scope": "Current39 executable original-code oracle scripts,36 selected exact/frozen variants,20 explicit live/profile/repeat contracts and86 archived capture audits. Other research is not independently accepted corpus evidence.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -9934,6 +9934,354 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "oracle-speed-caps",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_speed_caps.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "speed-caps.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 756
+        },
+        "integrated_cases": {
+          "equal": 444
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Complete original 15ff40 cap transition, including old-velocity integration, vector normalization and fine moving bit; constructed movers/clocks/maps. Production C scalar composition matches; engine clock production excluded.",
+      "exclusions": [
+        "whole engine clock/trajectory parity"
+      ]
+    },
+    {
+      "id": "oracle-speed-caps-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_speed_caps.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "speed-caps-engine.json",
+      "expected_exit": 0,
+      "expected_status": "original-engine-exact",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 756
+        },
+        "integrated_cases": {
+          "equal": 444
+        },
+        "engine_cases": {
+          "equal": 756
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original 15ff40 cap transition, including old-velocity integration, vector normalization and fine moving bit; constructed movers/clocks/maps. Production C scalar composition matches; engine clock production excluded.",
+      "exclusions": [
+        "whole engine clock/trajectory parity"
+      ]
+    },
+    {
+      "id": "capture-speed-drop-first",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/speed-drop-first-260930.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/speed-drop-first-260930.jsonl",
+        "sha256": "0e97c41c012a0d9739af967fcd4de7407a07d1af7e85e5b70b9cb5070850748b",
+        "bytes": 213800,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "0a499ebaaaa96dcd2672d39565ce401bbbc40595d5f373f57c2c0be65a233aaf",
+            "wc3_pathfinding_probe.j": "bc92294ab152258b0dad750a932baa644dae066d837af6a92e96a0098f40c67e",
+            "make_wc3_pathfinding_map.py": "e19635182d272e2e9073d99df76ff40343ed30d5a2a6c8b1a880de2f4a12442d",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "cdd4e56d3cc1635cdffa264424ba7cba95e1c0262645f98c5cea6bd8bc267048"
+          },
+          "map": "Maps\\PathingRE-SpeedDrop-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/speed-drop-first-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen complete moving speed-drop scene; semantic replay is live-speed-drop-repeat.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "capture-speed-drop-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/speed-drop-repeat-260930.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/speed-drop-repeat-260930.jsonl",
+        "sha256": "933e9bc267c42c0fac6b777fcde9708f91cf5dd282c57e2ba6a5ab1fbd6521e0",
+        "bytes": 213800,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "0a499ebaaaa96dcd2672d39565ce401bbbc40595d5f373f57c2c0be65a233aaf",
+            "wc3_pathfinding_probe.j": "bc92294ab152258b0dad750a932baa644dae066d837af6a92e96a0098f40c67e",
+            "make_wc3_pathfinding_map.py": "e19635182d272e2e9073d99df76ff40343ed30d5a2a6c8b1a880de2f4a12442d",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "cdd4e56d3cc1635cdffa264424ba7cba95e1c0262645f98c5cea6bd8bc267048"
+          },
+          "map": "Maps\\PathingRE-SpeedDrop-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/speed-drop-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen complete moving speed-drop scene; semantic replay is live-speed-drop-repeat.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "live-speed-drop-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_speed_drop.py",
+        "{archive}/runtime/speed-drop-first-260930.jsonl",
+        "--compare",
+        "{archive}/runtime/speed-drop-repeat-260930.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-speed-drop-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/speed-drop-first-260930.jsonl",
+        "sha256": "0e97c41c012a0d9739af967fcd4de7407a07d1af7e85e5b70b9cb5070850748b",
+        "bytes": 213800,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "0a499ebaaaa96dcd2672d39565ce401bbbc40595d5f373f57c2c0be65a233aaf",
+            "wc3_pathfinding_probe.j": "bc92294ab152258b0dad750a932baa644dae066d837af6a92e96a0098f40c67e",
+            "make_wc3_pathfinding_map.py": "e19635182d272e2e9073d99df76ff40343ed30d5a2a6c8b1a880de2f4a12442d",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "cdd4e56d3cc1635cdffa264424ba7cba95e1c0262645f98c5cea6bd8bc267048"
+          },
+          "map": "Maps\\PathingRE-SpeedDrop-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "live-speed-drop-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "public_speed_calls": {
+          "equal": 6
+        },
+        "speed_cap_changes": {
+          "equal": 2
+        },
+        "immediate_zero_elapsed_clamps": {
+          "equal": 1
+        },
+        "exact_velocity_commits": {
+          "equal": 128
+        },
+        "repeated": {
+          "equal": true
+        },
+        "passed": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Repeated public high/low setters during travel, zero-elapsed immediate clamp and 128 exact captured velocity/position/facing commits; nonzero-elapsed engine clocks excluded.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/speed-drop-repeat-260930.jsonl",
+            "sha256": "933e9bc267c42c0fac6b777fcde9708f91cf5dd282c57e2ba6a5ab1fbd6521e0",
+            "bytes": 213800,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+                "wc3_pathfinding.js": "0a499ebaaaa96dcd2672d39565ce401bbbc40595d5f373f57c2c0be65a233aaf",
+                "wc3_pathfinding_probe.j": "bc92294ab152258b0dad750a932baa644dae066d837af6a92e96a0098f40c67e",
+                "make_wc3_pathfinding_map.py": "e19635182d272e2e9073d99df76ff40343ed30d5a2a6c8b1a880de2f4a12442d",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "cdd4e56d3cc1635cdffa264424ba7cba95e1c0262645f98c5cea6bd8bc267048"
+              },
+              "map": "Maps\\PathingRE-SpeedDrop-260930.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 4000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -9999,7 +10347,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "d2a34841ebf36ada6a0fa823566589532a8b970fa94079cf0b9906b78106e160"
+      "sha256": "49c78e254ba1ce1fb2670e1619e5e5c63314226388d885eb8fd923da3d4e966d"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -10160,6 +10508,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-speed-inputs-1.27.json",
       "sha256": "0361a74fa158399367691d86980fb5545e02b1fe125ccf380ef014c6a7d2855f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-speed-cap-transition-1.27.json",
+      "sha256": "6fb72fcace5404b4a399d6fa75c894a71b4f5e22121ec875245d6285633a67e9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-speed-drop-1.27.json",
+      "sha256": "75deeabc1aa48f78caf3d41ac3850f1ebde132f591b146c8d0f28f2ddb9a03e3"
     }
   ]
 }

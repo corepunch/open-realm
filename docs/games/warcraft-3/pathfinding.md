@@ -320,3 +320,10 @@ block the appropriate lanes. See [mask evidence](retail-pathfinding-engine.md#au
 for the stock profile table, original/C checks and remaining support-surface gaps.
 
 Ordinary public point Move now uses the [verified retail arrival range and heading](retail-pathfinding-engine.md#point-move-arrival), stops at its predicted pose and publishes zero velocity. It no longer snaps to the clicked endpoint; internal approach owners retain their separate arrival policies.
+
+
+Public WC3 speed drops now clamp the current movement vector immediately
+through the verified retail fine-coordinate arithmetic. Higher caps preserve
+the vector; eight following movement samples remain bit-identical across
+save/load. See [the original and repeated live evidence](retail-pathfinding-engine.md#speed-drops-clamp-existing-velocity-immediately). Nonzero-elapsed owner-clock
+production and temporary speed-effect restoration remain open.

@@ -4,6 +4,32 @@
 #include "games/warcraft-3/common/wc3_pathing_arrival.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
 
+/* Existing mover image70..8c, current clock, new cap and fine flags. */
+void pathing_speed_cap(uint32_t const input[13], uint32_t output[10]) {
+    for (unsigned i = 0; i < 8; i++) output[i] = input[i];
+    output[6] = input[11]; output[8] = input[12];
+    wc3Velocity_t v = { .vel = {wc3_float(input[4]), wc3_float(input[5])}, .limit = wc3_float(input[11]) };
+    output[9] = wc3_velocity_cap(&v);
+    if (!output[9]) return;
+    wc3Clock_t old = {wc3_float(input[0]), input[1], wc3_float(input[10])};
+    wc3Clock_t current = {wc3_float(input[8]), input[9], wc3_float(input[10])};
+    float pos[2] = {wc3_float(input[2]), wc3_float(input[3])};
+    float velocity[2] = {wc3_float(input[4]), wc3_float(input[5])};
+    wc3_integrate(pos, velocity, wc3_elapsed(&current, &old));
+    output[0] = input[8]; output[1] = input[9];
+    for (unsigned i = 0; i < 2; i++) {
+        output[2 + i] = wc3_float_bits(pos[i]); output[4 + i] = wc3_float_bits(v.vel[i]);
+    }
+    if ((v.vel[0] != 0 || v.vel[1] != 0) && v.limit > 0) output[8] |= 0x20000000u;
+    else output[8] &= ~0x20000000u;
+}
+
+void pathing_speed_cap_world(uint32_t const input[3], uint32_t output[3]) {
+    wc3Velocity_t v = { .vel = {wc3_float(input[0]), wc3_float(input[1])}, .limit = wc3_float(input[2]) };
+    output[2] = wc3_velocity_cap_world(&v);
+    output[0] = wc3_float_bits(v.vel[0]); output[1] = wc3_float_bits(v.vel[1]);
+}
+
 void pathing_speed_limits(uint32_t const input[6], uint32_t output[3]) {
     wc3SpeedLimit_t s = { .value = wc3_float(input[0]), .minimum = wc3_float(input[1]),
         .maximum = wc3_float(input[2]), .default_minimum = wc3_float(input[3]),

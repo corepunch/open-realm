@@ -204,14 +204,14 @@ function PathProbeTick takes nothing returns nothing
         call PathProbeSpeedInputs(udg_PathProbeCrowd[1], "disabled")
         call SetUnitMoveSpeed(udg_PathProbeUnit, 100.0)
     endif
-    if PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 50 then
+    if (PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 50) or (PATH_PROBE_SCENARIO == 33 and udg_PathProbeTick == 20) then
         call Preload("PATHSPEED case=foot_travel_high")
         call SetUnitMoveSpeed(udg_PathProbeUnit, 401.0)
         set numericX = GetUnitMoveSpeed(udg_PathProbeUnit)
         set numericY = GetUnitDefaultMoveSpeed(udg_PathProbeUnit)
         call Preload("PATHSPEED done=travel")
     endif
-    if PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 70 then
+    if (PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 70) or (PATH_PROBE_SCENARIO == 33 and udg_PathProbeTick == 30) then
         call Preload("PATHSPEED case=foot_travel_low")
         call SetUnitMoveSpeed(udg_PathProbeUnit, 100.0)
         set numericX = GetUnitMoveSpeed(udg_PathProbeUnit)
