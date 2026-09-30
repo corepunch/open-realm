@@ -20,6 +20,11 @@ SPNxSomeSpawn
 `R_UpdateEntityPresentation()` consumes those events before world-entity
 frustum culling, but only for client-visible entities and only in the color
 pass.  The shadow-map pass must not play sounds or create duplicate children.
+Entity-camera scenes keep their event clocks separately from game edict numbers
+and draw retained `SPN` children in the source model's camera view. UI entities
+use synthetic numbers, so sharing the edict-indexed clock can reseed an event
+on every frame; omitting the camera child pass makes one-frame effects such as
+the main-menu Infernal meteor disappear immediately after spawning.
 
 Current runtime consumers are:
 
