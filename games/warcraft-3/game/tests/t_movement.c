@@ -3498,7 +3498,7 @@ TEST(wc3_movement, propwin_turns_in_place_until_inside_authored_window) {
     data.turnRate = 0.1f;
     data.propWin = 10.0f;
     unit->data.UnitData = &data;
-    unit->unitinfo.PropWindow = data.propWin;
+    unit->unitinfo.PropWindow = DEG2RAD(data.propWin);
     unit->unitinfo.MoveSpeed = 100.0f;
     unit->s.angle = 0.0f;
 
@@ -3519,7 +3519,7 @@ TEST(wc3_movement, propwin_large_window_allows_translation_while_turning) {
     data.turnRate = 0.1f;
     data.propWin = 180.0f;
     unit->data.UnitData = &data;
-    unit->unitinfo.PropWindow = data.propWin;
+    unit->unitinfo.PropWindow = DEG2RAD(data.propWin);
     unit->unitinfo.MoveSpeed = 100.0f;
     unit->s.angle = 0.0f;
 
@@ -3538,7 +3538,7 @@ TEST(wc3_movement, propwin_uses_mutable_runtime_unit_value) {
     data.turnRate = 0.1f;
     data.propWin = 180.0f;
     unit->data.UnitData = &data;
-    unit->unitinfo.PropWindow = 10.0f;
+    unit->unitinfo.PropWindow = DEG2RAD(10.0f);
     unit->unitinfo.MoveSpeed = 100.0f;
     unit->s.angle = 0.0f;
 

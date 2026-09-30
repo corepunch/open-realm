@@ -579,10 +579,18 @@ static void attack_retreat_from_target(edict_t *ent) {
     unit_moveindirection(ent);
 }
 
-/* RngBuff applies only while the normal post-damage attack cooldown state is
- * active; windup and ordinary chase must continue using true weapon range. */
+/* RngBuff applies until the simulation-time deadline, even while another
+ * ability owns the unit's think callback. */
 static bool attack_is_cooling_down(edict_t const *ent) {
-    return ent && ent->attack_cooldown_active && ent->attack_cooldown_remaining > 0.0f;
+    return ent && ent->attack_cooldown_active &&
+        (int32_t)(ent->attack_cooldown_end_time - G_Time()) > 0;
+}
+
+static void attack_set_cooldown(edict_t *ent, float seconds) {
+    uint32_t duration = (uint32_t)ceilf(MAX(0.0f, seconds) * 1000.0f);
+    ent->attack_cooldown_end_time = G_Time() + duration;
+    ent->attack_cooldown_remaining = duration / 1000.0f;
+    ent->attack_cooldown_active = duration != 0;
 }
 
 /* Centralize attack-range geometry so buffered cooldown range and true firing
@@ -633,16 +641,17 @@ bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
     return true;
 }
 
-/* Tick the recovery timer explicitly so the frame where cooldown expires can
- * drop RngBuff and revalidate true range before another swing starts. */
+/* Refresh the compatibility remaining field from the authoritative deadline;
+ * advancing simulation time does not depend on this ability's think callback. */
 static bool attack_cooldown_elapsed(edict_t *ent, bool tick_recovery) {
     float const step = FRAMETIME / 1000.0f;
-    if (ent->attack_cooldown_active)
-        ent->attack_cooldown_remaining = MAX(0.0f, ent->attack_cooldown_remaining - step);
+    if (ent->attack_cooldown_active) {
+        int32_t remaining = (int32_t)(ent->attack_cooldown_end_time - G_Time());
+        ent->attack_cooldown_remaining = MAX(0.0f, remaining / 1000.0f);
+        if (remaining <= 0) ent->attack_cooldown_active = false;
+    }
     if (tick_recovery)
         ent->wait = MAX(0.0f, ent->wait - step);
-    if (ent->attack_cooldown_remaining <= 0.0f)
-        ent->attack_cooldown_active = false;
     return !ent->attack_cooldown_active && ent->wait <= 0.0f;
 }
 
@@ -796,12 +805,10 @@ static float attack_speed_divisor(edict_t *self) {
 
 void attack_melee_cooldown(edict_t *self) {
     float divisor = attack_speed_divisor(self);
-    self->attack_cooldown_remaining = MAX(0.0f,
-        (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
+    attack_set_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
     unit_setmove(self, &attack_move_melee_cooldown);
     self->wait = MAX(self->attack_cooldown_remaining,
                      ACTIVE_ATTACK(self)->backswingPoint / divisor);
-    self->attack_cooldown_active = self->attack_cooldown_remaining > 0.0f;
     /* The next swing must satisfy both authored gates: weapon cooldown from
      * swing start and backswing after damage point.  If both have already
      * elapsed, transition explicitly instead of parking on wait==0. */
@@ -811,28 +818,24 @@ void attack_melee_cooldown(edict_t *self) {
 void attack_melee(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
-    self->attack_cooldown_remaining = MAX(0.0f, ACTIVE_ATTACK(self)->cooldown / divisor);
-    self->attack_cooldown_active = self->attack_cooldown_remaining > 0.0f;
+    attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
     unit_setmove(self, &attack_move_melee);
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }
 
 void attack_ranged_cooldown(edict_t *self) {
     float divisor = attack_speed_divisor(self);
-    self->attack_cooldown_remaining = MAX(0.0f,
-        (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
+    attack_set_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
     unit_setmove(self, &attack_move_ranged_cooldown);
     self->wait = MAX(self->attack_cooldown_remaining,
                      ACTIVE_ATTACK(self)->backswingPoint / divisor);
-    self->attack_cooldown_active = self->attack_cooldown_remaining > 0.0f;
     if (self->wait <= 0.0f) attack_ranged(self);
 }
 
 void attack_ranged(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
-    self->attack_cooldown_remaining = MAX(0.0f, ACTIVE_ATTACK(self)->cooldown / divisor);
-    self->attack_cooldown_active = self->attack_cooldown_remaining > 0.0f;
+    attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
     unit_setmove(self, &attack_move_ranged);
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }

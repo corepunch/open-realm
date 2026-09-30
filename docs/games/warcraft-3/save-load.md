@@ -13,7 +13,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - the quest and quest-item graph's strings and status flags;
 - the fixed point-order waypoint edict ring and its circular allocation cursor;
 - one used flag per entity slot and a raw `edict_t` block for used slots;
-- basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict;
+- basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
 
@@ -552,5 +552,5 @@ on load (version 52 client layout). They never serialize an active input overlay
 
 Version 53 persists each unit's explicit `UnitShareVision` recipient mask.
 
-Version 55 persists each attacker's remaining weapon cooldown independently of its animation `wait`. A target escaping before damage point cancels the pending hit but does not erase the cooldown started with the swing; the live target order and cooldown continue through chase and save/load. Version 54 saves are rejected because `edict_t` gained the cooldown timer.
+Version 55 persisted each attacker's remaining weapon cooldown independently of its animation `wait`. Version 56 stores the cooldown as a simulation-time deadline so it continues elapsing when another order or rooted state pauses the attack callback. A target escaping before damage point cancels the pending hit but does not erase the cooldown started with the swing; the live target order and cooldown continue through chase and save/load. Version 55 saves are rejected because `edict_t` gained the deadline field.
 Version 52 saves are rejected by the exact-version guard.

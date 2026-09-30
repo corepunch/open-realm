@@ -456,7 +456,7 @@ void SP_SpawnUnit(edict_t *self) {
     self->invulnerable = G_ActorHasSkill(self, "Avul");
     G_ApplyUnitAbilityTraits(self);
     self->unitinfo.MoveSpeed = b->speed;
-    self->unitinfo.PropWindow = d->propWin;
+    self->unitinfo.PropWindow = DEG2RAD(d->propWin);
     /* Warcraft object data owns model altitude.  Keep the mutable current
      * height separate from terrain support so SetUnitFlyHeight can change it
      * without losing the unit type's authored moveHeight/default. */

@@ -95,8 +95,19 @@ uint32_t GetUnitFlyHeight(jass_t *j) {
     return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.FlyHeight : 0);
 }
 UNITINFO_ACCESS(TurnSpeed);
-UNITINFO_ACCESS(PropWindow);
 UNITINFO_ACCESS(AcquireRange);
+
+/* UnitData.uprw is authored in degrees, while the native setter/getter use
+ * radians. Keep the runtime value in native units for movement and JASS. */
+uint32_t SetUnitPropWindow(jass_t *j) {
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    if (whichUnit) whichUnit->unitinfo.PropWindow = (float)jass_checknumber(j, 2);
+    return 0;
+}
+uint32_t GetUnitPropWindow(jass_t *j) {
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.PropWindow : 0);
+}
 
 uint32_t GetUnitFacing(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
