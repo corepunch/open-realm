@@ -1281,7 +1281,33 @@ TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
     T_ASSERT(unit->movement.path.valid);
     T_ASSERT(CM_LineIsWalkableForRadius(&origin, &unit->movement.path.waypoint, unit->collision));
     T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
+    T_FEQ(unit->s.origin.x, unit->s.origin2.x, 0.001f);
+    T_FEQ(unit->s.origin.y, unit->s.origin2.y, 0.001f);
     T_STREQ(unit->currentmove->animation, "walk");
+}
+
+/* A turn-lagged facing may still be collision-free while pointing away from
+ * the route heading.  Movement must use the resolved heading in that case so
+ * a short scripted move cannot step past its marker. */
+TEST(wc3_movement, turn_lag_does_not_step_away_from_route_heading) {
+    enum { CELLS = 64 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t const dest = {-32.0f, 64.0f};
+    float before, after;
+
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+    unit->unitinfo.MoveSpeed = 190.0f;
+    unit->s.angle = 0.0f;
+    order_move(unit, Waypoint_add(&dest));
+    before = Vector2_distance(&unit->s.origin2, &dest);
+    unit->currentmove->think(unit);
+    after = Vector2_distance(&unit->s.origin2, &dest);
+
+    T_ASSERT(after < before);
+    T_FEQ(unit->s.origin.x, unit->s.origin2.x, 0.001f);
+    T_FEQ(unit->s.origin.y, unit->s.origin2.y, 0.001f);
 }
 
 /* Retail WC3 does not leave a worker orbiting an unreachable tree buried in a

@@ -29,6 +29,8 @@ extern void spell_run_frame(edict_t *ent);
 
 void G_PushEntity(edict_t *ent, float distance, vec2_t const *direction) {
     ent->s.origin2 = Vector2_mad(&ent->s.origin2, distance, direction);
+    ent->s.origin.x = ent->s.origin2.x;
+    ent->s.origin.y = ent->s.origin2.y;
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(ent);
 }
