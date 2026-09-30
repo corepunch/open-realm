@@ -447,7 +447,7 @@ Patrol/Attack, economy commands and ability/channel/metadata owners do not yet
 maintain this field consistently. Their queries can return zero or retain the
 previous point-Move ID; there is no guessed historical-event fallback. Those
 remaining leaves must be integrated through their owning abilities before
-claiming whole-query parity; synchronous Follow loss remains01.15.
+claiming whole-query parity; wider target lifetime composition remains01.17.
 
 Validation: `/tmp/wc3-order-01.4-current-head-validated-full-suite.log`
 passed78 Python tool tests and36775/36775 engine assertions across2133 tests
@@ -484,7 +484,7 @@ metadata, instant actions and internal locomotion.
 | ORDER-01.12 | `s_harvest_lumber.c`, `s_goldmine.c` and race-specific resource owners | Smart/Harvest dispatch; inventory early-return admissions and resource-return/internal approaches |
 | ORDER-01.13 | `s_spell.c` plus each concrete ability | Shared owning-ability dispatch; approach, execute, channel, inverse and instant ownership |
 | ORDER-01.14 | Each metadata/toggle owner | Shared interception69b2f0; preserve an existing active head when a metadata action is accepted |
-| ORDER-01.15 | Generic target lifetime dispatch, Move loss handling | Retail RemoveUnit clears Follow synchronously; current engine retirement waits for deferred removal/server frames |
+| ORDER-01.15/17 | Generic target lifetime dispatch, Move loss handling | Public healthy Follow loss is synchronous; combat-parent/direct-free/reentrant-generation/save composition remains01.17 |
 | ORDER-01.16 | `s_build.c` and race-specific construction owners | Concrete admission, approach, work, interruption and queued build ownership; separate from Harvest |
 
 `m_unit.c` routes public target orders through specialized owners before ordinary
@@ -525,7 +525,7 @@ separately after capture; they are not embedded in the historical JSONL header.
 | Accepted Defend/undefend at60/65 |0; these samples do not prove metadata preserves a busy head |
 | Smart ally Follow at80, target moved near at110 |851971 even while stationary |
 | Target Move at120 |851986 even while stationary |
-| RemoveUnit(target) at130 |0 synchronously in retail; engine synchronization is ORDER-01.15 |
+| RemoveUnit(target) at130 |0 synchronously in retail and the integrated healthy Follow engine path |
 | Stop at140 |0 |
 | Patrol at150, rejected unsupported replacement at170 |851991 |
 | Hold at180 and automatic attack after200 |0; enemy life420.000→409.606 at220 |
@@ -546,8 +546,41 @@ identity across moving/standing and opportunistic combat. Common completion
 retires the head before queued activation, and death clears it. The regression
 covers queued target activation, standing, resumed pursuit, rejected replacement,
 Stop, saved Follow/pending point Move, target-loss handoff, arrival, death and
-actual edict reuse. Target removal is tested through real server frames because
-OpenRealm defers edict reclamation; synchronous retail loss remains01.15.
+actual edict reuse. The later ORDER-01.15 integration below adds synchronous
+healthy Follow target-loss handling while preserving deferred edict reclamation.
+
+
+ORDER-01.15 adds a generic `A_TARGET_REMOVED` notification to the active move
+procedure after `G_DeferFreeEdict` has marked the target semantically removed.
+Move owns the response: only active Follow of that exact target clears its
+follow/goal references and reaches `unit_stand`, retiring the user head before
+pending activation. The FIFO now rejects semantically removed entity targets,
+so a stale pending Follow cannot prevent a later valid point Move from starting.
+The target stays allocated until the ordinary frame-end event/deferred drain;
+no edict field or save layout changes are required (W3SV57 remains current).
+
+The isolated regression tests Move/Smart × no pending command, pending point
+Move, removed-target Follow then point Move, and prior point replacement. It
+also checks unrelated and repeated RemoveUnit, immediate public queries,
+next-frame reclamation and actual queued arrival. Against the committed engine
+it failed32 of132 assertions; the integrated owner dispatch passes all132.
+This is healthy active Follow coverage. Temporary combat-parent ownership,
+direct free/death, callback reentry, generation reuse and save before drain are
+explicitly split into ORDER-01.17. The existing repeated live tick130 current0
+witness supplies the immediate public loss observation; it does not by itself
+prove the complete RemoveUnit-to-target-loss caller graph.
+
+Ghidra retains `Move_TargetLossUserHeadResolve` at5ff5d9:5ff5f0 resolves
+Unit19c/1a0, while5ff618 calls the separate internal-task query69c6a0. The named
+5ff490 handler comments record this distinction and the caller-graph exclusion.
+
+Validation for01.15: full `make test` passes79 tool tests and36,965 assertions
+in2,136 engine tests; current-order queries pass212 checks in both normal and
+DEBUG_JASS builds, followed by normal-build restoration. WC3/SC2 production
+builds pass. Fresh corpus `order-01.15-synchronous-corpus/corpus-results.json`
+passes122/122 with unchanged source fingerprints at completion; summary SHA256
+`11ef7ba0b1e4c2ddee651cc6cdd4b6f3271a2afce58ca254d10e0b63bcc0d46d`. Its manifest remains
+`667324574a68516357cbcb401e48bca8cd79643e80a1b4b28ff463d5816c2391`.
 
 Hold needs **no invented persistent851993 head**. The original dispatcher
 creates d0148,d014e,d0177,d0144/action0, and d0177 sets Move20 bit200; d0178

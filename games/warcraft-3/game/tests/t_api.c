@@ -3930,6 +3930,81 @@ TEST(wc3_api, current_order_hold_is_retired_while_behavior_persists) {
     remove(filename);
 }
 
+TEST(wc3_api, current_order_follow_target_removal_is_synchronous) {
+    for (int smart = 0; smart < 2; smart++) for (int queued = 0; queued < 4; queued++) {
+        reset_entities();
+        setup_test_world();
+        T_ASSERT(run_test_jass(
+            "globals\n"
+            "  unit subject = null\n"
+            "  unit target = null\n"
+            "  unit other = null\n"
+            "endglobals\n"
+            "function move takes nothing returns nothing\n"
+            "  call BJassAssert(IssueTargetOrder(subject, \"move\", target), \"target Move accepted\")\n"
+            "endfunction\n"
+            "function smart takes nothing returns nothing\n"
+            "  call BJassAssert(IssueTargetOrder(subject, \"smart\", target), \"target Smart accepted\")\n"
+            "endfunction\n"
+            "function removeTarget takes nothing returns nothing\n"
+            "  call RemoveUnit(target)\n"
+            "endfunction\n"
+            "function removeOther takes nothing returns nothing\n"
+            "  call RemoveUnit(other)\n"
+            "endfunction\n"
+            "function verifyIdle takes nothing returns nothing\n"
+            "  call BJassAssert(GetUnitCurrentOrder(subject) == 0, \"RemoveUnit synchronously retires Follow\")\n"
+            "endfunction\n"
+            "function verifyMove takes nothing returns nothing\n"
+            "  call BJassAssert(GetUnitCurrentOrder(subject) == OrderId(\"move\"), \"valid pending point Move activates synchronously\")\n"
+            "endfunction\n"
+            "function main takes nothing returns nothing\n"
+            "  set subject = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+            "  set target = CreateUnit(Player(0), 'hfoo', 512.0, 64.0, 0.0)\n"
+            "  set other = CreateUnit(Player(0), 'hgry', 64.0, 512.0, 0.0)\n"
+            "endfunction\n"));
+        edict_t *unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+        edict_t *target = find_test_unit(MAKEFOURCC('h','f','o','o'));
+        edict_t *actors[] = {unit, target};
+        T_NOT_NULL(unit); T_NOT_NULL(target);
+        for (int i = 0; i < 2; i++) {
+            actors[i]->health.value = actors[i]->health.max_value = 100;
+            actors[i]->collision = 8; actors[i]->unitinfo.MoveSpeed = 256;
+            actors[i]->movetype = MOVETYPE_STEP; actors[i]->svflags |= SVF_MONSTER;
+            actors[i]->think = monster_think; actors[i]->stand = unit_stand; actors[i]->die = unit_die;
+            unit_stand(actors[i]); gi.LinkEntity(actors[i]);
+        }
+        jass_callbyname(level.vm, smart ? "smart" : "move", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        jass_callbyname(level.vm, "removeOther", false);
+        T_ASSERT(unit->movement.follow_target == target);
+        T_EQ(unit->current_order_id, G_OrderId(smart ? "smart" : "move"));
+        if (queued == 2) T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", target, true, 0));
+        if (queued) T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 128}, queued != 3, 0, 0));
+        jass_callbyname(level.vm, "removeTarget", false);
+        T_ASSERT(target->inuse); T_ASSERT(G_IsDeferredFree(target));
+        T_NULL(unit->movement.follow_target);
+        T_EQ(unit->order_queue.count, 0);
+        jass_callbyname(level.vm, queued ? "verifyMove" : "verifyIdle", false);
+        T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
+        jass_callbyname(level.vm, "removeTarget", false);
+        jass_callbyname(level.vm, queued ? "verifyMove" : "verifyIdle", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if (queued) T_ASSERT(move_is_active_order_walk(unit));
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        level.time += FRAMETIME; globals.RunFrame();
+        T_ASSERT(!target->inuse);
+        if (queued) {
+            for (int frame = 0; frame < 120 && move_is_active_order_walk(unit); frame++) {
+                level.time += FRAMETIME; globals.RunFrame();
+            }
+            T_ASSERT(Vector2_distance(&unit->s.origin2, &(vec2_t){768, 128}) <= unit->collision + 16);
+        }
+        jass_callbyname(level.vm, "verifyIdle", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+}
+
 TEST(wc3_api, issued_order_context_ignores_spell_metadata) {
     setup_test_world();
     g_edicts[0].client = &game.clients[0];

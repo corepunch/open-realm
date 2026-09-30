@@ -969,7 +969,7 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
             edict_t *target;
             if (queued.target_number >= globals.num_edicts) continue;
             target = globals.edicts + queued.target_number;
-            if (!target->inuse || target->spawn_time != queued.target_spawn_time) continue;
+            if (!target->inuse || G_IsDeferredFree(target) || target->spawn_time != queued.target_spawn_time) continue;
             if (unit_issuetargetorder_now(self, queued.order, target)) return true;
         } else if (S_UnitQueuedOrderEvent(self, &queued, A_QUEUE_ORDER_START)) return true;
     }

@@ -1687,8 +1687,24 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     return issued;
 }
 
-BZ_COMMAND_PROC(AbilityMove) {
-    UI_AddCancelButton(clent);
-    clent->client->menu.on_location_selected = move_selectlocation;
-    clent->client->menu.supports_order_queue = true;
+/* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
+BZ_ABILITY_PROC(CAbilityMove) {
+    switch (msg) {
+    case A_COMMAND: {
+        edict_t *clent = call && call->client ? call->client : ent;
+        UI_AddCancelButton(clent);
+        clent->client->menu.on_location_selected = move_selectlocation;
+        clent->client->menu.supports_order_queue = true;
+        return true;
+    }
+    case A_TARGET_REMOVED:
+        if (!call || ent->currentmove != &follow_move_walk || ent->movement.follow_target != call->removed_target)
+            return false;
+        ent->movement.follow_target = NULL;
+        if (ent->goalentity == call->removed_target) ent->goalentity = NULL;
+        unit_stand(ent);
+        return true;
+    default:
+        return false;
+    }
 }

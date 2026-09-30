@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**51 done / 230 tasks; 179 remaining.** Counts describe this backlog,
+**52 done / 231 tasks; 179 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -26,7 +26,7 @@ Completed evidence now sits next to its specific remaining extension.
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 0 | 11 |
-| ORDER — Orders and reclamation | 10 | 24 |
+| ORDER — Orders and reclamation | 11 | 24 |
 | GROUP — Shared movement groups | 11 | 6 |
 | FORM — Formation and regrouping | 2 | 10 |
 | SEP — Repulsion and spatial records | 2 | 10 |
@@ -57,10 +57,14 @@ index their original producers. ORDER-01.6 is explicitly split into its bounded
 owner inventory and01.7..16 domain leaves. Build is separate from Harvest, and
 01.15 owns the discovered synchronous target-removal timing gap; none of those
 requirements is hidden behind the completed inventory or Follow query slice.
+ORDER-01.15 is explicitly split into healthy active Follow loss/queued handoff
+(01.15) and combat-parent/direct-free/reentrant-generation/save lifetime composition
+(01.17). Both are required; the bounded synchronous public query does not close
+the wider lifetime producer graph.
 
 ## Work next
 
-Start with **ORDER-01.15**, then **ORDER-01.9**. GROUP-04.5 now composes actual survivor point
+Start with **ORDER-01.9**, then **NUM-01.2**. GROUP-04.5 now composes actual survivor point
 replacement through680320, original new-request refresh/layout, new-goal arrival
 and both groups' final reclamation on open/wall maps. The638 velocity commits
 match production exactly; the server-frame engine regression preserves the old
@@ -68,7 +72,7 @@ slot through edict reuse and reaches the replacement goal. Its inactive goal
 cache is separate from active order ownership. The engine's public current-order
 native now reads explicit ordinary point-Move current state, including queued
 activation, Stop, arrival, save/load and reuse (ORDER-01.4). Other command
-owners remain ORDER-01.9..16. ORDER-01.5 fixes immutable issued-event metadata through
+owners remain ORDER-01.9..14/16/17. ORDER-01.5 fixes immutable issued-event metadata through
 delayed/reentrant and saved/suspended callbacks; it does not fix current-order
 state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Ghidra persists277
@@ -79,10 +83,9 @@ existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | ORDER-01.15 | Retail synchronous RemoveUnit Follow loss and engine deferred lifetime | Owning-ability synchronous query/queued handoff without premature edict reclamation |
-| 2 | ORDER-01.9 | Public retail Patrol head851991 and named5fdff0 producer | Native point admission, reversal/combat resume and queued/save ownership |
-| 3 | NUM-01.2 | Verified scalar/heading slices | Remaining trig/conversion ABI, constants and public input-domain inventory |
-| 4 | MAP-03.4 | Existing widget admission | Footprint refresh and complete escape-order arrival/failure |
+| 1 | ORDER-01.9 | Public retail Patrol head851991 and named5fdff0 producer | Native point admission, reversal/combat resume and queued/save ownership |
+| 2 | NUM-01.2 | Verified scalar/heading slices | Remaining trig/conversion ABI, constants and public input-domain inventory |
+| 3 | MAP-03.4 | Existing widget admission | Footprint refresh and complete escape-order arrival/failure |
 
 MAP-03.4 (widget escape to arrival/failure) also has existing fixtures. Use
 the per-area dependencies and finish one bounded task before starting another.
@@ -449,8 +452,10 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 - [ ] **ORDER-01.12** Trace and integrate Harvest/return-resource current ownership across each race/resource path, Smart admission, mine/cargo entry, internal approaches, completion/interruption, queued activation, death and save/reuse. Inventory early-return publisher paths explicitly; construction is separately01.16.
 - [ ] **ORDER-01.13** Trace and integrate ability current-head ownership through target/point approaches, execution, channels, instant actions, completion/inverse/interruption, rejection, queued policy, death and save/reuse. Concrete abilities own these transitions; internal order_move must not invent public Move identity. Split by bounded cast family as necessary.
 - [ ] **ORDER-01.14** Trace metadata/toggle interception and integrate preservation/replacement of an existing active user head through concrete owning abilities. Cover busy/idle/rejected actions and queue/save state. The public Defend witness while head0 does not establish preservation of a busy head; start with69b2f0 virtual22c and dispatch bypasses.
-- [ ] **ORDER-01.15** Match retail's synchronous Follow head retirement and queued handoff when RemoveUnit removes its target, while retaining OpenRealm's deferred edict/event lifetime. Add immediate public-query regression, generic lifetime notification and Move-owned loss response; test reentrant removal, both follow IDs, pending activation, direct free, save and generation-safe reuse. Current01.8 witnesses retire only through subsequent server frames; runtime/lifetime producers remain BASE-03.1/TARGET.
+- [x] **ORDER-01.15** Match retail's synchronous healthy active Follow head retirement when public RemoveUnit removes its target, while retaining OpenRealm's deferred edict/event lifetime. Verify both Move/Smart IDs, pending point activation, rejection of queued removed targets, unrelated/repeated removal and already-replaced point orders; prove next-frame cleanup and natural queued arrival. Evidence: [synchronous Follow loss](retail-pathfinding-engine.md#current-follow-and-hold-ownership), isolated failing engine regression followed by Move-owned notification/queued handoff,132 passing checks, repeated public retail tick130 current0 and122/122 strict corpus outcomes. Combat-parent/direct-free/reentrant-generation/save composition is split into01.17; runtime/lifetime producers remain BASE-03.1/TARGET.
 - [ ] **ORDER-01.16** Trace and integrate Build current ownership through each construction race strategy, accepted/queued placement, approach/work, interruption/cancel/refund policy, rejected replacement, death and save/reuse. Resolve the actual public command from the construction owner instead of generic Move or publisher history; split the race matrix into bounded leaves if necessary.
+
+- [ ] **ORDER-01.17** Extend01.15 target loss through temporary automatic-combat ownership, direct free/death, callback reentrant removal, generation-safe target/subject reuse and save before deferred drain. Recover the actual removal-to-target-loss caller graph and preserve command/queue/event ownership through each composition; public healthy Follow head0 alone does not establish these policies.
 
 ### ORDER-02 — User/internal queues
 

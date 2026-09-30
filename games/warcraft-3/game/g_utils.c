@@ -115,6 +115,7 @@ void G_DeferFreeEdict(edict_t *ent) {
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
     G_RemoveEntityFromJassGroups(ent);
     deferred_frees[deferred_free_count++] = (deferred_free_t){ .ent = ent, .spawn_time = ent->spawn_time };
+    S_UnitTargetRemoved(ent);
 }
 
 /* Complete queued JASS removals after entity iteration and before the next snapshot. */

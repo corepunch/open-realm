@@ -768,6 +768,7 @@ typedef enum {
     A_SPELL_COMMIT,      /* Accepted spell commit notification; call->item is the spell being committed. */
     A_ATTACK_DAMAGE_BONUS, /* Active status ability query: return additive attack damage. */
     A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
+    A_TARGET_REMOVED,    /* Active move owner: call->removed_target is semantically removed, still allocated. */
 } abilityMsg_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call)
@@ -788,6 +789,7 @@ struct ability_call_s {
         spellTarget_t const *target;
         edict_t *client;
         edict_t *projectile;
+        edict_t *removed_target; /* A_TARGET_REMOVED; valid throughout the notification. */
         cstring_t order;
         abilityProc_t next_move_proc; /* A_MOVE_LEAVE: move procedure replacing the current move. */
         struct { edict_t *issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
@@ -2570,6 +2572,7 @@ bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, bo
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
+void S_UnitTargetRemoved(edict_t *);
 bool S_UnitAbilityMoveArrive(edict_t *);
 bool S_AncientIsRooted(edict_t const *);
 bool S_AncientHasRootAbility(edict_t const *);

@@ -894,6 +894,19 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     return handled;
 }
 
+/* Notify active behavior owners after semantic removal, before deferred memory reclamation. */
+void S_UnitTargetRemoved(edict_t *target) {
+    abilityCall_t call = MAKE(abilityCall_t, .removed_target = target);
+    uint32_t count = globals.num_edicts;
+
+    FOR_LOOP(i, count) {
+        edict_t *ent = globals.edicts + i;
+        if (ent == target || !ent->inuse || G_IsDeferredFree(ent) || !ent->currentmove || !ent->currentmove->proc)
+            continue;
+        ent->currentmove->proc(ent, A_TARGET_REMOVED, &call);
+    }
+}
+
 void S_UnitAbilityMoveLeave(edict_t *ent, abilityProc_t next_move_proc) {
     abilityCall_t call = MAKE(abilityCall_t, .next_move_proc = next_move_proc);
     if (ent)
