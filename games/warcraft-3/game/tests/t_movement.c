@@ -1313,21 +1313,22 @@ TEST(wc3_movement, turn_lag_does_not_step_away_from_route_heading) {
 TEST(wc3_movement, turn_lag_facing_must_agree_with_resolved_route_heading) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    edict_t *unit = make_moving_unit(0.0f, 0.0f);
-    edict_t *goal = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 0.0f);
+    edict_t *unit = make_moving_unit(320.0f, 0.0f);
+    vec2_t dest = {-320.0f, 0.0f};
 
+    FOR_LOOP(y, CELLS) pathmap[32 + y * CELLS] = 0x02;
+    for (int y = 39; y <= 41; y++) pathmap[32 + y * CELLS] = 0;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
     CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
-    unit->goalentity = goal;
     unit->unitinfo.MoveSpeed = 190.0f;
     unit->s.angle = 0.0f;
-    unit->movement.heading = (float)M_PI;
-    unit->movement.flow_direct = true;
+    order_move(unit, Waypoint_add(&dest));
+    unit->currentmove->think(unit);
 
-    unit_moveindirection(unit);
-
-    T_ASSERT(unit->s.origin2.x < 0.0f);
+    T_ASSERT(Vector2_dot(&(vec2_t){cosf(unit->s.angle), sinf(unit->s.angle)},
+                         &(vec2_t){cosf(unit->movement.heading), sinf(unit->movement.heading)}) < 0.0f);
+    T_ASSERT(unit->s.origin2.x < 320.0f);
     T_FEQ(unit->s.origin.x, unit->s.origin2.x, 0.001f);
 }
 
