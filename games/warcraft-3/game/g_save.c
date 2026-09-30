@@ -77,8 +77,10 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format 56 stores the camera target controller's mode as one enum instead of two booleans in each client record. */
+/* Version 56 retains the camera target controller layout; combat state uses an extension. */
 static uint32_t const save_version = 56;
+#define SAVE_COMBAT_EXTENSION_MAGIC MAKEFOURCC('W', '3', 'E', 'X')
+#define SAVE_COMBAT_EXTENSION_VERSION 1u
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -165,6 +167,32 @@ typedef struct {
 } saveHeader_t;
 
 typedef struct { uint32_t checksum, commit; } saveFooter_t;
+
+/* This extension follows the unchanged version-56 payload and is ignored by
+ * version-56 readers, which stop after restoring the JASS snapshot. */
+typedef struct {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t payload_size;
+} saveCombatExtensionHeader_t;
+
+typedef struct {
+    uint32_t edict_index;
+    uint32_t attack_target_spawn_time;
+    uint32_t attack_cooldown_active;
+    float attack_cooldown_remaining;
+    uint32_t attack_cooldown_end_time;
+    uint32_t attack_backswing_end_time;
+    float attack1_backswing_point;
+    float attack1_range_buffer;
+    float attack2_backswing_point;
+    float attack2_range_buffer;
+} saveCombatExtensionRecord_t;
+
+typedef struct {
+    size_t offset;
+    size_t length;
+} saveEdictSpan_t;
 
 typedef enum {
     JASS_HANDLE_ENTITY,
@@ -1716,6 +1744,81 @@ static bool ReadHashtables(FILE *f) {
     return true;
 }
 
+static size_t SaveEdictV56Spans(saveEdictSpan_t spans[6]) {
+    size_t count = 0;
+    spans[count++] = (saveEdictSpan_t) {
+        offsetof(edict_t, attack1) + offsetof(unitAttack_t, backswingPoint), sizeof(float)
+    };
+    spans[count++] = (saveEdictSpan_t) {
+        offsetof(edict_t, attack1) + offsetof(unitAttack_t, rangeBuffer), sizeof(float)
+    };
+    spans[count++] = (saveEdictSpan_t) {
+        offsetof(edict_t, attack2) + offsetof(unitAttack_t, backswingPoint), sizeof(float)
+    };
+    spans[count++] = (saveEdictSpan_t) {
+        offsetof(edict_t, attack2) + offsetof(unitAttack_t, rangeBuffer), sizeof(float)
+    };
+    spans[count++] = (saveEdictSpan_t) {
+        offsetof(edict_t, attack_cooldown_active),
+        offsetof(edict_t, unitinfo) - offsetof(edict_t, attack_cooldown_active)
+    };
+    spans[count++] = (saveEdictSpan_t) {
+        offsetof(edict_t, goalentity) + sizeof(edict_t *),
+        offsetof(edict_t, item_drop) - (offsetof(edict_t, goalentity) + sizeof(edict_t *))
+    };
+
+    /* The spans are small and fixed. Sort by offset so pack/unpack can apply
+     * the edits from the end of the entity image without invalidating offsets. */
+    for (size_t i = 1; i < count; i++) {
+        saveEdictSpan_t span = spans[i];
+        size_t j = i;
+        while (j && spans[j - 1].offset > span.offset) {
+            spans[j] = spans[j - 1];
+            j--;
+        }
+        spans[j] = span;
+    }
+    return count;
+}
+
+static size_t SaveEdictV56Size(void) {
+    saveEdictSpan_t spans[6];
+    size_t removed = 0;
+    FOR_LOOP(i, SaveEdictV56Spans(spans)) removed += spans[i].length;
+    return sizeof(edict_t) - removed;
+}
+
+static bool PackEdictV56(uint8_t *image) {
+    saveEdictSpan_t spans[6];
+    size_t count = SaveEdictV56Spans(spans), image_size = sizeof(edict_t);
+
+    while (count) {
+        saveEdictSpan_t const span = spans[--count];
+        if (!span.length || span.offset + span.length > image_size) return false;
+        memmove(image + span.offset, image + span.offset + span.length,
+                image_size - span.offset - span.length);
+        image_size -= span.length;
+    }
+    return image_size == SaveEdictV56Size();
+}
+
+static bool UnpackEdictV56(uint8_t *image) {
+    saveEdictSpan_t spans[6];
+    size_t count = SaveEdictV56Spans(spans), image_size = SaveEdictV56Size();
+
+    for (size_t i = count; i-- > 0;) {
+        saveEdictSpan_t const span = spans[i];
+        size_t packed_offset = span.offset;
+        if (!span.length || span.offset + span.length > sizeof(edict_t)) return false;
+        FOR_LOOP(j, i) packed_offset -= spans[j].length;
+        if (packed_offset > image_size) return false;
+        memmove(image + packed_offset + span.length, image + packed_offset, image_size - packed_offset);
+        memset(image + packed_offset, 0, span.length);
+        image_size += span.length;
+    }
+    return image_size == sizeof(edict_t);
+}
+
 static bool WriteEdict(FILE *f, edict_t const *ent) {
     edict_t temp = *ent;
     field_t const *field;
@@ -1723,7 +1826,100 @@ static bool WriteEdict(FILE *f, edict_t const *ent) {
     ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
     for (field = edict_fields; field->name; field++)
         if (!WriteField1(field, (uint8_t *)&temp)) return false;
-    return SaveBytes(f, &temp, sizeof(temp));
+    if (!PackEdictV56((uint8_t *)&temp)) return false;
+    return SaveBytes(f, &temp, SaveEdictV56Size());
+}
+
+static bool WriteCombatExtension(FILE *f) {
+    uint32_t count = 0;
+    uint64_t payload_size;
+    saveCombatExtensionHeader_t header;
+
+    FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse) count++;
+    payload_size = sizeof(count) + (uint64_t)count * sizeof(saveCombatExtensionRecord_t);
+    if (payload_size > UINT32_MAX) return false;
+    header = (saveCombatExtensionHeader_t) {
+        SAVE_COMBAT_EXTENSION_MAGIC, SAVE_COMBAT_EXTENSION_VERSION, (uint32_t)payload_size
+    };
+    if (!SaveBytes(f, &header, sizeof(header)) || !SaveBytes(f, &count, sizeof(count))) return false;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t const *ent = g_edicts + i;
+        saveCombatExtensionRecord_t record;
+        if (!ent->inuse) continue;
+        record = (saveCombatExtensionRecord_t) {
+            .edict_index = i,
+            .attack_target_spawn_time = ent->attack_target_spawn_time,
+            .attack_cooldown_active = ent->attack_cooldown_active ? 1u : 0u,
+            .attack_cooldown_remaining = ent->attack_cooldown_remaining,
+            .attack_cooldown_end_time = ent->attack_cooldown_end_time,
+            .attack_backswing_end_time = ent->attack_backswing_end_time,
+            .attack1_backswing_point = ent->attack1.backswingPoint,
+            .attack1_range_buffer = ent->attack1.rangeBuffer,
+            .attack2_backswing_point = ent->attack2.backswingPoint,
+            .attack2_range_buffer = ent->attack2.rangeBuffer,
+        };
+        if (!SaveBytes(f, &record, sizeof(record))) return false;
+    }
+    return true;
+}
+
+static bool ReadCombatExtension(FILE *f, uint32_t num_edicts, bool *present) {
+    saveCombatExtensionHeader_t header;
+    uint32_t count;
+    long start, payload_end;
+
+    if (!present || (start = ftell(f)) < 0 || fseek(f, 0, SEEK_END) != 0) return false;
+    payload_end = ftell(f);
+    if (payload_end < (long)sizeof(saveFooter_t)) return false;
+    payload_end -= sizeof(saveFooter_t);
+    if (start > payload_end || fseek(f, start, SEEK_SET) != 0) return false;
+    if (start == payload_end) { *present = false; return true; }
+    if (!LoadBytes(f, &header, sizeof(header)) || header.magic != SAVE_COMBAT_EXTENSION_MAGIC ||
+        header.version != SAVE_COMBAT_EXTENSION_VERSION || header.payload_size < sizeof(count) ||
+        (uint64_t)start + sizeof(header) + header.payload_size != (uint64_t)payload_end ||
+        !LoadBytes(f, &count, sizeof(count)) || count > num_edicts ||
+        header.payload_size != sizeof(count) + (uint64_t)count * sizeof(saveCombatExtensionRecord_t))
+        return false;
+    {
+        uint32_t previous_index = UINT32_MAX;
+        FOR_LOOP(i, count) {
+            saveCombatExtensionRecord_t record;
+            edict_t *ent;
+            if (!LoadBytes(f, &record, sizeof(record)) || record.edict_index >= num_edicts ||
+                record.attack_cooldown_active > 1 ||
+                (i && record.edict_index <= previous_index)) return false;
+            ent = g_edicts + record.edict_index;
+            if (!ent->inuse) return false;
+            previous_index = record.edict_index;
+            ent->attack_target_spawn_time = record.attack_target_spawn_time;
+            ent->attack_cooldown_active = record.attack_cooldown_active != 0;
+            ent->attack_cooldown_remaining = record.attack_cooldown_remaining;
+            ent->attack_cooldown_end_time = record.attack_cooldown_end_time;
+            ent->attack_backswing_end_time = record.attack_backswing_end_time;
+            ent->attack1.backswingPoint = record.attack1_backswing_point;
+            ent->attack1.rangeBuffer = record.attack1_range_buffer;
+            ent->attack2.backswingPoint = record.attack2_backswing_point;
+            ent->attack2.rangeBuffer = record.attack2_range_buffer;
+        }
+    }
+    *present = true;
+    return ftell(f) == payload_end;
+}
+
+static void RestoreV56CombatDefaults(void) {
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = g_edicts + i;
+        if (!ent->inuse) continue;
+        if (ent->data.UnitWeapons) {
+            ent->attack1.backswingPoint = ent->data.UnitWeapons->attack1.backswingPoint;
+            ent->attack1.rangeBuffer = ent->data.UnitWeapons->attack1.rangeBuffer;
+            ent->attack2.backswingPoint = ent->data.UnitWeapons->attack2.backswingPoint;
+            ent->attack2.rangeBuffer = ent->data.UnitWeapons->attack2.rangeBuffer;
+        }
+        if (ent->currentmove && ent->currentmove->proc == CAbilityAttack && ent->goalentity &&
+            ent->goalentity != ent->movement.attackmove_waypoint)
+            ent->attack_target_spawn_time = ent->goalentity->spawn_time;
+    }
 }
 
 static bool WriteClient(FILE *f, gameClient_t const *client) {
@@ -1791,8 +1987,10 @@ static bool ReadBlight(FILE *f) {
 
 static bool ReadEdict(FILE *f, edict_t *ent) {
     field_t const *field;
+    uint8_t image[sizeof(edict_t)] = { 0 };
 
-    if (!LoadBytes(f, ent, sizeof(*ent))) return false;
+    if (!LoadBytes(f, image, SaveEdictV56Size()) || !UnpackEdictV56(image)) return false;
+    memcpy(ent, image, sizeof(*ent));
     for (field = edict_fields; field->name; field++)
         if (!ReadField(field, (uint8_t *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
@@ -1809,7 +2007,7 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
 bool WriteGame(cstring_t filename) {
     FILE *f = fopen(filename, "w+b");
     saveHeader_t header = {
-        .magic = save_magic, .version = save_version, .edict_size = sizeof(edict_t), .num_edicts = globals.num_edicts,
+        .magic = save_magic, .version = save_version, .edict_size = SaveEdictV56Size(), .num_edicts = globals.num_edicts,
         .max_clients = game.max_clients, .script_identity = level.vm ? jass_programidentity(level.vm) : 0,
         .quests = ActiveQuestCount(), .groups = level.num_groups, .triggers = level.num_triggers, .timers = level.num_timers,
         .events = ActiveEventCount()
@@ -1845,6 +2043,7 @@ bool WriteGame(cstring_t filename) {
      * resolve would see baseline slots and drop script-created units. */
     if (!WriteHashtables(f)) { fprintf(stderr, "WC3 SaveGame: failed at hashtables\n"); goto done; }
     if (!WriteJass(f)) { fprintf(stderr, "WC3 SaveGame: failed at jass\n"); goto done; }
+    if (!WriteCombatExtension(f)) { fprintf(stderr, "WC3 SaveGame: failed at combat extension\n"); goto done; }
     if (!WriteFooter(f)) { fprintf(stderr, "WC3 SaveGame: failed at footer/checksum\n"); goto done; }
     ok = true;
 done:
@@ -1873,7 +2072,7 @@ bool ReadGame(cstring_t filename) {
         uint32_t script = level.vm ? jass_programidentity(level.vm) : 0;
         cstring_t field = NULL;
         if (header.magic != save_magic) field = "magic";
-        else if (header.edict_size != sizeof(edict_t)) field = "edict_size";
+        else if (header.edict_size != SaveEdictV56Size()) field = "edict_size";
         else if (header.num_edicts > globals.max_edicts) field = "num_edicts";
         else if (header.max_clients != game.max_clients) field = "max_clients";
         else if (header.script_identity != script) field = "script_identity";
@@ -1886,7 +2085,7 @@ bool ReadGame(cstring_t filename) {
         else if (!RestoreRegistrySlots(header.groups, header.timers, header.triggers, header.events)) field = "registry_slots";
         if (field) {
             fprintf(stderr, "WC3 LoadGame: header mismatch field=%s version=%u edict_size=%u/%zu edicts=%u/%u\n",
-                    field, header.version, header.edict_size, sizeof(edict_t), header.num_edicts, globals.max_edicts);
+                    field, header.version, header.edict_size, SaveEdictV56Size(), header.num_edicts, globals.max_edicts);
             fprintf(stderr, "WC3 LoadGame: clients=%u/%u script=%u/%u quests=%u/%u groups=%u/%u triggers=%u/%u\n",
                     header.max_clients, game.max_clients, header.script_identity, script,
                         header.quests, ActiveQuestCount(), header.groups, level.num_groups, header.triggers, level.num_triggers);
@@ -1953,6 +2152,13 @@ bool ReadGame(cstring_t filename) {
     /* Sound-handle presentation state is part of the VM-owned handle payload;
      * the snapshot version rejects older layouts before reconstruction. */
     if (!ReadJass(f)) { fprintf(stderr, "WC3 LoadGame: failed at jass\n"); fclose(f); return false; }
+    {
+        bool has_combat_extension;
+        if (!ReadCombatExtension(f, header.num_edicts, &has_combat_extension)) {
+            fprintf(stderr, "WC3 LoadGame: invalid combat extension\n"); fclose(f); return false;
+        }
+        if (!has_combat_extension) RestoreV56CombatDefaults();
+    }
     G_ResetSelectionSoundState();
     G_CommandErrorReset();
     FOR_LOOP(i, game.max_clients) g_edicts[i].client = game.clients + i;
@@ -1993,6 +2199,8 @@ bool ReadGame(cstring_t filename) {
 }
 
 #ifdef BZ_TESTS
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+
 TEST(wc3_save, spell_approach_callback_keeps_v47_roster_identity) {
     int const index = SaveCFunctionIndex((void *)S_SpellTargetApproachThink);
 
@@ -2028,6 +2236,39 @@ fail:
     return false;
 }
 
+static bool strip_save_combat_extension(cstring_t source_path, cstring_t output_path) {
+    FILE *source = fopen(source_path, "rb"), *output = NULL;
+    uint8_t *bytes = NULL;
+    long file_size, payload_end;
+    size_t extension_offset = SIZE_MAX;
+    bool ok = false;
+
+    if (!source || fseek(source, 0, SEEK_END) || (file_size = ftell(source)) < (long)sizeof(saveFooter_t) ||
+        fseek(source, 0, SEEK_SET)) goto done;
+    bytes = malloc((size_t)file_size);
+    if (!bytes || !LoadBytes(source, bytes, (size_t)file_size)) goto done;
+    payload_end = file_size - (long)sizeof(saveFooter_t);
+    for (size_t i = sizeof(saveHeader_t); i + sizeof(saveCombatExtensionHeader_t) <= (size_t)payload_end; i++) {
+        saveCombatExtensionHeader_t header;
+        memcpy(&header, bytes + i, sizeof(header));
+        if (header.magic == SAVE_COMBAT_EXTENSION_MAGIC && header.version == SAVE_COMBAT_EXTENSION_VERSION &&
+            (uint64_t)i + sizeof(header) + header.payload_size == (uint64_t)payload_end) {
+            extension_offset = i;
+            break;
+        }
+    }
+    if (extension_offset == SIZE_MAX) goto done;
+    output = fopen(output_path, "w+b");
+    if (!output || !SaveBytes(output, bytes, extension_offset) || !WriteFooter(output)) goto done;
+    ok = true;
+done:
+    free(bytes);
+    if (source) fclose(source);
+    if (output) fclose(output);
+    if (!ok) remove(output_path);
+    return ok;
+}
+
 TEST(wc3_save, rejects_prior_save_versions) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-prior-format.bin";
     cstring_t old_paths[] = {
@@ -2048,10 +2289,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-53.bin",
         "/tmp/openwarcraft3-wc3-save-version-54.bin",
         "/tmp/openwarcraft3-wc3-save-version-55.bin",
-        "/tmp/openwarcraft3-wc3-save-version-56.bin",
         "/tmp/openwarcraft3-wc3-save-version-57.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 57 };
 
     reset_entities();
     setup_test_world();
@@ -2065,6 +2305,55 @@ TEST(wc3_save, rejects_prior_save_versions) {
     remove(filename);
 }
 
+TEST(wc3_save, attack_movement_state_keeps_version_56_envelope) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-v56-envelope.bin";
+    saveHeader_t header = { 0 };
+    FILE *f;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(WriteGame(filename));
+    f = fopen(filename, "rb");
+    T_NOT_NULL(f);
+    if (f) {
+        T_ASSERT(LoadBytes(f, &header, sizeof(header)));
+        fclose(f);
+    }
+    T_EQ(header.version, 56);
+    T_EQ(header.edict_size, SaveEdictV56Size());
+    remove(filename);
+}
+
+TEST(wc3_save, version_56_payload_without_extension_still_loads) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-v56-with-extension.bin";
+    cstring_t legacy_filename = "/tmp/openwarcraft3-wc3-save-v56-without-extension.bin";
+    edict_t *attacker, *target;
+    int attacker_index, target_index;
+
+    setup_test_world();
+    reset_entities();
+    attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 80.0f, 0.0f);
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    target->targtype = TARG_GROUND;
+    order_attack(attacker, target);
+    attacker_index = (int)(attacker - g_edicts);
+    target_index = (int)(target - g_edicts);
+
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(strip_save_combat_extension(filename, legacy_filename));
+    T_ASSERT(ReadGame(legacy_filename));
+    attacker = g_edicts + attacker_index;
+    target = g_edicts + target_index;
+    T_ASSERT(attacker->inuse && target->inuse);
+    T_ASSERT(attacker->goalentity == target);
+    T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
+    remove(filename);
+    remove(legacy_filename);
+}
+
 TEST(wc3_save, rejects_pre_waygate_edict_layout) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-waygate-current.bin";
     cstring_t old_path = "/tmp/openwarcraft3-wc3-save-old-edict-size.bin";
@@ -2072,7 +2361,7 @@ TEST(wc3_save, rejects_pre_waygate_edict_layout) {
     reset_entities();
     setup_test_world();
     T_ASSERT(WriteGame(filename));
-    T_ASSERT(write_save_fixture_header(filename, old_path, save_version, sizeof(edict_t) - 1));
+    T_ASSERT(write_save_fixture_header(filename, old_path, save_version, SaveEdictV56Size() - 1));
     T_ASSERT(!ReadGame(old_path));
     remove(old_path);
     remove(filename);
