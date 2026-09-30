@@ -28,10 +28,14 @@ instances of one model do not share an event clock or retained child. Replacing
 an instance ID's model clears that instance's retained children. Camera event
 clocks grow to accommodate each distinct live presentation ID. Owners release
 an ID when its presentation instance is destroyed; release also removes retained
-`SPN` children for that instance. Map registration and renderer shutdown clear
-any remaining clocks. FDF frame slots receive generated IDs and release them
-when templates are cleared, so recycled frame addresses cannot resume stale
-event clocks. UI entities use synthetic numbers, so sharing the
+`SPN` children and the retained particle scene for that instance. Map registration
+and renderer shutdown clear any remaining clocks and particle scenes. FDF frame
+slots receive generated IDs and release them when templates are cleared, so
+recycled frame addresses cannot resume stale event clocks. Glue and campaign
+backgrounds release their static IDs when their presentation is reset. Isolated
+camera particles are stored per instance, so concurrently rendered menu scenes
+cannot share particles or advance one another's particle time. UI entities use
+synthetic numbers, so sharing the
 edict-indexed clock can reseed an event on every frame; omitting the camera
 child pass makes one-frame effects such as the main-menu Infernal meteor
 disappear immediately after spawning. Client layout portraits use stable IDs

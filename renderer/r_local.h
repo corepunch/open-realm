@@ -505,6 +505,9 @@ typedef struct {
 cparticle_t *R_BeginParticleScene(particleScene_t *scene);
 void R_EndParticleScene(particleScene_t *scene, cparticle_t *previous);
 void R_ClearParticleScene(particleScene_t *scene);
+void R_ReleaseEntityCameraEvents(uintptr_t instance_id);
+void R_ReleaseGameEntityCameraEvents(uintptr_t instance_id);
+void R_ClearEntityCameraParticleScenes(void);
 void R_InitParticles(void);
 void R_ShutdownParticles(void);
 void R_DrawParticles(void);

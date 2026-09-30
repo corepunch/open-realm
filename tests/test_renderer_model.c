@@ -139,6 +139,7 @@ static _Noreturn void BZ_TestShaderExit(int code) { shader_test.exitcode = code;
 #undef exit
 
 refImport_t ri;
+void R_ClearEntityCameraParticleScenes(void) {}
 struct render_globals tr;
 static uint32_t load_count, release_count, register_count;
 static bool fail_load, fail_scoped_load, touch_during_registration;
