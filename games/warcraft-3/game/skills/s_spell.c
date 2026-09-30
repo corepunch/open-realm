@@ -387,6 +387,14 @@ bool S_SpellTargetHasToken(cstring_t targets, cstring_t full, cstring_t short_na
 }
 
 bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
+    if (!S_SpellAllowsAreaTarget(code, caster, target)) return false;
+    return !(caster && caster->s.player < MAX_PLAYERS &&
+             S_UnitIsInvisibleToPlayer(target, caster->s.player));
+}
+
+/* The authored targs mask without the unit-target visibility rule: area effects reach
+ * units the caster cannot see. */
+bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
     cstring_t targets;
     uint32_t ability_level;
     bool structure;
@@ -395,8 +403,6 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
         return false;
     }
     if (S_UnitSpellImmune(target)) return false;
-    if (caster && caster->s.player < MAX_PLAYERS &&
-        S_UnitIsInvisibleToPlayer(target, caster->s.player)) return false;
     ability_level = S_SpellLevel(caster, code);
     targets = G_AbilityLevel(code, ability_level)->targs;
     if (!targets) {
