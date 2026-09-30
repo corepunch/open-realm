@@ -525,6 +525,53 @@ dispatch happens before pruning and only for members whose mover and group
 identities both resolve correctly. These cases cover empty/all-invalid
 prepasses without invoking the enclosing tick's group-destruction branch.
 
+## Callback-timed membership mutation
+
+**GROUP-04.1, S/O:** the original motion oracle now pauses at an actual mover
+slot54 callback entry (`6f16fa00`), executes the original `6f16dd70` member
+unbind or `6f170fa0` mover-group detach on a separate stack, restores the CPU
+context, and resumes the untouched callback and prepass. Only the requested
+producer's memory effects survive the context restoration. No original code,
+virtual callback or resolver is replaced. All nonvolatile registers, stack
+cleanup, instruction budgets and the exception chain are checked.
+
+The **68 cases** cover one through three members, every callback position,
+every removal subset, and both producers, including zero-mutation controls.
+Already-dispatched higher rows remain in the observed callback order; lower
+rows resolve the updated identity/ownership and skip removed members. Pruning
+re-resolves every row, swaps the last row into a hole, and preserves every word
+of each surviving 44-byte record. A second original prepass verifies the new
+reverse iteration order and unchanged survivor words. Removing row0 of three
+members yields `[2,1]`, whose next callback order is `[1,2]`.
+
+Frozen expectations are
+[`retail-callback-mutations-1.27.json`](../../../tools/ghidra/fixtures/retail-callback-mutations-1.27.json),
+normalized digest `7f56b7d4603f449c8139791d508944cf5ae91d86c116abc6a3b3079016ac34ac`.
+The asset-free regression checks the exhaustive case inventory, complete row
+contents, and both immediate and later callback sequences. Two fresh strict
+corpus executions reproduce that digest under the documented report root:
+`group-04.1-corpus-first/motion-oracle.json` and
+`group-04.1-corpus-repeat/motion-oracle.json`.
+The final `group-04.1-corpus-provenance/corpus-results.json` also fingerprints
+both Ghidra annotation scripts. `make test` passes72 pathfinding tool tests and
+36,633 assertions in2,123 engine tests for each ROC/TFT fixture mode.
+
+```sh
+"$pathing_python" tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary "$wc3_dir/game.dll" --archive "$pathing_reports" \
+  --only oracle-motion --output "$pathing_reports/group-04.1-reproduction"
+```
+
+This is a controlled external request at a real callback boundary, with the
+same-cell callback branch. It does not prove a complete JASS/gameplay region
+callback graph, handle destruction/reuse, changed-cell notifications, or a
+refreshed survivor trajectory. Those contracts remain BASE-03.1/MOVE-03,
+GROUP-04.3 and GROUP-04.4. OpenRealm's current Move owns individual caps and
+routes, without a persistent retail group/member array. This contract therefore
+records a required group implementation behavior; no individual speed kernel
+change follows from it. GROUP-04.4 owns the group integration and its scheduler
+and lifecycle regressions.
+
 ## Member completion: retry boundary, notification and deferred removal
 
 The motion oracle executes **1,536 complete `6f16c390` completion scans**, each
@@ -1967,5 +2014,5 @@ normal replay always requires the frozen input/output hashes and exact states.
 This closes one wall case and its controls, not failed-route/alternate-order
 policy, runtime wall edits during travel, widget escape, mixed speeds, class
 notification ownership, populated repulsion or production clock cadence.
-Next bounded owner extension: **GROUP-04.1**, remove/reuse a member identity from movement callbacks while
-its shared group is travelling; public entry sharing remains **GROUP-01.1**.
+Next bounded owner extension: **GROUP-04.3**, reclaim/reuse a member identity from movement callbacks while
+its shared group is travelling; callback-boundary cancellation/pruning is now [verified](#callback-timed-membership-mutation). public entry sharing remains **GROUP-01.1**.

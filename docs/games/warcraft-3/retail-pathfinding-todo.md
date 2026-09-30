@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**39 done / 211 tasks; 172 remaining.** Counts describe this backlog,
+**40 done / 213 tasks; 173 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -27,7 +27,7 @@ Completed evidence now sits next to its specific remaining extension.
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 0 | 11 |
 | ORDER — Orders and reclamation | 5 | 16 |
-| GROUP — Shared movement groups | 4 | 7 |
+| GROUP — Shared movement groups | 5 | 8 |
 | FORM — Formation and regrouping | 2 | 10 |
 | SEP — Repulsion and spatial records | 2 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -39,10 +39,15 @@ as **IDs closed + artifact + next runnable ID**, not additional raw test counts.
 The denominator changes only when a new task is explicitly added or split.
 NUM-02.4 was added explicitly to own the previously unassigned committed-facing
 exclusion of NUM-02.2; it is closed independently of whole-trajectory NUM-02.3.
+GROUP-04.1's callback removal/reuse and refreshed survivor requirement is split
+into GROUP-04.1/03/04: callback pruning, generation-safe reuse, and the refreshed
+survivor journey. All three are required to satisfy the original acceptance item.
 
 ## Work next
 
-Start with **GROUP-04.1**. BASE-05.1/02/03 now have the versioned corpus,
+Start with **GROUP-04.3**. GROUP-04.1 now has68 original-producer callback-boundary
+mutations/controls, exact survivor rows and later iteration, frozen expectations,
+two fresh corpus repeats, and persistent Ghidra layouts/operand ABI. BASE-05.1/02/03 now have the versioned corpus,
 strict runner and111 expected outcomes reproduced in a fresh directory,
 including native adaptive differences and rejected archives. GROUP-02.3 has original terrain edits, stock
 Footman mask getters/publication, opposing detours, independent tick19/25
@@ -52,7 +57,7 @@ BASE-03.1; other movement profiles remain BASE-02.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | GROUP-04.1 | GROUP-02.3 | Member identity removal/reuse from callbacks while survivor completes |
+| 1 | GROUP-04.3 | GROUP-04.1 | Callback-timed original handle reclamation/reuse and generation rejection |
 | 2 | NUM-01.2 | Verified scalar/heading slices | Remaining trig/conversion ABI, constants and public input-domain inventory |
 | 3 | MAP-03.4 | Existing widget admission | Footprint refresh and complete escape-order arrival/failure |
 
@@ -468,8 +473,10 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 
 ### GROUP-04 — Membership mutation
 
-- [ ] **GROUP-04.1** Remove/reuse a member handle during movement callbacks; assert swap-removal order, later iteration and refreshed layout.
+- [x] **GROUP-04.1** Cancel/detach a member during movement callbacks; verify reverse callback iteration and subsequent identity/ownership re-resolution, swap-removal order and every surviving row word. Preserve the original producers and distinguish controlled callback-boundary requests from a complete gameplay callback graph. Evidence: [callback-timed mutations](retail-pathfinding-movement.md#callback-timed-membership-mutation), frozen `retail-callback-mutations-1.27.json`,68 cases and two fresh strict corpus repeats. Handle reuse, full gameplay notification graph and survivor refresh/arrival remain open.
 - [ ] **GROUP-04.2** Complete the last member and run an all-invalid prepass; assert empty-group teardown, owner unlink and retained mover-owned state.
+- [ ] **GROUP-04.3** After GROUP-04.1, reclaim and reuse a member's handle through original producers during a callback; prove generation rejection, later iteration and registry/pool accounting. A pre-invalidated slot does not satisfy callback-timed reuse.
+- [ ] **GROUP-04.4** After GROUP-04.1/03, compose mutation, layout refresh, new destinations, decisions and commits through the survivor's natural arrival and cleanup. Verify repeat trajectories and integrate applicable group behavior into Move.
 
 ## FORM — Formation and regrouping
 

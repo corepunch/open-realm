@@ -48,7 +48,7 @@ def swept_cell_witness(a,b,cell):
 
 def main():
     from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_MEM_INVALID
-    from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EAX, UC_X86_REG_EDX, UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EBP
+    from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EAX, UC_X86_REG_EDX, UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
@@ -1388,6 +1388,86 @@ def main():
                 assert read(members+n*0x2c,11)==row,(states,n,read(members+n*0x2c,11),row)
             prepass_cases+=1
     machine.hook_del(region_hook)
+    # A controlled request at an actual slot54 callback boundary, followed by
+    # the unmodified callback and prepass. Pause the VM, execute the original
+    # producer on a separate stack, then restore CPU context (never memory).
+    # This tests callback timing; the gameplay/JASS producer graph is excluded.
+    callback_mutations=[]
+    callback_stack=0x2000e000
+    def call_during_callback(entry,receiver,arguments):
+        saved=machine.context_save()
+        exception=read(0)[0]
+        try:
+            write(callback_stack,stop,*arguments)
+            machine.reg_write(UC_X86_REG_ESP,callback_stack)
+            machine.reg_write(UC_X86_REG_ECX,receiver)
+            preserved={r:machine.reg_read(r) for r in (UC_X86_REG_EBX,UC_X86_REG_ESI,UC_X86_REG_EDI,UC_X86_REG_EBP)}
+            machine.emu_start(entry,stop,count=2000000)
+            assert machine.reg_read(UC_X86_REG_EIP)==stop,('callback producer budget',hex(entry))
+            assert machine.reg_read(UC_X86_REG_ESP)==callback_stack+4+4*len(arguments)
+            assert all(machine.reg_read(r)==v for r,v in preserved.items())
+            assert read(0)[0]==exception
+        finally:
+            machine.context_restore(saved)
+    for count in range(1,4):
+        for trigger,removed,action in itertools.product(range(count),range(1<<count),['unbind_member','detach_mover']):
+            machine.mem_write(group,bytes(0x100));machine.mem_write(members,bytes(0x100))
+            machine.mem_write(tick_registry,bytes(0x100))
+            write(0x6fd68610,tick_registry)
+            write(tick_registry+0xc,tick_slots);write(tick_registry+0x1c,5)
+            write(group+0x14,3,103);write(group+0x28,members);write(group+0x38,count)
+            write(tick_slots+3*8,-2,group)
+            floats(owner+0x54,0);write(owner+0x58,0)
+            rows=[]
+            for n in range(count):
+                actor=formation_actors[n]
+                machine.mem_write(actor,bytes(0x100))
+                write(actor,0x6fa9129c,owner+0x200,0)
+                write(actor+0x14,n,100+n);write(tick_slots+n*8,-2,actor)
+                floats(actor+0x78,8,6+n);write(actor+0xd0,8,6+n)
+                write(actor+0xa8,regroup_paths[0]);write(actor+0x9c,3,103)
+                row=[n,100+n]+[0x24680000+16*n+k for k in range(2,11)]
+                row[5]=actor;write(members+n*0x2c,*row);rows.append(row)
+            pending=True;observed=[]
+            def callback_boundary(uc,address,size,data):
+                nonlocal pending
+                actor=uc.reg_read(UC_X86_REG_ECX)
+                if pending and actor==formation_actors[trigger]:
+                    pending=False;uc.emu_stop()
+                else:observed.append(formation_actors.index(actor))
+            hook=machine.hook_add(UC_HOOK_CODE,callback_boundary,begin=0x6f16fa00,end=0x6f16fa00)
+            write(stack,stop);machine.reg_write(UC_X86_REG_ESP,stack);machine.reg_write(UC_X86_REG_ECX,group)
+            machine.emu_start(0x6f16bc10,stop,count=2000000)
+            assert not pending and machine.reg_read(UC_X86_REG_EIP)==0x6f16fa00
+            for n in range(count):
+                if removed & (1<<n):
+                    entry=0x6f16dd70 if action=='unbind_member' else 0x6f170fa0
+                    receiver=members+n*0x2c if action=='unbind_member' else formation_actors[n]
+                    call_during_callback(entry,receiver,[0])
+            machine.emu_start(machine.reg_read(UC_X86_REG_EIP),stop,count=2000000)
+            assert machine.reg_read(UC_X86_REG_EIP)==stop and machine.reg_read(UC_X86_REG_ESP)==stack+4
+            expected_order=[n for n in reversed(range(count)) if n>=trigger or not removed & (1<<n)]
+            assert observed==expected_order,(count,trigger,removed,action,observed,expected_order)
+            survivors=list(rows)
+            for n in reversed(range(count)):
+                if removed & (1<<n):survivors[n]=survivors[-1];survivors.pop()
+            assert read(group+0x38)[0]==machine.reg_read(UC_X86_REG_EAX)==len(survivors)
+            actual=[read(members+n*0x2c,11) for n in range(len(survivors))]
+            assert actual==survivors,(count,trigger,removed,action,actual,survivors)
+            observed.clear();run(0x6f16bc10,group)
+            later=[row[0] for row in reversed(survivors)]
+            assert observed==later and read(group+0x38)[0]==len(survivors)
+            assert [read(members+n*0x2c,11) for n in range(len(survivors))]==survivors
+            callback_mutations.append(dict(count=count,trigger=trigger,removed=removed,action=action,
+                callback_order=expected_order,later_callback_order=later,surviving_rows=survivors))
+            machine.hook_del(hook)
+    callback_fixture=json.loads((Path(__file__).parent/'fixtures/retail-callback-mutations-1.27.json').read_text())
+    normalized_mutations=json.loads(json.dumps(callback_mutations))
+    for case in normalized_mutations:
+        for row in case['surviving_rows']:row[5]='mover'+str(row[0])
+    mutation_digest=hashlib.sha256(json.dumps(normalized_mutations,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    assert callback_fixture['version']==1 and callback_fixture['binary_sha256']==digest
+    assert mutation_digest==callback_fixture['cases_sha256'] and normalized_mutations==callback_fixture['cases']
     # Full completion scan through detachment, stop, notification selection and reset.
     run(0x6f004eb0,0)  # Original integer-to-soft-float initializer: -128000.
     completion_sentinel=scalar(0x6fd541dc)
@@ -2774,7 +2854,7 @@ def main():
             arrival_dispatch_cases+=1
     for hook in support_hooks: machine.hook_del(hook)
     all_elapsed_cases=elapsed_arrival_cases+stock_ui_arrival_cases+slope_arrival_cases+obstacle_arrival_cases+adaptive_arrival_cases+owner_arrival_cases+active_pair_cases
-    report=dict(binary_sha256=digest,move_owner_active_separation_cases=len(active_pair_cases),move_owner_active_separation_trajectories=active_pair_cases,move_owner_separation_cases=owner_separation_cases,move_owner_arrival_cases=len(owner_arrival_cases),move_owner_trajectories=owner_arrival_cases,move_adaptive_arrival_cases=len(adaptive_arrival_cases),move_adaptive_trajectories=adaptive_arrival_cases,move_obstacle_arrival_cases=len(obstacle_arrival_cases),move_obstacle_exact_repeat=obstacle_arrival_cases[0]==obstacle_arrival_cases[1],move_obstacle_trajectories=obstacle_arrival_cases,
+    report=dict(binary_sha256=digest,callback_mutation_scope="Controlled external requests at original slot54 entry; complete gameplay callback graph and handle reclaim/reuse excluded",group_callback_mutation_cases=len(callback_mutations),group_callback_mutations=normalized_mutations,group_callback_mutation_digest=mutation_digest,move_owner_active_separation_cases=len(active_pair_cases),move_owner_active_separation_trajectories=active_pair_cases,move_owner_separation_cases=owner_separation_cases,move_owner_arrival_cases=len(owner_arrival_cases),move_owner_trajectories=owner_arrival_cases,move_adaptive_arrival_cases=len(adaptive_arrival_cases),move_adaptive_trajectories=adaptive_arrival_cases,move_obstacle_arrival_cases=len(obstacle_arrival_cases),move_obstacle_exact_repeat=obstacle_arrival_cases[0]==obstacle_arrival_cases[1],move_obstacle_trajectories=obstacle_arrival_cases,
                 move_all_elapsed_cases=len(all_elapsed_cases),move_all_elapsed_integration_ticks=sum(row['ticks'] for row in all_elapsed_cases),
                 move_all_elapsed_task_reclamations=2*len(all_elapsed_cases),move_all_elapsed_group_path_releases=len(all_elapsed_cases),
                 move_transform_max_error=max(row['matrix_max_error'] for row in all_elapsed_cases),

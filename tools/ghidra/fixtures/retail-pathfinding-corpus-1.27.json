@@ -356,6 +356,12 @@
         },
         "move_owner_active_separation_cases": {
           "minimum": 1
+        },
+        "group_callback_mutation_cases": {
+          "equal": 68
+        },
+        "group_callback_mutation_digest": {
+          "equal": "7f56b7d4603f449c8139791d508944cf5ae91d86c116abc6a3b3079016ac34ac"
         }
       },
       "evidence": [
@@ -4995,6 +5001,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-world-velocity-1.27.json",
       "sha256": "f1c2af521eff6c4eebfd54ffbf7750158f8fcb27389f120ffe6e6b8c2b810a05"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
+      "sha256": "141663ad7305ad720272003f2b5266c99986582a8f5a8050b06b40ac4723c2ef"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
+      "sha256": "317832072c6f0a9559a2fd55b56b2e4114e22efe19aeb9ea40b144bca4d96408"
     }
   ]
 }

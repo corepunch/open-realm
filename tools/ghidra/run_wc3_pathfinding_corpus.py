@@ -165,6 +165,7 @@ def main():
     sources.update((REPO/'tools/frida').glob('*pathfinding*'))
     sources.update(REPO/entry['command'][1] for entry in manifest['entries'])
     sources.add(REPO/'tools/ghidra/generate_wc3_math_tables.py')
+    sources.update((REPO/'tools/ghidra').glob('MapPathfinding*.java'))
     sources.add(Path(__file__))
     if build:
         dependencies=(output/'engine.d').read_text().replace('\\\n',' ').split(':',1)[1].split()

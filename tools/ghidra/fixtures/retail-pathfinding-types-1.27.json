@@ -1,0 +1,572 @@
+{
+  "version": 1,
+  "target": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "image_base": "6f000000"
+  },
+  "scope": "Evidence-backed partial prefixes; unassigned bytes remain undefined. Scalar words use retail software arithmetic, not host float operations. Descriptive field/function names are not recovered debug symbols.",
+  "layouts": [
+    {
+      "name": "WC3PathIdentity",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "slot",
+          "type": "i32",
+          "evidence": "054530 registry resolver"
+        },
+        {
+          "offset": 4,
+          "name": "generation",
+          "type": "u32",
+          "evidence": "054530 registry resolver"
+        }
+      ]
+    },
+    {
+      "name": "WC3PathVector2",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "x",
+          "type": "WC3PathScalar",
+          "evidence": "motion/numeric original-word oracles"
+        },
+        {
+          "offset": 4,
+          "name": "y",
+          "type": "WC3PathScalar",
+          "evidence": "motion/numeric original-word oracles"
+        }
+      ]
+    },
+    {
+      "name": "WC3PathMember",
+      "length": 44,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "16bea0/16dd70"
+        },
+        {
+          "offset": 12,
+          "name": "offset",
+          "type": "WC3PathVector2",
+          "evidence": "16a5b0/169e10 formation oracles"
+        },
+        {
+          "offset": 20,
+          "name": "resolved",
+          "type": "ptr:WC3MoverPrefix",
+          "evidence": "16d1c0/16dd70"
+        },
+        {
+          "offset": 24,
+          "name": "destination",
+          "type": "WC3PathVector2",
+          "evidence": "16e250 offset destination oracle"
+        },
+        {
+          "offset": 32,
+          "name": "speed",
+          "type": "WC3PathScalar",
+          "evidence": "16b5c0/16fe20 exact commit oracles"
+        },
+        {
+          "offset": 36,
+          "name": "heading",
+          "type": "WC3PathScalar",
+          "evidence": "16b5c0/16fe20 exact commit oracles"
+        },
+        {
+          "offset": 40,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "16c250/16c390 motion/completion oracles"
+        }
+      ]
+    },
+    {
+      "name": "WC3PathMembersPrefix",
+      "length": 32,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "16d550 original member-vector backing"
+        },
+        {
+          "offset": 12,
+          "name": "data",
+          "type": "ptr:WC3PathMember",
+          "evidence": "16d550 assembly and 156 pruning cases"
+        },
+        {
+          "offset": 24,
+          "name": "capacity",
+          "type": "u32",
+          "evidence": "original request producers/owner pair backing"
+        },
+        {
+          "offset": 28,
+          "name": "count",
+          "type": "u32",
+          "evidence": "16d550 assembly and 156 pruning cases"
+        }
+      ]
+    },
+    {
+      "name": "WC3MoverPrefix",
+      "length": 220,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "14fa30 original mover constructor"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "14ee90 activation and 054530"
+        },
+        {
+          "offset": 112,
+          "name": "time",
+          "type": "WC3PathScalar",
+          "evidence": "161040/16fe20 owner trajectory snapshots"
+        },
+        {
+          "offset": 116,
+          "name": "epoch",
+          "type": "u32",
+          "evidence": "161040 owner trajectory snapshots"
+        },
+        {
+          "offset": 120,
+          "name": "position",
+          "type": "WC3PathVector2",
+          "evidence": "160bd0 original integration"
+        },
+        {
+          "offset": 128,
+          "name": "velocity",
+          "type": "WC3PathVector2",
+          "evidence": "16fe20 exact commit oracle"
+        },
+        {
+          "offset": 136,
+          "name": "maximum",
+          "type": "WC3PathScalar",
+          "evidence": "16fe20 exact commit oracle"
+        },
+        {
+          "offset": 140,
+          "name": "facing",
+          "type": "WC3PathScalar",
+          "evidence": "16fe20/15ffd0 exact commit oracle"
+        },
+        {
+          "offset": 144,
+          "name": "radius",
+          "type": "WC3PathScalar",
+          "evidence": "15fef0/16c940"
+        },
+        {
+          "offset": 148,
+          "name": "proximity",
+          "type": "ptr:WC3SpatialPrefix",
+          "evidence": "14ee90 original activation"
+        },
+        {
+          "offset": 152,
+          "name": "fine",
+          "type": "ptr:WC3SpatialPrefix",
+          "evidence": "14ee90 original activation"
+        },
+        {
+          "offset": 156,
+          "name": "group",
+          "type": "WC3PathIdentity",
+          "evidence": "1702a0 assembly and 156 pruning cases"
+        },
+        {
+          "offset": 168,
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "evidence": "14fa30/1657c0/166060 owner baseline"
+        },
+        {
+          "offset": 192,
+          "name": "request_speed",
+          "type": "WC3PathScalar",
+          "evidence": "16fe20 exact commit oracle"
+        },
+        {
+          "offset": 196,
+          "name": "heading_change",
+          "type": "WC3PathScalar",
+          "evidence": "16fe20 exact commit oracle"
+        },
+        {
+          "offset": 200,
+          "name": "visual_facing",
+          "type": "WC3PathScalar",
+          "evidence": "1705c0/170cf0 owner baseline"
+        },
+        {
+          "offset": 204,
+          "name": "visual_speed",
+          "type": "WC3PathScalar",
+          "evidence": "1705c0 owner baseline"
+        },
+        {
+          "offset": 208,
+          "name": "remembered_x",
+          "type": "i32",
+          "evidence": "16fa00 assembly/region transition oracle"
+        },
+        {
+          "offset": 212,
+          "name": "remembered_y",
+          "type": "i32",
+          "evidence": "16fa00 assembly/region transition oracle"
+        },
+        {
+          "offset": 216,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "14fa30/16fe20 motion oracle"
+        }
+      ]
+    },
+    {
+      "name": "WC3PathGroupPrefix",
+      "length": 132,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "shared request original producers"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "shared request registry activation"
+        },
+        {
+          "offset": 28,
+          "name": "members",
+          "type": "WC3PathMembersPrefix",
+          "evidence": "16bc10/16d1c0/16d550 assembly"
+        },
+        {
+          "offset": 60,
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "evidence": "shared request original producers"
+        },
+        {
+          "offset": 64,
+          "name": "target",
+          "type": "WC3PathIdentity",
+          "evidence": "16d9d0/16be60 assembly"
+        },
+        {
+          "offset": 84,
+          "name": "formation_point",
+          "type": "WC3PathVector2",
+          "evidence": "16d990/16e250 formation oracles"
+        },
+        {
+          "offset": 92,
+          "name": "age",
+          "type": "u32",
+          "evidence": "16c150 full ticks"
+        },
+        {
+          "offset": 96,
+          "name": "completion_counter",
+          "type": "u32",
+          "evidence": "16c390 completion oracle"
+        },
+        {
+          "offset": 108,
+          "name": "unseen_counter",
+          "type": "u32",
+          "evidence": "16a790/16c390 fog and completion"
+        },
+        {
+          "offset": 112,
+          "name": "formation_heading",
+          "type": "WC3PathScalar",
+          "evidence": "16d990/169e10"
+        },
+        {
+          "offset": 124,
+          "name": "shared_parameters",
+          "type": "ptr:void",
+          "evidence": "16d890/16c940 shared ownership oracle"
+        },
+        {
+          "offset": 128,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "16c150/16d9d0"
+        }
+      ]
+    },
+    {
+      "name": "WC3PathPrefix",
+      "length": 160,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "1657c0 original constructor"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "owner original path construction"
+        },
+        {
+          "offset": 28,
+          "name": "destination",
+          "type": "WC3PathVector2",
+          "evidence": "166e90/167d70 route oracles"
+        },
+        {
+          "offset": 36,
+          "name": "adjusted",
+          "type": "WC3PathVector2",
+          "evidence": "166c30/167d70 route oracles"
+        },
+        {
+          "offset": 116,
+          "name": "fine_index",
+          "type": "i32",
+          "evidence": "168870 route progression oracle"
+        },
+        {
+          "offset": 120,
+          "name": "adaptive_index",
+          "type": "i32",
+          "evidence": "168870 route progression oracle"
+        },
+        {
+          "offset": 132,
+          "name": "fine_limit",
+          "type": "u16",
+          "evidence": "168c60 scheduler oracle"
+        },
+        {
+          "offset": 134,
+          "name": "adaptive_limit",
+          "type": "u16",
+          "evidence": "168c60 scheduler oracle"
+        },
+        {
+          "offset": 136,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "scheduler/route/reset oracles"
+        },
+        {
+          "offset": 140,
+          "name": "queue_previous",
+          "type": "ptr:WC3PathPrefix",
+          "evidence": "165ea0/1686a0 queue oracle"
+        },
+        {
+          "offset": 144,
+          "name": "queue_next",
+          "type": "ptr:WC3PathPrefix",
+          "evidence": "165ea0/1686a0 queue oracle"
+        },
+        {
+          "offset": 148,
+          "name": "retry_delay",
+          "type": "u32",
+          "evidence": "165ae0/retry oracle"
+        },
+        {
+          "offset": 156,
+          "name": "query_mask",
+          "type": "u32",
+          "evidence": "168c40/05c7e0 stock mask publication"
+        }
+      ]
+    },
+    {
+      "name": "WC3SpatialPrefix",
+      "length": 68,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "14c1d0 original constructor"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "14ee90 activation"
+        },
+        {
+          "offset": 48,
+          "name": "observer",
+          "type": "ptr:void",
+          "evidence": "16fa00 region callback dispatch"
+        },
+        {
+          "offset": 52,
+          "name": "category_flags",
+          "type": "u32",
+          "evidence": "05c7b0/05c770 mask publication"
+        },
+        {
+          "offset": 56,
+          "name": "eligibility",
+          "type": "i32",
+          "evidence": "16fa00 callback eligibility"
+        },
+        {
+          "offset": 64,
+          "name": "occupancy_flags",
+          "type": "u32",
+          "evidence": "16fe20/16c250 moving20000000 and exemption40000000 motion oracle"
+        }
+      ]
+    }
+  ],
+  "methods": [
+    {
+      "address": "6f16bea0",
+      "name": "PathMember_ResolveMover",
+      "returns": "ptr:WC3MoverPrefix",
+      "parameters": [
+        {
+          "name": "member",
+          "type": "ptr:WC3PathMember",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f1702a0",
+      "name": "Mover_ResolveGroup",
+      "returns": "ptr:WC3PathGroupPrefix",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f16be60",
+      "name": "PathGroup_ResolveTarget",
+      "returns": "ptr:WC3MoverPrefix",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f16dd70",
+      "name": "PathMember_BindMover",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "member",
+          "type": "ptr:WC3PathMember",
+          "storage": "ECX"
+        },
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f16d550",
+      "name": "PathMembers_RemoveRange",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "members",
+          "type": "ptr:WC3PathMembersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "count",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f16bc10",
+      "name": "PathGroup_PrepareMembers",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f16d1c0",
+      "name": "PathGroup_PruneInvalidMembers",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f170fa0",
+      "name": "Mover_BindGroup",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": 4
+        }
+      ]
+    }
+  ]
+}

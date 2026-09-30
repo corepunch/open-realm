@@ -1,0 +1,187 @@
+// Persist instruction/oracle-backed layouts and explicit x86 ABI storage.
+// @category WarcraftIII
+import java.io.FileReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import com.google.gson.*;
+import ghidra.app.script.GhidraScript;
+import ghidra.program.model.data.*;
+import ghidra.program.model.listing.*;
+import ghidra.program.model.symbol.SourceType;
+
+public class MapPathfindingTypes extends GhidraScript {
+    private static final CategoryPath CATEGORY = new CategoryPath("/WarcraftIII/Pathfinding127");
+    private final Map<String, DataType> types = new LinkedHashMap<>();
+
+    private DataType type(String name) throws Exception {
+        if (name.startsWith("ptr:")) return new PointerDataType(type(name.substring(4)), 4);
+        DataType result = types.get(name);
+        if (result == null) throw new Exception("Unknown schema type " + name);
+        return result;
+    }
+
+    // Preflight all fields/prototypes before mutating the program database.
+    private void validate(JsonObject schema) throws Exception {
+        for (JsonElement element : schema.getAsJsonArray("layouts")) {
+            JsonObject layout = element.getAsJsonObject();
+            int length = layout.get("length").getAsInt();
+            boolean[] occupied = new boolean[length];
+            for (JsonElement item : layout.getAsJsonArray("fields")) {
+                JsonObject field = item.getAsJsonObject();
+                DataType datatype = type(field.get("type").getAsString());
+                int offset = field.get("offset").getAsInt();
+                if (offset < 0 || offset + datatype.getLength() > length)
+                    throw new Exception("Field outside " + layout.get("name"));
+                for (int n = offset; n < offset + datatype.getLength(); n++) {
+                    if (occupied[n]) throw new Exception("Overlapping fields " + layout.get("name"));
+                    occupied[n] = true;
+                }
+            }
+            DataType existing = currentProgram.getDataTypeManager().getDataType(CATEGORY, layout.get("name").getAsString());
+            if (existing != null && !(existing instanceof Structure))
+                throw new Exception("Preserve existing non-structure " + existing.getPathName());
+        }
+        for (JsonElement element : schema.getAsJsonArray("methods")) {
+            JsonObject method = element.getAsJsonObject();
+            Function function = getFunctionAt(toAddr(method.get("address").getAsString()));
+            if (function == null) throw new Exception("Missing function " + method.get("address"));
+            String name = method.get("name").getAsString();
+            if (!function.getName().equals(name) && !function.getName().startsWith("FUN_"))
+                throw new Exception("Preserve existing name " + function.getName());
+            type(method.get("returns").getAsString());
+            for (JsonElement item : method.getAsJsonArray("parameters")) {
+                JsonObject parameter = item.getAsJsonObject();
+                type(parameter.get("type").getAsString());
+                JsonPrimitive storage = parameter.getAsJsonPrimitive("storage");
+                if (storage.isString() && currentProgram.getRegister(storage.getAsString()) == null)
+                    throw new Exception("Unknown register " + storage);
+            }
+        }
+    }
+
+    public void run() throws Exception {
+        String[] args = getScriptArgs();
+        if (args.length < 1 || args.length > 2)
+            throw new Exception("Pass the absolute schema path and optional metadata report path");
+        JsonObject schema;
+        try (FileReader reader = new FileReader(args[0])) {
+            schema = JsonParser.parseReader(reader).getAsJsonObject();
+        }
+        JsonObject target = schema.getAsJsonObject("target");
+        if (schema.get("version").getAsInt() != 1 ||
+            !target.get("game_sha256").getAsString().equals(currentProgram.getExecutableSHA256()) ||
+            currentProgram.getImageBase().getOffset() != Long.parseLong(target.get("image_base").getAsString(), 16))
+            throw new Exception("Requires game.dll 1.27.1.7085 at preferred base 6f000000");
+        types.put("void", VoidDataType.dataType);
+        types.put("u16", UnsignedShortDataType.dataType);
+        types.put("u32", UnsignedIntegerDataType.dataType);
+        types.put("i32", IntegerDataType.dataType);
+        types.put("WC3PathScalar", new TypedefDataType(CATEGORY, "WC3PathScalar", UnsignedIntegerDataType.dataType));
+        for (JsonElement element : schema.getAsJsonArray("layouts")) {
+            JsonObject layout = element.getAsJsonObject();
+            String name = layout.get("name").getAsString();
+            types.put(name, new StructureDataType(CATEGORY, name, layout.get("length").getAsInt()));
+        }
+        validate(schema);
+        // Build detached complete types before resolving them. Pointers can refer
+        // forward to a prefix; no undefined field is assigned guessed semantics.
+        int fields = 0;
+        for (JsonElement element : schema.getAsJsonArray("layouts")) {
+            JsonObject layout = element.getAsJsonObject();
+            Structure structure = (Structure)types.get(layout.get("name").getAsString());
+            structure.setDescription(schema.get("scope").getAsString());
+            for (JsonElement item : layout.getAsJsonArray("fields")) {
+                JsonObject field = item.getAsJsonObject();
+                DataType datatype = type(field.get("type").getAsString());
+                structure.replaceAtOffset(field.get("offset").getAsInt(), datatype, datatype.getLength(),
+                    field.get("name").getAsString(), field.get("evidence").getAsString());
+                fields++;
+            }
+        }
+        DataTypeManager manager = currentProgram.getDataTypeManager();
+        // Refuse to discard another analyst's incompatible annotation on rerun.
+        for (String name : types.keySet()) {
+            if (!name.startsWith("WC3")) continue;
+            DataType existing = manager.getDataType(CATEGORY, name);
+            if (existing != null && !existing.isEquivalent(types.get(name)))
+                throw new Exception("Preserve incompatible existing type " + existing.getPathName());
+        }
+        for (String name : types.keySet())
+            if (name.startsWith("WC3")) types.put(name, manager.resolve(types.get(name), DataTypeConflictHandler.DEFAULT_HANDLER));
+        for (JsonElement element : schema.getAsJsonArray("methods")) {
+            JsonObject method = element.getAsJsonObject();
+            Function function = getFunctionAt(toAddr(method.get("address").getAsString()));
+            JsonArray parameters = method.getAsJsonArray("parameters");
+            Parameter[] argspec = new Parameter[parameters.size()];
+            for (int n = 0; n < parameters.size(); n++) {
+                JsonObject parameter = parameters.get(n).getAsJsonObject();
+                JsonPrimitive storage = parameter.getAsJsonPrimitive("storage");
+                VariableStorage location = storage.isString()
+                    ? new VariableStorage(currentProgram, currentProgram.getRegister(storage.getAsString()))
+                    : new VariableStorage(currentProgram, storage.getAsInt(), 4);
+                argspec[n] = new ParameterImpl(parameter.get("name").getAsString(),
+                    type(parameter.get("type").getAsString()), location, currentProgram);
+            }
+            function.setName(method.get("name").getAsString(), SourceType.USER_DEFINED);
+            function.setCallingConvention("__thiscall");
+            function.setReturnType(type(method.get("returns").getAsString()), SourceType.USER_DEFINED);
+            function.replaceParameters(Function.FunctionUpdateType.CUSTOM_STORAGE, true, SourceType.USER_DEFINED, argspec);
+            println(function.getEntryPoint() + " " + function.getPrototypeString(true, true));
+        }
+        // Read the installed database back. Export only our layout/ABI metadata,
+        // never binary bytes or private decompiled function bodies.
+        JsonObject report = new JsonObject();
+        report.addProperty("game_sha256", currentProgram.getExecutableSHA256());
+        JsonArray layouts = new JsonArray();
+        for (JsonElement element : schema.getAsJsonArray("layouts")) {
+            JsonObject layout = element.getAsJsonObject();
+            Structure structure = (Structure)types.get(layout.get("name").getAsString());
+            if (structure.getLength() != layout.get("length").getAsInt())
+                throw new Exception("Installed length differs " + structure.getPathName());
+            JsonObject installed = new JsonObject();
+            installed.addProperty("path", structure.getPathName());
+            installed.addProperty("length", structure.getLength());
+            JsonArray installedFields = new JsonArray();
+            for (JsonElement item : layout.getAsJsonArray("fields")) {
+                JsonObject field = item.getAsJsonObject();
+                DataTypeComponent component = structure.getComponentAt(field.get("offset").getAsInt());
+                if (component == null || !field.get("name").getAsString().equals(component.getFieldName()))
+                    throw new Exception("Installed field differs " + field);
+                JsonObject value = new JsonObject();
+                value.addProperty("offset", component.getOffset());
+                value.addProperty("name", component.getFieldName());
+                value.addProperty("type", component.getDataType().getPathName());
+                value.addProperty("length", component.getLength());
+                installedFields.add(value);
+            }
+            installed.add("fields", installedFields); layouts.add(installed);
+        }
+        report.add("layouts", layouts);
+        JsonArray methods = new JsonArray();
+        for (JsonElement element : schema.getAsJsonArray("methods")) {
+            JsonObject method = element.getAsJsonObject();
+            Function function = getFunctionAt(toAddr(method.get("address").getAsString()));
+            JsonObject installed = new JsonObject();
+            installed.addProperty("address", function.getEntryPoint().toString());
+            installed.addProperty("prototype", function.getPrototypeString(true, true));
+            JsonArray parameters = new JsonArray();
+            for (Parameter parameter : function.getParameters()) {
+                JsonObject value = new JsonObject();
+                value.addProperty("name", parameter.getName());
+                value.addProperty("type", parameter.getDataType().getPathName());
+                value.addProperty("storage", parameter.getVariableStorage().toString());
+                parameters.add(value);
+            }
+            installed.add("parameters", parameters); methods.add(installed);
+        }
+        report.add("methods", methods);
+        report.addProperty("passed", true);
+        if (args.length == 2)
+            Files.write(Paths.get(args[1]), new GsonBuilder().setPrettyPrinting().create().toJson(report).getBytes(StandardCharsets.UTF_8));
+        println("Persisted " + schema.getAsJsonArray("layouts").size() + " partial layouts, " + fields +
+            " verified fields and " + schema.getAsJsonArray("methods").size() + " explicit x86 prototypes.");
+    }
+}
