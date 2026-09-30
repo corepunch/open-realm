@@ -502,6 +502,29 @@ TEST(wc3_combat, immobile_attacker_cancels_explicit_attack_it_cannot_reach) {
     T_STREQ(tower->currentmove->animation, "stand");
 }
 
+TEST(wc3_combat, alliance_change_stops_active_attack_before_next_hit) {
+    edict_t *attacker, *target;
+
+    setup_test_world();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 60.0f, 0.0f);
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    attacker->s.player = 0; target->s.player = 1;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
+    G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[1].ps, ALLIANCE_PASSIVE, true);
+    attacker->currentmove->think(attacker);
+
+    T_NULL(attacker->goalentity);
+    T_STREQ(attacker->currentmove->animation, "stand");
+}
+
 TEST(wc3_combat, tdamage_lethal_calls_die) {
     edict_t *target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);

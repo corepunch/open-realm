@@ -204,7 +204,14 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target)
 }
 
 static bool attack_stop_if_target_invalid(edict_t *attacker) {
-    if (S_AttackCanTarget(attacker, attacker ? attacker->goalentity : NULL)) {
+    edict_t const *target = attacker ? attacker->goalentity : NULL;
+    bool allied = attacker && target && attacker->s.player < MAX_PLAYERS &&
+        target->s.player < MAX_PLAYERS && attacker->s.player != target->s.player &&
+        G_PlayerTreatsPlayerAsAlly(attacker->s.player, target->s.player);
+    /* Existing attack orders are combat orders, unlike the explicit Attack
+     * command which may deliberately target an allied unit.  Alliance changes
+     * must therefore end an automatic/cinematic attack before its next hit. */
+    if (S_AttackCanTarget(attacker, target) && !allied) {
         return false;
     }
     if (attacker) attack_finish_after_combat(attacker, attacker->goalentity);
