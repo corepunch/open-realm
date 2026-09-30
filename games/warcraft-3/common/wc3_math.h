@@ -69,6 +69,13 @@ static inline uint32_t wc3_from_int(uint32_t w) {
     return ((uint32_t)(exp + 127) << 23) | (mant & 0x7fffff) | (w & 0x80000000u);
 }
 
+/* Public R2I uses070170, whose overflow policy differs from raw070120. */
+static inline uint32_t wc3_saturating_int_bits(uint32_t w) {
+    if (((w >> 23) & 255) >= 158)
+        return w & 0x80000000u ? 0x80000000u : 0x7fffffffu;
+    return wc3_int_bits(w);
+}
+
 /* The paired and single helpers use the same quarter-wave interpolation after phase reduction. */
 static inline float wc3_trig_phase(uint32_t phase, bool cosine) {
     uint32_t quad = ((phase >> 18) + cosine) & 3, idx = (phase >> 8) & 1023;
@@ -136,6 +143,51 @@ static inline float wc3_div(float a, float b) {
 }
 
 /* 6f06ffa0 changes lookup resolution near abs(x)=3f7e8000; both curves use fixed-point interpolation. */
+/* Original071180 for a nonnegative integer exponent; parser070de0 uses base10. */
+static inline float wc3_integer_power(float base, uint32_t exponent) {
+    float result = 1.0f;
+    while (exponent) {
+        if (exponent & 1) result = wc3_mul(result, base);
+        base = wc3_mul(base, base);
+        exponent >>= 1;
+    }
+    return result;
+}
+
+/* Public S2R's decimal parser070de0: optional sign, one point, nine significant
+ * digits, no whitespace skipping/exponents. Scalar scaling also truncates.
+ * ASCII digits match the observed CRT grammar; JASS strings are byte strings. */
+static inline float wc3_decimal(char const *text) {
+    if (!text) return 0.0f;
+    bool negative = *text == '-';
+    if (*text == '-' || *text == '+') text++;
+    uint32_t accumulator = 0, significant = 0, scale = 0;
+    int fractional = 0;
+    bool started = false, point = false;
+    for (; *text; text++) {
+        if (*text >= '0' && *text <= '9') {
+            started |= *text != '0';
+            significant += started;
+            if (significant <= 9) {
+                scale += fractional;
+                accumulator = accumulator * 10 + (*text - '0');
+            } else {
+                if (significant == 10) fractional--;
+                scale += fractional;
+            }
+        } else if (*text == '.' && !point) {
+            point = true;
+            fractional++;
+        } else {
+            break;
+        }
+    }
+    float value = wc3_float(wc3_from_int(negative ? 0u - accumulator : accumulator));
+    bool multiply = (scale & 0x80000000u) != 0;
+    float power = wc3_integer_power(10.0f, multiply ? 0u - scale : scale);
+    return multiply ? wc3_mul(value, power) : wc3_div(value, power);
+}
+
 static inline float wc3_acos(float a) {
     uint32_t w = wc3_float_bits(a), mag = w & 0x7fffffffu, val;
     if (mag <= 0x3f7e8000) {

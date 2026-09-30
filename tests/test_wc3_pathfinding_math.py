@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools/ghidra'))
 sys.path.insert(0, str(ROOT / 'tools/frida'))
-from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits, fractional, modulo
+from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits, fractional, modulo, decimal_bits, integer_float, saturating_integer_word
 from generate_wc3_math_tables import sine_table, reciprocal_table, acos_tables
 from verify_wc3_motion_trace import verify
 
@@ -65,6 +65,31 @@ class PathingMathTests(unittest.TestCase):
                 result = (ctypes.c_uint32 * 2)()
                 proc(angle, result)
                 self.assertEqual(list(result), [trig_bits(angle, False, sines), trig_bits(angle, True, sines)])
+
+    def test_decimal_and_public_integer_conversion_match_independent_models(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-public-numeric-inputs-1.27.json').read_text())
+        texts = [case['input'] for case in fixture['cases'] if case['native'] == 'S2R']
+        rng = random.Random(0x70de0)
+        for _ in range(2000):
+            digits = ''.join(str(rng.randrange(10)) for _ in range(rng.randrange(1, 100)))
+            pivot = rng.randrange(len(digits) + 1)
+            texts.append(rng.choice(['', '+', '-']) + digits[:pivot] + '.' + digits[pivot:] + rng.choice(['', 'e2', ';tail', ' tail', '..7']))
+        words = [rng.getrandbits(32) for _ in range(20000)]
+        table = reciprocal_table()
+        for engine in self.engines:
+            engine.pathing_decimal.argtypes = [ctypes.c_char_p]
+            engine.pathing_decimal.restype = ctypes.c_uint32
+            for text in texts:
+                self.assertEqual(engine.pathing_decimal(text.encode()), decimal_bits(text, table), text)
+            for name, model in [('integer_float', integer_float), ('saturating_integer', saturating_integer_word)]:
+                proc = getattr(engine, 'pathing_' + name)
+                proc.argtypes = [ctypes.c_uint32]
+                proc.restype = ctypes.c_uint32
+                for word in words:
+                    self.assertEqual(proc(word), model(word), (name, hex(word)))
+            for case in fixture['cases']:
+                if case['native'] == 'S2R':
+                    self.assertEqual(engine.pathing_decimal(case['input'].encode()), case['output'], case['id'])
 
     def test_live_open_decision_and_window_boundary(self):
         # Frozen first open-ground Frida decision; the two nonzero significands truncate during addition.

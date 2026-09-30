@@ -193,6 +193,46 @@ def integer_word(word):
     return (-magnitude if word & SIGN else magnitude) & MASK
 
 
+def saturating_integer_word(word):
+    exponent = (word >> 23) & 255
+    if exponent >= 158:
+        return 0x80000000 if word & SIGN else 0x7fffffff
+    return integer_word(word)
+
+
+def decimal_bits(text, table):
+    """Original070de0 decimal grammar; independent integer scalar operations."""
+    negative = text.startswith('-')
+    if text.startswith(('-', '+')):
+        text = text[1:]
+    accumulator = significant = scale = fractional_mode = 0
+    started = point = False
+    for ch in text:
+        if '0' <= ch <= '9':
+            started = started or ch != '0'
+            significant += int(started)
+            if significant <= 9:
+                scale += fractional_mode
+                accumulator = accumulator * 10 + int(ch)
+            else:
+                if significant == 10:
+                    fractional_mode -= 1
+                scale += fractional_mode
+        elif ch == '.' and not point:
+            point = True
+            fractional_mode += 1
+        else:
+            break
+    value = integer_float((-accumulator if negative else accumulator) & MASK)
+    power, base, exponent = bits(1), bits(10), abs(scale)
+    while exponent:
+        if exponent & 1:
+            power = multiply(power, base)
+        base = multiply(base, base)
+        exponent >>= 1
+    return multiply(value, power) if scale < 0 else divide(value, power, table)
+
+
 def main():
     from unicorn import Uc, UC_ARCH_X86, UC_MODE_32
     from unicorn.x86_const import (UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX,
@@ -325,6 +365,90 @@ def main():
     # regenerated constants. Arithmetic/interpolation is modeled separately.
     reciprocal_table = list(struct.unpack('<1025I',uc.mem_read(0x6fa810c0,4100)))
     table_hash = hashlib.sha256(uc.mem_read(0x6fa810c0,4100)).hexdigest()
+    # Only imported ASCII isdigit is supplied here; the arithmetic/parser code
+    # executes unchanged. Live public captures use the installed sibling CRT.
+    from unicorn import UC_HOOK_CODE
+    digit_stub = 0x30001000
+    uc.mem_map(digit_stub, 4096)
+    uc.mem_write(digit_stub, b'\xc3')
+    write(0x6fa7c4fc, digit_stub)
+    def ascii_digit(machine, address, size, context):
+        value = read(machine.reg_read(UC_X86_REG_ESP) + 4)
+        machine.reg_write(UC_X86_REG_EAX, int(ord('0') <= value <= ord('9')))
+    uc.hook_add(UC_HOOK_CODE, ascii_digit, begin=digit_stub, end=digit_stub)
+    text_address = 0x10002000
+    text_cases = json.loads((Path(__file__).parents[1] / 'frida/wc3_numeric_inputs.json').read_text())['cases']
+    texts = [case['input'] for case in text_cases if case['native'] == 'S2R']
+    text_rng = random.Random(0x70de0)
+    for _ in range(2000):
+        digits = ''.join(str(text_rng.randrange(10)) for _ in range(text_rng.randrange(1, 100)))
+        pivot = text_rng.randrange(len(digits) + 1)
+        texts.append(text_rng.choice(['', '+', '-']) + digits[:pivot] + '.' + digits[pivot:] + text_rng.choice(['', 'e2', ';tail', ' tail', '..7']))
+    parser_records = []
+    for text in texts:
+        uc.mem_write(text_address - 4, b'HEAD' + text.encode('ascii') + b'\0TAIL')
+        write(output - 4, 0xabcddcba, 0xdeadbeef, 0x12344321)
+        write(stack, stop)
+        uc.reg_write(UC_X86_REG_ESP, stack)
+        uc.reg_write(UC_X86_REG_ECX, output)
+        uc.reg_write(UC_X86_REG_EDX, text_address)
+        for reg in preserved:
+            uc.reg_write(reg, 0x12120000)
+        uc.emu_start(0x6f070de0, stop, count=100000)
+        assert uc.reg_read(UC_X86_REG_EIP) == stop and uc.reg_read(UC_X86_REG_ESP) == stack + 4
+        assert all(uc.reg_read(reg) == 0x12120000 for reg in preserved)
+        assert uc.reg_read(UC_X86_REG_EAX) == output
+        assert read(output - 4) == 0xabcddcba and read(output + 4) == 0x12344321
+        actual = read(output)
+        expected = decimal_bits(text, reciprocal_table)
+        assert actual == expected, ('decimal', text, hex(actual), hex(expected))
+        if engine:
+            engine.pathing_decimal.argtypes = [ctypes.c_char_p]
+            engine.pathing_decimal.restype = ctypes.c_uint32
+            assert engine.pathing_decimal(text.encode()) == actual, ('C-decimal', text, hex(actual))
+        parser_records.append([text, actual])
+    parser_digest = hashlib.sha256(json.dumps(parser_records, separators=(',', ':')).encode()).hexdigest()
+    counts['decimal'] = len(parser_records)
+    public_rng = random.Random(0x207490)
+    public_words = [public_rng.getrandbits(32) for _ in range(2000)]
+    for pivot in (0, SIGN, 0x3a83126f, 0x3f800000, 0xbf800000, 0x4f000000, 0xcf000000):
+        public_words += [(pivot + offset) & MASK for offset in range(-2, 3)]
+    public_records = []
+    sine_model = generate_sines()
+    ordinary_model, near_model = acos_tables()
+    for name, entry in [('I2R',0x6f204c80), ('R2I',0x6f2103a0), ('Sin',0x6f215d00),
+                        ('Cos',0x6f1f9580), ('Acos',0x6f1f75d0), ('SquareRoot',0x6f215d30)]:
+        for word in public_words:
+            write(left - 4, 0xabcddcba, word, 0x12344321)
+            write(stack, stop, word if name == 'I2R' else left)
+            uc.reg_write(UC_X86_REG_ESP, stack)
+            for reg in preserved:
+                uc.reg_write(reg, 0x12120000)
+            uc.emu_start(entry, stop, count=10000)
+            assert uc.reg_read(UC_X86_REG_EIP) == stop and uc.reg_read(UC_X86_REG_ESP) == stack + 4
+            assert all(uc.reg_read(reg) == 0x12120000 for reg in preserved)
+            assert [read(left - 4),read(left),read(left + 4)] == [0xabcddcba,word,0x12344321]
+            actual = uc.reg_read(UC_X86_REG_EAX)
+            value = struct.unpack('<f', struct.pack('<I', word))[0]
+            if name == 'I2R': expected = integer_float(word)
+            elif name == 'R2I': expected = saturating_integer_word(word)
+            elif name in ('Sin','Cos'): expected = trig_bits(word, name == 'Cos', sine_model)
+            elif name == 'Acos': expected = 0 if value < -1 or value > 1 else acos_bits(word, ordinary_model, near_model)
+            else:
+                distance = struct.unpack('<f', struct.pack('<I', subtract(word,0) & ~SIGN))[0]
+                expected = 0 if distance < struct.unpack('<f',struct.pack('<I',0x3a83126f))[0] or value < 0 else square_root(word)
+            assert actual == expected, ('public-wrapper', name, hex(word), hex(actual), hex(expected))
+            if engine and name in ('I2R','R2I'):
+                proc = engine.pathing_integer_float if name == 'I2R' else engine.pathing_saturating_integer
+                proc.argtypes = [ctypes.c_uint32]
+                proc.restype = ctypes.c_uint32
+                assert proc(word) == actual, ('C-public-conversion', name, hex(word), hex(actual))
+            public_records.append([name,word,actual])
+    public_digest = hashlib.sha256(json.dumps(public_records, separators=(',', ':')).encode()).hexdigest()
+    counts['public_wrapper'] = len(public_records)
+    counts['integer_float'] = counts['saturating_integer'] = len(public_words)
+
+
     assert reciprocal_table == generate_recips()
     extended_unary = unary + [((127 << 23) | (i << 13) | residual)
                              for i in range(1024) for residual in [0,1,4095,8190,8191]]
@@ -536,9 +660,13 @@ def main():
                    'floor':'Negative nonzero values below one become -1; both signed zeros become +0; fractional mantissa truncation with negative ceiling of magnitude; exponent >=150 unchanged',
                    'integer':'Truncation toward zero for ordinary values; exponent <127 returns zero; larger exponents use x86 modulo-32 shifts and modulo-32-bit output, without saturation'},
         engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest() if engine else None,
+        public_wrapper_cases=len(public_records), public_wrapper_sha256=public_digest,
+        public_wrapper_scope='Original registered cdecl wrappers, raw synthetic words, guards/nonvolatile/stack checks; producer reachability is separately bounded by the live input fixture',
+        decimal_cases=len(parser_records), decimal_sha256=parser_digest,
+        decimal_import_scope='ASCII isdigit supplied in isolated parser calls; original scalar arithmetic executes unchanged; sibling CRT is observed separately live',
         paired_trig_cases=len(pair_records), paired_trig_alias_cases=pair_aliases, paired_trig_sha256=pair_digest,
         paired_trig_abi='ECX angle pointer, EDX sine pointer, stack4 cosine pointer, RET4; sine stored before cosine',
-        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','sincos','acos','sqrt','reciprocal','divide','fractional','modulo')} if engine else {},
+        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','sincos','acos','sqrt','reciprocal','divide','fractional','modulo','decimal','integer_float','saturating_integer')} if engine else {},
         exclusions=['Producer reachability of raw NaN/infinity/denormal/overflow patterns',
                     'Full spatial mutation after bounds construction',
                     'General simulation trajectories; trig helper domains are raw input words, not public producer proof',

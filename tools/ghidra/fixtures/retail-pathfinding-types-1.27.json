@@ -1525,6 +1525,169 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f070de0",
+      "name": "Math_ParseDecimal",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "text",
+          "type": "ptr:u8",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f071180",
+      "name": "Math_IntegerPower",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "base",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        },
+        {
+          "name": "exponent",
+          "type": "i32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f070170",
+      "name": "Math_ToIntegerSaturating",
+      "returns": "i32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f070d80",
+      "name": "Math_FromIntegerTruncated",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "value",
+          "type": "i32",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f211080",
+      "name": "Jass_S2R",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f204c80",
+      "name": "Jass_I2R",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "i32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f2103a0",
+      "name": "Jass_R2I",
+      "returns": "i32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f215d00",
+      "name": "Jass_Sin",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1f9580",
+      "name": "Jass_Cos",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1f75d0",
+      "name": "Jass_Acos",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f215d30",
+      "name": "Jass_SquareRoot",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [
@@ -1545,6 +1708,12 @@
       "name": "Math_TrigPhaseScale",
       "type": "WC3PathScalar",
       "evidence": "Stored scalar4822f983;071340 consumes static angle-to-phase multiplier. Complete raw/helper alias matrix and generated sine table verification. No runtime initialization producer inferred."
+    },
+    {
+      "address": "6fcd53a0",
+      "name": "Math_PublicNearZeroThreshold",
+      "type": "WC3PathScalar",
+      "evidence": "Static3a83126f (~0.001), public SquareRoot215d30/Atan21f8290 compare abs scalar difference strictly below. Original wrapper raw equality controls and live decimal inputs; complete initializer inventory remains NUM-01.2."
     }
   ]
 }

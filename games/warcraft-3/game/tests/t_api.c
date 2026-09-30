@@ -76,6 +76,89 @@ static void selection_native_test_write(pfWriteType_t type, void const *data) {
 
 static void selection_native_test_unicast(edict_t *ent) { (void)ent; }
 
+/* Retail public decimal parser outputs captured with raw words, not R2S text. */
+TEST(wc3_api, pathfinding_decimal_destination_uses_retail_parser) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  local real x = S2R(\"1936.25\")\n"
+        "  local real y = S2R(\"144.125\")\n"
+        "  call BJassAssert(S2R(\"1.25\") == 1.25, \"decimal was truncated to integer\")\n"
+        "  call BJassAssert(x == 1936.2501220703125, \"coordinate parser rounding differs\")\n"
+        "  call BJassAssert(y == 144.125, \"fractional coordinate missing\")\n"
+        "  call BJassAssert(S2R(\"1.25e2\") == 1.25, \"exponent suffix should terminate decimal\")\n"
+        "  call BJassAssert(S2R(\" 1.25\") == 0.0, \"leading whitespace should terminate decimal\")\n"
+        "  call BJassAssert(S2R(\"1234567890\") == 1234567808.0, \"significant digit truncation differs\")\n"
+        "  call BJassAssert(IssuePointOrder(mover, \"move\", x, y), \"parsed point order rejected\")\n"
+        "endfunction\n"));
+    edict_t *mover = NULL;
+    for (int i = MAX_CLIENTS; i < globals.num_edicts; i++)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) mover = &g_edicts[i];
+    T_ASSERT(mover != NULL);
+    if (mover) {
+        vec2_t issued;
+        T_ASSERT(G_GetIssuedOrderPoint(mover, &issued));
+        T_EQ(issued.x, 1936.2501220703125f);
+        T_EQ(issued.y, 144.125f);
+    }
+    reset_entities();
+}
+
+/* Frozen public-native words, with decimal text producing the real inputs. */
+TEST(wc3_api, pathfinding_public_numeric_natives_match_retail_words) {
+    static char const *assertions[] = {
+        "  call BJassAssert(I2R(0) == 0.0, \"i2r_0 exact retail word\")\n",
+        "  call BJassAssert(I2R(1) == 1.0, \"i2r_1 exact retail word\")\n",
+        "  call BJassAssert(I2R(-1) == -1.0, \"i2r_2 exact retail word\")\n",
+        "  call BJassAssert(I2R(16777217) == 16777216.0, \"i2r_3 exact retail word\")\n",
+        "  call BJassAssert(I2R(2147483647) == 2147483520.0, \"i2r_4 exact retail word\")\n",
+        "  call BJassAssert(I2R(-2147483647) == -2147483520.0, \"i2r_5 exact retail word\")\n",
+        "  call BJassAssert(R2I(S2R(\"0.0\")) == 0, \"r2i_0 exact retail word\")\n",
+        "  call BJassAssert(R2I(S2R(\"0.5\")) == 0, \"r2i_1 exact retail word\")\n",
+        "  call BJassAssert(R2I(S2R(\"-0.5\")) == 0, \"r2i_2 exact retail word\")\n",
+        "  call BJassAssert(R2I(S2R(\"1.75\")) == 1, \"r2i_3 exact retail word\")\n",
+        "  call BJassAssert(R2I(S2R(\"-1.75\")) == -1, \"r2i_4 exact retail word\")\n",
+        "  call BJassAssert(R2I(S2R(\"2147483648.0\")) == 2147483520, \"r2i_5 exact retail word\")\n",
+        "  call BJassAssert(R2I(S2R(\"-2147483648.0\")) == -2147483520, \"r2i_6 exact retail word\")\n",
+        "  call BJassAssert(R2I(S2R(\"10000000000.0\")) == 2147483647, \"r2i_7 exact retail word\")\n",
+        "  call BJassAssert(R2I(S2R(\"-10000000000.0\")) == (-2147483647 - 1), \"r2i_8 exact retail word\")\n",
+        "  call BJassAssert(Sin(S2R(\"0.0\")) == 0.0, \"sin_0 exact retail word\")\n",
+        "  call BJassAssert(Sin(S2R(\"0.6\")) == 0.56463992595672607421875, \"sin_1 exact retail word\")\n",
+        "  call BJassAssert(Sin(S2R(\"-0.6\")) == -0.564634978771209716796875, \"sin_2 exact retail word\")\n",
+        "  call BJassAssert(Sin(S2R(\"3.141592653589793\")) == 0.0000000004656612873077392578125, \"sin_3 exact retail word\")\n",
+        "  call BJassAssert(Sin(S2R(\"6.283185307179586\")) == -0.0000000004656612873077392578125, \"sin_4 exact retail word\")\n",
+        "  call BJassAssert(Cos(S2R(\"0.0\")) == 0.999999940395355224609375, \"cos_0 exact retail word\")\n",
+        "  call BJassAssert(Cos(S2R(\"0.6\")) == 0.8253371715545654296875, \"cos_1 exact retail word\")\n",
+        "  call BJassAssert(Cos(S2R(\"-0.6\")) == 0.825340569019317626953125, \"cos_2 exact retail word\")\n",
+        "  call BJassAssert(Cos(S2R(\"3.141592653589793\")) == -0.999999940395355224609375, \"cos_3 exact retail word\")\n",
+        "  call BJassAssert(Cos(S2R(\"6.283185307179586\")) == 0.999999940395355224609375, \"cos_4 exact retail word\")\n",
+        "  call BJassAssert(Acos(S2R(\"-2.0\")) == 0.0, \"acos_0 exact retail word\")\n",
+        "  call BJassAssert(Acos(S2R(\"-1.0\")) == 3.1415927410125732421875, \"acos_1 exact retail word\")\n",
+        "  call BJassAssert(Acos(S2R(\"-0.6\")) == 2.2142975330352783203125, \"acos_2 exact retail word\")\n",
+        "  call BJassAssert(Acos(S2R(\"0.0\")) == 1.5707962512969970703125, \"acos_3 exact retail word\")\n",
+        "  call BJassAssert(Acos(S2R(\"0.6\")) == 0.927295029163360595703125, \"acos_4 exact retail word\")\n",
+        "  call BJassAssert(Acos(S2R(\"1.0\")) == 0.0, \"acos_5 exact retail word\")\n",
+        "  call BJassAssert(Acos(S2R(\"2.0\")) == 0.0, \"acos_6 exact retail word\")\n",
+        "  call BJassAssert(SquareRoot(S2R(\"-4.0\")) == 0.0, \"squareroot_0 exact retail word\")\n",
+        "  call BJassAssert(SquareRoot(S2R(\"-0.0005\")) == 0.0, \"squareroot_1 exact retail word\")\n",
+        "  call BJassAssert(SquareRoot(S2R(\"0.0\")) == 0.0, \"squareroot_2 exact retail word\")\n",
+        "  call BJassAssert(SquareRoot(S2R(\"0.0009999999\")) == 0.0316229127347469329833984375, \"squareroot_3 exact retail word\")\n",
+        "  call BJassAssert(SquareRoot(S2R(\"0.001\")) == 0.0316229127347469329833984375, \"squareroot_4 exact retail word\")\n",
+        "  call BJassAssert(SquareRoot(S2R(\"0.0010000002\")) == 0.0316229127347469329833984375, \"squareroot_5 exact retail word\")\n",
+        "  call BJassAssert(SquareRoot(S2R(\"0.5\")) == 0.707106769084930419921875, \"squareroot_6 exact retail word\")\n",
+        "  call BJassAssert(SquareRoot(S2R(\"2.0\")) == 1.41421353816986083984375, \"squareroot_7 exact retail word\")\n",
+        "  call BJassAssert(SquareRoot(S2R(\"4.0\")) == 2.0, \"squareroot_8 exact retail word\")\n",
+    };
+    setup_test_world();
+    for (unsigned i = 0; i < sizeof(assertions) / sizeof(assertions[0]); i++) {
+        char script[1024];
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n%sendfunction\n", assertions[i]);
+        T_ASSERT(run_test_jass(script));
+    }
+    reset_entities();
+}
+
 TEST(wc3_api, revive_hero_location_native_restores_grom_style_death) {
     edict_t *hero;
 

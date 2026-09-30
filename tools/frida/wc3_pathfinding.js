@@ -1,6 +1,7 @@
 // WC3 1.27.1.7085. Entry/exit observers; no gameplay calls or target data writes.
 let installed = false, samples = 0, serial = 0, rebuildSamples = 0;
 let widgetScenario = false;
+let numericCase = null;
 const counts = {}, active = new Map();
 const emit = (event, data = {}) => send({event, ms: Date.now(), ...data});
 const bump = kind => {counts[kind] = (counts[kind] || 0) + 1;};
@@ -15,6 +16,40 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.numericEvents) {
+        for (const [name, rva] of [['S2R',0x211080], ['I2R',0x204c80], ['R2I',0x2103a0],
+                                  ['Sin',0x215d00], ['Cos',0x1f9580], ['Acos',0x1f75d0],
+                                  ['SquareRoot',0x215d30]]) {
+            hook(rva, {
+                onEnter(args) {
+                    this.numeric = numericCase && numericCase.native === name ? {...numericCase} : null;
+                    if (!this.numeric) return;
+                    if (name !== 'S2R')
+                        this.numeric.input = name === 'I2R' ? args[0].toUInt32() : args[0].readU32();
+                },
+                onLeave(result) {
+                    if (this.numeric) {
+                        bump('numeric-native');
+                        emit('numeric-native', {...this.numeric, output:result.toUInt32()});
+                    }
+                }
+            });
+        }
+        hook(0x070de0, {
+            onEnter() {
+                this.numeric = numericCase && numericCase.native === 'S2R' ? {...numericCase} : null;
+                if (!this.numeric) return;
+                this.output = this.context.ecx;
+                this.numeric.text = this.context.edx.readCString();
+            },
+            onLeave() {
+                if (this.numeric) {
+                    bump('numeric-parser');
+                    emit('numeric-parser', {...this.numeric, output:this.output.readU32()});
+                }
+            }
+        });
+    }
     if (config.profileEvents) {
         for (const [rva, kind] of [[0x690c20, 'query-mask'], [0x690c80, 'category']]) {
             hook(rva, {
@@ -616,6 +651,13 @@ function install(module) {
     hook(0x231df0, {onEnter(args) {
         if (args[0].isNull()) return;
         const value = args[0].readCString();
+        if (config.numericEvents && value.startsWith('PATHNUM ')) {
+            const match = /^PATHNUM case=([a-z0-9_]+) native=([A-Za-z0-9]+)$/.exec(value);
+            if (match) numericCase = {case:match[1], native:match[2]};
+            else if (/^PATHNUM done=/.test(value)) numericCase = null;
+            else throw new Error('Malformed numeric marker: ' + value);
+            emit('numeric-marker', {value});
+        }
         if (value.startsWith('PATHCROWD ')) emit('crowd-marker', {value});
         if (value.startsWith('PATHTARGET ')) emit('target-marker', {value});
         if (value.startsWith('PATHWIDGET ')) emit('widget-marker', {value});

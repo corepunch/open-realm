@@ -101,10 +101,21 @@ function PathProbeOrderLifecycle takes nothing returns nothing
     endif
 endfunction
 
+function PathProbeNumericInputs takes nothing returns nothing
+    local real realResult = 0.0
+    local integer integerResult = 0
+@NUMERIC_CASES@
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
+    local real numericX = 0.0
+    local real numericY = 0.0
     set udg_PathProbeTick = udg_PathProbeTick + 1
+    if PATH_PROBE_SCENARIO == 23 and udg_PathProbeTick == 1 then
+        call PathProbeNumericInputs()
+    endif
     if PATH_PROBE_SCENARIO == 22 then
         call PathProbeOrderLifecycle()
     endif
@@ -124,6 +135,18 @@ function PathProbeTick takes nothing returns nothing
         call PathProbeRecord("before_order")
         if (PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) then
             if IssueTargetOrder(udg_PathProbeUnit, "smart", udg_PathProbeTarget) then
+                call PathProbeRecord("order_accepted")
+            else
+                call PathProbeRecord("order_rejected")
+            endif
+        elseif PATH_PROBE_SCENARIO == 23 then
+            call Preload("PATHNUM case=move_x native=S2R")
+            set numericX = S2R("-1936.25")
+            call Preload("PATHNUM done=move_x value=" + R2S(numericX))
+            call Preload("PATHNUM case=move_y native=S2R")
+            set numericY = S2R("-144.125")
+            call Preload("PATHNUM done=move_y value=" + R2S(numericY))
+            if IssuePointOrder(udg_PathProbeUnit, "move", numericX, numericY) then
                 call PathProbeRecord("order_accepted")
             else
                 call PathProbeRecord("order_rejected")

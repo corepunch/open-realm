@@ -94,6 +94,96 @@ subsequent travel, close-goal arrival and save/load. Turn and arrival regression
 failed before the corresponding fixes. On this host `make test` needs native
 SDL2 as documented in [test performance](../../test-performance.md#linux-sdl-compatibility-layer-text-event-crash).
 
+## Public scalar inputs and decimal destinations
+
+NUM-01.5/06 bridge the verified movement arithmetic into actual public JASS
+inputs. OpenRealm previously implemented `S2R` with `atoi`, losing fractional
+coordinates, and used host casts/libm for `I2R`, `R2I`, `Sin`, `Cos`, `Acos`
+and `SquareRoot`. `api_misc.h` now uses the verified software scalars, retaining
+each public wrapper's own domain guard. These changes affect WC3's native API;
+SC2's separate Galaxy math adapters are outside this change.
+
+The original registration at207490 installs these actual functions:
+
+| Native | RVA | Input / return |
+| --- | --- | --- |
+| S2R | 211080 | encoded string handle / raw scalar word |
+| I2R | 204c80 | signed integer value / raw scalar word |
+| R2I | 2103a0 | scalar pointer / signed integer |
+| Sin / Cos | 215d00 / 1f9580 | scalar pointer / raw scalar word |
+| Acos | 1f75d0 | scalar pointer / raw scalar word |
+| SquareRoot | 215d30 | scalar pointer / raw scalar word |
+
+All seven registered wrappers are cdecl with stack4 input and EAX result.
+`S2R` resolves its string through06e8d0, returns zero for absent/empty text,
+otherwise calls070de0 (ECX output, EDX text, EAX output pointer, plain RET).
+The parser accepts an optional leading sign, one decimal point and nine
+significant digits, stopping at any other byte. It skips no leading whitespace
+and recognizes no exponent notation. Leading zeroes do not count as significant
+digits. Scaling uses071180's scalar multiplication/squaring of10 and original
+070d80's truncating integer conversion, followed by scalar multiply/divide.
+A host `strtof` would still miss the actual contract: `S2R("1936.25")` is raw
+`44f20801` (1936.2501220703125), while the exactly representable host value is
+`44f20800`. The negative coordinate is `c4f20801`; `"-144.125"` is `c3102000`.
+
+`R2I` calls070170, saturating exponents >=158 to INTMAX/INTMIN according to
+sign. It differs from raw wrapping070120. `I2R` truncates the integer
+significand; INTMAX becomes2147483520. `Cos(0)` is `3f7fffff`.
+`Acos` returns zero for values strictly outside[-1,1]; unordered COMISS does
+not take the rejection branch, a distinction retained by the engine adapter.
+`SquareRoot` returns zero when `abs(ScalarSubtract(input,0))` is strictly below
+static `3a83126f` (~0.001), or input is negative. Equality executes071480.
+The threshold belongs to the public wrapper, not the raw root helper used
+by movement. Nonfinite raw-wrapper controls do not establish producer reachability.
+
+`num-01.6-public-wrapper-engine-exact.json` records2,024 original parser calls
+matching independent integer formulas and production C, plus12,210 executions
+of the six registered numeric wrappers with raw synthetic inputs, preserved
+input/guard words, nonvolatile registers and balanced cdecl stack. The isolated
+parser supplies only ASCII `isdigit`; all scalar/parser instructions execute
+unchanged. The separate live witness uses retail's installed sibling CRT.
+Parser digest is `45fb304aa5ffa02919dae455d2e5ede75299567f71be7b9acb058374f7713556`;
+wrapper digest is `1af7c716e12804fbb195cf546923f6411cb1be6dc73bae87adbf59dea713440c`.
+
+`numeric_inputs` map scenario23 brackets calls with `PATHNUM` markers before
+native argument evaluation. Both complete `runtime/num-01.5-inputs2-{raw,repeat}.jsonl`
+captures contain67 native returns and25 nonempty original parser witnesses.
+Inputs for real-valued natives come through explicit `S2R` text; integer inputs
+remain actual integer values. The normalized raw sequence repeats exactly with
+digest `cbeb498cdb8e4f0de7806f4be9cb44a321ea44d4b5aa1bad3d2a974429f62d2e`.
+A real public Move task retains both parsed destination words above. Capture
+metadata embeds hashes of observer, controller, probe, builder, case data and
+the actual generated map; the fixture retains those historical hashes.
+`verify_wc3_numeric_inputs.py` rejects missing/reordered markers, mismatched
+input/output/helper text, changed provenance, counts and destination words.
+The corpus pins both captures independently.
+
+Public engine tests reproduced21 failures across41 numeric cases, then pass
+all41 frozen words. The separate decimal/Move regression failed before the
+parser change and now passes five checks, including issued coordinates through
+`IssuePointOrder`. Asset-free C checks cover optimized/unoptimized parser and
+integer conversions against independent models. Ghidra now persists289 names,
+18 partial layouts,115 fields and57 explicit prototypes, including the byte
+text pointer and public wrapper threshold. Report:
+`num-01.6-ghidra-public-numeric-types.json`.
+
+Full validation:83 pathfinding tool tests,37,056 assertions in2,140 engine tests
+for each Classic/TFT run, and both WC3/SC2 production builds pass.
+`num-01.6-public-corpus/corpus-results.json` passes123/123 with all recorded
+source fingerprints unchanged through completion. Manifest SHA256:
+`e013410a7e49451311ce5b872b543b6bba13f28f8a4495c142a9620622c07448`;
+summary SHA256:
+`849aa7407ec18ae6dea6d91790da46cbcd17fe04542b6a44bf136360179362f2`.
+
+Exploratory `runtime/num-01.5-inputs-raw.jsonl` used long compiled decimal
+literals and exposed a different producer contract: for example a long literal
+written for0.6 reached Sin with raw `bf85635d`. This trace is retained as
+an investigation artifact; it is not the accepted decimal-input fixture.
+NUM-01.7 explicitly owns the original JASS literal compiler/parser and engine
+integration. Remaining angle/power helpers, their constant initialization,
+non-ASCII grammar/locale and broader public exceptional domains stay NUM-01.2/03.
+Whole trajectory/cadence parity remains NUM-02.3.
+
 ## Generated tables and exact trigonometry
 
 `generate_wc3_math_tables.py` independently generates the static tables into

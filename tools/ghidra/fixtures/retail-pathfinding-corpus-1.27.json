@@ -411,17 +411,28 @@
         },
         "paired_trig_sha256": {
           "equal": "01131f854754268404722dcdae905cde29dcbb40228f0c30c877a346dd21c44e"
+        },
+        "decimal_cases": {
+          "equal": 2024
+        },
+        "decimal_sha256": {
+          "equal": "45fb304aa5ffa02919dae455d2e5ede75299567f71be7b9acb058374f7713556"
+        },
+        "public_wrapper_cases": {
+          "equal": 12210
+        },
+        "public_wrapper_sha256": {
+          "equal": "1af7c716e12804fbb195cf546923f6411cb1be6dc73bae87adbf59dea713440c"
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability.",
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat.",
       "exclusions": [
         "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
         "Full spatial mutation after bounds construction",
         "General simulation trajectories and trigonometry",
-        "Independent derivation of reciprocal table values; reference reads authoritative binary constants",
         "Non-power-of-two map scales are not asserted to be producer-reachable"
       ]
     },
@@ -1613,17 +1624,28 @@
         },
         "paired_trig_sha256": {
           "equal": "01131f854754268404722dcdae905cde29dcbb40228f0c30c877a346dd21c44e"
+        },
+        "decimal_cases": {
+          "equal": 2024
+        },
+        "decimal_sha256": {
+          "equal": "45fb304aa5ffa02919dae455d2e5ede75299567f71be7b9acb058374f7713556"
+        },
+        "public_wrapper_cases": {
+          "equal": 12210
+        },
+        "public_wrapper_sha256": {
+          "equal": "1af7c716e12804fbb195cf546923f6411cb1be6dc73bae87adbf59dea713440c"
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability.",
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability. Adds2024 original decimal parser texts (ASCII isdigit import supplied, original scalar code retained) and12210 registered public-wrapper raw calls; genuine public-domain evidence is separately live-public-numeric-repeat.",
       "exclusions": [
         "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
         "Full spatial mutation after bounds construction",
         "General simulation trajectories and trigonometry",
-        "Independent derivation of reciprocal table values; reference reads authoritative binary constants",
         "Non-power-of-two map scales are not asserted to be producer-reachable"
       ]
     },
@@ -5583,6 +5605,118 @@
       "exclusions": [
         "Timer X/Y and life text has three decimal places; raw float trajectory and full OpenRealm clock/position parity remain open. Full original VM/Unit construction and alternate owner branches remain BASE-03.1/ORDER-01.9..15. The engine synchronous target-removal gap is explicitly ORDER-01.15. Observer/map source hashes were recorded separately after capture, not embedded in trace metadata."
       ]
+    },
+    {
+      "id": "live-public-numeric-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_numeric_inputs.py",
+        "--capture",
+        "{archive}/runtime/num-01.5-inputs2-raw.jsonl",
+        "--repeat",
+        "{archive}/runtime/num-01.5-inputs2-repeat.jsonl",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.5-inputs2-raw.jsonl",
+        "sha256": "ece99081d4c7797b717e4a28d22aec2d0e03943dbf6b46d07e410efcd8fe1842",
+        "bytes": 102712,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "fb1a94e0a26bd1c865ffb11e3ffb2adf6bbb0e88f3cd35c2a1e40cd4b71bd29e",
+            "wc3_pathfinding.js": "c8592586263352d257766b64406a08ae653110d24ae2d5e16c44a4a74ef536e9",
+            "wc3_pathfinding_probe.j": "55263671fe28cb59471c48b6579196cb3caad33e14a340a7f488a5238e4ac40b",
+            "make_wc3_pathfinding_map.py": "cd4140a2fee24b77c6df846c7c3cbe88e2897ed72f7ecf56fc83e924b1d3b57f",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "map": "8eb2b0d82b0f58b9b2f0d874be2275bea33abbd0f64b86a5139c25f30ff0e0ec"
+          },
+          "map": "Maps\\PathingRE-NumericInputs2.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/num-01.5-inputs2-repeat.jsonl",
+            "sha256": "f7c24a1fa04c0a3ad0249c67b6ecefc54d3ac10c1e22919598031f9bbb9bf415",
+            "bytes": 102712,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "fb1a94e0a26bd1c865ffb11e3ffb2adf6bbb0e88f3cd35c2a1e40cd4b71bd29e",
+                "wc3_pathfinding.js": "c8592586263352d257766b64406a08ae653110d24ae2d5e16c44a4a74ef536e9",
+                "wc3_pathfinding_probe.j": "55263671fe28cb59471c48b6579196cb3caad33e14a340a7f488a5238e4ac40b",
+                "make_wc3_pathfinding_map.py": "cd4140a2fee24b77c6df846c7c3cbe88e2897ed72f7ecf56fc83e924b1d3b57f",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "map": "8eb2b0d82b0f58b9b2f0d874be2275bea33abbd0f64b86a5139c25f30ff0e0ec"
+              },
+              "map": "Maps\\PathingRE-NumericInputs2.w3m",
+              "seconds": 130.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 1000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": false,
+              "velocityEvents": false,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": true
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-public-numeric-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-public-numeric-repeat",
+      "checks": {
+        "violations": {
+          "equal": []
+        },
+        "repeat_equal": {
+          "equal": true
+        },
+        "native_cases": {
+          "equal": 67
+        },
+        "parser_cases": {
+          "equal": 25
+        },
+        "numeric_sha256": {
+          "equal": "cbeb498cdb8e4f0de7806f4be9cb44a321ea44d4b5aa1bad3d2a974429f62d2e"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Original public S2R/I2R/R2I/Sin/Cos/Acos/SquareRoot raw input/output words and parser calls under bracketed JASS cases. Both67-native/25-parser runs repeat exactly; actual public Move retains parsed coordinates. Metadata freezes observer/controller/probe/builder/case source and map hashes.",
+      "exclusions": [
+        "Non-ASCII string locale, original compiled long-literal parser, full simulation trajectory and other scalar natives remain open."
+      ]
     }
   ],
   "fixtures": [
@@ -5648,7 +5782,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "a9c149376a243e7191cab59532d16c958defe8c89beda48437bd0871ace2be62"
+      "sha256": "b470a3c00bd7162e3c3c638cf7acb57b46d341d6a082fb1c23ae608141d263ef"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -5693,6 +5827,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-order-lifecycle-1.27.json",
       "sha256": "f75f058abc4ef7fe0a2c74ea73d6c4532a707acf5467b42e9cff4c3404419df0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-numeric-inputs-1.27.json",
+      "sha256": "c33742ec5ef6084c6c1d648c683ca6a02694f9441a98ad0bf509e8ed1d406010"
+    },
+    {
+      "path": "tools/frida/wc3_numeric_inputs.json",
+      "sha256": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946"
     }
   ]
 }

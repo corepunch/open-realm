@@ -104,6 +104,7 @@ public class MapPathfindingTypes extends GhidraScript {
             currentProgram.getImageBase().getOffset() != Long.parseLong(target.get("image_base").getAsString(), 16))
             throw new Exception("Requires game.dll 1.27.1.7085 at preferred base 6f000000");
         types.put("void", VoidDataType.dataType);
+        types.put("u8", UnsignedCharDataType.dataType);
         types.put("u16", UnsignedShortDataType.dataType);
         types.put("u32", UnsignedIntegerDataType.dataType);
         types.put("i32", IntegerDataType.dataType);

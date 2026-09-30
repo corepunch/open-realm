@@ -35,6 +35,10 @@ uint32_t pathing_velocity_heading(uint32_t x, uint32_t y, uint32_t current) {
     return wc3_float_bits(wc3_velocity_heading(wc3_float(x), wc3_float(y), wc3_float(current)));
 }
 
+uint32_t pathing_integer_float(uint32_t a) { return wc3_from_int(a); }
+uint32_t pathing_saturating_integer(uint32_t a) { return wc3_saturating_int_bits(a); }
+uint32_t pathing_decimal(char const *text) { return wc3_float_bits(wc3_decimal(text)); }
+
 uint32_t pathing_sqrt(uint32_t a) { return wc3_float_bits(wc3_sqrt(wc3_float(a))); }
 uint32_t pathing_reciprocal(uint32_t a) { return wc3_float_bits(wc3_recip(wc3_float(a))); }
 uint32_t pathing_divide(uint32_t a, uint32_t b) { return wc3_float_bits(wc3_div(wc3_float(a), wc3_float(b))); }

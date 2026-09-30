@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Isolate a timed move/terrain edit in a copied Human02Interlude terrain archive."""
 import argparse
+from decimal import Decimal
 import hashlib
 import json
 import math
@@ -10,7 +11,39 @@ import tempfile
 from pathlib import Path
 
 SCENARIOS = {'open': 0, 'wall': 1, 'insert': 2, 'remove': 3, 'remove_reorder': 4,
-             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22}
+             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23}
+
+
+def numeric_calls():
+    """Explicit public calls, each bracketed before argument evaluation can call the native."""
+    cases = json.loads(Path(__file__).with_name('wc3_numeric_inputs.json').read_text())['cases']
+    lines = []
+    seen = set()
+    for case in cases:
+        name, value, identity = case['native'], case['input'], case['id']
+        if name not in ('S2R', 'I2R', 'R2I', 'Sin', 'Cos', 'Acos', 'SquareRoot'):
+            raise ValueError('unsupported numeric native: ' + name)
+        if not re.fullmatch(r'[a-z0-9_]+', identity) or identity in seen:
+            raise ValueError('duplicate or invalid numeric case ID')
+        seen.add(identity)
+        if name == 'S2R':
+            if not isinstance(value, str) or any(ord(ch) < 32 or ord(ch) > 126 for ch in value):
+                raise ValueError('numeric text fixture requires printable ASCII')
+            argument = json.dumps(value)
+        elif name == 'I2R':
+            if type(value) is not int or not -2147483648 <= value <= 2147483647:
+                raise ValueError('I2R fixture requires signed integer')
+            argument = str(value)
+        else:
+            if not isinstance(value, (int, float)) or not math.isfinite(value):
+                raise ValueError('numeric real fixture requires finite value')
+            # Feed decimal text through the observed public parser; long compiled
+            # JASS literals have a separate producer contract.
+            argument = 'S2R(' + json.dumps(format(Decimal(str(value)), 'f')) + ')'
+        lines.append('    call Preload("PATHNUM case=' + identity + ' native=' + name + '")')
+        lines.append('    set ' + ('integerResult' if name == 'R2I' else 'realResult') + ' = ' + name + '(' + argument + ')')
+        lines.append('    call Preload("PATHNUM done=' + identity + ' value=" + ' + ('I2S(integerResult)' if name == 'R2I' else 'R2S(realResult)') + ')')
+    return '\n'.join(lines)
 
 
 def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit_y=-240.0):
@@ -28,6 +61,7 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
     if 'gg_rct_SorcAFight = Rect( -1856.0, -352.0, -1728.0, -224.0 )' not in script:
         raise ValueError('unexpected source map geometry')
     probe = probe.replace('@SCENARIO@', str(SCENARIOS[scenario])).replace('@NAME@', scenario)
+    probe = probe.replace('@NUMERIC_CASES@', numeric_calls())
     probe = probe.replace('@REMOVE_TICK@', str(remove_tick))
     probe = probe.replace('@GATE_Y@', str(float(gate_y))).replace('@GATE_EXIT_Y@', str(float(gate_exit_y)))
     block = re.search(r'^globals\n(.*?)^endglobals\n', probe, re.M | re.S)

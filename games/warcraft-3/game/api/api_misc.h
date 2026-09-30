@@ -1,4 +1,5 @@
 #include "games/warcraft-3/common/minimap.h"
+#include "games/warcraft-3/common/wc3_math.h"
 
 extern player_t *currentplayer;
 
@@ -91,15 +92,32 @@ CONVERT_FUNC(EffectType, effecttype);
 
 MATH_FUNC(Deg2Rad, DEG2RAD, number, number);
 MATH_FUNC(Rad2Deg, RAD2DEG, number, number);
-MATH_FUNC(Sin, sin, number, number);
-MATH_FUNC(Cos, cos, number, number);
+MATH_FUNC(Sin, wc3_sin, number, number);
+MATH_FUNC(Cos, wc3_cos, number, number);
 MATH_FUNC(Tan, tan, number, number);
 MATH_FUNC(Asin, asin, number, number);
-MATH_FUNC(Acos, acos, number, number);
+/* Registered1f75d0 keeps the original public [-1,1] admission guard. */
+uint32_t Acos(jass_t *j) {
+    float value = jass_checknumber(j, 1);
+    return jass_pushnumber(j, value < -1.0f || value > 1.0f ? 0.0f : wc3_acos(value));
+}
 MATH_FUNC(Atan, atan, number, number);
-MATH_FUNC(SquareRoot, sqrt, number, number);
-MATH_FUNC(I2R, (float), integer, number);
-MATH_FUNC(R2I, (int32_t), number, integer);
+/* Registered215d30 compares the scalar difference from zero, strictly below
+ * cd53a0's raw3a83126f threshold; equality still executes the root helper. */
+uint32_t SquareRoot(jass_t *j) {
+    float value = jass_checknumber(j, 1);
+    float distance = wc3_float(wc3_float_bits(wc3_sub(value, 0.0f)) & 0x7fffffffu);
+    return jass_pushnumber(j, distance < wc3_float(0x3a83126f) || value < 0.0f ? 0.0f : wc3_sqrt(value));
+}
+uint32_t I2R(jass_t *j) {
+    return jass_pushnumber(j, wc3_float(wc3_from_int((uint32_t)jass_checkinteger(j, 1))));
+}
+uint32_t R2I(jass_t *j) {
+    uint32_t word = wc3_saturating_int_bits(wc3_float_bits(jass_checknumber(j, 1)));
+    int32_t value;
+    memcpy(&value, &word, sizeof(value));
+    return jass_pushinteger(j, value);
+}
 MATH_FUNC2(Pow, pow, number);
 MATH_FUNC2(Atan2, atan2, number);
 uint32_t OrderId(jass_t *j) {
@@ -113,7 +131,7 @@ MATH_FUNC(AbilityId, class_id, string, integer);
 MATH_FUNC(UnitId2String, GetClassName, integer, string);
 MATH_FUNC(AbilityId2String, GetClassName, integer, string);
 MATH_FUNC(S2I, atoi, string, integer);
-MATH_FUNC(S2R, atoi, string, number);
+MATH_FUNC(S2R, wc3_decimal, string, number);
 
 uint32_t I2S(jass_t *j) {
     int32_t i = jass_checkinteger(j, 1);

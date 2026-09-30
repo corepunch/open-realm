@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """Evidence checks run without retail assets, Wine, or Frida."""
 import importlib.util
+import copy
+import json
+import struct
 from pathlib import Path
 import unittest
 
 spec = importlib.util.spec_from_file_location('path_trace', Path(__file__).resolve().parents[1] / 'tools/frida/analyze_pathfinding_trace.py')
 trace = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(trace)
+numeric_spec = importlib.util.spec_from_file_location('numeric_inputs', Path(__file__).resolve().parents[1] / 'tools/frida/verify_wc3_numeric_inputs.py')
+numeric = importlib.util.module_from_spec(numeric_spec)
+numeric_spec.loader.exec_module(numeric)
+
 HASH = 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236'
 
 
@@ -17,6 +24,37 @@ def capture(*searches, calls=None):
 
 
 class PathTraceTests(unittest.TestCase):
+    def test_public_numeric_contract_rejects_word_order_and_provenance_changes(self):
+        fixture = json.loads(numeric.FIXTURE.read_text())
+        rows = [dict(event='metadata', sha256=fixture['target_sha256'], source_sha256=fixture['source_sha256'])]
+        for case in fixture['cases']:
+            identity, name = case['id'], case['native']
+            rows.append(dict(event='numeric-marker', value=f'PATHNUM case={identity} native={name}'))
+            if name == 'S2R' and case['input']:
+                rows.append(dict(event='numeric-parser', case=identity, native=name, text=case['input'], output=case['output']))
+            row = dict(event='numeric-native', case=identity, native=name, output=case['output'])
+            if 'input_word' in case: row['input'] = case['input_word']
+            rows.append(row)
+            rows.append(dict(event='numeric-marker', value=f'PATHNUM done={identity} value=completion'))
+        destination = [struct.unpack('<f', struct.pack('<I', w))[0] for w in fixture['move_destination_words']]
+        rows += [dict(event='point-task', destination=destination),
+                 dict(event='marker', value='PATHTRACE tick=10 label=order_accepted x=0 y=0 order=851986'),
+                 dict(event='marker', value='PATHTRACE tick=300 label=complete x=0 y=0 order=0'),
+                 dict(event='trace-end', installed=True, counts={'numeric-native':67, 'numeric-parser':25})]
+        self.assertEqual(numeric.verify(rows, fixture)['violations'], [])
+        for mode in ['output','input','text','bracket','provenance','destination','count','failure','missing']:
+            changed = copy.deepcopy(rows)
+            if mode == 'output': next(r for r in changed if r['event'] == 'numeric-native')['output'] ^= 1
+            elif mode == 'input': next(r for r in changed if 'input' in r)['input'] ^= 1
+            elif mode == 'text': next(r for r in changed if r['event'] == 'numeric-parser')['text'] = '1.250001'
+            elif mode == 'bracket': changed[1], changed[2] = changed[2], changed[1]
+            elif mode == 'provenance': changed[0]['source_sha256']['map'] = '0' * 64
+            elif mode == 'destination': next(r for r in changed if r['event'] == 'point-task')['destination'][0] = -1936.25
+            elif mode == 'count': changed[-1]['counts']['numeric-native'] -= 1
+            elif mode == 'failure': changed.append(dict(type='error', event='error'))
+            else: changed.pop(2)
+            self.assertTrue(numeric.verify(changed, fixture)['violations'], mode)
+
     def test_patrol_reversal_requires_approach_and_return_under_current_head(self):
         markers = [dict(tick=t, label='sample', x=-1936.0,
                         y=-464.0 + 14 * min(t - 150, 44 - (t - 150)), order=851991)
