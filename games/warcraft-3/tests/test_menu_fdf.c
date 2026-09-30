@@ -3368,6 +3368,68 @@ TEST(menu_fdf, single_player_screen_loads_tft_campaigns) {
     test_single_player_campaign_profile(true);
 }
 
+TEST(menu_fdf, campaign_backdrops_play_birth_before_stand) {
+    cstring_t files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\SinglePlayerMenu.fdf",
+        "UI\\FrameDef\\Glue\\CampaignMenu.fdf",
+        "UI\\FrameDef\\Glue\\MapListBox.fdf",
+    };
+    menuImport_t saved = mi;
+
+    test_glue_setup();
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    mi.Printf = test_ui_printf;
+    test_command_imports();
+    mi.GetRenderer = test_get_renderer;
+    mi.Cvar_String = test_cvar_string;
+    mi.FS_ReadFile = test_fs_read_file;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+    mi.UserPath = test_user_path;
+    test_fs_expansion = false;
+    test_campaign_visibility = NULL;
+    remove(test_campaign_progress_path);
+
+    T_ASSERT(singlePlayerMenuScreen.load());
+    singlePlayerMenuScreen.init();
+    SinglePlayerMenu_ShowCampaign();
+    captured_entity_anim[0] = '\0';
+    singlePlayerMenuScreen.draw();
+    T_STREQ(captured_entity_anim, "Birth@0.0000");
+
+    M_SetActive(true);
+    M_Refresh(M_Time() + 500);
+    singlePlayerMenuScreen.draw();
+    T_STREQ(captured_entity_anim, "Birth@0.5000");
+    T_EQ(captured_glue_view.deltaTime, 500);
+    T_ASSERT(captured_glue_view.rdflags & RDF_ISOLATED_PARTICLES);
+    M_Refresh(M_Time() + 500);
+    singlePlayerMenuScreen.draw();
+    T_STREQ(captured_entity_anim, "Stand");
+
+    Cmd_ExecuteString("menu_single_player_campaign_orc");
+    singlePlayerMenuScreen.draw();
+    T_STREQ(captured_entity_anim, "Birth@0.0000");
+    M_Refresh(M_Time() + 500);
+    singlePlayerMenuScreen.draw();
+    T_STREQ(captured_entity_anim, "Birth@0.5000");
+    M_Refresh(M_Time() + 500);
+    singlePlayerMenuScreen.draw();
+    T_STREQ(captured_entity_anim, "Stand");
+
+    test_skip_menu_transitions = true;
+    Cmd_ExecuteString("menu_single_player_campaign_human");
+    singlePlayerMenuScreen.draw();
+    T_STREQ(captured_entity_anim, "Stand");
+    test_skip_menu_transitions = false;
+
+    remove(test_campaign_progress_path);
+    mi = saved;
+}
+
 static char const *utf16le_src_ascii;
 static int utf16le_fs_read(cstring_t file_name, void **buf) {
     char const *src = utf16le_src_ascii;

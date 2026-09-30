@@ -90,6 +90,10 @@ static frameDef_t *campaign_list_frame;
 static uiMapListState_t mission_list;
 static frameDef_t *mission_list_frame;
 static uint32_t campaign_background_model = 0;
+static bool campaign_background_birth_started, campaign_background_birth_complete;
+static uint32_t campaign_background_birth_start, campaign_background_birth_duration;
+static bool campaign_background_has_render_time;
+static uint32_t campaign_background_last_render_time;
 static uint32_t selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
 static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
 static wc3CampaignProgress_t campaign_progress;
@@ -499,7 +503,53 @@ static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campa
         single_player.CampaignBackdrop_2->Portrait.model = campaign_background_model;
         fprintf(stderr, "[UI] Campaign backdrop: skin=\"%s\" model_idx=%u\n",
                 campaign->background, (unsigned)campaign_background_model);
+        if (!campaign_background_model || !UI_GetModel(campaign_background_model)) {
+            fprintf(stderr, "UI: campaign backdrop '%s' did not resolve to a loaded model\n",
+                    campaign->background);
+        }
     }
+}
+
+static void SinglePlayer_BeginCampaignBackdropBirth(singlePlayerCampaign_t const *campaign) {
+    refExport_t *renderer = mi.GetRenderer();
+    model_t const *model = UI_GetModel(campaign_background_model);
+
+    campaign_background_birth_started = false;
+    campaign_background_birth_complete = false;
+    campaign_background_birth_start = M_Time();
+    campaign_background_birth_duration = 0;
+    campaign_background_has_render_time = false;
+    if (UI_GlueSkipTransitions()) {
+        campaign_background_birth_complete = true;
+        return;
+    }
+    if (!model || !renderer || !renderer->GetModelAnimationDuration ||
+        !renderer->GetModelAnimationDuration(model, "Birth", &campaign_background_birth_duration) ||
+        !campaign_background_birth_duration) {
+        fprintf(stderr, "UI: campaign backdrop '%s' has no valid Birth sequence duration; using Stand\n",
+                campaign ? campaign->background : "(unknown)");
+        campaign_background_birth_complete = true;
+        return;
+    }
+    campaign_background_birth_started = true;
+}
+
+static cstring_t SinglePlayer_CampaignBackdropAnimation(string_t anim, size_t anim_size) {
+    uint32_t elapsed;
+
+    if (UI_GlueSkipTransitions()) {
+        campaign_background_birth_complete = true;
+        return "Stand";
+    }
+    if (!campaign_background_birth_started || campaign_background_birth_complete) return "Stand";
+    elapsed = M_Time() - campaign_background_birth_start;
+    if (elapsed >= campaign_background_birth_duration) {
+        campaign_background_birth_complete = true;
+        return "Stand";
+    }
+    snprintf(anim, anim_size, "Birth@%.4f",
+             (float)elapsed / (float)campaign_background_birth_duration);
+    return anim;
 }
 
 static void SinglePlayer_DrawCampaignBackdrop(void) {
@@ -507,19 +557,33 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
     model_t const *model = UI_GetModel(campaign_background_model);
 
     if (renderer && renderer->RenderFrame && model) {
+        uint32_t scene_time = M_Time();
+        uint32_t delta_time = campaign_background_has_render_time &&
+                scene_time >= campaign_background_last_render_time
+            ? scene_time - campaign_background_last_render_time : 0;
         renderEntity_t entity = {0};
         entity.model = model;
         entity.scale = 1.0f;
         entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
-        renderer->SetEntityAnimFrame(model, "Stand", &entity);
+        if (renderer->SetEntityAnimFrame) {
+            char anim[32];
+            renderer->SetEntityAnimFrame(model,
+                                         SinglePlayer_CampaignBackdropAnimation(anim, sizeof(anim)),
+                                         &entity);
+        }
 
         viewDef_t viewdef = {0};
         viewdef.viewport = (rect_t){0, 0, 1, 1};
-        viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+        viewdef.time = scene_time;
+        viewdef.deltaTime = delta_time;
+        viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG |
+                          RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES;
         viewdef.num_entities = 1;
         viewdef.entities = &entity;
 
         renderer->RenderFrame(&viewdef);
+        campaign_background_last_render_time = scene_time;
+        campaign_background_has_render_time = true;
     }
 }
 
@@ -699,6 +763,7 @@ static void SinglePlayer_SelectCampaign(singlePlayerCampaign_t const *campaign) 
     SinglePlayer_LoadCampaignProgress();
     selected_campaign_index = (uint32_t)(campaign - campaigns);
     SinglePlayer_SetCampaignBackdrop(campaign);
+    SinglePlayer_BeginCampaignBackdropBirth(campaign);
     SinglePlayer_PopulateMissionSelect(campaign);
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MISSION_SELECT);
 }
@@ -961,7 +1026,9 @@ void SinglePlayerMenu_ShowMain(void) {
 void SinglePlayerMenu_ShowCampaign(void) {
     SinglePlayer_LoadCampaignProgress();
     SinglePlayer_PopulateCampaignList();
-    SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign());
+    singlePlayerCampaign_t const *campaign = SinglePlayer_DefaultCampaign();
+    SinglePlayer_SetCampaignBackdrop(campaign);
+    SinglePlayer_BeginCampaignBackdropBirth(campaign);
     selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
 }
