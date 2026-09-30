@@ -393,9 +393,9 @@ static color32_t FX_GetFrame(cparticle_t const *p) {
     uint32_t vsize = 256 / rows;
     return (color32_t) {
         usize * u,
-        vsize * v,
-        usize * (u + 1) - 1,
         vsize * (v + 1) - 1,
+        usize * (u + 1) - 1,
+        vsize * v,
     };
 }
 
