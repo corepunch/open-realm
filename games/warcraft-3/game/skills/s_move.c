@@ -324,16 +324,19 @@ static void unit_moveindirection_policy(edict_t *self,
 
     /* Runtime PropWindow follows SetUnitPropWindow's native radians contract;
      * spawn converts authored UnitData degrees once at the boundary. */
-    /* Zero is the runtime sentinel used by units with no authored window. */
-    if (self->unitinfo.PropWindow > 0.0f) {
-        float const window = self->unitinfo.PropWindow;
-        float const delta = fabsf(angle_wrap(self->movement.heading - self->s.angle));
-        if (delta > window) {
-            if (!G_AnimationHasPrimary(self->animation, "stand"))
-                unit_setanimation(self, "stand");
-            return;
-        }
+    float const window = self->unitinfo.PropWindow;
+    float const delta = fabsf(angle_wrap(self->movement.heading - self->s.angle));
+    if (delta >= window) {
+        if (!G_AnimationHasPrimary(self->animation, "stand"))
+            unit_setanimation(self, "stand");
+        return;
     }
+
+    /* ai_move_walk() requests Walk before this common propulsion check. Restore
+     * it here only after the heading is inside PropWindow, so a blocked turn
+     * can keep advancing its Stand clip instead of restarting it each tick. */
+    if (!G_AnimationHasPrimary(self->animation, "walk"))
+        unit_setanimation(self, "walk");
 
     float const dist = unit_movedistance(self);
     vec2_t const facing_dir = MAKE(vec2_t, cosf(self->s.angle), sinf(self->s.angle));
@@ -1349,7 +1352,6 @@ static void ai_follow_walk(edict_t *ent) {
     }
 
     if (standing) move_reset_progress(ent);
-    unit_setanimation(ent, "walk");
     unit_changeangle(ent);
     if (ent->movement.flow_unreachable) {
         unit_setanimation(ent, "stand");
@@ -1425,7 +1427,6 @@ static void ai_move_walk(edict_t *ent) {
     }
 
     if (move_displacement_active(ent) && !move_displacement_reached(ent)) {
-        unit_setanimation(ent, "walk");
         unit_changeangle(ent);
         unit_moveindirection(ent);
         return;
@@ -1504,10 +1505,6 @@ static void ai_move_walk(edict_t *ent) {
         if (ent->movement.flow_goal_reached) {
             return;
         }
-
-        /* Restore the walk pose only after steering resolves a heading;
-         * previously it advertised the stale facing throughout the pause. */
-        unit_setanimation(ent, "walk");
 
         /* Retail move orders keep trying when another unit temporarily blocks
          * the path.  Preserve the old near-goal settle behavior so an occupied

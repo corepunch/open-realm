@@ -2039,11 +2039,10 @@ TEST(wc3_combat, direct_attack_rejects_reused_target_edict) {
     T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
 
     G_FreeEdict(target);
-    target = &g_edicts[target_number];
-    memset(target, 0, sizeof(*target));
-    target->inuse = true;
-    target->s.number = (int)target_number;
-    target->spawn_time = attacker->attack_target_spawn_time + 1;
+    level.time = target->freetime + 1001;
+    target = G_Spawn();
+    T_EQ((uint32_t)(target - g_edicts), target_number);
+    target->spawn_time = level.time;
     target->svflags |= SVF_MONSTER;
     target->health.value = target->health.max_value = 420.0f;
     target->targtype = TARG_GROUND;
