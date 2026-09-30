@@ -1113,3 +1113,77 @@ x86 prototypes,22 partial layouts/138 fields and35 scalar globals. Report:
 of every numeric family. Remaining inventory01.2 must classify those producers;
 actual alias reachability, CRT grammar/locale and nonreturning VM lifetime stay
 01.12/13/14. Compiled literal parsing remains01.7.
+
+
+## Compiled JASS real literals
+
+NUM-01.7 recovers the decimal-token producer at925260 separately from public
+S2R's070de0. The lexer supplies NUL-terminated unsigned token text through+98.
+The procedure returns token109 in EAX, writes the raw scalar to+24, and preserves
+nonvolatile registers with plain RET. Parent lexer9249d0 invokes it at924e6f;
+the observed return site is924e74. Unary minus is a separate source operation,
+including negative zero and sign reversal after a wrapped negative prefix.
+
+The integer prefix, fractional numerator and power-of-ten denominator all
+accumulate modulo32. Original070d80 converts each wrapped signed integer.
+Original06fcd0 divides the fraction, then06fbb0 adds the converted prefix. Every
+fractional digit participates; S2R's nine-significant-digit policy does not apply.
+The denominator may wrap to zero. These are observable retail outputs, not
+host IEEE decimal conversion or arbitrary precision source constants.
+
+| Source literal | Raw VM/native input | Observed consequence |
+| --- | --- | --- |
+| `0.6` | `3f19999a` | Ordinary fractional conversion |
+| `0.59999999999999998` | `bf85635d` | Fraction accumulator wraps negative; host conversion to0.6 is wrong |
+| `4294967297.5` | `3fc00000` | Prefix wraps to1 before adding0.5 |
+| `2147483648.0` | `cf000000` | Prefix converts as signed minus2^31 |
+| `-2147483648.0` | `4f000000` | Unary minus reverses the wrapped prefix |
+| `0.00000000000000000000000000000001` | `7f000000` | Wrapped zero denominator follows retail scalar division |
+| `1.00000000000000000000000000000000` | `40000000` | Equal zero fraction/denominator takes the scalar equality result1 |
+
+The engine now uses `wc3_literal` for JASS real tokens. `TF_RETAIL_REAL` attaches
+the numeric producer to the parsed source token; loading Galaxy into the same VM
+cannot change earlier JASS literal behavior. Galaxy retains its existing host
+number conversion. Unsupported host-strtod identifiers such as nan/inf report a
+visible runtime error instead of entering the decimal producer. Full original
+lexical grammar is explicitly NUM-01.15; integer tokens925210/925350 are01.16.
+These limits do not claim that retail rejects the same identifiers before that
+experiment. The dormant `VM_Compile` text emitter has no callers and does not
+execute this production path.
+
+Two owned live captures repeat32 public R2I argument/output pairs and40 read-only
+compiler output/token/caller observations exactly. Ordinary, `.5`, `0.`, unary
+signs and long prefix/fraction/denominator overflow all pass real compilation.
+Public native sequence digest:
+`5a3109312428b4c29a88b873b8c9f330b3b45561943f7b676fa3f8ed76e89883`.
+Compiler event digest:
+`408b2c06ef30ef303bc5d05e4470b9245d6939e41fa54004e43d6f6fe3126288`.
+Archive files `runtime/num-01.7-literals-{first,repeat}-raw.jsonl` have adjacent
+exact observer/generator/input/map copies and embedded hashes. Frozen fixture:
+`retail-compiled-literal-inputs-1.27.json`. Report: `num-01.7-live-literals.json`.
+
+`verify_wc3_pathing_literals.py` executes4,064 original/model/C calls with lexer
+write-region, untouched token text, return-token, stack and register guards.
+Optimized/unoptimized C retain digest
+`29ddca0c9fc50ddab40b92a23cb4b5da47e3f8baf4be167c0d907c708eb20a24`.
+Reports: `num-01.7-literals-O0.json` and `-O2.json`. The engine reproducer fails
+four of five stored raw words before the fix. It now preserves the exact compiled
+Move destination and save/load constants plus later evaluations. A mixed-language
+regression retains both original source policies after parser reuse. Prior native
+regressions store actual results through production hashtables and compare frozen
+C words, so expected values are independent of the literal parser under test.
+No save-record fields or format bytes change; reconstructed tokens carry the
+producer flag and the existing program hash includes it. Historical saves with
+old token hashes are not claimed compatible.
+
+Ghidra persists336 names,23 layouts/142 fields,100 explicit x86 prototypes and35
+scalar globals. `WC3JassLexerPrefix` assigns only the verified scalar/text/line/
+length fields; other bytes stay undefined. Report: `num-01.7-ghidra-types.json`.
+
+
+Validation at this checkpoint: WC3 and SC2 production builds pass; full `make test`
+passes37,854 assertions/2,160 WC3 cases in both fixture variants and91 pathfinding
+tool tests. Fresh corpus `num-01.7-final-corpus/corpus-results.json` passes all142
+outcomes (58 oracles,73 archive audits,11 strict live contracts), with every
+recorded source fingerprint unchanged. NUM-01.7 is closed. Next numeric producer
+experiment is01.16; remaining ownership inventory is01.2.

@@ -965,6 +965,36 @@
           "evidence": "04ce4c direct parent comparison;04cea3 recursive traversal"
         }
       ]
+    },
+    {
+      "name": "WC3JassLexerPrefix",
+      "length": 200,
+      "fields": [
+        {
+          "offset": 36,
+          "name": "real_literal_word",
+          "type": "WC3PathScalar",
+          "evidence": "925260 onlywrite24, raw result; live compiled token109"
+        },
+        {
+          "offset": 152,
+          "name": "token_text",
+          "type": "ptr:u8",
+          "evidence": "925260 input NUL token;9249d0 lexer token producer"
+        },
+        {
+          "offset": 192,
+          "name": "line_count",
+          "type": "u32",
+          "evidence": "9249d0 increments on newline lexical action"
+        },
+        {
+          "offset": 196,
+          "name": "token_length",
+          "type": "u32",
+          "evidence": "9249d0 text terminator;925210 decimal integer token reads length"
+        }
+      ]
     }
   ],
   "methods": [
@@ -2526,6 +2556,18 @@
       "returns": "ptr:WC3PathScalar",
       "convention": "__cdecl",
       "parameters": []
+    },
+    {
+      "address": "6f925260",
+      "name": "JassLexer_ParseRealLiteral",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "lexer",
+          "type": "ptr:WC3JassLexerPrefix",
+          "storage": "ECX"
+        }
+      ]
     }
   ],
   "globals": [

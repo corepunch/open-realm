@@ -246,6 +246,21 @@ static inline bool wc3_pow(float base, float power, float *output) {
 }
 
 
+/* Compiled JASS real token925260: unsigned decimal text, signed32 wrapping
+ * accumulators, then software division/addition. The lexer owns validation and
+ * unary signs; unlike S2R, every fractional digit participates in the wrap. */
+static inline float wc3_literal(char const *text) {
+    uint32_t whole = 0, numerator = 0, denominator = 1;
+    for (; *text && *text != '.'; text++) whole = whole * 10 + (*text - '0');
+    if (!*text) return wc3_float(wc3_from_int(whole));
+    for (text++; *text; text++) {
+        numerator = numerator * 10 + (*text - '0');
+        denominator *= 10;
+    }
+    float fraction = wc3_div(wc3_float(wc3_from_int(numerator)), wc3_float(wc3_from_int(denominator)));
+    return wc3_add(wc3_float(wc3_from_int(whole)), fraction);
+}
+
 /* Public S2R's decimal parser070de0: optional sign, one point, nine significant
  * digits, no whitespace skipping/exponents. Scalar scaling also truncates.
  * ASCII digits match the observed CRT grammar; JASS strings are byte strings. */

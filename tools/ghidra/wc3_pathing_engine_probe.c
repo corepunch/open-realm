@@ -146,3 +146,6 @@ void pathing_integrate(uint32_t *words) {
     for (unsigned i = 0; i < 2; i++) words[i] = wc3_float_bits(wc3_add(pos[i], wc3_float(words[9 + i])));
     words[4] = words[6]; words[5] = words[7];
 }
+
+/* Compiled source tokens have a distinct producer from public S2R strings. */
+uint32_t pathing_literal(char const *text) { return wc3_float_bits(wc3_literal(text)); }

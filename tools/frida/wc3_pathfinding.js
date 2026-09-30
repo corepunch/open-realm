@@ -53,6 +53,22 @@ function install(module) {
             }
         });
     }
+    if (config.literalTexts && config.literalTexts.length) {
+        const literals = new Set(config.literalTexts);
+        hook(0x925260, {
+            onEnter() {
+                this.lexer = this.context.ecx;
+                const text = this.lexer.add(0x98).readPointer().readCString();
+                this.literal = literals.has(text) ? {text, caller:this.returnAddress.sub(base).toUInt32()} : null;
+            },
+            onLeave(result) {
+                if (!this.literal) return;
+                bump('numeric-literal');
+                if (counts['numeric-literal'] <= config.samples)
+                    emit('numeric-literal', {...this.literal, token:result.toUInt32(), output:this.lexer.add(0x24).readU32()});
+            }
+        });
+    }
     if (config.profileEvents) {
         for (const [rva, kind] of [[0x690c20, 'query-mask'], [0x690c80, 'category']]) {
             hook(rva, {

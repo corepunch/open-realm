@@ -109,7 +109,16 @@ static unsigned int gal_TestFail(jass_t *j) {
     return 0;
 }
 
+static uint32_t gal_captured_real;
+/* A host observer makes mixed-language literal checks independent of script comparisons. */
+static uint32_t gal_capture_real(jass_t *j) {
+    float value = jass_checknumber(j, 1);
+    memcpy(&gal_captured_real, &value, sizeof(value));
+    return 0;
+}
+
 static jassModule_t gal_test_natives[] = {
+    { "CaptureReal", gal_capture_real },
     { "TestFail", gal_TestFail },
     { "NoValue", gal_void },
     { "SaveCode", gal_save_code },
@@ -286,6 +295,29 @@ static int gal_run_mode(gal_state_t *s, char const *src, JASSMODE mode) {
 }
 
 static int gal_run(gal_state_t *s, char const *src) { return gal_run_mode(s, src, JASS_MODE_GALAXY); }
+
+/* Token arithmetic remains attached to its source language after another parser runs. */
+TEST(galaxy, real_literals_retain_source_language) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run_mode(&s,
+        "native CaptureReal takes real value returns nothing\n"
+        "function RetailLiteral takes nothing returns nothing\n"
+        "  call CaptureReal(0.59999999999999998)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\nendfunction\n", JASS_MODE_JASS));
+    jass_callbyname(s.j, "RetailLiteral", true);
+    jass_runevents(s.j);
+    T_EQ(gal_captured_real, 0xbf85635d);
+    T_ASSERT(gal_run_mode(&s,
+        "native void CaptureReal(fixed value);\n"
+        "void main() { CaptureReal(0.59999999999999998); }\n", JASS_MODE_GALAXY));
+    T_EQ(gal_captured_real, 0x3f19999a);
+    jass_callbyname(s.j, "RetailLiteral", true);
+    jass_runevents(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    T_EQ(gal_captured_real, 0xbf85635d);
+    gal_destroy(&s);
+}
 
 /* Parse-only: load but don't call main(). */
 static int gal_parse_mode(gal_state_t *s, char const *src, JASSMODE mode) {

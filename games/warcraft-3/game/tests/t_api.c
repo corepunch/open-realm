@@ -29,6 +29,7 @@ void setup_test_world(void);
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(box2_t const *bounds);
 bool run_test_jass(cstring_t src);
+bool run_test_jass_error(cstring_t src, cstring_t expected);
 extern player_t *currentplayer;
 void unit_die(edict_t *self, edict_t *attacker);
 void unit_build(edict_t *self, uint32_t class_id);
@@ -85,7 +86,6 @@ TEST(wc3_api, pathfinding_decimal_destination_uses_retail_parser) {
         "  local real x = S2R(\"1936.25\")\n"
         "  local real y = S2R(\"144.125\")\n"
         "  call BJassAssert(S2R(\"1.25\") == 1.25, \"decimal was truncated to integer\")\n"
-        "  call BJassAssert(x == 1936.2501220703125, \"coordinate parser rounding differs\")\n"
         "  call BJassAssert(y == 144.125, \"fractional coordinate missing\")\n"
         "  call BJassAssert(S2R(\"1.25e2\") == 1.25, \"exponent suffix should terminate decimal\")\n"
         "  call BJassAssert(S2R(\" 1.25\") == 0.0, \"leading whitespace should terminate decimal\")\n"
@@ -105,170 +105,326 @@ TEST(wc3_api, pathfinding_decimal_destination_uses_retail_parser) {
     reset_entities();
 }
 
+/* Capture actual VM literal values in their owning hashtable, independently of JASS comparisons. */
+TEST(wc3_api, pathfinding_compiled_literals_match_retail_words) {
+    static uint32_t const expected[] = {0xbf85635d, 0x3f19999a, 0x3fc00000, 0xcf000000, 0x7f000000};
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local hashtable values = InitHashtable()\n"
+        "  local unit mover = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  call SaveReal(values, 0, 0, 0.59999999999999998)\n"
+        "  call SaveReal(values, 0, 1, 0.6)\n"
+        "  call SaveReal(values, 0, 2, 4294967297.5)\n"
+        "  call SaveReal(values, 0, 3, 2147483648.0)\n"
+        "  call SaveReal(values, 0, 4, 0.00000000000000000000000000000001)\n"
+        "  call BJassAssert(IssuePointOrder(mover, \"move\", 4294967297.5, 144.125), \"compiled point order rejected\")\n"
+        "endfunction\n"));
+    hashtable_t const *table = &level.hashtables[0];
+    T_EQ(table->num_entries, 5);
+    FOR_LOOP(i, table->num_entries) {
+        uint32_t word;
+        memcpy(&word, &table->entries[i].value.real, sizeof(word));
+        T_EQ(table->entries[i].type, HT_REAL);
+        T_EQ(table->entries[i].child, (int32_t)i);
+        T_EQ(word, expected[i]);
+    }
+    edict_t *mover = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(mover);
+    if (mover) {
+        vec2_t point;
+        T_ASSERT(G_GetIssuedOrderPoint(mover, &point));
+        uint32_t word;
+        memcpy(&word, &point.x, sizeof(word));
+        T_EQ(word, 0x3fc00000);
+        memcpy(&word, &point.y, sizeof(word));
+        T_EQ(word, 0x43102000);
+    }
+    reset_entities();
+}
+
+/* Save/load reconstructs source tokens and retains both stored words and future evaluations. */
+TEST(wc3_api, pathfinding_compiled_literals_survive_save_load) {
+    cstring_t path = "/tmp/openwarcraft3-wc3-compiled-literals-save.bin";
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  hashtable values = null\n"
+        "  constant real compiled = 0.59999999999999998\n"
+        "endglobals\n"
+        "function StoreCompiled takes nothing returns nothing\n"
+        "  call SaveReal(values, 0, 0, compiled)\n"
+        "  call SaveReal(values, 0, 1, 4294967297.5)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set values = InitHashtable()\n"
+        "  call StoreCompiled()\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    FOR_LOOP(pass, 2) {
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 2);
+        if (table->num_entries == 2) {
+            uint32_t word;
+            memcpy(&word, &table->entries[0].value.real, sizeof(word));
+            T_EQ(word, 0xbf85635d);
+            memcpy(&word, &table->entries[1].value.real, sizeof(word));
+            T_EQ(word, 0x3fc00000);
+        }
+        if (!pass) {
+            jass_callbyname(level.vm, "StoreCompiled", true);
+            jass_runevents(level.vm);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+    }
+    remove(path);
+    reset_entities();
+}
+
+/* Unrecovered host-only token syntax must not enter the verified decimal producer. */
+TEST(wc3_api, pathfinding_compiled_unverified_numeric_syntax_reports_error) {
+    setup_test_world();
+    T_ASSERT(!run_test_jass("function main takes nothing returns nothing\n  local real value = 1e2\nendfunction\n"));
+    T_ASSERT(run_test_jass_error("function main takes nothing returns nothing\n  local real value = nan\nendfunction\n",
+        "Compiled real token outside verified retail decimal grammar"));
+    T_ASSERT(run_test_jass_error("function main takes nothing returns nothing\n  local real value = inf\nendfunction\n",
+        "Compiled real token outside verified retail decimal grammar"));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n  call BJassAssert(.5 == 0.5, \"verified decimal syntax recovers\")\nendfunction\n"));
+    reset_entities();
+}
+
 /* Frozen public-native words, with decimal text producing the real inputs. */
 TEST(wc3_api, pathfinding_public_numeric_natives_match_retail_words) {
-    static char const *assertions[] = {
-        "  call BJassAssert(I2R(0) == 0.0, \"i2r_0 exact retail word\")\n",
-        "  call BJassAssert(I2R(1) == 1.0, \"i2r_1 exact retail word\")\n",
-        "  call BJassAssert(I2R(-1) == -1.0, \"i2r_2 exact retail word\")\n",
-        "  call BJassAssert(I2R(16777217) == 16777216.0, \"i2r_3 exact retail word\")\n",
-        "  call BJassAssert(I2R(2147483647) == 2147483520.0, \"i2r_4 exact retail word\")\n",
-        "  call BJassAssert(I2R(-2147483647) == -2147483520.0, \"i2r_5 exact retail word\")\n",
-        "  call BJassAssert(R2I(S2R(\"0.0\")) == 0, \"r2i_0 exact retail word\")\n",
-        "  call BJassAssert(R2I(S2R(\"0.5\")) == 0, \"r2i_1 exact retail word\")\n",
-        "  call BJassAssert(R2I(S2R(\"-0.5\")) == 0, \"r2i_2 exact retail word\")\n",
-        "  call BJassAssert(R2I(S2R(\"1.75\")) == 1, \"r2i_3 exact retail word\")\n",
-        "  call BJassAssert(R2I(S2R(\"-1.75\")) == -1, \"r2i_4 exact retail word\")\n",
-        "  call BJassAssert(R2I(S2R(\"2147483648.0\")) == 2147483520, \"r2i_5 exact retail word\")\n",
-        "  call BJassAssert(R2I(S2R(\"-2147483648.0\")) == -2147483520, \"r2i_6 exact retail word\")\n",
-        "  call BJassAssert(R2I(S2R(\"10000000000.0\")) == 2147483647, \"r2i_7 exact retail word\")\n",
-        "  call BJassAssert(R2I(S2R(\"-10000000000.0\")) == (-2147483647 - 1), \"r2i_8 exact retail word\")\n",
-        "  call BJassAssert(Sin(S2R(\"0.0\")) == 0.0, \"sin_0 exact retail word\")\n",
-        "  call BJassAssert(Sin(S2R(\"0.6\")) == 0.56463992595672607421875, \"sin_1 exact retail word\")\n",
-        "  call BJassAssert(Sin(S2R(\"-0.6\")) == -0.564634978771209716796875, \"sin_2 exact retail word\")\n",
-        "  call BJassAssert(Sin(S2R(\"3.141592653589793\")) == 0.0000000004656612873077392578125, \"sin_3 exact retail word\")\n",
-        "  call BJassAssert(Sin(S2R(\"6.283185307179586\")) == -0.0000000004656612873077392578125, \"sin_4 exact retail word\")\n",
-        "  call BJassAssert(Cos(S2R(\"0.0\")) == 0.999999940395355224609375, \"cos_0 exact retail word\")\n",
-        "  call BJassAssert(Cos(S2R(\"0.6\")) == 0.8253371715545654296875, \"cos_1 exact retail word\")\n",
-        "  call BJassAssert(Cos(S2R(\"-0.6\")) == 0.825340569019317626953125, \"cos_2 exact retail word\")\n",
-        "  call BJassAssert(Cos(S2R(\"3.141592653589793\")) == -0.999999940395355224609375, \"cos_3 exact retail word\")\n",
-        "  call BJassAssert(Cos(S2R(\"6.283185307179586\")) == 0.999999940395355224609375, \"cos_4 exact retail word\")\n",
-        "  call BJassAssert(Acos(S2R(\"-2.0\")) == 0.0, \"acos_0 exact retail word\")\n",
-        "  call BJassAssert(Acos(S2R(\"-1.0\")) == 3.1415927410125732421875, \"acos_1 exact retail word\")\n",
-        "  call BJassAssert(Acos(S2R(\"-0.6\")) == 2.2142975330352783203125, \"acos_2 exact retail word\")\n",
-        "  call BJassAssert(Acos(S2R(\"0.0\")) == 1.5707962512969970703125, \"acos_3 exact retail word\")\n",
-        "  call BJassAssert(Acos(S2R(\"0.6\")) == 0.927295029163360595703125, \"acos_4 exact retail word\")\n",
-        "  call BJassAssert(Acos(S2R(\"1.0\")) == 0.0, \"acos_5 exact retail word\")\n",
-        "  call BJassAssert(Acos(S2R(\"2.0\")) == 0.0, \"acos_6 exact retail word\")\n",
-        "  call BJassAssert(SquareRoot(S2R(\"-4.0\")) == 0.0, \"squareroot_0 exact retail word\")\n",
-        "  call BJassAssert(SquareRoot(S2R(\"-0.0005\")) == 0.0, \"squareroot_1 exact retail word\")\n",
-        "  call BJassAssert(SquareRoot(S2R(\"0.0\")) == 0.0, \"squareroot_2 exact retail word\")\n",
-        "  call BJassAssert(SquareRoot(S2R(\"0.0009999999\")) == 0.0316229127347469329833984375, \"squareroot_3 exact retail word\")\n",
-        "  call BJassAssert(SquareRoot(S2R(\"0.001\")) == 0.0316229127347469329833984375, \"squareroot_4 exact retail word\")\n",
-        "  call BJassAssert(SquareRoot(S2R(\"0.0010000002\")) == 0.0316229127347469329833984375, \"squareroot_5 exact retail word\")\n",
-        "  call BJassAssert(SquareRoot(S2R(\"0.5\")) == 0.707106769084930419921875, \"squareroot_6 exact retail word\")\n",
-        "  call BJassAssert(SquareRoot(S2R(\"2.0\")) == 1.41421353816986083984375, \"squareroot_7 exact retail word\")\n",
-        "  call BJassAssert(SquareRoot(S2R(\"4.0\")) == 2.0, \"squareroot_8 exact retail word\")\n",
+    static struct { cstring_t expression; uint32_t word; bool integer; } const cases[] = {
+        { "S2R(\"1.25\")", 0x3fa00000u, false },
+        { "S2R(\"-1.25\")", 0xbfa00000u, false },
+        { "S2R(\"+1.25\")", 0x3fa00000u, false },
+        { "S2R(\".125\")", 0x3e000000u, false },
+        { "S2R(\"1936.25\")", 0x44f20801u, false },
+        { "S2R(\"-1936.25\")", 0xc4f20801u, false },
+        { "S2R(\"144.125\")", 0x43102000u, false },
+        { "S2R(\"123456789.123456789\")", 0x4ceb79a2u, false },
+        { "S2R(\"0.000000123456789\")", 0x34048f8au, false },
+        { "S2R(\"1234567890\")", 0x4e932c05u, false },
+        { "S2R(\"2147483648\")", 0x4effffffu, false },
+        { "S2R(\"1.25e2\")", 0x3fa00000u, false },
+        { "S2R(\"1.25;more\")", 0x3fa00000u, false },
+        { "S2R(\"1..25\")", 0x3f800000u, false },
+        { "S2R(\"1e3\")", 0x3f800000u, false },
+        { "S2R(\"abc\")", 0x00000000u, false },
+        { "S2R(\"nan\")", 0x00000000u, false },
+        { "S2R(\"inf\")", 0x00000000u, false },
+        { "S2R(\" 1.25\")", 0x00000000u, false },
+        { "S2R(\"\")", 0x00000000u, false },
+        { "S2R(\".\")", 0x00000000u, false },
+        { "S2R(\"-0.0\")", 0x00000000u, false },
+        { "S2R(\"+0\")", 0x00000000u, false },
+        { "S2R(\"12345678901234567890123456789012345678901234567890\")", 0x00000000u, false },
+        { "I2R(0)", 0x00000000u, false },
+        { "I2R(1)", 0x3f800000u, false },
+        { "I2R(-1)", 0xbf800000u, false },
+        { "I2R(16777217)", 0x4b800000u, false },
+        { "I2R(2147483647)", 0x4effffffu, false },
+        { "I2R(-2147483647)", 0xceffffffu, false },
+        { "R2I(S2R(\"0.0\"))", 0x00000000u, true },
+        { "R2I(S2R(\"0.5\"))", 0x00000000u, true },
+        { "R2I(S2R(\"-0.5\"))", 0x00000000u, true },
+        { "R2I(S2R(\"1.75\"))", 0x00000001u, true },
+        { "R2I(S2R(\"-1.75\"))", 0xffffffffu, true },
+        { "R2I(S2R(\"2147483648.0\"))", 0x7fffff80u, true },
+        { "R2I(S2R(\"-2147483648.0\"))", 0x80000080u, true },
+        { "R2I(S2R(\"10000000000.0\"))", 0x7fffffffu, true },
+        { "R2I(S2R(\"-10000000000.0\"))", 0x80000000u, true },
+        { "Sin(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Sin(S2R(\"0.6\"))", 0x3f108c3eu, false },
+        { "Sin(S2R(\"-0.6\"))", 0xbf108bebu, false },
+        { "Sin(S2R(\"3.141592653589793\"))", 0x30000000u, false },
+        { "Sin(S2R(\"6.283185307179586\"))", 0xb0000000u, false },
+        { "Cos(S2R(\"0.0\"))", 0x3f7fffffu, false },
+        { "Cos(S2R(\"0.6\"))", 0x3f53494cu, false },
+        { "Cos(S2R(\"-0.6\"))", 0x3f534985u, false },
+        { "Cos(S2R(\"3.141592653589793\"))", 0xbf7fffffu, false },
+        { "Cos(S2R(\"6.283185307179586\"))", 0x3f7fffffu, false },
+        { "Acos(S2R(\"-2.0\"))", 0x00000000u, false },
+        { "Acos(S2R(\"-1.0\"))", 0x40490fdbu, false },
+        { "Acos(S2R(\"-0.6\"))", 0x400db70du, false },
+        { "Acos(S2R(\"0.0\"))", 0x3fc90fdau, false },
+        { "Acos(S2R(\"0.6\"))", 0x3f6d6335u, false },
+        { "Acos(S2R(\"1.0\"))", 0x00000000u, false },
+        { "Acos(S2R(\"2.0\"))", 0x00000000u, false },
+        { "SquareRoot(S2R(\"-4.0\"))", 0x00000000u, false },
+        { "SquareRoot(S2R(\"-0.0005\"))", 0x00000000u, false },
+        { "SquareRoot(S2R(\"0.0\"))", 0x00000000u, false },
+        { "SquareRoot(S2R(\"0.0009999999\"))", 0x3d018707u, false },
+        { "SquareRoot(S2R(\"0.001\"))", 0x3d018707u, false },
+        { "SquareRoot(S2R(\"0.0010000002\"))", 0x3d018707u, false },
+        { "SquareRoot(S2R(\"0.5\"))", 0x3f3504f3u, false },
+        { "SquareRoot(S2R(\"2.0\"))", 0x3fb504f3u, false },
+        { "SquareRoot(S2R(\"4.0\"))", 0x40000000u, false },
+        { "S2R(\"-1936.25\")", 0xc4f20801u, false },
+        { "S2R(\"-144.125\")", 0xc3102000u, false },
     };
     setup_test_world();
-    for (unsigned i = 0; i < sizeof(assertions) / sizeof(assertions[0]); i++) {
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
         char script[1024];
-        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n%sendfunction\n", assertions[i]);
+        /* Save the actual native result; the C expectation cannot be parsed by the VM. */
+        G_ClearHashtableRegistry();
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "  local hashtable values = InitHashtable()\n"
+            "  call Save%s(values, 0, 0, %s)\nendfunction\n",
+            cases[i].integer ? "Integer" : "Real", cases[i].expression);
         T_ASSERT(run_test_jass(script));
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 1);
+        if (table->num_entries == 1) {
+            uint32_t word;
+            T_EQ(table->entries[0].type, cases[i].integer ? HT_INTEGER : HT_REAL);
+            memcpy(&word, &table->entries[0].value, sizeof(word));
+            T_EQ(word, cases[i].word);
+        }
     }
     reset_entities();
 }
 
 /* Actual registered angle-native outputs with decimal producers and public guards. */
 TEST(wc3_api, pathfinding_public_angle_natives_match_retail_words) {
-    static char const *assertions[] = {
-        "  call BJassAssert(Asin(S2R(\"-2.0\")) == 0.0, \"asin_0 exact retail word\")\n",
-        "  call BJassAssert(Asin(S2R(\"-1.0\")) == -1.57079637050628662109375, \"asin_1 exact retail word\")\n",
-        "  call BJassAssert(Asin(S2R(\"-0.999\")) == -1.5260827541351318359375, \"asin_2 exact retail word\")\n",
-        "  call BJassAssert(Asin(S2R(\"-0.994140625\")) == -1.4624903202056884765625, \"asin_3 exact retail word\")\n",
-        "  call BJassAssert(Asin(S2R(\"-0.6\")) == -0.643501222133636474609375, \"asin_4 exact retail word\")\n",
-        "  call BJassAssert(Asin(S2R(\"0.0\")) == 0.0, \"asin_5 exact retail word\")\n",
-        "  call BJassAssert(Asin(S2R(\"0.6\")) == 0.643501222133636474609375, \"asin_6 exact retail word\")\n",
-        "  call BJassAssert(Asin(S2R(\"0.994140625\")) == 1.46249020099639892578125, \"asin_7 exact retail word\")\n",
-        "  call BJassAssert(Asin(S2R(\"0.999\")) == 1.52608263492584228515625, \"asin_8 exact retail word\")\n",
-        "  call BJassAssert(Asin(S2R(\"1.0\")) == 1.57079637050628662109375, \"asin_9 exact retail word\")\n",
-        "  call BJassAssert(Asin(S2R(\"2.0\")) == 0.0, \"asin_10 exact retail word\")\n",
-        "  call BJassAssert(Atan(S2R(\"-10000.0\")) == -1.570696353912353515625, \"atan_0 exact retail word\")\n",
-        "  call BJassAssert(Atan(S2R(\"-1.0\")) == -0.7853982448577880859375, \"atan_1 exact retail word\")\n",
-        "  call BJassAssert(Atan(S2R(\"-0.6\")) == -0.540419518947601318359375, \"atan_2 exact retail word\")\n",
-        "  call BJassAssert(Atan(S2R(\"-0.2679492\")) == -0.261799335479736328125, \"atan_3 exact retail word\")\n",
-        "  call BJassAssert(Atan(S2R(\"0.0\")) == 0.0, \"atan_4 exact retail word\")\n",
-        "  call BJassAssert(Atan(S2R(\"0.2679492\")) == 0.261799335479736328125, \"atan_5 exact retail word\")\n",
-        "  call BJassAssert(Atan(S2R(\"0.6\")) == 0.540419518947601318359375, \"atan_6 exact retail word\")\n",
-        "  call BJassAssert(Atan(S2R(\"1.0\")) == 0.7853982448577880859375, \"atan_7 exact retail word\")\n",
-        "  call BJassAssert(Atan(S2R(\"10000.0\")) == 1.570696353912353515625, \"atan_8 exact retail word\")\n",
-        "  call BJassAssert(Tan(S2R(\"0.0\")) == 0.0, \"tan_0 exact retail word\")\n",
-        "  call BJassAssert(Tan(S2R(\"0.6\")) == 0.68413245677947998046875, \"tan_1 exact retail word\")\n",
-        "  call BJassAssert(Tan(S2R(\"-0.6\")) == -0.68412363529205322265625, \"tan_2 exact retail word\")\n",
-        "  call BJassAssert(Tan(S2R(\"1.5707963267948966\")) == 2147483520.0, \"tan_3 exact retail word\")\n",
-        "  call BJassAssert(Tan(S2R(\"3.141592653589793\")) == -0.000000000465661342818890489070327021181583404541015625, \"tan_4 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"0.0\"), S2R(\"0.0\")) == 0.0, \"atan2_0 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"0.0009\"), S2R(\"0.0009\")) == 0.0, \"atan2_1 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"0.001\"), S2R(\"0.0009\")) == 0.837981164455413818359375, \"atan2_2 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"0.0009\"), S2R(\"0.001\")) == 0.732815265655517578125, \"atan2_3 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"-0.001\"), S2R(\"0.0\")) == -1.57079637050628662109375, \"atan2_4 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"0.0\"), S2R(\"-0.001\")) == 3.1415927410125732421875, \"atan2_5 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"1.0\"), S2R(\"1.0\")) == 0.7853982448577880859375, \"atan2_6 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"-1.0\"), S2R(\"1.0\")) == -0.7853982448577880859375, \"atan2_7 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"1.0\"), S2R(\"-1.0\")) == 2.35619449615478515625, \"atan2_8 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"-1.0\"), S2R(\"-1.0\")) == -2.35619449615478515625, \"atan2_9 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"10.0\"), S2R(\"1.0\")) == 1.47112762928009033203125, \"atan2_10 exact retail word\")\n",
-        "  call BJassAssert(Atan2(S2R(\"1.0\"), S2R(\"10.0\")) == 0.0996686518192291259765625, \"atan2_11 exact retail word\")\n",
-        "  call BJassAssert(Deg2Rad(S2R(\"0.0\")) == 0.0, \"deg2rad_0 exact retail word\")\n",
-        "  call BJassAssert(Deg2Rad(S2R(\"90.0\")) == 1.57079637050628662109375, \"deg2rad_1 exact retail word\")\n",
-        "  call BJassAssert(Deg2Rad(S2R(\"180.0\")) == 3.1415927410125732421875, \"deg2rad_2 exact retail word\")\n",
-        "  call BJassAssert(Deg2Rad(S2R(\"360.0\")) == 6.283185482025146484375, \"deg2rad_3 exact retail word\")\n",
-        "  call BJassAssert(Deg2Rad(S2R(\"-45.0\")) == -0.785398185253143310546875, \"deg2rad_4 exact retail word\")\n",
-        "  call BJassAssert(Deg2Rad(S2R(\"0.1\")) == 0.001745329354889690876007080078125, \"deg2rad_5 exact retail word\")\n",
-        "  call BJassAssert(Rad2Deg(S2R(\"0.0\")) == 0.0, \"rad2deg_0 exact retail word\")\n",
-        "  call BJassAssert(Rad2Deg(S2R(\"3.141592653589793\")) == 180.0, \"rad2deg_1 exact retail word\")\n",
-        "  call BJassAssert(Rad2Deg(S2R(\"6.283185307179586\")) == 360.0, \"rad2deg_2 exact retail word\")\n",
-        "  call BJassAssert(Rad2Deg(S2R(\"-0.6\")) == -34.377468109130859375, \"rad2deg_3 exact retail word\")\n",
-        "  call BJassAssert(Rad2Deg(S2R(\"0.001\")) == 0.0572957806289196014404296875, \"rad2deg_4 exact retail word\")\n",
+    static struct { cstring_t expression; uint32_t word; bool integer; } const cases[] = {
+        { "Asin(S2R(\"-2.0\"))", 0x00000000u, false },
+        { "Asin(S2R(\"-1.0\"))", 0xbfc90fdbu, false },
+        { "Asin(S2R(\"-0.999\"))", 0xbfc356aeu, false },
+        { "Asin(S2R(\"-0.994140625\"))", 0xbfbb32e2u, false },
+        { "Asin(S2R(\"-0.6\"))", 0xbf24bc7fu, false },
+        { "Asin(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Asin(S2R(\"0.6\"))", 0x3f24bc7fu, false },
+        { "Asin(S2R(\"0.994140625\"))", 0x3fbb32e1u, false },
+        { "Asin(S2R(\"0.999\"))", 0x3fc356adu, false },
+        { "Asin(S2R(\"1.0\"))", 0x3fc90fdbu, false },
+        { "Asin(S2R(\"2.0\"))", 0x00000000u, false },
+        { "Atan(S2R(\"-10000.0\"))", 0xbfc90c94u, false },
+        { "Atan(S2R(\"-1.0\"))", 0xbf490fdcu, false },
+        { "Atan(S2R(\"-0.6\"))", 0xbf0a58efu, false },
+        { "Atan(S2R(\"-0.2679492\"))", 0xbe860a90u, false },
+        { "Atan(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Atan(S2R(\"0.2679492\"))", 0x3e860a90u, false },
+        { "Atan(S2R(\"0.6\"))", 0x3f0a58efu, false },
+        { "Atan(S2R(\"1.0\"))", 0x3f490fdcu, false },
+        { "Atan(S2R(\"10000.0\"))", 0x3fc90c94u, false },
+        { "Tan(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Tan(S2R(\"0.6\"))", 0x3f2f234eu, false },
+        { "Tan(S2R(\"-0.6\"))", 0xbf2f22bau, false },
+        { "Tan(S2R(\"1.5707963267948966\"))", 0x4effffffu, false },
+        { "Tan(S2R(\"3.141592653589793\"))", 0xb0000001u, false },
+        { "Atan2(S2R(\"0.0\"), S2R(\"0.0\"))", 0x00000000u, false },
+        { "Atan2(S2R(\"0.0009\"), S2R(\"0.0009\"))", 0x00000000u, false },
+        { "Atan2(S2R(\"0.001\"), S2R(\"0.0009\"))", 0x3f5685efu, false },
+        { "Atan2(S2R(\"0.0009\"), S2R(\"0.001\"))", 0x3f3b99c8u, false },
+        { "Atan2(S2R(\"-0.001\"), S2R(\"0.0\"))", 0xbfc90fdbu, false },
+        { "Atan2(S2R(\"0.0\"), S2R(\"-0.001\"))", 0x40490fdbu, false },
+        { "Atan2(S2R(\"1.0\"), S2R(\"1.0\"))", 0x3f490fdcu, false },
+        { "Atan2(S2R(\"-1.0\"), S2R(\"1.0\"))", 0xbf490fdcu, false },
+        { "Atan2(S2R(\"1.0\"), S2R(\"-1.0\"))", 0x4016cbe4u, false },
+        { "Atan2(S2R(\"-1.0\"), S2R(\"-1.0\"))", 0xc016cbe4u, false },
+        { "Atan2(S2R(\"10.0\"), S2R(\"1.0\"))", 0x3fbc4de9u, false },
+        { "Atan2(S2R(\"1.0\"), S2R(\"10.0\"))", 0x3dcc1f14u, false },
+        { "Deg2Rad(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Deg2Rad(S2R(\"90.0\"))", 0x3fc90fdbu, false },
+        { "Deg2Rad(S2R(\"180.0\"))", 0x40490fdbu, false },
+        { "Deg2Rad(S2R(\"360.0\"))", 0x40c90fdbu, false },
+        { "Deg2Rad(S2R(\"-45.0\"))", 0xbf490fdbu, false },
+        { "Deg2Rad(S2R(\"0.1\"))", 0x3ae4c389u, false },
+        { "Rad2Deg(S2R(\"0.0\"))", 0x00000000u, false },
+        { "Rad2Deg(S2R(\"3.141592653589793\"))", 0x43340000u, false },
+        { "Rad2Deg(S2R(\"6.283185307179586\"))", 0x43b40000u, false },
+        { "Rad2Deg(S2R(\"-0.6\"))", 0xc2098287u, false },
+        { "Rad2Deg(S2R(\"0.001\"))", 0x3d6aaefbu, false },
     };
     setup_test_world();
-    for (unsigned i = 0; i < sizeof(assertions) / sizeof(assertions[0]); i++) {
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
         char script[1024];
-        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n%sendfunction\n", assertions[i]);
+        /* Save the actual native result; the C expectation cannot be parsed by the VM. */
+        G_ClearHashtableRegistry();
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "  local hashtable values = InitHashtable()\n"
+            "  call Save%s(values, 0, 0, %s)\nendfunction\n",
+            cases[i].integer ? "Integer" : "Real", cases[i].expression);
         T_ASSERT(run_test_jass(script));
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 1);
+        if (table->num_entries == 1) {
+            uint32_t word;
+            T_EQ(table->entries[0].type, cases[i].integer ? HT_INTEGER : HT_REAL);
+            memcpy(&word, &table->entries[0].value, sizeof(word));
+            T_EQ(word, cases[i].word);
+        }
     }
     reset_entities();
 }
 
 /* Original registered20f990 outputs, verified against independent scalar models. */
 TEST(wc3_api, pathfinding_public_power_native_matches_retail_words) {
-    static char const *assertions[] = {
-        "  call BJassAssert(Pow(S2R(\"0\"), S2R(\"-1\")) == 0.0, \"pow_0 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"0\"), S2R(\"0\")) == 1.0, \"pow_1 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"0\"), S2R(\"0.5\")) == 0.0, \"pow_2 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"-0.0005\"), S2R(\"-1\")) == 0.0, \"pow_3 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"0.0005\"), S2R(\"-1\")) == 0.0, \"pow_4 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"0.0005\"), S2R(\"0.5\")) == 0.0223607011139392852783203125, \"pow_5 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"0.001\"), S2R(\"-1\")) == 999.9986572265625, \"pow_6 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"-0.001\"), S2R(\"-1\")) == 999.9986572265625, \"pow_7 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"1\"), S2R(\"-3\")) == 1.0, \"pow_8 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"1\"), S2R(\"0.0005\")) == 1.0, \"pow_9 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"0.0005\")) == 1.0, \"pow_10 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"-2\"), S2R(\"0.0005\")) == 1.0, \"pow_11 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"0\")) == 1.0, \"pow_12 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"-0.0\")) == 1.0, \"pow_13 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"0.5\")) == 1.41421353816986083984375, \"pow_14 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"-2\"), S2R(\"0.5\")) == 1.41421353816986083984375, \"pow_15 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"-0.5\")) == 0.707106888294219970703125, \"pow_16 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"-2\"), S2R(\"-0.5\")) == 0.707106888294219970703125, \"pow_17 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"3\")) == 8.0, \"pow_18 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"-2\"), S2R(\"3\")) == -8.0, \"pow_19 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"4\")) == 16.0, \"pow_20 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"-2\"), S2R(\"4\")) == 16.0, \"pow_21 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"0.5\"), S2R(\"-3\")) == 7.999997615814208984375, \"pow_22 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"-0.5\"), S2R(\"-3\")) == 7.999997615814208984375, \"pow_23 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"16\"), S2R(\"0.5\")) == 3.9999988079071044921875, \"pow_24 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"10\"), S2R(\"-0.3\")) == 0.501187384128570556640625, \"pow_25 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"100\"), S2R(\"0.3\")) == 3.9810693264007568359375, \"pow_26 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"-100\"), S2R(\"0.3\")) == 3.9810693264007568359375, \"pow_27 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"1.5\"), S2R(\"2.25\")) == 2.49003124237060546875, \"pow_28 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"1.25\"), S2R(\"7.5\")) == 5.33119869232177734375, \"pow_29 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"10\"), S2R(\"10\")) == 10000000000.0, \"pow_30 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"100\"), S2R(\"-20\")) == 170141183460469231731687303715884105728.0, \"pow_31 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"100\"), S2R(\"20\")) == 0.0, \"pow_32 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"0.0009999999\"), S2R(\"-1\")) == 999.9986572265625, \"pow_33 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"0.0010000002\"), S2R(\"-1\")) == 999.9986572265625, \"pow_34 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"8388608\")) == 0.0, \"pow_35 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"1\"), S2R(\"2147483520\")) == 1.0, \"pow_36 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"-17\")) == 0.000007629410902154631912708282470703125, \"pow_37 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"63.5\")) == 13043749432376426496.0, \"pow_38 exact retail word\")\n",
-        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"-63.5\")) == 0.000000000000000000076665083112415025059396106975329043820011065690778195858001708984375, \"pow_39 exact retail word\")\n",
+    static struct { cstring_t expression; uint32_t word; bool integer; } const cases[] = {
+        { "Pow(S2R(\"0\"), S2R(\"-1\"))", 0x00000000u, false },
+        { "Pow(S2R(\"0\"), S2R(\"0\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"0\"), S2R(\"0.5\"))", 0x00000000u, false },
+        { "Pow(S2R(\"-0.0005\"), S2R(\"-1\"))", 0x00000000u, false },
+        { "Pow(S2R(\"0.0005\"), S2R(\"-1\"))", 0x00000000u, false },
+        { "Pow(S2R(\"0.0005\"), S2R(\"0.5\"))", 0x3cb72dcau, false },
+        { "Pow(S2R(\"0.001\"), S2R(\"-1\"))", 0x4479ffeau, false },
+        { "Pow(S2R(\"-0.001\"), S2R(\"-1\"))", 0x4479ffeau, false },
+        { "Pow(S2R(\"1\"), S2R(\"-3\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"1\"), S2R(\"0.0005\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"0.0005\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"-2\"), S2R(\"0.0005\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"0\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"-0.0\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"0.5\"))", 0x3fb504f3u, false },
+        { "Pow(S2R(\"-2\"), S2R(\"0.5\"))", 0x3fb504f3u, false },
+        { "Pow(S2R(\"2\"), S2R(\"-0.5\"))", 0x3f3504f5u, false },
+        { "Pow(S2R(\"-2\"), S2R(\"-0.5\"))", 0x3f3504f5u, false },
+        { "Pow(S2R(\"2\"), S2R(\"3\"))", 0x41000000u, false },
+        { "Pow(S2R(\"-2\"), S2R(\"3\"))", 0xc1000000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"4\"))", 0x41800000u, false },
+        { "Pow(S2R(\"-2\"), S2R(\"4\"))", 0x41800000u, false },
+        { "Pow(S2R(\"0.5\"), S2R(\"-3\"))", 0x40fffffbu, false },
+        { "Pow(S2R(\"-0.5\"), S2R(\"-3\"))", 0x40fffffbu, false },
+        { "Pow(S2R(\"16\"), S2R(\"0.5\"))", 0x407ffffbu, false },
+        { "Pow(S2R(\"10\"), S2R(\"-0.3\"))", 0x3f004dd1u, false },
+        { "Pow(S2R(\"100\"), S2R(\"0.3\"))", 0x407ec9d7u, false },
+        { "Pow(S2R(\"-100\"), S2R(\"0.3\"))", 0x407ec9d7u, false },
+        { "Pow(S2R(\"1.5\"), S2R(\"2.25\"))", 0x401f5cacu, false },
+        { "Pow(S2R(\"1.25\"), S2R(\"7.5\"))", 0x40aa992eu, false },
+        { "Pow(S2R(\"10\"), S2R(\"10\"))", 0x501502f9u, false },
+        { "Pow(S2R(\"100\"), S2R(\"-20\"))", 0x7f000000u, false },
+        { "Pow(S2R(\"100\"), S2R(\"20\"))", 0x00000000u, false },
+        { "Pow(S2R(\"0.0009999999\"), S2R(\"-1\"))", 0x4479ffeau, false },
+        { "Pow(S2R(\"0.0010000002\"), S2R(\"-1\"))", 0x4479ffeau, false },
+        { "Pow(S2R(\"2\"), S2R(\"8388608\"))", 0x00000000u, false },
+        { "Pow(S2R(\"1\"), S2R(\"2147483520\"))", 0x3f800000u, false },
+        { "Pow(S2R(\"2\"), S2R(\"-17\"))", 0x37000012u, false },
+        { "Pow(S2R(\"2\"), S2R(\"63.5\"))", 0x5f3504b5u, false },
+        { "Pow(S2R(\"2\"), S2R(\"-63.5\"))", 0x1fb50533u, false },
     };
     setup_test_world();
-    FOR_LOOP(i, sizeof(assertions) / sizeof(assertions[0])) {
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
         char script[1024];
-        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n%sendfunction\n", assertions[i]);
+        /* Save the actual native result; the C expectation cannot be parsed by the VM. */
+        G_ClearHashtableRegistry();
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "  local hashtable values = InitHashtable()\n"
+            "  call Save%s(values, 0, 0, %s)\nendfunction\n",
+            cases[i].integer ? "Integer" : "Real", cases[i].expression);
         T_ASSERT(run_test_jass(script));
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 1);
+        if (table->num_entries == 1) {
+            uint32_t word;
+            T_EQ(table->entries[0].type, cases[i].integer ? HT_INTEGER : HT_REAL);
+            memcpy(&word, &table->entries[0].value, sizeof(word));
+            T_EQ(word, cases[i].word);
+        }
     }
     reset_entities();
 }

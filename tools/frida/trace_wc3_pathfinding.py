@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--seconds', type=float, default=60)
     parser.add_argument('--samples', type=int, default=200)
     parser.add_argument('--numeric-events', action='store_true', help='capture bracketed public scalar native outputs and decimal parser words')
+    parser.add_argument('--literal-events', action='store_true', help='observe compiled long-decimal token words without invoking the compiler')
     parser.add_argument('--task-events', action='store_true', help='observe point-task acceptance and arrival queue state')
     parser.add_argument('--motion-events', action='store_true', help='capture raw speed/heading decision bits for numerical replay')
     parser.add_argument('--velocity-events', action='store_true', help='capture raw velocity commits and selected simulation clocks')
@@ -49,13 +50,15 @@ def main():
               'watchCell': args.watch_cell, 'blockers': args.blockers, 'taskEvents': args.task_events,
               'widgetEvents': args.widget_events, 'motionEvents': args.motion_events,
               'velocityEvents': args.velocity_events, 'headingEvents': args.heading_events,
-              'profileEvents': args.profile_events, 'numericEvents': args.numeric_events}
+              'profileEvents': args.profile_events, 'numericEvents': args.numeric_events,
+              'literalTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_literal_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.literal_events else []}
     source_paths = [Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
                     Path(__file__).with_name('wc3_pathfinding_probe.j'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),
                     Path(__file__).with_name('wc3_angle_inputs.json'),
-                    Path(__file__).with_name('wc3_power_inputs.json')]
+                    Path(__file__).with_name('wc3_power_inputs.json'),
+                    Path(__file__).with_name('wc3_literal_inputs.json')]
     provenance = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths}
     map_path = args.data / args.map.replace('\\', '/')
     if args.numeric_events and not map_path.is_file():

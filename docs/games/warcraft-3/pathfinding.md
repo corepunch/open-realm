@@ -17,6 +17,11 @@ Simultaneous selection Move orders now [refresh their active cohort speed](retai
 after member completion, replacement, death/removal and speed changes; reserved
 destinations remain stable.
 
+Scripted decimal real coordinates now use the [recovered compiled JASS producer](retail-pathfinding-engine.md#compiled-jass-real-literals),
+including signed32 prefix/fraction/denominator wrapping and software division/addition.
+The same literal words survive save/load and enter public Move unchanged. Galaxy
+retains its distinct source-number conversion.
+
 Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach keeps live-unit collision and uses collision-sized resource-worker local avoidance.
 
 ### Static interaction rectangles

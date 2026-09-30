@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / 'tools/frida'))
 from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits, fractional, modulo, decimal_bits, integer_float, saturating_integer_word, asin_bits, atan_bits, atan2_bits, divide, floor_word, ceil_word, round_word, truncate_word
 from generate_wc3_math_tables import sine_table, reciprocal_table, acos_tables
 from verify_wc3_motion_trace import verify
+from verify_wc3_pathing_literals import literal_word, source_word
 from verify_wc3_pathing_power import corelog, reducedlog, log, exp, power, public as public_power
 
 
@@ -50,6 +51,21 @@ class PathingMathTests(unittest.TestCase):
         result = (ctypes.c_uint32 * 2)(0xabcdef01, 0xabcdef02)
         proc(a, b, result)
         return list(result)
+
+    def test_compiled_literals_match_live_inputs_and_independent_model(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-compiled-literal-inputs-1.27.json').read_text())
+        rng = random.Random(0x925260)
+        texts = [c['input'].lstrip('-') for c in fixture['cases']]
+        texts += [str(rng.getrandbits(180)) + '.' + str(rng.getrandbits(240)) for _ in range(2000)]
+        for engine in self.engines:
+            engine.pathing_literal.argtypes = [ctypes.c_char_p]
+            engine.pathing_literal.restype = ctypes.c_uint32
+            for text in texts:
+                self.assertEqual(engine.pathing_literal(text.encode()), literal_word(text), text)
+        for case in fixture['cases']:
+            self.assertEqual(source_word(case['input']), case['input_word'])
+            self.assertEqual(saturating_integer_word(case['input_word']), case['output'])
+        self.assertNotEqual(literal_word('0.59999999999999998'), decimal_bits('0.59999999999999998', reciprocal_table()))
 
     def test_power_curves_and_compiler_optimization_agree(self):
         rng = random.Random(0x127190)

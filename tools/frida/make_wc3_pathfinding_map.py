@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 SCENARIOS = {'open': 0, 'wall': 1, 'insert': 2, 'remove': 3, 'remove_reorder': 4,
-             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27}
+             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28}
 
 
 def numeric_calls(filename="wc3_numeric_inputs.json"):
@@ -34,6 +34,10 @@ def numeric_calls(filename="wc3_numeric_inputs.json"):
             if type(value) is not int or not -2147483648 <= value <= 2147483647:
                 raise ValueError('I2R fixture requires signed integer')
             argument = str(value)
+        elif case.get('producer') == 'literal':
+            if name not in ('R2I', 'Sin', 'Cos') or not isinstance(value, str) or not re.fullmatch(r'-?(?:[0-9]+\.[0-9]*|\.[0-9]+)', value):
+                raise ValueError('compiled literal fixture requires one decimal token and an observed unary native')
+            argument = value
         else:
             values = value if name in ('Atan2', 'Pow') else [value]
             if (name in ('Atan2', 'Pow') and (not isinstance(values, list) or len(values) != 2)) or any(not isinstance(v, (int, float)) or not math.isfinite(v) for v in values):
@@ -65,6 +69,7 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
     probe = probe.replace('@NUMERIC_CASES@', numeric_calls())
     probe = probe.replace('@ANGLE_CASES@', numeric_calls('wc3_angle_inputs.json'))
     probe = probe.replace('@POWER_CASES@', numeric_calls('wc3_power_inputs.json'))
+    probe = probe.replace('@LITERAL_CASES@', numeric_calls('wc3_literal_inputs.json'))
     probe = probe.replace('@REMOVE_TICK@', str(remove_tick))
     probe = probe.replace('@GATE_Y@', str(float(gate_y))).replace('@GATE_EXIT_Y@', str(float(gate_exit_y)))
     block = re.search(r'^globals\n(.*?)^endglobals\n', probe, re.M | re.S)

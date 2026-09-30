@@ -119,6 +119,12 @@ function PathProbePowerInputs takes nothing returns nothing
 @POWER_CASES@
 endfunction
 
+function PathProbeLiteralInputs takes nothing returns nothing
+    local real realResult = 0.0
+    local integer integerResult = 0
+@LITERAL_CASES@
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
@@ -133,6 +139,9 @@ function PathProbeTick takes nothing returns nothing
     endif
     if PATH_PROBE_SCENARIO == 27 and udg_PathProbeTick == 1 then
         call PathProbePowerInputs()
+    endif
+    if PATH_PROBE_SCENARIO == 28 and udg_PathProbeTick == 1 then
+        call PathProbeLiteralInputs()
     endif
     if PATH_PROBE_SCENARIO == 22 then
         call PathProbeOrderLifecycle()
