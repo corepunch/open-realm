@@ -296,6 +296,7 @@ color32_t FX_BlendColor(cparticle_t const *p) {
 }
 
 static void R_FlushParticles(texture_t const *texture, mat4_t const *matrix, particleVertex_t *pv, BLEND_MODE blend_mode) {
+    GLboolean const cull_enabled = glIsEnabled(GL_CULL_FACE);
     R_Call(glBindVertexArray, particles_resources.particles->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, particles_resources.particles->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(particleVertex_t) * (pv - particles_resources.vertices), particles_resources.vertices, GL_DYNAMIC_DRAW);
@@ -345,9 +346,12 @@ static void R_FlushParticles(texture_t const *texture, mat4_t const *matrix, par
             break;
         }
     }
+    /* Billboard/tail quads are two-sided relative to the caller's scene winding. */
+    if (cull_enabled) R_Call(glDisable, GL_CULL_FACE);
     R_StatsDraw(GL_TRIANGLES, (uint32_t)(pv - particles_resources.vertices), 1);
     R_ApplyShader(&particles_resources.shader);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)(pv - particles_resources.vertices));
+    if (cull_enabled) R_Call(glEnable, GL_CULL_FACE);
 }
 
 static color32_t FX_GetFrame(cparticle_t const *p) {
@@ -395,7 +399,6 @@ void R_DrawParticles(void) {
     
     Matrix4_identity(&matrix);
     R_UpdateParticles();
-    
     FOR_EACH_LIST(cparticle_t const, p, active_particles) {
         if (p->texture != texture || p->blend_mode != blend_mode) {
             R_FlushParticles(texture, &matrix, pv, blend_mode);

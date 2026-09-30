@@ -38,8 +38,11 @@ static void mdx_spawn_particle(void *raw) {
         pivot = ctx->model->pivots[ctx->emitter->node.node_id];
     vec3_t pivoted = Vector3_add(&origin, &pivot);
     vec3_t dir = FX_GenerateRandomDirection(ctx->lat * (float)M_PI / 180.0f);
+    mat4_t direction_matrix = *ctx->matrix;
+    direction_matrix.v[12] = direction_matrix.v[13] = direction_matrix.v[14] = 0.0f;
+    vec3_t world_dir = Matrix4_multiply_vector3(&direction_matrix, &dir);
     p->org = Matrix4_multiply_vector3(ctx->matrix, &pivoted);
-    p->vel = Vector3_scale(&dir, ctx->speed + (r - 0.5f) * ctx->varia);
+    p->vel = Vector3_scale(&world_dir, ctx->speed + (r - 0.5f) * ctx->varia);
     p->accel = (vec3_t){ 0, 0, -ctx->grav };
     p->lifespan = ctx->life; p->time = 0;
     p->midtime = ctx->emitter->Time * 0xff;

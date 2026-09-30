@@ -1,6 +1,8 @@
 #include "r_local.h"
 #include "r_game.h"
 
+static particleScene_t entity_camera_particles;
+
 /* UI scenes borrow the renderer view; retaining a portrait hid the later minimap camera outline. */
 void R_RenderFrame(viewDef_t const *viewDef) {
     viewDef_t saved = tr.viewDef;
@@ -39,7 +41,15 @@ void R_RenderFrame(viewDef_t const *viewDef) {
         R_SetupScissor(&tr.viewDef.scissor);
         R_SetupGL(false);
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
+        cparticle_t *previous_particles = NULL;
+        bool const isolated_particles = (tr.viewDef.rdflags & RDF_ISOLATED_PARTICLES) != 0;
+        if (isolated_particles)
+            previous_particles = R_BeginParticleScene(&entity_camera_particles);
         R_DrawEntities();
+        if (isolated_particles && !(tr.viewDef.rdflags & RDF_NOPARTICLES))
+            R_DrawParticles();
+        if (isolated_particles)
+            R_EndParticleScene(&entity_camera_particles, previous_particles);
         R_RevertSettings();
         if (viewDef->rdflags & RDF_NOWORLDMODEL) tr.viewDef = saved;
         return;

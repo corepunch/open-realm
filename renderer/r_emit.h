@@ -28,15 +28,15 @@ static vec3_t FX_GenerateRandomOrigin(float length, float width) {
 	};
 }
 
-/* Frame-relative accumulator emission.  Each caller supplies a per-emitter float accumulator
-   that survives across frames; rate * dt is added to it and particles are spawned whenever the
-   accumulator crosses 1.0.  Caps at 2.0 to suppress bursts after lag spikes.
-   Pattern derived from WoWee's M2Renderer::emitParticles. */
+/* Frame-relative accumulator emission. Each caller supplies a per-emitter accumulator that
+   survives across frames; rate * dt is added to it and particles are spawned whenever the
+   accumulator crosses 1.0. Clamp catch-up time after long stalls without lowering authored
+   high-rate emitters during ordinary frames. Pattern derived from WoWee's M2Renderer::emitParticles. */
 __attribute__((unused))
 static void R_EmitParticles(float rate, float *accum, uint32_t delta_ms,
                             void (*spawn)(void *), void *ctx) {
 	if (rate <= 0.0f || delta_ms == 0 || !accum) return;
-	*accum = MIN(*accum + rate * (float)delta_ms / 1000.0f, 2.0f);
+	*accum += rate * (float)MIN(delta_ms, 100u) / 1000.0f;
 	while (*accum >= 1.0f) {
 		*accum -= 1.0f;
 		spawn(ctx);

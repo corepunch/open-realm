@@ -30,6 +30,8 @@ static uint32_t captured_text_draws;
 static uint32_t captured_stand_sprites;
 static uint32_t captured_realm_panel_sprites;
 static uint32_t captured_sprite_calls;
+static viewDef_t captured_glue_view;
+static uint32_t captured_glue_views;
 static float captured_sprite_x[2];
 static PATHSTR captured_sprite_anim[2];
 static size2_t test_window_size = { 1000, 750 };
@@ -285,7 +287,10 @@ static bool test_entity_anim(model_t const *model, cstring_t anim, renderEntity_
     (void)model; (void)anim; (void)entity;
     return true;
 }
-static void test_render_frame(viewDef_t const *view) { (void)view; }
+static void test_render_frame(viewDef_t const *view) {
+    captured_glue_view = *view;
+    captured_glue_views++;
+}
 static refExport_t *test_get_renderer(void) {
     static refExport_t renderer = {
         .LoadTexture = test_load_texture,
@@ -402,6 +407,7 @@ static void reset_ui_state(void) {
     captured_stand_sprites = 0;
     captured_realm_panel_sprites = 0;
     captured_sprite_calls = 0;
+    captured_glue_views = 0;
     memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
     memset(captured_sprite_anim, 0, sizeof(captured_sprite_anim));
     captured_birth_sprites = 0;
@@ -2421,6 +2427,45 @@ static void test_glue_setup(void) {
 static void test_glue_tick(uint32_t msec) {
     captured_sprite_calls = 0;
     M_Refresh(M_Time() + msec);
+}
+
+TEST(menu_fdf, glue_background_advances_isolated_particle_view_time) {
+    cstring_t files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
+        "UI\\FrameDef\\Glue\\MainMenu.fdf",
+    };
+    menuImport_t saved = mi;
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    test_command_imports();
+    mi.GetRenderer = test_get_renderer;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+    UI_ResetGlueSceneModels();
+    T_ASSERT(mainMenuScreen.load());
+    mainMenuScreen.init();
+    UI_GotoGluePanel(mainMenuScreen.glue, NULL, NULL);
+    M_SetActive(true);
+    M_Refresh(1000);
+    captured_glue_views = 0;
+    UI_DrawGlueScene();
+    T_EQ(captured_glue_views, 1);
+    T_EQ(captured_glue_view.time, 1000);
+    T_ASSERT(captured_glue_view.rdflags & RDF_ISOLATED_PARTICLES);
+
+    M_Refresh(1016);
+    T_EQ(captured_glue_views, 2);
+    T_EQ(captured_glue_view.time, 1016);
+    T_EQ(captured_glue_view.deltaTime, 16);
+
+    mainMenuScreen.shutdown();
+    UI_ResetGlueSceneModels();
+    mi = saved;
 }
 
 /* A click must finish its event stack before screen lifecycle callbacks run. */

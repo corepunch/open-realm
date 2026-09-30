@@ -6,6 +6,9 @@ struct render_globals tr;
 static viewDef_t drawn;
 static bool camera;
 static int entities, scenes;
+static int particle_scene_begins, particle_scene_ends, particle_draws;
+static particleScene_t *captured_particle_scene;
+static int particle_order;
 
 TEST(renderer_view, building_ubersplat_tracks_runtime_structure_flag) {
     renderEntity_t entity = { .splat = (texture_t const *)(uintptr_t)1 };
@@ -33,8 +36,29 @@ void R_SetupGL(bool light) { (void)light; }
 void R_RevertSettings(void) {}
 void R_RenderFogOfWar(void) {}
 uint32_t R_GetFogOfWarTexture(void) { return 0; }
-void R_DrawEntities(void) { drawn = tr.viewDef; entities++; }
+void R_DrawEntities(void) {
+    drawn = tr.viewDef;
+    entities++;
+    if (particle_scene_begins > particle_scene_ends) particle_order = particle_order * 10 + 4;
+}
 void R_RenderView(void) { drawn = tr.viewDef; scenes++; }
+cparticle_t *R_BeginParticleScene(particleScene_t *scene) {
+    captured_particle_scene = scene;
+    particle_scene_begins++;
+    particle_order = particle_order * 10 + 1;
+    return NULL;
+}
+void R_EndParticleScene(particleScene_t *scene, cparticle_t *previous) {
+    T_ASSERT(scene == captured_particle_scene);
+    T_NULL(previous);
+    particle_scene_ends++;
+    particle_order = particle_order * 10 + 3;
+}
+void R_DrawParticles(void) {
+    drawn = tr.viewDef;
+    particle_draws++;
+    particle_order = particle_order * 10 + 2;
+}
 
 /* Shadow batches must follow fog changes and never inherit world fog in a portrait view. */
 TEST(renderer_view, shadow_fog_follows_each_view) {
@@ -69,6 +93,29 @@ bool R_ExtractEntityCamera(renderEntity_t const *ent, float aspect, viewDef_t *v
     (void)ent; (void)aspect;
     Matrix4_identity(&view->viewProjectionMatrix);
     return camera;
+}
+
+TEST(renderer_view, isolated_entity_camera_draws_its_particle_scene) {
+    renderEntity_t entity = {0};
+    viewDef_t saved = tr.viewDef;
+    viewDef_t view = {
+        .time = 1234, .deltaTime = 16,
+        .rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL |
+            RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES,
+        .entities = &entity, .num_entities = 1,
+    };
+
+    camera = true;
+    particle_scene_begins = particle_scene_ends = particle_draws = particle_order = 0;
+    R_RenderFrame(&view);
+
+    T_EQ(particle_scene_begins, 1);
+    T_EQ(particle_draws, 1);
+    T_EQ(particle_scene_ends, 1);
+    T_EQ(particle_order, 1423); /* isolate, emit entities, draw, restore */
+    T_EQ(drawn.time, view.time);
+    T_EQ(drawn.deltaTime, view.deltaTime);
+    T_EQ(memcmp(&tr.viewDef, &saved, sizeof(saved)), 0);
 }
 
 /* HUD consumers must still see the world camera after every kind of no-world scene. */

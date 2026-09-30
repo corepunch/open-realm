@@ -578,6 +578,29 @@ TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
     tr.viewDef = saved;
 }
 
+TEST(renderer_model, mdx_particle_velocity_follows_emitter_node_rotation) {
+    mdxParticleEmitter_t emitter = { .node.node_id = 0, .LifeSpan = 1, .EmissionRate = 628,
+        .Speed = 10, .FrameFlags = BZ_MDX_PARTICLE_TAIL, .TailLength = 0.5f,
+        .Latitude = 0, .Alpha = {255, 255, 255}, .ParticleScaling = {2, 2, 2},
+        .SegmentColor = {1,1,1, 1,1,1, 1,1,1}, .Rows = 1, .Columns = 1 };
+    mdxModel_t model = { .emitters = &emitter };
+    renderEntity_t entity = { .frame = 0, .oldframe = 0 };
+    mat4_t matrix;
+    viewDef_t saved = tr.viewDef;
+
+    Matrix4_identity(&matrix);
+    Matrix4_identity(&node_matrices[0]);
+    Matrix4_rotate(&node_matrices[0], &(vec3_t){180, 0, 0}, ROTATE_XYZ);
+    tr.viewDef.deltaTime = 16;
+    emit_count = 0;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+
+    T_EQ(emit_count, 10);
+    T_FEQ(emitted[0].vel.z, -10.0f, 0.001f);
+    T_FEQ(emitted[0].tail.z, -5.0f, 0.001f);
+    tr.viewDef = saved;
+}
+
 TEST(renderer_model, mdx_ribbon_trail_emits_connected_edges_and_expires) {
     trail_t trail = { 0 };
     vec3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };

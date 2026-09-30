@@ -123,6 +123,14 @@ valid after map registration and makes Quit Campaign / EndGame / campaign-select
 the same edition selected by the main menu.
 
 `games/warcraft-3/menu/menu_glue_scene.c` renders the selected background with `RDF_USE_ENTITY_CAMERA`.
+The default RoC `MainMenu3d.mdx` contains `PRE2` model-particle emitters for its rain. Glue background views carry
+`M_Time()` and the elapsed frame delta so those emitters advance; the renderer draws their particles in a dedicated
+entity-camera particle scene because this camera path does not pass through the ordinary `R_RenderView` particle pass.
+PRE2 spawn velocity follows the emitter node's transformed local direction, which lets the authored rain nodes emit down
+into the camera view. Its accumulator honors the authored per-second rate during normal frames and limits catch-up after
+long stalls to 100 ms. Particle batches temporarily disable face culling and restore the previous state so the
+camera-facing tail quads are visible. The isolated scene keeps menu rain separate from the active map's particle list.
+This is MDX model-particle rendering, not the map/JASS weather system.
 `UI_GotoGluePanel(GLUEDEST, exited, changed)` accepts `{panel, tab, page}`. `tab` selects an authored left-panel pose;
 `page` distinguishes content pages that share that pose (Options Gameplay, Video, and Sound). Each `GLUELAYER` retains
 its own current/target destination, phase, and start time. The right layer uses only the panel family. RoC and TFT share
