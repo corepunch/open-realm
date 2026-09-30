@@ -11,7 +11,10 @@ static void DDS_ParseHeader(uint8_t const *buf, uint32_t *headerSize, uint32_t *
     *headerSize   = (buf[4])  | (buf[5]  << 8) | (buf[6]  << 16) | (buf[7]  << 24);
     *height       = (buf[12]) | (buf[13] << 8) | (buf[14] << 16) | (buf[15] << 24);
     *width        = (buf[16]) | (buf[17] << 8) | (buf[18] << 16) | (buf[19] << 24);
-    *mipMapCount  = (buf[28]) | (buf[29] << 8) | (buf[30] << 16) | (buf[31] << 24);
+    uint32_t flags=(buf[8]) | (buf[9]<<8) | (buf[10]<<16) | (buf[11]<<24);
+    uint32_t count=(buf[28]) | (buf[29]<<8) | (buf[30]<<16) | (buf[31]<<24);
+    /* DDSD_MIPMAPCOUNT is optional. A single-level DDS still has level zero. */
+    *mipMapCount=(flags & 0x20000) && count ? count : 1;
 }
 
 static void DDS_ParsePixelFormat(uint8_t const *buf, uint32_t *flags, uint32_t *fourcc, uint32_t *rgbBitCount,
@@ -37,6 +40,7 @@ static void DDS_UnsupportedOnce(void) {
 
 texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize) {
     uint8_t const *buf = data;
+    if (!buf || filesize<128) { fprintf(stderr,"DDS: truncated header\n"); return NULL; }
 
     uint32_t headerSize, width, height, mipMapCount;
     DDS_ParseHeader(buf, &headerSize, &width, &height, &mipMapCount);
@@ -84,11 +88,15 @@ texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize) {
 
         uint32_t offset = 0, w = width, h = height;
         for (uint32_t i = 0; i < mipMapCount; i++) {
-            if (w == 0 || h == 0) { mipMapCount--; continue; }
+
             uint32_t size = ((w + 3) / 4) * ((h + 3) / 4) * blockSize;
+            if (pixelOffset>filesize || offset>filesize-pixelOffset || size>filesize-pixelOffset-offset) {
+                fprintf(stderr,"DDS: truncated compressed level %u (%ux%u)\n",i,w,h);
+                R_Call(glDeleteTextures,1,&texture->texid); ri.MemFree(texture); return NULL;
+            }
             R_Call(glCompressedTexImage2D, GL_TEXTURE_2D, i, format, w, h, 0, size, buf + pixelOffset + offset);
             offset += size;
-            w /= 2; h /= 2;
+            w=MAX(1,w/2); h=MAX(1,h/2);
         }
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipMapCount - 1);
     } else if (isRGB || (flags & 0x20000)) { /* RGB or luminance */
@@ -161,3 +169,17 @@ texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize) {
     texture->height = height;
     return texture;
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+TEST(renderer_dds, retail_single_level_without_mipmap_flag) {
+    /* Liberty btn-command-move.dds header: 76x76 DXT5, flags 0x81007,
+     * dwMipMapCount=0; 19*19*16=5776 bytes follow its 128-byte header. */
+    uint8_t header[128]={ 'D','D','S',' ',124,0,0,0,7,16,8,0,76,0,0,0,76 };
+    uint32_t bytes,width,height,count;
+    DDS_ParseHeader(header,&bytes,&width,&height,&count);
+    T_EQ(bytes,124); T_EQ(width,76); T_EQ(height,76); T_EQ(count,1);
+    header[10]|=2; header[28]=3;
+    DDS_ParseHeader(header,&bytes,&width,&height,&count); T_EQ(count,3);
+}
+#endif

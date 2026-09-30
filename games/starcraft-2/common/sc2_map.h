@@ -4,6 +4,7 @@
 #include "common/common.h"
 #include "sc2_coords.h"
 #include "sc2_unit_state.h"
+#include "sc2_presentation.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -404,5 +405,7 @@ vec2_t       SC2_MapDenormalizedPosition(float x, float y);
 uint32_t         SC2_MapObjectClassId(sc2MapObject_t const *object);
 bool          SC2_MapDefaultCamera(sc2MapCamera_t *camera);
 void          SC2_MapDump(FILE *out, cstring_t filename);
+
+uint64_t SC2_MapUnitTargetFlags(cstring_t type);
 
 #endif

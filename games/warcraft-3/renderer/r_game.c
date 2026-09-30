@@ -1167,6 +1167,10 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
     }
 }
 
+vec2_t R_WorldOrigin(void) {
+    return tr.world ? tr.world->center : (vec2_t){0};
+}
+
 vec2_t R_WorldSize(void) {
     return tr.world ? GetWar3MapSize(tr.world) : (vec2_t){ 0 };
 }

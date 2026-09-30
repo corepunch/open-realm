@@ -122,6 +122,7 @@ void galaxy_loaded_reset(void);
 void galaxy_reset(void) {
     sc2_objectives_reset();
     sc2_collections_reset();
+    memset(sc2_filters,0,sizeof(sc2_filters)); sc2_filter_n=1;
     memset(sc2_players,0,sizeof(sc2_players));
     memset(sc2_gunits,0,sizeof(sc2_gunits));
     memset(sc2_regions,0,sizeof(sc2_regions));
@@ -222,8 +223,21 @@ void galaxy_close(jass_t *vm) {
 }
 
 void galaxy_start(jass_t *vm) {
-    /* Dialog and purchase callbacks are registered. Their UI producers, and the rest of InitLibs, are not wired. */
-    fprintf(stderr, "galaxy_start: warning: InitLibs is not yet supported (event producers incomplete)\n");
+    /* Library variables own the cinematic player groups. Their authored
+     * initializers must run before map globals and triggers.
+     * TODO: full InitLibs also installs UI/AI event producers that this host
+     * does not implement yet (including mercenary-panel selection). Keep this
+     * limitation explicit instead of aborting map startup inside InitLibs. */
+    static cstring_t const libraries[]={"libNtve_InitVariables"};
+    fprintf(stderr,"galaxy_start: initializing NativeLib variables; full library UI/AI initialization remains unsupported\n");
+    for (uint32_t i=0;i<sizeof(libraries)/sizeof(*libraries);i++) {
+        if (!jass_hasfunction(vm,libraries[i])) continue; /* Maps may omit a library. */
+        jass_callbyname(vm,libraries[i],false);
+        if (jass_rterror_pending(vm)) {
+            fprintf(stderr,"galaxy_start: %s error: %s\n",libraries[i],jass_rterror_message(vm));
+            jass_rterror_clear(vm); return;
+        }
+    }
     static cstring_t const entry[] = { "InitGlobals", "InitTriggers" };
     for (uint32_t i = 0; i < sizeof(entry) / sizeof(*entry); i++) {
         fprintf(stderr, "galaxy_start: calling %s\n", entry[i]);
@@ -845,3 +859,19 @@ static jassModule_t sc2_galaxy_natives[] = {
 };
 
 jassModule_t const *galaxy_get_natives(void) { return sc2_galaxy_natives; }
+
+/* Combat publishes the same unit response handles as native property/death operations. */
+void galaxy_combat_damage(jass_t *vm, void *source, void *target, float damage, bool died) {
+    if (!vm) return;
+    int32_t source_h=0,target_h=0;
+    FOR_LOOP(i,sc2_gunit_n) {
+        if (sc2_gunits[i]==source) source_h=i+1;
+        if (sc2_gunits[i]==target) target_h=i+1;
+    }
+    if (!target_h) return;
+    sc2evresp_t event={ .unit=target_h,.source=source_h,.source_player=sc2_ev_owner(source_h),.player=sc2_ev_owner(target_h),.amount=damage,.death=died,.dmg=true };
+    event.type=SC2_EV_ATTACKED; sc2_ev_emit(vm,event);
+    event.type=SC2_EV_DAMAGED; sc2_ev_emit(vm,event);
+    event.type=SC2_EV_PROP; event.ival=0; sc2_ev_emit(vm,event);
+    if (died) { event.type=SC2_EV_DIED; sc2_ev_emit(vm,event); }
+}

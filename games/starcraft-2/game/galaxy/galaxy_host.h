@@ -111,4 +111,6 @@ extern sc2PlayerState_t sc2_players[32];
 extern void *sc2_gunits[];
 extern uint32_t sc2_gunit_n;
 
+void galaxy_combat_damage(jass_t *vm, void *source, void *target, float damage, bool died);
+
 #endif

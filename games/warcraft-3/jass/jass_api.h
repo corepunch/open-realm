@@ -57,6 +57,7 @@ bool   jass_dofile(jass_t *j, cstring_t fileName);
 bool   jass_dofile_ex(jass_t *j, cstring_t fileName, JASSMODE mode);
 bool   jass_dobuffer(jass_t *j, string_t buffer);
 bool   jass_dobuffer_ex(jass_t *j, string_t buffer, JASSMODE mode);
+bool   jass_hasfunction(jass_t *j, cstring_t name);
 void   jass_callbyname(jass_t *j, cstring_t name, bool spawn_coroutine);
 void   jass_runevents(jass_t *j);
 bool   jass_writesnapshot(jass_t *j, jassSnapshot_t *snapshot);

@@ -18,23 +18,20 @@
 static sc2BaseFrame_t *resource_find(void) {
     sc2BaseFrame_t *root = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_RESOURCE_PANEL);
     if (root) {
-        /* ResourcePanel layout (right-to-left after SupplyLabel):
-         *   ResourceLabel3 = primary mineral display  → GOLD
-         *   ResourceLabel2 = high-yield mineral slot  → HERO_TOKENS (maps to 0)
-         *   ResourceLabel1 = gas (vespene)            → LUMBER
-         *   ResourceLabel0 = secondary mineral slot   → GOLD
-         * ResourceLabel3 was previously unbound, causing "text N" fallback. */
         static struct { cstring_t name; uint32_t stat; } const bindings[] = {
             { "ResourceLabel0", PLAYERSTATE_RESOURCE_GOLD },
             { "ResourceLabel1", PLAYERSTATE_RESOURCE_LUMBER },
-            { "ResourceLabel2", PLAYERSTATE_RESOURCE_HERO_TOKENS },
-            { "ResourceLabel3", PLAYERSTATE_RESOURCE_GOLD },
-            { "SupplyLabel", PLAYERSTATE_RESOURCE_FOOD_USED },
         };
         FOR_LOOP(i, sizeof(bindings) / sizeof(*bindings)) {
-            sc2BaseFrame_t *label = SC2_LayoutFindFrameByName(bindings[i].name);
-            if (!label) continue;
-            label->stat = bindings[i].stat;
+            sc2BaseFrame_t *label=SC2_HUD_Find(root,bindings[i].name);
+            if (label) label->stat=bindings[i].stat;
+        }
+        /* Liberty's active resource types are minerals and vespene. Energy and
+         * life slots are unused here; preserve the stock collapsed anchor chain. */
+        cstring_t hidden[]={"ResourceLabel2","ResourceLabel3","ResourceIcon2","ResourceIcon3","PlayerImage"};
+        FOR_LOOP(i,sizeof(hidden)/sizeof(*hidden)) {
+            sc2BaseFrame_t *f=SC2_HUD_Find(root,hidden[i]);
+            if (f) { f->ui_flags|=SC2_UIFLAG_HIDDEN; f->size.width=0; }
         }
         return root;
     }
@@ -42,7 +39,7 @@ static sc2BaseFrame_t *resource_find(void) {
 }
 
 static void write_one(sc2BaseFrame_t *f) {
-    if (f && !(f->ui_flags & SC2_UIFLAG_HIDDEN)) SC2_HUD_WriteFrame(f);
+    if (f) SC2_HUD_WriteFrame(f);
 }
 
 void SC2_HUD_WriteResourcePanel(edict_t *ent) {
@@ -62,7 +59,16 @@ void SC2_HUD_WriteResourcePanel(edict_t *ent) {
     sc2BaseFrame_t *team  = SC2_LayoutFindFrameByName("TeamResourceButton");
     sc2BaseFrame_t *cash  = SC2_LayoutFindFrameByName("CashPanel");
 
+    sc2BaseFrame_t *chain[]={sheet,ally,team,cash};
+    FOR_LOOP(i,4) if (chain[i]) { chain[i]->ui_flags|=SC2_UIFLAG_HIDDEN; chain[i]->size.width=0; }
+    static char supply[48];
+    snprintf(supply,sizeof(supply),"%u / %u",ent->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED],ent->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]);
+    sc2BaseFrame_t *label=SC2_HUD_Find(res,"SupplyLabel");
+    if (label) { label->stat=0; label->text=supply; }
     SC2_HUD_WriteStart(LAYER_CONSOLE);
+    SC2_HUD_ReserveAncestors(frames,res);
+    FOR_LOOP(i,4) if (chain[i]) SC2_HUD_ReserveTree(frames,count,chain[i]);
+    SC2_HUD_ReserveTree(frames,count,res);
 
     /* 1. Ancestors of ResourcePanel (GameUI → UIContainer → FullscreenUpperContainer) */
     SC2_HUD_WriteAncestors(frames, count, res);

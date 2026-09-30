@@ -159,6 +159,8 @@ void R_StopAllTerrainDeformations(void) { }
 float R_GetCameraHeightAtPoint(float x, float y) { return R_GetHeightAtPoint(x, y); }
 bool R_CameraUsesTerrainHeight(void) { return false; }
 
+vec2_t R_WorldOrigin(void) { return (vec2_t){0}; }
+
 vec2_t R_WorldSize(void) {
     return (vec2_t){ 0 };
 }

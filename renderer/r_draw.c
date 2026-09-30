@@ -74,32 +74,13 @@ void R_DrawChar(int x, int y, int c) {
 }
 
 void R_DrawFill(rect_t const *rect, color32_t color) {
-    vertex_t simp[6];
-    mat4_t ui_matrix;
-    size2_t window = R_GetWindowSize();
+    vertex_t vertices[6];
 
-    if (!rect || rect->w <= 0.0f || rect->h <= 0.0f || !color.a) {
-        return;
-    }
-
-    R_AddQuad(simp, rect, &(rect_t){0, 0, 1, 1}, color, 0);
-    Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_DYNAMIC_DRAW);
-    tr.shader_ui.state.viewProjection = ui_matrix;
-
-    R_BindTexture(tr.texture[TEX_WHITE], 0);
-
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glDisable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_StatsDraw(GL_TRIANGLES, 6, 1);
-    R_ApplyShader(&tr.shader_ui);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+    if (!rect || rect->w <= 0.0f || rect->h <= 0.0f || !color.a) return;
+    /* Solid fills share the UI canvas and reset model transforms just like images. */
+    R_AddQuad(vertices, rect, &(rect_t){0, 0, 1, 1}, color, 0);
+    R_DrawImageBatch(tr.texture[TEX_WHITE], SHADER_UI, BLEND_MODE_BLEND,
+                    0, 0, false, NULL, vertices, 6, false);
 }
 
 void R_SetBlending(BLEND_MODE mode) {
@@ -339,7 +320,7 @@ static bool R_MinimapPointForWorld(vec3_t const *world, rect_t const *screen, ve
     float nx;
     float ny;
 
-    if (!tr.world || !world || !screen || !out) {
+    if (!world || !screen || !out) {
         return false;
     }
 
@@ -348,8 +329,9 @@ static bool R_MinimapPointForWorld(vec3_t const *world, rect_t const *screen, ve
         return false;
     }
 
-    nx = (world->x - tr.world->center.x) / map_size.x;
-    ny = (world->y - tr.world->center.y) / map_size.y;
+    vec2_t origin=R_WorldOrigin();
+    nx = (world->x - origin.x) / map_size.x;
+    ny = (world->y - origin.y) / map_size.y;
     nx = MAX(0.0f, MIN(1.0f, nx));
     ny = MAX(0.0f, MIN(1.0f, ny));
 
@@ -410,7 +392,7 @@ void R_DrawMinimapCameraRect(rect_t const *screen) {
     color32_t color = MAKE(color32_t, 255, 255, 255, 220);
     rect_t uv = { 0, 0, 1, 1 };
 
-    if (!tr.world || !screen ||
+    if (!screen ||
         (tr.viewDef.rdflags & (RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL)) ||
         window.width == 0 ||
         window.height == 0) {
@@ -451,7 +433,7 @@ void R_DrawMinimapBorder(rect_t const *screen, color32_t color) {
 bool R_WorldToMinimap(vec2_t const *world, vec2_t *outScreen) {
     vec3_t point;
 
-    if (!tr.hasMinimap || !tr.world || !world || !outScreen) {
+    if (!tr.hasMinimap || !world || !outScreen) {
         return false;
     }
     point = (vec3_t){ world->x, world->y, 0.0f };
@@ -466,7 +448,7 @@ bool R_TraceMinimap(float x, float y, vec2_t *outWorld) {
     vec2_t map_size;
     float ux, uy, nx, ny;
 
-    if (!tr.hasMinimap || !tr.world || !outWorld) {
+    if (!tr.hasMinimap || !outWorld) {
         return false;
     }
     window = R_GetWindowSize();
@@ -488,8 +470,9 @@ bool R_TraceMinimap(float x, float y, vec2_t *outWorld) {
     }
     nx = (ux - r.x) / r.w;
     ny = 1.0f - (uy - r.y) / r.h; /* y is flipped in R_MinimapPointForWorld */
-    outWorld->x = tr.world->center.x + nx * map_size.x;
-    outWorld->y = tr.world->center.y + ny * map_size.y;
+    vec2_t origin=R_WorldOrigin();
+    outWorld->x = origin.x + nx * map_size.x;
+    outWorld->y = origin.y + ny * map_size.y;
     return true;
 }
 

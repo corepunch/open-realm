@@ -56,10 +56,21 @@ sc2BaseFrame_t *SC2_HUD_EnsureLayout(uint32_t *count);
 /* Per-frame HUD writers called from G_RunFrame */
 void SC2_HUD_WriteResourcePanel(edict_t *ent);
 void SC2_HUD_WriteConsolePanel(edict_t *ent);
-void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, uint32_t count, sc2BaseFrame_t *root);
+void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, uint32_t count, sc2BaseFrame_t *root, edict_t const *unit);
 
 /* Set the model index used by FT_PORTRAIT frames on the next console write.
  * Call before SC2_HUD_WriteConsolePanel when a unit is selected. */
 void SC2_HUD_SetPortraitModel(RESOURCE model);
 
+sc2BaseFrame_t *SC2_HUD_Find(sc2BaseFrame_t *root, cstring_t name);
+void SC2_HUD_ResetMap(void);
+void SC2_HUD_LoadStrings(void);
+void SC2_HUD_FreeStrings(void);
+cstring_t SC2_HUD_Localized(cstring_t key);
+void SC2_HUD_Update(edict_t *client);
+void SC2_HUD_PrepareMinimap(edict_t const *client, sc2BaseFrame_t *root);
+void SC2_HUD_PrepareUnitPanel(edict_t const *unit, uint32_t selected_count);
+void SC2_HUD_ReserveTree(sc2BaseFrame_t const *frames, uint32_t count, sc2BaseFrame_t const *root);
+void SC2_HUD_ReserveAncestors(sc2BaseFrame_t const *frames, sc2BaseFrame_t const *frame);
+bool SC2_HUD_CommandEnabled(edict_t const *unit, cstring_t abilcmd);
 #endif /* SC2_HUD_H */

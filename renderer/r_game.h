@@ -48,6 +48,7 @@ void R_StopAllTerrainDeformations(void);
 float R_GetCameraHeightAtPoint(float x, float y);
 bool R_CameraUsesTerrainHeight(void);
 vec2_t R_WorldSize(void);
+vec2_t R_WorldOrigin(void);
 
 model_t *R_LoadModel(cstring_t modelFilename);
 void R_ReleaseModel(model_t *model);
