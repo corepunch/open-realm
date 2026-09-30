@@ -668,8 +668,8 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         /* A completed generic field previously discarded the mover's fine
          * turn. Keep retail route choices throughout nearby detours, while
          * known unreachable/adjusted endpoints retain their interaction path. */
-        /* TODO: generic fields still use their prior ceil-radius footprint.
-         * They cannot veto a legal finer class route through a narrow passage. */
+        /* Nearby orders retain retail search choices; long fields use the
+         * same footprint geometry for expansion and flow sampling. */
         bool fine = unit_routes_to_location(self) || !heatmap ||
                     !CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y);
         if (fine && unit_accel_direction(self, radius, &dir)) {
@@ -704,7 +704,8 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                     self->movement.flow_fallback_time = level.time;
                     self->movement.flow_fallback_goal = self->goalentity;
                     self->movement.flow_fallback_state = MOVE_FALLBACK_RETRY;
-                    if (CM_ClosestReachablePointForRadiusFlags(from, target, radius, blocked_flags, &closest)) {
+                    pathAccelParams_t query = {from, target, radius, blocked_flags};
+                    if (G_ClosestReachableMovePoint(&query, &closest)) {
                         self->goalentity->heatmap2 = 0;
                         self->goalentity->heatmap2_radius = 0;
                         move_reset_progress(self);
@@ -852,16 +853,14 @@ static int move_harvest_path_debug_level(void) {
 uint32_t M_RefreshHeatmapForMover(edict_t const *mover, edict_t *self, float radius) {
     edict_t *route = self && self->secondarygoal ? self->secondarygoal : self;
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(mover);
-    bool radius_matches;
     bool cached = false;
     uint32_t generation;
 
     if (!route)
         return 0;
 
-    radius_matches = fabsf(route->heatmap2_radius - radius) < 0.01f;
-    if (radius_matches && route->heatmap2)
-        cached = CM_ActivateCachedFlowForFlags(route->heatmap2, blocked_flags);
+    if (route->heatmap2)
+        cached = G_ActivateMovePathField(route->heatmap2, radius, blocked_flags);
 
     /* Fixed waypoints never move, so a still-cached field remains valid until
      * static pathing invalidates the routing cache. */
@@ -875,11 +874,11 @@ uint32_t M_RefreshHeatmapForMover(edict_t const *mover, edict_t *self, float rad
             return route->heatmap2;
     }
 
-    /* Cache misses are resumable in common/routing.c.  Return the old field for
-     * a moving target while its replacement is being built; fixed goals with
+    /* Shared routing resumes cache misses. Return the old field for a moving
+     * target while its replacement is being built; fixed goals with
      * no field simply wait until a later tick instead of steering straight into
      * the obstacle that caused routing to be needed. */
-    generation = CM_RequestHeatmapForRadiusFlags(route, radius, blocked_flags);
+    generation = G_RequestMovePathField(route, radius, blocked_flags);
     if (!generation)
         return cached ? route->heatmap2 : 0;
 
@@ -1555,11 +1554,9 @@ static void ai_move_walk(edict_t *ent) {
              * endpoint to the closest reachable cell, and never consume the
              * order as a terminal hold merely because the original point is
              * temporarily behind the construction footprint. */
-            if (CM_ClosestReachablePointForRadiusFlags(&ent->s.origin2,
-                                                       &ent->goalentity->s.origin2,
-                                                       ent->collision,
-                                                       M_UnitStaticPathingFlags(ent),
-                                                       &approach)) {
+            pathAccelParams_t query = { &ent->s.origin2, &ent->goalentity->s.origin2,
+                                        ent->collision, M_UnitStaticPathingFlags(ent) };
+            if (G_ClosestReachableMovePoint(&query, &approach)) {
 #ifdef WC3_DEBUG_BUILD
                 if (ent->class_id == MAKEFOURCC('h','p','e','a'))
                     fprintf(stderr, "WC3_BUILD move-approach unit=%ld from=(%.1f,%.1f) approach=(%.1f,%.1f) target=(%.1f,%.1f) goal=%ld\n",

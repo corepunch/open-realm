@@ -2588,6 +2588,9 @@ bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out);
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params);
 bool G_MovePathLineIsPathable(pathAccelParams_t const *params);
 bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out);
+bool G_ClosestReachableMovePoint(pathAccelParams_t const *params, vec2_t *out);
+uint32_t G_RequestMovePathField(edict_t const *goal, float radius, uint8_t flags);
+bool G_ActivateMovePathField(uint32_t generation, float radius, uint8_t flags);
 
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);

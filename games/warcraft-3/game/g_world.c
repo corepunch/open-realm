@@ -65,20 +65,38 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 
 /* Original 16ee80 checks a class-sized square, biased left/up for even sizes.
  * ceil(radius) instead imposed 3/5-cell squares on retail's 1/2/3/4 classes. */
+static pathGridQuery_t move_field_shape(float radius, uint8_t flags) {
+    unsigned cls = wc3_fine_class(radius / pathmap_cell_world_size());
+    wc3FineBox_t box = wc3_fine_cover(cls, (wc3FinePoint_t){0, 0});
+    return (pathGridQuery_t){ {box.min.x, box.min.y}, {box.max.x, box.max.y},
+                             normalize_blocked_flags(flags) };
+}
+
 static bool move_foot_ok(moveFineGraph_t const *graph, wc3FinePoint_t pos) {
-    wc3FineBox_t box = wc3_fine_cover((unsigned)graph->size - 1, pos);
-    int x0 = box.min.x, y0 = box.min.y, x1 = box.max.x, y1 = box.max.y;
-    if (x0 < 0 || y0 < 0 || x1 > (int)pathmap.width || y1 > (int)pathmap.height) return false;
-    uint32_t const *prefix = graph->flags == CM_PATHING_UNWALKABLE ? pathmap.obstacle_prefix :
-                             graph->flags == CM_PATHING_UNFLYABLE ? pathmap.nofly_prefix : NULL;
-    if (prefix) {
-        uint32_t stride = pathmap.width + 1;
-        return prefix[x1 + y1 * stride] - prefix[x0 + y1 * stride] -
-               prefix[x1 + y0 * stride] + prefix[x0 + y0 * stride] == 0;
-    }
-    for (int y = y0; y < y1; y++) for (int x = x0; x < x1; x++)
-        if (!is_pathable_node_original_flags(x, y, graph->flags)) return false;
-    return true;
+    wc3FineBox_t box = wc3_fine_cover((unsigned)graph->size - 1, (wc3FinePoint_t){0, 0});
+    pathGridQuery_t query = { {box.min.x, box.min.y}, {box.max.x, box.max.y}, graph->flags };
+    return path_query_ok((point2_t){pos.x, pos.y}, &query);
+}
+
+uint32_t G_RequestMovePathField(edict_t const *goal, float radius, uint8_t flags) {
+    pathGridQuery_t query = move_field_shape(radius, flags);
+    point2_t target;
+    if (!resolve_heatmap_request(goal, &query, &target)) return 0;
+    return request_heatmap_query(target, &query);
+}
+
+bool G_ActivateMovePathField(uint32_t generation, float radius, uint8_t flags) {
+    pathGridQuery_t query = move_field_shape(radius, flags);
+    if (!CM_ActivateCachedFlow(generation)) return false;
+    if (path_queries_equal(&active_heatmap->query, &query)) return true;
+    active_heatmap = NULL;
+    return false;
+}
+
+bool G_ClosestReachableMovePoint(pathAccelParams_t const *params, vec2_t *out) {
+    if (!params) return false;
+    pathGridQuery_t query = move_field_shape(params->radius, params->blocked_flags);
+    return closest_reachable_point(params, &query, out);
 }
 
 static moveFineGraph_t move_foot_shape(pathAccelParams_t const *params) {
@@ -100,25 +118,12 @@ bool G_MovePathPointIsPathable(pathAccelParams_t const *params) {
 bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out) {
     if (!params || !params->from || !out) return false;
     if (G_MovePathPointIsPathable(params)) { *out = *params->from; return true; }
-    vec2_t n = CM_GetNormalizedMapPosition(params->from->x, params->from->y);
-    float fx = n.x * pathmap.width, fy = n.y * pathmap.height;
-    int tx = (int)floorf(fx), ty = (int)floorf(fy), bound = (int)MAX(pathmap.width, pathmap.height);
-    moveFineGraph_t graph = move_foot_shape(params);
-    for (int ring = 1; ring <= bound; ring++) {
-        float best = FLT_MAX;
-        wc3FinePoint_t chosen = {0};
-        bool found = false;
-        for (int y = ty - ring; y <= ty + ring; y++) for (int x = tx - ring; x <= tx + ring; x++) {
-            if (x != tx - ring && x != tx + ring && y != ty - ring && y != ty + ring) continue;
-            if (!move_foot_ok(&graph, (wc3FinePoint_t){x,y})) continue;
-            float dx = x + 0.5f - fx, dy = y + 0.5f - fy, dist = dx * dx + dy * dy;
-            if (!found || dist < best) { best = dist; chosen = (wc3FinePoint_t){x,y}; found = true; }
-        }
-        if (!found) continue;
-        *out = CM_GetDenormalizedMapPosition((chosen.x + 0.5f) / pathmap.width, (chosen.y + 0.5f) / pathmap.height);
-        return true;
-    }
-    return false;
+    pathGridQuery_t query = move_field_shape(params->radius, params->blocked_flags);
+    point2_t chosen;
+    if (!closest_pathable_node_query(params->from, &query, &chosen)) return false;
+    *out = CM_GetDenormalizedMapPosition((chosen.x + 0.5f) / pathmap.width,
+                                         (chosen.y + 0.5f) / pathmap.height);
+    return true;
 }
 
 /* TODO: retain Bresenham/corner sampling until the all-class retail sampled

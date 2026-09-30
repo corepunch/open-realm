@@ -590,6 +590,108 @@ TEST(wc3_pathfinding, retail_collision_classes_fit_their_cardinal_corridors) {
     setup_test_world();
 }
 
+/* The endpoint is beyond the synchronous fine-search envelope. A two-cell L
+ * corridor must remain usable by class1 in the shared incremental field. */
+TEST(wc3_pathfinding, class_sized_long_field_reaches_winding_corridor_and_invalidates) {
+    enum { WIDTH = 128, HEIGHT = 20 };
+    uint8_t cells[WIDTH * HEIGHT];
+    vec2_t target = {100.5f, 15.5f};
+    uint32_t gen = 0;
+    reset_entities();
+    setup_test_world();
+    memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells));
+    for (int x = 4; x <= 100; x++) cells[4 * WIDTH + x] = cells[5 * WIDTH + x] = 0;
+    for (int y = 4; y <= 15; y++) cells[y * WIDTH + 99] = cells[y * WIDTH + 100] = 0;
+    setup_test_pathmap(WIDTH, HEIGHT, cells);
+    edict_t *unit = make_unit_at(5.5f, 5.5f), *wp = make_waypoint(target.x, target.y);
+    unit->collision = 0.5f;
+    order_move(unit, wp);
+    pathAccelParams_t params = { &unit->s.origin2, &target, unit->collision, CM_PATHING_UNWALKABLE };
+    vec2_t turn;
+    T_ASSERT(!G_MovePathLineIsPathable(&params));
+    T_ASSERT(!G_FindMovePathWaypoint(&params, &turn));
+    T_EQ(M_RefreshHeatmapForMover(unit, wp, unit->collision), 0);
+    for (int tick = 0; tick < 64 && !gen; tick++) {
+        CM_ProcessPathJobs(16);
+        gen = M_RefreshHeatmapForMover(unit, wp, unit->collision);
+    }
+    T_ASSERT(gen != 0);
+    T_ASSERT(CM_FlowCanReach(gen, unit->s.origin.x, unit->s.origin.y));
+    unit_changeangle(unit);
+    T_EQ(unit->movement.flow_generation, gen);
+    T_ASSERT(!unit->movement.flow_unreachable);
+    unit->unitinfo.MoveSpeed = 2.f;
+    unit->s.angle = 0.f;
+    for (int tick = 0; tick < 8; tick++) {
+        level.time += FRAMETIME;
+        unit->currentmove->think(unit);
+        int x = (int)floorf(unit->s.origin.x), y = (int)floorf(unit->s.origin.y);
+        T_ASSERT(x > 0 && x < WIDTH && y > 0 && y < HEIGHT);
+        T_EQ(cells[(y - 1) * WIDTH + x - 1] | cells[(y - 1) * WIDTH + x] |
+             cells[y * WIDTH + x - 1] | cells[y * WIDTH + x], 0);
+    }
+    T_ASSERT(unit->s.origin.x > 6.f);
+    T_ASSERT(!unit->movement.path.valid); /* still beyond the fine envelope */
+
+    /* Pinch the passage to one cell. The class1 field must become unreachable
+     * while a class0 field with the same ceil radius still crosses the gap. */
+    cells[4 * WIDTH + 50] = CM_PATHING_UNWALKABLE;
+    setup_test_pathmap(WIDTH, HEIGHT, cells);
+    T_ASSERT(!CM_ActivateCachedFlowForFlags(gen, CM_PATHING_UNWALKABLE));
+    uint32_t blocked = 0;
+    for (int tick = 0; tick < 64 && !blocked; tick++) {
+        blocked = M_RefreshHeatmapForMover(unit, wp, unit->collision);
+        CM_ProcessPathJobs(16);
+    }
+    T_ASSERT(blocked != 0);
+    T_NE(blocked, gen);
+    T_ASSERT(!CM_FlowCanReach(blocked, unit->s.origin.x, unit->s.origin.y));
+    uint32_t small = 0;
+    for (int tick = 0; tick < 64 && !small; tick++) {
+        small = M_RefreshHeatmapForMover(unit, wp, 0.499f);
+        CM_ProcessPathJobs(16);
+    }
+    T_ASSERT(small != 0);
+    T_NE(small, blocked);
+    T_ASSERT(CM_FlowCanReach(small, unit->s.origin.x, unit->s.origin.y));
+    pathAccelParams_t fallback = { &unit->s.origin2, &target, 0.499f, CM_PATHING_UNWALKABLE };
+    vec2_t closest;
+    T_ASSERT(G_ClosestReachableMovePoint(&fallback, &closest));
+    T_FEQ(closest.x, target.x, 0.0001f);
+    T_FEQ(closest.y, target.y, 0.0001f);
+    fallback.radius = 0.5f;
+    T_ASSERT(G_ClosestReachableMovePoint(&fallback, &closest));
+    T_FEQ(closest.x, 49.5f, 0.0001f);
+    T_FEQ(closest.y, 5.5f, 0.0001f);
+    reset_entities();
+    setup_test_world();
+}
+
+/* Exceptional source floods and incremental goal floods share scratch. A
+ * source query between job ticks must never publish prices under the goal. */
+TEST(wc3_pathfinding, closest_reachable_preserves_pending_field_target) {
+    uint8_t cells[128 * 128] = {0};
+    vec2_t from = {2.f, 2.f}, target = {8.f, 8.f}, out;
+    uint32_t gen = 0;
+    reset_entities();
+    setup_test_world();
+    setup_test_pathmap(128, 128, cells);
+    edict_t *wp = make_waypoint(120.f, 120.f);
+    T_EQ(CM_RequestHeatmapForRadius(wp, 0.f), 0);
+    CM_ProcessPathJobs(16);
+    T_ASSERT(CM_ClosestReachablePointForRadius(&from, &target, 0.f, &out));
+    for (int tick = 0; tick < 128 && !gen; tick++) {
+        gen = CM_RequestHeatmapForRadius(wp, 0.f);
+        CM_ProcessPathJobs(4096);
+    }
+    T_ASSERT(gen != 0);
+    vec2_t dir = get_flow_direction(gen, wp->s.origin.x, wp->s.origin.y);
+    T_FEQ(dir.x, 0.f, 0.0001f);
+    T_FEQ(dir.y, 0.f, 0.0001f);
+    reset_entities();
+    setup_test_world();
+}
+
 TEST(wc3_pathfinding, heatmap_cache_separates_collision_radius) {
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);

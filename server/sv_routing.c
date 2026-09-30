@@ -59,12 +59,18 @@ struct {
     uint8_t *approach_mask;    /* reusable footprint-approach proximity/candidate mask */
 } pathmap = { 0 };
 
+/* Half-open cell offsets describe the query footprint. Games choose the
+ * geometry; field construction, sampling and cache keys consume it unchanged. */
+typedef struct {
+    point2_t min, max;
+    uint8_t flags;
+} pathGridQuery_t;
+
 #define HEATMAP_CACHE_SLOTS 4
 
 typedef struct {
     point2_t target;    /* pathmap cell coordinate of the goal; {-1,-1} = invalid */
-    int      radius_cells; /* mover footprint used when this field was built */
-    uint8_t     blocked_flags; /* pathing bits treated as blocked by this field */
+    pathGridQuery_t query; /* footprint and blocked bits used for this field */
     uint32_t    generation;
     int     *prices;      /* cached distance-to-goal price per cell */
 } heatmapCacheEntry_t;
@@ -79,8 +85,7 @@ typedef struct {
     bool active;
     bool started;
     point2_t target;
-    int radius_cells;
-    uint8_t blocked_flags;
+    pathGridQuery_t query;
     uint32_t head;
     uint32_t tail;
 } heatmapJob_t;
@@ -104,6 +109,17 @@ static uint32_t path_search_stamp = 0;
 
 static uint8_t normalize_blocked_flags(uint8_t blocked_flags) {
     return blocked_flags ? blocked_flags : CM_PATHING_UNWALKABLE;
+}
+
+static pathGridQuery_t path_radius_query(int radius_cells, uint8_t flags) {
+    return (pathGridQuery_t){ {-radius_cells, -radius_cells},
+                             {radius_cells + 1, radius_cells + 1},
+                             normalize_blocked_flags(flags) };
+}
+
+static bool path_queries_equal(pathGridQuery_t const *a, pathGridQuery_t const *b) {
+    return a->min.x == b->min.x && a->min.y == b->min.y &&
+           a->max.x == b->max.x && a->max.y == b->max.y && a->flags == b->flags;
 }
 
 static void heatmap_job_cancel(void) {
@@ -139,8 +155,7 @@ routePerfStats_t CM_GetTestPathPerfStats(void) {
 static void heatmap_cache_invalidate(void) {
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         heatmap_cache[i].target    = (point2_t){ -1, -1 };
-        heatmap_cache[i].radius_cells = -1;
-        heatmap_cache[i].blocked_flags = 0;
+        heatmap_cache[i].query = (pathGridQuery_t){0};
         heatmap_cache[i].generation = 0;
         /* Keep price buffers allocated to avoid malloc churn on map reload. */
     }
@@ -179,7 +194,7 @@ bool CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags) {
     uint8_t const normalized = normalize_blocked_flags(blocked_flags);
     if (!CM_ActivateCachedFlow(generation) || !active_heatmap)
         return false;
-    if (active_heatmap->blocked_flags != normalized) {
+    if (active_heatmap->query.flags != normalized) {
         active_heatmap = NULL;
         return false;
     }
@@ -349,18 +364,19 @@ static void clear_heatmap(void) {
 static bool is_pathable_node_original_for_radius_cells_flags(int x, int y, int radius_cells, uint8_t blocked_flags);
 static bool is_pathable_node_original_for_radius_cells(int x, int y, int radius_cells);
 
+static bool path_query_ok(point2_t pos, pathGridQuery_t const *query);
+
 static bool path_ok(int x, int y, int radius, uint8_t flags) {
     return is_pathable_node_original_for_radius_cells_flags(x, y, radius, flags);
 }
 
-static void begin_heatmap_build(heatmapJob_t *job, point2_t target, int radius_cells, uint8_t blocked_flags) {
+static void begin_heatmap_build(heatmapJob_t *job, point2_t target, pathGridQuery_t const *query) {
     uint32_t const width = pathmap.width;
     uint32_t const ti = (uint32_t)target.x + (uint32_t)target.y * width;
 
     clear_heatmap();
     job->target = target;
-    job->radius_cells = radius_cells;
-    job->blocked_flags = normalize_blocked_flags(blocked_flags);
+    job->query = *query;
     job->head = 0;
     job->tail = 1;
     job->started = true;
@@ -395,7 +411,7 @@ static bool step_heatmap_build(heatmapJob_t *job, uint32_t work_budget) {
         FOR_LOOP(i, 8) {
             int const nx = ux + dx[i];
             int const ny = uy + dy[i];
-            if (!is_pathable_node_original_for_radius_cells_flags(nx, ny, job->radius_cells, job->blocked_flags))
+            if (!path_query_ok((point2_t){nx, ny}, &job->query))
                 continue;
             pathable_neighbors |= 1 << i;
             if (i >= 4) {
@@ -793,58 +809,53 @@ static bool is_pathable_node_original_flags(int x, int y, uint8_t blocked_flags)
     return is_valid_point(x, y) && !is_obstacle_original_flags(x, y, blocked_flags);
 }
 
-static bool is_pathable_node_original_for_radius_cells_flags(int x, int y, int radius_cells, uint8_t blocked_flags) {
-    int const x0 = x - radius_cells;
-    int const y0 = y - radius_cells;
-    int const x1 = x + radius_cells;
-    int const y1 = y + radius_cells;
+static bool path_query_ok(point2_t pos, pathGridQuery_t const *query) {
+    int const x0 = pos.x + query->min.x, y0 = pos.y + query->min.y;
+    int const x1 = pos.x + query->max.x, y1 = pos.y + query->max.y;
     uint32_t stride, blocked;
     uint32_t const *prefix;
-    uint8_t const flags = normalize_blocked_flags(blocked_flags);
+    uint8_t const flags = query->flags;
 
     PERF_INC(pathability_checks);
-
-    if (x0 < 0 || y0 < 0 || x1 >= (int)pathmap.width || y1 >= (int)pathmap.height)
+    if (x0 < 0 || y0 < 0 || x1 > (int)pathmap.width || y1 > (int)pathmap.height)
         return false;
     prefix = flags == CM_PATHING_UNWALKABLE ? pathmap.obstacle_prefix
-           : flags == CM_PATHING_UNFLYABLE ? pathmap.nofly_prefix
-           : NULL;
+           : flags == CM_PATHING_UNFLYABLE ? pathmap.nofly_prefix : NULL;
     if (!prefix) {
-        for (int py = y0; py <= y1; py++)
-            for (int px = x0; px <= x1; px++)
+        for (int py = y0; py < y1; py++)
+            for (int px = x0; px < x1; px++)
                 if (!is_pathable_node_original_flags(px, py, flags))
                     return false;
         return true;
     }
-
-    /* O(1) square-footprint test from the summed-area table.  Radius-aware
-     * heatmap expansion previously re-scanned this whole square for every
-     * neighbour of every visited cell. */
+    /* Summed-area tables keep each rectangle query O(1). */
     stride = pathmap.width + 1;
-    blocked = prefix[(x1 + 1) + (y1 + 1) * stride]
-            - prefix[x0 + (y1 + 1) * stride]
-            - prefix[(x1 + 1) + y0 * stride]
-            + prefix[x0 + y0 * stride];
+    blocked = prefix[x1 + y1 * stride] - prefix[x0 + y1 * stride]
+            - prefix[x1 + y0 * stride] + prefix[x0 + y0 * stride];
     return blocked == 0;
+}
+
+static bool is_pathable_node_original_for_radius_cells_flags(int x, int y, int radius_cells, uint8_t blocked_flags) {
+    pathGridQuery_t query = path_radius_query(radius_cells, blocked_flags);
+    return path_query_ok((point2_t){x, y}, &query);
 }
 
 static bool is_pathable_node_original_for_radius_cells(int x, int y, int radius_cells) {
     return is_pathable_node_original_for_radius_cells_flags(x, y, radius_cells, CM_PATHING_UNWALKABLE);
 }
 
-static bool closest_pathable_node_original_flags(vec2_t const *location, float radius, uint8_t blocked_flags, point2_t *out) {
+static bool closest_pathable_node_query(vec2_t const *location, pathGridQuery_t const *query, point2_t *out) {
     vec2_t n = CM_GetNormalizedMapPosition(location->x, location->y);
     float fx = n.x * pathmap.width;
     float fy = n.y * pathmap.height;
     int tx = (int)floorf(fx);
     int ty = (int)floorf(fy);
     int max_radius = (int)MAX(pathmap.width, pathmap.height);
-    int radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     float best_dist = FLT_MAX;
     point2_t best = { 0, 0 };
     bool found = false;
 
-    if (is_pathable_node_original_for_radius_cells_flags(tx, ty, radius_cells, blocked_flags)) {
+    if (path_query_ok((point2_t){tx, ty}, query)) {
         *out = (point2_t){ tx, ty };
         return true;
     }
@@ -855,7 +866,7 @@ static bool closest_pathable_node_original_flags(vec2_t const *location, float r
                 if (x != tx - search_radius && x != tx + search_radius &&
                     y != ty - search_radius && y != ty + search_radius)
                     continue;
-                if (!is_pathable_node_original_for_radius_cells_flags(x, y, radius_cells, blocked_flags))
+                if (!path_query_ok((point2_t){x, y}, query))
                     continue;
                 cx = x + 0.5f;
                 cy = y + 0.5f;
@@ -873,6 +884,12 @@ static bool closest_pathable_node_original_flags(vec2_t const *location, float r
     return found;
 }
 
+
+static bool closest_pathable_node_original_flags(vec2_t const *location, float radius, uint8_t blocked_flags, point2_t *out) {
+    int cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    pathGridQuery_t query = path_radius_query(cells, blocked_flags);
+    return closest_pathable_node_query(location, &query, out);
+}
 
 /* Read-only test: can a unit with the given collision radius stand at this
  * world location without overlapping static terrain or a building footprint?
@@ -1360,7 +1377,8 @@ bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target,
         target, from, range, radius, true, out);
 }
 
-static vec2_t compute_flow_at(int const *prices_field, uint32_t x, uint32_t y, int radius_cells, uint8_t blocked_flags) {
+static vec2_t compute_flow_at(int const *prices_field, point2_t pos, pathGridQuery_t const *query) {
+    int x = pos.x, y = pos.y;
     int prices[8];
     int min_price = INT_MAX;
     int current_price;
@@ -1381,7 +1399,7 @@ static vec2_t compute_flow_at(int const *prices_field, uint32_t x, uint32_t y, i
         int new_y = (int)y + dy[dir];
         int new_price;
 
-        if (!is_pathable_node_original_for_radius_cells_flags(new_x, new_y, radius_cells, blocked_flags))
+        if (!path_query_ok((point2_t){new_x, new_y}, query))
             continue;
         new_price = prices_field[new_x + new_y * pathmap.width];
         if (new_price == INT_MAX)
@@ -1396,8 +1414,8 @@ static vec2_t compute_flow_at(int const *prices_field, uint32_t x, uint32_t y, i
         if (new_price >= current_price)
             continue;
         if (dir >= 4 &&
-            !(is_pathable_node_original_for_radius_cells_flags((int)x + dx[dir], (int)y, radius_cells, blocked_flags) &&
-              is_pathable_node_original_for_radius_cells_flags((int)x, (int)y + dy[dir], radius_cells, blocked_flags)))
+            !(path_query_ok((point2_t){x + dx[dir], y}, query) &&
+              path_query_ok((point2_t){x, y + dy[dir]}, query)))
             continue;
         prices[dir] = new_price;
         min_price = MIN(new_price, min_price);
@@ -1441,10 +1459,10 @@ vec2_t get_flow_direction(uint32_t heatmapindex, float fnx, float fny) {
     cy1 = (cy + 1 < pathmap.height) ? cy + 1 : cy;
     tx = n.x - (float)cx;
     ty = n.y - (float)cy;
-    a = compute_flow_at(active_heatmap->prices, cx,  cy,  active_heatmap->radius_cells, active_heatmap->blocked_flags);
-    b = compute_flow_at(active_heatmap->prices, cx1, cy,  active_heatmap->radius_cells, active_heatmap->blocked_flags);
-    c = compute_flow_at(active_heatmap->prices, cx1, cy1, active_heatmap->radius_cells, active_heatmap->blocked_flags);
-    d = compute_flow_at(active_heatmap->prices, cx,  cy1, active_heatmap->radius_cells, active_heatmap->blocked_flags);
+    a = compute_flow_at(active_heatmap->prices, (point2_t){cx, cy}, &active_heatmap->query);
+    b = compute_flow_at(active_heatmap->prices, (point2_t){cx1, cy}, &active_heatmap->query);
+    c = compute_flow_at(active_heatmap->prices, (point2_t){cx1, cy1}, &active_heatmap->query);
+    d = compute_flow_at(active_heatmap->prices, (point2_t){cx, cy1}, &active_heatmap->query);
     ab = Vector2_lerp(&a, &b, tx);
     cd = Vector2_lerp(&d, &c, tx);
     return Vector2_lerp(&ab, &cd, ty);
@@ -1468,20 +1486,13 @@ static point2_t LocationToPathMap(vec2_t const *location) {
  * The 'closed' flag means "currently queued"; since a cell is never queued
  * twice, at most width*height cells are queued at once and the ring buffer of
  * width*height+1 never overflows. */
-static bool resolve_heatmap_request(edict_t *goalentity, float radius, uint8_t blocked_flags,
-                                    point2_t *target, int *radius_cells) {
+static bool resolve_heatmap_request(edict_t const *goalentity, pathGridQuery_t const *query, point2_t *target) {
     uint32_t const map_cells = pathmap.width * pathmap.height;
-
-    if (!goalentity || !target || !radius_cells || !pathmap.data ||
-        !pathmap.original || !pathmap.heatmap || !map_cells)
+    if (!goalentity || !target || !pathmap.data || !pathmap.original || !pathmap.heatmap || !map_cells)
         return false;
-
-    *radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     *target = LocationToPathMap(&goalentity->s.origin2);
-    if (!is_pathable_node_original_for_radius_cells_flags(target->x, target->y, *radius_cells, blocked_flags)) {
-        if (!closest_pathable_node_original_flags(&goalentity->s.origin2, radius, blocked_flags, target))
-            return false;
-    }
+    if (!path_query_ok(*target, query))
+        return closest_pathable_node_query(&goalentity->s.origin2, query, target);
     return true;
 }
 
@@ -1489,23 +1500,24 @@ static bool resolve_heatmap_request(edict_t *goalentity, float radius, uint8_t b
  * component.  This is used only after destination-rooted routing proves the
  * mover cannot reach that component, so the whole-component flood is paid once
  * for an exceptional order rather than on every ordinary right click. */
-bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius,
-                                            uint8_t blocked_flags, vec2_t *out) {
+static bool closest_reachable_point(pathAccelParams_t const *params, pathGridQuery_t const *query, vec2_t *out) {
     vec2_t n;
+    vec2_t const *from = params->from, *target = params->target;
     point2_t start;
     heatmapJob_t job = { 0 };
     float tx, ty, best_dist = FLT_MAX;
-    int radius_cells, target_x, target_y, best_x = -1, best_y = -1;
+    int target_x, target_y, best_x = -1, best_y = -1;
 
     if (!from || !target || !out || !pathmap.original || !pathmap.heatmap)
         return false;
     PERF_INC(closest_reachable_calls);
-    radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
-    blocked_flags = normalize_blocked_flags(blocked_flags);
-    if (!closest_pathable_node_original_flags(from, radius, blocked_flags, &start))
+    if (!closest_pathable_node_query(from, query, &start))
         return false;
 
-    begin_heatmap_build(&job, start, radius_cells, blocked_flags);
+    /* A source flood overwrites the same prices/queue as a resumable goal
+     * job. Cancel it so its next request restarts with the correct target. */
+    heatmap_job_cancel();
+    begin_heatmap_build(&job, start, query);
     while (!step_heatmap_build(&job, UINT_MAX)) {
         /* UINT_MAX is already effectively unbounded for WC3 pathmap sizes. */
     }
@@ -1516,7 +1528,7 @@ bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *ta
     target_y = (int)floorf(ty);
     if (is_valid_point(target_x, target_y) &&
         pathmap.heatmap[target_x + target_y * pathmap.width].price != INT_MAX &&
-        is_pathable_node_original_for_radius_cells_flags(target_x, target_y, radius_cells, blocked_flags)) {
+        path_query_ok((point2_t){target_x, target_y}, query)) {
         *out = *target;
         return true;
     }
@@ -1542,18 +1554,24 @@ bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *ta
     return true;
 }
 
+bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius,
+                                            uint8_t blocked_flags, vec2_t *out) {
+    int cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    pathGridQuery_t query = path_radius_query(cells, blocked_flags);
+    pathAccelParams_t params = {from, target, radius, blocked_flags};
+    return closest_reachable_point(&params, &query, out);
+}
+
 bool CM_ClosestReachablePointForRadius(vec2_t const *from, vec2_t const *target, float radius, vec2_t *out) {
     return CM_ClosestReachablePointForRadiusFlags(from, target, radius, CM_PATHING_UNWALKABLE, out);
 }
 
-static int find_cached_heatmap(point2_t target, int radius_cells, uint8_t blocked_flags) {
-    blocked_flags = normalize_blocked_flags(blocked_flags);
+static int find_cached_heatmap(point2_t target, pathGridQuery_t const *query) {
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         if (heatmap_cache[i].generation &&
             heatmap_cache[i].target.x == target.x &&
             heatmap_cache[i].target.y == target.y &&
-            heatmap_cache[i].radius_cells == radius_cells &&
-            heatmap_cache[i].blocked_flags == blocked_flags &&
+            path_queries_equal(&heatmap_cache[i].query, query) &&
             heatmap_cache[i].prices) {
             heatmap_lru[i] = heatmap_lru_clock++;
             active_heatmap = &heatmap_cache[i];
@@ -1575,7 +1593,7 @@ static int choose_heatmap_cache_slot(void) {
     return evict;
 }
 
-static uint32_t commit_heatmap(point2_t target, int radius_cells, uint8_t blocked_flags) {
+static uint32_t commit_heatmap(point2_t target, pathGridQuery_t const *query) {
     uint32_t const map_cells = pathmap.width * pathmap.height;
     int const evict = choose_heatmap_cache_slot();
 
@@ -1585,8 +1603,7 @@ static uint32_t commit_heatmap(point2_t target, int radius_cells, uint8_t blocke
         heatmap_cache[evict].prices[i] = pathmap.heatmap[i].price;
 
     heatmap_cache[evict].target = target;
-    heatmap_cache[evict].radius_cells = radius_cells;
-    heatmap_cache[evict].blocked_flags = normalize_blocked_flags(blocked_flags);
+    heatmap_cache[evict].query = *query;
     heatmap_cache[evict].generation = heatmap_next_generation++;
     if (heatmap_next_generation == 0)
         heatmap_next_generation = 1;
@@ -1600,14 +1617,15 @@ static uint32_t commit_heatmap(point2_t target, int radius_cells, uint8_t blocke
  * large flood does not run to completion inside one unit think. */
 uint32_t CM_BuildHeatmapForRadius(edict_t *goalentity, float radius) {
     point2_t target;
-    int radius_cells;
+    int cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    pathGridQuery_t query = path_radius_query(cells, CM_PATHING_UNWALKABLE);
     int cached;
     heatmapJob_t job = { 0 };
 
-    if (!resolve_heatmap_request(goalentity, radius, CM_PATHING_UNWALKABLE, &target, &radius_cells))
+    if (!resolve_heatmap_request(goalentity, &query, &target))
         return 0;
 
-    cached = find_cached_heatmap(target, radius_cells, CM_PATHING_UNWALKABLE);
+    cached = find_cached_heatmap(target, &query);
     if (cached >= 0) {
         PERF_INC(cache_hits);
         return heatmap_cache[cached].generation;
@@ -1618,11 +1636,11 @@ uint32_t CM_BuildHeatmapForRadius(edict_t *goalentity, float radius) {
      * No production gameplay caller uses this path; cancel a pending job so a
      * direct test/tool build cannot leave its queue state half-valid. */
     heatmap_job_cancel();
-    begin_heatmap_build(&job, target, radius_cells, CM_PATHING_UNWALKABLE);
+    begin_heatmap_build(&job, target, &query);
     while (!step_heatmap_build(&job, UINT_MAX)) {
         /* UINT_MAX is already effectively unbounded for WC3 pathmap sizes. */
     }
-    return commit_heatmap(target, radius_cells, CM_PATHING_UNWALKABLE);
+    return commit_heatmap(target, &query);
 }
 
 uint32_t CM_BuildHeatmap(edict_t *goalentity) {
@@ -1634,31 +1652,29 @@ uint32_t CM_BuildHeatmap(edict_t *goalentity) {
  * the single resumable build and returns zero until CM_ProcessPathJobs()
  * finishes it.  Repeated unit thinks naturally retry the same request, so a
  * second destination cannot be lost: it starts after the current job completes. */
-uint32_t CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, float radius, uint8_t blocked_flags) {
-    point2_t target;
-    int radius_cells;
-    int cached;
-
-    blocked_flags = normalize_blocked_flags(blocked_flags);
-    if (!resolve_heatmap_request(goalentity, radius, blocked_flags, &target, &radius_cells))
-        return 0;
-
-    cached = find_cached_heatmap(target, radius_cells, blocked_flags);
+static uint32_t request_heatmap_query(point2_t target, pathGridQuery_t const *query) {
+    int cached = find_cached_heatmap(target, query);
     if (cached >= 0) {
         PERF_INC(cache_hits);
         return heatmap_cache[cached].generation;
     }
-
     if (heatmap_job.active)
         return 0;
-
     PERF_INC(cache_misses);
     heatmap_job.active = true;
     heatmap_job.started = false;
     heatmap_job.target = target;
-    heatmap_job.radius_cells = radius_cells;
-    heatmap_job.blocked_flags = blocked_flags;
+    heatmap_job.query = *query;
     return 0;
+}
+
+uint32_t CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, float radius, uint8_t blocked_flags) {
+    point2_t target;
+    int cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    pathGridQuery_t query = path_radius_query(cells, blocked_flags);
+    if (!resolve_heatmap_request(goalentity, &query, &target))
+        return 0;
+    return request_heatmap_query(target, &query);
 }
 
 uint32_t CM_RequestHeatmapForRadius(edict_t *goalentity, float radius) {
@@ -1670,12 +1686,12 @@ void CM_ProcessPathJobs(uint32_t work_budget) {
         return;
 
     if (!heatmap_job.started)
-        begin_heatmap_build(&heatmap_job, heatmap_job.target, heatmap_job.radius_cells, heatmap_job.blocked_flags);
+        begin_heatmap_build(&heatmap_job, heatmap_job.target, &heatmap_job.query);
 
     if (!step_heatmap_build(&heatmap_job, work_budget))
         return;
 
-    commit_heatmap(heatmap_job.target, heatmap_job.radius_cells, heatmap_job.blocked_flags);
+    commit_heatmap(heatmap_job.target, &heatmap_job.query);
     heatmap_job_cancel();
 }
 

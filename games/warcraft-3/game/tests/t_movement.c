@@ -1226,6 +1226,10 @@ TEST(wc3_movement, gold_worker_static_blocked_edge_does_not_fake_mine_entry) {
         for (int x = 38; x < 46; x++)
             pathmap[x + y * CELLS] = 0x02;
     }
+    /* An actual wall separates the worker from the interaction boundary.
+     * The mine footprint alone leaves a legal class1 approach: its two-cell
+     * query can advance to cell37 and enter at the authored distance. */
+    for (int y = 0; y < CELLS; y++) pathmap[37 + y * CELLS] = 0x02;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
     CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
@@ -3725,7 +3729,11 @@ TEST(wc3_movement, unreachable_move_settles_at_closest_boundary) {
     for (int frame = 0; frame < 200 && unit->currentmove->think; frame++) {
         unit->currentmove->think(unit);
         CM_ProcessPathJobs(4096);
-        T_ASSERT(CM_PointIsPathableForRadius(&unit->s.origin2, unit->collision));
+        /* This mover covers class1's four cells, including its newly closer
+         * reachable boundary. Check the fixture independently of routing. */
+        int cx = (int)floorf(unit->s.origin.x / 32), cy = (int)floorf(unit->s.origin.y / 32);
+        for (int y = cy - 1; y <= cy; y++) for (int x = cx - 1; x <= cx; x++)
+            T_ASSERT(x >= 0 && y >= 0 && x < CELLS && y < CELLS && !pathmap[y * CELLS + x]);
     }
 
     T_STREQ(unit->currentmove->animation, "stand");

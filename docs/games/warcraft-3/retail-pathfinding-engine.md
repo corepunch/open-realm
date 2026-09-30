@@ -1484,9 +1484,8 @@ step validator, displacement failure check, selection destination reservations
 and ordinary point-order correction. Destination correction still uses the
 existing nearest-ring policy. Line validation still uses Bresenham/corner
 sampling; original `168d30` sampling is a separate required port. Long shared
-fields retain their conservative ceil-radius shape until FOOT-01.5. Their
-unreachable result no longer vetoes a legal finer nearby route. These differences
-remain visible rather than being described as complete retail parity.
+fields now consume the same class bounds as described below. These partial
+policies remain visible rather than being described as complete retail parity.
 
 `foot-corridors-original.json` executes24 complete original searches, reuse
 repeats and request reconstructions over widths0..5 and all four classes. Widths
@@ -1506,3 +1505,56 @@ requested destination and advances the actual Move thinker. A pre-existing
 wall-detour regression still used the superseded3x3 predicate; it now checks
 the independently known four class1 cells against its raw fixture on every
 frame and retains exact final arrival. No wire, edict or save layout changes.
+
+
+## Long fields use the same class geometry as Move
+
+`G_RequestMovePathField` derives half-open cell offsets with the same
+`wc3_fine_class/cover` helper as fine routing and stepping. The shared field
+builder consumes a generic `pathGridQuery_t`: min/max offsets and blocked mask.
+Expansion, diagonal side checks, flow sampling, goal correction and cache keys
+all use that query. WC3 owns the class policy; existing shared radius APIs retain
+their symmetric ceil-radius geometry for other callers, including SC2.
+
+`G_ActivateMovePathField` checks the cached query against the mover's actual
+class and mask. The old 0.01 radius tolerance could incorrectly reuse a field
+across a class boundary: radii0.499 and0.5 differ geometrically despite the small
+scalar difference. Same-class radii can share a field; different bounds or masks
+cannot. Static rebakes invalidate all generations as before.
+`G_ClosestReachableMovePoint` also floods the mover's class graph, so an
+unreachable-order fallback agrees with both the field and the Move validator.
+
+The new winding-corridor regression first failed7 of14 assertions: a class1
+mover could not obtain a long field through a two-cell L beyond the48-cell fine
+search envelope. It now checks field reachability, advances the actual Move
+thinker for eight ticks and validates the four covered cells against the raw
+fixture. Pinching the passage to one cell invalidates the old generation;
+class1 becomes disconnected while class0 still reaches the exact target.
+The class1 fallback chooses the near-side49.5/5.5 cell, while class0 preserves
+the exact100.5/15.5 requested destination.
+
+A separate regression reproduced pending-job scratch corruption: a synchronous
+closest-reachable source flood overwrote an incremental goal flood's prices and
+queue, then the interrupted job published those prices under its original goal.
+The original goal incorrectly had a nonzero flow vector. Source floods now
+cancel the pending scratch job; its next request restarts correctly. Cached
+completed fields remain separate. This fixes engine scratch lifetime, not an
+inferred retail scheduler contract.
+
+Two pre-existing tests encoded the superseded shape. The disconnected-Move
+regression now checks all four class1 cells independently rather than invoking
+the old3x3 predicate. The blocked-mine-entry regression formerly supplied only
+the mine footprint; class1 can legally advance into interaction range there.
+It now supplies a real separating wall and still requires visible workers,
+zero occupants and a retained Harvest walk. Existing successful mine-entry,
+return-resource, crowd/group, queued orders and save/load cases remain required.
+
+Validation: the full Classic/TFT suite passes41,710 assertions in2,176 WC3 cases
+per variant; all101 pathfinding tool tests and WC3/SC2/WoW production builds pass.
+Fresh selected `long-field-validated-corpus/corpus-results.json` retains both
+original/C footprint oracles; it does not represent a full157-entry corpus run.
+Ghidra's saved `16ee80/1492b0` comments link the additional engine consumers.
+There are no wire, edict or save layout changes. The shared SPFA field and
+interpolated steering are still the engine algorithm, not the retail adaptive
+hierarchy or full-trajectory replacement; FOOT-01.5 closes geometry consistency
+only. Next port the all-class sampled segment and its waypoint consumer.
