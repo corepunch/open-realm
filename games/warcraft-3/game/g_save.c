@@ -499,6 +499,17 @@ static field_t const entity_state_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const unit_attack_fields[] = {
+    TF(unitAttack_t, backswingPoint, F_FLOAT),
+    TF(unitAttack_t, rangeBuffer, F_FLOAT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const unit_info_fields[] = {
+    TF(unitInfo_t, PropWindow, F_FLOAT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const artillery_fields[] = {
     TF(edictArtillery_t, attack_type, F_INT), TF(edictArtillery_t, area_targets, F_INT),
     TF(edictArtillery_t, targets_allowed, F_INT),
@@ -758,6 +769,10 @@ field_t edict_fields[] = {
     F(edict_s, artillery, F_STRUCT, 1, artillery_fields),
     F(edict_s, projectile_reflected, F_INT),
     F(edict_s, collision, F_FLOAT),
+    F(edict_s, attack_cooldown_active, F_INT),
+    F(edict_s, unitinfo, F_STRUCT, 1, unit_info_fields),
+    F(edict_s, attack1, F_STRUCT, 1, unit_attack_fields),
+    F(edict_s, attack2, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
     F(edict_s, construction, F_STRUCT, 1, construction_fields),
     F(edict_s, rally, F_STRUCT, 1, rally_fields),

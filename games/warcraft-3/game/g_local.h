@@ -1694,6 +1694,7 @@ struct edict_s {
     umove_t *currentmove;
     unitRace_t race;
     float wait;
+    bool attack_cooldown_active;
     unitInfo_t unitinfo;
     unitAttack_t attack1;
     unitAttack_t attack2;

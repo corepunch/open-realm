@@ -219,7 +219,8 @@ uint32_t GetUnitDefaultTurnSpeed(jass_t *j) {
 }
 uint32_t GetUnitDefaultPropWindow(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.PropWindow : 0);
+    return jass_pushnumber(j, whichUnit && whichUnit->data.UnitData
+        ? whichUnit->data.UnitData->propWin : 0);
 }
 uint32_t GetUnitDefaultFlyHeight(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
