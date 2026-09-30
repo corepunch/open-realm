@@ -1478,6 +1478,17 @@ static void ai_move_walk(edict_t *ent) {
     }
 
     if (move_displacement_active(ent) && !move_displacement_reached(ent)) {
+        /* A retained solid widget can make escape impossible. Retail's original
+         * can't-path recovery drains this Move without changing the footprint;
+         * the old early return never evaluated progress and walked forever.
+         * TODO: match the retail retry/task cadence after NUM-02.3; use the
+         * existing engine progress budget until its simulation clock is ported. */
+        if (!CM_PointIsPathableForRadiusFlags(&ent->s.origin2, ent->collision, M_UnitStaticPathingFlags(ent)) &&
+            move_is_blocked(ent, Vector2_distance(&ent->s.origin2, &ent->movement.displacement_target), move_distance)) {
+            move_cancel_displacement(ent);
+            ent->stand(ent);
+            return;
+        }
         unit_setanimation(ent, "walk");
         unit_changeangle(ent);
         unit_moveindirection(ent);

@@ -2431,80 +2431,112 @@ TEST(wc3_building, construction_displacement_starts_idle_move_and_arrives) {
     enum { CELLS = 128, FOOTPRINT = 9 };
     static uint8_t pathmap[CELLS * CELLS];
     size_t const bytes = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(color32_t);
-    edict_t *builder, *worker, *building;
+    edict_t *builder, *worker, *building, *other;
     pathTex_t *pathtex;
     vec2_t start, target;
 
-    reset_entities();
-    setup_test_world();
-    memset(pathmap, 0, sizeof(pathmap));
-    setup_test_pathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048, -2048 }, .max = { 2048, 2048 }));
-    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512, -512);
-    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, -192);
-    building = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0, 0);
-    builder->s.player = worker->s.player = building->s.player = game.clients[0].ps.number;
-    builder->svflags |= SVF_MONSTER;
-    worker->svflags |= SVF_MONSTER;
-    building->svflags |= SVF_MONSTER;
-    builder->stand = worker->stand = building->stand = unit_stand;
-    worker->movetype = MOVETYPE_STEP;
-    worker->think = monster_think;
-    worker->collision = 16;
-    unit_stand(worker);
-    building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
-    pathtex = gi.MemAlloc(bytes);
-    memset(pathtex, 0, bytes);
-    pathtex->width = pathtex->height = FOOTPRINT;
-    FOR_LOOP(i, FOOTPRINT * FOOTPRINT) pathtex->map[i].b = 0xff;
-    building->pathtex = pathtex;
-    gi.LinkEntity(builder);
-    gi.LinkEntity(worker);
-    gi.LinkEntity(building);
-    CM_BakeStaticObstacles();
-    start = worker->s.origin2;
-    T_EQ(worker->current_order_id, 0);
-    T_ASSERT(G_DisplaceBuildOccupants(builder, building));
-    target = worker->movement.displacement_target;
-    T_ASSERT(move_displacement_active(worker));
-    T_FEQ(Vector2_distance(&worker->s.origin2, &start), 0, 0.001f);
-    T_ASSERT(move_is_active_order_walk(worker));
-    T_EQ(worker->current_order_id, G_OrderId("move"));
-    building->s.flags &= ~EF_NOT_SELECTABLE;
-    T_ASSERT(G_StartHumanConstruction(builder, building));
-    T_ASSERT(!CM_PointIsPathableForRadius(&building->s.origin2, 0));
-    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
-    level.started = level.scriptsConfigured = level.scriptsStarted = true;
-    FOR_LOOP(frame, 120) {
-        level.time += FRAMETIME;
-        globals.RunFrame();
-        if (!move_displacement_active(worker)) break;
+    FOR_LOOP(inside, 2) {
+        reset_entities();
+        setup_test_world();
+        memset(pathmap, 0, sizeof(pathmap));
+        pathmap[96 * CELLS + 96] = CM_PATHING_UNWALKABLE;
+        setup_test_pathmap(CELLS, CELLS, pathmap);
+        CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048, -2048 }, .max = { 2048, 2048 }));
+        builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512, -512);
+        worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, inside ? -64 : -192);
+        building = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0, 0);
+        builder->s.player = worker->s.player = building->s.player = game.clients[0].ps.number;
+        builder->svflags |= SVF_MONSTER;
+        worker->svflags |= SVF_MONSTER;
+        building->svflags |= SVF_MONSTER;
+        builder->stand = worker->stand = building->stand = unit_stand;
+        worker->movetype = MOVETYPE_STEP;
+        worker->think = monster_think;
+        worker->collision = 16;
+        unit_stand(worker);
+        building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
+        pathtex = gi.MemAlloc(bytes);
+        memset(pathtex, 0, bytes);
+        pathtex->width = pathtex->height = FOOTPRINT;
+        FOR_LOOP(i, FOOTPRINT * FOOTPRINT) pathtex->map[i].b = 0xff;
+        building->pathtex = pathtex;
+        other = alloc_test_unit(MAKEFOURCC('h','t','o','w'), -1024, 1024);
+        other->s.flags |= EF_BUILDING;
+        other->pathtex = pathtex;
+        gi.LinkEntity(other);
+        gi.LinkEntity(builder);
+        gi.LinkEntity(worker);
+        gi.LinkEntity(building);
+        CM_BakeStaticObstacles();
+        start = worker->s.origin2;
+        T_EQ(worker->current_order_id, 0);
+        T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+        target = worker->movement.displacement_target;
+        T_ASSERT(move_displacement_active(worker));
+        T_FEQ(Vector2_distance(&worker->s.origin2, &start), 0, 0.001f);
+        T_ASSERT(move_is_active_order_walk(worker));
+        T_EQ(worker->current_order_id, G_OrderId("move"));
+        building->s.flags &= ~EF_NOT_SELECTABLE;
+        T_ASSERT(G_StartHumanConstruction(builder, building));
+        T_ASSERT(!CM_PointIsPathableForRadius(&building->s.origin2, 0));
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        FOR_LOOP(frame, 120) {
+            level.time += FRAMETIME;
+            globals.RunFrame();
+            if (!move_displacement_active(worker)) break;
+        }
+        if (inside) {
+            /* Original stock-mask solid-widget witness cannot leave its retained
+             * footprint, but finishes its recovery chain instead of walking forever. */
+            T_FEQ(Vector2_distance(&worker->s.origin2, &start), 0, 0.001f);
+            T_ASSERT(Vector2_distance(&worker->s.origin2, &target) > worker->collision);
+        } else {
+            T_ASSERT(Vector2_distance(&worker->s.origin2, &start) > 1);
+            T_FEQ(Vector2_distance(&worker->s.origin2, &target), 0, 0.001f);
+        }
+        T_ASSERT(!move_displacement_active(worker));
+        T_EQ(worker->current_order_id, 0);
+        T_ASSERT(!move_is_active_order_walk(worker));
+        T_EQ(CM_PointIsPathableForRadius(&worker->s.origin2, worker->collision), !inside);
+        T_ASSERT(!CM_PointIsPathableForRadius(&building->s.origin2, 0));
+        /* A replacement public Move cancels the temporary escape and owns its
+         * new destination; the construction footprint remains blocked. */
+        worker->s.origin2 = (vec2_t){ 0, -192 };
+        gi.LinkEntity(worker);
+        T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+        T_ASSERT(move_displacement_active(worker));
+        vec2_t const later = { 0, -512 };
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &later, false, worker->s.player, 0));
+        T_ASSERT(!move_displacement_active(worker));
+        FOR_LOOP(frame, 120) {
+            level.time += FRAMETIME;
+            globals.RunFrame();
+            if (!worker->current_order_id) break;
+        }
+        T_FEQ(Vector2_distance(&worker->s.origin2, &later), 0, 0.001f);
+        T_EQ(worker->current_order_id, 0);
+        /* Stop owns the interruption, including removal of the temporary target.
+         * Normal frames must keep the worker stationary after the command. */
+        worker->s.origin2 = (vec2_t){ 0, -192 };
+        gi.LinkEntity(worker);
+        T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+        T_ASSERT(move_displacement_active(worker));
+        T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+        T_ASSERT(!move_displacement_active(worker));
+        T_EQ(worker->current_order_id, 0);
+        start = worker->s.origin2;
+        FOR_LOOP(frame, 8) {
+            level.time += FRAMETIME;
+            globals.RunFrame();
+        }
+        T_FEQ(Vector2_distance(&worker->s.origin2, &start), 0, 0.001f);
+        T_ASSERT(!CM_PointIsPathableForRadius(&MAKE(vec2_t, .x = 1040, .y = 1040), 0));
+        T_ASSERT(!CM_PointIsPathableForRadius(&other->s.origin2, 0));
+        other->pathtex = NULL;
+        building->pathtex = NULL;
+        gi.MemFree(pathtex);
     }
-    T_ASSERT(Vector2_distance(&worker->s.origin2, &start) > 1);
-    T_FEQ(Vector2_distance(&worker->s.origin2, &target), 0, 0.001f);
-    T_ASSERT(!move_displacement_active(worker));
-    T_EQ(worker->current_order_id, 0);
-    T_ASSERT(!move_is_active_order_walk(worker));
-    T_ASSERT(CM_PointIsPathableForRadius(&worker->s.origin2, worker->collision));
-    T_ASSERT(!CM_PointIsPathableForRadius(&building->s.origin2, 0));
-    /* A replacement public Move cancels the temporary escape and owns its
-     * new destination; the construction footprint remains blocked. */
-    worker->s.origin2 = start;
-    gi.LinkEntity(worker);
-    T_ASSERT(G_DisplaceBuildOccupants(builder, building));
-    T_ASSERT(move_displacement_active(worker));
-    vec2_t const later = { 0, -512 };
-    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &later, false, worker->s.player, 0));
-    T_ASSERT(!move_displacement_active(worker));
-    FOR_LOOP(frame, 120) {
-        level.time += FRAMETIME;
-        globals.RunFrame();
-        if (!worker->current_order_id) break;
-    }
-    T_FEQ(Vector2_distance(&worker->s.origin2, &later), 0, 0.001f);
-    T_EQ(worker->current_order_id, 0);
-    building->pathtex = NULL;
-    gi.MemFree(pathtex);
 }
 
 /* A construction can invalidate the old straight route while a second worker

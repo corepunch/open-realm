@@ -901,15 +901,10 @@ canceling displacement and arriving at its replacement point. The existing worke
 regression still reaches its later build destination.
 
 This is bounded admission/lifecycle integration, not full widget-path parity.
-A second reproduced case, the same idle worker at`(0,-64)` inside the9×9 active
-footprint, remains immobile because static endpoint validation rejects every
-occupied intermediate cell. The passing margin fixture starts at`(0,-192)`.
-MAP-03.4 remains open for retaining the original produced query mask and region state
-through this journey; the current fixture explicitly supplies mask`02000000`.
-MAP-03.7 owns integrating the recovered self/widget exclusion policy,
-terrain and unrelated-object protection, interrupted escape/Stop cleanup and
-arrival/failure lifetime. Original nearest-edge/jitter proposal generation and
-RNG ownership remain MAP-03.3/NUM-04; no spiral geometry is promoted to retail parity.
+The later stock-mask fixture closes MAP-03.4; the earlier terrain-only control
+remains separate evidence. MAP-03.7 below now covers the engine's solid-footprint
+failure and interruption cleanup. Original nearest-edge/jitter proposal generation
+and RNG ownership remain MAP-03.3/NUM-04; no spiral geometry is promoted to retail parity.
 Validation logs retain both failures in `/tmp/wc3-map-03.4-idle-{baseline,fixed}.log`
 and the final margin baseline in `/tmp/wc3-map-03.4-idle-final-baseline.log`.
 
@@ -924,8 +919,8 @@ with unchanged source fingerprints. Manifest SHA256
 `72b14dc041e398b499eedbe6dbd9e8db63bc8f5bbbad81844fccdf5c2b07c564`;
 summary SHA256
 `69fdc4610b6e8bfa4fe3615d6c5ed87079e7ebb3dfc518c2f428ef2af99fcb49`.
-MAP-03.4 is deliberately still unchecked pending the original produced mask;
-the strict terrain-only journey is supporting bounded evidence.
+At that earlier checkpoint MAP-03.4 was still unchecked; the later stock-mask
+checkpoint closes it. The terrain-only journey remains supporting bounded evidence.
 
 
 MAP-03.4 stock-mask checkpoint: fresh
@@ -957,3 +952,47 @@ per schema,85 pathfinding tool tests and both WC3/SC2 production builds. The
 movement subset passes1,530 assertions in163 tests per schema. Save rejection
 covers the combined58 layout. Logs are`wc3-upstream-20260930-final-full-suite.log`
 and`wc3-upstream-movement-fixed.log` under`/tmp`.
+
+
+## Solid-footprint escape failure and cleanup
+
+The retained solid9×9 widget produces an accepted original escape order with the
+same stock Footman query2/categoryca/custom radius8 setup as MAP-03.4. Fresh
+original search produces no initial route. All seven elapsed1/32 group ticks
+retain the exact starting position and zero velocity. At the final tick original
+`603110 → 5fb190(1)` recovers the can't-path result, drains the internal/user
+queues through `5fa7a0`, and releases the group, path, task/order payloads and
+wrappers after two release ticks. The original footprint stays active throughout.
+This result does not authorize a collision bypass for units inside construction.
+The original witness and frozen fixture are documented in
+[solid-widget recovery](retail-pathfinding-search.md#solid-widget-cant-path-recovery).
+
+The engine reproducer places the idle worker at`(0,-64)` inside its new9×9
+construction. Before the fix,120 actual server frames leave the displacement
+flag, current Move head and walk thinker live: three failing assertions. The
+displacement branch returned before normal progress accounting. Move now applies
+its existing progress budget when the origin is statically blocked, then retires
+the failed displacement through the ordinary stand/queued-order completion edge.
+The point validator and all static masks remain active. Margin escape, replacement
+Move and Stop are exercised in the same two-geometry server-frame fixture;
+terrain and a separate building remain blocked after completion/interruption.
+No struct/save/network change is introduced.
+
+This integrates the verified failure outcome and cleanup, with an explicit timing
+limit: the engine currently has its existing10Hz progress budget, while the
+original witness completes after seven1/32 group ticks. The source carries that
+TODO, owned by NUM-02.3/SCHED; this does not claim complete retry-cadence or
+trajectory parity. Stop already cancels displacement through `unit_setmove`;
+no second cancellation mechanism was added.
+
+
+MAP-03.7 validation: final umbrella tests pass85 pathfinding tool tests and
+37,286 assertions in2,155 engine tests per Classic/TFT. Construction displacement
+passes85 assertions in normal and forced DEBUG Move builds; normal is restored.
+WC3/SC2 production builds pass. Fresh `map-03.7-final-corpus/corpus-results.json`
+passes134/134 with source fingerprints unchanged. Manifest SHA256
+`0a691e0657ae0affaf25860d725e2a7f0d08cf6d10a58486e2ac8f2cda98750a`;
+summary SHA256
+`94fc67963332bff10a955bbc43297951f5e607c78d00657650a4302195bf33fe`.
+Logs are `/tmp/wc3-map-03.7-final-full-suite.log`, `wc3-map-03.7-debug.log`,
+`wc3-map-03.7-normal-restored.log` and `wc3-map-03.7-production.log`.

@@ -869,6 +869,102 @@
           "evidence": "05c770/05c7b0 canonical lookup; Unit+164 bridge embeds Unit+16c identity"
         }
       ]
+    },
+    {
+      "name": "WC3BuildFootprintContext",
+      "length": 96,
+      "fields": [
+        {
+          "offset": 4,
+          "name": "query_mask",
+          "type": "u8",
+          "evidence": "68018b ->04e060 query; observed live8"
+        },
+        {
+          "offset": 5,
+          "name": "required_mask",
+          "type": "u8",
+          "evidence": "68020e ->04e060 required-mask query"
+        },
+        {
+          "offset": 16,
+          "name": "world_point",
+          "type": "WC3PathVector2",
+          "evidence": "68fcb9 forwards ctx10 to original22e9c0"
+        },
+        {
+          "offset": 24,
+          "name": "orientation",
+          "type": "u32",
+          "evidence": "68fcc2 stack orientation to original raster"
+        },
+        {
+          "offset": 44,
+          "name": "failure_ba",
+          "type": "u32",
+          "evidence": "680130 setter;68fd21 resultba when nonzero"
+        },
+        {
+          "offset": 48,
+          "name": "visibility_state",
+          "type": "u32",
+          "evidence": "680171/680219; semantics not inferred"
+        },
+        {
+          "offset": 52,
+          "name": "failure_44",
+          "type": "u32",
+          "evidence": "6801a4 blocked point sets1;68fd2e ->44"
+        },
+        {
+          "offset": 56,
+          "name": "failure_43",
+          "type": "u32",
+          "evidence": "680236 sets1 on missing required mask;68fd3b ->43"
+        },
+        {
+          "offset": 76,
+          "name": "builder",
+          "type": "u32",
+          "evidence": "68f7ac/68fd0a temporarily toggle original virtuald0"
+        },
+        {
+          "offset": 80,
+          "name": "excluded_bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "evidence": "680192/680224 passes ctx50 to04e060"
+        },
+        {
+          "offset": 84,
+          "name": "path_texture",
+          "type": "u32",
+          "evidence": "68fcb6 loads ECXtexture for22e9c0"
+        },
+        {
+          "offset": 92,
+          "name": "false_obstacles",
+          "type": "u32",
+          "evidence": "6801b6 vector rows20bytes; strict interior rectangles and mask filters"
+        }
+      ]
+    },
+    {
+      "name": "WC3AgentClassRowPrefix",
+      "length": 124,
+      "fields": [
+        {
+          "offset": 24,
+          "name": "rawcode",
+          "type": "u32",
+          "evidence": "04ce00 registry198420 key"
+        },
+        {
+          "offset": 120,
+          "name": "parent_rawcode",
+          "type": "u32",
+          "evidence": "04ce4c direct parent comparison;04cea3 recursive traversal"
+        }
+      ]
     }
   ],
   "methods": [
@@ -2077,6 +2173,122 @@
           "storage": "ECX"
         }
       ]
+    },
+    {
+      "address": "6f6800f0",
+      "name": "Build_CheckFootprintCell",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "point",
+          "type": "ptr:WC3PathVector2",
+          "storage": "ECX"
+        },
+        {
+          "name": "row",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "orientation",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "pixel_mask",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "context",
+          "type": "ptr:WC3BuildFootprintContext",
+          "storage": 16
+        }
+      ]
+    },
+    {
+      "address": "6f04e060",
+      "name": "PathWorld_TestPointMask",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        },
+        {
+          "name": "query",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f04cdd0",
+      "name": "AgentClass_IsDerived",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "actual",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "requested",
+          "type": "u32",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f04ce00",
+      "name": "AgentClass_IsDerivedInOwner",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "game_owner",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "actual",
+          "type": "u32",
+          "storage": "EDX"
+        },
+        {
+          "name": "requested",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f684a90",
+      "name": "OrderPoint_GetClassCode",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": []
+    },
+    {
+      "address": "6f684ac0",
+      "name": "OrderTarget_GetClassCode",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": []
     }
   ],
   "globals": [

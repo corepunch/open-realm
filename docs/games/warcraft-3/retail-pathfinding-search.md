@@ -907,3 +907,48 @@ Authored RoC`UnitData.slk` maps`htow` to`PathTextures\16x16Simple.tga`;
 with a12×12 walk-blocking interior and blue build-blocking coverage across all
 256 pixels. A5×5 terrain vertex patch does not resolve ground-texture, object
 or generated buildability masks. The public producer remains MAP-03.3.
+
+
+## Solid-widget can't-path recovery
+
+MAP-03.7 extends the same uninterrupted original `6544f0` admission fixture with
+supplied9×9 bit2 walk-blocking pixels. Original profile getters/bridge retain
+Footman mask`02000002` and category`010000ca`; custom radius8, class/profile/resource
+backing and pools remain supplied. The solid texture is supplied before entry;
+no query-mask or footprint mutation is made after admission.
+
+Initial route is empty; all seven1/32 clock ticks preserve source raw position
+`[1087373312,1089732608]` and velocity`[0,0]`. At tick6 the one-point route is the
+source itself. At tick7 the recovery observation at `5fb190` is argument1,
+clock`1046478848`, internal head`[12,112]`, retained user head`[5,105]`.
+Original `603110` casts the COrderTarget through `21b890/21b7f0`, and `5fb190`
+performs its fallback task chain before `5fa7a0` drains ownership. Final internal,
+user and group heads are invalid, queue/action/Move flags are0, and all payload,
+wrapper, group and path free lists are restored after two release ticks.
+
+The frozen `retail-widget-solid-failure-1.27.json` derives from original execution
+report`map-03.7-solid-widget-complete.json`, pinned by its SHA256. Its normalized
+trajectory/lifetime digest is
+`c780d38d2c2f5e48e88fdc0ff727002e452fc307524e3137ee91359dc267b060`.
+The original narrow-mask escape still reaches its destination after thirteen ticks;
+this variant establishes failure/cleanup for a different footprint, not a new
+through-building movement rule. Public construction/texture parsing, whole owner
+cadence and an independent RNG seed model remain excluded.
+
+A missing supplied class-parent field initially hit original class-cache allocation.
+RTTI already identifies COrderTarget as derived from COrderPoint (`ord.`). Original
+`04ce00` checks class-row`+78` against the requested class before its cache. The
+fixture now supplies that authentic parent; it does not cache a false cast or
+replace the allocator. Ghidra persists `AgentClass_IsDerived/InOwner`, the two
+class getters, placement callback dispatch/raster-cell predicates and their exact
+operand storage. The complete saved map is320 names,22 layouts,138 fields and84
+explicit x86 prototypes (`map-03.7-ghidra-types.json`).
+
+The prior public Town Hall negative captures are explained more precisely by
+`66fba0 → 68f700 → 6800f0`: callback failure44 propagates without any of the four
+direct `66f050` status44 assignments. The footprint context supplies query8,
+world point`+10`, orientation`+18`, texture`+54` and excluded mover bridge`+50`;
+`04e060` takes that bridge pointer, not a mode integer. The first query-blocked
+pixel sets context`+34` and stops the raster; `68f700` maps it to44 after restoring
+its builder`+4c` and temporarily excluded objects. This is saved instruction/live
+rejection evidence; a successful public construction escape producer is still open.

@@ -6403,6 +6403,81 @@
       "exclusions": [
         "Source/map hashes are embedded and exact tool sources archived adjacent to capture. No full public escape or original mask initialization proof is inferred from an idle occupant."
       ]
+    },
+    {
+      "id": "widget-solid-failure",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_widget_masks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--stock-mask",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-widget-solid-failure-1.27.json",
+        "--solid-footprint"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "widget-solid-failure-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "lifecycle_cases": {
+          "equal": 144
+        },
+        "widget_escape_arrival_tick": {
+          "equal": 7
+        },
+        "widget_escape_trajectory_sha256": {
+          "equal": "c780d38d2c2f5e48e88fdc0ff727002e452fc307524e3137ee91359dc267b060"
+        },
+        "widget_escape_fixture_sha256": {
+          "equal": "2a7761dc1452dbc95badaf54f6f67558afd4a96dc32c4332b52d70b36a899b27"
+        },
+        "widget_escape_supplied_query_mask": {
+          "equal": 33554434
+        },
+        "widget_escape_original_mask_publication": {
+          "equal": true
+        },
+        "widget_escape_profile": {
+          "equal": {
+            "rawcode": "hfoo",
+            "category": 202,
+            "query": 2,
+            "radius_world_bits": 1090519040
+          }
+        },
+        "widget_escape_solid_footprint": {
+          "equal": true
+        },
+        "widget_escape_recovery": {
+          "equal": [
+            {
+              "clock_bits": 1046478848,
+              "argument": 1,
+              "task_head": [
+                12,
+                112
+              ],
+              "user_head": [
+                5,
+                105
+              ]
+            }
+          ]
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original retained solid9x9 stock Footman widget cannot-path recovery. Uninterrupted admission, empty initial route, seven unchanged raw position/zero velocity ticks, original recovery/task drain and complete reclamation. Supplied RTTI parent ord., profile/cache/radius8/pools; whole owner cadence/authored public producer excluded.",
+      "exclusions": []
     }
   ],
   "fixtures": [
@@ -6468,7 +6543,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "f2e4d2bd563b18cbfeb0c3bdcc7029cfc057168526f53c371a6915e300d5d94c"
+      "sha256": "1a539da2fd3727e239d934175c958bdf18af2dfce19c658ef8f1b4a297076e05"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -6537,6 +6612,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-widget-footman-escape-1.27.json",
       "sha256": "4227bc8110d44fa0726590e2ab0e6d7cbc638dbdf0ecc831688919cc80ffbaf7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-widget-solid-failure-1.27.json",
+      "sha256": "2a7761dc1452dbc95badaf54f6f67558afd4a96dc32c4332b52d70b36a899b27"
     }
   ]
 }

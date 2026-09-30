@@ -24,7 +24,7 @@ restored-valid checks). Cdecl stack, callee registers, SEH and Unit references
 are checked. Existing VM backing is supplied; full construction stays excluded.
 GROUP-04.1 adds callback-mutation checks to the motion oracle. GROUP-04.3 adds
 three variants: open/wall callback-timed mover reuse and a missing-registry-alias
-counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. NUM-01.5/06 add one repeated public numeric/parser and parsed Move admission capture; NUM-01.8 adds one48-pair public-angle repeat. The inventory now has **133 entries**; fixture hashes and Ghidra
+counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. NUM-01.5/06 add one repeated public numeric/parser and parsed Move admission capture; NUM-01.8 adds one48-pair public-angle repeat. The inventory now has **134 entries**; fixture hashes and Ghidra
 annotation-script fingerprints cover those extensions. MAP-03.4 adds the
 original-mask Footman escape variant and eight complete negative public-widget
 producer captures. Frozen route states cover every tick of both seven/thirteen
@@ -160,3 +160,24 @@ Full ROC/TFT suites pass37,126 assertions in2,142 engine tests each;85 pathfindi
 tool tests and both WC3/SC2 production builds pass. The original-mask extension
 adds no engine representation or frame-cadence change. The earlier idle admission
 fix remains active; inside-footprint escape integration remains MAP-03.7.
+
+
+MAP-03.7 adds `widget-solid-failure`: original stock Footman mask publication,
+supplied solid9×9 widget, seven unchanged position/zero-velocity ticks, one
+can't-path recovery, task/user queue drain and full group/path/payload/wrapper
+reclamation. Its frozen original outcome is independent of the thirteen-tick
+narrow-mask journey. Inventory:56 original-code oracles,69 capture archives and9
+live contracts. Whole owner/retry cadence and successful public widget creation
+remain outside this result.
+
+
+MAP-03.7 validation: final umbrella tests pass85 pathfinding tool tests and
+37,286 assertions in2,155 engine tests per Classic/TFT. Construction displacement
+passes85 assertions in normal and forced DEBUG Move builds; normal is restored.
+WC3/SC2 production builds pass. Fresh `map-03.7-final-corpus/corpus-results.json`
+passes134/134 with source fingerprints unchanged. Manifest SHA256
+`0a691e0657ae0affaf25860d725e2a7f0d08cf6d10a58486e2ac8f2cda98750a`;
+summary SHA256
+`94fc67963332bff10a955bbc43297951f5e607c78d00657650a4302195bf33fe`.
+Logs are `/tmp/wc3-map-03.7-final-full-suite.log`, `wc3-map-03.7-debug.log`,
+`wc3-map-03.7-normal-restored.log` and `wc3-map-03.7-production.log`.

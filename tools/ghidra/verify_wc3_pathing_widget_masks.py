@@ -35,7 +35,10 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--fixture', type=Path, default=Path(__file__).with_name('fixtures') / 'retail-widget-escape-journey-1.27.json')
     parser.add_argument('--stock-mask', action='store_true', help='publish observed Footman profile masks through original getters/bridge before admission')
+    parser.add_argument('--solid-footprint', action='store_true', help='retain a supplied solid9x9 widget and verify original cannot-path recovery')
     args = parser.parse_args()
+    if args.solid_footprint and not args.stock_mask:
+        parser.error('--solid-footprint requires --stock-mask')
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != SHA256:
@@ -582,6 +585,9 @@ def main():
     run(0x6f198420, key_ptr)
     write(class_row + 4, uc.reg_read(UC_X86_REG_EAX))
     write(class_row + 0x18, 0x6f726474)
+    if args.solid_footprint:
+        # Actual RTTI parent COrderPoint;04ce00 checks immediate parent before cache.
+        write(class_row + 0x78, 0x6f72642e)
     write(class_row + 0x6c, class_row + 0x80, 0x6fd70e44)
     write(0x6fd70e44, 0x6fb78984)
     run(0x6f06a270, 0x6fd70e48, 0x88, 4)
@@ -834,6 +840,10 @@ def main():
         run(0x6f05c7e0, occupant + 0x164, category, query_mask)
         assert words(current_path + 0x9c, 1) == [0x02000002]
         assert words(grid_objects[1] + 0x34, 1) == [0x010000ca]
+    if args.solid_footprint:
+        write(texture + 8, 9, 9)
+        write(texture + 0x20, extra + 0x28000)
+        uc.mem_write(extra + 0x28000, bytes([2] * 81))
     pre_dispatch_unit_references = words(occupant + 4, 1)[0]
     order_attempts.clear()
     proposals.clear()
@@ -851,7 +861,8 @@ def main():
     assert len(proposals) == len(order_attempts) == len(factory_requests) == len(dispatch_orders) == 1
     assert order_attempts[0] == (0xd0012, 0, *proposals[0])
     assert factory_requests[0] == (0xd0012, 0, 0, *proposals[0], 0, 0)
-    assert proposals[0] == (3292303111, 3278893763)  # Prior staged snapshot comparison.
+    if not args.solid_footprint:
+        assert proposals[0] == (3292303111, 3278893763)  # Prior staged snapshot comparison.
     order = dispatch_orders[0]
     order_identity = words(order + 0xc, 2)
     assert words(occupant + 0x19c, 2) == words(occupant + 0x1a8, 2) == order_identity
@@ -882,7 +893,7 @@ def main():
         task_codes.append(words(task + 0x30, 1)[0])
         task_identity = words(task + 0x24, 2)
     assert task_codes == [0xd016b, 0xd0165, 0xd014a, 0xd0148, 0xd0166, 0xd0162]
-    displacement_evidence = dict(uninterrupted=True, matches_staged_target_bits=True, pre_dispatch_unit_references=pre_dispatch_unit_references, retained_unit_references=retained_unit_references, user_order_identity=order_identity, remaining_task_codes=list(map(hex, task_codes)),
+    displacement_evidence = dict(uninterrupted=True, matches_staged_target_bits=not args.solid_footprint, pre_dispatch_unit_references=pre_dispatch_unit_references, retained_unit_references=retained_unit_references, user_order_identity=order_identity, remaining_task_codes=list(map(hex, task_codes)),
         target_world_bits=list(proposals[0]), target_grid_bits=target_grid,
         group_identity=words(group + 0x14, 2), path_identity=words(path + 0x14, 2), events=dispatch_events,
         scope='One uninterrupted original6544f0 invocation with all provisioning before entry; full680320 cancellation, real factories, user-order publication, task dispatch and Move acceptance return. Group/path/membership, callback reference release and final widget refresh asserted. Stock-style speed bounds and shipped original CRT math provisioned; no travel/arrival claim.')
@@ -915,6 +926,13 @@ def main():
     floats(xptr, .5)
     run(0x6f05c8c0, occupant + 0x164, xptr)
     run(0x6f05c890, occupant + 0x164, xptr)
+    recovery_observations = []
+    def observe_recovery(machine, address, size, data):
+        sp = machine.reg_read(UC_X86_REG_ESP)
+        recovery_observations.append(dict(clock_bits=words(clock + 0x40, 1)[0],
+            argument=words(sp + 4, 1)[0], task_head=words(occupant + 0x174, 2),
+            user_head=words(occupant + 0x19c, 2)))
+    uc.hook_add(UC_HOOK_CODE, observe_recovery, begin=0x6f5fb190, end=0x6f5fb190)
     arrival_observations = []
     def observe_arrival(machine, address, size, data):
         arrival_observations.append(dict(clock_bits=words(clock + 0x40, 1)[0],
@@ -963,11 +981,17 @@ def main():
                          task_head=words(occupant + 0x174, 2), user_head=words(occupant + 0x19c, 2),
                          queue_count=words(occupant + 0x1b4, 1)[0], action=words(occupant + 0x194, 1)[0],
                          scope='Exact widget proposal and blocking footprint retained; original fresh search and up to128 elapsed group ticks. Outcome observed, not forced.')
-    arrival_tick = 13 if args.stock_mask else 7
+    arrival_tick = 7 if args.solid_footprint else 13 if args.stock_mask else 7
     assert len(trajectory) == arrival_tick and len(arrival_observations) == 1
     assert arrival_observations[0]['user_head'] == order_identity
     intermediate = [bits(7.5), bits(8.5), bits(6.5), bits(8.5)] if args.stock_mask else [bits(7.5)] * 2
-    assert initial_route == target_grid + intermediate + source_grid
+    if args.solid_footprint:
+        assert initial_route == []
+        assert all(row['position_bits'] == source_grid and row['velocity_bits'] == [0, 0] for row in trajectory)
+        assert len(recovery_observations) == 1 and recovery_observations[0]['argument'] == 1
+    else:
+        assert initial_route == target_grid + intermediate + source_grid
+        assert recovery_observations == []
     assert active_widget_cell(7, 7)  # The intermediate route point also lies in A's footprint.
     assert words(occupant + 0x174, 2) == words(occupant + 0x19c, 2) == words(occupant + 0x1a8, 2) == [0xffffffff] * 2
     assert words(occupant + 0x1b4, 1) == words(occupant + 0x194, 1) == words(ability + 0x20, 1) == [0]
@@ -993,7 +1017,7 @@ def main():
         returned_payloads[hex(rawcode)] = count
     assert words(wrapper_pool + 0x18, 1) == [0]
     assert words(registry + 0x48, 1) == [5]
-    travel_outcome.update(outcome='arrived', arrival_tick=arrival_tick, footprint_start_and_middle_cells_active=True,
+    travel_outcome.update(outcome='cant-path' if args.solid_footprint else 'arrived', arrival_tick=arrival_tick, footprint_start_and_middle_cells_active=True,
                           payload_free_lists_restored=returned_payloads, registry_live_after_cleanup=5,
                           scope=f'Unchanged widget footprint/proposal; fresh original search, arrival after{arrival_tick}ticks, queues drain and group/path/payload/wrapper reclamation. Query mask{travel_mask:08x}; stock mode uses original getter/bridge before admission, control supplies terrain-only mask.')
     frozen = json.loads(args.fixture.read_text())
@@ -1049,6 +1073,7 @@ def main():
                 write(obj + 0x14, slot, 200 + slot)
                 write(obj + 0x34, 0x01000000 | mask, 0, 0, 0x10000000)
         write(texture + 8, 2, 3)
+        write(texture + 0x20, pixels)  # Independent destruction texture, including after solid variant.
         uc.mem_write(pixels, bytes([0xff] * 6))
         floats(center, 224, 240)
         for group in range(2):
@@ -1097,6 +1122,7 @@ def main():
     report = dict(binary_sha256=digest, lifecycle_cases=cases, raster_bounds_rebuild_stages=stages,
                   actual_callback_calls=total_callbacks, actual_cell_records=total_records,
                   widget_escape_arrival_tick=arrival_tick, widget_escape_supplied_query_mask=travel_mask,
+                  widget_escape_solid_footprint=args.solid_footprint, widget_escape_recovery=recovery_observations,
                   widget_escape_original_mask_publication=args.stock_mask, widget_escape_route_states=route_states,
                   widget_escape_profile=dict(rawcode='hfoo', category=0xca, query=2, radius_world_bits=bits(8)) if args.stock_mask else None,
                   widget_escape_trajectory_sha256=travel_digest,
@@ -1116,7 +1142,7 @@ def main():
                   snapping='World-coordinate truncation toward zero to a multiple of 64, plus sign(value) * (32 * ((rotated_extent >> 1) & 1) + 16 * (rotated_extent & 1)); exercised strictly inside world bounds.',
                   sequence='A insert, overlapping B insert, A remove, B remove; explicit bounds rebuild after every raster',
                   entries=['6f22e9c0', '6f652b40', '6f650a70', '6f063e50', '6f14d9e0', '6f22f1d0', '6f04e0b0', '6f15d360', '6f6514d0', '6f6524c0', '6f344760', '6f058900', '6f252b30', '6f22f410', '6f651160', '6f6544f0', '6f78bc90', '6f744040', '6f04c5d0', '6f05ef40', '6f654090', '6f674280', '6f1b7130', '6f69dd60', '6f600620', '6f69bd80', '6f680970', '6f689a60', '6f650c00', '6f063b40', '6f14dae0', '6f1cbfb0', '6f680320', '6f673fe0', '6f691c70', '6f67abe0', '6f5fd270', '6f67df00', '6f16c150', '6f054190', '6f5fa7a0'],
-                  scope='Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return, then preserves footprint records through fresh search, the declared seven/13-tick variant, arrival and reclamation; default terrain-only mask is supplied, stock mode executes original observed profile getters/bridge before admission. Full owner cadence remains excluded. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free.')
+                  scope='Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return, then preserves footprint records through fresh search, the declared seven/13-tick variant, completion and reclamation (solid9x9 stock mode cannot path, retains zero velocity and drains recovery); default terrain-only mask is supplied, stock mode executes original observed profile getters/bridge before admission. Full owner cadence remains excluded. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free.')
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
