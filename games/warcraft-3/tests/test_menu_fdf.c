@@ -50,6 +50,7 @@ static handle_t test_mpq_archive;
 static bool hide_expansion_campaign_file;
 static bool test_fs_expansion;
 static bool test_skip_menu_transitions;
+static bool test_background_birth_available = true;
 static int test_vid_native = -1;
 static cstring_t test_campaign_visibility;
 static PATHSTR test_campaign_progress_path = "campaign-progress-menu-test.orcp";
@@ -292,7 +293,8 @@ static bool test_entity_anim(model_t const *model, cstring_t anim, renderEntity_
 }
 static bool test_animation_duration(model_t const *model, cstring_t anim, uint32_t *duration) {
     (void)model;
-    if (!anim || strcmp(anim, "Birth") || !duration) return false;
+    if (anim && !strcmp(anim, "Birth") && !test_background_birth_available) return false;
+    if (!anim || (strcmp(anim, "Birth") && strcmp(anim, "Stand")) || !duration) return false;
     *duration = 1000;
     return true;
 }
@@ -429,6 +431,7 @@ static void reset_ui_state(void) {
     texture_releases = map_reads = 0;
     test_map = "";
     test_skip_menu_transitions = false;
+    test_background_birth_available = true;
     test_vid_native = -1;
     hover_texture = NULL;
     captured_hover_draws = 0;
@@ -2445,6 +2448,7 @@ static void test_glue_tick(uint32_t msec) {
 TEST(menu_fdf, glue_background_birth_hands_off_to_stand_at_authored_duration) {
     menuImport_t saved = mi;
     uint32_t const start = M_Time();
+    char expected_stand[32];
 
     test_glue_setup();
     M_SetActive(true);
@@ -2458,14 +2462,34 @@ TEST(menu_fdf, glue_background_birth_hands_off_to_stand_at_authored_duration) {
 
     M_Refresh(start + 1000);
     UI_DrawGlueScene();
-    T_STREQ(captured_entity_anim, "Stand");
+    snprintf(expected_stand, sizeof(expected_stand), "Stand@%.4f", (float)(M_Time() % 1000) / 1000.0f);
+    T_STREQ(captured_entity_anim, expected_stand);
 
+    UI_ResetGlueSceneModels();
+    mi = saved;
+}
+
+TEST(menu_fdf, glue_background_without_birth_uses_menu_clock_for_stand) {
+    menuImport_t saved = mi;
+    char expected_stand[32];
+
+    test_glue_setup();
+    test_background_birth_available = false;
+    M_SetActive(true);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
+    UI_DrawGlueScene();
+
+    snprintf(expected_stand, sizeof(expected_stand), "Stand@%.4f", (float)(M_Time() % 1000) / 1000.0f);
+    T_STREQ(captured_entity_anim, expected_stand);
+
+    test_background_birth_available = true;
     UI_ResetGlueSceneModels();
     mi = saved;
 }
 
 TEST(menu_fdf, skip_glue_transitions_settles_scene_and_delivers_callbacks) {
     menuImport_t saved = mi;
+    char expected_stand[32];
     test_glue_setup();
     test_skip_menu_transitions = true;
 
@@ -2473,7 +2497,8 @@ TEST(menu_fdf, skip_glue_transitions_settles_scene_and_delivers_callbacks) {
     T_EQ(captured_glue_changes, 1);
     T_ASSERT(!UI_GlueIsTransitioning());
     UI_DrawGlueScene();
-    T_STREQ(captured_entity_anim, "Stand");
+    snprintf(expected_stand, sizeof(expected_stand), "Stand@%.4f", (float)(M_Time() % 1000) / 1000.0f);
+    T_STREQ(captured_entity_anim, expected_stand);
     T_STREQ(captured_sprite_anim[0], "MainMenu Stand");
 
     UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_OPTIONS }, test_glue_changed, test_glue_changed);
