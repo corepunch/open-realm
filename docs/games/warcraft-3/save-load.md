@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 57, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 58, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -578,3 +578,11 @@ retire it, and edict reuse starts at zero. Selection groups also retain their
 active Move command. Version56 and older records are rejected. Remaining
 command owners are ORDER-01.6; see
 [current point orders](retail-pathfinding-engine.md#current-point-order-ownership).
+
+
+The September30 upstream sync advances the outer format to **58**: the merged
+raw unit layout combines committed retail Move velocity/current-order state with
+explicit allied attack intent, and the camera field schema includes upstream
+orientation/noise state. Both parents' earlier layouts are rejected. Existing
+ROC/TFT round-trips cover live movement, allied intent and camera state; the
+previous-format rejection matrix includes versions39 through57.

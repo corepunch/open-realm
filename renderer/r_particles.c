@@ -102,9 +102,35 @@ cparticle_t *R_SpawnParticle(void) {
     p->next = active_particles;
     active_particles = p;
     p->blend_mode = BLEND_MODE_ADD;
+    p->emitter_id = 0;
     p->tail = (vec3_t){0};
+    p->use_uv_curve = false;
+    p->uv_start = p->uv_mid = p->uv_end = 0;
     p->size_value_scale = p->size_time_scale = 1.0f;
     return p;
+}
+
+void R_DiscardParticle(cparticle_t *particle) {
+    cparticle_t **link;
+
+    if (!particle) return;
+    for (link = &active_particles; *link && *link != particle; link = &(*link)->next) {}
+    if (!*link) return;
+    *link = particle->next;
+    particle->next = free_particles;
+    free_particles = particle;
+}
+
+/* Count an effect's logical particles; weather head/tail render copies have no owner key. */
+uint32_t R_CountParticlesForEmitter(uint32_t emitter_id) {
+    uint32_t count = 0;
+
+    if (!emitter_id) return 0;
+    FOR_EACH_LIST(cparticle_t, p, active_particles) {
+        if (p->emitter_id == emitter_id && p->time <= p->lifespan)
+            ++count;
+    }
+    return count;
 }
 
 #define SHADER_TYPE particleState_t
@@ -328,11 +354,23 @@ static color32_t FX_GetFrame(cparticle_t const *p) {
     uint32_t columns = p->columns ? p->columns : 1;
     uint32_t rows = p->rows ? p->rows : 1;
     uint32_t total = columns * rows;
-    /* The sprite-sheet frame advances over the particle's own lifetime, not a
-     * global clock — otherwise every particle flips frames in unison, which
-     * reads as a crude strobing "old game" effect. */
     float k = (p->lifespan > 0.0f) ? (p->time / p->lifespan) : 0.0f;
-    uint32_t frame = (uint32_t)(k * (float)total);
+    uint32_t frame;
+
+    k = MIN(MAX(k, 0.0f), 1.0f);
+    if (p->use_uv_curve) {
+        float mid = BYTE2FLOAT(p->midtime);
+        float value;
+        if (k > mid)
+            value = LerpNumber(p->uv_mid, p->uv_end, (k - mid) / MAX(1.0f - mid, 0.0001f));
+        else
+            value = LerpNumber(p->uv_start, p->uv_mid, k / MAX(mid, 0.0001f));
+        frame = (uint32_t)MAX(value, 0.0f);
+    } else {
+        /* Default sprite-sheet animation advances over each particle's lifetime,
+         * not a global clock, so independent particles do not strobe in sync. */
+        frame = (uint32_t)(k * (float)total);
+    }
     if (frame >= total) frame = total - 1;
     uint32_t u = frame % columns;
     uint32_t v = frame / columns;

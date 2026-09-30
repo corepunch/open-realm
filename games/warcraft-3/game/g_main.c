@@ -606,6 +606,13 @@ static void G_ReclampClientCamera(gameClient_t *client) {
     client->camera.old_state.position = position;
     position = G_ClampCameraPosition(client, &client->camera.state.position);
     client->camera.state.position = position;
+    if (client->camera.pan_active) {
+        position = G_CameraPanPositionAtTime(client, G_Time(), NULL);
+        client->camera.pan_start = G_ClampCameraPosition(client, &position);
+        client->camera.pan_start_time = G_Time();
+        position = G_ClampCameraPosition(client, &client->camera.pan_destination);
+        client->camera.pan_destination = position;
+    }
 }
 
 void G_SetCameraBounds(float const bounds[8]) {
@@ -623,6 +630,45 @@ void G_SetCameraBounds(float const bounds[8]) {
         G_ReclampClientCamera(game.clients + i);
 }
 
+
+void G_ClearCameraPan(gameClient_t *client) {
+    if (!client) return;
+    client->camera.pan_active = false;
+    client->camera.pan_start_time = 0;
+    client->camera.pan_start = (vec2_t){ 0, 0 };
+    client->camera.pan_destination = (vec2_t){ 0, 0 };
+    client->camera.pan_rate = (vec2_t){ 0, 0 };
+}
+
+static float G_CameraPanAxisAtTime(float start, float destination, float rate, float elapsed) {
+    float distance = destination - start;
+    float step;
+
+    if (distance == 0.0f || rate <= 0.0f || elapsed <= 0.0f) return start;
+    step = rate * elapsed;
+    if (step >= fabsf(distance)) return destination;
+    return start + copysignf(step, distance);
+}
+
+vec2_t G_CameraPanPositionAtTime(gameClient_t *client, uint32_t now, bool *complete) {
+    vec2_t position;
+    float elapsed;
+
+    if (complete) *complete = true;
+    if (!client || !client->camera.pan_active)
+        return client ? client->camera.state.position : (vec2_t){ 0, 0 };
+    elapsed = now > client->camera.pan_start_time ?
+        (now - client->camera.pan_start_time) / 1000.0f : 0.0f;
+    position.x = G_CameraPanAxisAtTime(client->camera.pan_start.x, client->camera.pan_destination.x,
+                                       client->camera.pan_rate.x, elapsed);
+    position.y = G_CameraPanAxisAtTime(client->camera.pan_start.y, client->camera.pan_destination.y,
+                                       client->camera.pan_rate.y, elapsed);
+    if (complete)
+        *complete = position.x == client->camera.pan_destination.x &&
+                    position.y == client->camera.pan_destination.y;
+    return position;
+}
+
 void G_ClearCameraTarget(gameClient_t *client, cstring_t func) {
     (void)func;
     if (!client || !client->camera.target_controller) {
@@ -631,6 +677,54 @@ void G_ClearCameraTarget(gameClient_t *client, cstring_t func) {
     client->camera.target_controller = NULL;
     client->camera.target_offset = (vec2_t){ 0, 0 };
     client->camera.target_inherit_orientation = false;
+    client->camera.target_orient_only = false;
+    client->camera.orient_eye = (vec3_t){ 0, 0, 0 };
+}
+
+static float G_CameraOrientPitch(float attack) {
+    return attack < 90.0f ? 90.0f + attack : -90.0f - attack;
+}
+
+static float G_CameraOrientYaw(float rotation, float pitch) {
+    return pitch < 0.0f ? 450.0f - rotation : 270.0f - rotation;
+}
+
+static void G_UpdateCameraOrientTarget(gameClient_t *client, edict_t *target) {
+    vec3_t focus = {
+        target->s.origin2.x + client->camera.target_offset.x,
+        target->s.origin2.y + client->camera.target_offset.y,
+        target->s.origin.z,
+    };
+    vec3_t direction = Vector3_sub(&focus, &client->camera.orient_eye);
+    float horizontal = sqrtf(direction.x * direction.x + direction.y * direction.y);
+    float length = sqrtf(horizontal * horizontal + direction.z * direction.z);
+    float distance = client->camera.state.target_distance;
+    float attack, rotation, pitch;
+    vec3_t camera_target;
+    float base;
+
+    if (length <= 0.0001f) {
+        return;
+    }
+
+    attack = (float)RAD2DEG(atan2f(direction.z, horizontal));
+    rotation = (float)RAD2DEG(atan2f(direction.y, direction.x));
+    pitch = G_CameraOrientPitch(attack);
+
+    /* Preserve the authored target distance.  The orbit target is a virtual
+     * point on the look ray; moving that point instead of the source keeps the
+     * source fixed while the unit can travel arbitrarily far away. */
+    camera_target = Vector3_add(&client->camera.orient_eye,
+        &(vec3_t){ direction.x * distance / length, direction.y * distance / length,
+                   direction.z * distance / length });
+    base = CM_GetHeightAtPoint(camera_target.x, camera_target.y) + CM_GetCameraHeightOffset();
+
+    client->camera.state.position = (vec2_t){ camera_target.x, camera_target.y };
+    client->camera.state.z_offset = camera_target.z - base;
+    client->camera.state.viewangles.x = pitch;
+    client->camera.state.viewangles.z = G_CameraOrientYaw(rotation, pitch);
+    client->camera.old_state = client->camera.state;
+    client->camera.start_time = client->camera.end_time = G_Time();
 }
 
 static void G_UpdateCameraTarget(gameClient_t *client) {
@@ -642,6 +736,10 @@ static void G_UpdateCameraTarget(gameClient_t *client) {
     }
     if (!target->inuse) {
         G_ClearCameraTarget(client, "G_UpdateCameraTarget");
+        return;
+    }
+    if (client->camera.target_orient_only) {
+        G_UpdateCameraOrientTarget(client, target);
         return;
     }
     position.x = target->s.origin2.x + client->camera.target_offset.x;
@@ -704,13 +802,17 @@ static void G_RunClients(void) {
         gameClient_t *client = game.clients+i;
         edict_t *client_ent = G_GetPlayerEntityByNumber(client->ps.number);
         uint32_t duration;
+        bool pan_complete = false;
+        vec2_t pan_position = { 0, 0 };
         G_UpdateCameraTarget(client);
+        if (client->camera.pan_active)
+            pan_position = G_CameraPanPositionAtTime(client, G_Time(), &pan_complete);
         duration = client->camera.end_time - client->camera.start_time;
         if (G_Time() < client->camera.end_time && duration > 0) {
             float k = (G_Time() - client->camera.start_time) / (float)duration;
             camerasetup_t const *a = &client->camera.old_state;
             camerasetup_t const *b = &client->camera.state;
-            vec2_t p = Vector2_lerp(&a->position, &b->position, k);
+            vec2_t p = client->camera.pan_active ? pan_position : Vector2_lerp(&a->position, &b->position, k);
             client->ps.vieworigin = G_MakeCameraOrigin(client, p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
             /* JASS interpolates camera fields independently. Angle fields use
              * the game's periodic-degree rule; WC3 takes the shortest arc. */
@@ -725,14 +827,19 @@ static void G_RunClients(void) {
                 .znear = LerpNumber(a->near_z, b->near_z, k),
                 .zfar = LerpNumber(a->far_z, b->far_z, k) });
         } else {
-            client->ps.vieworigin = G_MakeCameraOrigin(client, client->camera.state.position.x,
-                                                       client->camera.state.position.y, client->camera.state.z_offset);
+            vec2_t p = client->camera.pan_active ? pan_position : client->camera.state.position;
+            client->ps.vieworigin = G_MakeCameraOrigin(client, p.x, p.y, client->camera.state.z_offset);
             client->ps.viewangles = client->camera.state.viewangles;
             client->ps.distance = client->camera.state.target_distance;
             player_set_lens(&client->ps, &(gameCamera_t){
                 .fov = client->camera.state.fov,
                 .znear = client->camera.state.near_z,
                 .zfar = client->camera.state.far_z });
+        }
+        if (client->camera.pan_active && pan_complete) {
+            client->camera.old_state.position = client->camera.pan_destination;
+            client->camera.state.position = client->camera.pan_destination;
+            G_ClearCameraPan(client);
         }
         if (client_ent) client_ent->s.origin = client->ps.vieworigin;
         /* Transmission scene and voice lifetimes are independent. Blizzard.j

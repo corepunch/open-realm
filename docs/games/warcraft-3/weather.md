@@ -101,24 +101,262 @@ map's SLK remains authoritative at runtime.
 
 `r_weather.c` emits only inside the intersection of the weather rectangle and a
 camera-local world window.  Large map-wide weather therefore does not allocate
-particles across the entire map.  Emission uses the authored `emrate *
-deltaTime`, so particle creation is frame-rate independent without inventing a
-region-area multiplier.
+particles across the entire map. Emission accrues the authored `emrate` across
+frame time. Retail tracing confirms that `emrate` is a per-second rate for each
+weather emitter. OpenRealm applies that rate directly to its single renderer
+effect; retail's multiple emitter fan-out is not yet reconstructed. The
+authored `particles` count caps logical weather particles per effect.
 
 Spawn height is terrain height plus the authored `height`.  `angx`/`angy` rotate
-the base vertical direction, `veloc` supplies signed speed, and `accel` changes
-speed along that direction.  Weather uses renderer-local xorshift state rather
-than gameplay RNG.
+the base vertical direction, `veloc` supplies signed speed, `var` applies the
+same symmetric per-particle speed variation used by WC3 ParticleEmitter2, and
+`lati` spreads each particle inside a cone around that authored direction.
+`accel` changes speed along the selected particle direction.  Weather uses
+renderer-local xorshift state rather than gameplay RNG.
 
-The shared particle representation now has an optional generic world-space
-`tail` vector.  A zero vector keeps the old camera-facing billboard path.  A
-non-zero vector renders a camera-facing quad from `position - tail` to
-`position`; WC3 weather sets that vector from `velocity * taillen`.  This keeps
-rain streak support game-neutral and leaves existing MDX/WoW particle callers
-unchanged.
+The shared particle representation has an optional generic world-space `tail`
+vector.  A zero vector keeps the camera-facing billboard path.  A non-zero
+vector renders a camera-facing quad from `position - tail` to `position`; WC3
+weather sets that vector from `velocity * taillen`.  `head=1`, `tail=1` now
+creates both primitives from the same spawned weather particle state instead of
+discarding the authored head.
 
 Start/mid/end RGB/alpha and scale reuse the shared particle interpolation.
-Texture rows/columns reuse the existing lifetime atlas path.
+Weather also supplies separate head/tail `hUV*` / `tUV*` atlas-frame curves,
+interpolated across the same authored `midTime`; ordinary shared particles keep
+the existing full-lifetime atlas animation unless they opt into that curve.
+
+OpenRealm currently multiplies weather texture and particle color and uses
+ordinary source-alpha blending; it parses `alphaMode` but does not map its
+values. A retail trace of Prologue01's `RLhr` (`alphaMode=0`) confirms those
+parts of the path and also reveals a retail alpha-test cutoff that OpenRealm
+does not currently reproduce. See [Retail Rain Alpha](#retail-rain-alpha) for
+the evidence, parity gap, and reproducible probe. Behavior for other
+`alphaMode` values remains unverified.
+
+## Retail Rain Alpha
+
+### Confirmed Prologue01 path
+
+The evidence chain starts in the retail map. `Prologue01.w3m` is in
+`War3Local.mpq`; its `war3map.j` creates and enables `RLhr` over
+`Starting_Area_Rain` near map initialization. The `War3.mpq`
+`TerrainArt\\Weather.slk` row authors `alphaMode=0`, white RGB, and
+`alphaStart=alphaMid=alphaEnd=150`. That row names
+`ReplaceableTextures\\Weather\\rainTail.blp`, a 32x16 BLP1 image whose source
+header declares an 8-bit alpha channel.
+
+A read-only Frida trace of the retail OpenGL draw path observed the rain batch
+with these values:
+
+| State at the draw | Observed value | Meaning |
+|---|---:|---|
+| Vertex color | `(255, 255, 255, 150)` | White particle color, authored alpha 150/255 (about 0.588) |
+| Texture environment | `GL_MODULATE` (`8448`) | Texture RGBA modulates the vertex RGBA |
+| Texture | 32x16, `GL_TEXTURE_ALPHA_SIZE=4` | The bound rain-sized texture reports 4-bit internal alpha precision |
+| Alpha test | enabled, `GL_GEQUAL` (`518`), ref `0.0156863` | Fragment alpha must be at least 4/255 to pass |
+| Blend | enabled, `GL_SRC_ALPHA` (`770`), `GL_ONE_MINUS_SRC_ALPHA` (`771`) | Standard source-alpha compositing |
+| Primitive batch | `GL_TRIANGLES`, 468 or 474 indices | Repeated weather draw observed during the cinematic |
+
+For this mode-0 rain path, the effective fragment alpha is the modulated texture
+alpha times the particle vertex alpha: `A = A_texture * (150/255)`. The alpha
+test discards fragments where `A < 4/255`. Passing fragments use ordinary
+source-alpha compositing: `C_out = C_src * A + C_dst * (1-A)`. The white vertex
+RGB leaves the sampled texture RGB unchanged under modulation. The 4-bit
+precision is the OpenGL texture object's reported internal alpha size; the BLP
+source itself declares 8-bit alpha. The trace records the bound texture object
+and its dimensions, not its asset path. Prologue01's active opening effect and
+the row's texture dimensions and vertex alpha make the draw a rain-matching
+candidate, but the probe does not independently recover or prove the texture
+filename.
+
+The controlled Prologue01 scene and matching row data make this a strong
+correlation with `RLhr` (`alphaMode=0`), but the draw probe does not recover a
+texture filename and dimensions plus vertex alpha are not unique identifiers.
+Treat the GL state as observed on the rain-matching batch, not as a definitive
+asset-to-draw link. It does not establish what `alphaMode=1` or other weather
+rows do. OpenRealm's weather path already multiplies texture and vertex color
+and uses the same
+source-alpha blend factors, but it does not apply the observed `4/255` alpha
+test. In the implementation, [`R_WeatherSpawn`](../../../games/warcraft-3/renderer/r_weather.c)
+selects `BLEND_MODE_BLEND`; the shared [particle shader](../../../renderer/r_particles.c)
+discards only for its separate alpha-key mode. The missing `4/255` cutoff is a
+confirmed parity gap. The effect of nonzero `alphaMode` values remains
+unverified.
+
+### Reproduce the trace
+
+The controller refuses to attach unless the `--exe` file has SHA-256
+`3f2ed0120d80578bf07e4423296dade1adfb959d59a2d20a7584224559570eed`; it then
+attaches to the `Warcraft III.exe` process on the Frida endpoint. Run the game
+from that same file. The setup needs the matching Frida 17.19.0 client/server
+pair, Wine, and Xvfb. The trace used Frida's x86_64 Wine server with an ia32
+game process. To recreate the client/server install, download
+`frida-server-17.19.0-windows-x86_64.exe.xz` from the
+[official 17.19.0 release](https://github.com/frida/frida/releases/tag/17.19.0),
+then run:
+
+```sh
+FRIDA_TOOLS="$HOME/.local/share/open-realm/tools"
+python3 -m venv "$FRIDA_TOOLS/frida-venv"
+"$FRIDA_TOOLS/frida-venv/bin/python" -m pip install 'frida==17.19.0'
+mkdir -p "$FRIDA_TOOLS/frida"
+xz -dc frida-server-17.19.0-windows-x86_64.exe.xz > "$FRIDA_TOOLS/frida/server.exe"
+```
+
+Extract the original map without rebuilding or modifying its MPQ:
+
+```sh
+WC3DATA="$PWD/data/warcraft-3"
+build/bin/mpqtool -mpq "$WC3DATA/War3Local.mpq" cat Maps/Campaign/Prologue01.w3m > /tmp/Prologue01.w3m
+build/bin/mpqtool -mpq /tmp/Prologue01.w3m cat war3map.j | rg -n -C2 'Starting_Area_Rain|AddWeatherEffect'
+sha256sum "$WC3DATA/Warcraft III.exe"
+build/bin/mpqtool -mpq "$WC3DATA/War3.mpq" cat TerrainArt/Weather.slk | rg -n -A45 'Y1;K"effectID"|Y13;K"RLhr"'
+build/bin/mpqtool -mpq "$WC3DATA/War3.mpq" imginfo ReplaceableTextures/Weather/rainTail.blp
+```
+
+The map script identifies the active opening effect; the SLK row supplies its
+authored color/alpha and texture path; `imginfo` confirms the source BLP
+dimensions and alpha bits. This separates authored source data from the
+runtime GL state observed by the probe.
+
+Use the matching Frida 17.19.0 client/server pair. The server path below is the
+local tool installation used for this trace. If display `:97` is not already
+running, start Xvfb in its own terminal and leave it running:
+
+```sh
+Xvfb :97 -screen 0 1280x720x24 -nolisten tcp
+```
+
+```sh
+export WINEPREFIX="$HOME/.local/share/open-realm/wine-wc3"
+export DISPLAY=:97
+DISPLAY=:97 WAYLAND_DISPLAY= WINEDEBUG=-all \
+  wine "$HOME/.local/share/open-realm/tools/frida/server.exe" --listen=127.0.0.1:27043
+```
+
+In another terminal on that display, launch the extracted map:
+
+```sh
+export WINEPREFIX="$HOME/.local/share/open-realm/wine-wc3"
+export DISPLAY=:97
+WC3DATA="$PWD/data/warcraft-3"
+DISPLAY=:97 WAYLAND_DISPLAY= WINEDEBUG=-all wine "$WC3DATA/Warcraft III.exe" -window -graphicsapi OpenGL2 \
+  -loadfile "$(winepath -w /tmp/Prologue01.w3m)"
+```
+
+Dismiss the chapter screen (send Escape to the focused game with
+`xdotool key --clearmodifiers Escape` if needed) and wait until the opening
+rain is visible. Attach for a bounded 10-second capture; the game remains
+running after the probe detaches:
+
+```sh
+WC3DATA="$PWD/data/warcraft-3"
+"$HOME/.local/share/open-realm/tools/frida-venv/bin/python" \
+  tools/frida/trace_wc3_weather_alpha.py --exe "$WC3DATA/Warcraft III.exe" \
+  --seconds 10 --output /tmp/wc3-weather-alpha.jsonl
+```
+
+The probe hooks `opengl32.dll`'s `glColorPointer` and `glDrawElements`, then
+queries the current texture dimensions/alpha size, texture environment, alpha
+test, and blend state at matching 32x16 rain-texture draws. A `rain-draw` JSONL
+row should report `colorArray.sample` containing `[255,255,255,150]`,
+`textureEnvMode=8448`, `blendSrc=770`, `blendDst=771`,
+`alphaTestFunc=518`, and `alphaTestRef` near `0.0156863`. The script is
+read-only and does not call game functions or change OpenGL state.
+
+The GL enum values are recorded numerically so the output is machine-readable:
+`8448=GL_MODULATE`, `770=GL_SRC_ALPHA`, `771=GL_ONE_MINUS_SRC_ALPHA`, and
+`518=GL_GEQUAL`.
+
+## Retail Rain Emission Density
+
+Undead01's JASS in `Maps/Campaign/Undead01.w3m` (inside `War3Local.mpq`)
+enables `RLlr` (Lordaeron light rain). The base `War3.mpq` row has `emrate=40`,
+`lifespan=1.1`, `particles=880`, `alphaMode=0`, `alphaStart/Mid/End=150`,
+`head=0`, and `tail=1`. Prologue01's opening uses `RLhr`, whose row has
+`emrate=100`, `lifespan=0.9`, and `particles=1800`.
+
+These commands inspect the installed source data without relying on an
+extracted working-tree file:
+
+```sh
+build/bin/mpqtool -mpq "data/warcraft-3/War3Local.mpq" cat Maps/Campaign/Undead01.w3m > /tmp/Undead01.w3m
+build/bin/mpqtool -mpq /tmp/Undead01.w3m cat war3map.j | rg -n "RLlr|SetSkyModel"
+build/bin/mpqtool -mpq "data/warcraft-3/War3.mpq" cat TerrainArt/Weather.slk | rg -n "RLlr"
+```
+
+The `particles / (emrate * lifespan) = 20` relationship in shipped rain rows
+initially suggested that retail applied `emrate` once per 50 ms tick. Retail
+executable analysis and a live trace resolve the rate semantics: each emitter
+accumulates `emrate` as a per-second rate. The aggregate rate of a map's whole
+weather effect also depends on how many emitters retail creates for its region.
+
+In the hash-verified retail executable
+(`3f2ed0120d80578bf07e4423296dade1adfb959d59a2d20a7584224559570eed`), the
+generic emitter update at VA `0x0097d170` loads the rate from `this + 0xa8`,
+multiplies it by the clamped frame delta, and adds that amount to the fractional
+emission accumulator at `this + 8`. The helper at VA `0x009794b0` supplies
+`1.0`, so it adds no tick-rate scale. The update then emits the accumulated
+whole particles and keeps the fractional remainder. The weather-specific
+particle initializer is at VA `0x0097f1c0`.
+
+A read-only Frida trace of the unmodified Prologue01 scene hooked that
+initializer and observed 23 active weather emitter objects with rate `100`.
+Their initializer argument was `0.025` seconds, matching the update's frame
+delta: each emitter accrues `100 * 0.025 = 2.5` particle credits per update,
+which is 100 particles per second per emitter. The sampled live counts were
+mostly 80 or 81 per emitter. Sequential per-object sums were 1,845 and 1,858 in
+two captures; these are non-atomic reads, not proof of the exact global cap.
+The roughly 1.85K live-particle total is consistent with the row's
+`particles=1800` value. The 20x row ratio therefore should not be read as an
+engine tick rate; Prologue01 has many concurrent weather emitters. This probe
+does not establish emitter placement, the rule that chooses emitter count, or
+how counts are divided at region edges.
+
+### Reproduce the density trace
+
+Launch the hash-verified retail executable on the unmodified Prologue01 map and
+reach the opening rain scene using the setup in [Reproduce the alpha
+trace](#reproduce-the-trace). Then attach the read-only rate probe:
+
+```sh
+WC3DATA="$PWD/data/warcraft-3"
+"$HOME/.local/share/open-realm/tools/frida-venv/bin/python" \
+  tools/frida/trace_wc3_weather_density.py --exe "$WC3DATA/Warcraft III.exe" \
+  --seconds 10 --rate 100 --output /tmp/wc3-weather-density.jsonl
+```
+
+The controller checks the executable SHA-256 and bounds the capture. The probe
+hooks the weather initializer at RVA `0x57f1c0`; each matching JSONL row reports
+the emitter's rate at `this + 0xa8`, frame delta, and live count. The companion
+Ghidra check is the rate-times-delta sequence in `ParticleEmitter_Update` at
+VA `0x0097d170`.
+
+This confirms the rate semantics for `RLhr` and the shared retail weather
+emitter path. It strongly supports the same interpretation for `RLlr`, though
+that row has not had its own runtime capture. Nominal single-emitter rates are
+100 * 0.9 = 90 live particles for `RLhr` and 40 * 1.1 = 44 for `RLlr`, before
+effect-wide limits and emitter multiplicity. OpenRealm intentionally uses the
+confirmed per-emitter rate without guessing the number or placement of retail
+emitters; aggregate density can therefore be lower than retail until that
+fan-out is reconstructed.
+
+`RLlr` also authors `alphaMode=0` and alpha 150. The live alpha trace above used
+Prologue01's `RLhr`; the `RLlr` row has not had a separate runtime capture.
+
+The shipped `RLlr` row has `head=0,tail=1`; the renderer draws its tail
+primitive. Rows with both flags clear have no authored primitive and are
+skipped with a diagnostic instead of being silently converted to a head.
+
+**Implementation status:** OpenRealm uses the authored per-second `emrate`
+directly and enforces `particles` as a logical live-particle cap per weather
+effect. It does not yet reproduce retail's multiple spatial weather emitters,
+so aggregate density can be low. Do not restore a fixed ×20 multiplier: the
+Prologue01 trace establishes 23 emitters in that scene, not a universal
+fan-out rule or an exact effect-wide cap. An `RLlr` runtime capture remains
+outstanding. Keep those questions separate from the confirmed mode-0 alpha
+path above; `alphaMode` values other than zero remain unverified.
 
 ## Lifecycle And Networking
 
@@ -146,17 +384,10 @@ networked state.
 The initial renderer intentionally does **not** guess behavior that was not
 confirmed strongly enough:
 
-- `Weather.slk` numeric `alphaMode` is parsed but the first implementation uses
-  normal alpha blending for weather particles until the complete mode mapping
-  is verified;
 - `useFog` is parsed but is not mapped to a new weather-specific fog policy;
   the existing shared particle FOW behavior remains unchanged;
-- `particles` is parsed but not yet enforced as a per-weather-system live
-  particle cap; the shared renderer pool remains the hard global bound;
-- `var`, `lati`, `long`, and the explicit head/tail UV start/mid/end fields are
-  parsed but not yet used because their exact legacy transforms are not verified;
-- combined `head=1` + `tail=1` weather currently uses the tail primitive rather
-  than drawing a second independent head primitive;
+- `long` is parsed but not yet used because its exact legacy emitter-extent
+  transform is not verified;
 - `AmbientSound` is parsed but weather ambient audio is not yet wired through
   `AmbienceSounds.slk`;
 - the camera-local emission window is a bounded renderer performance policy;
@@ -187,15 +418,21 @@ For visual verification, use a map with shipped heavy/light rain and test:
 2. a rectangular weather region while panning across its edge;
 3. JASS create -> enable -> disable -> re-enable -> remove;
 4. a map-imported `TerrainArt\Weather.slk`/rain texture override;
-5. different frame rates to confirm emission speed/density remains stable.
+5. different frame rates to confirm emission speed/density remains stable;
+6. a custom `Weather.slk` row with non-zero `var`/`lati` and distinct head/tail
+   UV stages, including `head=1,tail=1`, to confirm the two primitives share
+   motion while selecting their independent atlas curves.
+
+The renderer-level `test-mdx-ui` suite directly exercises weather emission,
+alpha, tail geometry, and rejection of a row with neither primitive flag.
 
 Do not add weather debug logging to do this; use the authored-map cases above
 as the acceptance checks.
 
 ## See Also
 
-- [SLK Spreadsheet Format](file-formats/slk.md)
-- [JASS Native Coverage](jass-native-coverage.md)
+- [SLK Spreadsheet Format](../../../games/warcraft-3/file-formats/slk.md)
+- [JASS Native Coverage](../../../games/warcraft-3/jass-native-coverage.md)
 - [Server-Selected Presentation Effects](../../architecture/server-selected-effects.md)
 - [Ability, Buff, And Item Presentation Effects](ability-and-item-effects.md)
 - [Save/Load](save-load.md)

@@ -1528,7 +1528,69 @@ TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
         if (Vector2_distance(&unit->s.origin2, &origin) > 0.001f) break;
     }
     T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
+    T_FEQ(unit->s.origin.x, unit->s.origin2.x, 0.001f);
+    T_FEQ(unit->s.origin.y, unit->s.origin2.y, 0.001f);
     T_STREQ(unit->currentmove->animation, "walk");
+}
+
+/* A turn-lagged facing may still be collision-free while pointing away from
+ * the route heading.  Movement must use the resolved heading in that case so
+ * a short scripted move cannot step past its marker. */
+TEST(wc3_movement, turn_lag_does_not_step_away_from_route_heading) {
+    enum { CELLS = 64 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t const dest = {-32.0f, 64.0f};
+    float before, after;
+
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+    unit->unitinfo.MoveSpeed = 190.0f;
+    unit->s.angle = 0.0f;
+    order_move(unit, Waypoint_add(&dest));
+    before = Vector2_distance(&unit->s.origin2, &dest);
+    /* The verified propagation window may stop the first turning ticks.
+     * No stopped tick may drift away; the first admitted step must progress. */
+    after = before;
+    FOR_LOOP(frame, 16) {
+        unit->currentmove->think(unit);
+        after = Vector2_distance(&unit->s.origin2, &dest);
+        T_ASSERT(after <= before);
+        if (after < before) break;
+    }
+
+    T_ASSERT(after < before);
+    T_FEQ(unit->s.origin.x, unit->s.origin2.x, 0.001f);
+    T_FEQ(unit->s.origin.y, unit->s.origin2.y, 0.001f);
+}
+
+TEST(wc3_movement, turn_lag_facing_must_agree_with_resolved_route_heading) {
+    enum { CELLS = 64 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    edict_t *unit = make_moving_unit(320.0f, 0.0f);
+    vec2_t dest = {-320.0f, 0.0f};
+
+    FOR_LOOP(y, CELLS) pathmap[32 + y * CELLS] = 0x02;
+    for (int y = 39; y <= 41; y++) pathmap[32 + y * CELLS] = 0;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+    unit->unitinfo.MoveSpeed = 190.0f;
+    unit->s.angle = 0.0f;
+    order_move(unit, Waypoint_add(&dest));
+    unit->currentmove->think(unit);
+
+    T_ASSERT(Vector2_dot(&(vec2_t){cosf(unit->s.angle), sinf(unit->s.angle)},
+                         &(vec2_t){cosf(unit->movement.heading), sinf(unit->movement.heading)}) < 0.0f);
+    T_ASSERT(unit->movement.turn_blocked);
+    T_FEQ(unit->s.origin2.x, 320.0f, 0.001f);
+    FOR_LOOP(frame, 16) {
+        unit->currentmove->think(unit);
+        T_ASSERT(unit->s.origin2.x <= 320.0f);
+        if (unit->s.origin2.x < 320.0f) break;
+    }
+    T_ASSERT(unit->s.origin2.x < 320.0f);
+    T_FEQ(unit->s.origin.x, unit->s.origin2.x, 0.001f);
 }
 
 /* Retail WC3 does not leave a worker orbiting an unreachable tree buried in a

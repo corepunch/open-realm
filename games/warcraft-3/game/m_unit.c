@@ -1125,6 +1125,21 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
 
 /* Create a new runtime unit; explicit JASS creation must not reuse a nearby
  * entity because ReplaceUnitBJ destroys the returned replacement handle. */
+static bool unit_create_is_static_scenery(edict_t const *unit) {
+    UnitData_t const *data = unit ? unit->data.UnitData : NULL;
+    UnitBalance_t const *balance = unit ? unit->data.UnitBalance : NULL;
+    UnitWeapons_t const *weapons = unit ? unit->data.UnitWeapons : NULL;
+
+    /* HACK: WC3 has no explicit scenery-unit flag in the loaded object data.
+     * Treat no movement type + zero speed + no enabled attacks as scenery and
+     * preserve the authored spawn. Validate this heuristic against retail. */
+    return data && data->id && data->moveTypeName &&
+           (!strcmp(data->moveTypeName, "-") || !strcmp(data->moveTypeName, "_")) &&
+           balance && balance->id &&
+           unit->unitinfo.MoveSpeed <= 0.0f && weapons && weapons->id &&
+           weapons->attacksEnabled == 0;
+}
+
 edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, float facing) {
     /* CreateUnit returns an immediately usable unit. SP_SpawnAtLocation's
      * presentation birth is for callers that own a spawn lifecycle; applying
@@ -1133,18 +1148,20 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     if (!unit) {
         return NULL;
     }
-    /* Warsmash CreateUnit delegates to createUnitSimple, which checks the
-     * spawned unit against static pathing and nudges it to a legal point. */
-    vec2_t position;
-    if (G_FindUnitUnstuckPosition(unit, location, &position)) {
-        unit->s.origin2 = position;
-        unit->s.origin.x = position.x;
-        unit->s.origin.y = position.y;
-        M_CheckGround(unit);
-        gi.LinkEntity(unit);
-    } else fprintf(stderr, "WC3 CreateUnit: no legal spawn point for %c%c%c%c player %u at (%.1f, %.1f); retaining requested position\n",
-                   unitid & 255, (unitid >> 8) & 255, (unitid >> 16) & 255, (unitid >> 24) & 255,
-                   player, location->x, location->y);
+    if (!unit_create_is_static_scenery(unit)) {
+        /* Warsmash CreateUnit delegates to createUnitSimple, which checks the
+         * spawned unit against static pathing and nudges it to a legal point. */
+        vec2_t position;
+        if (G_FindUnitUnstuckPosition(unit, location, &position)) {
+            unit->s.origin2 = position;
+            unit->s.origin.x = position.x;
+            unit->s.origin.y = position.y;
+            M_CheckGround(unit);
+            gi.LinkEntity(unit);
+        } else fprintf(stderr, "WC3 CreateUnit: no legal spawn point for %c%c%c%c player %u at (%.1f, %.1f); retaining requested position\n",
+                       unitid & 255, (unitid >> 8) & 255, (unitid >> 16) & 255, (unitid >> 24) & 255,
+                       player, location->x, location->y);
+    }
     if (unit->stand) {
         unit->stand(unit);
     }

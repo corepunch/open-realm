@@ -534,6 +534,7 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
         }
     }
     T_NOT_NULL(mover);
+    mover->svflags |= SVF_MONSTER;
     mover->movetype = MOVETYPE_STEP;
     mover->stand = unit_stand;
     mover->birth = unit_birth;
@@ -551,6 +552,62 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     G_RunEvents();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, nonunit_map_entity_placement_does_not_fire_region_enter) {
+    player_t *saved_currentplayer = currentplayer;
+    edict_t *map_entity;
+    vec2_t old_position = { 0.0f, 0.0f };
+    event_t *handler = NULL;
+
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer enters = 0\n"
+        "endglobals\n"
+        "function on_enter takes nothing returns nothing\n"
+        "  set enters = enters + 1\n"
+        "endfunction\n"
+        "function verify_real_entry takes nothing returns nothing\n"
+        "  call BJassAssert(enters == 1, \"real unit entry was not delivered exactly once\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local region r = CreateRegion()\n"
+        "  call RegionAddRect(r, Rect(50.0, 50.0, 150.0, 150.0))\n"
+        "  call TriggerRegisterEnterRegion(t, r, null)\n"
+        "  call TriggerAddAction(t, function on_enter)\n"
+        "endfunction\n"));
+
+    FOR_EACH_EVENT(evt) {
+        if (evt->type == EVENT_GAME_ENTER_REGION) { handler = evt; break; }
+    }
+    T_NOT_NULL(handler);
+    map_entity = G_Spawn();
+    T_NOT_NULL(map_entity);
+    if (!map_entity || !handler) { currentplayer = saved_currentplayer; return; }
+    map_entity->class_id = map_entity->s.class_id = MAKEFOURCC('d','0','0','1');
+    map_entity->s.origin2 = (vec2_t){ 100.0f, 100.0f };
+    G_UnitPositionChanged(map_entity, &old_position);
+    G_RunEvents(); jass_runevents(level.vm);
+
+    /* Same classed entity, now carrying a real unit rawcode: the unit-only
+     * gate must still reject it because it has no unit runtime classification. */
+    map_entity->class_id = map_entity->s.class_id = MAKEFOURCC('h','p','e','a');
+    old_position = (vec2_t){ 0.0f, 0.0f };
+    map_entity->s.origin2 = (vec2_t){ 100.0f, 100.0f };
+    G_UnitPositionChanged(map_entity, &old_position);
+    G_RunEvents(); jass_runevents(level.vm);
+
+    /* The runtime unit classification admits the same entity and delivers
+     * the crossing through the normal movement entry point. */
+    map_entity->svflags |= SVF_MONSTER;
+    old_position = (vec2_t){ 0.0f, 0.0f };
+    G_UnitPositionChanged(map_entity, &old_position);
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_real_entry", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     currentplayer = saved_currentplayer;
 }
@@ -820,6 +877,10 @@ TEST(wc3_api, set_unit_position_dispatches_region_crossings) {
         "  call TriggerAddAction(enterTrigger, function on_enter)\n"
         "  call TriggerAddAction(leaveTrigger, function on_leave)\n"
         "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a') && g_edicts[i].s.player == 0)
+            g_edicts[i].svflags |= SVF_MONSTER;
 
     jass_callbyname(level.vm, "teleport_into", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -1408,7 +1469,8 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_EQ(gc->ps.client_ui_state, CLIENT_UI_GAME);
     T_EQ(gc->ps.uiflags, 1u << LAYER_CINEMATIC);
     T_ASSERT(!gc->no_control);
-    T_FEQ(gc->ps.vieworigin.x, 128, 0.001f); T_FEQ(gc->ps.vieworigin.y, 256, 0.001f);
+    T_ASSERT(gc->camera.pan_active);
+    T_FEQ(gc->camera.pan_destination.x, 128, 0.001f); T_FEQ(gc->camera.pan_destination.y, 256, 0.001f);
     T_FEQ(gc->ps.distance, WC3_CAMERA_DEFAULT_DISTANCE, 0.001f); T_FEQ(gc->ps.fov, WC3_CAMERA_DEFAULT_FOV, 0.001f);
     T_FEQ(gc->ps.znear, WC3_CAMERA_DEFAULT_NEAR_Z, 0.001f);
     T_FEQ(gc->ps.zfar, WC3_CAMERA_DEFAULT_FAR_Z, 0.001f);
@@ -1525,6 +1587,7 @@ TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
         if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a') && g_edicts[i].s.player == 0)
             leaving = &g_edicts[i];
     T_NOT_NULL(leaving);
+    leaving->svflags |= SVF_MONSTER;
     leaving->movetype = MOVETYPE_STEP;
     leaving->stand = unit_stand;
     leaving->birth = unit_birth;
@@ -1743,6 +1806,40 @@ TEST(wc3_api, camera_runtime_getters_report_interpolated_state_and_eye) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, camera_noise_natives_store_independent_presentation_state) {
+    gameClient_t *gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->ps.camera_target_noise = (vec2_t){ 0 };
+    gc->ps.camera_source_noise = (vec2_t){ 0 };
+    gc->ps.camera_noise_flags = 0;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call CameraSetTargetNoiseEx(12.0, 34.0, true)\n"
+        "  call CameraSetSourceNoiseEx(56.0, 78.0, false)\n"
+        "endfunction\n"));
+    T_FEQ(gc->ps.camera_target_noise.x, 12.0f, 0.001f);
+    T_FEQ(gc->ps.camera_target_noise.y, 34.0f, 0.001f);
+    T_FEQ(gc->ps.camera_source_noise.x, 56.0f, 0.001f);
+    T_FEQ(gc->ps.camera_source_noise.y, 78.0f, 0.001f);
+    T_ASSERT(gc->ps.camera_noise_flags & CAMERA_NOISE_TARGET_VERTICAL);
+    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_SOURCE_VERTICAL));
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call CameraSetTargetNoise(0.0, 0.0)\n"
+        "  call CameraSetSourceNoise(0.0, 0.0)\n"
+        "endfunction\n"));
+    T_FEQ(gc->ps.camera_target_noise.x, 0.0f, 0.001f);
+    T_FEQ(gc->ps.camera_target_noise.y, 0.0f, 0.001f);
+    T_FEQ(gc->ps.camera_source_noise.x, 0.0f, 0.001f);
+    T_FEQ(gc->ps.camera_source_noise.y, 0.0f, 0.001f);
+    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_TARGET_VERTICAL));
+    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_SOURCE_VERTICAL));
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, camera_field_set_adjust_and_stop_sample_current_transition) {
     gameClient_t *gc = &game.clients[0];
 
@@ -1832,8 +1929,9 @@ TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
         "function main takes nothing returns nothing\n"
         "  call PanCameraToTimedWithZ(200.0, 300.0, 400.0, 2.0)\n"
         "endfunction\n"));
-    T_FEQ(gc->camera.state.position.x, 200.0f, 0.001f);
-    T_FEQ(gc->camera.state.position.y, 300.0f, 0.001f);
+    T_ASSERT(gc->camera.pan_active);
+    T_FEQ(gc->camera.pan_destination.x, 200.0f, 0.001f);
+    T_FEQ(gc->camera.pan_destination.y, 300.0f, 0.001f);
     T_FEQ(gc->camera.state.z_offset, 400.0f, 0.001f);
     T_EQ(gc->camera.start_time, 100);
     T_EQ(gc->camera.end_time, 2100);
@@ -1843,6 +1941,144 @@ TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
     T_FEQ(gc->ps.vieworigin.x, 100.0f, 0.001f);
     T_FEQ(gc->ps.vieworigin.y, 150.0f, 0.001f);
     T_FEQ(gc->ps.vieworigin.z, gc->camera.target_height + 200.0f, 0.001f);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, camera_orient_controller_keeps_source_fixed_while_tracking_unit) {
+    gameClient_t *gc;
+    edict_t *target = NULL;
+    float initial_yaw;
+
+    setup_test_world();
+    gc = &game.clients[0];
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(vec2_t, 0.0f, 0.0f);
+    gc->camera.state.z_offset = 0.0f;
+    gc->camera.state.viewangles = MAKE(vec3_t, 90.0f, 0.0f, 270.0f);
+    gc->camera.state.target_distance = 100.0f;
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.start_time = gc->camera.end_time = 100;
+    level.time = 100;
+    G_RunClients();
+    currentplayer = &gc->ps;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 100.0, 0.0, 0.0)\n"
+        "  call SetCameraOrientController(u, 0.0, 0.0)\n"
+        "endfunction\n"));
+    target = gc->camera.target_controller;
+    T_NOT_NULL(target);
+    T_ASSERT(gc->camera.target_orient_only);
+    T_FEQ(gc->camera.orient_eye.x, -100.0f, 0.01f);
+    T_FEQ(gc->camera.orient_eye.y, 0.0f, 0.01f);
+
+    G_RunClients();
+    initial_yaw = gc->camera.state.viewangles.z;
+    T_FEQ(gc->camera.state.target_distance, 100.0f, 0.001f);
+    target->s.origin2 = MAKE(vec2_t, 0.0f, 100.0f);
+    target->s.origin.x = 0.0f;
+    target->s.origin.y = 100.0f;
+    G_RunClients();
+    T_ASSERT(fabsf(gc->camera.state.viewangles.z - initial_yaw) > 1.0f);
+    T_FEQ(gc->camera.state.target_distance, 100.0f, 0.001f);
+    T_FEQ(gc->camera.orient_eye.x, -100.0f, 0.01f);
+    T_FEQ(gc->camera.orient_eye.y, 0.0f, 0.01f);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call ResetToGameCamera(0.0)\n"
+        "endfunction\n"));
+    T_NULL(gc->camera.target_controller);
+    T_ASSERT(!gc->camera.target_orient_only);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, untimed_camera_pan_uses_authored_forward_and_strafe_rates) {
+    gameClient_t *gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(vec2_t, 0.0f, 0.0f);
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.target_height = G_MakeServerOrigin(0.0f, 0.0f, 0.0f).z;
+    G_ClearCameraPan(gc);
+    level.time = 100;
+    currentplayer = &gc->ps;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PanCameraTo(200.0, 400.0)\n"
+        "endfunction\n"));
+    T_ASSERT(gc->camera.pan_active);
+    T_FEQ(gc->camera.pan_rate.x, 100.0f, 0.001f);
+    T_FEQ(gc->camera.pan_rate.y, 200.0f, 0.001f);
+
+    level.time = 1100;
+    G_RunClients();
+    T_FEQ(gc->ps.vieworigin.x, 100.0f, 0.001f);
+    T_FEQ(gc->ps.vieworigin.y, 200.0f, 0.001f);
+    T_ASSERT(gc->camera.pan_active);
+
+    level.time = 2100;
+    G_RunClients();
+    T_FEQ(gc->ps.vieworigin.x, 200.0f, 0.001f);
+    T_FEQ(gc->ps.vieworigin.y, 400.0f, 0.001f);
+    T_ASSERT(!gc->camera.pan_active);
+    T_FEQ(gc->camera.state.position.x, 200.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 400.0f, 0.001f);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, invalid_camera_pan_rates_report_error_without_snapping) {
+    gameClient_t *gc = &game.clients[0];
+    stbIniCache_t saved = game.config.misc, custom = { 0 };
+
+    T_ASSERT(Stb_IniCacheLoadBuffer(&custom,
+        "[CameraRates]\nStrafe=invalid\nForward=200\n"));
+    game.config.misc = custom;
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(vec2_t, 10.0f, 20.0f);
+    gc->camera.old_state = gc->camera.state;
+    G_ClearCameraPan(gc);
+    currentplayer = &gc->ps;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PanCameraTo(200.0, 400.0)\n"
+        "endfunction\n"));
+    T_ASSERT(!gc->camera.pan_active);
+    T_FEQ(gc->camera.state.position.x, 10.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 20.0f, 0.001f);
+
+    currentplayer = NULL;
+    game.config.misc = saved;
+    Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_api, camera_setup_pantimed_uses_normal_pan_rates) {
+    gameClient_t *gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(vec2_t, 0.0f, 0.0f);
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.target_height = G_MakeServerOrigin(0.0f, 0.0f, 0.0f).z;
+    G_ClearCameraPan(gc);
+    level.time = 100;
+    currentplayer = &gc->ps;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local camerasetup c = CreateCameraSetup()\n"
+        "  call CameraSetupSetDestPosition(c, 200.0, 400.0, 0.0)\n"
+        "  call CameraSetupApply(c, true, true)\n"
+        "endfunction\n"));
+    T_ASSERT(gc->camera.pan_active);
+    T_FEQ(gc->camera.pan_destination.x, 200.0f, 0.001f);
+    T_FEQ(gc->camera.pan_destination.y, 400.0f, 0.001f);
+
+    level.time = 1100;
+    G_RunClients();
+    T_FEQ(gc->ps.vieworigin.x, 100.0f, 0.001f);
+    T_FEQ(gc->ps.vieworigin.y, 200.0f, 0.001f);
     currentplayer = NULL;
 }
 
@@ -1863,6 +2099,7 @@ TEST(wc3_api, camera_target_controller_can_inherit_unit_facing) {
     T_FEQ(gc->camera.state.position.y, 180.0f, 0.001f);
     T_FEQ(gc->camera.state.viewangles.z, -45.0f, 0.001f);
     T_ASSERT(gc->camera.target_inherit_orientation);
+    T_ASSERT(!gc->camera.target_orient_only);
 
     target->s.origin2 = MAKE(vec2_t, 300.0f, 400.0f);
     target->s.angle = (float)DEG2RAD(45.0f);
@@ -1917,8 +2154,9 @@ TEST(wc3_api, camera_setup_applies_clip_planes_z_and_dopan_contract) {
         "  call CameraSetupSetField(c, CAMERA_FIELD_FARZ, 7500.0, 0.0)\n"
         "  call CameraSetupApplyWithZ(c, 275.0)\n"
         "endfunction\n"));
-    T_FEQ(gc->camera.state.position.x, 700.0f, 0.001f);
-    T_FEQ(gc->camera.state.position.y, 800.0f, 0.001f);
+    T_ASSERT(gc->camera.pan_active);
+    T_FEQ(gc->camera.pan_destination.x, 700.0f, 0.001f);
+    T_FEQ(gc->camera.pan_destination.y, 800.0f, 0.001f);
     T_FEQ(gc->camera.state.near_z, 65.0f, 0.001f);
     T_FEQ(gc->camera.state.far_z, 7500.0f, 0.001f);
     T_FEQ(gc->camera.state.z_offset, 275.0f, 0.001f);
@@ -2667,6 +2905,122 @@ TEST(wc3_api, createunit_unstucks_from_blocked_pathing) {
      * unit to the first legal point in its 64-unit spiral. */
     T_FEQ(created->s.origin.x, 256.0f, 0.001f);
     T_FEQ(created->s.origin.y, 192.0f, 0.001f);
+}
+
+TEST(wc3_api, createunit_static_scenery_keeps_requested_spawn) {
+    static cstring_t const data_slk =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\n"
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K\"_\"\nE\n";
+    static cstring_t const balance_slk =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"spd\"\n"
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K0\nE\n";
+    static cstring_t const weapons_slk =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"unitWeaponID\"\nC;Y1;X2;K\"weapsOn\"\n"
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K0\nE\n";
+    slkTestData_t *data_rows, *balance_rows, *weapons_rows;
+    slkTestData_t *old_data, *old_balance, *old_weapons;
+    slkTestData_t *new_data, *new_balance, *new_weapons;
+    edict_t *created;
+
+    reset_entities(); setup_test_world();
+    data_rows = parse_slk_string(data_slk);
+    balance_rows = parse_slk_string(balance_slk);
+    weapons_rows = parse_slk_string(weapons_slk);
+    old_data = G_SetSLKRows("UnitData", data_rows);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    old_weapons = G_SetSLKRows("UnitWeapons", weapons_rows);
+    setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call CreateUnit(Player(0), 'nfrm', 256.0, 256.0, 0.0)\n"
+        "endfunction\n"));
+
+    created = find_test_unit(MAKEFOURCC('n','f','r','m'));
+    T_NOT_NULL(created);
+    if (created) {
+        T_FEQ(created->s.origin.x, 256.0f, 0.001f);
+        T_FEQ(created->s.origin.y, 256.0f, 0.001f);
+    }
+    reset_entities();
+    new_data = G_SetSLKRows("UnitData", old_data);
+    new_balance = G_SetSLKRows("UnitBalance", old_balance);
+    new_weapons = G_SetSLKRows("UnitWeapons", old_weapons);
+    free_slk_rows(new_data); free_slk_rows(new_balance); free_slk_rows(new_weapons);
+    free_slk_rows(data_rows);
+    free_slk_rows(balance_rows);
+    free_slk_rows(weapons_rows);
+    free_slk_rows(old_data); free_slk_rows(old_balance); free_slk_rows(old_weapons);
+}
+
+TEST(wc3_api, createunit_custom_static_scenery_keeps_requested_spawn) {
+    static cstring_t const data_slk =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\n"
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K\"_\"\nE\n";
+    static cstring_t const balance_slk =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"spd\"\nC;Y1;X3;K\"realHP\"\n"
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K0\nC;Y2;X3;K500\nE\n";
+    static cstring_t const weapons_slk =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"unitWeaponID\"\nC;Y1;X2;K\"weapsOn\"\n"
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K0\nE\n";
+    uint32_t const custom_id = MAKEFOURCC('x','f','r','m');
+    float custom_health = 137.25f;
+    unitModification_t health_mod = {
+        .modID = MAKEFOURCC('u','h','p','m'), .type = mod_real, .data = &custom_health
+    };
+    unitData_t custom = {
+        .originalUnitID = MAKEFOURCC('n','f','r','m'), .newUnitID = custom_id,
+        .numbeOfModifications = 1, .modifications = &health_mod
+    };
+    mapInfo_t mapinfo = { .num_userCreatedUnits = 1, .userCreatedUnits = &custom };
+    slkTestData_t *data_rows, *balance_rows, *weapons_rows;
+    slkTestData_t *old_data, *old_balance, *old_weapons;
+    slkTestData_t *new_data, *new_balance, *new_weapons;
+    mapInfo_t const *old_mapinfo;
+    edict_t *created;
+
+    reset_entities(); setup_test_world();
+    data_rows = parse_slk_string(data_slk);
+    balance_rows = parse_slk_string(balance_slk);
+    weapons_rows = parse_slk_string(weapons_slk);
+    old_data = G_SetSLKRows("UnitData", data_rows);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    old_weapons = G_SetSLKRows("UnitWeapons", weapons_rows);
+    old_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+    setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call CreateUnit(Player(0), 'xfrm', 256.0, 256.0, 0.0)\n"
+        "endfunction\n"));
+
+    created = find_test_unit(custom_id);
+    T_NOT_NULL(created);
+    if (created) {
+        T_FEQ(created->s.origin.x, 256.0f, 0.001f);
+        T_FEQ(created->s.origin.y, 256.0f, 0.001f);
+        T_EQ(created->data.UnitData->id, MAKEFOURCC('n','f','r','m'));
+        T_EQ(created->data.UnitWeapons->id, MAKEFOURCC('n','f','r','m'));
+        T_EQ(created->data.UnitBalance->id, custom_id);
+        T_FEQ(created->data.UnitBalance->maxHealth, custom_health, 0.001f);
+    }
+    reset_entities();
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = old_mapinfo;
+    new_data = G_SetSLKRows("UnitData", old_data);
+    new_balance = G_SetSLKRows("UnitBalance", old_balance);
+    new_weapons = G_SetSLKRows("UnitWeapons", old_weapons);
+    free_slk_rows(new_data); free_slk_rows(new_balance); free_slk_rows(new_weapons);
+    free_slk_rows(data_rows);
+    free_slk_rows(balance_rows);
+    free_slk_rows(weapons_rows);
+    free_slk_rows(old_data); free_slk_rows(old_balance); free_slk_rows(old_weapons);
 }
 
 TEST(wc3_api, createunit_avoids_live_unit_collision) {
@@ -6843,8 +7197,8 @@ TEST(wc3_api, unit_in_range_queue_full_does_not_crash_target_movement) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *subject = NULL;
     edict_t *target = NULL;
-    /* Move toward the subject at x=530; a reverse-facing west order used to drift east. */
-    vec2_t destination = {400.0f, 0.0f};
+    /* Move the target into rangeSubject's radius to exercise the saturated event queue. */
+    vec2_t destination = {600.0f, 0.0f};
 
     reset_entities(); setup_test_world(); currentplayer = NULL;
     T_ASSERT(run_test_jass(

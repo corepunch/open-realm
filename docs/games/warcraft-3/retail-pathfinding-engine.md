@@ -938,3 +938,22 @@ Full ROC/TFT suites pass37,126 assertions in2,142 engine tests each;85 pathfindi
 tool tests and both WC3/SC2 production builds pass. The original-mask extension
 adds no engine representation or frame-cadence change. The earlier idle admission
 fix remains active; inside-footprint escape integration remains MAP-03.7.
+
+
+September30 upstream sync (`upstream/main` at`d21a0a1f`) combines its route
+progress guard with the verified software-scalar velocity/integration path.
+The guard applies to location orders. Applying final-center distance to ranged
+interactions reproduced four failed lumber-dropoff assertions: a worker at the
+flow endpoint reversed before reaching the blocked Town Hall's interaction
+boundary. Existing interaction steering is retained there. The imported turn-lag
+regressions now wait through the verified propagation window, assert no drift
+while stopped and require the first admitted step to progress. Numerical raw-word
+and velocity save/resume tests remain active. Position commits also synchronize
+snapshot X/Y and retain worker-blocked-counter clearing from the two parents.
+The combined raw layout uses save58 and rejects both parents' earlier formats.
+
+Sync validation: full ROC/TFT suites pass37,248 assertions in2,155 engine tests
+per schema,85 pathfinding tool tests and both WC3/SC2 production builds. The
+movement subset passes1,530 assertions in163 tests per schema. Save rejection
+covers the combined58 layout. Logs are`wc3-upstream-20260930-final-full-suite.log`
+and`wc3-upstream-movement-fixed.log` under`/tmp`.

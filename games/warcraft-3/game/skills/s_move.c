@@ -280,6 +280,8 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     self->s.origin2 = *cand;
     self->movement.worker_avoid_blocked_frames = 0;
+    self->s.origin.x = cand->x;
+    self->s.origin.y = cand->y;
     gi.LinkEntity(self);
 }
 
@@ -337,8 +339,23 @@ static void unit_moveindirection_policy(edict_t *self,
     }
 
     wc3Velocity_t motion;
+    vec2_t facing_dir, heading_dir;
+    wc3_sincos(self->s.angle, &facing_dir.y, &facing_dir.x);
+    wc3_sincos(self->movement.heading, &heading_dir.y, &heading_dir.x);
+    vec2_t const origin = self->s.origin2;
+    vec2_t const progress_goal = self->movement.displacement_active ? self->movement.displacement_target :
+        self->goalentity ? self->goalentity->s.origin2 : self->s.origin2;
     vec2_t const by_facing = unit_step_heading(self, self->s.angle, &motion);
-    if (move_is_valid_policy(self, &by_facing, collision_policy)) {
+    bool const facing_progress = !self->goalentity ||
+        Vector2_distance(&by_facing, &progress_goal) <=
+        Vector2_distance(&origin, &progress_goal) + 0.001f;
+    /* Point orders must progress toward their reserved destination. Ranged
+     * interaction orders follow an approach route around a blocked target;
+     * applying the centre-distance guard there reversed a lumber worker at
+     * the flow endpoint before it could reach the dropoff boundary. */
+    if ((!unit_routes_to_location(self) ||
+         (Vector2_dot(&facing_dir, &heading_dir) >= 0.0f && facing_progress)) &&
+        move_is_valid_policy(self, &by_facing, collision_policy)) {
         unit_commit_motion(self, &by_facing, &motion);
         return;
     }
@@ -1485,6 +1502,8 @@ static void ai_move_walk(edict_t *ent) {
          * stop where we are rather than overlapping it. */
         if (M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
             ent->s.origin2 = ent->goalentity->s.origin2;
+            ent->s.origin.x = ent->s.origin2.x;
+            ent->s.origin.y = ent->s.origin2.y;
             gi.LinkEntity(ent);
         }
         if (S_UnitAbilityMoveArrive(ent)) return;

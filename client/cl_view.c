@@ -174,6 +174,19 @@ static void Matrix4_getPreviewLightMatrix(vec3_t const *sunangles, vec3_t const 
     Matrix4_multiply(&proj, &view, output);
 }
 
+static vec3_t CL_CameraNoiseOffset(vec2_t noise, bool vertical_only, float phase_offset) {
+    float phase;
+
+    if (noise.x == 0.0f || noise.y == 0.0f) return (vec3_t){ 0 };
+    phase = cl.time * 0.001f * noise.y + phase_offset;
+    if (vertical_only) return (vec3_t){ 0, 0, sinf(phase) * noise.x };
+    return (vec3_t){
+        sinf(phase) * noise.x,
+        sinf(phase * 1.371f + 1.7f) * noise.x,
+        sinf(phase * 0.733f + 3.1f) * noise.x,
+    };
+}
+
 void Matrix4_getCameraMatrix(mat4_t *output) {
     if (!world_loaded) {
         Matrix4_identity(output);
@@ -208,8 +221,23 @@ void Matrix4_getCameraMatrix(mat4_t *output) {
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
     Matrix4_inverse(&view, &inverse);
     cl.viewDef.camerastate[0].eye = (vec3_t){ inverse.v[12], inverse.v[13], inverse.v[14] };
-    /* Some game cameras orbit a target and require a world-up basis to keep low shots upright. */
-    if (distance > 0.0f && CL_GameCameraUsesWorldUp()) {
+
+    if (cl.playerstate.camera_target_noise.x != 0.0f || cl.playerstate.camera_source_noise.x != 0.0f) {
+        vec3_t target_noise = CL_CameraNoiseOffset(
+            cl.playerstate.camera_target_noise,
+            (cl.playerstate.camera_noise_flags & CAMERA_NOISE_TARGET_VERTICAL) != 0, 0.0f);
+        vec3_t source_noise = CL_CameraNoiseOffset(
+            cl.playerstate.camera_source_noise,
+            (cl.playerstate.camera_noise_flags & CAMERA_NOISE_SOURCE_VERTICAL) != 0, 2.2f);
+        vec3_t noisy_target = Vector3_add(&origin, &target_noise);
+        vec3_t noisy_eye = Vector3_add(&cl.viewDef.camerastate[0].eye, &source_noise);
+        vec3_t direction = Vector3_sub(&noisy_target, &noisy_eye);
+
+        cl.viewDef.target = noisy_target;
+        cl.viewDef.camerastate[0].eye = noisy_eye;
+        Matrix4_lookAt(&view, &noisy_eye, &direction, &(vec3_t){0, 0, 1});
+    } else if (distance > 0.0f && CL_GameCameraUsesWorldUp()) {
+        /* Some game cameras orbit a target and require a world-up basis to keep low shots upright. */
         vec3_t direction = Vector3_sub(&origin, &cl.viewDef.camerastate[0].eye);
         Matrix4_lookAt(&view, &cl.viewDef.camerastate[0].eye, &direction, &(vec3_t){0, 0, 1});
     }
@@ -778,6 +806,22 @@ static float v_test_camera_z(void) {
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
     Matrix4_inverse(&cl.viewDef.viewProjectionMatrix, &inv);
     return Matrix4_multiply_vector3(&inv, &(vec3_t){ 0, 0, -1 }).z + 1.0f;
+}
+
+TEST(client_camera, camera_noise_vertical_only_changes_only_z) {
+    uint32_t saved_time = cl.time;
+    vec3_t offset;
+
+    cl.time = 250;
+    offset = CL_CameraNoiseOffset((vec2_t){ 10.0f, 4.0f }, true, 0.0f);
+    T_FEQ(offset.x, 0.0f, 0.001f);
+    T_FEQ(offset.y, 0.0f, 0.001f);
+    T_ASSERT(fabsf(offset.z) > 0.001f);
+    offset = CL_CameraNoiseOffset((vec2_t){ 0.0f, 4.0f }, false, 0.0f);
+    T_FEQ(offset.x, 0.0f, 0.001f);
+    T_FEQ(offset.y, 0.0f, 0.001f);
+    T_FEQ(offset.z, 0.0f, 0.001f);
+    cl.time = saved_time;
 }
 
 /* Sky and particles consume the same interpolated eye used to build the final view. */

@@ -87,6 +87,52 @@ static void SV_InitMulticast(void) {
     }
 }
 
+/* Remove released tail slots so num_clients remains the high-water bound for active and zombie slots. */
+static void SV_TrimClientSlots(void) {
+    while (svs.num_clients && svs.clients[svs.num_clients - 1].state == cs_free)
+        svs.num_clients--;
+}
+
+/* Reclaim disconnected slots after Quake 2's short stale-packet grace period. */
+void SV_ReapZombieClients(void) {
+    FOR_LOOP(i, svs.num_clients) {
+        client_t *cl = &svs.clients[i];
+        if (cl->state != cs_zombie || svs.realtime - cl->drop_time < BZ_CLIENT_ZOMBIE_MSEC)
+            continue;
+        memset(cl, 0, sizeof(*cl));
+    }
+    SV_TrimClientSlots();
+}
+
+/* Reuse free holes before extending the client array's high-water bound. */
+static client_t *SV_AllocClientSlot(uint32_t *clientnum) {
+    uint32_t limit = MIN(ge->max_clients, MAX_CLIENTS);
+    SV_ReapZombieClients();
+    FOR_LOOP(i, svs.num_clients) {
+        if (svs.clients[i].state == cs_free) {
+            *clientnum = i;
+            return &svs.clients[i];
+        }
+    }
+    if (svs.num_clients >= limit)
+        return NULL;
+    *clientnum = svs.num_clients++;
+    return &svs.clients[*clientnum];
+}
+
+/* Tell the peer it cannot continue signon, then retain its address briefly to reject stale packets. */
+void SV_DropClient(client_t *cl) {
+    if (!cl || cl < svs.clients || cl >= svs.clients + MAX_CLIENTS ||
+        cl->state == cs_free || cl->state == cs_zombie)
+        return;
+    MSG_WriteByte(&cl->netchan.message, svc_disconnect);
+    Netchan_Transmit(NS_SERVER, &cl->netchan);
+    cl->state = cs_zombie;
+    cl->drop_time = svs.realtime;
+    cl->edict = NULL;
+    SV_LobbyRemoveClient((uint32_t)(cl - svs.clients));
+}
+
 static void SV_ClearLobbyClients(void) {
     FOR_LOOP(i, MAX_CLIENTS) {
         memset(&svs.clients[i], 0, sizeof(svs.clients[i]));
@@ -96,6 +142,7 @@ static void SV_ClearLobbyClients(void) {
 
 typedef struct {
     netadr_t addr;
+    uint32_t clientnum;
     uint32_t playernum;
     uint32_t lobby_slot;
     char userinfo[256];
@@ -118,6 +165,7 @@ static uint32_t SV_SaveLobbyClients(savedLobbyClient_t *saved, uint32_t max_save
             break;
         }
         saved[count].addr = cl->netchan.remote_address;
+        saved[count].clientnum = i;
         saved[count].playernum = cl->playernum;
         saved[count].lobby_slot = cl->lobby_slot;
         snprintf(saved[count].userinfo, sizeof(saved[count].userinfo), "%s", cl->userinfo);
@@ -132,14 +180,13 @@ static void SV_RestoreLobbyClients(savedLobbyClient_t const *saved, uint32_t cou
         SV_ClientConnect();
         return;
     }
+    uint32_t client_limit = MIN(ge->max_clients, MAX_CLIENTS);
     FOR_LOOP(i, count) {
         client_t *cl;
+        uint32_t clientnum = saved[i].clientnum;
 
-        if (svs.num_clients >= MAX_CLIENTS ||
-            svs.num_clients >= ge->max_clients) {
-            break;
-        }
-        cl = &svs.clients[svs.num_clients++];
+        if (clientnum >= client_limit) continue;
+        cl = &svs.clients[clientnum];
         memset(cl, 0, sizeof(*cl));
         cl->state = cs_connected;
         cl->lastframe = (uint32_t)-1;
@@ -150,13 +197,19 @@ static void SV_RestoreLobbyClients(savedLobbyClient_t const *saved, uint32_t cou
         snprintf(cl->name, sizeof(cl->name), "%s", saved[i].name);
         SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
         Netchan_OutOfBandPrint(NS_SERVER, saved[i].addr, "client_connect %d", BZ_PROTOCOL_VERSION);
+        svs.num_clients = MAX(svs.num_clients, clientnum + 1);
     }
 }
 
 void SV_ClientConnect(void) {
+    uint32_t clientnum;
+    client_t *cl;
+
+    SV_ReapZombieClients();
     // Reuse slot 0 if it already holds a loopback client (e.g. repeated SV_Map
     // calls without a full SV_Shutdown in between).
     if (svs.num_clients > 0 &&
+        (svs.clients[0].state == cs_connected || svs.clients[0].state == cs_spawned) &&
         svs.clients[0].netchan.remote_address.type == NA_LOOPBACK) {
         netadr_t adr = { NA_LOOPBACK };
         svs.clients[0].lastframe = (uint32_t)-1;
@@ -166,13 +219,11 @@ void SV_ClientConnect(void) {
         SV_LobbyBroadcastSetup();
         return;
     }
-    if (svs.num_clients >= MAX_CLIENTS ||
-        svs.num_clients >= ge->max_clients) {
+    cl = SV_AllocClientSlot(&clientnum);
+    if (!cl) {
         fprintf(stderr, "SV_ClientConnect: server full\n");
         return;
     }
-    client_t *cl = &svs.clients[svs.num_clients];
-    svs.num_clients++;
     memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
     cl->lastframe = (uint32_t)-1;
@@ -184,7 +235,7 @@ void SV_ClientConnect(void) {
     SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
     netadr_t adr = { NA_LOOPBACK };
     fprintf(stderr, "SV_ClientConnect: connected local client over loopback\n");
-    SV_LobbyAssignClient(0, true);
+    SV_LobbyAssignClient(clientnum, true);
     Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect %d", BZ_PROTOCOL_VERSION);
     SV_LobbyBroadcastSetup();
 }
@@ -192,8 +243,10 @@ void SV_ClientConnect(void) {
 /* Find the client slot whose netchan address matches from.  For loopback
  * addresses, slot 0 (the local client) is always returned. */
 client_t *SV_FindClientByAddr(netadr_t const *from) {
+    SV_ReapZombieClients();
     FOR_LOOP(i, svs.num_clients) {
         client_t *cl = &svs.clients[i];
+        if (cl->state == cs_free) continue;
         if (from->type == NA_LOOPBACK &&
             cl->netchan.remote_address.type == NA_LOOPBACK)
             return cl;
@@ -209,22 +262,24 @@ client_t *SV_FindClientByAddr(netadr_t const *from) {
 /* Register a new remote client that sent the first connection packet. */
 void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
     client_t *existing;
+    client_t *cl;
+    uint32_t clientnum;
+
     if (!from) return;
+    SV_ReapZombieClients();
     /* A repeated request means the first reply was lost or a local map restart
      * pre-created this address. Re-send the idempotent handshake response so
      * the client cannot remain on the loading plaque waiting for `new`. */
     if ((existing = SV_FindClientByAddr(from))) {
-        Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
+        if (existing->state != cs_zombie)
+            Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
         return;
     }
-    if (svs.num_clients >= MAX_CLIENTS ||
-        svs.num_clients >= ge->max_clients) {
+    cl = SV_AllocClientSlot(&clientnum);
+    if (!cl) {
         fprintf(stderr, "SV_DirectConnect: server full\n");
         return;
     }
-    client_t *cl = &svs.clients[svs.num_clients];
-    uint32_t clientnum = svs.num_clients;
-    svs.num_clients++;
     memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
     cl->lastframe = (uint32_t)-1;
@@ -235,7 +290,7 @@ void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
     if (sv.state == ss_lobby && !SV_LobbyAssignClient(clientnum, false)) {
         fprintf(stderr, "SV_DirectConnect: no open lobby slot for %s\n", NET_AdrToString(from));
         memset(cl, 0, sizeof(*cl));
-        svs.num_clients--;
+        SV_TrimClientSlots();
         return;
     }
     Netchan_OutOfBandPrint(NS_SERVER, *from, "client_connect %d", BZ_PROTOCOL_VERSION);
@@ -329,7 +384,11 @@ void SV_Map(cstring_t mapFilename) {
         return;
     }
     if (!SV_BuildLoadingScreen()) { SV_Shutdown(); CL_LoadingFrame(); return; }
-    FOR_LOOP(i, svs.num_clients) SV_SendLoadingScreen(&svs.clients[i]);
+    FOR_LOOP(i, svs.num_clients) {
+        client_t *cl = &svs.clients[i];
+        /* num_clients spans reusable holes after disconnects; send only to live peers. */
+        if (cl->state == cs_connected || cl->state == cs_spawned) SV_SendLoadingScreen(cl);
+    }
     CL_LoadingFrame();
     if (!ge->LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");
@@ -426,7 +485,7 @@ void SV_Shutdown(void) {
     }
     FOR_LOOP(i, svs.num_clients) {
         client_t *client = &svs.clients[i];
-        if (client->state == cs_free) {
+        if (client->state == cs_free || client->state == cs_zombie) {
             continue;
         }
         MSG_WriteByte(&client->netchan.message, svc_disconnect);

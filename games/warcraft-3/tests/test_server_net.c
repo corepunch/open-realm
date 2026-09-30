@@ -889,6 +889,18 @@ TEST(server_net, duplicate_loopback_connect_replies_without_allocating_client) {
     SV_Shutdown(); NET_Shutdown();
 }
 
+TEST(server_net, find_client_by_loopback_skips_free_slot) {
+    netadr_t loopback = { .type = NA_LOOPBACK };
+
+    reset_server_state(2);
+    svs.num_clients = 2;
+    svs.clients[0].state = cs_free;
+    svs.clients[1].state = cs_connected;
+    svs.clients[1].netchan.remote_address = loopback;
+
+    T_ASSERT(SV_FindClientByAddr(&loopback) == &svs.clients[1]);
+}
+
 TEST(server_net, server_snapshot_ring_scales_to_client_capacity) {
     reset_server_state(4);
 
@@ -1010,8 +1022,8 @@ TEST(server_net, lobby_start_preserves_connected_clients) {
     slot.color = 0;
     snprintf(slot.name, sizeof(slot.name), "Host");
     SV_LobbySetSlot(0, &slot);
-    slot.map_player = 1;
     slot.type = LOBBY_SLOT_OPEN;
+    slot.map_player = 1;
     slot.race = kPlayerRaceOrc;
     slot.team = 1;
     slot.color = 1;
@@ -1060,8 +1072,8 @@ TEST(server_net, lobby_start_same_map_is_noop) {
     slot.race = kPlayerRaceHuman;
     snprintf(slot.name, sizeof(slot.name), "Host");
     SV_LobbySetSlot(0, &slot);
-    slot.map_player = 1;
     slot.type = LOBBY_SLOT_OPEN;
+    slot.map_player = 1;
     slot.race = kPlayerRaceOrc;
     snprintf(slot.name, sizeof(slot.name), "Open");
     SV_LobbySetSlot(1, &slot);
@@ -1075,6 +1087,55 @@ TEST(server_net, lobby_start_same_map_is_noop) {
     T_EQ(svs.num_clients, 2);
     T_EQ(svs.clients[1].state, cs_connected);
     T_EQ(svs.clients[1].netchan.remote_address.port, remote.port);
+
+    SV_Shutdown();
+    NET_Shutdown();
+    test_mapinfo = NULL;
+}
+
+TEST(server_net, lobby_map_transition_preserves_client_indices_with_holes) {
+    mapInfo_t info = { 0 };
+    lobbySlot_t slot = { 0 };
+    netadr_t remote_a = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 32) };
+    netadr_t remote_b = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 33) };
+
+    NET_Shutdown();
+    test_client_stubs_set_cvar("game_port", "28058");
+    reset_server_state(4);
+    test_mapinfo = &info;
+    SV_StartLobby("Maps\\Melee\\Before.w3m");
+    SV_LobbySetConfig(4, 4, "Before");
+    slot.visible = true;
+    slot.client = MAX_CLIENTS;
+    slot.type = LOBBY_SLOT_OPEN;
+    slot.map_player = 0;
+    SV_LobbySetSlot(0, &slot);
+    slot.map_player = 1;
+    SV_LobbySetSlot(1, &slot);
+    slot.map_player = 2;
+    SV_LobbySetSlot(2, &slot);
+    slot.type = LOBBY_SLOT_HUMAN;
+    slot.map_player = 0;
+    SV_LobbySetSlot(0, &slot);
+    SV_DirectConnect(&remote_a, "\\name\\A");
+    SV_DirectConnect(&remote_b, "\\name\\B");
+    T_EQ(svs.num_clients, 3);
+    T_EQ(svs.lobby.slots[2].client, 2);
+
+    SV_DropClient(&svs.clients[1]);
+    svs.realtime += BZ_CLIENT_ZOMBIE_MSEC;
+    SV_ReapZombieClients();
+    T_EQ(svs.clients[1].state, cs_free);
+    T_EQ(svs.clients[2].state, cs_connected);
+
+    SV_Map("Maps\\Melee\\After.w3m");
+
+    T_EQ(svs.num_clients, 3);
+    T_EQ(svs.clients[1].state, cs_free);
+    T_EQ(svs.clients[2].state, cs_connected);
+    T_EQ(svs.clients[2].netchan.remote_address.port, remote_b.port);
+    T_EQ(svs.lobby.slots[2].client, 2);
+    T_EQ(svs.lobby.slots[2].occupied, true);
 
     SV_Shutdown();
     NET_Shutdown();
@@ -1186,6 +1247,7 @@ TEST(server_net, multicast_syncs_updates_to_all_connected_clients) {
     reset_server_state(4);
     SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
     FOR_LOOP(i, 3) {
+        svs.clients[i].state = cs_connected;
         SZ_Init(&svs.clients[i].netchan.message,
                 svs.clients[i].netchan.message_buf, MAX_MSGLEN);
     }
@@ -1444,6 +1506,7 @@ TEST(server_net, loading_configstrings_do_not_queue_duplicate_live_updates) {
 TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines) {
     uint8_t buf[MAX_MSGLEN];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    entityState_t baselines[200];
     char next[64] = "configstrings";
     uint32_t strings = 0, bases = 0, pages = 0;
     NET_Shutdown(); reset_server_state(2);
@@ -1458,8 +1521,13 @@ TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines)
     sv.state = ss_game;
     FOR_LOOP(i, 200) {
         memset(sv.configstrings[CS_MODELS + i + 1], 'a' + i % 26, MAX_PATHLEN - 1);
-        test_edicts[i].s = (entityState_t){ .number = i, .model = i + 1, .origin = { i, i + 1, i + 2 } };
+        baselines[i] = (entityState_t){ .number = i, .model = i + 1, .origin = { i, i + 1, i + 2 } };
+        /* A live entity can change after map baselines were captured but before a
+         * client finishes signon. Snapshot additions are still encoded against
+         * sv.baselines, so signon must give the client that same starting state. */
+        test_edicts[i].s = (entityState_t){ .number = i, .model = i + 1000, .origin = { i + 1000, i + 1001, i + 1002 } };
     }
+    sv.baselines = baselines;
     ge->num_edicts = 200;
     while (strcmp(next, "precache")) {
         T_ASSERT(pages++ < 300);
@@ -1492,7 +1560,61 @@ TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines)
         T_EQ(svs.clients[0].state, cs_connected);
     }
     T_EQ(strings, 200); T_EQ(bases, 200); T_ASSERT(pages > 2);
+    sv.baselines = NULL;
     close(sock); NET_Shutdown();
+}
+
+TEST(server_net, udp_signon_without_baselines_disconnects_client) {
+    uint8_t buf[MAX_MSGLEN];
+    sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    netadr_t remote;
+    NET_Shutdown(); reset_server_state(3);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 23));
+    int sock = open_client_socket();
+    int other_sock = open_client_socket();
+    T_ASSERT(sock >= 0);
+    T_ASSERT(other_sock >= 0);
+    struct timeval timeout = { .tv_sec = 1 };
+    T_EQ(setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)), 0);
+    T_EQ(setsockopt(other_sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)), 0);
+    send_connect_oob(sock, PORT_SERVER + 23); pump_server_connects();
+    T_ASSERT(recv_client_connect_oob(sock));
+    send_connect_oob(other_sock, PORT_SERVER + 23); pump_server_connects();
+    T_ASSERT(recv_client_connect_oob(other_sock));
+    T_EQ(svs.clients[1].state, cs_connected);
+    fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) & ~O_NONBLOCK);
+
+    T_EQ(svs.clients[0].state, cs_connected);
+    remote = svs.clients[0].netchan.remote_address;
+    SZ_Clear(&msg);
+    MSG_WriteString(&msg, "baselines");
+    SV_ExecuteUserCommand(&msg, &svs.clients[0]);
+    int size = recv(sock, buf, sizeof(buf), 0);
+    T_EQ(size, 1);
+    if (size == 1) T_EQ(buf[0], svc_disconnect);
+    T_EQ(svs.clients[0].state, cs_zombie);
+    T_EQ(svs.clients[1].state, cs_connected);
+
+    SV_DirectConnect(&remote, "\\name\\TooSoon");
+    T_EQ(svs.num_clients, 2);
+    T_EQ(svs.clients[0].state, cs_zombie);
+    svs.realtime += BZ_CLIENT_ZOMBIE_MSEC;
+    SV_ReapZombieClients();
+    T_EQ(svs.num_clients, 2);
+    T_EQ(svs.clients[0].state, cs_free);
+    MSG_WriteByte(&sv.multicast, svc_nop);
+    SV_Multicast(NULL, MULTICAST_ALL_R);
+    T_EQ(svs.clients[0].netchan.message.cursize, 0);
+    T_EQ(svs.clients[1].netchan.message.cursize, 1);
+    SZ_Clear(&svs.clients[1].netchan.message);
+    SV_DirectConnect(&remote, "\\name\\Reconnected");
+    T_EQ(svs.num_clients, 2);
+    T_EQ(svs.clients[0].state, cs_connected);
+    T_EQ(svs.clients[1].state, cs_connected);
+    T_EQ(svs.clients[0].netchan.remote_address.port, remote.port);
+    T_ASSERT(recv_client_connect_oob(sock));
+
+    close(sock); close(other_sock); NET_Shutdown();
 }
 
 /* Review regression: minimap decoration must not remove nearby world presentation. */

@@ -185,6 +185,8 @@ native GetRectMinX            takes rect whichRect returns real
 native GetRectMaxY            takes rect whichRect returns real
 native CreateRegion           takes nothing returns region
 native RegionAddRect          takes region whichRegion, rect r returns nothing
+native TriggerRegisterEnterRegion takes trigger whichTrigger, region whichRegion, boolexpr filter returns event
+native TriggerRegisterLeaveRegion takes trigger whichTrigger, region whichRegion, boolexpr filter returns event
 native RegionClearRect        takes region whichRegion, rect r returns nothing
 native Location               takes real x, real y returns location
 native MoveLocation           takes location whichLocation, real newX, real newY returns nothing
@@ -235,6 +237,10 @@ native CameraSetupApply takes camerasetup whichSetup, boolean doPan, boolean pan
 native CameraSetupApplyWithZ takes camerasetup whichSetup, real zDestOffset returns nothing
 native CameraSetupApplyForceDuration takes camerasetup whichSetup, boolean doPan, real forceDuration returns nothing
 native CameraSetupApplyForceDurationWithZ takes camerasetup whichSetup, real zDestOffset, real forceDuration returns nothing
+native CameraSetTargetNoise takes real mag, real velocity returns nothing
+native CameraSetSourceNoise takes real mag, real velocity returns nothing
+native CameraSetTargetNoiseEx takes real mag, real velocity, boolean vertOnly returns nothing
+native CameraSetSourceNoiseEx takes real mag, real velocity, boolean vertOnly returns nothing
 native InitGameCache takes string campaignFile returns gamecache
 native StoreInteger takes gamecache cache, string missionKey, string key, integer value returns nothing
 native GetStoredInteger takes gamecache cache, string missionKey, string key returns integer

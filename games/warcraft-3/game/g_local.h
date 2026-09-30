@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <limits.h>
+#include <float.h>
 
 #include "common/common.h"
 #include "common/weather.h"
@@ -578,6 +579,13 @@ struct client_s {
         edict_t *target_controller;
         vec2_t target_offset;
         bool target_inherit_orientation;
+        bool target_orient_only; /* source stays fixed while orientation tracks target */
+        vec3_t orient_eye;       /* fixed camera source captured by SetCameraOrientController */
+        bool pan_active;         /* scripted PanCameraTo target movement */
+        uint32_t pan_start_time; /* independent from scalar field interpolation */
+        vec2_t pan_start;
+        vec2_t pan_destination;
+        vec2_t pan_rate;         /* world units per second: X=strafe, Y=forward */
     } camera;
     /* Info-panel cache. For single units entity/xp track static presentation;
      * HP/mana are retained for save-layout compatibility because live portrait
@@ -1643,6 +1651,7 @@ struct edict_s {
         edict_t *patrol_a, *patrol_b, *patrol_target;
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
         bool holding_position;
+        bool explicit_allied_attack;
     } movement;
     edictStat_t health;
     edictStat_t mana;
@@ -2159,6 +2168,8 @@ vec2_t G_ClampCameraPosition(gameClient_t *client, vec2_t const *position);
 vec3_t G_MakeServerOrigin(float x, float y, float z_offset);
 void G_SetCameraBounds(float const bounds[8]);
 void G_ClearCameraTarget(gameClient_t *client, cstring_t func);
+void G_ClearCameraPan(gameClient_t *client);
+vec2_t G_CameraPanPositionAtTime(gameClient_t *client, uint32_t now, bool *complete);
 void G_SetPlayerText(gameClient_t *, PLAYERTEXT, cstring_t);
 void G_SetAllStockSlots(bool, int32_t);
 void G_SetStockSlots(edict_t *, bool, int32_t);

@@ -20,6 +20,10 @@ setup:
         set -eu
         export DEBIAN_FRONTEND=noninteractive
 
+        if ! dpkg --print-foreign-architectures | grep -qx i386; then
+          dpkg --add-architecture i386
+        fi
+
         packages="
           build-essential
           gdb
@@ -33,6 +37,14 @@ setup:
           radare2
           xvfb
           xauth
+          wine
+          wine64
+          libwine:i386
+          openjdk-21-jre-headless
+          python3-venv
+          curl
+          unzip
+          xz-utils
         "
 
         if [ "${{ kit.args.ffmpeg }}" = "1" ]; then
@@ -47,5 +59,44 @@ setup:
 
         apt-get update
         apt-get install -y $packages
+
+        tools_dir=/opt/openrealm-tools
+        mkdir -p "$tools_dir"
+
+        ghidra_zip=/tmp/ghidra_12.1.4_PUBLIC_20260921.zip
+        curl -fL --retry 3 -o "$ghidra_zip" \
+          https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.4_build/ghidra_12.1.4_PUBLIC_20260921.zip
+        echo 'ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db  '"$ghidra_zip" | sha256sum -c -
+        unzip -q "$ghidra_zip" -d "$tools_dir"
+        rm -f "$ghidra_zip"
+
+        python3 -m venv "$tools_dir/frida-venv"
+        "$tools_dir/frida-venv/bin/pip" install --no-cache-dir frida==17.19.0 frida-tools==14.10.4
+
+        frida_server_xz=/tmp/frida-server-17.19.0-windows-x86_64.exe.xz
+        curl -fL --retry 3 -o "$frida_server_xz" \
+          https://github.com/frida/frida/releases/download/17.19.0/frida-server-17.19.0-windows-x86_64.exe.xz
+        echo 'be25eb9741e13be13ce4e6620c54d43002204050eeda9d36d4f693664ccfda59  '"$frida_server_xz" | sha256sum -c -
+        xz -dc "$frida_server_xz" > "$tools_dir/frida-server.exe"
+        rm -f "$frida_server_xz"
+
+        ln -sf "$tools_dir/frida-venv/bin/frida" /usr/local/bin/frida
+        ln -sf "$tools_dir/frida-venv/bin/frida-ps" /usr/local/bin/frida-ps
+        ln -sf "$tools_dir/frida-server.exe" /usr/local/bin/frida-server.exe
+        cat > /usr/local/bin/ghidra <<'EOF'
+        #!/bin/sh
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+        exec /opt/openrealm-tools/ghidra_12.1.4_PUBLIC/ghidraRun "$@"
+        EOF
+        chmod 755 /usr/local/bin/ghidra
+
+        wine --version
+        test -x /usr/local/bin/ghidra
+        test -x /usr/local/bin/frida
+        test -x /usr/local/bin/frida-ps
+        test -x /usr/local/bin/frida-server.exe
+        test -x /opt/openrealm-tools/ghidra_12.1.4_PUBLIC/ghidraRun
+        /opt/openrealm-tools/frida-venv/bin/python -c 'import frida; assert frida.__version__ == "17.19.0"'
+
         apt-get clean
         rm -rf /var/lib/apt/lists/*

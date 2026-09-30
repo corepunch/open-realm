@@ -43,12 +43,17 @@ void SV_Baselines_f(client_t *cl, int argc, cstring_t *argv) {
     int start = SV_SignonStart(argc, argv, ge->num_edicts);
     uint32_t limit = SV_SignonLimit(&cl->netchan);
     if (cl->state != cs_connected || start < 0) return;
+    if (!sv.baselines) {
+        fprintf(stderr, "SV_Baselines_f: missing map baselines\n");
+        SV_DropClient(cl);
+        return;
+    }
     for (; start < ge->num_edicts; start++) {
         edict_t *ent = EDICT_NUM(start);
         if (ent->svflags & SVF_NOCLIENT) continue;
         if (cl->netchan.message.cursize + 512 + 32 > limit) break;
         MSG_WriteByte(&cl->netchan.message, svc_spawnbaseline);
-        MSG_WriteDeltaEntity(&cl->netchan.message, &empty, &ent->s, true);
+        MSG_WriteDeltaEntity(&cl->netchan.message, &empty, &sv.baselines[start], true);
     }
     char next[32];
     if (start == ge->num_edicts) strlcpy(next, "precache", sizeof(next));

@@ -2610,6 +2610,7 @@ static void CMD_PortraitCameraDown(edict_t *clent, uint32_t argc, cstring_t argv
     G_ClientSetCameraPosition(clent, &target->s.origin2);
     clent->client->camera.target_controller = target;
     clent->client->camera.target_offset = (vec2_t){ 0, 0 };
+    clent->client->camera.target_orient_only = false;
 }
 
 static void CMD_QuickCamera(edict_t *clent, uint32_t argc, cstring_t argv[]) {
@@ -2655,6 +2656,7 @@ CLIENTCOMMAND(Camera) {
         G_ClientSetCameraPosition(clent, &target->s.origin2);
         client->camera.target_controller = target;
         client->camera.target_offset = (vec2_t){ 0, 0 };
+        client->camera.target_orient_only = false;
         return;
     }
     fprintf(stderr, "usage: camera <move <x> <y>|selected>\n");
@@ -2916,6 +2918,7 @@ void G_ClientSetCameraPosition(edict_t *ent, vec2_t const *position) {
         return;
     clamped = G_ClampCameraPosition(ent->client, position);
     G_ClearCameraTarget(ent->client, "G_ClientSetCameraPosition");
+    G_ClearCameraPan(ent->client);
     ent->client->camera.target_height = ent->client->ps.vieworigin.z;
     ent->client->camera.old_state = ent->client->camera.state;
     ent->client->camera.state.position = clamped;

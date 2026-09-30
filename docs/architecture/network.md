@@ -165,6 +165,11 @@ are unchanged. `net.entity_delta_preserves_radian_headings` covers signed, wrapp
 headings; `sc2_control.snapshot_preserves_authored_placement` exercises the codec and renderer together.
 See [coordinate contracts](../../AXIS.md).
 
+Protocol version 15 adds target-noise and source-noise vectors plus presentation flags to
+`playerState_t`. Camera noise is evaluated on the client, but its parameters are sent in
+player-state deltas; mixed version 14/15 peers therefore cannot decode these snapshots
+consistently and are rejected by the versioned handshake.
+
 ## Key files
 
 | File | Purpose |
