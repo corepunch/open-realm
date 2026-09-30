@@ -15,8 +15,11 @@ static bool entity_is_live_walkable_surface(edict_t const *ent) {
         ent->data.DestructableData && ent->data.DestructableData->walkable;
 }
 
+/* Original widget blue regions usec2: walk, float and amphibious blockage. */
+static uint8_t entity_static_pathing_flags(edict_t const *ent) { (void)ent; return 0xc2; }
 static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) {
-    return M_UnitStaticPathingFlags(ent);
+    /* Query masks describe the mover; occupancy describes the encountered unit. */
+    return !ent || ent->no_pathing || M_UnitMoveDisabled(ent) || (ent->aiflags & AI_FLYING) ? 0 : 0xca;
 }
 static bool entity_is_pathing_ignored(edict_t const *ent) {
     /* A construction-site indicator is a visible reservation, not a building
@@ -84,15 +87,17 @@ static int move_object_compare(void const *a, void const *b) {
 }
 
 /* TODO: the complete authored category table is BASE-02. This game adapter
- * retains existing ground-unit eligibility; observed foot units publishca,
- * flyers publish0. Buildings/destructables already own static footprints. */
+ * uses the observed foot/horse/hover/float/amph categoryca;
+ * flyers and disabled rows publish0. Buildings/destructables already own static footprints. */
 static bool move_object_collect(edict_t const *ent) {
     moveFineGraph_t *graph = move_scan->graph;
     movePathQuery_t const *query = move_scan->query;
     if (ent == query->mover || ent == query->target || IS_HOLLOW(ent) || !ent->data.UnitData ||
-        G_UnitIsStructure(ent) || ent->no_pathing || ent->collision <= 0 || (ent->aiflags & AI_FLYING)) return false;
+        G_UnitIsStructure(ent) || M_UnitMoveDisabled(ent) || ent->no_pathing || ent->collision <= 0 || (ent->aiflags & AI_FLYING)) return false;
     uint32_t flags = ent->movement.velocity.x || ent->movement.velocity.y ? 0x20000000 : 0;
-    if (!wc3_fine_object_blocks((wc3FineObject_t){0x010000ca, flags, true}, 0x02000002, false)) return false;
+    uint32_t mask = graph->flags;
+    mask |= mask << 24;
+    if (!wc3_fine_object_blocks((wc3FineObject_t){0x010000ca, flags, true}, mask, false)) return false;
     vec2_t n = CM_GetNormalizedMapPosition(ent->s.origin2.x, ent->s.origin2.y);
     wc3FinePoint_t point = { (int)floorf(n.x * pathmap.width), (int)floorf(n.y * pathmap.height) };
     assert(graph->objects < MAX_ENTITIES);

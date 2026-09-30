@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**73 done / 255 tasks; 182 remaining.** Counts describe this backlog,
+**75 done / 256 tasks; 181 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -16,10 +16,10 @@ Completed evidence now sits next to its specific remaining extension.
 
 | Area | Done | Remaining |
 | --- | ---: | ---: |
-| BASE — Baseline and reproducibility | 10 | 10 |
+| BASE — Baseline and reproducibility | 11 | 10 |
 | MAP — Map construction and lifetime | 5 | 15 |
 | FOOT — Footprints and query policy | 3 | 8 |
-| FINE — Fine search | 4 | 7 |
+| FINE — Fine search | 5 | 6 |
 | ACC — Adaptive search | 1 | 10 |
 | NUM — Numbers and random state | 16 | 12 |
 | ROUTE — Route progression and yielding | 1 | 9 |
@@ -97,7 +97,7 @@ FOOT-01.4 now applies the verified class footprint to nearby routing, destinatio
 correction and actual Move stepping. FOOT-01.5 now uses that geometry for
 long/shared expansion, flow sampling, class-aware cache reuse and unreachable
 fallbacks. ROUTE-02.1 now ports all-class segment sampling, software normalization
-and original next-point/progressively-farther waypoint selection. FINE-01.5 now routes location orders around idle ground units and rechecks retained segments, with exact192 original mixed-chain/C searches and fresh hfoo/hgry profile/velocity evidence. FINE-02.2 now retains nearest partial routes and resumes actual Move after idle blocker removal. Next extend BASE-02 profiles to water/amphibious lanes and port the resulting masks; retain FOOT-04 admission scopes.
+and original next-point/progressively-farther waypoint selection. FINE-01.5 now routes location orders around idle ground units and rechecks retained segments, with exact192 original mixed-chain/C searches and fresh hfoo/hgry profile/velocity evidence. FINE-02.2 now retains nearest partial routes and resumes actual Move after idle blocker removal. BASE-02.4 now ports the captured water/amphibious masks, WPM derivation and ground object categories. Next port exact fine-route endpoints and check arrival against the original order; retain FOOT-04 admission scopes.
 Keep dynamic eligibility and full-trajectory gates explicit.
 Numeric inventory/alias leaves remain open, but do not expand them ahead of a
 concrete routing, stepping, collision or arrival payoff. MOVE-02.3 now connects
@@ -117,14 +117,14 @@ correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinati
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
 (NUM-01.8). Ghidra mapping persists360
-names,23 layouts,142 fields,119 x86 prototypes and35 scalar globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has162
+names,23 layouts,142 fields,119 x86 prototypes and35 scalar globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has165
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | BASE-02.1 | Ground/flight profiles and verified fine masks | Authored water/amphibious table and engine terrain masks |
+| 1 | ROUTE-01.1 | Verified fine parent chains and original reconstruction | Exact fractional endpoints in the engine; keep coarse scope explicit |
 | 2 | FOOT-04 | Verified static and idle-object geometry | Public placement/teleport admission contracts and engine consumers |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
@@ -187,11 +187,15 @@ Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks,
 - [ ] **BASE-01.3** Trace one target order and one ability approach; record the differences in range, target identity and routing flags.
 - [ ] **BASE-01.4** List forced-position, teleport and pathing-bypass entry points with callers; assign a separate follow-up ID to each uncovered path.
 
+BASE-02.4 explicitly splits the stock movement-mask table and engine port from
+BASE-02.1's remaining full authored producer/lane/support-surface inventory.
+
 ### BASE-02 — Supported input inventory
 
 - [ ] **BASE-02.1** Build a movement-type table for ground, air, water and amphibious units: authored producer, lane, masks and support surface.
 - [ ] **BASE-02.2** Build an object-category table for units, buildings, destructibles and targets: tags, ownership and eligibility at each query consumer.
 - [ ] **BASE-02.3** Record valid coordinate, radius and map-size domains from public producers; attach rejection or propagation evidence for boundary inputs.
+- [x] **BASE-02.4** Capture stock foot/horse/hover/fly/float/amph/disabled profiles and port their terrain/object masks. Seven public CreateUnit types publish14 paired getter/mask rows; float40/amph80 now reach engine Move validation, routes and command destinations. Original WPM256-byte outputs match C, including02+40 ->80; original widgetc2 now blocks all ground lanes and releases correctly. Evidence: [authored movement masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries). Full authored parsing and support transitions remain02.1.
 
 ### BASE-03 — Coverage inventory
 
@@ -295,7 +299,7 @@ Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
 ### FINE-01 — Full searches with objects
 
 - [x] **FINE-01.1** 288 complete static searches plus repeat/stamp reuse pass with exact route/state expectations. Evidence: [static fine searches][fine-static]; mixed dynamic objects remain excluded.
-- [ ] **FINE-01.2** Add stationary and moving object chains to a full search for each lane/class; compare queue, parents, termination and route. Ground/flight masks and all four classes now have192 exact full requests with mixed chains and metadata reuse; water/amphibious public lanes remain.
+- [x] **FINE-01.2** Compose stationary/moving/suppressed/mixed object chains in all four published ground/flight/float/amph masks and footprint classes.384 original full searches,384 retained-metadata repeats and384 complete requests match production C cost/work/nodes/parent routes at O0/O2 with reuse. Captured stock getter/publication producers establish the mask table; target exit and public endpoint admission retain01.3/FOOT-04. Evidence: [authored movement masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries).
 - [ ] **FINE-01.3** Add self/suppressed objects and target-exit cases to the same matrix; assert eligibility changes rather than only reachability.
 
 - [x] **FINE-01.4** Port the recovered static search policy into the engine and retain its turns through actual Move steering. All288 original cell routes/costs/pops/node counts match C at O0/O2 with reuse; three blocked wall-gap Move cases retain their turn with a ready generic field. Current radius/corner legality, visible-point adapter, long-route fields and dynamic objects remain separate. Evidence: [engine fine routing](retail-pathfinding-engine.md#retail-fine-search-drives-nearby-detours).

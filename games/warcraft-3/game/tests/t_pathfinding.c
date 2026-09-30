@@ -249,6 +249,98 @@ TEST(wc3_pathfinding, flyer_move_validation_uses_unflyable_static_pathing) {
     T_ASSERT(!M_MoveIsValid(flyer, &target));
 }
 
+/* Original public stock profiles publish foot/horse/hover=2, float=64,
+ * amph=128, fly=4. Exercise the same Move validation and routing entry points. */
+TEST(wc3_pathfinding, authored_water_and_amphibious_masks_reach_move_queries) {
+    static cstring_t const names[] = { "foot", "horse", "hover", "float", "amph", "fly" };
+    static uint8_t const masks[] = { 2, 2, 2, 64, 128, 4 };
+    static uint8_t const bits[] = { 2, 4, 64, 128 };
+    vec2_t point = {8.5f, 4.5f};
+    FOR_LOOP(i, sizeof(names) / sizeof(*names)) {
+        reset_entities();
+        setup_test_world();
+        edict_t *unit = make_unit_at(4.5f, 4.5f);
+        UnitData_t const *original = unit->data.UnitData;
+        UnitData_t data = *original;
+        data.moveTypeName = names[i];
+        unit->data.UnitData = &data;
+        unit->collision = 0.5f;
+        if (masks[i] == 4) unit->aiflags |= AI_FLYING;
+        gi.LinkEntity(unit);
+        T_EQ(M_UnitStaticPathingFlags(unit), masks[i]);
+        FOR_LOOP(j, sizeof(bits) / sizeof(*bits)) {
+            uint8_t cells[16 * 16] = {0};
+            cells[4 * 16 + 8] = bits[j];
+            setup_test_pathmap(16, 16, cells);
+            T_EQ(M_MoveIsValid(unit, &point), masks[i] != bits[j]);
+        }
+        uint8_t cells[16 * 16] = {0};
+        for (unsigned y = 3; y < 6; y++) cells[y * 16 + 8] = masks[i];
+        setup_test_pathmap(16, 16, cells);
+        vec2_t target = {12.5f, 4.5f};
+        unit->unitinfo.MoveSpeed = 2.f;
+        T_ASSERT(unit_issueorder(unit, "move", &target));
+        unit_changeangle(unit);
+        T_ASSERT(!unit->movement.flow_direct);
+        T_ASSERT(unit->movement.path.valid);
+        T_ASSERT(fabsf(unit->movement.path.waypoint.y - 4.5f) > 0.01f);
+        unit->data.UnitData = original;
+    }
+    reset_entities();
+    setup_test_world();
+}
+
+/* Original widget blue coverage creates categoryc2: walk/float/amph.
+ * It must survive baking and release through the existing footprint lifetime. */
+TEST(wc3_pathfinding, baked_widget_blocks_water_lanes_and_release_restores_them) {
+    uint8_t cells[16 * 16] = {0};
+    vec2_t point = {8.5f, 8.5f};
+    reset_entities();
+    setup_test_world();
+    setup_test_pathmap(16, 16, cells);
+    edict_t *building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), point.x, point.y);
+    pathTex_t *texture = gi.MemAlloc(sizeof(*texture) + sizeof(color32_t));
+    texture->width = texture->height = 1;
+    texture->map[0] = (color32_t){.b = 255};
+    building->pathtex = texture;
+    CM_BakeStaticObstacles();
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&point, 0, 2));
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&point, 0, 64));
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&point, 0, 128));
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&point, 0, 4));
+    building->pathtex = NULL;
+    G_FreeEdict(building);
+    gi.MemFree(texture);
+    CM_BakeStaticObstacles();
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&point, 0, 2));
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&point, 0, 64));
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&point, 0, 128));
+    reset_entities();
+    setup_test_world();
+}
+
+TEST(wc3_pathfinding, command_destination_uses_object_category_for_water_queries) {
+    uint8_t cells[16 * 16] = {0};
+    vec2_t point = {8.5f, 8.5f}, out;
+    reset_entities();
+    setup_test_world();
+    setup_test_pathmap(16, 16, cells);
+    edict_t *idle = make_unit_at(point.x, point.y);
+    idle->collision = 0.5f;
+    idle->svflags |= SVF_MONSTER;
+    gi.LinkEntity(idle);
+    static uint8_t const masks[] = {2, 64, 128};
+    FOR_LOOP(i, sizeof(masks) / sizeof(*masks)) {
+        T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&point, 0, masks[i], &out));
+        T_ASSERT(Vector2_distance(&point, &out) > 0.5f);
+    }
+    idle->aiflags |= AI_FLYING;
+    T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&point, 0, 4, &out));
+    T_EQ(out.x, point.x); T_EQ(out.y, point.y);
+    reset_entities();
+    setup_test_world();
+}
+
 TEST(wc3_pathfinding, heatmap_cache_separates_ground_and_flying_pathing) {
     uint8_t cells[10 * 10] = { 0 };
     edict_t *goal;
@@ -624,6 +716,9 @@ TEST(wc3_pathfinding, nearby_unit_routes_follow_live_object_eligibility) {
     gi.LinkEntity(idle);
     movePathQuery_t query = { {&unit->s.origin2, &target, 0.5f, CM_PATHING_UNWALKABLE}, unit, NULL, true };
     T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    query.geometry.blocked_flags = 0; /* Legacy zero means ground02. */
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    query.geometry.blocked_flags = CM_PATHING_UNWALKABLE;
     edict_t *goal = make_waypoint(target.x, target.y);
     G_RequestMovePathField(goal, 0.5f, CM_PATHING_UNWALKABLE);
     CM_ProcessPathJobs(UINT_MAX);
@@ -1425,7 +1520,8 @@ TEST(wc3_pathfinding, closest_pathable_ignores_dead_dynamic_unit) {
     T_FEQ(dead_out.y, point.y, 0.001f);
 }
 
-TEST(wc3_pathfinding, closest_pathable_dynamic_units_use_movement_layer) {
+/* Stock hgry publishes category0 even though its own terrain query is4. */
+TEST(wc3_pathfinding, closest_pathable_dynamic_units_use_published_category) {
     uint8_t cells[MAP_W * MAP_H] = { 0 };
     vec2_t point = { 2.0f, 5.0f }, out = { 0 };
     edict_t *blocker;
@@ -1441,7 +1537,8 @@ TEST(wc3_pathfinding, closest_pathable_dynamic_units_use_movement_layer) {
     T_FEQ(out.x, point.x, 0.001f);
     T_FEQ(out.y, point.y, 0.001f);
     T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&point, 0.0f, CM_PATHING_UNFLYABLE, &out));
-    T_ASSERT(fabsf(out.x - point.x) > 0.001f || fabsf(out.y - point.y) > 0.001f);
+    T_FEQ(out.x, point.x, 0.001f);
+    T_FEQ(out.y, point.y, 0.001f);
 
     blocker->aiflags &= ~AI_FLYING;
     T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&point, 0.0f, CM_PATHING_UNWALKABLE, &out));

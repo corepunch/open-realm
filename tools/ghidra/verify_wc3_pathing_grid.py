@@ -66,9 +66,11 @@ def main():
     parser.add_argument('--fixture', type=Path, help='freeze original cell routes for asset-free engine comparisons')
     parser.add_argument('--engine-library', type=Path, help='compare production C cell routes, work and node creation')
     parser.add_argument('--partials', action='store_true', help='freeze nearest-chain results at request budget boundaries')
+    parser.add_argument('--movement-profiles', action='store_true', help='include published float/amphibious masks in object searches')
     parser.add_argument('--objects', action='store_true', help='full mixed object chains for ground/flight query masks')
     parser.add_argument('--corridors', action='store_true', help='cardinal corridors of width 0..5 across four classes')
     args = parser.parse_args()
+    if args.movement_profiles and not args.objects: parser.error('--movement-profiles requires --objects')
     if args.corridors and (args.objects or args.partials): parser.error('corridors is a separate matrix')
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
@@ -157,7 +159,7 @@ def main():
             variants['idle_goal'] = [obj(bounds=[18, 3, 20, 5])]
         for terrain, static in [('open', set()), ('gap4', {(12,y) for y in range(height) if not 10 <= y < 14})]:
             for label, objects in variants.items():
-                for mask in (0x02000002, 0x04000004):
+                for mask in ((0x02000002, 0x04000004, 0x40000040, 0x80000080) if args.movement_profiles else (0x02000002, 0x04000004)):
                     name = f'{terrain}_{label}_{mask:08x}'
                     fixtures.append((name, static))
                     profiles[name] = dict(mask=mask, objects=objects)

@@ -41,7 +41,7 @@ typedef struct {
     uint8_t unused2:1;
     uint8_t blight:1;
     uint8_t nowater:1;
-    uint8_t unknown:1;
+    uint8_t noamph:1;
 } pathMapCell_t;
 
 struct {
@@ -339,11 +339,7 @@ static bool path_cell_blocks(pathMapCell_t const *cell, uint8_t blocked_flags) {
     uint8_t const flags = normalize_blocked_flags(blocked_flags);
     if (!cell)
         return true;
-    if ((flags & CM_PATHING_UNWALKABLE) && cell->nowalk)
-        return true;
-    if ((flags & CM_PATHING_UNFLYABLE) && cell->nofly)
-        return true;
-    return false;
+    return (*(uint8_t const *)cell & flags) != 0;
 }
 
 static void reset_pathmap_data(void) {
@@ -514,8 +510,11 @@ static point2_t pathtex_transformed_point(pathTexPointParams_t const *params) {
 }
 
 /* Stamp a single entity's footprint into a pathmap byte array. */
+static void path_cell_add_flags(pathMapCell_t *cell, uint8_t flags) { *(uint8_t *)cell |= flags; }
+
 static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
     point2_t p = LocationToPathMap(&ent->s.origin2);
+    uint8_t const ground_flags = entity_static_pathing_flags(ent);
     if (ent->pathtex) {
         pathTex_t *pt = ent->pathtex;
         pathTexTransform_t const transform = CM_GetPathTexTransform(ent);
@@ -534,11 +533,11 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
                      * authored deck. Clear pixels outside the blocked rails are
                      * texture padding and must preserve the underlying river. */
                     if (walkable_surface) {
-                        if (blocked) cell->nowalk = 1;
+                        if (blocked) path_cell_add_flags(cell, ground_flags);
                         else if (pathtex_clear_pixel_is_bridge_deck(pt, (int)x, (int)y))
                             cell->nowalk = 0;
                     } else {
-                        cell->nowalk |= blocked;
+                        if (blocked) path_cell_add_flags(cell, ground_flags);
                     }
                     cell->nofly |= blocks_fly;
                 }
@@ -551,7 +550,7 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
                 int px = (int)x + p.x - (int)radius;
                 int py = (int)y + p.y - (int)radius;
                 if (is_valid_point(px, py)) {
-                    target[px + py * pathmap.width].nowalk |= 1;
+                    path_cell_add_flags(&target[px + py * pathmap.width], ground_flags);
                 }
             }
         }
@@ -647,14 +646,14 @@ static void apply_dynamic_obstacles(edict_t const *ignore) {
         point2_t p = LocationToPathMap(&ent->s.origin2);
         uint32_t radius = collision_radius_cells(ent->collision);
         uint8_t const blocked_flags = entity_dynamic_pathing_flags(ent);
+        if (!blocked_flags) continue;
         FOR_LOOP(x, radius * 2) {
             FOR_LOOP(y, radius * 2) {
                 int px = (int)x + p.x - (int)radius;
                 int py = (int)y + p.y - (int)radius;
                 if (is_valid_point(px, py)) {
                     pathMapCell_t *cell = path_node(px, py);
-                    if (blocked_flags & CM_PATHING_UNWALKABLE) cell->nowalk |= 1;
-                    if (blocked_flags & CM_PATHING_UNFLYABLE) cell->nofly |= 1;
+                    path_cell_add_flags(cell, blocked_flags);
                 }
             }
         }

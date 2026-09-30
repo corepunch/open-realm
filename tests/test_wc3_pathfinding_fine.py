@@ -31,6 +31,14 @@ class FineSearchTests(unittest.TestCase):
                                                 ctypes.POINTER(ctypes.c_int32)]
             cls.engines.append(engine)
 
+    def test_stock_movement_profiles_and_wpm_masks_match_original(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-wpm-movement-masks-1.27.json').read_text())
+        for engine in self.engines:
+            engine.pathing_wpm_flags.argtypes = [ctypes.c_uint32]
+            engine.pathing_wpm_flags.restype = ctypes.c_uint32
+            for raw, original in enumerate(fixture['wpm_masks']):
+                self.assertEqual(engine.pathing_wpm_flags(raw) & 0xc6, (original >> 24) & 0xc6, raw)
+
     def graph(self, case):
         # The original footprint oracle owns this graph, independently of the
         # search policy. Production's initial world adapter keeps its own legality.
@@ -62,29 +70,29 @@ class FineSearchTests(unittest.TestCase):
             self.assertGreater(stale, 0)
 
     def test_complete_object_routes_and_stamp_reuse_match_original(self):
-        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-fine-objects-1.27.json').read_text())
-        self.assertEqual(len(fixture['cases']), 192)
-        for engine in self.engines:
-            engine.pathing_fine_objects.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ObjectInput),
-                                                   ctypes.POINTER(ctypes.c_int32)]
-            for case in fixture['cases']:
-                profile = fixture['profiles'][case['fixture']]
-                objects, mask = profile['objects'], profile['mask']
-                width, height = fixture['dimensions']
-                cells = bytes.fromhex(fixture['maps'][case['fixture']])
-                terrain = (ctypes.c_uint8 * len(cells))(*(mask >> 24 if c else 0 for c in cells))
-                raw = [v for obj in objects for v in (*obj['bounds'], obj['mask'], obj['flags'], obj['linked'])]
-                object_words = (ctypes.c_uint32 * len(raw))(*raw)
-                data = ObjectInput(terrain, object_words)
-                inp = (ctypes.c_uint32 * 11)(width, height, *fixture['start'], *fixture['goal'],
-                                            2048, case['size_class'], mask, 0, len(objects))
-                for repeat in range(2):
-                    out = (ctypes.c_int32 * (6 + 2 * 16386))()
-                    engine.pathing_fine_objects(inp, ctypes.byref(data), out)
-                    with self.subTest(case=case['fixture'], cls=case['size_class'], repeat=repeat, opt=engine._name):
-                        self.assertEqual(list(out[:4]), [case['cost'] if case['cost'] is not None else -1,
-                                                        case['pops'], case['nodes'], len(case['path'])])
-                        self.assertEqual([[out[6 + 2*i], out[7 + 2*i]] for i in range(out[3])], case['path'])
+        for name in ('retail-fine-objects-1.27.json', 'retail-fine-movement-profiles-1.27.json'):
+            fixture = json.loads((ROOT / 'tools/ghidra/fixtures' / name).read_text())
+            for engine in self.engines:
+                engine.pathing_fine_objects.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ObjectInput),
+                                                       ctypes.POINTER(ctypes.c_int32)]
+                for case in fixture['cases']:
+                    profile = fixture['profiles'][case['fixture']]
+                    objects, mask = profile['objects'], profile['mask']
+                    width, height = fixture['dimensions']
+                    cells = bytes.fromhex(fixture['maps'][case['fixture']])
+                    terrain = (ctypes.c_uint8 * len(cells))(*(mask >> 24 if c else 0 for c in cells))
+                    raw = [v for obj in objects for v in (*obj['bounds'], obj['mask'], obj['flags'], obj['linked'])]
+                    object_words = (ctypes.c_uint32 * len(raw))(*raw)
+                    data = ObjectInput(terrain, object_words)
+                    inp = (ctypes.c_uint32 * 11)(width, height, *fixture['start'], *fixture['goal'],
+                                                2048, case['size_class'], mask, 0, len(objects))
+                    for repeat in range(2):
+                        out = (ctypes.c_int32 * (6 + 2 * 16386))()
+                        engine.pathing_fine_objects(inp, ctypes.byref(data), out)
+                        with self.subTest(case=case['fixture'], cls=case['size_class'], repeat=repeat, opt=engine._name):
+                            self.assertEqual(list(out[:4]), [case['cost'] if case['cost'] is not None else -1,
+                                                            case['pops'], case['nodes'], len(case['path'])])
+                            self.assertEqual([[out[6 + 2*i], out[7 + 2*i]] for i in range(out[3])], case['path'])
 
     def test_original_nearest_chains_survive_request_budget_boundaries(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-fine-partials-1.27.json').read_text())

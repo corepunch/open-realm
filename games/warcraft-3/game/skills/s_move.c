@@ -171,7 +171,11 @@ static bool unit_is_flying(edict_t const *ent) {
 }
 
 uint8_t M_UnitStaticPathingFlags(edict_t const *ent) {
-    return unit_is_flying(ent) ? CM_PATHING_UNFLYABLE : CM_PATHING_UNWALKABLE;
+    if (unit_is_flying(ent)) return CM_PATHING_UNFLYABLE;
+    cstring_t const type = ent && ent->data.UnitData ? ent->data.UnitData->moveTypeName : NULL;
+    if (type && !strcmp(type, "float")) return CM_PATHING_UNFLOATABLE;
+    if (type && !strcmp(type, "amph")) return CM_PATHING_UNAMPHIBIOUS;
+    return CM_PATHING_UNWALKABLE;
 }
 
 /* Warsmash MovementType.DISABLED: a unit row whose movetp names no movement type is pathable anywhere and

@@ -434,6 +434,15 @@ function PathProbeInit takes nothing returns nothing
             set gx = gx + 1
         endloop
     endif
+    if PATH_PROBE_SCENARIO == 31 then
+        set udg_PathProbeCrowd[0] = CreateUnit(Player(0), 'hkni', -2304.0, -1216.0, 90.0)
+        set udg_PathProbeCrowd[1] = CreateUnit(Player(0), 'hgry', -2048.0, -1216.0, 90.0)
+        set udg_PathProbeCrowd[2] = CreateUnit(Player(0), 'hsor', -1792.0, -1216.0, 90.0)
+        set udg_PathProbeCrowd[3] = CreateUnit(Player(0), 'hbot', -1536.0, -1216.0, 90.0)
+        set udg_PathProbeCrowd[4] = CreateUnit(Player(0), 'uplg', -1280.0, -1216.0, 90.0)
+        set udg_PathProbeCrowd[5] = CreateUnit(Player(0), 'halt', -1024.0, -1216.0, 90.0)
+        call Preload("PATHTRACE tick=0 label=profiles_created x=" + R2S(GetUnitX(udg_PathProbeUnit)) + " y=" + R2S(GetUnitY(udg_PathProbeUnit)) + " order=" + I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))
+    endif
     call SetUnitMoveSpeed(udg_PathProbeUnit, 100.0)
     call FogEnable(PATH_PROBE_SCENARIO == 14 or PATH_PROBE_SCENARIO == 15)
     call FogMaskEnable(false)

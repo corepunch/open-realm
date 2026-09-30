@@ -149,7 +149,8 @@ function install(module) {
         hook(0x05c7e0, {
             onEnter(args) {
                 this.bridge = this.context.ecx;
-                this.row = {category:args[0].toUInt32(), queryMask:args[1].toUInt32(),
+                this.row = {rawcode:this.bridge.sub(0x164).add(0x30).readU32(),
+                    category:args[0].toUInt32(), queryMask:args[1].toUInt32(),
                     identity:ints(this.bridge.add(8),2)};
             },
             onLeave() {

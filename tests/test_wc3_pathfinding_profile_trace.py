@@ -7,7 +7,7 @@ import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools/frida'))
-from verify_wc3_profile_trace import verify
+from verify_wc3_profile_trace import verify, verify_table
 
 
 class ProfileTraceTests(unittest.TestCase):
@@ -22,6 +22,13 @@ class ProfileTraceTests(unittest.TestCase):
         self.assertEqual(result['path_mask'],0x02000002)
         self.assertEqual(result['publications'],[[0x010000ca,0x02000002]]*2)
 
+    def test_original_profile_table_covers_seven_authored_types(self):
+        rows = json.loads((ROOT / 'tools/ghidra/fixtures/retail-movement-profiles-1.27.json').read_text())['observations']
+        result = verify_table(rows)
+        self.assertEqual(result['publications'], 14)
+        self.assertEqual([(r['category'], r['query_mask']) for r in result['profiles']],
+                         [(0, 0), (0xca, 64), (0xca, 2), (0, 4), (0xca, 2), (0xca, 2), (0xca, 128)])
+
     def test_truncation_errors_and_one_word_changes_are_rejected(self):
         with self.assertRaisesRegex(ValueError,'completion'):verify(self.rows[:-1])
         with self.assertRaisesRegex(ValueError,'observer'):verify(self.rows+[{'type':'error'}])
@@ -32,6 +39,45 @@ class ProfileTraceTests(unittest.TestCase):
             row=next(r for r in changed if r.get('event')=='movement-mask-publication')
             row[field]^=1
             with self.assertRaises(ValueError):verify(changed)
+
+    def table_rows(self):
+        rows = copy.deepcopy(self.rows)
+        for row in rows:
+            if row['event'] == 'movement-mask-publication':
+                row['rawcode'] = 0x68666f6f
+        added = []
+        for row in rows:
+            if row['event'] not in ('movement-profile', 'movement-mask-publication'):
+                continue
+            row = copy.deepcopy(row)
+            row['rawcode'] = 0x68677279
+            if row['event'] == 'movement-profile':
+                row['value'] = 0 if row['kind'] == 'category' else 4
+            else:
+                row.update(category=0, queryMask=4, objectCategory=0x01000000, pathMask=0x04000004,
+                           mover='0x5678')
+            added.append(row)
+        counts = rows[-1]['counts']
+        for key in ('profile-category', 'profile-query-mask', 'movement-mask-publication'):
+            counts[key] *= 2
+        return rows[:-1] + added + rows[-1:]
+
+    def test_profile_table_keeps_each_rawcode_publication_separate(self):
+        result = verify_table(self.table_rows())
+        self.assertEqual([(r['category'], r['query_mask']) for r in result['profiles']], [(0xca, 2), (0, 4)])
+
+    def test_profile_table_rejects_wrong_rawcode_and_truncation(self):
+        for mutation in ('rawcode', 'truncate', 'mover'):
+            rows = self.table_rows()
+            publication = next(r for r in rows if r['event'] == 'movement-mask-publication')
+            if mutation == 'rawcode':
+                publication['rawcode'] = 0x68677279
+            elif mutation == 'truncate':
+                rows.remove(publication)
+            else:
+                publication['mover'] = '0x5678'
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                verify_table(rows)
 
     def fine_rows(self):
         # Controlled transport fixture: the live captures remain pinned in the

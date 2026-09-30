@@ -5,6 +5,7 @@ No stubs or retail bytes. Parser/decompression/allocator calls are outside the
 observed slices. Original loader loops execute against independent mask models.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -21,7 +22,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine-library', type=Path, help='compare production movement bits for all256 WPM bytes')
+    parser.add_argument('--write-fixture', type=Path, help='freeze the actual original single-byte WPM outputs')
     args = parser.parse_args()
+    engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine:
+        engine.pathing_wpm_flags.argtypes = [ctypes.c_uint32]
+        engine.pathing_wpm_flags.restype = ctypes.c_uint32
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != SHA256:
@@ -137,15 +144,20 @@ def main():
         # Nonempty loops advance exactly once per source pixel, independently of padding.
         if width and height:
             assert uc.reg_read(pointer_register) == source + len(payload)
-        return None
+        return words(cells, 1)[0]
 
     priors = [0, 0xffffff, 0x123456, 0x49001b76, 0xa50000ab, 0xffffffff]
     layouts = [((1, 1), (1, 1)), ((2, 3), (5, 4)), ((3, 2), (3, 2)), ((5, 3), (7, 5))]
     wpm_cases = image_cases = empty_cases = 0
+    wpm_words = []
     for byte, prior, (src, dst) in itertools.product(range(256), priors, layouts):
         # Vary successive pixels as well as testing every uniform mask at 1x1.
         pixels = [(byte + 17 * n) & 255 for n in range(src[0] * src[1])]
-        execute('wpm', pixels, src, dst, prior)
+        result = execute('wpm', pixels, src, dst, prior)
+        if prior == 0 and src == dst == (1, 1):
+            wpm_words.append(result)
+            if engine and engine.pathing_wpm_flags(byte) & 0xc6 != (result >> 24) & 0xc6:
+                raise RuntimeError("engine WPM movement bits differ for byte" + str(byte))
         wpm_cases += 1
     for pixel, prior, flip, (src, dst) in itertools.product(
             itertools.product([0, 1, 127, 255], repeat=4), priors, [0, 1], layouts):
@@ -172,6 +184,12 @@ def main():
                   image_nonzero_byte_masks=['09000000', '05000000', '03000000', '20000000'],
                   oversized_consumer_fault_witnesses=oversized,
                   scope='Bounded original decoded-byte consumer loops, all 256 WPM masks, all 256 four-valued decoded-byte channel combinations, OR-preservation of prior terrain/occupancy, padded destination dimensions, row flip and zero dimensions. No parser, decompressor, archive or full loader. Oversized nonzero masks null-write in this isolated consumer; malformed-file reachability unproven.')
+    if engine:
+        report.update(engine_queries=len(wpm_words), engine_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest())
+    if args.write_fixture:
+        assert len(wpm_words) == 256
+        args.write_fixture.write_text(json.dumps(dict(version=1, binary_sha256=digest,
+            source_loop=['6f04caba', '6f04cb4f'], wpm_masks=wpm_words), indent=2) + '\n')
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))

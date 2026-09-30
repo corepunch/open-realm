@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "Current 32 executable original-code oracle scripts, selected exact/frozen variants, exact live/profile replays, intentional adaptive differences/controls and all 61 JSONL captures under the documented archive root. Ghidra decompiles, reduction attempts and other scratch reports are supporting research, not independently accepted corpus entries.",
+  "scope": "Current37 executable original-code oracle scripts,32 selected exact/frozen variants,17 explicit live/profile/repeat contracts and79 archived capture audits. Ghidra decompiles, reduction attempts and scratch reports support research but are not independently accepted corpus entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -8968,6 +8968,211 @@
         "target exit",
         "whole engine trajectories"
       ]
+    },
+    {
+      "id": "oracle-load-movement-masks-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_load_masks.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "load-movement-masks-engine.json",
+      "expected_exit": 0,
+      "expected_status": "original-model-engine-exact",
+      "checks": {
+        "wpm_cases": {
+          "minimum": 1
+        },
+        "engine_queries": {
+          "equal": 256
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Original decoded WPM loops plus production C movement-bit comparison for every byte; preserve authored walk/fly/float bits and derived amphibious blockage.",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-grid-movement-profiles-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_grid.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--objects",
+        "--engine-library",
+        "{engine}",
+        "--movement-profiles"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-movement-profiles-engine.json",
+      "expected_exit": 0,
+      "expected_status": "original-model-engine-exact",
+      "checks": {
+        "cases": {
+          "equal": 384
+        },
+        "repeated_searches": {
+          "equal": 384
+        },
+        "complete_requests": {
+          "equal": 384
+        },
+        "engine_queries": {
+          "equal": 384
+        },
+        "engine_repeats": {
+          "equal": 384
+        },
+        "mismatches": {
+          "length": 0
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original mixed object chains and retained metadata across all four classes and the published ground/flight/float/amphibious query masks; production C matches routes/cost/work/nodes.",
+      "exclusions": [
+        "target exit",
+        "public endpoint admission",
+        "whole engine trajectory"
+      ]
+    },
+    {
+      "id": "live-movement-profile-table",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_profile_trace.py",
+        "{archive}/runtime/movement-profiles-first-260930.jsonl",
+        "--table",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/movement-profiles-first-260930.jsonl",
+        "sha256": "c38a7a68a39e6c1cfd07d36608d261810c36a0745a7d9e00a6e6262c7da746df",
+        "bytes": 83936,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "48f20c156b5b4e44af613ca6800e9c1b03027939b3fb631499e7fcad3603d58f",
+            "wc3_pathfinding_probe.j": "bdec3692c5c16c074c5870a7a65f0a87c369a0da86841fdad27b9b1511656283",
+            "make_wc3_pathfinding_map.py": "a6ec530c34ec02f5b92bed8cf0baf62b6444a52c175740685cb1fbf1a601821d",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "1983ddf4cc28a1c4a71ad2af61a484304ab1d6fafbc128ba579d09a64799c0b9"
+          },
+          "map": "Maps\\PathingRE-Profiles-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "live-movement-profile-table.json",
+      "expected_exit": 0,
+      "expected_status": "live-profile-replay",
+      "checks": {
+        "profiles": {
+          "equal": [
+            {
+              "rawcode": 1751215220,
+              "category": 0,
+              "query_mask": 0,
+              "movers": 1
+            },
+            {
+              "rawcode": 1751281524,
+              "category": 202,
+              "query_mask": 64,
+              "movers": 1
+            },
+            {
+              "rawcode": 1751543663,
+              "category": 202,
+              "query_mask": 2,
+              "movers": 1
+            },
+            {
+              "rawcode": 1751609977,
+              "category": 0,
+              "query_mask": 4,
+              "movers": 1
+            },
+            {
+              "rawcode": 1751871081,
+              "category": 202,
+              "query_mask": 2,
+              "movers": 1
+            },
+            {
+              "rawcode": 1752395634,
+              "category": 202,
+              "query_mask": 2,
+              "movers": 1
+            },
+            {
+              "rawcode": 1970302055,
+              "category": 202,
+              "query_mask": 128,
+              "movers": 1
+            }
+          ]
+        },
+        "publications": {
+          "equal": 14
+        },
+        "passed": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Read-only stock CreateUnit getter and mask publication for seven authored movement types, with enclosing rawcode and resolved mover epochs.",
+      "exclusions": [
+        "all units of each movement type",
+        "support surfaces",
+        "whole trajectory fidelity"
+      ]
     }
   ],
   "fixtures": [
@@ -9162,6 +9367,18 @@
     {
       "path": "tools/ghidra/fixtures/retail-fine-partials-1.27.json",
       "sha256": "e3f156911b9ecbbbf62bb2c63cdf50ba645427a4e30b2fa72c48cfd7f08d9ce0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-movement-profiles-1.27.json",
+      "sha256": "bb062dd9d5facfaeb44e7902fa07cbcfc23f49adbe846b259c1dc3bed6c86d77"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-wpm-movement-masks-1.27.json",
+      "sha256": "9045ed83cd95679e99f526281d3aac1c3e7eb677e66ab31bceb42594f0f775d9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-movement-profiles-1.27.json",
+      "sha256": "7aca71375fa4771f3138c3021a6b8bed232f9642fbfde4ec3d70e10ebf9afbf5"
     }
   ]
 }

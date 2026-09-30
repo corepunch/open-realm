@@ -804,6 +804,13 @@ class ProbeMapTests(unittest.TestCase):
         self.assertIn("'nwgt'", active)
         self.assertIn('WaygateSetDestination', active)
 
+    def test_profile_scene_creates_all_authored_movement_types(self):
+        output = self.builder.instrument(self.source, self.probe, 'profiles')
+        self.assertIn('PATH_PROBE_SCENARIO = 31', output)
+        for rawcode in ('hkni', 'hgry', 'hsor', 'hbot', 'uplg', 'halt'):
+            self.assertIn("CreateUnit(Player(0), '" + rawcode + "'", output)
+        self.assertIn('label=profiles_created', output)
+
     def test_unrecognized_source_cannot_be_silently_instrumented(self):
         for source in (self.source.replace('call InitCustomTriggers(  )', ''),
                        self.source + 'call CreateAllUnits(  )',

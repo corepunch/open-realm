@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **162 entries**: **37** distinct original-code oracle
-scripts plus **30** declared variants, **79** archived JSONL audits and **16**
+The inventory now has **165 entries**: **37** distinct original-code oracle
+scripts plus **32** declared variants, **79** archived JSONL audits and **17**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,12 +20,12 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 62 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 64 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 72 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Seven rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
-| Five numerical replays and three profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
+| Five numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
 | Eight public/native/compiler/heading repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 NUM-01.13 adds original CRT byte classification and the complete authored-name
@@ -310,3 +310,15 @@ The corpus compares C parent chains, not an invented complete reconstruction.
 (static baseline, mixed objects, partial routes). The earlier161-entry selected
 idle-object checkpoint remains historical; no full162-entry rerun is claimed.
 See [engine partial route behavior](retail-pathfinding-engine.md#nearest-partial-routes-survive-blocked-goals).
+
+## Stock movement masks and water-lane engine checks
+
+The stock profile table capture pins seven authored movetp rows and14 paired
+getter/publication observations. Its strict table verifier rejects truncation,
+rawcode/mover reassignment and changed mask words. Three compact fixtures retain
+those observations, all256 original WPM words and384 all-mask fine-search cases.
+`live-movement-profile-table`, `oracle-load-movement-masks-engine` and
+`oracle-grid-movement-profiles-engine` pass alongside the previous mixed-object
+engine entry in a fresh four-entry run. No whole165-entry rerun is claimed.
+See [engine masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries)
+for actual Move/footprint/command regressions and explicit support/trajectory gaps.

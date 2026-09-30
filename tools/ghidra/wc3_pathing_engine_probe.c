@@ -1,5 +1,8 @@
 /* Compile as a shared library to compare the same arithmetic used by Move with retail calls. */
 #include "games/warcraft-3/common/wc3_math.h"
+#include "games/warcraft-3/common/wc3_pathing_masks.h"
+
+uint32_t pathing_wpm_flags(uint32_t flags) { return wc3_wpm_movement_flags(flags); }
 
 uint32_t pathing_vector_heading(uint32_t x, uint32_t y) {
     return wc3_float_bits(wc3_vector_heading(wc3_float(x), wc3_float(y)));

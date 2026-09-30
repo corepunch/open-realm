@@ -1779,3 +1779,62 @@ Validation: both Classic/TFT suites pass 41,796/41,796 assertions in 2,185
 WC3 cases per variant. All 107 pathfinding tool tests pass; debug and release
 pathfinding each pass 452 assertions in 69 cases. The production WC3 build
 and game/client boundary audits pass.
+
+## Authored movement masks reach terrain and object queries
+
+BASE-02.4 ports the stock movement profiles published by original
+`690c20/690c80 -> 05c7e0`. One read-only copied-map capture creates seven stock
+units; each emits two paired getters and publications, with enclosing Unit+30
+rawcode and resolved mover identity/epoch. Retail UnitData.SLK supplies `movetp`:
+
+| Unit | movetp | Category | Query | Owned path mask |
+| --- | --- | --- | --- | --- |
+| hfoo | foot | ca | 02 | 02000002 |
+| hkni | horse | ca | 02 | 02000002 |
+| hsor | hover | ca | 02 | 02000002 |
+| hgry | fly | 00 | 04 | 04000004 |
+| hbot | float | ca | 40 | 40000040 |
+| uplg | amph | ca | 80 | 80000080 |
+| halt | _ | 00 | 00 | 00000000 |
+
+The engine previously queried02 for every non-flyer. Its shared cell predicate
+also ignored40/80. The actual Move validation and nearby-route regression
+reproduced ten failures, then passes for all six mobile types. Queries now honor
+the complete supplied byte mask; the game selects40/80 from the authored row.
+Flight remains mutable through AI_FLYING, preserving existing grounded-flyer
+ability policy. Disabled movement retains its existing owner-level contract.
+
+Original `04caba` derives amphibious80 when WPM bytes contain both02 and40.
+All256 original single-byte outputs are frozen; the production WPM helper matches
+movement bits at O0/O2. Map reading invokes it before publishing path cells.
+The original6144 WPM and12288 image loops still pass, and a fresh engine oracle
+compares all256 WPM bytes. Image decoding is not replaced by this WPM rule.
+
+Original widget blue coverage creates categoryc2. Baked static footprints now
+block walk/float/amph; SC2 supplies its existing02 policy through the same private
+callback. Two failing water-footprint assertions now pass, including release
+restoring all three lanes. Command-time unit occupancy now uses categoryca
+rather than the encountered unit's own query mask. A ground unit consequently
+blocks40/80, while a flyer with category0 blocks no query. The command-destination
+regression reproduced all three mismatches before correction. The former
+flight-blocking expectation is replaced by the captured zero-category contract.
+
+FINE-01.2 extends complete mixed-chain composition to all four published masks:
+384 original searches,384 metadata-repeat searches and384 full setup/search/
+reconstruction requests, across all four footprint classes. Production C matches
+cell routes, cost, work and allocation counts, including repeated storage at
+O0/O2. The engine's fine/direct/retained queries use the mover's actual mask and
+exclude disabled rows. Existing local collision ownership is unchanged.
+
+Evidence: `runtime/movement-profiles-first-260930.jsonl`,
+`movement-profiles-table.json`, `fine-movement-profiles-engine.json`,
+`water-load-masks-original.json` and `water-masks-final-corpus/corpus-results.json`.
+The four selected corpus entries pass. Source/map/capture hashes and compact
+observations are pinned. These stock mask observations do not establish every
+row's profile parser, support-surface transitions, bridge policy or a complete
+boat/amphibious travel trajectory; BASE-02.1 retains those requirements.
+Ghidra saves and reads back the three getter/publication contracts, retaining
+360 function annotations and119 existing prototypes. No actor/save/network
+layout changes. All112 pathfinding tool tests pass. Both Classic/TFT suites pass41,868 assertions in2,188 cases;
+debug pathfinding passes524 assertions in72 cases, and WC3/SC2/WoW production
+builds and both boundary audits pass.

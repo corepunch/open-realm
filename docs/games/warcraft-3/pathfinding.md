@@ -299,3 +299,9 @@ steps instead of repeatedly rejecting the same flow direction at a corner.
 See [SC2 selection and control](../starcraft-2/selection-and-control.md) for the
 separate snapshot-precision defect that made both ground and cinematic movement
 appear to advance in whole cells.
+
+Retail-backed movement masks now distinguish authored float40 and amph80 from
+ground02 and fly04. Map loading derives amphibious blockage from combined
+walk/float blockage; baked ground footprints and command-time unit categories
+block the appropriate lanes. See [mask evidence](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries)
+for the stock profile table, original/C checks and remaining support-surface gaps.
