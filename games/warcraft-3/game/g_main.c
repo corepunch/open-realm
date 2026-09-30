@@ -1354,6 +1354,12 @@ void G_InitClientUIState(gameClient_t *client) {
         client->ps.client_ui_state = CLIENT_UI_GAME;
 }
 
+/* The server dropped a spawned client. Its player slot, units and alliances stay authoritative; only the
+ * connection-scoped state goes, so an abandoned dialog cannot hold pause and no HUD is serialized to nobody. */
+static void G_ClientDisconnect(edict_t *edict) {
+    G_SetClientConnected(edict, false);
+}
+
 /* Called when a client finishes the connection handshake and is ready to play.
  * The in-game HUD is server-authored through svc_layout; this binds the game
  * client and initializes gameplay state when a map is loaded. */
@@ -1624,6 +1630,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientInput = G_ClientInput;
     globals.PrepareMap = G_PrepareMap;
     globals.ClientBegin = G_ClientBegin;
+    globals.ClientDisconnect = G_ClientDisconnect;
     globals.CanSeeEntity = G_FowPlayerCanSeeEntity;
     globals.IsSnapshotPriorityEntity = G_IsSnapshotPriorityEntity;
     globals.CustomizeEntity = G_CustomizeEntity;

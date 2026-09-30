@@ -148,6 +148,13 @@ static void SV_LobbySayClient_f(client_t *cl, int argc, cstring_t *argv) {
     SV_LobbyBroadcastChatFrom(SV_ClientIndex(cl), sender, text);
 }
 
+/* Quake 2 SV_Disconnect_f: the client announces it is leaving. This used to fall through to the game as an
+ * unknown ClientCommand, so the slot stayed spawned and the game never learned the player was gone. */
+void SV_Disconnect_f(client_t *cl, int argc, cstring_t *argv) {
+    (void)argc; (void)argv;
+    SV_DropClient(cl);
+}
+
 typedef struct {
     cstring_t name;
     void (*func)(client_t *client, int argc, cstring_t *argv);
@@ -159,6 +166,7 @@ ucmd_t ucmds[] = {
     { "baselines", SV_Baselines_f },
     { "playerinfo", SV_PlayerInfo_f },
     { "begin", SV_Begin_f },
+    { "disconnect", SV_Disconnect_f },
     { "lobby_say", SV_LobbySayClient_f },
     { NULL }
 };
