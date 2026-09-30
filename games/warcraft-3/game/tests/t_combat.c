@@ -63,7 +63,6 @@ static animation_t _replacement_anim = {
     .interval = { 1000, 1300 }
 };
 static umove_t _replacement_move = { "stand alternate", NULL, NULL, NULL };
-static umove_t _attack_stub_move = { "stand", NULL, NULL, NULL };
 
 /* ==========================================================================
  * Shared helpers
@@ -1722,6 +1721,18 @@ TEST(wc3_combat, attack_recovery_respects_cooldown_and_backswing) {
     T_FEQ(u->wait, 0.2f, 0.001f);
 }
 
+TEST(wc3_combat, attack_ground_recovery_respects_backswing) {
+    edict_t *unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
+    unit->attack1.cooldown = 0.4f;
+    unit->attack1.damagePoint = 0.3f;
+    unit->attack1.backswingPoint = 0.8f;
+
+    attack_ground_cooldown(unit);
+
+    T_STREQ(unit->currentmove->animation, "stand ready");
+    T_FEQ(unit->wait, 0.8f, 0.001f);
+}
+
 TEST(wc3_combat, ranged_zero_recovery_immediately_starts_next_attack) {
     edict_t *u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
     u->attack1.cooldown = 0.25f;
@@ -1759,6 +1770,34 @@ TEST(wc3_combat, cooldown_range_buffer_holds_then_chases_at_ready_time) {
     T_STREQ(attacker->currentmove->animation, "walk");
 }
 
+TEST(wc3_combat, cooldown_buffer_survives_chase_until_weapon_is_ready) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 150.0f, 0.0f);
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.rangeBuffer = 60.0f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damagePoint = 0.1f;
+    target->targtype = TARG_GROUND;
+    attacker->goalentity = target;
+
+    attack_melee_cooldown(attacker);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+
+    target->s.origin2.x = 180.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+
+    target->s.origin2.x = 150.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_ASSERT(attacker->wait > 0.0f);
+}
+
 TEST(wc3_combat, attack2_uses_its_own_cooldown_range_buffer) {
     static UnitWeapons_t const weapons = { .attacksEnabled = 3 };
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
@@ -1769,6 +1808,8 @@ TEST(wc3_combat, attack2_uses_its_own_cooldown_range_buffer) {
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_AIR;
     attacker->attack1.range = 100.0f;
     attacker->attack1.rangeBuffer = 0.0f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damagePoint = 0.1f;
     attacker->attack2.type = ATK_PIERCE;
     attacker->attack2.weapon = WPN_MISSILE;
     attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
@@ -1782,6 +1823,9 @@ TEST(wc3_combat, attack2_uses_its_own_cooldown_range_buffer) {
     attack_ranged_cooldown(attacker);
     attacker->currentmove->think(attacker);
     T_STREQ(attacker->currentmove->animation, "stand ready");
+    target->s.origin2.x = 170.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
 }
 
 TEST(wc3_combat, target_leaving_true_range_before_damage_point_cancels_windup) {

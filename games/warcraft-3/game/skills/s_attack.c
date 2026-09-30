@@ -28,6 +28,8 @@ static void ai_ranged_cooldown(edict_t *ent);
 static bool attack_target_out_of_range(edict_t *ent);
 static bool attack_target_out_of_base_range(edict_t *ent);
 static bool attack_target_too_close(edict_t *ent);
+static umove_t attack_move_melee_cooldown;
+static umove_t attack_move_ranged_cooldown;
 
 typedef struct {
     edict_t *target;
@@ -575,9 +577,7 @@ static void attack_retreat_from_target(edict_t *ent) {
 /* RngBuff applies only while the normal post-damage attack cooldown state is
  * active; windup and ordinary chase must continue using true weapon range. */
 static bool attack_is_cooling_down(edict_t const *ent) {
-    if (!ent || !ent->currentmove || ent->wait <= 0.0f) return false;
-    return ent->currentmove->think == ai_melee_cooldown ||
-           ent->currentmove->think == ai_ranged_cooldown;
+    return ent && ent->attack_cooldown_active && ent->wait > 0.0f;
 }
 
 /* Centralize attack-range geometry so buffered cooldown range and true firing
@@ -631,23 +631,27 @@ bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
 /* Tick the recovery timer explicitly so the frame where cooldown expires can
  * drop RngBuff and revalidate true range before another swing starts. */
 static bool attack_cooldown_elapsed(edict_t *ent) {
+    if (!ent->attack_cooldown_active) return true;
     float const step = FRAMETIME / 1000.0f;
     if (ent->wait > step) {
         ent->wait -= step;
         return false;
     }
     ent->wait = 0.0f;
+    ent->attack_cooldown_active = false;
     return true;
 }
 
 static void ai_melee_cooldown(edict_t *ent) {
+    bool ready;
     if (S_UnitIsEntanglingRooted(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
+    ready = attack_cooldown_elapsed(ent);
     if (attack_target_out_of_range(ent) || attack_target_too_close(ent)) {
         attack_walk(ent);
-    } else if (attack_cooldown_elapsed(ent)) {
+    } else if (ready) {
         /* RngBuff disappears exactly when the weapon becomes ready.  Recheck
          * true range before starting the next swing so the buffer cannot turn
          * into extra firing range. */
@@ -659,13 +663,15 @@ static void ai_melee_cooldown(edict_t *ent) {
 }
 
 static void ai_ranged_cooldown(edict_t *ent) {
+    bool ready;
     if (S_UnitIsEntanglingRooted(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
+    ready = attack_cooldown_elapsed(ent);
     if (attack_target_out_of_range(ent) || attack_target_too_close(ent)) {
         attack_walk(ent);
-    } else if (attack_cooldown_elapsed(ent)) {
+    } else if (ready) {
         if (attack_target_out_of_base_range(ent) || attack_target_too_close(ent))
             attack_walk(ent);
         else
@@ -674,10 +680,13 @@ static void ai_ranged_cooldown(edict_t *ent) {
 }
 
 static void ai_attack_walk(edict_t *ent) {
+    bool cooldown_ready = false;
     if (S_UnitIsEntanglingRooted(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
+    if (ent->attack_cooldown_active)
+        cooldown_ready = attack_cooldown_elapsed(ent);
     if (attack_target_out_of_range(ent)) {
         /* Hold Position and movement-disabled structures cannot chase an
          * out-of-range target.  Finish the attack behavior instead of leaving
@@ -698,10 +707,28 @@ static void ai_attack_walk(edict_t *ent) {
         }
         if (!S_UnitCanTranslate(ent)) return;
         attack_retreat_from_target(ent);
-    } else if (ACTIVE_ATTACK(ent)->weapon == WPN_MISSILE || ACTIVE_ATTACK(ent)->weapon == WPN_ARTILLERY) {
-        attack_ranged(ent);
     } else {
-        attack_melee(ent);
+        if (ent->attack_cooldown_active) {
+            if (attack_target_out_of_base_range(ent) || attack_target_too_close(ent)) {
+                if (!cooldown_ready) {
+                    if (ACTIVE_ATTACK(ent)->weapon == WPN_MISSILE || ACTIVE_ATTACK(ent)->weapon == WPN_ARTILLERY)
+                        unit_setmove(ent, &attack_move_ranged_cooldown);
+                    else
+                        unit_setmove(ent, &attack_move_melee_cooldown);
+                    return;
+                }
+            } else if (!cooldown_ready) {
+                if (ACTIVE_ATTACK(ent)->weapon == WPN_MISSILE || ACTIVE_ATTACK(ent)->weapon == WPN_ARTILLERY)
+                    unit_setmove(ent, &attack_move_ranged_cooldown);
+                else
+                    unit_setmove(ent, &attack_move_melee_cooldown);
+                return;
+            }
+        }
+        if (ACTIVE_ATTACK(ent)->weapon == WPN_MISSILE || ACTIVE_ATTACK(ent)->weapon == WPN_ARTILLERY)
+            attack_ranged(ent);
+        else
+            attack_melee(ent);
     }
 }
 
@@ -778,6 +805,7 @@ void attack_melee_cooldown(edict_t *self) {
     unit_setmove(self, &attack_move_melee_cooldown);
     self->wait = MAX(0.0f, MAX(ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint,
                                ACTIVE_ATTACK(self)->backswingPoint) / divisor);
+    self->attack_cooldown_active = self->wait > 0.0f;
     /* The next swing must satisfy both authored gates: weapon cooldown from
      * swing start and backswing after damage point.  If both have already
      * elapsed, transition explicitly instead of parking on wait==0. */
@@ -787,6 +815,7 @@ void attack_melee_cooldown(edict_t *self) {
 void attack_melee(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
+    self->attack_cooldown_active = false;
     unit_setmove(self, &attack_move_melee);
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }
@@ -796,12 +825,14 @@ void attack_ranged_cooldown(edict_t *self) {
     unit_setmove(self, &attack_move_ranged_cooldown);
     self->wait = MAX(0.0f, MAX(ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint,
                                ACTIVE_ATTACK(self)->backswingPoint) / divisor);
+    self->attack_cooldown_active = self->wait > 0.0f;
     if (self->wait <= 0.0f) attack_ranged(self);
 }
 
 void attack_ranged(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
+    self->attack_cooldown_active = false;
     unit_setmove(self, &attack_move_ranged);
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }
@@ -910,7 +941,8 @@ static void attack_ground_walk(edict_t *ent) {
 static void attack_ground_cooldown(edict_t *ent) {
     float divisor = attack_speed_divisor(ent);
     unit_setmove(ent, &attack_ground_move_cooldown);
-    ent->wait = MAX(0.0f, (ent->attack1.cooldown - ent->attack1.damagePoint) / divisor);
+    ent->wait = MAX(0.0f, MAX(ent->attack1.cooldown - ent->attack1.damagePoint,
+                               ent->attack1.backswingPoint) / divisor);
     if (ent->wait <= 0.0f) attack_ground_ranged(ent);
 }
 

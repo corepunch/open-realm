@@ -327,8 +327,8 @@ static void unit_moveindirection_policy(edict_t *self,
      * once the remaining facing error is inside that propulsion window.  A
      * missing/non-positive value preserves the historical permissive fallback
      * for synthetic/custom data that did not author the field. */
-    if (self->data.UnitData && self->data.UnitData->propWin > 0.0f) {
-        float const window = self->data.UnitData->propWin * ((float)M_PI / 180.0f);
+    if (self->unitinfo.PropWindow > 0.0f) {
+        float const window = self->unitinfo.PropWindow * ((float)M_PI / 180.0f);
         float const delta = fabsf(angle_wrap(self->movement.heading - self->s.angle));
         if (delta > window)
             return;
