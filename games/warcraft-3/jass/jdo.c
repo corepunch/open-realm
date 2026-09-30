@@ -209,7 +209,11 @@ uint32_t __add(jass_t *j) {
 
 uint32_t __unm(jass_t *j) {
     if (jass_gettype(j, 1) == jasstype_integer) {
-        return jass_pushinteger(j, -jass_checkinteger(j, 1));
+        /* A source unary minus wraps32, including the observed INT_MIN boundary. */
+        uint32_t word = 0u - (uint32_t)jass_checkinteger(j, 1);
+        int32_t value;
+        memcpy(&value, &word, sizeof(value));
+        return jass_pushinteger(j, value);
     } else {
         return jass_pushnumber(j, -jass_checknumber(j, 1));
     }
@@ -1651,12 +1655,18 @@ static uint32_t jass_popinteger(jass_t *j) {
 
 uint32_t VM_EvalInteger(jass_t *j, token_t const *token) {
     cstring_t s = token->primary;
+    if (token->flags & TF_RETAIL_NUMBER) {
+        uint32_t word = wc3_integer_literal_bits(s);
+        int32_t value;
+        memcpy(&value, &word, sizeof(value));
+        return jass_pushinteger(j, value);
+    }
     if (s && *s == '$') return jass_pushinteger(j, (int32_t)strtol(s + 1, NULL, 16));
     return jass_pushinteger(j, (int32_t)strtol(s, NULL, 0));
 }
 
 uint32_t VM_EvalReal(jass_t *j, token_t const *token) {
-    if (!(token->flags & TF_RETAIL_REAL)) return jass_pushnumber(j, atof(token->primary));
+    if (!(token->flags & TF_RETAIL_NUMBER)) return jass_pushnumber(j, atof(token->primary));
     /* TODO: NUM-01.15 owns the full retail lexical domain. Host strtod accepts
      * identifiers such as nan/inf; never feed those bytes into the decimal port. */
     for (cstring_t p = token->primary; *p; p++) {

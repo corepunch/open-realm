@@ -149,3 +149,6 @@ void pathing_integrate(uint32_t *words) {
 
 /* Compiled source tokens have a distinct producer from public S2R strings. */
 uint32_t pathing_literal(char const *text) { return wc3_float_bits(wc3_literal(text)); }
+
+/* Source integer words precede the public truncating I2R conversion. */
+uint32_t pathing_integer_literal(char const *text) { return wc3_integer_literal_bits(text); }

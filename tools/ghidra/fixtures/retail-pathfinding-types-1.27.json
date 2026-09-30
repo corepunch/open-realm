@@ -2568,6 +2568,59 @@
           "storage": "ECX"
         }
       ]
+    },
+    {
+      "address": "6f9249d0",
+      "name": "JassLexer_ReadToken",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "lexer",
+          "type": "ptr:WC3JassLexerPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f925210",
+      "name": "JassLexer_ParseDecimalInteger",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "lexer",
+          "type": "ptr:WC3JassLexerPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f925490",
+      "name": "JassLexer_ParseOctalInteger",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "lexer",
+          "type": "ptr:WC3JassLexerPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f925350",
+      "name": "JassLexer_ParseHexInteger",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "lexer",
+          "type": "ptr:WC3JassLexerPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "prefix_length",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [

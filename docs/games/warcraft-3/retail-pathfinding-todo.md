@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**63 done / 246 tasks; 183 remaining.** Counts describe this backlog,
+**64 done / 246 tasks; 182 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -21,7 +21,7 @@ Completed evidence now sits next to its specific remaining extension.
 | FOOT — Footprints and query policy | 1 | 8 |
 | FINE — Fine search | 1 | 8 |
 | ACC — Adaptive search | 1 | 10 |
-| NUM — Numbers and random state | 13 | 11 |
+| NUM — Numbers and random state | 14 | 10 |
 | ROUTE — Route progression and yielding | 0 | 10 |
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
@@ -83,7 +83,7 @@ Patrol admission/current ownership, endpoint reversal and queued/save lifecycle
 
 ## Work next
 
-Start with **NUM-01.2** remaining numeric inventory, with **NUM-01.16** integer tokens as the next producer experiment. NUM-01.7 closes the compiled decimal producer, raw native words and engine Move/save/load integration; full source grammar remains01.15. NUM-01.10/11 close rounding and shared scalar startup. NUM-01.9 closes terminating Pow/log/exp arithmetic and its public adapter; original nonreturning VM lifetime remains01.14. MAP-03.7 closes retained solid-footprint failure and engine cleanup; exact retry timing stays NUM-02.3. MAP-03.4 now retains the original Footman mask through thirteen-tick arrival and reclamation. GROUP-04.5 now composes actual survivor point
+Start with **NUM-01.2** remaining numeric inventory, with **NUM-01.13** CRT byte/locale classification as the next producer experiment. NUM-01.16 closes decimal/octal/hex integer wrapping, native inputs and Move/save-load integration. NUM-01.7 closes the compiled decimal producer, raw native words and engine Move/save/load integration; full source grammar remains01.15. NUM-01.10/11 close rounding and shared scalar startup. NUM-01.9 closes terminating Pow/log/exp arithmetic and its public adapter; original nonreturning VM lifetime remains01.14. MAP-03.7 closes retained solid-footprint failure and engine cleanup; exact retry timing stays NUM-02.3. MAP-03.4 now retains the original Footman mask through thirteen-tick arrival and reclamation. GROUP-04.5 now composes actual survivor point
 replacement through680320, original new-request refresh/layout, new-goal arrival
 and both groups' final reclamation on open/wall maps. The638 velocity commits
 match production exactly; the server-frame engine regression preserves the old
@@ -97,8 +97,8 @@ state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
-(NUM-01.8). Ghidra mapping persists336
-names,23 layouts,142 fields,100 x86 prototypes and35 scalar globals. The strict corpus has142
+(NUM-01.8). Ghidra mapping persists340
+names,23 layouts,142 fields,104 x86 prototypes and35 scalar globals. The strict corpus has146
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
@@ -106,7 +106,7 @@ existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
 | 1 | NUM-01.2 | Verified scalar/heading/Pow/rounding/startup/literal slices | Remaining arithmetic/conversion ABI and producer ownership inventory |
-| 2 | NUM-01.16 | Original decimal/hex integer lexers925210/925350 | Actual compiled integer words, overflow and engine regression |
+| 2 | NUM-01.13 | Exact shipped CRT isdigit0f1d5 and active locale globals | Original byte classifier, public high-byte inputs and engine regression |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
 decimal CRT grammar/locale, source lexer domains and original nonreturning VM
@@ -349,7 +349,7 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 
 
 - [ ] **NUM-01.15** Split01.2's full source-number lexical grammar from the bounded decimal producer01.7: recover original9249d0 numeric DFA/token boundaries and nan/inf/exponent/point/hex-like acceptance or rejection through actual source compilation; preserve source-language distinctions and report invalid syntax in the engine. Current VM explicitly rejects host-strtod nondecimal real tokens instead of feeding unverified bytes into925260's port. Recover original constant-token storage/consumption beyond the verified lexer+24 slot where needed; do not infer full compiler equivalence from public native input words.
-- [ ] **NUM-01.16** Split01.2's compiled integer producers925210/925350: decimal/hex lexical token108, ECX lexer/token lengthc4, hex prefix-length stack argument, signed32 accumulation and unary sign boundaries; capture actual oversized decimal/hex constants and I2R native argument words, reproduce host-strtol width/saturation differences, and integrate verified JASS integer parsing while preserving Galaxy and save/load. Keep integer lexer evidence separate from real-token prefix wrapping01.7.
+- [x] **NUM-01.16** Split01.2's compiled integer producers925210/925490/925350: decimal/octal/hex lexical token108, ECX lexer/token lengthc4, hex prefix-length stack argument, signed32 accumulation and unary sign boundaries; capture actual oversized decimal/octal/hex constants and I2R native argument words, reproduce host-strtol width/saturation differences, and integrate verified JASS integer parsing while preserving Galaxy and save/load. Keep integer lexer evidence separate from real-token prefix wrapping01.7. Evidence: [compiled JASS integer words](retail-pathfinding-engine.md#compiled-jass-integer-words),16,080 original/model/C calls per-O0/-O2 with guarded token108 and exact digest3affdc0f; repeated44 actual I2R input/output pairs and42 compiler word/radix/prefix/caller observations. Nine engine word failures precede the port; all source/native words, Move/save-load and mixed-language policies pass. Unsigned unary subtraction retains INT_MIN wrapping. Saved340 names/104 prototypes and fresh146/146 corpus. Full invalid-token grammar remains01.15.
 
 ### NUM-02 — Branch-sensitive arithmetic
 

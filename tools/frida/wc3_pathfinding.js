@@ -69,6 +69,26 @@ function install(module) {
             }
         });
     }
+    if (config.integerTexts && config.integerTexts.length) {
+        const literals = new Set(config.integerTexts);
+        for (const [rva, radix, prefix] of [[0x925210,10,0], [0x925490,8,1], [0x925350,16,null]]) {
+            hook(rva, {
+                onEnter() {
+                    this.lexer = this.context.ecx;
+                    const text = this.lexer.add(0x98).readPointer().readCString();
+                    this.literal = literals.has(text) ? {text, radix,
+                        prefix:prefix === null ? this.context.esp.add(4).readU32() : prefix,
+                        caller:this.returnAddress.sub(base).toUInt32()} : null;
+                },
+                onLeave(result) {
+                    if (!this.literal) return;
+                    bump('numeric-integer-literal');
+                    if (counts['numeric-integer-literal'] <= config.samples)
+                        emit('numeric-integer-literal', {...this.literal, token:result.toUInt32(), output:this.lexer.add(0x24).readU32()});
+                }
+            });
+        }
+    }
     if (config.profileEvents) {
         for (const [rva, kind] of [[0x690c20, 'query-mask'], [0x690c80, 'category']]) {
             hook(rva, {

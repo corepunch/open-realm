@@ -21,6 +21,9 @@ Scripted decimal real coordinates now use the [recovered compiled JASS producer]
 including signed32 prefix/fraction/denominator wrapping and software division/addition.
 The same literal words survive save/load and enter public Move unchanged. Galaxy
 retains its distinct source-number conversion.
+Compiled decimal/octal/hex integer constants also wrap per digit before I2R and
+Move consumption; [integer source evidence](retail-pathfinding-engine.md#compiled-jass-integer-words)
+includes values wider than64 bits, unary minimum-integer negation and save/load.
 
 Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach keeps live-unit collision and uses collision-sized resource-worker local avoidance.
 

@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / 'tools/frida'))
 from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits, fractional, modulo, decimal_bits, integer_float, saturating_integer_word, asin_bits, atan_bits, atan2_bits, divide, floor_word, ceil_word, round_word, truncate_word
 from generate_wc3_math_tables import sine_table, reciprocal_table, acos_tables
 from verify_wc3_motion_trace import verify
+from verify_wc3_pathing_integers import integer_literal_word, source_word as integer_source_word
 from verify_wc3_pathing_literals import literal_word, source_word
 from verify_wc3_pathing_power import corelog, reducedlog, log, exp, power, public as public_power
 
@@ -51,6 +52,22 @@ class PathingMathTests(unittest.TestCase):
         result = (ctypes.c_uint32 * 2)(0xabcdef01, 0xabcdef02)
         proc(a, b, result)
         return list(result)
+
+    def test_compiled_integers_match_wrapped_model_and_live_native_inputs(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-compiled-integer-inputs-1.27.json').read_text())
+        rng = random.Random(0x925350)
+        texts = [c['input'].lstrip('-') for c in fixture['cases']]
+        for _ in range(2000):
+            word = rng.getrandbits(260)
+            texts.extend([str(word), '0' + format(word, 'o'), '$' + format(word, 'x'), '0x' + format(word, 'X')])
+        for engine in self.engines:
+            engine.pathing_integer_literal.argtypes = [ctypes.c_char_p]
+            engine.pathing_integer_literal.restype = ctypes.c_uint32
+            for text in texts:
+                self.assertEqual(engine.pathing_integer_literal(text.encode()), integer_literal_word(text), text)
+        for case in fixture['cases']:
+            self.assertEqual(integer_source_word(case['input']), case['input_word'])
+            self.assertEqual(integer_float(case['input_word']), case['output'])
 
     def test_compiled_literals_match_live_inputs_and_independent_model(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-compiled-literal-inputs-1.27.json').read_text())

@@ -246,6 +246,26 @@ static inline bool wc3_pow(float base, float power, float *output) {
 }
 
 
+/* Source integer actions925210/925490/925350 wrap each decimal/octal/hex
+ * digit to32 bits. The lexer owns syntax and unary signs; prefix lengths are
+ * 0 for decimal,1 for octal/$hex and2 for0xhex. Host long saturation differs. */
+static inline uint32_t wc3_integer_literal_bits(char const *text) {
+    uint32_t radix = 10, value = 0;
+    if (*text == '$') {
+        radix = 16;
+        text++;
+    } else if (*text == '0') {
+        radix = text[1] == 'x' || text[1] == 'X' ? 16 : 8;
+        text += radix == 16 ? 2 : 1;
+    }
+    for (; *text; text++) {
+        uint32_t digit = *text >= 'a' && *text <= 'f' ? *text - 'a' + 10 :
+                         *text >= 'A' && *text <= 'F' ? *text - 'A' + 10 : *text - '0';
+        value = value * radix + digit;
+    }
+    return value;
+}
+
 /* Compiled JASS real token925260: unsigned decimal text, signed32 wrapping
  * accumulators, then software division/addition. The lexer owns validation and
  * unary signs; unlike S2R, every fractional digit participates in the wrap. */

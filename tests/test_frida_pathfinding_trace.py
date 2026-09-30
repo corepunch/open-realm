@@ -16,6 +16,7 @@ numeric_spec.loader.exec_module(numeric)
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools/frida'))
+from verify_wc3_integer_inputs import verify as verify_integers, FIXTURE as INTEGER_FIXTURE
 from verify_wc3_literal_inputs import verify as verify_literals, FIXTURE as LITERAL_FIXTURE
 
 HASH = 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236'
@@ -28,6 +29,29 @@ def capture(*searches, calls=None):
 
 
 class PathTraceTests(unittest.TestCase):
+    def test_integer_compiler_capture_rejects_radix_prefix_word_and_caller_changes(self):
+        fixture = json.loads(INTEGER_FIXTURE.read_text())
+        rows = [dict(event='metadata', sha256=fixture['target_sha256'], source_sha256=fixture['source_sha256'])]
+        rows += copy.deepcopy(fixture['integer_sequence'])
+        for case in fixture['cases']:
+            identity, name = case['id'], case['native']
+            rows.extend([dict(event='numeric-marker', value=f'PATHNUM case={identity} native={name}'),
+                         dict(event='numeric-native', case=identity, native=name, input=case['input_word'], output=case['output']),
+                         dict(event='numeric-marker', value=f'PATHNUM done={identity} value=completion')])
+        destination = [struct.unpack('<f', struct.pack('<I', w))[0] for w in fixture['move_destination_words']]
+        rows += [dict(event='point-task', destination=destination),
+                 dict(event='marker', value='PATHTRACE tick=10 label=order_accepted x=0 y=0 order=851986'),
+                 dict(event='marker', value='PATHTRACE tick=300 label=complete x=0 y=0 order=0'),
+                 dict(event='trace-end', installed=True, counts={'numeric-native':44, 'numeric-integer-literal':42})]
+        self.assertEqual(verify_integers(rows, fixture)['violations'], [])
+        for mode in ('output', 'text', 'caller', 'token', 'radix', 'prefix', 'count', 'missing'):
+            changed = copy.deepcopy(rows)
+            if mode == 'count': changed[-1]['counts']['numeric-integer-literal'] -= 1
+            elif mode == 'missing': changed.pop(1)
+            elif mode == 'text': changed[1]['text'] = '1'
+            else: changed[1][mode] ^= 1
+            self.assertTrue(verify_integers(changed, fixture)['violations'], mode)
+
     def test_compiler_capture_rejects_words_callers_tokens_order_and_counts(self):
         fixture = json.loads(LITERAL_FIXTURE.read_text())
         rows = [dict(event='metadata', sha256=fixture['target_sha256'], source_sha256=fixture['source_sha256'])]

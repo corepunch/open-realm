@@ -196,6 +196,126 @@ TEST(wc3_api, pathfinding_compiled_unverified_numeric_syntax_reports_error) {
     reset_entities();
 }
 
+/* Wide source integers must wrap per digit before their native conversion or movement use. */
+TEST(wc3_api, pathfinding_compiled_integer_literals_match_retail_words) {
+    static struct { cstring_t expression; uint32_t word, real_word; } const cases[] = {
+        { "0", 0x00000000u, 0x00000000u },
+        { "1", 0x00000001u, 0x3f800000u },
+        { "-1", 0xffffffffu, 0xbf800000u },
+        { "16777217", 0x01000001u, 0x4b800000u },
+        { "2147483647", 0x7fffffffu, 0x4effffffu },
+        { "2147483648", 0x80000000u, 0xcf000000u },
+        { "-2147483648", 0x80000000u, 0xcf000000u },
+        { "4294967295", 0xffffffffu, 0xbf800000u },
+        { "4294967296", 0x00000000u, 0x00000000u },
+        { "4294967297", 0x00000001u, 0x3f800000u },
+        { "-4294967297", 0xffffffffu, 0xbf800000u },
+        { "9223372036854775807", 0xffffffffu, 0xbf800000u },
+        { "9223372036854775808", 0x00000000u, 0x00000000u },
+        { "18446744073709551615", 0xffffffffu, 0xbf800000u },
+        { "18446744073709551616", 0x00000000u, 0x00000000u },
+        { "18446744073709551617", 0x00000001u, 0x3f800000u },
+        { "-18446744073709551617", 0xffffffffu, 0xbf800000u },
+        { "9999999999999999999999999999999999999999999999999999999999999999999999999999999999", 0xffffffffu, 0xbf800000u },
+        { "$0", 0x00000000u, 0x00000000u },
+        { "$7fffffff", 0x7fffffffu, 0x4effffffu },
+        { "$80000000", 0x80000000u, 0xcf000000u },
+        { "-$80000000", 0x80000000u, 0xcf000000u },
+        { "$ffffffff", 0xffffffffu, 0xbf800000u },
+        { "$100000000", 0x00000000u, 0x00000000u },
+        { "$100000001", 0x00000001u, 0x3f800000u },
+        { "$ffffffffffffffff", 0xffffffffu, 0xbf800000u },
+        { "$10000000000000000", 0x00000000u, 0x00000000u },
+        { "$10000000000000001", 0x00000001u, 0x3f800000u },
+        { "0x7FFFFFFF", 0x7fffffffu, 0x4effffffu },
+        { "0x80000000", 0x80000000u, 0xcf000000u },
+        { "0xFFFFFFFF", 0xffffffffu, 0xbf800000u },
+        { "0x100000001", 0x00000001u, 0x3f800000u },
+        { "0xFFFFFFFFFFFFFFFF", 0xffffffffu, 0xbf800000u },
+        { "0x10000000000000001", 0x00000001u, 0x3f800000u },
+        { "00", 0x00000000u, 0x00000000u },
+        { "077", 0x0000003fu, 0x427c0000u },
+        { "017777777777", 0x7fffffffu, 0x4effffffu },
+        { "020000000000", 0x80000000u, 0xcf000000u },
+        { "-020000000000", 0x80000000u, 0xcf000000u },
+        { "037777777777", 0xffffffffu, 0xbf800000u },
+        { "040000000000", 0x00000000u, 0x00000000u },
+        { "040000000001", 0x00000001u, 0x3f800000u },
+        { "01000000000000000000000", 0x00000000u, 0x00000000u },
+        { "01000000000000000000001", 0x00000001u, 0x3f800000u },
+    };
+    reset_entities();
+    setup_test_world();
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        char script[1024];
+        G_ClearHashtableRegistry();
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "  local hashtable values = InitHashtable()\n"
+            "  call SaveInteger(values, 0, 0, %s)\n"
+            "  call SaveReal(values, 0, 1, I2R(%s))\nendfunction\n", cases[i].expression, cases[i].expression);
+        T_ASSERT(run_test_jass(script));
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 2);
+        if (table->num_entries == 2) {
+            uint32_t word;
+            T_EQ(table->entries[0].type, HT_INTEGER);
+            memcpy(&word, &table->entries[0].value.integer, sizeof(word));
+            T_EQ(word, cases[i].word);
+            T_EQ(table->entries[1].type, HT_REAL);
+            memcpy(&word, &table->entries[1].value.real, sizeof(word));
+            T_EQ(word, cases[i].real_word);
+        }
+    }
+    reset_entities();
+}
+
+/* Source integer conversion reaches Move and remains live after source-token reconstruction. */
+TEST(wc3_api, pathfinding_compiled_integer_move_survives_save_load) {
+    cstring_t path = "/tmp/openwarcraft3-wc3-compiled-integer-save.bin";
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  hashtable values = null\n"
+        "  constant integer compiled = 18446744073709551873\n"
+        "endglobals\n"
+        "function StoreCompiledInteger takes nothing returns nothing\n"
+        "  call SaveInteger(values, 0, 0, compiled)\n"
+        "  call SaveInteger(values, 0, 1, $10000000000000001)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  set values = InitHashtable()\n"
+        "  call StoreCompiledInteger()\n"
+        "  call BJassAssert(IssuePointOrder(mover, \"move\", I2R(compiled), 144.0), \"compiled integer Move rejected\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    FOR_LOOP(pass, 2) {
+        hashtable_t const *table = &level.hashtables[0];
+        T_EQ(table->num_entries, 2);
+        if (table->num_entries == 2) {
+            T_EQ(table->entries[0].value.integer, 257);
+            T_EQ(table->entries[1].value.integer, 1);
+        }
+        if (!pass) {
+            jass_callbyname(level.vm, "StoreCompiledInteger", true);
+            jass_runevents(level.vm);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+    }
+    edict_t *mover = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(mover);
+    if (mover) {
+        vec2_t point;
+        T_ASSERT(G_GetIssuedOrderPoint(mover, &point));
+        T_EQ(point.x, 257.0f);
+        T_EQ(point.y, 144.0f);
+    }
+    remove(path);
+    reset_entities();
+}
+
 /* Frozen public-native words, with decimal text producing the real inputs. */
 TEST(wc3_api, pathfinding_public_numeric_natives_match_retail_words) {
     static struct { cstring_t expression; uint32_t word; bool integer; } const cases[] = {

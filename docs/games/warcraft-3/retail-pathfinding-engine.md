@@ -1141,12 +1141,12 @@ host IEEE decimal conversion or arbitrary precision source constants.
 | `0.00000000000000000000000000000001` | `7f000000` | Wrapped zero denominator follows retail scalar division |
 | `1.00000000000000000000000000000000` | `40000000` | Equal zero fraction/denominator takes the scalar equality result1 |
 
-The engine now uses `wc3_literal` for JASS real tokens. `TF_RETAIL_REAL` attaches
+The engine now uses `wc3_literal` for JASS real tokens. `TF_RETAIL_NUMBER` attaches
 the numeric producer to the parsed source token; loading Galaxy into the same VM
 cannot change earlier JASS literal behavior. Galaxy retains its existing host
 number conversion. Unsupported host-strtod identifiers such as nan/inf report a
 visible runtime error instead of entering the decimal producer. Full original
-lexical grammar is explicitly NUM-01.15; integer tokens925210/925350 are01.16.
+lexical grammar is explicitly NUM-01.15; integer tokens925210/925490/925350 are01.16.
 These limits do not claim that retail rejects the same identifiers before that
 experiment. The dormant `VM_Compile` text emitter has no callers and does not
 execute this production path.
@@ -1187,3 +1187,80 @@ tool tests. Fresh corpus `num-01.7-final-corpus/corpus-results.json` passes all1
 outcomes (58 oracles,73 archive audits,11 strict live contracts), with every
 recorded source fingerprint unchanged. NUM-01.7 is closed. Next numeric producer
 experiment is01.16; remaining ownership inventory is01.2.
+
+
+## Compiled JASS integer words
+
+NUM-01.16 extends the same source-token policy to original integer token108.
+The real and integer actions share lexer text+98, token lengthc4 and raw result
+slot24; the slot also carries other token data, so its scalar prefix name is not
+a claim that every result is real. Saved parent `JassLexer_ReadToken` at9249d0
+records the action dispatch and original call sites.
+
+| Action | RVA | Input/return ABI | Parent return site |
+| --- | --- | --- | --- |
+| Decimal | 925210 | ECX lexer; no stack argument; RET plain; EAX108 | 924e38 |
+| Octal | 925490 | ECX lexer; skip first0; RET plain; EAX108 | 924e46 |
+| Hex | 925350 | ECX lexer; prefix length1($) or2(0x) at stack4; RET4; EAX108 | 924e56/924e66 |
+
+Every digit multiplies and adds into a wrapping32-bit accumulator. Original
+hex accepts uppercase and lowercase digits; octal has its own action rather
+than a guessed decimal interpretation. Unary minus applies after token
+production and wraps32, including minimum signed integer negation. The engine
+uses `wc3_integer_literal_bits` and reconstructs signed values from raw bytes;
+unsigned subtraction keeps unary negation independent of signed-overflow
+optimization. `TF_RETAIL_NUMBER` now selects the source policy for both real and
+integer tokens. Galaxy retains its prior conversion, including in mixed VMs.
+
+| Source integer | Raw I2R argument | Public I2R result word |
+| --- | --- | --- |
+| `2147483648` | `80000000` | `cf000000` |
+| `-2147483648` | `80000000` | `cf000000` |
+| `9223372036854775808` | `00000000` | `00000000` |
+| `18446744073709551617` | `00000001` | `3f800000` |
+| `$10000000000000001` | `00000001` | `3f800000` |
+| `0x10000000000000001` | `00000001` | `3f800000` |
+| `040000000001` | `00000001` | `3f800000` |
+
+Two owned captures repeat44 actual source/I2R argument/result pairs and42
+read-only integer compiler word/radix/prefix/token/caller observations exactly.
+Native sequence digest:
+`c6551118d93d2a33338ef9b808730307cda7f27d5e19f57bc77884fc80cacbb6`.
+Compiler sequence digest:
+`a0dcc682acd7366904c854a031bf1955c812944c5ccc952b898fe4e0c7b15fe6`.
+Archive files `runtime/num-01.16-integers-{first,repeat}-raw.jsonl` have adjacent
+exact source/map copies and embedded hashes. Frozen fixture:
+`retail-compiled-integer-inputs-1.27.json`. Report: `num-01.16-live-integers.json`.
+Full invalid-token grammar remains01.15; these valid source cases do not claim
+that malformed octal/hex/exponent/identifier forms have matching admission.
+
+`verify_wc3_pathing_integers.py` executes16,080 original/model/C calls with
+lexer write-region, untouched text, token108, stack-cleanup and register guards.
+Both C optimization levels match digest
+`3affdc0f24c0d35efe665da0f857f4d02bdb034ba8ca517e9ab0a569f329fcb0`.
+Counts:4,027 decimal,4,026 octal,4,015 dollar hex and4,012 prefixed hex. Reports:
+`num-01.16-integers-O0.json` and `-O2.json`.
+
+The engine reproducer fails nine of44 raw source words before the fix because
+host `strtol` saturates at its own width. The fixed test checks both source
+integer words and all44 public I2R outputs against independent frozen C values.
+A Move/save-load regression retains a wide compiled constant as257, routes its
+I2R value into the issued point, and re-evaluates a wide hex literal after token
+reconstruction. Mixed-language regression fails before the port, then retains
+JASS wrapping and Galaxy's existing conversion after parser reuse. Both source
+kinds share one producer flag; no save-record fields are added. Existing source
+program hashing makes historical token-policy compatibility explicit.
+
+Ghidra persists340 descriptive names,23 partial layouts/142 fields,104 explicit
+x86 prototypes and35 scalar globals. Parent and all three integer actions are
+saved; report `num-01.16-ghidra-types.json`. These numeric source improvements
+preserve the previous movement/velocity corpus; they do not establish full
+retail pathfinding parity.
+
+
+Validation at this checkpoint: full `make test` passes38,132 assertions/2,162
+WC3 cases in both fixture variants and93 pathfinding tool tests. Fresh corpus
+`num-01.16-final-corpus/corpus-results.json` passes all146 outcomes (59 oracles,
+75 archive audits,12 strict live contracts), with every recorded source
+fingerprint unchanged. NUM-01.16 is closed. The next producer experiment is
+NUM-01.13, with the shipped CRT now analyzed and saved in the same Ghidra project.

@@ -7243,6 +7243,408 @@
       "exclusions": [
         "No full movement trajectory claim or unexplored lexer grammar equivalence."
       ]
+    },
+    {
+      "id": "oracle-compiled-integers",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_integers.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "oracle-compiled-integers.json",
+      "expected_exit": 0,
+      "expected_status": "original-model-engine-exact",
+      "checks": {
+        "cases": {
+          "equal": 16080
+        },
+        "helper_cases": {
+          "equal": {
+            "decimal": 4027,
+            "octal": 4026,
+            "dollar_hex": 4015,
+            "prefixed_hex": 4012
+          }
+        },
+        "live_cases": {
+          "equal": 44
+        },
+        "live_compilation_events": {
+          "equal": 42
+        },
+        "digest": {
+          "equal": "3affdc0f24c0d35efe665da0f857f4d02bdb034ba8ca517e9ab0a569f329fcb0"
+        },
+        "engine_exact_cases": {
+          "equal": 16080
+        },
+        "violations": {
+          "equal": []
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Original decimal/octal/hex lexer integer actions, wrapping accumulation, exact C and live unary source/native words; guarded token108/lexer/text/stack/register contracts.",
+      "exclusions": [
+        "Full lexical rejection grammar remains NUM-01.15."
+      ]
+    },
+    {
+      "id": "capture-num-01.16-integers-first",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/num-01.16-integers-first-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.16-integers-first-raw.jsonl",
+        "sha256": "8b48c139086a3b934538bf5c92b53516402b54619599d5aa1621d805c79ab9a6",
+        "bytes": 101253,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8ce33049aa148a414b2edd29ca12ed94921f022a0b9979ba5a84b8df3ee8c5d8",
+            "wc3_pathfinding.js": "f9dfa3685d884d5eb26a0e26debfd44e4655ed91df75cb5d3b91d70c3bca64eb",
+            "wc3_pathfinding_probe.j": "05b5b76bb8fbb21879b9b81002cf0e76420f918cb6c18ec54e4298dda755d8db",
+            "make_wc3_pathfinding_map.py": "a46ad85db5e047226ab54fe41016a940184f55f234b2f28ed9ee11c40e6204a4",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "map": "952275b68e992c62f610876eaad8e5ac5a345c9834cd76044f621e7fa7544cff"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 60.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true,
+          "literalTexts": [],
+          "integerTexts": [
+            "$10000000000000000",
+            "$10000000000000001",
+            "$ffffffffffffffff",
+            "01000000000000000000000",
+            "01000000000000000000001",
+            "017777777777",
+            "020000000000",
+            "037777777777",
+            "040000000000",
+            "040000000001",
+            "0x10000000000000001",
+            "0x100000001",
+            "0xFFFFFFFFFFFFFFFF",
+            "18446744073709551615",
+            "18446744073709551616",
+            "18446744073709551617",
+            "9223372036854775807",
+            "9223372036854775808",
+            "9999999999999999999999999999999999999999999999999999999999999999999999999999999999"
+          ]
+        }
+      },
+      "report": "captures/num-01.16-integers-first-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned compiled integer capture,44 bracketed public native calls and42 read-only compiler token observations; adjacent exact source/map files. Generic audit is separate from strict numerical repeat checks.",
+      "exclusions": [
+        "Strict token/radix/prefix/caller/native contract belongs to live-compiled-integers-repeat and oracle-compiled-integers."
+      ]
+    },
+    {
+      "id": "capture-num-01.16-integers-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/num-01.16-integers-repeat-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.16-integers-repeat-raw.jsonl",
+        "sha256": "cd0912d3cee4c57c7d00ac41c2d5a93a7732bd66fbdae0f49f3e5ba0ef212188",
+        "bytes": 101254,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8ce33049aa148a414b2edd29ca12ed94921f022a0b9979ba5a84b8df3ee8c5d8",
+            "wc3_pathfinding.js": "f9dfa3685d884d5eb26a0e26debfd44e4655ed91df75cb5d3b91d70c3bca64eb",
+            "wc3_pathfinding_probe.j": "05b5b76bb8fbb21879b9b81002cf0e76420f918cb6c18ec54e4298dda755d8db",
+            "make_wc3_pathfinding_map.py": "a46ad85db5e047226ab54fe41016a940184f55f234b2f28ed9ee11c40e6204a4",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "map": "952275b68e992c62f610876eaad8e5ac5a345c9834cd76044f621e7fa7544cff"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 60.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true,
+          "literalTexts": [],
+          "integerTexts": [
+            "$10000000000000000",
+            "$10000000000000001",
+            "$ffffffffffffffff",
+            "01000000000000000000000",
+            "01000000000000000000001",
+            "017777777777",
+            "020000000000",
+            "037777777777",
+            "040000000000",
+            "040000000001",
+            "0x10000000000000001",
+            "0x100000001",
+            "0xFFFFFFFFFFFFFFFF",
+            "18446744073709551615",
+            "18446744073709551616",
+            "18446744073709551617",
+            "9223372036854775807",
+            "9223372036854775808",
+            "9999999999999999999999999999999999999999999999999999999999999999999999999999999999"
+          ]
+        }
+      },
+      "report": "captures/num-01.16-integers-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned compiled integer capture,44 bracketed public native calls and42 read-only compiler token observations; adjacent exact source/map files. Generic audit is separate from strict numerical repeat checks.",
+      "exclusions": [
+        "Strict token/radix/prefix/caller/native contract belongs to live-compiled-integers-repeat and oracle-compiled-integers."
+      ]
+    },
+    {
+      "id": "live-compiled-integers-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_integer_inputs.py",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-compiled-integer-inputs-1.27.json",
+        "--capture",
+        "{archive}/runtime/num-01.16-integers-first-raw.jsonl",
+        "--repeat",
+        "{archive}/runtime/num-01.16-integers-repeat-raw.jsonl",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.16-integers-first-raw.jsonl",
+        "sha256": "8b48c139086a3b934538bf5c92b53516402b54619599d5aa1621d805c79ab9a6",
+        "bytes": 101253,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8ce33049aa148a414b2edd29ca12ed94921f022a0b9979ba5a84b8df3ee8c5d8",
+            "wc3_pathfinding.js": "f9dfa3685d884d5eb26a0e26debfd44e4655ed91df75cb5d3b91d70c3bca64eb",
+            "wc3_pathfinding_probe.j": "05b5b76bb8fbb21879b9b81002cf0e76420f918cb6c18ec54e4298dda755d8db",
+            "make_wc3_pathfinding_map.py": "a46ad85db5e047226ab54fe41016a940184f55f234b2f28ed9ee11c40e6204a4",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "map": "952275b68e992c62f610876eaad8e5ac5a345c9834cd76044f621e7fa7544cff"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 60.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true,
+          "literalTexts": [],
+          "integerTexts": [
+            "$10000000000000000",
+            "$10000000000000001",
+            "$ffffffffffffffff",
+            "01000000000000000000000",
+            "01000000000000000000001",
+            "017777777777",
+            "020000000000",
+            "037777777777",
+            "040000000000",
+            "040000000001",
+            "0x10000000000000001",
+            "0x100000001",
+            "0xFFFFFFFFFFFFFFFF",
+            "18446744073709551615",
+            "18446744073709551616",
+            "18446744073709551617",
+            "9223372036854775807",
+            "9223372036854775808",
+            "9999999999999999999999999999999999999999999999999999999999999999999999999999999999"
+          ]
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/num-01.16-integers-repeat-raw.jsonl",
+            "sha256": "cd0912d3cee4c57c7d00ac41c2d5a93a7732bd66fbdae0f49f3e5ba0ef212188",
+            "bytes": 101254,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8ce33049aa148a414b2edd29ca12ed94921f022a0b9979ba5a84b8df3ee8c5d8",
+                "wc3_pathfinding.js": "f9dfa3685d884d5eb26a0e26debfd44e4655ed91df75cb5d3b91d70c3bca64eb",
+                "wc3_pathfinding_probe.j": "05b5b76bb8fbb21879b9b81002cf0e76420f918cb6c18ec54e4298dda755d8db",
+                "make_wc3_pathfinding_map.py": "a46ad85db5e047226ab54fe41016a940184f55f234b2f28ed9ee11c40e6204a4",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "map": "952275b68e992c62f610876eaad8e5ac5a345c9834cd76044f621e7fa7544cff"
+              },
+              "map": "Maps\\New.w3m",
+              "seconds": 60.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 2000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": false,
+              "velocityEvents": false,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": true,
+              "literalTexts": [],
+              "integerTexts": [
+                "$10000000000000000",
+                "$10000000000000001",
+                "$ffffffffffffffff",
+                "01000000000000000000000",
+                "01000000000000000000001",
+                "017777777777",
+                "020000000000",
+                "037777777777",
+                "040000000000",
+                "040000000001",
+                "0x10000000000000001",
+                "0x100000001",
+                "0xFFFFFFFFFFFFFFFF",
+                "18446744073709551615",
+                "18446744073709551616",
+                "18446744073709551617",
+                "9223372036854775807",
+                "9223372036854775808",
+                "9999999999999999999999999999999999999999999999999999999999999999999999999999999999"
+              ]
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-compiled-integers-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-compiled-integers-repeat",
+      "checks": {
+        "violations": {
+          "equal": []
+        },
+        "repeat_equal": {
+          "equal": true
+        },
+        "native_cases": {
+          "equal": 44
+        },
+        "parser_cases": {
+          "equal": 0
+        },
+        "numeric_sha256": {
+          "equal": "c6551118d93d2a33338ef9b808730307cda7f27d5e19f57bc77884fc80cacbb6"
+        },
+        "compiled_events": {
+          "equal": 42
+        },
+        "literal_sha256": {
+          "equal": "a0dcc682acd7366904c854a031bf1955c812944c5ccc952b898fe4e0c7b15fe6"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Forty-four actual compiled integer I2R inputs/outputs and forty-two lexer token108 words/radix/prefix/caller observations repeat exactly, with strict source/map hashes and timer completion.",
+      "exclusions": [
+        "No full lexical rejection grammar or whole movement trajectory equivalence."
+      ]
     }
   ],
   "fixtures": [
@@ -7308,7 +7710,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "285612e315b6a9c564696da26b753c613cd00432394efaa41eff4061a92d18e6"
+      "sha256": "bbdf3eb7942cd4d1b043d4a54db7a6934f9c8ae232a6d67c8f0fb7a1d296c933"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -7397,6 +7799,14 @@
     {
       "path": "tools/frida/wc3_literal_inputs.json",
       "sha256": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-compiled-integer-inputs-1.27.json",
+      "sha256": "2e0fe81f733a9c3cd4a5539621f80c8841602431ff1bc3c8b7520aa978750a6c"
+    },
+    {
+      "path": "tools/frida/wc3_integer_inputs.json",
+      "sha256": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712"
     }
   ]
 }
