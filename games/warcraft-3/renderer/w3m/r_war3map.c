@@ -368,7 +368,6 @@ static void R_W3RebuildSegmentGeometry(mapsegment_t *segment) {
     if (!tr.world || !segment) return;
     R_UpdateGroundSegment(tr.world, segment->sx, segment->sy);
     fresh = R_BuildMapSegment(tr.world, segment->sx, segment->sy);
-    R_FinishCliffs();
     R_FreeMapLayers(&segment->layers);
     segment->layers = fresh->layers;
     fresh->layers = NULL;
@@ -467,15 +466,43 @@ void R_W3UpdateTerrainDeformations(void) {
     if (!active) w3_deform_last_update = 0;
 }
 
+static bool R_W3SegmentBordersDirty(uint32_t sx, uint32_t sy, uint32_t columns, uint32_t rows) {
+    for (int y = (int)sy - 1; y <= (int)sy + 1; y++) for (int x = (int)sx - 1; x <= (int)sx + 1; x++)
+        if (x >= 0 && y >= 0 && x < (int)columns && y < (int)rows && w3_terrain_dirty_segments[x + y * columns])
+            return true;
+    return false;
+}
+
 static void R_W3EmitChangedTerrain(void) {
     war3map_t const *map = tr.world;
+    maplayer_t *weld_context = NULL;
+    uint32_t columns, rows;
+    bool rebuilt = false;
     if (!map || !w3_terrain_dirty_segments) return;
+    columns = (map->width - 1) / SEGMENT_SIZE; rows = (map->height - 1) / SEGMENT_SIZE;
     FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments) {
-        uint32_t index = segment->sx + segment->sy * ((map->width - 1) / SEGMENT_SIZE);
-        if (!w3_terrain_dirty_segments[index]) continue;
+        if (!w3_terrain_dirty_segments[segment->sx + segment->sy * columns]) continue;
         R_W3RebuildSegmentGeometry(segment);
-        w3_terrain_dirty_segments[index] = 0;
+        rebuilt = true;
     }
+    /* Clean neighbours join the cliff bake as weld context only, so a rebuilt segment's
+     * border normals weld across the seam as they did in the load-time whole-map bake. */
+    if (rebuilt) FOR_LOOP(sy, rows) FOR_LOOP(sx, columns) {
+        maplayer_t *layer;
+        if (w3_terrain_dirty_segments[sx + sy * columns] || !R_W3SegmentBordersDirty(sx, sy, columns, rows))
+            continue;
+        FOR_LOOP(cliff, map->num_cliffs) {
+            if ((layer = R_BuildMapSegmentCliffs(map, sx, sy, cliff))) {
+                ADD_TO_LIST(layer, weld_context);
+            }
+        }
+    }
+    if (rebuilt) {
+        R_FinishCliffs();
+        R_FreeMapLayers(&weld_context);
+        R_InvalidateBlightLayer();
+    }
+    memset(w3_terrain_dirty_segments, 0, w3_terrain_segment_count);
     w3_terrain_rebuild_pending = false;
 }
 

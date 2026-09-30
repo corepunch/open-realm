@@ -24,6 +24,7 @@ void R_ResetBlightCache(void);
 void R_LoadBlightTexture(uint8_t tileset);
 texture_t const *R_BlightTexture(void);
 void R_UpdateBlightLayer(void);
+void R_InvalidateBlightLayer(void);
 void R_DrawBlightLayer(void);
 void _W3M_ClearMap(void);
 float R_W3CameraHeightAtPoint(float x, float y);
