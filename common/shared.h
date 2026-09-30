@@ -940,6 +940,9 @@ typedef enum {
     TERRAIN_DEFORM_RANDOM,
 } terrainDeformType_t;
 
+#define TERRAIN_DEFORM_PERMANENT (1u << 0) // flag; the deformation ignores duration_ms and stays until stopped
+#define TERRAIN_DEFORM_LIMIT_NEGATIVE (1u << 1) // flag; heights are clamped at zero so the surface never dips
+
 /* Renderer-owned visual command; this descriptor is sent only in a transient event, never in snapshots or saves. */
 typedef struct {
     uint32_t id;
@@ -948,8 +951,7 @@ typedef struct {
     uint32_t duration_ms;
     uint32_t count;
     uint32_t update_ms;
-    bool permanent;
-    bool limit_negative;
+    uint32_t flags; /* TERRAIN_DEFORM_* bits; sent as one byte */
 } terrainDeform_t;
 
 typedef enum {

@@ -197,7 +197,6 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
         case TE_TERRAIN_DEFORM:
             {
                 terrainDeform_t deformation = { 0 };
-                uint32_t flags;
                 int32_t duration_ms, count, update_ms;
                 deformation.id = (uint32_t)MSG_ReadLong(msg);
                 deformation.type = (terrainDeformType_t)MSG_ReadByte(msg);
@@ -209,10 +208,8 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
                 deformation.duration_ms = (uint32_t)MAX(0, duration_ms);
                 deformation.count = (uint32_t)MAX(0, count);
                 deformation.update_ms = (uint32_t)MAX(0, update_ms);
-                flags = (uint32_t)MSG_ReadByte(msg);
-                deformation.permanent = !!(flags & 1u);
-                deformation.limit_negative = !!(flags & 2u);
-                if (deformation.id && deformation.type <= TERRAIN_DEFORM_RANDOM && re.StartTerrainDeformation)
+                deformation.flags = (uint32_t)MSG_ReadByte(msg);
+                if (deformation.id && deformation.type <= TERRAIN_DEFORM_RANDOM)
                     re.StartTerrainDeformation(&deformation);
             }
             break;
@@ -220,11 +217,11 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
             {
                 uint32_t const id = (uint32_t)MSG_ReadLong(msg);
                 uint32_t const fade_ms = (uint32_t)MSG_ReadLong(msg);
-                if (id && re.StopTerrainDeformation) re.StopTerrainDeformation(id, fade_ms);
+                if (id) re.StopTerrainDeformation(id, fade_ms);
             }
             break;
         case TE_TERRAIN_DEFORM_STOP_ALL:
-            if (re.StopAllTerrainDeformations) re.StopAllTerrainDeformations();
+            re.StopAllTerrainDeformations();
             break;
         default:
             Com_Error(ERR_DROP, "CL_ParseTEnt: bad type %d", evt);
@@ -392,6 +389,53 @@ TEST(client_tent, confirmation_carries_walkable_ground_conform_contract) {
     T_EQ(ent.oldframe, 150);
 
     cl.time = old_time;
+}
+
+static terrainDeform_t test_deform;
+static uint32_t test_deform_starts, test_deform_stop_id, test_deform_stop_fade, test_deform_stop_alls;
+static void test_start_deform(terrainDeform_t const *deformation) { test_deform = *deformation; test_deform_starts++; }
+static void test_stop_deform(uint32_t id, uint32_t fade_ms) { test_deform_stop_id = id; test_deform_stop_fade = fade_ms; }
+static void test_stop_all_deforms(void) { test_deform_stop_alls++; }
+
+/* The client is a pure courier for terrain-deformation events: it decodes the game's field order and hands
+ * the descriptor to the renderer. The byte layout here mirrors G_SendTerrainDeformation in the WC3 game. */
+TEST(client_tent, terrain_deform_temp_events_reach_the_renderer_intact) {
+    uint8_t buf[256];
+    sizeBuf_t sb = { .data = buf, .maxsize = sizeof(buf) };
+    refExport_t api = re;
+
+    re.StartTerrainDeformation = test_start_deform;
+    re.StopTerrainDeformation = test_stop_deform;
+    re.StopAllTerrainDeformations = test_stop_all_deforms;
+    test_deform_starts = test_deform_stop_alls = 0;
+
+    MSG_WriteByte(&sb, TE_TERRAIN_DEFORM);
+    MSG_WriteLong(&sb, 41);
+    MSG_WriteByte(&sb, TERRAIN_DEFORM_RIPPLE);
+    FOR_LOOP(i, 8) MSG_WriteFloat(&sb, 10.0f + i);
+    MSG_WriteLong(&sb, 1800);
+    MSG_WriteLong(&sb, 3);
+    MSG_WriteLong(&sb, 200);
+    MSG_WriteByte(&sb, TERRAIN_DEFORM_LIMIT_NEGATIVE);
+    MSG_WriteByte(&sb, TE_TERRAIN_DEFORM_STOP);
+    MSG_WriteLong(&sb, 41);
+    MSG_WriteLong(&sb, 300);
+    MSG_WriteByte(&sb, TE_TERRAIN_DEFORM_STOP_ALL);
+    FOR_LOOP(i, 3) CL_ParseTEnt(&sb);
+
+    T_EQ(test_deform_starts, 1);
+    T_EQ(test_deform.id, 41);
+    T_EQ(test_deform.type, TERRAIN_DEFORM_RIPPLE);
+    FOR_LOOP(i, 8) T_FEQ(test_deform.data[i], 10.0f + i, 0.001f);
+    T_EQ(test_deform.duration_ms, 1800);
+    T_EQ(test_deform.count, 3);
+    T_EQ(test_deform.update_ms, 200);
+    T_EQ(test_deform.flags, TERRAIN_DEFORM_LIMIT_NEGATIVE);
+    T_EQ(test_deform_stop_id, 41);
+    T_EQ(test_deform_stop_fade, 300);
+    T_EQ(test_deform_stop_alls, 1);
+    T_EQ(sb.readcount, sb.cursize);
+    re = api;
 }
 #endif
 
