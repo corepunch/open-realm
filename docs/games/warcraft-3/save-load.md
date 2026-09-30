@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 58, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 56, canonical map path, the version-56 edict wire size, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -552,9 +552,6 @@ on load (version 52 client layout). They never serialize an active input overlay
 
 Version 53 persists each unit's explicit `UnitShareVision` recipient mask.
 
-Version 55 persisted each attacker's remaining weapon cooldown independently of its animation `wait`. Version 56 stores the cooldown as a simulation-time deadline so it continues elapsing when another order or rooted state pauses the attack callback. A target escaping before damage point cancels the pending hit but does not erase the cooldown started with the swing; the live target order and cooldown continue through chase and save/load. Version 55 saves are rejected because `edict_t` gained the deadline field.
-Version 52 saves are rejected by the exact-version guard.
+The save header remains at format version 56. The writer projects each current edict onto the frozen version-56 wire layout, so adding runtime fields does not change the legacy entity image size. New combat state (weapon cooldown deadlines, target incarnation, backswing deadlines, and per-weapon range-motion buffers) is stored in an optional checksummed, length-delimited `W3EX` extension after the JASS payload and before the footer. Older version-56 saves without that extension remain loadable; missing transient combat values are initialized from loaded unit data and active order state. Version-54 readers that predate the extension can still validate the footer because it covers the complete file, and can ignore the trailing extension after the JASS payload.
 
-Version 57 persists `edict_t.attack_target_spawn_time` alongside the active Attack target pointer. This prevents a direct Attack order from following a different unit after the target edict slot is reused. Version 56 saves are rejected because the expanded edict layout adds the target incarnation field.
-
-Version 58 adds `edict_s.attack_backswing_end_time`, the simulation-time deadline measured from a committed melee hit or projectile launch. Recovery after the attack animation ends now waits only for the backswing time that remains, while preserving the swing-start cooldown deadline. The deadline is serialized with the attack cooldown state so a save/load during recovery does not restart backswing. Version 57 saves are rejected by the exact-version guard because the edict schema grew.
+Attack cooldown begins at swing start, independently of animation `wait`; it continues elapsing when another order or rooted state pauses the attack callback. A target escaping before damage point cancels the pending hit but does not erase the cooldown. A committed melee hit or projectile launch starts backswing recovery, and a save/load during recovery preserves only the remaining backswing time.
