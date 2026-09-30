@@ -63,6 +63,7 @@ static animation_t _replacement_anim = {
     .interval = { 1000, 1300 }
 };
 static umove_t _replacement_move = { "stand alternate", NULL, NULL, NULL };
+static umove_t _attack_stub_move = { "stand", NULL, NULL, NULL };
 
 /* ==========================================================================
  * Shared helpers
@@ -882,15 +883,19 @@ TEST(wc3_combat, missing_weapon_data_disables_authored_attack_slots) {
 
 TEST(wc3_combat, missile_impact_uses_attack2_type_selected_at_launch) {
     UnitWeapons_t weapons = { .attacksEnabled = 3 };
-    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
+    edict_t *attacker;
+    edict_t *target;
     edict_t *missile = NULL;
 
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
     attacker->data.UnitWeapons = &weapons;
     attacker->goalentity = target;
     attacker->attack1.type = ATK_NORMAL;
     attacker->attack1.weapon = WPN_MISSILE;
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 500.0f;
     attacker->attack2.type = ATK_PIERCE;
     attacker->attack2.weapon = WPN_MISSILE;
     attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
@@ -899,6 +904,7 @@ TEST(wc3_combat, missile_impact_uses_attack2_type_selected_at_launch) {
     attacker->attack2.damagePoint = 0.1f;
     attacker->attack2.cooldown = 1.0f;
     attacker->attack2.projectile.speed = 1000;
+    attacker->attack2.range = 500.0f;
     target->targtype = TARG_AIR;
     target->defense_type = 0; /* Pierce deals 200%; Normal deals 100%. */
     target->armor_value = 0.0f;
@@ -1804,12 +1810,17 @@ TEST(wc3_combat, target_leaving_true_range_before_damage_point_cancels_windup) {
 }
 
 TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
-    edict_t *u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
-    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
+    edict_t *u;
+    edict_t *target;
+
+    setup_test_world(); reset_entities();
+    u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
 
     u->goalentity = target;
     u->attack1.type = ATK_NORMAL;
     u->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    u->attack1.range = 500.0f;
     target->targtype = TARG_GROUND;
     u->attack1.weapon = WPN_MISSILE;
     u->attack1.cooldown = 1.0f;
@@ -1829,6 +1840,7 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
     edict_t *missile = NULL;
     FILTER_EDICTS(ent, ent->owner == u && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
     T_NOT_NULL(missile);
+    if (!missile) return;
     T_EQ((missile->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
     T_STREQ(u->currentmove->animation, "stand ready");
     T_ASSERT(u->wait > 0.0f);
@@ -1914,11 +1926,17 @@ TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
 TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND },
                               .attack2 = { .areaTargets = WC3_TARGET_FLAG_AIR } };
-    edict_t *attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
-    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
-    edict_t *bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
-    edict_t *retarget = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 500.0f, 0.0f);
+    edict_t *attacker;
+    edict_t *target;
+    edict_t *bystander;
+    edict_t *retarget;
     edict_t *missile = NULL;
+
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    retarget = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 500.0f, 0.0f);
 
     attacker->data.UnitWeapons = &weapons;
     attacker->goalentity = target;
@@ -1930,6 +1948,7 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
     attacker->attack1.cooldown = 1.0f;
     attacker->attack1.projectile.speed = 1000;
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 500.0f;
     attacker->attack1.areaFull = 40.0f;
     attacker->attack1.areaMedium = 80.0f;
     attacker->attack1.areaSmall = 120.0f;
