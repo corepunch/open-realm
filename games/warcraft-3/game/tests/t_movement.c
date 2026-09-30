@@ -3549,6 +3549,21 @@ TEST(wc3_movement, propwin_uses_mutable_runtime_unit_value) {
     T_FEQ(unit->s.origin2.y, origin.y, 0.001f);
 }
 
+TEST(wc3_movement, zero_propwin_keeps_default_permissive_translation) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    UnitData_t data = *unit->data.UnitData;
+    vec2_t const target = {-100.0f, 0.0f};
+    vec2_t const origin = unit->s.origin2;
+
+    unit->data.UnitData = &data;
+    unit->unitinfo.PropWindow = 0.0f;
+    unit->unitinfo.MoveSpeed = 100.0f;
+    unit->s.angle = 0.0f;
+    unit_changeangle_towards_point(unit, &target);
+    unit_moveindirection(unit);
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
+}
+
 TEST(wc3_movement, immobile_unit_rejects_ground_move_order) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     vec2_t dest = {100.0f, 0.0f};

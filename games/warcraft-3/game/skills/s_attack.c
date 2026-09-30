@@ -195,6 +195,7 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target)
         attacker->currentmove->proc != CAbilityAttack || attacker->goalentity != target) return;
     unit_leavecombat(attacker);
     attacker->goalentity = NULL;
+    attacker->attack_target_spawn_time = 0;
     attacker->movement.explicit_allied_attack = false;
     if (G_BuildingIsUnsummoning(attacker)) {
         attacker->currentmove = NULL;
@@ -222,7 +223,8 @@ static bool attack_stop_if_target_invalid(edict_t *attacker) {
     /* Existing attack orders are combat orders, unlike the explicit Attack
      * command which may deliberately target an allied unit.  Alliance changes
      * must therefore end an automatic/cinematic attack before its next hit. */
-    if (S_AttackCanTarget(attacker, target) && !allied) {
+    if (S_AttackCanTarget(attacker, target) && !allied &&
+        attacker->attack_target_spawn_time == target->spawn_time) {
         return false;
     }
     if (attacker) attack_finish_after_combat(attacker, attacker->goalentity);
@@ -553,10 +555,24 @@ static float attack_minimum_range(edict_t const *ent) {
     return ent && ent->data.UnitWeapons ? MAX(0.0f, ent->data.UnitWeapons->minimumAttackRange) : 0.0f;
 }
 
+/* Distance from the attacker's collision edge to the target's collision edge
+ * or authored pathing footprint. */
+static float attack_target_distance(edict_t const *ent, edict_t const *target) {
+    float footprint;
+    if (!ent || !target) return FLT_MAX;
+    if ((G_UnitIsStructure(target) || G_IsDestructable(target)) && target->pathtex) {
+        footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
+        if (footprint < FLT_MAX)
+            return MAX(0.0f, footprint - MAX(0.0f, ent->collision));
+    }
+    return MAX(0.0f, Vector2_distance(&target->s.origin2, &ent->s.origin2) -
+                      MAX(0.0f, ent->collision) - MAX(0.0f, target->collision));
+}
+
 static bool attack_target_too_close_for(edict_t const *ent, edict_t const *target) {
     float const minimum = attack_minimum_range(ent);
     if (!ent || !target || minimum <= 0.0f) return false;
-    return Vector2_distance(&target->s.origin2, &ent->s.origin2) < minimum;
+    return attack_target_distance(ent, target) < minimum;
 }
 
 static bool attack_target_too_close(edict_t *ent) {
@@ -598,7 +614,7 @@ static void attack_set_cooldown(edict_t *ent, float seconds) {
 static bool attack_target_out_of_range_for_mode(edict_t const *ent, edict_t const *target,
                                                  bool allow_cooldown_buffer) {
     unitAttack_t const *attack;
-    float footprint, range, ensnare_range;
+    float range, ensnare_range;
 
     if (!ent || !target) return true;
 
@@ -608,13 +624,7 @@ static bool attack_target_out_of_range_for_mode(edict_t const *ent, edict_t cons
     range = ensnare_range > 0.0f ? ensnare_range : attack->range;
     if (ensnare_range <= 0.0f && allow_cooldown_buffer && attack_is_cooling_down(ent))
         range += MAX(0.0f, attack->rangeBuffer);
-    if ((G_UnitIsStructure(target) || G_IsDestructable(target)) && target->pathtex) {
-        footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
-        if (footprint < FLT_MAX) {
-            return footprint > ent->collision + range;
-        }
-    }
-    return Vector2_distance(&target->s.origin2, &ent->s.origin2) > range;
+    return attack_target_distance(ent, target) > range;
 }
 
 static bool attack_target_out_of_range_for(edict_t const *ent, edict_t const *target) {
@@ -760,6 +770,7 @@ void order_attack(edict_t *self, edict_t *target) {
     self->movement.explicit_allied_attack = false;
     unit_entercombat(self, target);
     self->goalentity = target;
+    self->attack_target_spawn_time = target->spawn_time;
     attack_walk(self);
 }
 
@@ -971,6 +982,7 @@ bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     unit->movement.group_speed = 0.0f;
     S_SpellCancelChannel(unit);
     unit->goalentity = waypoint;
+    unit->attack_target_spawn_time = 0;
     attack_ground_walk(unit);
     unit->channel.origin = *point;
     return true;
@@ -1042,6 +1054,7 @@ void order_attackmove(edict_t *self, edict_t *waypoint) {
     self->movement.follow_target = NULL;
     self->movement.holding_position = false;
     self->goalentity = waypoint;
+    self->attack_target_spawn_time = 0;
     move_reset_progress(self);
     unit_setmove(self, &attackmove_move_walk);
 }
