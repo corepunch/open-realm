@@ -61,6 +61,7 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--fixture', type=Path, help='freeze original cell routes for asset-free engine comparisons')
     parser.add_argument('--engine-library', type=Path, help='compare production C cell routes, work and node creation')
+    parser.add_argument('--corridors', action='store_true', help='cardinal corridors of width 0..5 across four classes')
     args = parser.parse_args()
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
@@ -93,6 +94,9 @@ def main():
         machine.mem_write(address, struct.pack('<f', value))
     width = height = 24
     start, goal = (4, 4), (19, 19)
+    if args.corridors:
+        width = height = 16
+        start, goal = (8, 4), (8, 11)
 
     def write(address, *values):
         machine.mem_write(address, struct.pack('<' + 'I' * len(values), *(v & 0xffffffff for v in values)))
@@ -118,6 +122,9 @@ def main():
         for cx, cy in (start, goal):
             blocked.difference_update((x, y) for x in range(cx - 3, cx + 4) for y in range(cy - 3, cy + 4))
         fixtures.append((f'random_{index}', blocked))
+    if args.corridors:
+        fixtures = [(f'corridor_{span}', {(x, y) for y in range(height) for x in range(width)
+                                         if not 8 - span // 2 <= x < 8 - span // 2 + span}) for span in range(6)]
     records, edge_cases, engine_cases = [], [], []
     for name, blocked in fixtures:
         for size_class in range(4):
@@ -245,7 +252,7 @@ def main():
             print(f'{len(records)} retail footprint searches and repeats checked', flush=True)
     report = dict(binary_sha256=digest, cases=len(records), repeated_searches=len(records), complete_requests=len(records), request_edge_cases=edge_cases, mismatches=[],
                   reached=sum(r['cost'] is not None for r in records), exhausted=sum(r['cost'] is None for r in records),
-                  seed=12717085, dimensions=[width, height], start=start, goal=goal,
+                  seed=None if args.corridors else 12717085, dimensions=[width, height], start=start, goal=goal,
                   scope='original core loop and full setup/search/reconstruction request; allocation/reset/stamp reuse; direct initialized storage and -1/0/1 runtime constants; static terrain only; Dijkstra reference uses recovered footprint graph; no path-owned admission or smoothing',
                   searches=records)
     if engine:
@@ -254,7 +261,7 @@ def main():
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     if args.fixture:
-        fixture = dict(binary_sha256=digest, seed=12717085, dimensions=[width, height], start=start, goal=goal,
+        fixture = dict(binary_sha256=digest, seed=None if args.corridors else 12717085, dimensions=[width, height], start=start, goal=goal,
                        scope='original static fine-search cell route, cost, pops and allocated nodes; excludes admission and smoothing',
                        maps={name: bytes(int((x, y) in blocked) for y in range(height) for x in range(width)).hex()
                              for name, blocked in fixtures}, cases=engine_cases)

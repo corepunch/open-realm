@@ -11,6 +11,7 @@ Does not execute query bound construction, position resolution, displacement
 application or complete crowd movement.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -26,7 +27,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine-library', type=Path, help='compare static endpoint footprint geometry with production C')
+    parser.add_argument('--endpoint-fixture', type=Path, help='freeze original endpoint results for asset-free tests')
     args = parser.parse_args()
+    engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine:
+        engine.pathing_footprint.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint8)]
+        engine.pathing_footprint.restype = ctypes.c_uint32
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -287,9 +294,11 @@ def main():
     clear = struct.pack('<I', 0xffffff) * 256
     validation_cases = 0
     radii = [0.1, 0.499, 0.5, 0.999, 1, 1.499, 1.5, 2]
+    positions = [(8.25, 8.75), (0.25, 0.75), (15.25, 15.75), (-0.25, 8.25)]
+    blockers = [None] + [(a, b) for a in range(5, 11) for b in range(5, 11)]
+    endpoint_results = []
     for radius, (x, y), blocked in itertools.product(radii,
-            [(8.25, 8.75), (0.25, 0.75), (15.25, 15.75), (-0.25, 8.25)],
-            [None] + [(a, b) for a in range(5, 11) for b in range(5, 11)]):
+            positions, blockers):
         machine.mem_write(terrain, clear)
         if blocked is not None:
             write(terrain + (blocked[1] * 16 + blocked[0]) * 4, 0x02ffffff)
@@ -307,6 +316,14 @@ def main():
         expected = int(all(0 <= a < 16 and 0 <= b < 16 and (a, b) != blocked for a, b in covered))
         run(0x6f16ee80, separate, point)
         assert machine.reg_read(UC_X86_REG_EAX) == expected, (radius, x, y, blocked)
+        endpoint_results.append(machine.reg_read(UC_X86_REG_EAX))
+        if engine:
+            words = [struct.unpack('<I', struct.pack('<f', value))[0] for value in (radius, x, y)]
+            query = (ctypes.c_uint32 * 6)(*words, 16, 16, 2)
+            bitmap = (ctypes.c_uint8 * 256)()
+            if blocked is not None:
+                bitmap[blocked[1] * 16 + blocked[0]] = 2
+            assert engine.pathing_footprint(query, bitmap) == expected, (radius, x, y, blocked)
         assert read(self_obj + 0x40)[0] == 0x20000000
         assert read(fine + 0xd4)[0] == 7
         assert read(fine + 0xa4)[0] == 0x02000000
@@ -413,6 +430,18 @@ def main():
                   random_direction_cases=random_cases, direction_max_absolute_error=direction_error,
                   overlap_cases=overlap_cases, overlap_max_absolute_error=overlap_error, turn_constant=turn,
                   overlap_threshold=struct.unpack('<f', machine.mem_read(0x6fcd53a0, 4))[0])
+    if engine:
+        report.update(engine_endpoint_queries=validation_cases,
+                      engine_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest())
+    if args.endpoint_fixture:
+        word = lambda value: struct.unpack('<I', struct.pack('<f', value))[0]
+        fixture = dict(binary_sha256=digest, dimensions=[16, 16], query=2,
+                       radius_words=[word(value) for value in radii],
+                       position_words=[[word(value) for value in pos] for pos in positions],
+                       blockers=blockers, results=endpoint_results,
+                       scope='complete original 16ee80 static terrain endpoints; dynamic self-suppression is separate')
+        args.endpoint_fixture.parent.mkdir(parents=True, exist_ok=True)
+        args.endpoint_fixture.write_text(json.dumps(fixture, indent=2) + '\n')
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

@@ -1,7 +1,7 @@
 #include "g_local.h"
 #include "../common/wc3_pathing_fine.h"
 
-typedef struct { int radius; uint8_t flags; } moveFineGraph_t;
+typedef struct { int size; uint8_t flags; } moveFineGraph_t;
 static wc3FineSearch_t move_fine;
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
@@ -63,15 +63,98 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 #include "common/world_w3.c"
 #include "server/sv_routing.c"
 
-/* TODO: preserve the engine's current radius/corner legality until the retail
- * footprint admission port is verified. Search ordering itself is retail. */
+/* Original 16ee80 checks a class-sized square, biased left/up for even sizes.
+ * ceil(radius) instead imposed 3/5-cell squares on retail's 1/2/3/4 classes. */
+static bool move_foot_ok(moveFineGraph_t const *graph, wc3FinePoint_t pos) {
+    wc3FineBox_t box = wc3_fine_cover((unsigned)graph->size - 1, pos);
+    int x0 = box.min.x, y0 = box.min.y, x1 = box.max.x, y1 = box.max.y;
+    if (x0 < 0 || y0 < 0 || x1 > (int)pathmap.width || y1 > (int)pathmap.height) return false;
+    uint32_t const *prefix = graph->flags == CM_PATHING_UNWALKABLE ? pathmap.obstacle_prefix :
+                             graph->flags == CM_PATHING_UNFLYABLE ? pathmap.nofly_prefix : NULL;
+    if (prefix) {
+        uint32_t stride = pathmap.width + 1;
+        return prefix[x1 + y1 * stride] - prefix[x0 + y1 * stride] -
+               prefix[x1 + y0 * stride] + prefix[x0 + y0 * stride] == 0;
+    }
+    for (int y = y0; y < y1; y++) for (int x = x0; x < x1; x++)
+        if (!is_pathable_node_original_flags(x, y, graph->flags)) return false;
+    return true;
+}
+
+static moveFineGraph_t move_foot_shape(pathAccelParams_t const *params) {
+    return (moveFineGraph_t){ (int)wc3_fine_class(params->radius / pathmap_cell_world_size()) + 1,
+                             normalize_blocked_flags(params->blocked_flags) };
+}
+
+/* Endpoint geometry is shared by routing and the Move step validator. */
+bool G_MovePathPointIsPathable(pathAccelParams_t const *params) {
+    if (!params || !params->from) return false;
+    if (!pathmap.width || !pathmap.height) return true;
+    vec2_t n = CM_GetNormalizedMapPosition(params->from->x, params->from->y);
+    moveFineGraph_t graph = move_foot_shape(params);
+    return move_foot_ok(&graph, (wc3FinePoint_t){ (int)floorf(n.x * pathmap.width), (int)floorf(n.y * pathmap.height) });
+}
+
+/* Keep existing nearest-ring endpoint correction while using the actual
+ * class footprint. Retail public admission/exclusion remains FOOT-04. */
+bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out) {
+    if (!params || !params->from || !out) return false;
+    if (G_MovePathPointIsPathable(params)) { *out = *params->from; return true; }
+    vec2_t n = CM_GetNormalizedMapPosition(params->from->x, params->from->y);
+    float fx = n.x * pathmap.width, fy = n.y * pathmap.height;
+    int tx = (int)floorf(fx), ty = (int)floorf(fy), bound = (int)MAX(pathmap.width, pathmap.height);
+    moveFineGraph_t graph = move_foot_shape(params);
+    for (int ring = 1; ring <= bound; ring++) {
+        float best = FLT_MAX;
+        wc3FinePoint_t chosen = {0};
+        bool found = false;
+        for (int y = ty - ring; y <= ty + ring; y++) for (int x = tx - ring; x <= tx + ring; x++) {
+            if (x != tx - ring && x != tx + ring && y != ty - ring && y != ty + ring) continue;
+            if (!move_foot_ok(&graph, (wc3FinePoint_t){x,y})) continue;
+            float dx = x + 0.5f - fx, dy = y + 0.5f - fy, dist = dx * dx + dy * dy;
+            if (!found || dist < best) { best = dist; chosen = (wc3FinePoint_t){x,y}; found = true; }
+        }
+        if (!found) continue;
+        *out = CM_GetDenormalizedMapPosition((chosen.x + 0.5f) / pathmap.width, (chosen.y + 0.5f) / pathmap.height);
+        return true;
+    }
+    return false;
+}
+
+/* TODO: retain Bresenham/corner sampling until the all-class retail sampled
+ * segment port is verified. Both adapters now consume the same class shape. */
+bool G_MovePathLineIsPathable(pathAccelParams_t const *params) {
+    if (!params || !params->from || !params->target) return false;
+    if (!pathmap.width || !pathmap.height) return true;
+    vec2_t a = CM_GetNormalizedMapPosition(params->from->x, params->from->y);
+    vec2_t b = CM_GetNormalizedMapPosition(params->target->x, params->target->y);
+    int x = (int)floorf(a.x * pathmap.width), y = (int)floorf(a.y * pathmap.height);
+    int bx = (int)floorf(b.x * pathmap.width), by = (int)floorf(b.y * pathmap.height);
+    int dx = abs(bx - x), dy = abs(by - y), sx = x < bx ? 1 : -1, sy = y < by ? 1 : -1;
+    int err = dx - dy, guard = dx + dy + 2;
+    moveFineGraph_t graph = move_foot_shape(params);
+    while (guard-- > 0) {
+        if (!move_foot_ok(&graph, (wc3FinePoint_t){x,y})) return false;
+        if (x == bx && y == by) return true;
+        int twice = 2 * err;
+        bool step_x = twice > -dy, step_y = twice < dx;
+        if (step_x && step_y && (!move_foot_ok(&graph, (wc3FinePoint_t){x + sx,y}) ||
+                                !move_foot_ok(&graph, (wc3FinePoint_t){x,y + sy}))) return false;
+        if (step_x) { err -= dy; x += sx; }
+        if (step_y) { err += dx; y += sy; }
+    }
+    return false;
+}
+
+/* For a legal current footprint, checking the new square and both diagonal
+ * side squares is equivalent to the original entering perimeter strips. */
 static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
     moveFineGraph_t const *graph = data;
     uint8_t edges = 0;
     bool legal[8];
     for (int dir = 0; dir < 8; dir++) {
         wc3FinePoint_t delta = wc3_fine_dirs[dir];
-        legal[dir] = is_pathable_node_original_for_radius_cells_flags(pos.x + delta.x, pos.y + delta.y, graph->radius, graph->flags);
+        legal[dir] = move_foot_ok(graph, (wc3FinePoint_t){ pos.x + delta.x, pos.y + delta.y });
     }
     for (int dir = 0; dir < 8; dir++) {
         wc3FinePoint_t delta = wc3_fine_dirs[dir];
@@ -85,13 +168,15 @@ static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
 /* Return the farthest currently visible point on the verified fine cell chain;
  * Move retains this turn while it travels. Geometry stays in the game world. */
 bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
-    point2_t start, goal;
+    vec2_t source, target;
     if (!params || !params->from || !params->target || !out || !pathmap.width || !pathmap.height) return false;
-    uint8_t flags = normalize_blocked_flags(params->blocked_flags);
-    if (!closest_pathable_node_original_flags(params->from, params->radius, flags, &start) ||
-        !closest_pathable_node_original_flags(params->target, params->radius, flags, &goal) ||
-        abs(start.x - goal.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - goal.y) > PATH_ACCEL_MAX_DISTANCE) return false;
-    moveFineGraph_t graph = { (int)ceilf(MAX(0.f, params->radius) / pathmap_cell_world_size()), flags };
+    pathAccelParams_t dest = *params; dest.from = params->target;
+    if (!G_ClosestMovePathPoint(params, &source) || !G_ClosestMovePathPoint(&dest, &target)) return false;
+    vec2_t a = CM_GetNormalizedMapPosition(source.x, source.y), b = CM_GetNormalizedMapPosition(target.x, target.y);
+    wc3FinePoint_t start = { (int)floorf(a.x * pathmap.width), (int)floorf(a.y * pathmap.height) };
+    wc3FinePoint_t goal = { (int)floorf(b.x * pathmap.width), (int)floorf(b.y * pathmap.height) };
+    if (abs(start.x - goal.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - goal.y) > PATH_ACCEL_MAX_DISTANCE) return false;
+    moveFineGraph_t graph = move_foot_shape(params);
     wc3FineRequest_t req = { .start = {start.x, start.y}, .goal = {goal.x, goal.y},
         .width = pathmap.width, .height = pathmap.height, .budget = BZ_WC3_FINE_WORK,
         .edges = move_fine_edges, .data = &graph };
@@ -100,7 +185,8 @@ bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
         wc3FineNode_t const *node = &move_fine.nodes[at];
         if (node->parent < 0) return false;
         vec2_t point = CM_GetDenormalizedMapPosition((node->pos.x + 0.5f) / pathmap.width, (node->pos.y + 0.5f) / pathmap.height);
-        if (CM_LineIsPathableForRadiusFlags(params->from, &point, params->radius, flags)) { *out = point; return true; }
+        pathAccelParams_t line = *params; line.target = &point;
+        if (G_MovePathLineIsPathable(&line)) { *out = point; return true; }
         at = node->parent;
     }
     return false;

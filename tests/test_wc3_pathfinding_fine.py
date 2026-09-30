@@ -1,6 +1,7 @@
 """Production WC3 search against frozen original-x86 static searches."""
 import ctypes
 import json
+import itertools
 from pathlib import Path
 import subprocess
 import sys
@@ -75,6 +76,22 @@ class FineSearchTests(unittest.TestCase):
                     self.assertEqual(list(out), [11 if state == 0 else 12, 121, 83, 3, 1,
                                                 2 if state == 1 else 1, int(state == 2)] if accepted
                                      else [10, cost, 83, 9, state, int(state == 1), 0])
+
+    def test_static_endpoints_match_complete_original_validator(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-footprint-endpoints-1.27.json').read_text())
+        queries = list(itertools.product(fixture['radius_words'], fixture['position_words'], fixture['blockers']))
+        self.assertEqual(len(queries), 1184)
+        self.assertEqual(len(fixture['results']), len(queries))
+        width, height = fixture['dimensions']
+        for engine in self.engines:
+            engine.pathing_footprint.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint8)]
+            engine.pathing_footprint.restype = ctypes.c_uint32
+            for (radius, pos, blocker), expected in zip(queries, fixture['results']):
+                cells = (ctypes.c_uint8 * (width * height))()
+                if blocker is not None:
+                    cells[blocker[1] * width + blocker[0]] = fixture['query']
+                query = (ctypes.c_uint32 * 6)(radius, *pos, width, height, fixture['query'])
+                self.assertEqual(engine.pathing_footprint(query, cells), expected)
 
     def test_zero_budget_counts_rejected_iteration_and_reuse_recovers(self):
         case = self.fixture['cases'][0]

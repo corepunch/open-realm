@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **155 entries**: **37** distinct original-code oracle
-scripts plus **25** declared variants, **79** archived JSONL audits and **14**
+The inventory now has **157 entries**: **37** distinct original-code oracle
+scripts plus **27** declared variants, **79** archived JSONL audits and **14**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 57 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 59 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 72 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -250,3 +250,16 @@ footprint admission, dynamic target exits, adaptive long routing or final
 trajectory parity. The fresh selected run is
 `fine-engine-validated-corpus/corpus-results.json`; the earlier full150-entry
 run remains historical. No full155-entry rerun is claimed.
+
+## Class-footprint engine comparisons
+
+`oracle-corridors-engine` compares24 complete original four-class corridor
+searches with production C plus24 reuse repeats. `oracle-endpoints-engine`
+compares1,184 complete original static endpoint validations with the production
+class/cover geometry. Its84 original dynamic validations remain original-only.
+`retail-footprint-endpoints-1.27.json` freezes the static inputs/results for
+asset-free O0/O2 tests. The selected fresh run is
+`foot-engine-validated-final-corpus/corpus-results.json`; no full157-entry rerun is
+claimed. Engine nearest-ring correction, Bresenham sampling and long shared
+fields retain the explicit limitations in the
+[class integration](retail-pathfinding-engine.md#retail-collision-classes-reach-routing-and-stepping).

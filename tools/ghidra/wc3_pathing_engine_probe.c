@@ -205,3 +205,13 @@ void pathing_fine_heap_ties(uint32_t out[8]) {
     }
     for (int i = 0; i < 8; i++) out[i] = wc3_fine_pop(&fine_probe).node;
 }
+
+/* Static 16ee80 geometry: raw radius/XY, dimensions and terrain-query bits. */
+uint32_t pathing_footprint(uint32_t const input[6], uint8_t const *cells) {
+    wc3FinePoint_t pos = { (int)wc3_float(wc3_floor_bits(input[1])), (int)wc3_float(wc3_floor_bits(input[2])) };
+    wc3FineBox_t box = wc3_fine_cover(wc3_fine_class(wc3_float(input[0])), pos);
+    if (box.min.x < 0 || box.min.y < 0 || (uint32_t)box.max.x > input[3] || (uint32_t)box.max.y > input[4]) return 0;
+    for (int y = box.min.y; y < box.max.y; y++) for (int x = box.min.x; x < box.max.x; x++)
+        if (cells[(uint32_t)y * input[3] + (uint32_t)x] & input[5]) return 0;
+    return 1;
+}

@@ -3674,9 +3674,8 @@ TEST(wc3_movement, unit_position_changes_after_move_frame) {
     T_ASSERT(unit->s.origin2.x > x0);
 }
 
-/* Route generation must expand obstacles by the mover radius, matching the
- * move-time collision test.  The point route hugs this wall too closely; a
- * Peasant-sized route has room to detour above it and reach the destination. */
+/* A radius16 mover is retail class1: a 2x2 footprint. Verify its actual covered
+ * cells throughout the detour, independently of the router's point predicate. */
 TEST(wc3_movement, move_order_detours_with_unit_collision_radius) {
     enum { CELLS = 16 };
     uint8_t pathmap[CELLS * CELLS] = {0};
@@ -3695,7 +3694,9 @@ TEST(wc3_movement, move_order_detours_with_unit_collision_radius) {
     for (int frame = 0; frame < 200 && unit->currentmove->think; frame++) {
         unit->currentmove->think(unit);
         CM_ProcessPathJobs(4096);
-        T_ASSERT(CM_PointIsPathableForRadius(&unit->s.origin2, unit->collision));
+        int cx = (int)floorf(unit->s.origin.x / 32), cy = (int)floorf(unit->s.origin.y / 32);
+        for (int y = cy - 1; y <= cy; y++) for (int x = cx - 1; x <= cx; x++)
+            T_ASSERT(x >= 0 && y >= 0 && x < CELLS && y < CELLS && !pathmap[y * CELLS + x]);
     }
 
     T_STREQ(unit->currentmove->animation, "stand");

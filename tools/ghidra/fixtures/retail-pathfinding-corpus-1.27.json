@@ -8364,6 +8364,84 @@
       ],
       "scope": "288 original static fine cell routes, costs, queue work and node creation match the production C search; 288 C reuse repeats; identical recovered legal graphs; engine radius/admission/smoothing are separate",
       "exclusions": []
+    },
+    {
+      "id": "oracle-corridors-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_grid.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}",
+        "--corridors"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "cardinal-corridors-engine-exact.json",
+      "expected_exit": 0,
+      "expected_status": "original-model-engine-exact",
+      "checks": {
+        "mismatches": {
+          "length": 0
+        },
+        "cases": {
+          "equal": 24
+        },
+        "engine_queries": {
+          "equal": 24
+        },
+        "engine_repeats": {
+          "equal": 24
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "24 original static cardinal-corridor searches across four footprint classes; C full cell chains/cost/work/node counts match with reuse; current geometry adapters and runtime producers separate",
+      "exclusions": []
+    },
+    {
+      "id": "oracle-endpoints-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_separation.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "footprint-endpoints-engine-exact.json",
+      "expected_exit": 0,
+      "expected_status": "original-model-engine-exact",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "filter_cases": {
+          "minimum": 1
+        },
+        "engine_endpoint_queries": {
+          "equal": 1184
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "1184 complete original static endpoint validations compare production C class/cover geometry; original dynamic84 validations still run without a C parity claim; excludes dynamic Move separation and full trajectories",
+      "exclusions": []
     }
   ],
   "fixtures": [
@@ -8542,6 +8620,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-fine-grid-1.27.json",
       "sha256": "9fb760fbb3883c816450cb562c5478af6a2bac0d387b55ae4bfaf6412a033363"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-footprint-endpoints-1.27.json",
+      "sha256": "f37355cbb2198f83f8d804c2397377ddd9020f83bcc8d6cdac32f0863539f501"
     }
   ]
 }

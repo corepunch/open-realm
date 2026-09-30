@@ -1426,8 +1426,9 @@ reopening. Queue attempts include stale pops and the rejected iteration after
 the budget. A ready generic field previously replaced the mover's retained
 turn; nearby reachable detours now retain the fine turn through travel.
 
-The wrapper deliberately keeps the existing radius/corner legality, endpoint
-correction and farthest-visible-cell adapter. Search work stays bounded to
+The wrapper now uses the [retail class shape](#retail-collision-classes-reach-routing-and-stepping) below,
+while keeping nearest-ring endpoint correction and the farthest-visible-cell
+adapter. FINE-01.4 originally retained the prior ceil-radius shape. Search work stays bounded to
 2,048 queue attempts for endpoints within48 cells per axis. One reusable game
 scratch block is832KiB; its sparse hash avoids allocating or clearing one node
 per map cell on each request. No saved edict or network layout changes. Direct
@@ -1462,3 +1463,46 @@ Reproduce the original/C comparison with the compiled probe shown above and:
 Add `--fixture tools/ghidra/fixtures/retail-fine-grid-1.27.json` only when explicitly
 regenerating the pinned original result fixture. Ghidra's heap and search-entry
 comments link these consumers without claiming the remaining admission policy.
+
+## Retail collision classes reach routing and stepping
+
+The former `ceil(radius/cell_size)` shape required a3x3 square for every positive
+radius up to one cell and a5x5 square above that. Original `14ad50` and complete
+`16ee80` endpoint calls instead select class0/1/2/3 at0.5/1/1.5 fine cells,
+covering1x1/2x2/3x3/4x4 cells. An even-sized square starts at
+`floor(position) - size/2`; it is biased toward decreasing X/Y. The authored
+collision scalar is a world value divided by32 by the original unit producer.
+
+`wc3_fine_class/cover` now supply these bounds. WC3's world adapter uses existing
+static obstacle prefix sums for constant-time endpoint tests. For a legal current
+footprint, checking the neighbor square and both diagonal side squares is
+equivalent to retail's entering perimeter strips: unchanged interior cells were
+already legal. This static equivalence does not infer dynamic object eligibility.
+
+Move consumes the shape in its nearby search, direct line, waypoint retention,
+step validator, displacement failure check, selection destination reservations
+and ordinary point-order correction. Destination correction still uses the
+existing nearest-ring policy. Line validation still uses Bresenham/corner
+sampling; original `168d30` sampling is a separate required port. Long shared
+fields retain their conservative ceil-radius shape until FOOT-01.5. Their
+unreachable result no longer vetoes a legal finer nearby route. These differences
+remain visible rather than being described as complete retail parity.
+
+`foot-corridors-original.json` executes24 complete original searches, reuse
+repeats and request reconstructions over widths0..5 and all four classes. Widths
+1/2/3/4 respectively are the first passable corridor.
+`foot-endpoints-engine-exact-o2.json` compares1,184 complete original static
+endpoint calls with production C geometry, including class boundaries, map edges,
+negative positions and each single blocked cell. Original dynamic84 cases also
+run, with no C parity claim. The frozen endpoint fixture is asset-free and runs
+at O0/O2. Fresh selected corpus results are in
+`foot-engine-validated-final-corpus/corpus-results.json`. Ghidra saves356 descriptive
+functions, including `149370/1492b0`, with existing119 prototypes unchanged.
+
+The engine passage regression covers seven near-boundary radii with corridor
+width below/equal/above each selected class. It first failed16 of42 geometry
+assertions. The fixed test also issues14 fitting Move orders, preserves each
+requested destination and advances the actual Move thinker. A pre-existing
+wall-detour regression still used the superseded3x3 predicate; it now checks
+the independently known four class1 cells against its raw fixture on every
+frame and retains exact final arrival. No wire, edict or save layout changes.

@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**68 done / 252 tasks; 184 remaining.** Counts describe this backlog,
+**69 done / 254 tasks; 185 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -39,6 +39,10 @@ as **IDs closed + artifact + next runnable ID**, not additional raw test counts.
 The denominator changes only when a new task is explicitly added or split.
 MAP-03.7 explicitly adds the inside-footprint engine failure discovered while auditing03.4;
 03.4 now closes the original getter/bridge mask and thirteen-tick journey; public construction/cache notification remain separately owned.
+FOOT-01.4/05 explicitly split engine class-footprint integration into completed
+nearby/direct/endpoint consumers and the remaining long/shared field consumer.
+Runtime radius producers and the full passage matrices remain FOOT-01.2/03 and
+FOOT-02; the bounded cardinal witnesses do not close them.
 FINE-01.4 explicitly owns incremental engine integration of the completed static
 search policy; it does not replace FINE-01.2/03 dynamic composition or FINE-02
 termination requirements.
@@ -88,8 +92,10 @@ Patrol admission/current ownership, endpoint reversal and queued/save lifecycle
 
 Prioritize a verified behavior change in the engine for each work slice. FINE-01.4 now puts the verified fine-search queue, heuristic and neighbor order
 into Move-owned nearby detours, including retention when a generic field is ready.
-Next port the footprint/admission policy and compare actual collision-sized
-route choices; keep dynamic eligibility and full-trajectory gates explicit.
+FOOT-01.4 now applies the verified class footprint to nearby routing, destination
+correction and actual Move stepping. Next synchronize long/shared field geometry
+(FOOT-01.5), then port the all-class segment sampler and admission scopes.
+Keep dynamic eligibility and full-trajectory gates explicit.
 Numeric inventory/alias leaves remain open, but do not expand them ahead of a
 concrete routing, stepping, collision or arrival payoff. MOVE-02.3 now connects
 authored speed modifiers to actual individual/group movement; NUM-01.20 retains
@@ -260,6 +266,9 @@ Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers,
 - [x] **FOOT-01.1** Authored collision conversion and the four fine-class thresholds are recovered and covered by the footprint oracle. Evidence: [footprints][footprints]; runtime producer coverage is not complete.
 - [ ] **FOOT-01.2** Change collision radius through a runtime producer; test below/equal/above each class boundary and assert geometry/class changes.
 - [ ] **FOOT-01.3** Trace group maximum and target-radius producers; assert updates after the largest member/target changes size or disappears.
+
+- [x] **FOOT-01.4** Apply the proven static 1/2/3/4-cell classes to engine fine routing, direct/step endpoint checks and point/group destination correction. Original24 cardinal corridor requests and1,184 complete endpoint validations pass; C endpoint geometry matches at O0/O2. The engine first reproduced16 class/corridor failures, then actual Move orders advance with exact destinations in14 fitting cases. Nearest-ring and Bresenham/corner adapters remain explicit partial policies. Evidence: [engine collision classes](retail-pathfinding-engine.md#retail-collision-classes-reach-routing-and-stepping).
+- [ ] **FOOT-01.5** Synchronize long/shared routing fields with the same game-owned class geometry; prove narrow winding passages beyond48 cells, cache separation/invalidation and existing group/worker behavior. Current generic ceil-radius fields cannot veto the finer local route, but their long-route graph remains conservative.
 
 ### FOOT-02 — Passage matrix
 

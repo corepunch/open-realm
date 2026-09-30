@@ -12,6 +12,7 @@
 #define BZ_WC3_FINE_HASH 32768 // slots; power of two, roughly half full at maximum node capacity
 
 typedef struct { int x, y; } wc3FinePoint_t;
+typedef struct { wc3FinePoint_t min, max; } wc3FineBox_t;
 typedef enum { WC3_FINE_NEW, WC3_FINE_OPEN, WC3_FINE_CLOSED } wc3FineState_t;
 typedef struct {
     wc3FinePoint_t pos;
@@ -37,6 +38,18 @@ typedef struct {
 static wc3FinePoint_t const wc3_fine_dirs[] = {
     {-1,-1}, {0,-1}, {1,-1}, {-1,0}, {1,0}, {-1,1}, {0,1}, {1,1}
 };
+
+/* 14ad50/16ee80 use the same three comparisons on the fine-cell scalar. */
+static inline unsigned wc3_fine_class(float radius) {
+    return radius >= 1.5f ? 3u : radius >= 1.0f ? 2u : radius >= 0.5f ? 1u : 0u;
+}
+
+/* Half-open 1/2/3/4-cell bounds from original 1492b0/16ee80. */
+static inline wc3FineBox_t wc3_fine_cover(unsigned cls, wc3FinePoint_t pos) {
+    int size = (int)cls + 1;
+    wc3FinePoint_t min = { pos.x - size / 2, pos.y - size / 2 };
+    return (wc3FineBox_t){ min, { min.x + size, min.y + size } };
+}
 
 /* Original 14a560's integer heuristic requires reopening cheaper closed nodes. */
 static uint32_t wc3_fine_heuristic(wc3FinePoint_t pos, wc3FinePoint_t goal) {

@@ -199,12 +199,20 @@ static float point_segment_distance(vec2_t const *a, vec2_t const *b, vec2_t con
     return Vector2_distance(&closest, p);
 }
 
-/* Is the position 'cand' free for 'self' (static world + other units)?  On a
- * unit rejection, records the blocking unit in trymove_blocker (NULL otherwise)
- * so the slide can apply speed-priority give-way. */
+/* All Move geometry consumers use the same retail footprint class. */
+static bool move_static_point(edict_t const *self, vec2_t const *point) {
+    pathAccelParams_t params = { point, NULL, self->collision, M_UnitStaticPathingFlags(self) };
+    return G_MovePathPointIsPathable(&params);
+}
+
+static bool move_static_line(edict_t const *self, vec2_t const *point, float radius) {
+    pathAccelParams_t params = { &self->s.origin2, point, radius, M_UnitStaticPathingFlags(self) };
+    return G_MovePathLineIsPathable(&params);
+}
+
+/* Check static pathing and live units; retain the rejecting unit for give-way. */
 static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
                                  moveCollisionPolicy_t collision_policy) {
-    uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
     trymove_blocker = NULL;
     /* Pathing-disabled units (SetUnitPathing(false), scripted moves) ignore
      * all collision, matching the old unconditional translate. */
@@ -212,13 +220,12 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
         return true;
 
     /* Static world: terrain + baked building footprints (pathmap.original). */
-    if (!CM_PointIsPathableForRadiusFlags(cand, self->collision, blocked_flags))
+    if (!move_static_point(self, cand))
         return false;
     /* WC3's pathing grid rejects a swept step that cuts a diagonal corner. Keep
      * the escape case for units spawned inside stale/changed pathing, where the
      * endpoint remains the authoritative legal position. */
-    if (CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags) &&
-        !CM_LineIsPathableForRadiusFlags(&self->s.origin2, cand, self->collision, blocked_flags))
+    if (move_static_point(self, &self->s.origin2) && !move_static_line(self, cand, self->collision))
         return false;
 
     if (collision_policy == MOVE_IGNORE_UNITS)
@@ -575,7 +582,7 @@ static bool unit_accel_direction_to_point(edict_t *self, vec2_t const *target,
     routePath_t *path = &self->movement.path;
     if (path->valid && (Vector2_distance(&path->target, target) >= 1.0f ||
         fabsf(path->radius - radius) >= 0.01f || Vector2_distance(params.from, &path->waypoint) <= CM_PathCellWorldSize() ||
-        !CM_LineIsPathableForRadiusFlags(params.from, &path->waypoint, radius, params.blocked_flags))) path->valid = false;
+        !move_static_line(self, &path->waypoint, radius))) path->valid = false;
     if (!path->valid) {
         if (!G_FindMovePathWaypoint(&params, &path->waypoint)) return false;
         path->target = *target; path->radius = radius; path->valid = true;
@@ -614,7 +621,7 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
      * exact point when it is directly reachable; otherwise use the same
      * collision-sized mover-owned A* accelerator used while shared fields are
      * pending.  Live units remain ignored by the steering/move policy. */
-    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, point, self->collision, M_UnitStaticPathingFlags(self))) {
+    if (move_static_line(self, point, self->collision)) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = Vector2_sub(point, &self->s.origin2);
@@ -651,7 +658,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
      * Move orders own radius-valid reserved destinations, so their route must
      * use the same footprint as move-time collision; point routing previously
      * sent units into narrow gaps and touching obstacle corners. */
-    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
+    if (move_static_line(self, &self->goalentity->s.origin2, radius)) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
@@ -661,8 +668,10 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         /* A completed generic field previously discarded the mover's fine
          * turn. Keep retail route choices throughout nearby detours, while
          * known unreachable/adjusted endpoints retain their interaction path. */
-        bool fine = !heatmap || (!CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y) &&
-                                CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y));
+        /* TODO: generic fields still use their prior ceil-radius footprint.
+         * They cannot veto a legal finer class route through a narrow passage. */
+        bool fine = unit_routes_to_location(self) || !heatmap ||
+                    !CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y);
         if (fine && unit_accel_direction(self, radius, &dir)) {
             unit_apply_heading(self, &dir, policy);
             return;
@@ -745,15 +754,13 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
         return;
     vec2_t to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     vec2_t dir;
-    uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
-
     self->movement.heading = self->s.angle;
     self->movement.flow_generation = 0;
     self->movement.flow_goal_reached = false;
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
 
-    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
+    if (move_static_line(self, &self->goalentity->s.origin2, radius)) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
@@ -990,7 +997,8 @@ static bool move_try_slot(vec2_t const *point,
                           uint32_t num_reserved,
                           vec2_t *out) {
     vec2_t pathable = *point;
-    if (!CM_ClosestPathablePointForRadiusFlags(point, radius, blocked_flags, &pathable)) {
+    pathAccelParams_t query = { point, NULL, radius, blocked_flags };
+    if (!G_ClosestMovePathPoint(&query, &pathable)) {
         return false;
     }
     if (move_slot_overlaps(&pathable, radius, reserved, num_reserved)) {
@@ -1494,7 +1502,7 @@ static void ai_move_walk(edict_t *ent) {
          * the old early return never evaluated progress and walked forever.
          * TODO: match the retail retry/task cadence after NUM-02.3; use the
          * existing engine progress budget until its simulation clock is ported. */
-        if (!CM_PointIsPathableForRadiusFlags(&ent->s.origin2, ent->collision, M_UnitStaticPathingFlags(ent)) &&
+        if (!move_static_point(ent, &ent->s.origin2) &&
             move_is_blocked(ent, Vector2_distance(&ent->s.origin2, &ent->movement.displacement_target), move_distance)) {
             move_cancel_displacement(ent);
             ent->stand(ent);
@@ -1704,7 +1712,8 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
                                      i,
                                      &target)) {
             target = *location;
-            CM_ClosestPathablePointForRadiusFlags(location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
+            pathAccelParams_t query = { location, NULL, ent->collision, M_UnitStaticPathingFlags(ent) };
+            G_ClosestMovePathPoint(&query, &target);
         }
         reserved[i] = (moveSlot_t){ target, ent->collision };
         if (!have_confirmation) {

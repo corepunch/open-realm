@@ -556,6 +556,40 @@ TEST(wc3_pathfinding, nearby_detour_accelerator_respects_collision_radius) {
     T_ASSERT(!G_FindMovePathWaypoint(&wide, &waypoint));
 }
 
+/* Original 14ad50/16ee80 use widths 1/2/3/4 at radius .5/1/1.5 cells;
+ * ceil(radius) around a centre requires wider corridors than retail. */
+TEST(wc3_pathfinding, retail_collision_classes_fit_their_cardinal_corridors) {
+    static float const radii[] = {0.499f, 0.5f, 0.999f, 1.0f, 1.499f, 1.5f, 2.0f};
+    static int const sizes[] = {1, 2, 2, 3, 3, 4, 4};
+    uint8_t cells[16 * 16];
+    vec2_t from = {8.25f, 4.75f}, target = {8.25f, 11.75f}, step = {8.25f, 5.75f}, point;
+
+    for (int i = 0; i < 7; i++) for (int width = sizes[i] - 1; width <= sizes[i] + 1; width++) {
+        reset_entities();
+        setup_test_world();
+        memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells));
+        for (int y = 0; y < 16; y++) for (int x = 8 - width / 2; x < 8 - width / 2 + width; x++)
+            cells[y * 16 + x] = 0;
+        setup_test_pathmap(16, 16, cells);
+        edict_t *unit = make_unit_at(from.x, from.y);
+        unit->collision = radii[i];
+        pathAccelParams_t params = { &from, &target, radii[i], CM_PATHING_UNWALKABLE };
+        T_EQ(G_FindMovePathWaypoint(&params, &point), width >= sizes[i]);
+        T_EQ(M_MoveIsValid(unit, &step), width >= sizes[i]);
+        if (width >= sizes[i]) {
+            unit->unitinfo.MoveSpeed = 2.0f;
+            unit->s.angle = (float)M_PI / 2;
+            T_ASSERT(unit_issueorder(unit, "move", &target));
+            T_FEQ(unit->goalentity->s.origin.x, target.x, 0.001f);
+            T_FEQ(unit->goalentity->s.origin.y, target.y, 0.001f);
+            unit->currentmove->think(unit);
+            T_ASSERT(unit->s.origin.y > from.y);
+        }
+    }
+    reset_entities();
+    setup_test_world();
+}
+
 TEST(wc3_pathfinding, heatmap_cache_separates_collision_radius) {
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);

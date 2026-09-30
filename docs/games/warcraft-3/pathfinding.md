@@ -11,7 +11,7 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 `games/warcraft-3/game/skills/s_move.c` owns per-tick steering and local block-and-slide. `server/sv_routing.c` owns static pathmap line tests, connectivity queries, and cached flow fields. Harvest target selection remains in `skills/s_harvest_lumber.c`; the router never changes a tree target by itself.
 
 Move's scalar turn update and scripted movement-window gate now use
-[verified retail arithmetic](retail-pathfinding-engine.md). This is an incremental
+[verified retail arithmetic](retail-pathfinding-engine.md). Static class footprints now also reach [routing, destinations and actual steps](retail-pathfinding-engine.md#retail-collision-classes-reach-routing-and-stepping). This is an incremental
 integration; the routing/velocity pipeline does not yet have full retail parity.
 Individual stepping now consumes the same existing status/aura speed composition as
 selection-group caps. Actual Cripple/Bloodlust Move/expiry tests cover slowing,
@@ -87,7 +87,7 @@ Game routing no longer uses the old lifetime quota of two synchronous whole-map 
 
 The value is clamped to 256-65,536. This keeps SPFA relaxation bounded without permanently denying later destinations. Only one miss is built at a time; requests for other destinations retry after the active job completes. Static-pathing invalidation cancels the in-progress job along with cached generations.
 
-Nearby detours do not wait for that whole field. `G_FindMovePathWaypoint()` runs the [ported retail fine-search policy](retail-pathfinding-engine.md#retail-fine-search-drives-nearby-detours) for endpoints within 48 pathing cells, charges at most 2,048 queue attempts, and returns the farthest recovered path point with a collision-sized clear line from the mover. Move retains that waypoint until it reaches it, the target changes, or static pathing invalidates the segment; publishing a generic flow field no longer discards the turn. A failed or out-of-envelope acceleration request falls back to the shared incremental field, so long routes remain frame-budgeted.
+Nearby detours do not wait for that whole field. `G_FindMovePathWaypoint()` runs the [ported retail fine-search policy](retail-pathfinding-engine.md#retail-fine-search-drives-nearby-detours) for endpoints within 48 pathing cells, charges at most 2,048 queue attempts, and returns the farthest recovered path point with a class-sized clear line from the mover. Endpoint shape is now retail1/2/3/4-cell geometry; nearest-ring correction and Bresenham/corner sampling remain explicit adapters. Move retains that waypoint until it reaches it, the target changes, or static pathing invalidates the segment; publishing a generic flow field no longer discards the turn. A failed or out-of-envelope acceleration request falls back to the shared incremental field, so long routes remain frame-budgeted.
 
 While a resumable request is pending, `unit_changeangle*()` leaves both `movement.flow_generation == 0` and `movement.flow_direct == false`. `unit_moveindirection()` treats that pair as "no heading resolved this tick" and does not commit a step. This shared guard is important: a caller must never turn a pending route into movement along the unit's stale facing.
 
