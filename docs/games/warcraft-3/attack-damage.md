@@ -262,4 +262,5 @@ The combat tests cover representative type multipliers, Divine, data-driven cons
 
 ## See Also
 
+- [Group Attack And Chase Gaps](group-attack-chase-gaps.md) — facing, target identity, range geometry, moving-target refresh, and acceptance coverage still outstanding.
 - [Unit Altitude And Support Surfaces](unit-altitude.md) — projectile target Z adds the target model-origin altitude and authored `impactZ`.
