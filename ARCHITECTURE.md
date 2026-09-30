@@ -227,6 +227,7 @@ For in-depth details on specific engine subsystems, consult the following dedica
 | Fog of War Generation & Algorithms | [docs/architecture/fog-of-war-algorithms.md](docs/architecture/fog-of-war-algorithms.md) |
 | Shared Model Shader & Lighting Uniforms | [docs/architecture/model-shader.md](docs/architecture/model-shader.md) |
 | Server-Selected Presentation Effects | [docs/architecture/server-selected-effects.md](docs/architecture/server-selected-effects.md) |
+| Game / Client Boundary (Universal Client) | [docs/architecture/game-client-boundary.md](docs/architecture/game-client-boundary.md) |
 | Code Patterns & Struct Disciplines That Work | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |
 
 ### Game-Specific Implementations
@@ -258,6 +259,12 @@ For in-depth details on specific engine subsystems, consult the following dedica
     (`CL_ParseGameCommand`, `SV_*`, `R_*`) is also a violation. Use the existing function-table extension
     point instead; gameplay presentation uses server-authored layout/window contracts, never a `menu.*` hook.
     If no hook exists, add a function-table entry rather than using `#ifdef` as a substitute.
+- **Game Logic in the Game Module, Universal Client**: `games/<game>/game/` is the project's `game.dll` and owns every
+  rule, formula, waveform, timer and state machine. `client/` is a universal `client.dll`: it decodes messages,
+  interpolates between two server samples, predicts the local player's own generic input and draws server-authored
+  payloads. New wire fields carry *results* the client can use as-is, never *parameters* it has to evaluate; render-rate
+  presentation that needs a game's assets belongs in `games/<game>/renderer/`. A change can be fully game-agnostic in
+  its naming and still break this rule. See [game/client boundary](docs/architecture/game-client-boundary.md).
 - **Network Contract Stability**: `entityState_t` and `playerState_t` are tight network contracts. Never add fields without careful justification; prefer existing fields, configstrings, or server-authored UI payloads.
 - **Data-Oriented & id-Tech Idioms**: Follow Quake 2 patterns (`g_*.c`, `cl_*.c`, `sv_*.c`, `r_*.c`). Favor flat, memory-mapped structs, single-pass schema tables, and thin interfaces over heavy OOP abstractions.
 - **Ability-Owned Gameplay Behavior**: Split gameplay behaviors into their owning abilities. Orders, eligibility, timers,
