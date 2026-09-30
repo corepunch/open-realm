@@ -6016,6 +6016,7 @@ TEST(wc3_api, unit_in_range_queue_full_does_not_crash_target_movement) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *subject = NULL;
     edict_t *target = NULL;
+    /* Move the target into rangeSubject's radius to exercise the saturated event queue. */
     vec2_t destination = {600.0f, 0.0f};
 
     reset_entities(); setup_test_world(); currentplayer = NULL;
