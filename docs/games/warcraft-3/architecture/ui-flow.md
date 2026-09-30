@@ -134,6 +134,9 @@ On scene-model load, the background plays its authored `Birth` sequence for the 
 then holds `Stand`. The archived `ui_skip_transitions` cvar defaults to `0`; setting it to `1` skips this intro, panel
 Birth/Death sequences, and sampled panel movement while still running the screen handoff callbacks. This is MDX
 model-particle rendering, not the map/JASS weather system.
+The main-menu scene passes the background's normalized `Stand` phase from menu time because `SetEntityAnimFrame` runs
+before `RenderFrame` installs the scene clock; reading the renderer's previous view time would freeze the background at
+the last map frame on return to the menu. Backgrounds without a `Birth` sequence use the same clocked `Stand` path.
 `UI_GotoGluePanel(GLUEDEST, exited, changed)` accepts `{panel, tab, page}`. `tab` selects an authored left-panel pose;
 `page` distinguishes content pages that share that pose (Options Gameplay, Video, and Sound). Each `GLUELAYER` retains
 its own current/target destination, phase, and start time. The right layer uses only the panel family. RoC and TFT share

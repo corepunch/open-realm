@@ -261,13 +261,25 @@ static void UI_GlueAdvanceTransition(void) {
     }
 }
 
+/* SetEntityAnimFrame runs before RenderFrame installs this scene's time. Pass an
+ * explicit sequence phase so a prior map view clock cannot freeze the menu. */
+static cstring_t UI_GlueBackgroundStand(refExport_t *renderer, string_t anim, size_t anim_size) {
+    uint32_t duration;
+
+    if (!renderer->GetModelAnimationDuration ||
+        !renderer->GetModelAnimationDuration(scene.background, "Stand", &duration) || !duration)
+        return "Stand";
+    snprintf(anim, anim_size, "Stand@%.4f", (float)(M_Time() % duration) / (float)duration);
+    return anim;
+}
+
 /* The selected background's authored Birth settles into its stable Stand pose. */
 static cstring_t UI_GlueBackgroundAnimation(refExport_t *renderer, string_t anim, size_t anim_size) {
     uint32_t elapsed;
 
     if (UI_GlueSkipTransitions()) {
         scene.background_birth_complete = true;
-        return "Stand";
+        return UI_GlueBackgroundStand(renderer, anim, anim_size);
     }
     if (!scene.background_birth_started) {
         scene.background_birth_started = true;
@@ -278,14 +290,14 @@ static cstring_t UI_GlueBackgroundAnimation(refExport_t *renderer, string_t anim
             fprintf(stderr, "UI: glue background '%s' has no valid Birth sequence duration; using Stand\n",
                     UI_GlueBackgroundPath());
             scene.background_birth_complete = true;
-            return "Stand";
+            return UI_GlueBackgroundStand(renderer, anim, anim_size);
         }
     }
-    if (scene.background_birth_complete) return "Stand";
+    if (scene.background_birth_complete) return UI_GlueBackgroundStand(renderer, anim, anim_size);
     elapsed = M_Time() - scene.background_birth_start;
     if (elapsed >= scene.background_birth_duration) {
         scene.background_birth_complete = true;
-        return "Stand";
+        return UI_GlueBackgroundStand(renderer, anim, anim_size);
     }
     snprintf(anim, anim_size, "Birth@%.4f",
              (float)elapsed / (float)scene.background_birth_duration);
