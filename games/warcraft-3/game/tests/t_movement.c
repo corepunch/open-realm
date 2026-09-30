@@ -5023,6 +5023,66 @@ TEST(wc3_movement, replacement_point_order_cancels_pending_cargo_unload) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_movement, cargo_unload_rejects_point_when_no_pathable_cell_exists) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    uint8_t const blocked_pathmap[] = { 2 };
+    gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    cstring_t drop[] = { "button", "Adro" };
+    edict_t *clent = &g_edicts[0];
+    vec2_t destination = { 300, 300 };
+    setup_test_world();
+    edict_t *transport = cargo_unload_transport();
+    transport->svflags |= SVF_MONSTER;
+    transport->collision = 0;
+    umove_t *old_move = transport->currentmove;
+    edict_t *old_goal = transport->goalentity;
+    CM_SetupTestPathmap(1, 1, blocked_pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0, 0}, .max = {512, 512}));
+    G_SelectEntity(clent->client, transport);
+    level.time = 1000;
+    G_ClientCommand(clent, 2, drop);
+    T_ASSERT(clent->client->menu.on_location_selected != NULL);
+    if (clent->client->menu.on_location_selected)
+        T_ASSERT(!clent->client->menu.on_location_selected(clent, &destination));
+    T_EQ(transport->cargo.count, 3);
+    T_EQ(transport->currentmove, old_move);
+    T_EQ(transport->goalentity, old_goal);
+    T_ASSERT(!transport->movement.cargo_unload_pending);
+    gi.Write = old_write; gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, cargo_unload_ability_removal_clears_pending_arrival) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    cstring_t drop[] = { "button", "Atdp" };
+    edict_t *clent = &g_edicts[0];
+    vec2_t destination = { 512, 512 };
+    setup_test_world();
+    edict_t *transport = cargo_unload_transport();
+    transport->svflags |= SVF_MONSTER;
+    transport->collision = 0;
+    G_SelectEntity(clent->client, transport);
+    level.time = 1000;
+    G_ClientCommand(clent, 2, drop);
+    if (clent->client->menu.on_location_selected)
+        T_ASSERT(clent->client->menu.on_location_selected(clent, &destination));
+    T_ASSERT(transport->movement.cargo_unload_pending);
+    abilityitem_t item = S_AbilityItem(MAKEFOURCC('A','t','d','p'));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    T_ASSERT(S_AbilityMessage(transport, A_DISABLE, &call));
+    T_ASSERT(!transport->movement.cargo_unload_pending);
+    T_EQ(transport->cargo.count, 3);
+    gi.Write = old_write; gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_movement, unload_all_round_trip_resumes_remaining_cargo) {
     cstring_t filename = "/tmp/openwarcraft3-cargo-unload-save.bin";
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);

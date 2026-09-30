@@ -285,8 +285,8 @@ static bool cargo_begin_unload_at(edict_t *transport, vec2_t const *point, uint3
     if (!transport || !point || !transport->inuse || !transport->cargo.count || M_IsDead(transport) ||
         transport->paused || transport->stunned || !cargo_living_hold_alias(transport) || !ability_code) return false;
     destination = *point;
-    CM_ClosestPathablePointForRadiusFlags(point, transport->collision,
-                                          M_UnitStaticPathingFlags(transport), &destination);
+    if (!CM_ClosestPathablePointForRadiusFlags(point, transport->collision,
+                                               M_UnitStaticPathingFlags(transport), &destination)) return false;
     cargo_clear_pending_unload(transport);
     waypoint = Waypoint_add(&destination);
     order_move(transport, waypoint);
@@ -751,6 +751,11 @@ static void drop_command(edict_t *clent) {
 
 BZ_ABILITY_PROC(CAbilityCargoDrop) {
     if (msg == A_MOVE_ARRIVE && cargo_unload_move_arrive(ent, call)) return true;
+    if (msg == A_DISABLE && ent && call && call->item && ent->movement.cargo_unload_pending &&
+        call->item->code == ent->movement.cargo_unload_ability) {
+        cargo_clear_pending_unload(ent);
+        return true;
+    }
     if (msg == A_MOVE_LEAVE && ent && ent->movement.cargo_unload_pending) {
         cargo_clear_pending_unload(ent);
         return true;
