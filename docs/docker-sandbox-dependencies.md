@@ -29,12 +29,19 @@ sbx env run
 ```
 
 The default environment installs the normal OpenRealm build/debug dependencies,
-radare2, Wine, Ghidra, Frida, and the Xvfb packages used for headless campaign
-runs. The toolkit versions and setup commands are listed below. To include the
+radare2, and the Xvfb packages used for headless campaign runs. To include the
 optional FFmpeg development libraries as well:
 
 ```sh
 sbx env run --env-arg ffmpeg=1
+```
+
+Wine, Ghidra, and Frida for retail-executable analysis are also opt-in, because
+they add an i386 package architecture and several hundred MB of downloads that
+ordinary build/test sandboxes do not need:
+
+```sh
+sbx env run --env-arg retail_tools=1
 ```
 
 Changing the kit selection or its arguments affects sandbox creation. Recreate an
@@ -92,14 +99,16 @@ liblz4, and xxHash development files.
 
 ## Wine, Ghidra, and Frida
 
-The `openrealm-dev` mixin enables i386 packages and installs `wine`, `wine64`,
+With `retail_tools=1`, the `openrealm-dev` mixin enables i386 packages and installs `wine`, `wine64`,
 and `libwine:i386` so the 32-bit retail Warcraft III executable can run under
 Wine. It installs OpenJDK 21 for Ghidra and creates `/opt/openrealm-tools` with
 Ghidra 12.1.4 and a Frida virtual environment containing Frida 17.19.0 and
 `frida-tools` 14.10.4. The Ghidra archive and Windows Frida server archive are
 SHA-256 checked in `tools/docker-sandbox/openrealm-dev/spec.yaml` before use.
 
-The mixin adds these commands to `PATH`:
+This install path has not been exercised end to end (the `sbx` CLI was unavailable when it was written);
+verify it the first time it is used and correct package names or release URLs here. The mixin adds these
+commands to `PATH`:
 
 ```sh
 wine --version
