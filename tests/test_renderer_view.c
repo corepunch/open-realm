@@ -8,7 +8,11 @@ static bool camera;
 static int entities, scenes;
 static int particle_scene_begins, particle_scene_ends, particle_draws;
 static particleScene_t *captured_particle_scene;
+static particleScene_t *captured_particle_scenes[16];
+static int particle_scene_clears;
 static int particle_order;
+static handle_t test_particle_scene_alloc(long size);
+static void test_particle_scene_free(handle_t ptr);
 
 TEST(renderer_view, building_ubersplat_tracks_runtime_structure_flag) {
     renderEntity_t entity = { .splat = (texture_t const *)(uintptr_t)1 };
@@ -40,7 +44,7 @@ void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source
     (void)source_model;
     (void)source_instance_id;
 }
-void R_ReleaseEntityCameraEvents(uintptr_t instance_id) { (void)instance_id; }
+void R_ReleaseGameEntityCameraEvents(uintptr_t instance_id) { (void)instance_id; }
 void R_DrawEntities(void) {
     drawn = tr.viewDef;
     entities++;
@@ -49,6 +53,8 @@ void R_DrawEntities(void) {
 void R_RenderView(void) { drawn = tr.viewDef; scenes++; }
 cparticle_t *R_BeginParticleScene(particleScene_t *scene) {
     captured_particle_scene = scene;
+    if (particle_scene_begins < (int)(sizeof(captured_particle_scenes) / sizeof(captured_particle_scenes[0])))
+        captured_particle_scenes[particle_scene_begins] = scene;
     particle_scene_begins++;
     particle_order = particle_order * 10 + 1;
     return NULL;
@@ -58,6 +64,10 @@ void R_EndParticleScene(particleScene_t *scene, cparticle_t *previous) {
     T_NULL(previous);
     particle_scene_ends++;
     particle_order = particle_order * 10 + 3;
+}
+void R_ClearParticleScene(particleScene_t *scene) {
+    *scene = (particleScene_t){0};
+    particle_scene_clears++;
 }
 void R_DrawParticles(void) {
     drawn = tr.viewDef;
@@ -103,6 +113,8 @@ bool R_ExtractEntityCamera(renderEntity_t const *ent, float aspect, viewDef_t *v
 TEST(renderer_view, isolated_entity_camera_draws_its_particle_scene) {
     renderEntity_t entity = {0};
     viewDef_t saved = tr.viewDef;
+    void *(*saved_alloc)(long) = ri.MemAlloc;
+    void (*saved_free)(handle_t) = ri.MemFree;
     viewDef_t view = {
         .time = 1234, .deltaTime = 16,
         .rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL |
@@ -112,6 +124,8 @@ TEST(renderer_view, isolated_entity_camera_draws_its_particle_scene) {
 
     camera = true;
     particle_scene_begins = particle_scene_ends = particle_draws = particle_order = 0;
+    ri.MemAlloc = test_particle_scene_alloc;
+    ri.MemFree = test_particle_scene_free;
     R_RenderFrame(&view);
 
     T_EQ(particle_scene_begins, 1);
@@ -121,6 +135,56 @@ TEST(renderer_view, isolated_entity_camera_draws_its_particle_scene) {
     T_EQ(drawn.time, view.time);
     T_EQ(drawn.deltaTime, view.deltaTime);
     T_EQ(memcmp(&tr.viewDef, &saved, sizeof(saved)), 0);
+    R_ReleaseEntityCameraEvents(entity.instance_id);
+    R_ClearEntityCameraParticleScenes();
+    ri.MemAlloc = saved_alloc;
+    ri.MemFree = saved_free;
+}
+
+static handle_t test_particle_scene_alloc(long size) { return calloc(1, (size_t)size); }
+static void test_particle_scene_free(handle_t ptr) { free(ptr); }
+
+TEST(renderer_view, entity_camera_particle_scenes_follow_instance_lifecycle) {
+    renderEntity_t entity = {0};
+    viewDef_t view = {
+        .time = 1234, .deltaTime = 16,
+        .rdflags = RDF_NOWORLDMODEL | RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES,
+        .entities = &entity, .num_entities = 1,
+    };
+    void *(*saved_alloc)(long) = ri.MemAlloc;
+    void (*saved_free)(handle_t) = ri.MemFree;
+    particle_scene_begins = particle_scene_ends = particle_draws = particle_scene_clears = 0;
+    memset(captured_particle_scenes, 0, sizeof(captured_particle_scenes));
+    ri.MemAlloc = test_particle_scene_alloc;
+    ri.MemFree = test_particle_scene_free;
+    camera = true;
+
+    entity.instance_id = 101;
+    R_RenderFrame(&view);
+    entity.instance_id = 202;
+    R_RenderFrame(&view);
+    entity.instance_id = 101;
+    R_RenderFrame(&view);
+    T_NE(captured_particle_scenes[0], captured_particle_scenes[1]);
+    T_EQ(captured_particle_scenes[0], captured_particle_scenes[2]);
+
+    R_ReleaseEntityCameraEvents(101);
+    T_EQ(particle_scene_clears, 1);
+    R_RenderFrame(&view);
+    T_NE(captured_particle_scenes[0], captured_particle_scenes[3]);
+    R_ReleaseEntityCameraEvents(101);
+    R_ReleaseEntityCameraEvents(202);
+    R_ClearEntityCameraParticleScenes();
+
+    view.rdflags &= ~RDF_ISOLATED_PARTICLES;
+    R_RenderFrame(&view);
+    T_EQ(particle_scene_clears, 4); /* released instances plus this transient camera scene */
+    view.rdflags = RDF_NOWORLDMODEL | RDF_NOPARTICLES;
+    entity.instance_id = 303;
+    R_RenderFrame(&view);
+    T_EQ(particle_scene_clears, 5); /* custom no-world model cameras also discard suppressed emissions */
+    ri.MemAlloc = saved_alloc;
+    ri.MemFree = saved_free;
 }
 
 /* HUD consumers must still see the world camera after every kind of no-world scene. */

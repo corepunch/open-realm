@@ -828,6 +828,7 @@ void R_ShutdownRenderer(void) {
         return;
     }
     renderer_shutdown = true;
+    R_ClearEntityCameraParticleScenes();
     R_ShutdownModels();
     R_Shutdown();
     R_ShutdownModelShader();

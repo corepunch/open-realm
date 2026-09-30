@@ -938,7 +938,8 @@ void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen) {
     viewDef_t vd = {0};
     vd.viewport     = viewport;
     vd.scissor      = viewport;
-    vd.rdflags      = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+    vd.rdflags      = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG |
+                      RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES;
     vd.num_entities = 1;
     vd.entities     = &entity;
     if (frame->buffer.size == sizeof(uiModel_t)) {

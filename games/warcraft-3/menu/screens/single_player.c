@@ -98,6 +98,12 @@ static uint32_t selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
 static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
 static wc3CampaignProgress_t campaign_progress;
 
+static void SinglePlayer_ReleaseCampaignBackdropState(void) {
+    refExport_t *renderer = mi.GetRenderer ? mi.GetRenderer() : NULL;
+    if (renderer && renderer->ReleaseEntityCameraEvents)
+        renderer->ReleaseEntityCameraEvents((uintptr_t)&campaign_background_model);
+}
+
 static bool SinglePlayerMenu_LoadScreen(void) {
     if (SinglePlayerMenu_Load(&single_player)) {
         UI_EnsureFDF("UI\\FrameDef\\Glue\\MapListBox.fdf");
@@ -499,6 +505,7 @@ static void SinglePlayer_SetView(singlePlayerView_t view) {
 
 static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campaign) {
     if (single_player.CampaignBackdrop_2 && campaign && campaign->background[0]) {
+        SinglePlayer_ReleaseCampaignBackdropState();
         campaign_background_model = UI_LoadModel(campaign->background, true);
         single_player.CampaignBackdrop_2->Portrait.model = campaign_background_model;
         fprintf(stderr, "[UI] Campaign backdrop: skin=\"%s\" model_idx=%u\n",
@@ -514,6 +521,7 @@ static void SinglePlayer_BeginCampaignBackdropBirth(singlePlayerCampaign_t const
     refExport_t *renderer = mi.GetRenderer();
     model_t const *model = UI_GetModel(campaign_background_model);
 
+    SinglePlayer_ReleaseCampaignBackdropState();
     campaign_background_birth_started = false;
     campaign_background_birth_complete = false;
     campaign_background_birth_start = M_Time();
@@ -961,6 +969,7 @@ static void SinglePlayerMenu_Init(void) {
 }
 
 static void SinglePlayerMenu_Shutdown(void) {
+    SinglePlayer_ReleaseCampaignBackdropState();
 }
 
 static void SinglePlayerMenu_Refresh(int msec) {

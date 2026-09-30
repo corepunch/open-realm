@@ -843,7 +843,8 @@ static void UI_DrawPortrait(frameDef_t const *frame, rect_t const *rect) {
 
     viewDef_t viewdef = {0};
     viewdef.viewport = *rect;
-    viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+    viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG |
+                      RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES;
     viewdef.num_entities = 1;
     viewdef.entities = &entity;
 

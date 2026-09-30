@@ -40,7 +40,7 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef);
 void R_DrawWorld(void);
 /* Draw retained MDX event children belonging to an isolated entity-camera scene. */
 void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source_instance_id);
-void R_ReleaseEntityCameraEvents(uintptr_t instance_id);
+void R_ReleaseGameEntityCameraEvents(uintptr_t instance_id);
 void R_DrawTerrainShadows(void);
 void R_DrawAlphaSurfaces(void);
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point);

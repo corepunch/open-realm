@@ -156,6 +156,9 @@ void UI_ResetGlueTransitions(void) {
 }
 
 void UI_ResetGlueSceneModels(void) {
+    refExport_t *renderer = mi.GetRenderer ? mi.GetRenderer() : NULL;
+    if (renderer && renderer->ReleaseEntityCameraEvents)
+        renderer->ReleaseEntityCameraEvents((uintptr_t)&scene);
     memset(&scene, 0, sizeof(scene));
 }
 
