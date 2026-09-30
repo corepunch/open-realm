@@ -676,8 +676,7 @@ void G_ClearCameraTarget(gameClient_t *client, cstring_t func) {
     }
     client->camera.target_controller = NULL;
     client->camera.target_offset = (vec2_t){ 0, 0 };
-    client->camera.target_inherit_orientation = false;
-    client->camera.target_orient_only = false;
+    client->camera.target_mode = CAMERA_TARGET_FOLLOW;
     client->camera.orient_eye = (vec3_t){ 0, 0, 0 };
 }
 
@@ -738,7 +737,7 @@ static void G_UpdateCameraTarget(gameClient_t *client) {
         G_ClearCameraTarget(client, "G_UpdateCameraTarget");
         return;
     }
-    if (client->camera.target_orient_only) {
+    if (client->camera.target_mode == CAMERA_TARGET_ORIENT) {
         G_UpdateCameraOrientTarget(client, target);
         return;
     }
@@ -747,7 +746,7 @@ static void G_UpdateCameraTarget(gameClient_t *client) {
     position = G_ClampCameraPosition(client, &position);
     client->camera.old_state.position = position;
     client->camera.state.position = position;
-    if (client->camera.target_inherit_orientation) {
+    if (client->camera.target_mode == CAMERA_TARGET_FOLLOW_FACING) {
         /* Warsmash uses the target unit's facing as the camera horizontal
          * angle. WC3 unit state stores facing in radians while camera rotation
          * is in degrees and encoded as 90 - rotation. */

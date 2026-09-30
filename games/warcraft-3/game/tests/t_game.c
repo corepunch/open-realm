@@ -3525,7 +3525,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.state.near_z = 75.0f;
     game.clients[0].camera.state.far_z = 7000.0f;
     game.clients[0].camera.target_controller = second;
-    game.clients[0].camera.target_inherit_orientation = true;
+    game.clients[0].camera.target_mode = CAMERA_TARGET_FOLLOW_FACING;
     game.clients[0].camera.orient_eye = (vec3_t){ 11.0f, 22.0f, 33.0f };
     game.clients[0].camera.pan_active = true;
     game.clients[0].camera.pan_start_time = 4321;
@@ -3571,7 +3571,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.state.near_z = 0.0f;
     game.clients[0].camera.state.far_z = 0.0f;
     game.clients[0].camera.target_controller = NULL;
-    game.clients[0].camera.target_inherit_orientation = false;
+    game.clients[0].camera.target_mode = CAMERA_TARGET_FOLLOW;
     game.clients[0].camera.orient_eye = (vec3_t){ 0.0f, 0.0f, 0.0f };
     memset(game.clients[0].camera.noise, 0, sizeof(game.clients[0].camera.noise));
     G_ClearCameraPan(&game.clients[0]);
@@ -3660,7 +3660,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(game.clients[0].camera.state.near_z, 75.0f, 0.001f);
     T_FEQ(game.clients[0].camera.state.far_z, 7000.0f, 0.001f);
     T_ASSERT(game.clients[0].camera.target_controller == &g_edicts[second - g_edicts]);
-    T_ASSERT(game.clients[0].camera.target_inherit_orientation);
+    T_EQ(game.clients[0].camera.target_mode, CAMERA_TARGET_FOLLOW_FACING);
     T_FEQ(game.clients[0].camera.orient_eye.x, 11.0f, 0.001f);
     T_FEQ(game.clients[0].camera.orient_eye.y, 22.0f, 0.001f);
     T_FEQ(game.clients[0].camera.orient_eye.z, 33.0f, 0.001f);

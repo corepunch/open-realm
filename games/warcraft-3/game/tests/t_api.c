@@ -1686,7 +1686,7 @@ TEST(wc3_api, camera_angle_interpolation_uses_shortest_periodic_arc) {
 
     gc->ps.number = 0;
     gc->camera.target_controller = NULL;
-    gc->camera.target_inherit_orientation = false;
+    gc->camera.target_mode = CAMERA_TARGET_FOLLOW;
     gc->camera.old_state = gc->camera.state;
     gc->camera.old_state.viewangles = (vec3_t){ -394.0f, 0.0f, 350.0f };
     gc->camera.state = gc->camera.old_state;
@@ -1938,7 +1938,7 @@ TEST(wc3_api, camera_orient_controller_keeps_source_fixed_while_tracking_unit) {
         "endfunction\n"));
     target = gc->camera.target_controller;
     T_NOT_NULL(target);
-    T_ASSERT(gc->camera.target_orient_only);
+    T_EQ(gc->camera.target_mode, CAMERA_TARGET_ORIENT);
     T_FEQ(gc->camera.orient_eye.x, -100.0f, 0.01f);
     T_FEQ(gc->camera.orient_eye.y, 0.0f, 0.01f);
 
@@ -1958,7 +1958,7 @@ TEST(wc3_api, camera_orient_controller_keeps_source_fixed_while_tracking_unit) {
         "  call ResetToGameCamera(0.0)\n"
         "endfunction\n"));
     T_NULL(gc->camera.target_controller);
-    T_ASSERT(!gc->camera.target_orient_only);
+    T_EQ(gc->camera.target_mode, CAMERA_TARGET_FOLLOW);
     currentplayer = NULL;
 }
 
@@ -2067,8 +2067,7 @@ TEST(wc3_api, camera_target_controller_can_inherit_unit_facing) {
     T_FEQ(gc->camera.state.position.x, 110.0f, 0.001f);
     T_FEQ(gc->camera.state.position.y, 180.0f, 0.001f);
     T_FEQ(gc->camera.state.viewangles.z, -45.0f, 0.001f);
-    T_ASSERT(gc->camera.target_inherit_orientation);
-    T_ASSERT(!gc->camera.target_orient_only);
+    T_EQ(gc->camera.target_mode, CAMERA_TARGET_FOLLOW_FACING);
 
     target->s.origin2 = MAKE(vec2_t, 300.0f, 400.0f);
     target->s.angle = (float)DEG2RAD(45.0f);

@@ -350,8 +350,7 @@ uint32_t SetCameraTargetController(jass_t *j) {
     G_ClearCameraPan(gc);
     gc->camera.target_controller = whichUnit;
     gc->camera.target_offset = (vec2_t){ xoffset, yoffset };
-    gc->camera.target_inherit_orientation = inheritOrientation;
-    gc->camera.target_orient_only = false;
+    gc->camera.target_mode = inheritOrientation ? CAMERA_TARGET_FOLLOW_FACING : CAMERA_TARGET_FOLLOW;
     if (whichUnit) {
         vec2_t position = { whichUnit->s.origin2.x + xoffset, whichUnit->s.origin2.y + yoffset };
         gc->camera.old_state = gc->camera.state;
@@ -364,7 +363,7 @@ uint32_t SetCameraTargetController(jass_t *j) {
         gc->camera.end_time = gc->camera.start_time;
     } else {
         gc->camera.target_offset = (vec2_t){ 0, 0 };
-        gc->camera.target_inherit_orientation = false;
+        gc->camera.target_mode = CAMERA_TARGET_FOLLOW;
     }
     return 0;
 }
@@ -396,8 +395,7 @@ uint32_t SetCameraOrientController(jass_t *j) {
     gc->camera.start_time = gc->camera.end_time = now;
     gc->camera.target_controller = whichUnit;
     gc->camera.target_offset = (vec2_t){ xoffset, yoffset };
-    gc->camera.target_inherit_orientation = false;
-    gc->camera.target_orient_only = true;
+    gc->camera.target_mode = CAMERA_TARGET_ORIENT;
     gc->camera.orient_eye = G_CameraEyePositionFromState(&target, &current.viewangles, current.target_distance);
     return 0;
 }

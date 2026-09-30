@@ -534,6 +534,12 @@ typedef struct {
 } wc3MusicState_t;
 
 typedef enum { CAMERA_NOISE_TARGET, CAMERA_NOISE_SOURCE, CAMERA_NOISE_COUNT } cameraNoiseSlot_t;
+/* What camera.target_controller drives; meaningless while that pointer is NULL. */
+typedef enum {
+    CAMERA_TARGET_FOLLOW,        // SetCameraTargetController: the look-at target tracks the unit
+    CAMERA_TARGET_FOLLOW_FACING, // same, and the camera rotation inherits the unit's facing
+    CAMERA_TARGET_ORIENT,        // SetCameraOrientController: the source stays at orient_eye and turns toward the unit
+} cameraTargetMode_t;
 
 struct client_s {
     player_t ps;
@@ -580,8 +586,7 @@ struct client_s {
         bool quick_position_set;
         edict_t *target_controller;
         vec2_t target_offset;
-        bool target_inherit_orientation;
-        bool target_orient_only; /* source stays fixed while orientation tracks target */
+        cameraTargetMode_t target_mode;
         vec3_t orient_eye;       /* fixed camera source captured by SetCameraOrientController */
         bool pan_active;         /* scripted PanCameraTo target movement */
         uint32_t pan_start_time; /* independent from scalar field interpolation */
