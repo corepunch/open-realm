@@ -1642,7 +1642,7 @@ struct edict_s {
         edict_t *waygate_goal; /* CAbilityWarp-owned approach waypoint/entity */
         edict_t *flow_fallback_goal;
         moveFallbackState_t flow_fallback_state;
-        routePath_t path; /* persistent WC3 accelerator state shared with other server games */
+        routePath_t path; /* mover-owned waypoint cache; geometry contract shared with other server games */
         uint32_t group_id; /* Move-owned active selection identity; independent of waypoint ring reuse. */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
@@ -2584,6 +2584,7 @@ void G_PushEntity(edict_t *ent, float distance, vec2_t const *direction);
 void G_PushEntity3(edict_t *ent, float distance, vec3_t const *direction);
 bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, box2_t const *bounds,
                                                       float radius, uint8_t blocked_flags, vec2_t *out);
+bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out);
 
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);

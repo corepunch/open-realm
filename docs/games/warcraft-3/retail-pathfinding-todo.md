@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**67 done / 251 tasks; 184 remaining.** Counts describe this backlog,
+**68 done / 252 tasks; 184 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -39,6 +39,9 @@ as **IDs closed + artifact + next runnable ID**, not additional raw test counts.
 The denominator changes only when a new task is explicitly added or split.
 MAP-03.7 explicitly adds the inside-footprint engine failure discovered while auditing03.4;
 03.4 now closes the original getter/bridge mask and thirteen-tick journey; public construction/cache notification remain separately owned.
+FINE-01.4 explicitly owns incremental engine integration of the completed static
+search policy; it does not replace FINE-01.2/03 dynamic composition or FINE-02
+termination requirements.
 NUM-01.4 explicitly splits01.2's paired-trig production consumer from its
 remaining arithmetic/conversion and public-domain inventory; both are required.
 NUM-01.5/06 explicitly split the decimal/public-native engine integration from01.2.
@@ -83,9 +86,10 @@ Patrol admission/current ownership, endpoint reversal and queued/save lifecycle
 
 ## Work next
 
-Prioritize a verified behavior change in the engine for each work slice. The next
-implementation is Move-owned fine routing using the recovered heap, heuristic
-and neighbor policy, with a failing engine route comparison before the port.
+Prioritize a verified behavior change in the engine for each work slice. FINE-01.4 now puts the verified fine-search queue, heuristic and neighbor order
+into Move-owned nearby detours, including retention when a generic field is ready.
+Next port the footprint/admission policy and compare actual collision-sized
+route choices; keep dynamic eligibility and full-trajectory gates explicit.
 Numeric inventory/alias leaves remain open, but do not expand them ahead of a
 concrete routing, stepping, collision or arrival payoff. MOVE-02.3 now connects
 authored speed modifiers to actual individual/group movement; NUM-01.20 retains
@@ -281,6 +285,8 @@ Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
 - [x] **FINE-01.1** 288 complete static searches plus repeat/stamp reuse pass with exact route/state expectations. Evidence: [static fine searches][fine-static]; mixed dynamic objects remain excluded.
 - [ ] **FINE-01.2** Add stationary and moving object chains to a full search for each lane/class; compare queue, parents, termination and route.
 - [ ] **FINE-01.3** Add self/suppressed objects and target-exit cases to the same matrix; assert eligibility changes rather than only reachability.
+
+- [x] **FINE-01.4** Port the recovered static search policy into the engine and retain its turns through actual Move steering. All288 original cell routes/costs/pops/node counts match C at O0/O2 with reuse; three blocked wall-gap Move cases retain their turn with a ready generic field. Current radius/corner legality, visible-point adapter, long-route fields and dynamic objects remain separate. Evidence: [engine fine routing](retail-pathfinding-engine.md#retail-fine-search-drives-nearby-detours).
 
 ### FINE-02 — Search termination
 

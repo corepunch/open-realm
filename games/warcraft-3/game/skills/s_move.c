@@ -572,7 +572,16 @@ static bool unit_accel_direction_to_point(edict_t *self, vec2_t const *target,
                                           float radius, vec2_t *dir) {
     if (!self || !target || !dir) return false;
     pathAccelParams_t params = { &self->s.origin2, target, radius, M_UnitStaticPathingFlags(self) };
-    return CM_AccelerateRoute(&self->movement.path, &params, dir);
+    routePath_t *path = &self->movement.path;
+    if (path->valid && (Vector2_distance(&path->target, target) >= 1.0f ||
+        fabsf(path->radius - radius) >= 0.01f || Vector2_distance(params.from, &path->waypoint) <= CM_PathCellWorldSize() ||
+        !CM_LineIsPathableForRadiusFlags(params.from, &path->waypoint, radius, params.blocked_flags))) path->valid = false;
+    if (!path->valid) {
+        if (!G_FindMovePathWaypoint(&params, &path->waypoint)) return false;
+        path->target = *target; path->radius = radius; path->valid = true;
+    }
+    *dir = Vector2_sub(&path->waypoint, params.from);
+    return true;
 }
 
 static bool unit_accel_direction(edict_t *self, float radius, vec2_t *dir) {
@@ -649,14 +658,16 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     } else {
         uint32_t heatmap = M_RefreshHeatmapForMover(self, self->goalentity, radius);
         self->movement.flow_generation = heatmap;
-        if (!heatmap) {
-            if (!unit_accel_direction(self, radius, &dir))
-                return; /* long incremental route is still building; keep the order */
-            /* path_valid resolves the heading while the shared field builds;
-             * this is not a direct line to the requested destination. */
+        /* A completed generic field previously discarded the mover's fine
+         * turn. Keep retail route choices throughout nearby detours, while
+         * known unreachable/adjusted endpoints retain their interaction path. */
+        bool fine = !heatmap || (!CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y) &&
+                                CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y));
+        if (fine && unit_accel_direction(self, radius, &dir)) {
             unit_apply_heading(self, &dir, policy);
             return;
         }
+        if (!heatmap) return; /* long incremental route is still building; keep the order */
         self->movement.path.valid = false;
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             /* Location orders stop at their collision-safe route endpoint in

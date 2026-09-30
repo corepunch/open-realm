@@ -1,4 +1,4 @@
-# Numerical pathfinding integration
+# Pathfinding engine integration
 
 ## Implemented slice
 
@@ -1415,3 +1415,50 @@ WC3 cases for both Classic/TFT plus97 pathfinding tool tests. The focused
 movement/status regression passes22 assertions with DEBUG enabled and disabled;
 WC3/SC2/WoW production builds and both boundary audits pass. Only the four new
 heading entries were rerun in `num-01.20-status-final-corpus`; all four pass.
+
+## Retail fine search drives nearby detours
+
+Move now uses `wc3_pathing_fine.h` through the geometry adapter
+`G_FindMovePathWaypoint`. The search uses the recovered row-major eight-neighbor
+order,15/21 costs, piecewise integer heuristic, equal-key heap insertion/right
+child removal ties, generation-tagged stale entries and cheaper closed-node
+reopening. Queue attempts include stale pops and the rejected iteration after
+the budget. A ready generic field previously replaced the mover's retained
+turn; nearby reachable detours now retain the fine turn through travel.
+
+The wrapper deliberately keeps the existing radius/corner legality, endpoint
+correction and farthest-visible-cell adapter. Search work stays bounded to
+2,048 queue attempts for endpoints within48 cells per axis. One reusable game
+scratch block is832KiB; its sparse hash avoids allocating or clearing one node
+per map cell on each request. No saved edict or network layout changes. Direct
+clear paths, known unreachable/adjusted interaction endpoints and distant routes
+retain their existing handling. These adapters are explicit partial integration,
+not proof of retail footprint admission, smoothing or full trajectories.
+
+`fine-engine-exact-o2.json` and the fresh `oracle-grid-engine` corpus entry compare
+all288 original static searches with the same production header: complete cell
+chains, costs, charged queue work and allocated nodes match, including a second
+C query per request. Asset-free tests repeat the frozen original results at O0/O2
+and exercise original queue witnesses for equal ties, stale replacement and
+closed reopening. The288 complete map searches themselves have no closed
+reopening, so that evidence remains separate.
+
+`t_pathfinding.c` first reproduced a generic route mismatch on the original
+wall-gap chains. Its actual Move test then reproduced18 failed assertions across
+three blocked detours when a ready field discarded the fine turn. Both changes
+now pass; the fourth gap has a legal direct route and checks that direct path.
+The test retains each waypoint after the mover advances. Existing collision
+radius, distant-route, interaction, worker and unreachable regressions remain
+required, alongside the full Classic/TFT suite.
+
+Reproduce the original/C comparison with the compiled probe shown above and:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_grid.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --engine-library /tmp/wc3-pathing-engine.so --report /tmp/fine-engine-exact.json
+```
+
+Add `--fixture tools/ghidra/fixtures/retail-fine-grid-1.27.json` only when explicitly
+regenerating the pinned original result fixture. Ghidra's heap and search-entry
+comments link these consumers without claiming the remaining admission policy.

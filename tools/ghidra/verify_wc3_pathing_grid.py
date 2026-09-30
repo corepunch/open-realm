@@ -6,6 +6,7 @@ heap, relaxation and loop execute. Search/map storage is initialized directly;
 this does not validate constructors, request admission or route smoothing.
 """
 import argparse
+import ctypes
 import hashlib
 import heapq
 import json
@@ -13,6 +14,20 @@ import random
 import struct
 from pathlib import Path
 from verify_wc3_pathing_footprints import CLASSES, DIRECTIONS, perimeter
+
+
+def footprint_graph(blocked, dimensions, size_class):
+    """Recovered legal graph, independent of the C search's queue/heuristic."""
+    width, height = dimensions
+    _, offset, ring_width, masks = CLASSES[size_class]
+    edges = []
+    for y in range(height):
+        for x in range(width):
+            bits = sum(1 << i for i, p in enumerate(perimeter(x, y, offset, ring_width))
+                       if not (0 <= p[0] < width and 0 <= p[1] < height) or p in blocked)
+            edges.append(sum(1 << d for d, ((dx, dy), mask) in enumerate(zip(DIRECTIONS, masks))
+                             if not bits & mask and 0 <= x + dx < width and 0 <= y + dy < height))
+    return bytes(edges)
 
 
 def reference(blocked, width, height, start, goal, size_class):
@@ -44,7 +59,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--fixture', type=Path, help='freeze original cell routes for asset-free engine comparisons')
+    parser.add_argument('--engine-library', type=Path, help='compare production C cell routes, work and node creation')
     args = parser.parse_args()
+    engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine:
+        engine.pathing_fine_grid.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint8),
+                                            ctypes.POINTER(ctypes.c_int32)]
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -97,7 +118,7 @@ def main():
         for cx, cy in (start, goal):
             blocked.difference_update((x, y) for x in range(cx - 3, cx + 4) for y in range(cy - 3, cy + 4))
         fixtures.append((f'random_{index}', blocked))
-    records, edge_cases = [], []
+    records, edge_cases, engine_cases = [], [], []
     for name, blocked in fixtures:
         for size_class in range(4):
             machine.mem_write(system, bytes(0x400))
@@ -126,7 +147,7 @@ def main():
             actual = None if result == 0xffffffff else read(nodes + result * 36 + 0x14)[0]
             if (result != 0xffffffff and result != goal_index) or actual != expected:
                 raise RuntimeError(f'grid mismatch {name} class={size_class} result={result} cost={actual} wanted={expected}')
-            chain = []
+            chain, points = [], []
             if result != 0xffffffff:
                 index = result
                 while index != 0xffffffff:
@@ -154,6 +175,17 @@ def main():
                 if read(system + 0x98)[0] != nearest:
                     raise RuntimeError('failed search nearest-distance mismatch')
             first_pops, first_nodes = read(system + 0x6c)[0], read(system + 0x40)[0]
+            if engine:
+                graph = footprint_graph(blocked, (width, height), size_class)
+                edges = (ctypes.c_uint8 * len(graph)).from_buffer_copy(graph)
+                query = (ctypes.c_uint32 * 7)(width, height, *start, *goal, 2048)
+                wanted = [actual if actual is not None else -1, first_pops, first_nodes, len(points)]
+                for _ in range(2):
+                    output = (ctypes.c_int32 * (6 + 2 * 16386))()
+                    engine.pathing_fine_grid(query, edges, output)
+                    path = [[output[6 + i * 2], output[7 + i * 2]] for i in range(output[3])]
+                    if list(output[:4]) != wanted or path != [list(p) for p in points]:
+                        raise RuntimeError(f'production C fine-search mismatch: {name} class={size_class}')
             link_count = read(tilemap + 0x88)[0]
             node_bytes = bytes(machine.mem_read(nodes, first_nodes * 36))
             run(0x6f14a980, system, 0)
@@ -194,6 +226,9 @@ def main():
             records.append(dict(fixture=name, size_class=size_class, cost=actual,
                                 pops=read(system + 0x6c)[0], nodes=read(system + 0x40)[0], chain_length=len(chain),
                                 request_result=request_result, route_points=route_count, route_end=route_points[0]))
+            if args.fixture:
+                engine_cases.append(dict(fixture=name, size_class=size_class, cost=actual, pops=first_pops,
+                                         nodes=first_nodes, path=points))
             if name == 'open':
                 for label, destination, budget, wanted_result, wanted_pops in (
                         ('same_cell', (start[0] + .875, start[1] + .125), 100000, 1, 0),
@@ -213,8 +248,18 @@ def main():
                   seed=12717085, dimensions=[width, height], start=start, goal=goal,
                   scope='original core loop and full setup/search/reconstruction request; allocation/reset/stamp reuse; direct initialized storage and -1/0/1 runtime constants; static terrain only; Dijkstra reference uses recovered footprint graph; no path-owned admission or smoothing',
                   searches=records)
+    if engine:
+        report.update(engine_queries=len(records), engine_repeats=len(records),
+                      engine_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest())
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
+    if args.fixture:
+        fixture = dict(binary_sha256=digest, seed=12717085, dimensions=[width, height], start=start, goal=goal,
+                       scope='original static fine-search cell route, cost, pops and allocated nodes; excludes admission and smoothing',
+                       maps={name: bytes(int((x, y) in blocked) for y in range(height) for x in range(width)).hex()
+                             for name, blocked in fixtures}, cases=engine_cases)
+        args.fixture.parent.mkdir(parents=True, exist_ok=True)
+        args.fixture.write_text(json.dumps(fixture, separators=(',', ':')) + '\n')
     print(f'{len(records)} full retail fine-grid searches plus {len(records)} stamp-reuse repeats and {len(records)} complete requests; all pass')
 
 

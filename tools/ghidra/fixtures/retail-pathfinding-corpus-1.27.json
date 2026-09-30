@@ -8324,6 +8324,46 @@
         "Other trig callers",
         "Whole engine cadence"
       ]
+    },
+    {
+      "id": "oracle-grid-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_grid.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-grid-engine-exact.json",
+      "expected_exit": 0,
+      "expected_status": "original-model-engine-exact",
+      "checks": {
+        "mismatches": {
+          "length": 0
+        },
+        "cases": {
+          "equal": 288
+        },
+        "engine_queries": {
+          "equal": 288
+        },
+        "engine_repeats": {
+          "equal": 288
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "288 original static fine cell routes, costs, queue work and node creation match the production C search; 288 C reuse repeats; identical recovered legal graphs; engine radius/admission/smoothing are separate",
+      "exclusions": []
     }
   ],
   "fixtures": [
@@ -8498,6 +8538,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-heading-aliases-1.27.json",
       "sha256": "70d3b46481a4ef4db8799a2d36a7abb0d75f1e13f2b77f8b7876cbc1a347c129"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-grid-1.27.json",
+      "sha256": "9fb760fbb3883c816450cb562c5478af6a2bac0d387b55ae4bfaf6412a033363"
     }
   ]
 }

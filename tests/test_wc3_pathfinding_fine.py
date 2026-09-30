@@ -1,0 +1,92 @@
+"""Production WC3 search against frozen original-x86 static searches."""
+import ctypes
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools/ghidra'))
+from verify_wc3_pathing_grid import footprint_graph
+
+
+class FineSearchTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-fine-grid-1.27.json').read_text())
+        cls.temp = tempfile.TemporaryDirectory(prefix='wc3-fine-')
+        cls.addClassCleanup(cls.temp.cleanup)
+        cls.engines = []
+        for opt in ('-O0', '-O2'):
+            lib = Path(cls.temp.name) / (opt + '.so')
+            subprocess.run(['cc', '-std=c11', '-Wall', '-Wextra', '-Werror', opt, '-fPIC', '-shared',
+                            '-I', str(ROOT), str(ROOT / 'tools/ghidra/wc3_pathing_engine_probe.c'), '-o', str(lib)], check=True)
+            engine = ctypes.CDLL(str(lib))
+            engine.pathing_fine_grid.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint8),
+                                                ctypes.POINTER(ctypes.c_int32)]
+            cls.engines.append(engine)
+
+    def graph(self, case):
+        # The original footprint oracle owns this graph, independently of the
+        # search policy. Production's initial world adapter keeps its own legality.
+        width, height = self.fixture['dimensions']
+        cells = bytes.fromhex(self.fixture['maps'][case['fixture']])
+        blocked = {(x, y) for y in range(height) for x in range(width) if cells[y * width + x]}
+        return footprint_graph(blocked, (width, height), case['size_class'])
+
+    def run_search(self, engine, graph, budget=2048):
+        inp = (ctypes.c_uint32 * 7)(*self.fixture['dimensions'], *self.fixture['start'], *self.fixture['goal'], budget)
+        edges = (ctypes.c_uint8 * len(graph))(*graph)
+        out = (ctypes.c_int32 * (6 + 2 * 16386))()
+        engine.pathing_fine_grid(inp, edges, out)
+        return list(out[:6]), [[out[6 + 2 * i], out[7 + 2 * i]] for i in range(out[3])]
+
+    def test_complete_routes_costs_work_and_node_creation_match_original(self):
+        self.assertEqual(len(self.fixture['cases']), 288)
+        graphs = [self.graph(case) for case in self.fixture['cases']]
+        for engine in self.engines:
+            stale = 0
+            for case, graph in zip(self.fixture['cases'], graphs):
+                with self.subTest(case=case['fixture'], size=case['size_class'], engine=engine._name):
+                    head, path = self.run_search(engine, graph)
+                    self.assertEqual(head[:3], [case['cost'] if case['cost'] is not None else -1,
+                                               case['pops'], case['nodes']])
+                    self.assertEqual(path, case['path'])
+                    self.assertEqual(self.run_search(engine, graph), (head, path))
+                    stale += head[5]
+            self.assertGreater(stale, 0)
+
+    def test_original_queue_witnesses_cover_reopening_and_equal_keys(self):
+        # verify_wc3_pathing_queue.py executes original 14a560 for these values.
+        # The complete 288-map corpus above does not exercise a closed reopen.
+        for engine in self.engines:
+            engine.pathing_fine_relax.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32)]
+            engine.pathing_fine_heap_ties.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+            order = (ctypes.c_uint32 * 8)()
+            engine.pathing_fine_heap_ties(order)
+            self.assertEqual(list(order), [7, 0, 4, 1, 2, 3, 5, 6])
+            for state in range(3):
+                for cost in (120, 121, 122):
+                    out = (ctypes.c_uint32 * 7)()
+                    engine.pathing_fine_relax(state, cost, out)
+                    accepted = state == 0 or cost > 121
+                    self.assertEqual(list(out), [11 if state == 0 else 12, 121, 83, 3, 1,
+                                                2 if state == 1 else 1, int(state == 2)] if accepted
+                                     else [10, cost, 83, 9, state, int(state == 1), 0])
+
+    def test_zero_budget_counts_rejected_iteration_and_reuse_recovers(self):
+        case = self.fixture['cases'][0]
+        graph = self.graph(case)
+        for engine in self.engines:
+            head, path = self.run_search(engine, graph, 0)
+            self.assertEqual(head[:4], [-1, 1, 2, 0])
+            self.assertEqual(path, [])
+            head, path = self.run_search(engine, graph)
+            self.assertEqual(head[:3], [case['cost'], case['pops'], case['nodes']])
+            self.assertEqual(path, case['path'])
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -87,7 +87,7 @@ Game routing no longer uses the old lifetime quota of two synchronous whole-map 
 
 The value is clamped to 256-65,536. This keeps SPFA relaxation bounded without permanently denying later destinations. Only one miss is built at a time; requests for other destinations retry after the active job completes. Static-pathing invalidation cancels the in-progress job along with cached generations.
 
-Nearby detours do not wait for that whole field. `CM_FindPathWaypoint()` runs a bounded point-to-point A* accelerator for endpoints within 48 pathing cells, expands at most 2,048 nodes, and returns the farthest recovered path point with a collision-sized clear line from the mover. The mover retains that waypoint until it reaches it, the target changes, or static pathing invalidates the segment. A failed or out-of-envelope acceleration request falls back to the shared incremental field, so long routes remain frame-budgeted.
+Nearby detours do not wait for that whole field. `G_FindMovePathWaypoint()` runs the [ported retail fine-search policy](retail-pathfinding-engine.md#retail-fine-search-drives-nearby-detours) for endpoints within 48 pathing cells, charges at most 2,048 queue attempts, and returns the farthest recovered path point with a collision-sized clear line from the mover. Move retains that waypoint until it reaches it, the target changes, or static pathing invalidates the segment; publishing a generic flow field no longer discards the turn. A failed or out-of-envelope acceleration request falls back to the shared incremental field, so long routes remain frame-budgeted.
 
 While a resumable request is pending, `unit_changeangle*()` leaves both `movement.flow_generation == 0` and `movement.flow_direct == false`. `unit_moveindirection()` treats that pair as "no heading resolved this tick" and does not commit a step. This shared guard is important: a caller must never turn a pending route into movement along the unit's stale facing.
 
@@ -154,16 +154,16 @@ progress while retaining OpenRealm's group-friendly cache for long routes.
 | Stage | Retail evidence | OpenRealm |
 |---|---|---|
 | Open ground | Route setup can retain or reset mover path state by destination and mode | Collision-sized Bresenham line; no search |
-| Nearby detour | Persistent mover path object emits coordinate pairs; global accelerator is consulted | Bounded octile A* emits one smoothed, persistent waypoint |
+| Nearby detour | Persistent mover path object emits coordinate pairs; global accelerator is consulted | Verified retail fine-search ordering on current radius/corner graph; one persistent visible waypoint |
 | Long/shared route | Global `CLrPathingSys` and `CLrPathingAcc`; exact sharing policy unrecovered | Four LRU destination/radius integration fields, built backward with SPFA |
 | Dynamic units | Per-mover path flags and updates | Swept-circle movement plus deterministic local avoidance; not baked into static routes |
-| Scheduling | Countdown/pending and multiple result states prove resumable progress | A* is capped at 2,048 expansions; complete fields get a configurable per-frame queue budget |
+| Scheduling | Countdown/pending and multiple result states prove resumable progress | Fine search is capped at 2,048 queue attempts; complete fields get a configurable per-frame queue budget |
 
 The speed difference was primarily work selection. Before the accelerator, one nearby cache miss cleared every route
 node, relaxed the complete reachable component, then copied one integer per map cell before movement could start. A
 256x256 diagnostic trace printed `cells=65536` at both build start and publication. The accelerator touches only nodes
-reached by the bounded A* and uses generation stamps instead of clearing its scratch array. Its contiguous node/heap
-arrays usually leave a nearby search with a small L1/L2 working set, but no retail evidence identifies an explicit
+reached by the bounded fine search and clears a fixed sparse hash instead of map-sized node storage. Its contiguous
+node/heap arrays bound scratch space to832KiB, but no retail evidence identifies an explicit
 "L2 cache" technique.
 
 The same corner rule is applied to direct routing and movement steps: a diagonal

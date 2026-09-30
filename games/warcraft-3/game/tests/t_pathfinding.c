@@ -450,8 +450,82 @@ TEST(wc3_pathfinding, nearby_detour_accelerator_returns_clear_waypoint) {
     setup_test_pathmap(MAP_W, MAP_H, wall_map);
     T_ASSERT(!CM_LineIsWalkableForRadius(&from, &target, 0.0f));
     T_ASSERT(CM_FindPathWaypoint(&params, &waypoint));
+    T_ASSERT(G_FindMovePathWaypoint(&params, &waypoint));
     T_ASSERT(CM_LineIsWalkableForRadius(&from, &waypoint, 0.0f));
     T_ASSERT(waypoint.y > 7.0f);
+}
+
+/* Cell chains frozen from the original 1.27 DLL, verify_wc3_pathing_grid.py.
+ * Keep the current line-legality adapter explicit; retail smoothing is separate. */
+TEST(wc3_pathfinding, mover_detours_follow_retail_fine_routes) {
+    static vec2_t const chains[4][20] = {
+        {
+            {4.5f,4.5f}, {5.5f,5.5f}, {6.5f,6.5f}, {7.5f,7.5f}, {8.5f,8.5f},
+            {9.5f,9.5f}, {10.5f,10.5f}, {11.5f,10.5f}, {12.5f,10.5f}, {13.5f,10.5f},
+            {14.5f,11.5f}, {15.5f,12.5f}, {16.5f,13.5f}, {16.5f,14.5f}, {17.5f,15.5f},
+            {18.5f,16.5f}, {18.5f,17.5f}, {18.5f,18.5f}, {19.5f,19.5f}
+        },
+        {
+            {4.5f,4.5f}, {5.5f,5.5f}, {6.5f,6.5f}, {7.5f,7.5f}, {8.5f,8.5f},
+            {9.5f,9.5f}, {10.5f,10.5f}, {11.5f,11.5f}, {12.5f,11.5f}, {13.5f,11.5f},
+            {14.5f,12.5f}, {15.5f,13.5f}, {16.5f,14.5f}, {17.5f,15.5f}, {18.5f,16.5f},
+            {18.5f,17.5f}, {18.5f,18.5f}, {19.5f,19.5f}
+        },
+        {
+            {4.5f,4.5f}, {5.5f,5.5f}, {6.5f,6.5f}, {7.5f,7.5f}, {8.5f,8.5f},
+            {9.5f,9.5f}, {10.5f,10.5f}, {11.5f,11.5f}, {12.5f,12.5f}, {13.5f,12.5f},
+            {14.5f,13.5f}, {15.5f,14.5f}, {16.5f,15.5f}, {17.5f,16.5f}, {18.5f,17.5f},
+            {18.5f,18.5f}, {19.5f,19.5f}
+        },
+        {
+            {4.5f,4.5f}, {5.5f,5.5f}, {6.5f,6.5f}, {7.5f,7.5f}, {8.5f,8.5f},
+            {9.5f,9.5f}, {10.5f,10.5f}, {11.5f,11.5f}, {12.5f,12.5f}, {13.5f,13.5f},
+            {14.5f,14.5f}, {15.5f,15.5f}, {16.5f,16.5f}, {17.5f,17.5f}, {18.5f,18.5f},
+            {19.5f,19.5f}
+        },
+    };
+    static int const lengths[] = { 19, 18, 17, 16 };
+    uint8_t cells[24 * 24] = {0};
+    vec2_t from = {4.5f, 4.5f}, target = {19.5f, 19.5f}, actual;
+    pathAccelParams_t params = { &from, &target, 0, CM_PATHING_UNWALKABLE };
+
+    for (int gap = 1; gap <= 4; gap++) {
+        reset_entities();
+        setup_test_world();
+        memset(cells, 0, sizeof(cells));
+        for (int y = 0; y < 24; y++) cells[y * 24 + 12] = y < 10 || y >= 10 + gap ? 2 : 0;
+        setup_test_pathmap(24, 24, cells);
+        vec2_t expected = from;
+        for (int i = lengths[gap - 1] - 1; i > 0; i--) {
+            if (!CM_LineIsPathableForRadiusFlags(&from, &chains[gap - 1][i], 0, CM_PATHING_UNWALKABLE)) continue;
+            expected = chains[gap - 1][i];
+            break;
+        }
+        T_ASSERT(G_FindMovePathWaypoint(&params, &actual));
+        T_FEQ(actual.x, expected.x, 0.001f);
+        T_FEQ(actual.y, expected.y, 0.001f);
+        edict_t *unit = make_unit_at(from.x, from.y), *wp = make_waypoint(target.x, target.y);
+        unit->collision = 0;
+        order_move(unit, wp);
+        T_ASSERT(CM_BuildHeatmapForRadius(wp, 0));
+        unit_changeangle(unit);
+        if (CM_LineIsPathableForRadiusFlags(&from, &target, 0, CM_PATHING_UNWALKABLE)) {
+            T_ASSERT(unit->movement.flow_direct);
+            T_ASSERT(!unit->movement.path.valid);
+            continue;
+        }
+        T_ASSERT(unit->movement.path.valid);
+        T_FEQ(unit->movement.path.waypoint.x, expected.x, 0.001f);
+        T_FEQ(unit->movement.path.waypoint.y, expected.y, 0.001f);
+        /* A ready generic field must not replace the retained retail turn. */
+        unit->s.origin.x += 0.1f;
+        unit_changeangle(unit);
+        T_ASSERT(unit->movement.path.valid);
+        T_FEQ(unit->movement.path.waypoint.x, expected.x, 0.001f);
+        T_FEQ(unit->movement.path.waypoint.y, expected.y, 0.001f);
+    }
+    reset_entities();
+    setup_test_world();
 }
 
 TEST(wc3_pathfinding, distant_detour_skips_bounded_accelerator) {
@@ -463,6 +537,7 @@ TEST(wc3_pathfinding, distant_detour_skips_bounded_accelerator) {
     memset(open, 0, sizeof(open));
     setup_test_pathmap(WIDTH, HEIGHT, open);
     T_ASSERT(!CM_FindPathWaypoint(&params, &waypoint));
+    T_ASSERT(!G_FindMovePathWaypoint(&params, &waypoint));
 }
 
 TEST(wc3_pathfinding, nearby_detour_accelerator_respects_collision_radius) {
@@ -477,6 +552,8 @@ TEST(wc3_pathfinding, nearby_detour_accelerator_respects_collision_radius) {
     setup_test_pathmap(MAP_W, MAP_H, narrow);
     T_ASSERT(CM_FindPathWaypoint(&point, &waypoint));
     T_ASSERT(!CM_FindPathWaypoint(&wide, &waypoint));
+    T_ASSERT(G_FindMovePathWaypoint(&point, &waypoint));
+    T_ASSERT(!G_FindMovePathWaypoint(&wide, &waypoint));
 }
 
 TEST(wc3_pathfinding, heatmap_cache_separates_collision_radius) {

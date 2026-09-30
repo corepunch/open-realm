@@ -1,4 +1,8 @@
 #include "g_local.h"
+#include "../common/wc3_pathing_fine.h"
+
+typedef struct { int radius; uint8_t flags; } moveFineGraph_t;
+static wc3FineSearch_t move_fine;
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
 static bool entity_is_live_walkable_surface(edict_t const *ent) {
@@ -58,6 +62,49 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 #include "common/world.c"
 #include "common/world_w3.c"
 #include "server/sv_routing.c"
+
+/* TODO: preserve the engine's current radius/corner legality until the retail
+ * footprint admission port is verified. Search ordering itself is retail. */
+static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
+    moveFineGraph_t const *graph = data;
+    uint8_t edges = 0;
+    bool legal[8];
+    for (int dir = 0; dir < 8; dir++) {
+        wc3FinePoint_t delta = wc3_fine_dirs[dir];
+        legal[dir] = is_pathable_node_original_for_radius_cells_flags(pos.x + delta.x, pos.y + delta.y, graph->radius, graph->flags);
+    }
+    for (int dir = 0; dir < 8; dir++) {
+        wc3FinePoint_t delta = wc3_fine_dirs[dir];
+        if (!legal[dir] || (delta.x && delta.y &&
+            (!legal[delta.x < 0 ? 3 : 4] || !legal[delta.y < 0 ? 1 : 6]))) continue;
+        edges |= (uint8_t)(1u << dir);
+    }
+    return edges;
+}
+
+/* Return the farthest currently visible point on the verified fine cell chain;
+ * Move retains this turn while it travels. Geometry stays in the game world. */
+bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
+    point2_t start, goal;
+    if (!params || !params->from || !params->target || !out || !pathmap.width || !pathmap.height) return false;
+    uint8_t flags = normalize_blocked_flags(params->blocked_flags);
+    if (!closest_pathable_node_original_flags(params->from, params->radius, flags, &start) ||
+        !closest_pathable_node_original_flags(params->target, params->radius, flags, &goal) ||
+        abs(start.x - goal.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - goal.y) > PATH_ACCEL_MAX_DISTANCE) return false;
+    moveFineGraph_t graph = { (int)ceilf(MAX(0.f, params->radius) / pathmap_cell_world_size()), flags };
+    wc3FineRequest_t req = { .start = {start.x, start.y}, .goal = {goal.x, goal.y},
+        .width = pathmap.width, .height = pathmap.height, .budget = BZ_WC3_FINE_WORK,
+        .edges = move_fine_edges, .data = &graph };
+    int at = wc3_fine_search(&move_fine, &req);
+    while (at >= 0) {
+        wc3FineNode_t const *node = &move_fine.nodes[at];
+        if (node->parent < 0) return false;
+        vec2_t point = CM_GetDenormalizedMapPosition((node->pos.x + 0.5f) / pathmap.width, (node->pos.y + 0.5f) / pathmap.height);
+        if (CM_LineIsPathableForRadiusFlags(params->from, &point, params->radius, flags)) { *out = point; return true; }
+        at = node->parent;
+    }
+    return false;
+}
 
 /* WC3 Way Gate entry selection uses the shared router's static grid, but this
  * rectangle-specific policy belongs to the game that consumes it. */

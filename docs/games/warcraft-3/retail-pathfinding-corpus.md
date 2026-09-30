@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **154 entries**: **37** distinct original-code oracle
-scripts plus **24** declared variants, **79** archived JSONL audits and **14**
+The inventory now has **155 entries**: **37** distinct original-code oracle
+scripts plus **25** declared variants, **79** archived JSONL audits and **14**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 56 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 57 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 72 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -232,3 +232,21 @@ their strict nested-pointer/word repeat checker. Four new entries pass in fresh
 `num-01.13-validated-corpus`. The new run is a selected four-entry check, not a
 claim that all154 entries were rerun. Fixture mutation tests retain the negative
 Acos-input witness. See [vector-heading relationships](retail-pathfinding-engine.md#vector-heading-operand-relationships).
+
+## Static fine-search engine comparison
+
+`oracle-grid-engine` adds288 original/C comparisons and288 C reuse repeats on
+the recovered four-class legal graphs. It compares the entire cell parent chain,
+cost, charged work and allocated node count. The frozen
+`retail-fine-grid-1.27.json` contains72 shared terrain maps and288 original
+results; asset-free tests run the production header at O0/O2. Equal-key heap and
+cheaper-open/closed relaxation witnesses retain the original queue oracle's
+expectations. The288 complete maps contain stale entries but no closed reopen;
+the latter is covered separately by those relaxation witnesses.
+
+This port changes Move's nearby detours while retaining the current engine
+radius/corner legality and visible-point adapter. It does not close retail
+footprint admission, dynamic target exits, adaptive long routing or final
+trajectory parity. The fresh selected run is
+`fine-engine-validated-corpus/corpus-results.json`; the earlier full150-entry
+run remains historical. No full155-entry rerun is claimed.

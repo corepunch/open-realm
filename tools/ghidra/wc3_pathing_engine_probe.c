@@ -156,3 +156,52 @@ uint32_t pathing_literal(char const *text) { return wc3_float_bits(wc3_literal(t
 
 /* Source integer words precede the public truncating I2R conversion. */
 uint32_t pathing_integer_literal(char const *text) { return wc3_integer_literal_bits(text); }
+
+#include "games/warcraft-3/common/wc3_pathing_fine.h"
+typedef struct { uint32_t width; uint8_t const *edges; } fineProbeGraph_t;
+static wc3FineSearch_t fine_probe;
+static uint8_t fine_probe_edges(void const *data, wc3FinePoint_t pos) {
+    fineProbeGraph_t const *graph = data;
+    return graph->edges[(uint32_t)pos.y * graph->width + (uint32_t)pos.x];
+}
+
+/* Input: width,height,start XY,goal XY,budget. Output: cost,pops,nodes,path count,
+ * reopens,stale, then start-to-goal cell pairs. Uses the production search. */
+void pathing_fine_grid(uint32_t const input[7], uint8_t const *edges, int32_t *out) {
+    fineProbeGraph_t graph = { input[0], edges };
+    wc3FineRequest_t req = { .start = {(int)input[2], (int)input[3]}, .goal = {(int)input[4], (int)input[5]},
+        .width = input[0], .height = input[1], .budget = input[6], .edges = fine_probe_edges, .data = &graph };
+    int at = wc3_fine_search(&fine_probe, &req), length = 0;
+    out[0] = at < 0 ? -1 : (int32_t)fine_probe.nodes[at].g;
+    out[1] = (int32_t)fine_probe.pops; out[2] = (int32_t)fine_probe.count;
+    out[4] = (int32_t)fine_probe.reopens; out[5] = (int32_t)fine_probe.stale;
+    for (int node = at; node >= 0; node = fine_probe.nodes[node].parent) length++;
+    out[3] = length;
+    for (int i = length - 1; i >= 0; i--, at = fine_probe.nodes[at].parent) {
+        out[6 + i * 2] = fine_probe.nodes[at].pos.x; out[7 + i * 2] = fine_probe.nodes[at].pos.y;
+    }
+}
+
+/* Original queue-oracle witness: node(2,5), goal(0,0), parent g=100, step=21. */
+void pathing_fine_relax(uint32_t state, uint32_t old_cost, uint32_t out[7]) {
+    fine_probe.queued = fine_probe.reopens = 0;
+    fine_probe.nodes[0] = (wc3FineNode_t){ .pos = {2,5}, .parent = 9, .g = old_cost,
+        .h = 83, .gen = 10, .state = (wc3FineState_t)state };
+    if (state == WC3_FINE_OPEN) {
+        fine_probe.queued = 1;
+        fine_probe.heap[1] = (wc3FineEntry_t){ old_cost + 83, 0, 10 };
+    }
+    wc3_fine_relax(&fine_probe, (wc3FinePoint_t){0,0}, (wc3FineStep_t){0,3,121});
+    wc3FineNode_t const *node = &fine_probe.nodes[0];
+    out[0] = node->gen; out[1] = node->g; out[2] = node->h; out[3] = (uint32_t)node->parent;
+    out[4] = (uint32_t)node->state; out[5] = fine_probe.queued; out[6] = fine_probe.reopens;
+}
+
+void pathing_fine_heap_ties(uint32_t out[8]) {
+    fine_probe.queued = 0;
+    for (uint32_t i = 0; i < 8; i++) {
+        fine_probe.nodes[i] = (wc3FineNode_t){0};
+        wc3_fine_enqueue(&fine_probe, i);
+    }
+    for (int i = 0; i < 8; i++) out[i] = wc3_fine_pop(&fine_probe).node;
+}
