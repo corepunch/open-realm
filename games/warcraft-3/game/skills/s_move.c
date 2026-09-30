@@ -53,6 +53,8 @@ typedef enum {
     MOVE_IGNORE_UNITS,
 } moveCollisionPolicy_t;
 
+/* UnitData movetp values that name a movement type; anything else (retail authors "_") is movement-disabled. */
+static cstring_t const move_type_names[] = { "foot", "horse", "fly", "hover", "float", "amph" };
 static edict_t *trymove_self = NULL;
 static edict_t *trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
 static edict_t *trymove_colliders[MAX_MOVE_COLLIDERS];
@@ -161,6 +163,19 @@ static bool unit_is_flying(edict_t const *ent) {
 
 uint8_t M_UnitStaticPathingFlags(edict_t const *ent) {
     return unit_is_flying(ent) ? CM_PATHING_UNFLYABLE : CM_PATHING_UNWALKABLE;
+}
+
+/* Warsmash MovementType.DISABLED: a unit row whose movetp names no movement type is pathable anywhere and
+ * collides with nothing. Retail UnitData authors "_" on every building and scenery unit, so this is the
+ * class that keeps a scripted pedestal or structure exactly where CreateUnit/SetUnitPosition put it.
+ * A row with no movetp cell at all stays mobile: retail always authors the column, so absence is a
+ * partial row rather than a statement about movement. */
+bool M_UnitMoveDisabled(edict_t const *ent) {
+    cstring_t const movetp = ent && ent->data.UnitData ? ent->data.UnitData->moveTypeName : NULL;
+    if (!movetp || !*movetp) return false;
+    FOR_LOOP(i, sizeof(move_type_names) / sizeof(*move_type_names))
+        if (!strcmp(movetp, move_type_names[i])) return false;
+    return true;
 }
 
 /* BoxEdicts predicate: solid units/buildings sharing this mover's collision
