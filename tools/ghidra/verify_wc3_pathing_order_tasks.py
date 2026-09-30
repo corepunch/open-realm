@@ -22,6 +22,10 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--producer-baseline', action='store_true', help='compose no-file map and mover producers before the owner baseline')
     parser.add_argument('--shared-pair', action='store_true', help='compose two admitted units into one original shared request and run owner through arrival')
+    parser.add_argument('--callback-reuse', action='store_true', help='original callback-timed mover release/reallocation, generation and pool verification')
+    parser.add_argument('--missing-spatial-registry', action='store_true', help='explicit counterfactual: clear the retirement alias to reproduce stale spatial slots')
+    parser.add_argument('--reuse-fixture', type=Path, default=Path(__file__).parent/'fixtures/retail-callback-reuse-1.27.json')
+    parser.add_argument('--record-reuse-fixture', type=Path, help='export new original expectations after all identical repeat cases')
     parser.add_argument('--engine-library', type=Path, help='verify observed shared-pair velocity commits against the production world adapter')
     parser.add_argument('--pair-fixture', type=Path, default=DEFAULT_FIXTURE)
     parser.add_argument('--record-pair-fixture', type=Path, help='export a new original shared-pair expectation after complete identical repeats')
@@ -29,6 +33,11 @@ def main():
     args = parser.parse_args()
     manifest,expectations=load_manifest(args.baseline_manifest) if args.producer_baseline or args.shared_pair else (None,None)
     if args.record_pair_fixture and not args.shared_pair:parser.error('--record-pair-fixture requires --shared-pair')
+    if args.missing_spatial_registry and not args.callback_reuse:parser.error('--missing-spatial-registry requires --callback-reuse')
+    if args.callback_reuse and not args.shared_pair:parser.error('--callback-reuse requires --shared-pair')
+    if args.record_reuse_fixture and not args.callback_reuse:parser.error('--record-reuse-fixture requires --callback-reuse')
+    if args.record_reuse_fixture and args.record_reuse_fixture.exists():parser.error('reuse expectation destination already exists')
+    if args.callback_reuse and args.record_pair_fixture:parser.error('callback reuse has a separate expectation export')
     pair_fixture=None
     if args.shared_pair:
         from wc3_pathing_pair import load_fixture
@@ -823,6 +832,10 @@ def main():
                 if pair:state['decision_commit_order']=list(pair_events)
                 normalized_states.append(state)
         step('fresh')
+        if shared_pair and args.callback_reuse:
+            from wc3_pathing_callbacks import reuse_member
+            return reuse_member(machine,dict(owner=owner,registry=registry,group=group,inputs=inputs,
+                stack=stack,stop=stop,movers=[mover,pair['mover']],spec=pair_fixture['inputs']['callback_reuse']),run)
         initial_route=read(member_route,read(current_path+0x50)[0]*2)
         assert len(initial_route)>=4
         route_target=read(members+0x18,2) if pair else target_grid
@@ -1017,6 +1030,35 @@ def main():
                         normalized_states=normalized_states)
         if engine:accepted['verified_velocity_commits']=verified_pair_commits
         return accepted
+    if args.callback_reuse:
+        import copy
+        original_fixture=pair_fixture
+        outcomes=[];repeat_digests=[]
+        for trigger in (0,1):
+            for victim in (0,1):
+                pair_fixture=copy.deepcopy(original_fixture)
+                pair_fixture['inputs']['callback_reuse']=dict(trigger=trigger,victim=victim,missing_spatial_registry=args.missing_spatial_registry)
+                repeats=[dispatch_case(0,0,0,tuple(pair_fixture['inputs']['target_bits']),
+                         owner_updates=True,producer_setup=True,shared_pair=True) for _ in range(2)]
+                assert repeats[0]==repeats[1],first_difference(repeats[0],repeats[1])
+                outcomes.append(repeats[0]);repeat_digests.append([canonical_digest(c) for c in repeats])
+        frozen=dict(version=1,binary_sha256=digest,crt_sha256=crt_digest,
+            parent_fixture_sha256=hashlib.sha256(args.pair_fixture.read_bytes()).hexdigest(),
+            scope='Original mover release/reallocation at original slot54 entry; supplied existing Unit/Move and spare allocator backing; gameplay RemoveUnit callback graph, replacement owned path and survivor arrival excluded',
+            counterfactual_missing_spatial_registry=args.missing_spatial_registry,
+            cases=outcomes,cases_sha256=canonical_digest(outcomes))
+        if args.record_reuse_fixture:
+            args.record_reuse_fixture.parent.mkdir(parents=True,exist_ok=True)
+            args.record_reuse_fixture.write_text(json.dumps(frozen,separators=(',',':'))+'\n')
+        else:
+            expected=json.loads(args.reuse_fixture.read_text())
+            assert frozen==expected,first_difference(frozen,expected)
+        report=dict(frozen,passed=True,callback_reuse_cases=len(outcomes),repeat_digests=repeat_digests,
+            exported_original_expectations=bool(args.record_reuse_fixture))
+        args.report.parent.mkdir(parents=True,exist_ok=True)
+        args.report.write_text(json.dumps(report,indent=2)+'\n')
+        print(json.dumps(dict(passed=True,callback_reuse_cases=len(outcomes),cases_sha256=frozen['cases_sha256'])))
+        return
     if args.shared_pair:
         cases=[dispatch_case(0,0,0,tuple(pair_fixture['inputs']['target_bits']),
                 owner_updates=True,producer_setup=True,shared_pair=True) for _ in range(2)]

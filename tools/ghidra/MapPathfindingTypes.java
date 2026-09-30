@@ -11,6 +11,7 @@ import ghidra.app.script.GhidraScript;
 import ghidra.program.model.data.*;
 import ghidra.program.model.listing.*;
 import ghidra.program.model.symbol.SourceType;
+import ghidra.program.model.symbol.Symbol;
 
 public class MapPathfindingTypes extends GhidraScript {
     private static final CategoryPath CATEGORY = new CategoryPath("/WarcraftIII/Pathfinding127");
@@ -59,6 +60,16 @@ public class MapPathfindingTypes extends GhidraScript {
                 if (storage.isString() && currentProgram.getRegister(storage.getAsString()) == null)
                     throw new Exception("Unknown register " + storage);
             }
+        }
+        if (schema.has("globals")) for (JsonElement element : schema.getAsJsonArray("globals")) {
+            JsonObject global = element.getAsJsonObject();
+            ghidra.program.model.address.Address address = toAddr(global.get("address").getAsString());
+            if (getInstructionContaining(address) != null) throw new Exception("Global overlaps code " + address);
+            type(global.get("type").getAsString());
+            Symbol existing = currentProgram.getSymbolTable().getPrimarySymbol(address);
+            if (existing != null && existing.getSource() == SourceType.USER_DEFINED &&
+                !existing.getName().equals(global.get("name").getAsString()))
+                throw new Exception("Preserve existing global " + existing.getName());
         }
     }
 
@@ -126,10 +137,18 @@ public class MapPathfindingTypes extends GhidraScript {
                     type(parameter.get("type").getAsString()), location, currentProgram);
             }
             function.setName(method.get("name").getAsString(), SourceType.USER_DEFINED);
-            function.setCallingConvention("__thiscall");
+            function.setCallingConvention(method.has("convention") ? method.get("convention").getAsString() : "__thiscall");
             function.setReturnType(type(method.get("returns").getAsString()), SourceType.USER_DEFINED);
             function.replaceParameters(Function.FunctionUpdateType.CUSTOM_STORAGE, true, SourceType.USER_DEFINED, argspec);
             println(function.getEntryPoint() + " " + function.getPrototypeString(true, true));
+        }
+        if (schema.has("globals")) for (JsonElement element : schema.getAsJsonArray("globals")) {
+            JsonObject global = element.getAsJsonObject();
+            ghidra.program.model.address.Address address = toAddr(global.get("address").getAsString());
+            createLabel(address, global.get("name").getAsString(), true, SourceType.USER_DEFINED);
+            clearListing(address, address.add(3));
+            createData(address, type(global.get("type").getAsString()));
+            setEOLComment(address, global.get("evidence").getAsString());
         }
         // Read the installed database back. Export only our layout/ABI metadata,
         // never binary bytes or private decompiled function bodies.
@@ -178,6 +197,7 @@ public class MapPathfindingTypes extends GhidraScript {
             installed.add("parameters", parameters); methods.add(installed);
         }
         report.add("methods", methods);
+        if (schema.has("globals")) report.add("globals", schema.getAsJsonArray("globals"));
         report.addProperty("passed", true);
         if (args.length == 2)
             Files.write(Paths.get(args[1]), new GsonBuilder().setPrettyPrinting().create().toJson(report).getBytes(StandardCharsets.UTF_8));

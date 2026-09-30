@@ -2,13 +2,89 @@
 import hashlib
 import itertools
 import json
+import struct
+import sys
+from types import SimpleNamespace
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 FIXTURES=Path(__file__).resolve().parents[1]/'tools/ghidra/fixtures'
+sys.path.insert(0,str(FIXTURES.parent))
+from wc3_pathing_callbacks import invoke_preserving_context
+
+
+class CallbackMachine:
+    """Minimal VM double for the orchestration's context/error contract."""
+    def __init__(self,failure=None):
+        self.registers={name:100+n for n,name in enumerate(('EAX','EBX','ESI','EDI','EBP','ESP','ECX','EDX','EIP'))}
+        self.memory={0:bytes(4)};self.failure=failure
+    def reg_read(self,register):return self.registers[register]
+    def reg_write(self,register,value):self.registers[register]=value
+    def mem_read(self,address,size):return self.memory.get(address,bytes(size))[:size]
+    def mem_write(self,address,raw):self.memory[address]=bytes(raw)
+    def context_save(self):return dict(self.registers)
+    def context_restore(self,saved):self.registers=dict(saved)
+    def emu_start(self,entry,stop,**options):
+        words=struct.unpack('<3I',self.memory[self.registers['ESP']])
+        assert words== (stop,11,12) and options==dict(count=2000000)
+        self.memory[0x1000]=b'request effect'
+        self.registers.update(EAX=77,EIP=stop,ESP=self.registers['ESP']+12)
+        if self.failure=='budget':self.registers['EIP']=entry
+        elif self.failure=='stack':self.registers['ESP']-=4
+        elif self.failure=='register':self.registers['EDI']+=1
+        elif self.failure=='exception':self.memory[0]=struct.pack('<I',1)
 
 
 class CallbackFixtures(unittest.TestCase):
+    def test_original_call_restores_cpu_and_retains_memory_even_on_failed_validation(self):
+        registers=SimpleNamespace(**{'UC_X86_REG_'+name:name for name in
+                  ('EAX','EBX','ESI','EDI','EBP','ESP','ECX','EDX','EIP')})
+        with patch.dict(sys.modules,{'unicorn.x86_const':registers}):
+            for failure in (None,'budget','stack','register','exception'):
+                machine=CallbackMachine(failure);saved=dict(machine.registers)
+                call=dict(entry=0x1234,receiver=0x5678,arguments=[11,12],edx=99,stack=0x8000,stop=0x9000)
+                if failure:
+                    with self.assertRaises(AssertionError):invoke_preserving_context(machine,call)
+                else:self.assertEqual(invoke_preserving_context(machine,call),77)
+                self.assertEqual(machine.registers,saved)
+                self.assertEqual(machine.memory[0x1000],b'request effect')
+
+    def test_reused_slot_has_new_generation_and_exact_survivor(self):
+        for name in ('retail-callback-reuse-1.27.json','retail-callback-reuse-wall-1.27.json'):
+            fixture=json.loads((FIXTURES/name).read_text())
+            self.assertFalse(fixture['counterfactual_missing_spatial_registry'])
+            self.assertEqual(len(fixture['cases']),4)
+            self.assertEqual({(c['inputs']['trigger'],c['inputs']['victim']) for c in fixture['cases']},
+                             set(itertools.product(range(2),repeat=2)))
+            for case in fixture['cases']:
+                old,new=case['old_handles'][0],case['after']['new_identity']
+                self.assertEqual(old[0],new[0]);self.assertNotEqual(old[1],new[1])
+                self.assertTrue(case['reused_same_storage'] and case['old_generation_rejected'])
+                before=case['before']['registry_live']
+                self.assertEqual(case['released']['registry_live'],before-4)
+                self.assertEqual(case['after']['registry_live'],before-1)
+                self.assertEqual(case['released']['spatial_slots_live'],[False,False])
+                self.assertEqual(case['released']['old_handle_results'],[0]*4)
+                self.assertEqual(case['after']['old_handle_results'],[0]*4)
+                victim=case['inputs']['victim'];survivor=1-victim
+                self.assertEqual(case['surviving_row'],case['before_rows'][survivor])
+                self.assertEqual(case['later_callback_order'],[survivor])
+                self.assertEqual(case['released']['spatial_refs'],[2,2])
+                # Retired objects retain references; new activation uses spare
+                # pool backing and does not pretend those objects were freed.
+                self.assertEqual(case['after']['spatial_pool'][1],case['before']['spatial_pool'][1]+2)
+
+    def test_missing_alias_rejects_old_handles_but_leaves_stale_slots(self):
+        fixture=json.loads((FIXTURES/'retail-callback-reuse-missing-alias-1.27.json').read_text())
+        self.assertTrue(fixture['counterfactual_missing_spatial_registry'])
+        for case in fixture['cases']:
+            self.assertEqual(case['released']['old_handle_results'],[0]*4)
+            self.assertEqual(case['released']['spatial_slots_live'],[True,True])
+            before=case['before']['registry_live']
+            self.assertEqual(case['released']['registry_live'],before-2)
+            self.assertEqual(case['after']['registry_live'],before+1)
+
     def test_every_callback_position_and_removal_subset_is_recorded(self):
         fixture=json.loads((FIXTURES/'retail-callback-mutations-1.27.json').read_text())
         cases=fixture['cases']

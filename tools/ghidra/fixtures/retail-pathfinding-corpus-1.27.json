@@ -4939,6 +4939,158 @@
       "exclusions": [
         "Archived live inputs replayed through current C or profile verifier; not a new capture. Whole engine trajectory/cadence remains open."
       ]
+    },
+    {
+      "id": "callback-reuse-open",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--shared-pair",
+        "--callback-reuse",
+        "--reuse-fixture",
+        "tools/ghidra/fixtures/retail-callback-reuse-1.27.json",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "fixture": "tools/ghidra/fixtures/retail-callback-reuse-1.27.json",
+        "parent_fixture": "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "callback-reuse-open.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "callback_reuse_cases": {
+          "equal": 4
+        },
+        "counterfactual_missing_spatial_registry": {
+          "equal": false
+        },
+        "exported_original_expectations": {
+          "equal": false
+        },
+        "cases_sha256": {
+          "equal": "7ba73aa142594f52f1ac9eca5ed85f1a7c21fe0527065aacc9c8e2944da3b6db"
+        },
+        "parent_fixture_sha256": {
+          "equal": "d5a893efe80c9eaafb9ac950f64b0b57191be96cc5f8165a7c6c1f2507a5b57a"
+        }
+      },
+      "evidence": [
+        "S",
+        "O"
+      ],
+      "scope": "Original mover release/reallocation at original slot54 entry; supplied existing Unit/Move and spare allocator backing; gameplay RemoveUnit callback graph, replacement owned path and survivor arrival excluded"
+    },
+    {
+      "id": "callback-reuse-wall",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--shared-pair",
+        "--callback-reuse",
+        "--reuse-fixture",
+        "tools/ghidra/fixtures/retail-callback-reuse-wall-1.27.json",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "fixture": "tools/ghidra/fixtures/retail-callback-reuse-wall-1.27.json",
+        "parent_fixture": "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json",
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "callback-reuse-wall.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "callback_reuse_cases": {
+          "equal": 4
+        },
+        "counterfactual_missing_spatial_registry": {
+          "equal": false
+        },
+        "exported_original_expectations": {
+          "equal": false
+        },
+        "cases_sha256": {
+          "equal": "4086ce129f2a26df8484c75e3e99d0f554cf9876a65924eb683e3fd10d8ca982"
+        },
+        "parent_fixture_sha256": {
+          "equal": "268571d198602eed7203ba36d20d563738c0ed6279c7cffd84105dd23c043a3d"
+        }
+      },
+      "evidence": [
+        "S",
+        "O"
+      ],
+      "scope": "Original mover release/reallocation at original slot54 entry; supplied existing Unit/Move and spare allocator backing; gameplay RemoveUnit callback graph, replacement owned path and survivor arrival excluded"
+    },
+    {
+      "id": "callback-reuse-missing-alias",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--shared-pair",
+        "--callback-reuse",
+        "--reuse-fixture",
+        "tools/ghidra/fixtures/retail-callback-reuse-missing-alias-1.27.json",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "--report",
+        "{report}",
+        "--missing-spatial-registry"
+      ],
+      "inputs": {
+        "fixture": "tools/ghidra/fixtures/retail-callback-reuse-missing-alias-1.27.json",
+        "parent_fixture": "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "callback-reuse-missing-alias.json",
+      "expected_exit": 0,
+      "expected_status": "counterfactual-control",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "callback_reuse_cases": {
+          "equal": 4
+        },
+        "counterfactual_missing_spatial_registry": {
+          "equal": true
+        },
+        "exported_original_expectations": {
+          "equal": false
+        },
+        "cases_sha256": {
+          "equal": "08d9573880edba72e68aa1abadebb0804b31036fc7a83590cda088d918b1e65f"
+        },
+        "parent_fixture_sha256": {
+          "equal": "d5a893efe80c9eaafb9ac950f64b0b57191be96cc5f8165a7c6c1f2507a5b57a"
+        }
+      },
+      "evidence": [],
+      "scope": "Original mover release/reallocation at original slot54 entry; supplied existing Unit/Move and spare allocator backing; gameplay RemoveUnit callback graph, replacement owned path and survivor arrival excluded",
+      "intervention": "Clear6860c retirement registry alias before the original mover destructor. This deliberately invalid baseline retains two stale spatial slots; it is a diagnostic control and certifies no native parity."
     }
   ],
   "fixtures": [
@@ -5004,11 +5156,23 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "141663ad7305ad720272003f2b5266c99986582a8f5a8050b06b40ac4723c2ef"
+      "sha256": "977ade87df1e12726fb66213f55f9a371f94979c809eea1f7ad8bdbb0b0069f3"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
       "sha256": "317832072c6f0a9559a2fd55b56b2e4114e22efe19aeb9ea40b144bca4d96408"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-callback-reuse-1.27.json",
+      "sha256": "37f83caaee67af1cae4681ed41557cfc84c9e78a6b14f75bc4d1487c1b1f6d9b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-callback-reuse-wall-1.27.json",
+      "sha256": "43fd8a2f598a3bfc27534796eba82558436c5aed917cd6eb3bd38fbbbb69bd66"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-callback-reuse-missing-alias-1.27.json",
+      "sha256": "516275839ce5da3cd293032d83b245360cb71f11e9d0b1edb029559121acd275"
     }
   ]
 }

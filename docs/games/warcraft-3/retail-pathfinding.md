@@ -39,8 +39,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists eight partial layouts,66 verified
-  fields and eight instruction-established prototypes with explicit ECX/stack
+  `MapPathfindingTypes.java` also persists 11 partial layouts,80 verified
+  fields and14 instruction-established prototypes with explicit ECX/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -48,9 +48,9 @@ composition closes a gap.
   decompilation cannot imply host float arithmetic. The hash/base guards run
   before mutation; incompatible existing layouts/names are preserved by refusal.
   Applying and rerunning the script, then saving `game.dll`, produced the
-  layout/prototype readback `group-04.1-ghidra-types.json` under the report root.
+  layout/prototype readback `group-04.3-ghidra-registry-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  230 applied and saved. Names are recovered roles, not original debug symbols;
+  243 function names/comments applied and saved. Names are recovered roles, not original debug symbols;
   RTTI names are original. No inferred prototypes installed.
 - Local Ghidra project: `/GitHub/wc3-analysis/projects/WC3Audio.gpr`, program
   `game.dll`, backend `http://127.0.0.1:8089`.
@@ -107,7 +107,7 @@ Counts overlap; do not sum them into a coverage percentage.
 | TARGET — target state/retry | **S/O/C/L:** target radius/heading tests, destination reset/replan, refresh counter, follow, invisibility cancellation, fog loss/reacquisition, perimeter acceptance and retry exhaustion | Point-order arrival parameter producers; sub-cell edits; other visibility-loss policies; complete moving-target ticks; gameplay meanings of remaining policy flags |
 | NUM — arithmetic | **S/O/C:** 200,330 exact scalar calls including divide/sqrt; independently reconstructed acos tables and exact vector-heading chain; 2,130 normalizations; 864 bounds prefixes | Remaining conversions and arithmetic consumers; producer reachability of extreme raw inputs; full mutation/trajectory parity |
 | MOVE — kinematics/clocks | **S/O/C:** 13,824 speed/heading cases; producers, normalization; 2,304 position integrations; exact C/live velocity, vector-heading and committed-facing kernels; authored turn/window chain; velocity commits with real occupancy updates | General movement parity outside verified scalar/turn/heading/facing kernels; clock domains/cadence/rollover; moving mixed-object and region-crossing trajectories |
-| GROUP — group state | **S/O/C/L (target witnesses):** shared-cap ownership/publication, max footprint, stops/pools; 576 member decisions; 144 route/commit compositions; 144 full cached-route ticks; 156 membership prepasses;68 callback-boundary mutations/controls and exact survivor rows; 36 new-group fine-search ticks; fine/adaptive singleton wall trajectories and one active singleton plus repulsor | Shared-group adaptive/obstacle/crowd fresh ticks; target-speed adjustment; populated owner tick; create/join/leave/destroy during movement; live Captain AI delay; stale handles under mutation |
+| GROUP — group state | **S/O/C/L (target witnesses):** shared-cap ownership/publication, max footprint, stops/pools; 576 member decisions; 144 route/commit compositions; 144 full cached-route ticks; 156 membership prepasses;68 callback-boundary mutations/controls and exact survivor rows; original callback-timed handle reclamation/reuse on open and wall pairs; 36 new-group fine-search ticks; fine/adaptive singleton wall trajectories and one active singleton plus repulsor | Shared-group adaptive/obstacle/crowd fresh ticks; target-speed adjustment; populated owner tick; create/join/leave/destroy during movement; live Captain AI delay; stale handles under mutation |
 | FORM — formations/regroup | **S/O/C:** authored rank setter; interval classifier; rank/row layout; 144 full layouts, 48 refreshes, 384 offset-destination cases, 648 regroup/reset/refresh compositions | Mixed-radius/moving/oblique complete layouts; refresh → destination → decision → commit chain; live selection formations and rebuild cadence; remaining flag producers |
 | ORDER — completion/lifetime | **S/O/C/L:** 1,536 completion + next-prepass cases; real CUnit bridge; 12 subscriber prefixes; 144 full arrival calls including next-task rejection/acceptance and group/path preparation plus36 fresh fine-search ticks and78 elapsed travel/arrival/reclamation trajectories including fine/adaptive/full-owner wall detours and one active singleton plus repulsor; 288 full ordinary-point order producers/984 direct point-task producers/24 produced-chain queued-order arrivals and four two-order FIFO cases, with34 complete initial unit admissions; live d016b acceptance/arrival and blocked-goal recovery; 432 generic queue pops/releases; 216 retained-ref notifications; 8 zero-ref reclaim cycles/6 factory reuses | UI/network producers feeding the verified unit-admission-to-arrival composition; broader obstacle/adaptive/crowd travel; alternate can't-path branches; callback reentrancy/user-order progression; cancellation variants; live registration, populated targets/relations/subscriptions; negative-domain/repeating requests and heap ordering |
 | SEP — separation/spatial | **S/O/C/L:** filters/cooldown, candidate order/stamps, arithmetic slices, overlap PRNG, endpoint validation, bounds/lazy links/reclamation; Footman/Gryphon controls; 16 post-arrival pair ticks (10 accepted/4 blocked attempts) and 43 separation updates within an active-singleton owner trajectory | Exact per-neighbor live replay; full numeric parity; config/category/rank producers; mixed owners/blocked repulsion; allocation failure/growth, stamp repair, full scheduling |
@@ -118,7 +118,7 @@ Counts overlap; do not sum them into a coverage percentage.
 
 [Executable research backlog](retail-pathfinding-todo.md#work-next): numbered
 tasks, acceptance checks, completed evidence and the READY gate. Start with
-**GROUP-04.3**, then **GROUP-04.4**; the backlog names their dependencies and
+**GROUP-04.4**; the backlog names their dependencies and
 finish artifacts. The areas below describe the sequence, not additional tasks.
 
 1. **ORDER + GROUP + MOVE:** join the verified initial-admission/FIFO chain

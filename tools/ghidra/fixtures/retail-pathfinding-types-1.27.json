@@ -449,6 +449,108 @@
           "evidence": "16fe20/16c250 moving20000000 and exemption40000000 motion oracle"
         }
       ]
+    },
+    {
+      "name": "WC3CanonicalPrefix",
+      "length": 28,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "1c5490 virtual pool release"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "1c53f0/1c5490 registration and release"
+        }
+      ]
+    },
+    {
+      "name": "WC3RegistrySlot",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "link",
+          "type": "i32",
+          "evidence": "1cbe60/1cbff0: -2 live, otherwise free link"
+        },
+        {
+          "offset": 4,
+          "name": "object",
+          "type": "ptr:WC3CanonicalPrefix",
+          "evidence": "054530/1cbff0 lookup and release"
+        }
+      ]
+    },
+    {
+      "name": "WC3HandleRegistryPrefix",
+      "length": 88,
+      "fields": [
+        {
+          "offset": 12,
+          "name": "positive_slots",
+          "type": "ptr:WC3RegistrySlot",
+          "evidence": "054530 assembly"
+        },
+        {
+          "offset": 28,
+          "name": "positive_bound",
+          "type": "u32",
+          "evidence": "054530 assembly"
+        },
+        {
+          "offset": 44,
+          "name": "negative_slots",
+          "type": "ptr:WC3RegistrySlot",
+          "evidence": "054530 assembly"
+        },
+        {
+          "offset": 60,
+          "name": "negative_bound",
+          "type": "u32",
+          "evidence": "054530 assembly"
+        },
+        {
+          "offset": 64,
+          "name": "positive_free",
+          "type": "i32",
+          "evidence": "1cbfb0/1cbff0 assembly"
+        },
+        {
+          "offset": 68,
+          "name": "negative_free",
+          "type": "i32",
+          "evidence": "1cbfb0/1cbff0 assembly"
+        },
+        {
+          "offset": 72,
+          "name": "positive_live",
+          "type": "u32",
+          "evidence": "1cbfb0/1cbff0 assembly and callback reuse oracle"
+        },
+        {
+          "offset": 76,
+          "name": "negative_live",
+          "type": "u32",
+          "evidence": "1cbfb0/1cbff0 assembly"
+        },
+        {
+          "offset": 80,
+          "name": "positive_generation",
+          "type": "u32",
+          "evidence": "1c53f0 original producer"
+        },
+        {
+          "offset": 84,
+          "name": "negative_generation",
+          "type": "u32",
+          "evidence": "1c53f0 original producer"
+        }
+      ]
     }
   ],
   "methods": [
@@ -567,6 +669,118 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f054530",
+      "name": "PathRegistry_ResolveCanonical",
+      "returns": "ptr:WC3CanonicalPrefix",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "slot",
+          "type": "i32",
+          "storage": "ECX"
+        },
+        {
+          "name": "generation",
+          "type": "u32",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f1c5490",
+      "name": "PathRegistry_UnregisterAndRelease",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "object",
+          "type": "ptr:WC3CanonicalPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f16eb20",
+      "name": "Mover_Destroy",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f16ea70",
+      "name": "Mover_Activate",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1542a0",
+      "name": "Mover_ReturnToPool",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f14dae0",
+      "name": "SpatialObject_Retire",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "object",
+          "type": "ptr:WC3SpatialPrefix",
+          "storage": "ECX"
+        }
+      ]
+    }
+  ],
+  "globals": [
+    {
+      "address": "6fd6860c",
+      "name": "PathRegistryOwner",
+      "type": "ptr:WC3HandleRegistryPrefix",
+      "evidence": "050a70 assigns04a6b0 return;14dae0 retirement consumes this alias"
+    },
+    {
+      "address": "6fd68610",
+      "name": "PathRegistryCurrent",
+      "type": "ptr:WC3HandleRegistryPrefix",
+      "evidence": "04a6b0 publishes same registry;054530 and1c5490 consume this alias"
     }
   ]
 }

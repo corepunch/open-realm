@@ -572,6 +572,89 @@ records a required group implementation behavior; no individual speed kernel
 change follows from it. GROUP-04.4 owns the group integration and its scheduler
 and lifecycle regressions.
 
+## Callback-timed handle reclamation and reuse
+
+**GROUP-04.3, S/O:** `verify_wc3_pathing_order_tasks.py --shared-pair
+--callback-reuse` starts with originally admitted units, the original shared
+request and a fresh owner update. It pauses an actual slot54 callback, executes
+the complete original mover destructor `6f16eb20`, then the original pooled
+factory `6f14ee90` and activation `6f16ea70`, restores CPU context and resumes
+the unmodified callback/prepass. Each pair has four trigger/victim combinations,
+each repeated twice. Both the open pair and the three-cell stock-mask wall pair
+have frozen exact outcomes.
+
+The destructor releases the mover's owned path, retires both spatial objects,
+detaches relationships/payload, removes canonical identity and returns mover
+storage to its pool. The next factory reuses the **same address and slot with
+a new generation**. For the first mover, the identity changes from `[8,108]`
+to `[8,153]`. The original resolver rejects all four old identities and accepts
+the new mover. Pruning rejects the stale member despite pointer reuse, preserves
+the survivor's entire44-byte row, and the subsequent prepass dispatches only
+that survivor. A victim whose callback already ran keeps its old identity in
+the callback record; a victim reused at its own paused callback resumes with
+the new identity. A lower victim is skipped by later reverse iteration.
+
+The positive-domain registry's live count changes **50→46→49**. Four objects
+are removed and three are activated; the old owned path is not recreated.
+Mover pool live/allocation counters change **2/2→1/2→2/3**. Each retired spatial
+object still has two lazy references; both original objects remain in storage
+pending map cleanup. Two supplied, originally constructed spare regions support
+new activation, increasing spatial pool live/allocation counters **4/4→6/6**.
+No reference count is cleared to force early reuse. Further cleanup/growth is
+still MAP-05/BASE-03 work.
+
+This composition exposed a real fixture initialization gap. Original
+`6f050a70` calls `6f04a6b0`, whose result is published at both
+`6fd6860c` (**owner registry**) and `6fd68610` (**current registry**). The previous
+baseline supplied only the latter. Spatial retirement `6f14dae0` consumes the
+former; canonical resolution and general unregister consume the latter.
+`wc3_pathing_baseline.construct` now supplies both aliases, as the original
+creation chain requires. A frozen explicit counterfactual clears only the owner
+alias before destruction: old handle resolution still returns zero after object
+generations are cleared, but both old spatial slots remain live and registry
+accounting changes **50→48→51**. Thus handle rejection alone could hide the gap.
+This control certifies no native fidelity and stays separate in the corpus.
+
+Frozen fixtures and normalized case digests:
+
+| Fixture | Digest |
+| --- | --- |
+| `retail-callback-reuse-1.27.json` | `7ba73aa142594f52f1ac9eca5ed85f1a7c21fe0527065aacc9c8e2944da3b6db` |
+| `retail-callback-reuse-wall-1.27.json` | `4086ce129f2a26df8484c75e3e99d0f554cf9876a65924eb683e3fd10d8ca982` |
+| `retail-callback-reuse-missing-alias-1.27.json` (counterfactual) | `08d9573880edba72e68aa1abadebb0804b31036fc7a83590cda088d918b1e65f` |
+
+```sh
+"$pathing_python" tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary "$wc3_dir/game.dll" --archive "$pathing_reports" \
+  --only callback-reuse-open --only callback-reuse-wall \
+  --only callback-reuse-missing-alias \
+  --output "$pathing_reports/group-04.3-reproduction"
+```
+
+Original expectation exports are
+`group-04.3-callback-reuse-frozen-export.json`,
+`group-04.3-callback-reuse-wall-export.json`, and
+`group-04.3-missing-registry-alias-control.json` under the report root.
+The final strict114-entry replay is
+`group-04.3-final-frozen-corpus/corpus-results.json`; it also rechecks the
+previous owner/pair frozen states after the alias fix. Asset-free regressions
+check the generations, exact survivor rows, pool/reference accounting, and the
+counterexample's stale slots. The shared callback-call helper is tested for
+register, stack, budget and exception-chain failures, including CPU restoration
+with retained memory effects.
+The final114-entry replay passes with no changed source fingerprints; `make
+test` passes75 pathfinding tool tests and36,633 assertions in2,123 engine tests
+for each ROC/TFT fixture mode. Earlier mutable-source/failed-alias attempts are
+diagnostics, not this checkpoint's reproduction evidence.
+
+Ghidra now persists11 partial layouts,80 verified fields,14 explicit prototypes,
+the two registry labels and their typed pointers. Applied/read back metadata is
+`group-04.3-ghidra-registry-types.json`; `game.dll` is saved. Complete gameplay
+RemoveUnit/region callback graphs, replacement owned-path creation, natural
+survivor completion and OpenRealm group integration remain excluded here and
+owned by BASE-03.1/MOVE-03/GROUP-04.4. This original mover lifecycle is not a
+claim that a CUnit's active order was cancelled by a gameplay RemoveUnit native.
+
 ## Member completion: retry boundary, notification and deferred removal
 
 The motion oracle executes **1,536 complete `6f16c390` completion scans**, each

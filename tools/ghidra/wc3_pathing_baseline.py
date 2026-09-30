@@ -21,6 +21,13 @@ def construct(machine, context, run):
     assert read(slots+127*8,2)==[0xffffffff,0]
     assert read(registry+0x48)==[2]
     assert read(owner+0x234,8)==[0]*8
+    # Original050a70 assigns04a6b0's return to6860c; that constructor also
+    # publishes the same object at68610. The supplied registry backing must
+    # reproduce both aliases. Spatial retirement14dae0 uses6860c, while
+    # canonical resolution/unregistration uses68610. A zero alias can hide
+    # stale spatial slots behind cleared object generations (GROUP-04.3).
+    write(0x6fd6860c,registry)
+    assert read(0x6fd6860c)==read(0x6fd68610)
     maps=[area+0x4004+n*0x200 for n in range(6)]
     storage=[area+0x10000+n*0x40000 for n in range(6)]
     dirty=[area+0x1a0000+n*0x1000 for n in range(2)]

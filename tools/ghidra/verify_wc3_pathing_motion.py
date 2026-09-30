@@ -1394,21 +1394,10 @@ def main():
     # This tests callback timing; the gameplay/JASS producer graph is excluded.
     callback_mutations=[]
     callback_stack=0x2000e000
+    from wc3_pathing_callbacks import invoke_preserving_context
     def call_during_callback(entry,receiver,arguments):
-        saved=machine.context_save()
-        exception=read(0)[0]
-        try:
-            write(callback_stack,stop,*arguments)
-            machine.reg_write(UC_X86_REG_ESP,callback_stack)
-            machine.reg_write(UC_X86_REG_ECX,receiver)
-            preserved={r:machine.reg_read(r) for r in (UC_X86_REG_EBX,UC_X86_REG_ESI,UC_X86_REG_EDI,UC_X86_REG_EBP)}
-            machine.emu_start(entry,stop,count=2000000)
-            assert machine.reg_read(UC_X86_REG_EIP)==stop,('callback producer budget',hex(entry))
-            assert machine.reg_read(UC_X86_REG_ESP)==callback_stack+4+4*len(arguments)
-            assert all(machine.reg_read(r)==v for r,v in preserved.items())
-            assert read(0)[0]==exception
-        finally:
-            machine.context_restore(saved)
+        invoke_preserving_context(machine,dict(entry=entry,receiver=receiver,arguments=arguments,
+                                  stack=callback_stack,stop=stop))
     for count in range(1,4):
         for trigger,removed,action in itertools.product(range(count),range(1<<count),['unbind_member','detach_mover']):
             machine.mem_write(group,bytes(0x100));machine.mem_write(members,bytes(0x100))
