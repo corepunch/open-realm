@@ -25,8 +25,10 @@ and draw retained `SPN` children in the source model's camera view. Each live
 camera entity supplies a stable, unique `renderEntity_t.instance_id`; that key
 is independent of both the model and the synthetic entity number, so two
 instances of one model do not share an event clock or retained child. Replacing
-an instance ID's model or evicting its bounded event-clock entry clears that
-instance's retained children. UI entities use synthetic numbers, so sharing the
+an instance ID's model clears that instance's retained children. Camera event
+clocks grow to accommodate each distinct live presentation ID and are released
+at map registration or renderer shutdown, so visiting another portrait cannot
+evict an existing clock. UI entities use synthetic numbers, so sharing the
 edict-indexed clock can reseed an event on every frame; omitting the camera
 child pass makes one-frame effects such as the main-menu Infernal meteor
 disappear immediately after spawning.
