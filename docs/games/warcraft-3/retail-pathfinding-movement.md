@@ -2167,3 +2167,56 @@ Full callback-timed mover reuse followed by actual formation refresh and new
 survivor destinations remains GROUP-04.5. Retail member flags, shared overrides,
 queued cohort handoff and all-decisions-before-commits remain GROUP-04.6; these
 slices do not close full engine fidelity or certify a live retail witness.
+
+
+## Owned-path factory accounting
+
+GROUP-04.7 is an explicit prerequisite uncovered while composing04.5. The
+previous producer fixture constructed each individual `CLrPath` with1657c0,
+registered it with166060, and supplied `mover+a8`. That established canonical
+identity but omitted the original owner958 allocation accounting. Destroying
+that path through `16eb20 → 1660d0 → 1c5490 → 167900` decremented a live count
+which its direct registration had never incremented. The complete survivor/reuse
+diagnostic exposed the resulting underflow; the earlier callback prefix's
+mover/spatial/canonical assertions did not cover this path-pool count.
+
+`wc3_pathing_baseline.create_owned_path` now supplies constructed recycled
+backing and invokes the unchanged original `14ec50 → 166130 → 150d50 →
+virtualc166060` factory. It verifies the returned pointer, preserved previous
+free head, and exactly one increment each to live18 and allocation1c. The pair
+uses the same helper. Supplied existing Unit/Move binding is unchanged and
+remains BASE-03.1; native heap growth/failure remains MAP-05.3.
+
+Original owner958 therefore has one individual path plus one active group path
+for a singleton, or two individual paths plus one active group path for the
+joined pair. Callback mover destruction must push its owned path's header,
+link it to the previous free head, and change pair live3 to2 without changing
+allocation1c. Reallocating that mover creates its two spatial objects but no
+replacement owned path, so the path counts/head remain unchanged. These
+assertions execute for both victim roles and callback positions, including the
+explicit missing-spatial-registry counterfactual; that counterfactual still
+receives no native evidence. Natural group teardown in ordinary complete owner
+journeys retains the individual paths instead of claiming path live0.
+
+The original path factory preserves all frozen motion/identity expectations.
+The focused O report `group-04.7-native-path-factory-reuse-open.json` repeats all
+four callback cases with the existing cases digest
+`7ba73aa142594f52f1ac9eca5ed85f1a7c21fe0527065aacc9c8e2944da3b6db`.
+`group-04.5-native-path-factory-short-parent-replay.json` retains the pair's
+arrival tick7 and repeat digest
+`fc29e310cdbe5b8b1f2e62bf7ac03f784fa277d060b3cd7aa34165039c5c0c73`.
+These are original-code accounting checks, not new engine trajectory parity.
+OpenRealm's `routePath_t` uses inline storage and has no corresponding retail
+path pool; this fixture correction does not warrant a production pool shim.
+
+Ghidra `game.dll` is saved with254 role names,14 partial layouts,90 verified
+fields and29 instruction-backed x86 prototypes. New factory/destructor roles
+include14ec50,150d50,166130,167900,170aa0,169840 and1660d0. The factory has ECX
+output, EDX context and stack4 activation;150d50 returns the object in EAX and
+consumes two stack words. The prior decompiler's void return was disproved by
+`LEA EAX,[ESI+4]` and the full original caller. Readback is
+`group-04.7-ghidra-native-path-factory-types-final.json`; pool bytes below14
+remain undefined. No native heap-allocation or full-world lifetime claim is
+made by this prefix.
+
+Fresh validation is `group-04.7-native-path-factory-validated-corpus/corpus-results.json`: all116 declared outcomes reproduced, including frozen singleton/FIFO/pair trajectories, callback reuse on open/wall maps, the missing-registry-alias control, completion/survivor journeys and retained adaptive differences. Source hashes still matched at completion. `LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test` passed76 Python tool tests and36678/36678 assertions in2126 tests for each RoC/TFT schema (`/tmp/wc3-group-04.7-native-path-factory-validated-full-suite.log`). The first validation attempt correctly rejected the old annotation-schema checksum; only the fresh validated run is the checkpoint. GROUP-04.7 is closed; actual refresh and complete survivor/reuse composition remains GROUP-04.5.

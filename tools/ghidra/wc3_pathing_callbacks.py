@@ -43,6 +43,9 @@ def reuse_member(machine, context, run):
     identity=read(actor+0x14,2);path=read(actor+0xa8)[0];objects=read(actor+0x94,2)
     old_handles=[read(obj+0x14,2) for obj in [actor,path]+objects]
     pool=owner+0x7d8
+    path_pool=owner+0x958
+    before_path_pool=read(path_pool+0x14,3)
+    assert before_path_pool[1]==3  # Two owned paths and the active group path.
     before=dict(registry_live=read(registry+0x48)[0],mover_pool=read(pool+0x14,3),
                 spatial_pool=read(owner+0x5d8+0x14,3),generation_next=read(registry+0x50)[0])
     # Recycled spare objects are allocator backing, as in the existing baseline.
@@ -73,6 +76,8 @@ def reuse_member(machine, context, run):
     missing=spec.get('missing_spatial_registry',False)
     if missing:write(0x6fd6860c,0)  # Explicit fixture counterfactual, never native parity.
     call(dict(entry=0x6f16eb20,receiver=actor,arguments=[0]))
+    assert read(path_pool+0x14,3)==[path-4,2,before_path_pool[2]]
+    assert read(path-4)==[before_path_pool[0]]
     released=dict(registry_live=read(registry+0x48)[0],mover_pool=read(pool+0x14,3),
                   spatial_pool=read(owner+0x5d8+0x14,3),old_handle_results=[resolve(h) for h in old_handles],
                   spatial_refs=[read(obj+0x3c)[0] for obj in objects],
@@ -93,6 +98,7 @@ def reuse_member(machine, context, run):
     assert after['registry_live']==before['registry_live']+(1 if missing else -1)  # Owned path was released, not recreated.
     assert after['mover_pool']==[before['mover_pool'][0],before['mover_pool'][1],before['mover_pool'][2]+1]
     assert read(new_actor+0x9c,2)==[0xffffffff]*2 and read(new_actor+0xa8)==[0]
+    assert read(path_pool+0x14,3)==[path-4,2,before_path_pool[2]]
     machine.emu_start(machine.reg_read(UC_X86_REG_EIP),stop,count=2000000)
     machine.hook_del(hook)
     assert machine.reg_read(UC_X86_REG_EIP)==stop and machine.reg_read(UC_X86_REG_ESP)==stack+4

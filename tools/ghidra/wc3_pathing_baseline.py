@@ -6,6 +6,23 @@ code. The caller owns image loading, register/stack validation and owner ticks.
 import struct
 
 
+def create_owned_path(machine, context, run):
+    """Supply recycled backing, then allocate/register through original14ec50."""
+    owner,mover,path,inputs=(context[k] for k in ('owner','mover','path','inputs'))
+    def read(address,count=1):return list(struct.unpack('<%dI'%count,machine.mem_read(address,4*count)))
+    def write(address,*words):machine.mem_write(address,struct.pack('<%dI'%len(words),*(w & 0xffffffff for w in words)))
+    pool=owner+0x958
+    before=read(pool+0x14,3)
+    run(0x6f1657c0,path)
+    write(path-4,before[0]);write(pool+0x14,path-4)
+    run(0x6f14ec50,inputs,1,edx=0)
+    assert read(inputs)==[path]
+    assert read(pool+0x14,3)==[before[0],before[1]+1,before[2]+1]
+    assert read(path+0x14,2)!=[0xffffffff]*2
+    # Existing Unit/Move binding is supplied, as before; full callers remain BASE-03.1.
+    write(mover+0xa8,path)
+
+
 def construct(machine, context, run):
     owner, terrain, registry, slots, inputs = (context[k] for k in
         ('owner','terrain','registry','slots','inputs'))
@@ -111,9 +128,7 @@ def construct(machine, context, run):
     write(inputs,0,0,0,context['unit_wrapper'])
     run(0x6f15fe30,mover,inputs)
     path=area+0x2004
-    run(0x6f1657c0,path)
-    run(0x6f166060,path,0)
-    write(mover+0xa8,path)  # Unit-owned binding; lifecycle inventory BASE-03.1.
+    create_owned_path(machine,dict(owner=owner,mover=mover,path=path,inputs=inputs),run)
     return dict(mover=mover,current_path=path,maps=maps[:2],fine=searches[0],acc=searches[1],
         objects=regions,mover_identity=mover_identity,dimensions=dimensions,
         map_identities=[read(obj+0x14,2) for obj in maps],

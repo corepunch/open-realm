@@ -719,7 +719,7 @@ def main():
         assert read(generator+0x14,2)==[0xffffffff]*2
         assert read(owner+0x638+0x14,2)==[generator-4,0]
         assert read(owner+0x678+0x14,2)==[pair['groups'][0]-4 if pair else 0,1]
-        assert read(owner+0x958+0x14,2)==[pair['paths'][0]-4 if pair else 0,1]
+        assert read(owner+0x958+0x14,2)==[pair['paths'][0]-4 if pair else 0,1+(2 if pair else 1) if producer_setup else 1]
         accepted=dict(flag=flag,player=player,status=status,target_bits=target,
                 initial_command=hex(initial_command),initial_admission=initial_admission,
                 initial_admission_prelude=initial_dispatch[0]['prelude'],
@@ -1007,7 +1007,8 @@ def main():
         step('release')
         assert read(group+0x38)[0]==0
         for offset,objects_to_free in [(0x678,group_objects),(0x958,path_objects)]:
-            assert read(owner+offset+0x18)[0]==0
+            retained_paths=(2 if pair else 1) if producer_setup and offset==0x958 else 0
+            assert read(owner+offset+0x18)[0]==retained_paths
             free=[];ptr=read(owner+offset+0x14)[0]
             while ptr:
                 assert ptr not in free

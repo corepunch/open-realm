@@ -49,7 +49,8 @@ def provision(machine, context, run):
     assert read(inputs)==[mover]
     write(unit+0x16c,*read(mover+0x14,2))
     write(inputs,0,0,0,wrapper);run(0x6f15fe30,mover,inputs)
-    run(0x6f1657c0,path);run(0x6f166060,path,0);write(mover+0xa8,path)
+    from wc3_pathing_baseline import create_owned_path
+    create_owned_path(machine,dict(owner=owner,mover=mover,path=path,inputs=inputs),run)
     for offset,data in [(0x38,0x102a0000),(0x58,0x102a2000)]:
         write(path+offset,data,1024*8,data,1024*8)
         write(path+offset+0x14,1024,0)

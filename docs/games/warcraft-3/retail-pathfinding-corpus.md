@@ -119,3 +119,8 @@ Remaining extensions belong to the existing backlog: public entry/field coverage
 and exclusions in BASE-01/03, general supported inputs in BASE-02, shared-member
 mutation in GROUP-04, and broader engine trajectories in NUM-02.3/E2E. Passing
 this corpus does not close the whole-replacement READY gates.
+
+
+## Owned-path factory checkpoint
+
+`group-04.7-native-path-factory-validated-corpus/corpus-results.json` freshly reproduces all116 declared outcomes after allocating baseline individual paths through the original path factory. Frozen raw motion/identity expectations are unchanged. Callback reuse now additionally asserts the owner958 path free header/link, live3→2 and retained allocation count, while complete ordinary group release retains one/two individual paths. This closes GROUP-04.7's fixture accounting; it does not close the actual survivor refresh/reuse composition in04.5. All recorded source hashes matched at completion; no new live witness is claimed.

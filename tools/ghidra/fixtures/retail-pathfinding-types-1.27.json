@@ -605,6 +605,30 @@
           "evidence": "speed oracle enter/exit publication"
         }
       ]
+    },
+    {
+      "name": "WC3PathPoolPrefix",
+      "length": 32,
+      "fields": [
+        {
+          "offset": 20,
+          "name": "free_header",
+          "type": "ptr:void",
+          "evidence": "150d50 factory /167900 pool return; native owner958 lifecycle"
+        },
+        {
+          "offset": 24,
+          "name": "live_count",
+          "type": "u32",
+          "evidence": "150d50 factory /167900 pool return; native owner958 lifecycle"
+        },
+        {
+          "offset": 28,
+          "name": "allocation_count",
+          "type": "u32",
+          "evidence": "150d50 factory /167900 pool return; native owner958 lifecycle"
+        }
+      ]
     }
   ],
   "methods": [
@@ -953,6 +977,121 @@
           "name": "notify",
           "type": "u32",
           "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f14ec50",
+      "name": "Path_Create",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "u32",
+          "storage": "EDX"
+        },
+        {
+          "name": "activate",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f150d50",
+      "name": "PathPool_Allocate",
+      "returns": "ptr:WC3PathPrefix",
+      "parameters": [
+        {
+          "name": "pool",
+          "type": "ptr:WC3PathPoolPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "previous",
+          "type": "ptr:WC3PathPrefix",
+          "storage": 4
+        },
+        {
+          "name": "next",
+          "type": "ptr:WC3PathPrefix",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f166130",
+      "name": "PathPool_GetOwnerPool",
+      "returns": "ptr:WC3PathPoolPrefix",
+      "parameters": [],
+      "convention": "__cdecl"
+    },
+    {
+      "address": "6f167900",
+      "name": "Path_ReturnToPool",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f170aa0",
+      "name": "Mover_EnsureOwnedPath",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "force",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f169840",
+      "name": "PathGroup_Activate",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1660d0",
+      "name": "Path_Destroy",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "u32",
+          "storage": 4
         }
       ]
     }
