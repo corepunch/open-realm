@@ -40,7 +40,7 @@ composition closes a gap.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
   `MapPathfindingTypes.java` also persists 14 partial layouts,90 verified
-  fields and29 instruction-established prototypes with explicit register/stack
+  fields and34 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -48,9 +48,9 @@ composition closes a gap.
   decompilation cannot imply host float arithmetic. The hash/base guards run
   before mutation; incompatible existing layouts/names are preserved by refusal.
   Applying and rerunning the script, then saving `game.dll`, produced the
-  layout/prototype readback `group-04.7-ghidra-native-path-factory-types-final.json` under the report root.
+  layout/prototype readback `group-04.5-ghidra-survivor-retarget-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  254 function names/comments applied and saved. Names are recovered roles, not original debug symbols;
+  257 function names/comments applied and saved. Names are recovered roles, not original debug symbols;
   RTTI names are original. No inferred prototypes installed.
 - Local Ghidra project: `/GitHub/wc3-analysis/projects/WC3Audio.gpr`, program
   `game.dll`, backend `http://127.0.0.1:8089`.
@@ -118,7 +118,7 @@ Counts overlap; do not sum them into a coverage percentage.
 
 [Executable research backlog](retail-pathfinding-todo.md#work-next): numbered
 tasks, acceptance checks, completed evidence and the READY gate. Start with
-**GROUP-04.4/07/08**; the backlog names their dependencies and
+**GROUP-04.4/05/07/08**; the backlog names their dependencies and
 finish artifacts. The areas below describe the sequence, not additional tasks.
 
 1. **ORDER + GROUP + MOVE:** join the verified initial-admission/FIFO chain

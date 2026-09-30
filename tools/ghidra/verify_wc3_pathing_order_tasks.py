@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--producer-baseline', action='store_true', help='compose no-file map and mover producers before the owner baseline')
     parser.add_argument('--shared-pair', action='store_true', help='compose two admitted units into one original shared request and run owner through arrival')
     parser.add_argument('--callback-finish', action='store_true', help='complete one member during an original callback, then run the survivor through natural arrival')
+    parser.add_argument('--retarget-survivor', action='store_true', help='replace the survivor point order through original680320 after completion/reuse; requires --completed-member-reuse')
     parser.add_argument('--completed-member-reuse', action='store_true', help='after controlled member completion, destroy/reallocate its mover and run the original survivor to arrival; requires --callback-finish')
     parser.add_argument('--finish-fixture', type=Path, default=Path(__file__).parent/'fixtures/retail-callback-finish-1.27.json')
     parser.add_argument('--record-finish-fixture', type=Path, help='export all four original completion/survivor repeat expectations')
@@ -37,6 +38,7 @@ def main():
     args = parser.parse_args()
     manifest,expectations=load_manifest(args.baseline_manifest) if args.producer_baseline or args.shared_pair else (None,None)
     if args.record_pair_fixture and not args.shared_pair:parser.error('--record-pair-fixture requires --shared-pair')
+    if args.retarget_survivor and not args.completed_member_reuse:parser.error('--retarget-survivor requires --completed-member-reuse')
     if args.completed_member_reuse and not args.callback_finish:parser.error('--completed-member-reuse requires --callback-finish')
     if args.callback_finish and (not args.shared_pair or args.callback_reuse):parser.error('--callback-finish requires --shared-pair and excludes --callback-reuse')
     if args.record_finish_fixture and not args.callback_finish:parser.error('--record-finish-fixture requires --callback-finish')
@@ -798,25 +800,29 @@ def main():
                 pair_events.append([kind,'first' if actor==mover else 'second'])
             pair_hooks=[machine.hook_add(UC_HOOK_CODE,observe_pair,begin=a,end=a) for a in (0x6f16a790,0x6f16fe20)]
         member_lifecycle=[];speed_caps=[];lifecycle_hooks=[]
+        observed_groups={group:read(group+0x14,2)}
         if pair and args.callback_finish:
             def observe_members(uc,address,length,data):
                 receiver=uc.reg_read(UC_X86_REG_ECX)
-                if receiver!=group:return
+                if receiver not in observed_groups:return
+                active=receiver
                 if address==0x6f16b5c0:
                     member,point,cap=read(uc.reg_read(UC_X86_REG_ESP)+4,3)
                     speed_caps.append(dict(owner_tick=read(owner+0x538)[0],member_identity=read(member,2),
                         cap=read(cap)[0],request=read(member+0x20)[0],member_flags=read(member+0x28)[0]))
                     return
-                count=read(group+0x38)[0];data=read(group+0x28)[0]
+                count=read(active+0x38)[0];data=read(active+0x28)[0]
                 rows=[read(data+n*44,11) for n in range(count)]
                 member_lifecycle.append(dict(entry=hex(address),owner_tick=read(owner+0x538)[0],
                     count=count,identities=[row[:2] for row in rows],offsets=[row[3:5] for row in rows],
-                    destinations=[row[6:8] for row in rows],group_point=read(group+0x54,2),
+                    destinations=[row[6:8] for row in rows],group_point=read(active+0x54,2),
                     mover_paths=[read(read(m+0xa8)[0]+0x14,2) if read(m+0xa8)[0] else None for m in (mover,pair['mover'])],
                     mover_identities=[read(m+0x14,2) for m in (mover,pair['mover'])]))
+                if args.retarget_survivor:member_lifecycle[-1]['group_identity']=read(active+0x14,2)
             teardown=read(read(group)[0]+0x10)[0]
             lifecycle_hooks=[machine.hook_add(UC_HOOK_CODE,observe_members,begin=a,end=a) for a in
-                (0x6f16bc10,0x6f16a5b0,0x6f16d990,0x6f16b5c0,teardown)]
+                ((0x6f16bc10,0x6f16a5b0,0x6f16d990,0x6f16b5c0,teardown)+
+                 ((0x6f16ce10,0x6f1697a0) if args.retarget_survivor else ()))]
         owner_frames=[]
         normalized_states=[]
         owner_events=[]
@@ -891,9 +897,10 @@ def main():
                 write(inputs,manifest['clock']['advance_bits'])  # Factory output used this scratch word.
             normalized_states.append(snapshot('callback_finish'))
         trajectory=[]
+        survivor_reorder=None
         replacement_evidence=None
         machine.ctl_flush_tb()
-        for tick in range(1,129):
+        for tick in range(1,257 if args.retarget_survivor else 129):
             run(0x6f054190,inputs,edx=clock)
             oldpos=read(mover+0x78,2);oldvel=read(mover+0x80,2)
             if pair:second_oldpos=read(pair['mover']+0x78,2);second_oldvel=read(pair['mover']+0x80,2)
@@ -906,6 +913,31 @@ def main():
                 assert read(pair['mover']+0x78,2)==second_want,(tick,'second integration')
                 trajectory[-1]['second_position']=second_want
                 trajectory[-1]['second_velocity']=read(pair['mover']+0x80,2)
+            if args.retarget_survivor and tick==3:
+                survivor=1-pair_fixture['inputs']['callback_finish']['victim']
+                actor=(mover,pair['mover'])[survivor];order_unit=(unit,pair['unit'])[survivor]
+                old_group_identity=read(group+0x14,2)
+                old_row=read(members,11);old_row[5]='mover'+str(survivor)
+                new_target=pair_fixture['inputs']['callback_finish']['survivor_target_bits']
+                new_order=create_order(*new_target);new_identity=read(new_order+0xc,2)
+                before_refs=read(order_unit+4)[0]
+                run(0x6f680320,order_unit,new_order,1,1)
+                group_identity=read(actor+0x9c,2)
+                group=read(slots+group_identity[0]*8+4)[0]
+                assert read(group+0x14,2)==group_identity and group_identity!=old_group_identity
+                assert read(order_unit+0x19c,2)==read(order_unit+0x1a8,2)==new_identity
+                assert read(order_unit+0x1b4)==[1]
+                assert read(group+0x4c,2)==[float_multiply(w,0x3d000000) for w in new_target]
+                path=read(group+0x3c)[0];members=read(group+0x28)[0]
+                assert read(group+0x38)==[1] and read(members,2)==read(actor+0x14,2)
+                observed_groups[group]=group_identity
+                survivor_reorder=dict(tick=tick,survivor=survivor,old_group_identity=old_group_identity,
+                    old_member=old_row,new_group_identity=group_identity,new_order_identity=new_identity,
+                    target_bits=new_target,new_group_target=read(group+0x4c,2),
+                    unit_refs_before=before_refs,unit_refs_after=read(order_unit+4)[0],
+                    abi='ECX=surviving Unit, stack4=original COrderTarget, stack8=1, stackc=1')
+                write(inputs,manifest['clock']['advance_bits'])
+                normalized_states.append(snapshot('survivor_reorder'))
             if replacement_target and tick==3:
                 assert not arrivals and not admissions
                 abandoned_identity=list(second_identity)
@@ -971,11 +1003,18 @@ def main():
         assert read(mover+0x9c,2)==[0xffffffff]*2
         all_task_events=[int(code,16) for address,code in dispatched if address=='0x6f071da0']
         actual_task_events=[c for c in all_task_events if c in [t[2] for t in before_chain]]
-        assert actual_task_events==expected_task_codes,(actual_task_events,expected_task_codes)
+        first_expected=(expected_task_codes[:point_index+1]+[0xd0144,0xd0162]+expected_task_codes
+            if args.retarget_survivor and survivor_reorder['survivor']==0 else expected_task_codes)
+        assert actual_task_events==first_expected,(actual_task_events,first_expected)
         assert ("0x6f5fda10","0xd0166") in dispatched  # Additional init subscription is active.
         accepted['complete_dispatch']=list(dispatched)
         for hook in dispatch_hooks+progress_hooks:machine.hook_del(hook)
-        if replacement_target and not replacement_mode:
+        if args.retarget_survivor and survivor_reorder['survivor']==0:
+            assert len(arrivals)==len(admissions)==1
+            assert arrivals[0]['target_bits']==admissions[0]['target_bits']==survivor_reorder['target_bits']
+            assert arrivals[0]['user_head']==admissions[0]['order_identity']==survivor_reorder['new_order_identity']
+            assert admissions[0]['queue_count']==1 and admissions[0]['clock_bits']<arrivals[0]['clock_bits']
+        elif replacement_target and not replacement_mode:
             expected_targets=[list(replacement_target),list(target),list(next_target)]
             expected_identities=[replacement_identity,order_identity,second_identity]
             assert [a['target_bits'] for a in arrivals]==expected_targets
@@ -1069,20 +1108,26 @@ def main():
             assert read(m+0x9c,2)==[0xffffffff]*2 and read(m+4,2)==[0,0]
             assert read(pair_order_wrapper+0x14,4)==[0xffffffff,0xffffffff,0,0]
             assert read(pair_order_wrapper+0x54)[0]==0
-            assert len(second_admissions)==len(second_arrivals)==1
+            second_retarget=args.retarget_survivor and survivor_reorder['survivor']==1
+            assert len(second_admissions)==(2 if second_retarget else 1) and len(second_arrivals)==1
             assert second_admissions[0]['order_identity']==second_admissions[0]['user_head']==pair_order_identity
             assert second_admissions[0]['queue_count']==1
-            assert second_arrivals[0]['user_head']==pair_order_identity and second_arrivals[0]['target_bits']==list(target)
-            assert [int(code,16) for address,code in second_dispatch if address=='0x6f071da0' and int(code,16) in expected_task_codes]==expected_task_codes
+            assert second_arrivals[0]['user_head']==(survivor_reorder['new_order_identity'] if second_retarget else pair_order_identity)
+            assert second_arrivals[0]['target_bits']==(survivor_reorder['target_bits'] if second_retarget else list(target))
+            if second_retarget:
+                assert second_admissions[1]['order_identity']==second_admissions[1]['user_head']==survivor_reorder['new_order_identity']
+                assert second_admissions[1]['queue_count']==1
+            second_expected=expected_task_codes[:point_index+1]+[0xd0144,0xd0162]+expected_task_codes if second_retarget else expected_task_codes
+            assert [int(code,16) for address,code in second_dispatch if address=='0x6f071da0' and int(code,16) in expected_task_codes]==second_expected
             accepted.update(shared_pair_completed=True,second_dispatch=second_dispatch,
                 second_admissions=second_admissions,second_arrivals=second_arrivals,auxiliary_dispatch=auxiliary_dispatch)
         if args.callback_finish:
             prepares=[e for e in member_lifecycle if e['entry']=='0x6f16bc10']
             teardown_events=[e for e in member_lifecycle if e['entry']==hex(teardown)]
-            assert len(teardown_events)==1 and teardown_events[0]['count']==0
+            assert len(teardown_events)==(2 if args.retarget_survivor else 1) and all(e['count']==0 for e in teardown_events)
             assert prepares[-1]['count']==1 and prepares[-1]['identities']==[[0xffffffff]*2]
-            assert teardown_events[0]['mover_paths']==prepares[-1]['mover_paths']
-            assert teardown_events[0]['mover_identities']==prepares[-1]['mover_identities']
+            assert teardown_events[-1]['mover_paths']==prepares[-1]['mover_paths']
+            assert teardown_events[-1]['mover_identities']==prepares[-1]['mover_identities']
             assert read(owner+0x3b8)[0]==0
             survivor=1-pair_fixture['inputs']['callback_finish']['victim']
             assert all(read(m+0x14,2)!=[0xffffffff]*2 for m in (mover,pair['mover']))
@@ -1099,9 +1144,11 @@ def main():
                 accepted['callback_finish']['cleanup']=dict(path_pool=read(owner+0x958+0x18,2),
                     group_live=read(owner+0x678+0x18)[0],registry_live=read(registry+0x48)[0],
                     mover_identities=[read(m+0x14,2) for m in (mover,pair['mover'])],
-                    mover_paths=teardown_events[0]['mover_paths'],
+                    mover_paths=teardown_events[-1]['mover_paths'],
                     unit_refs=[read(u+4)[0] for u in (unit,pair['unit'])],
                     user_queues_empty=True,internal_tasks_empty=True,owner_lists_empty=True)
+        if args.retarget_survivor:
+            accepted['survivor_reorder']=survivor_reorder
         for hook in owner_hooks+pair_hooks+lifecycle_hooks:machine.hook_del(hook)
         accepted.update(owner_frames=owner_frames,initial_route=initial_route,trajectory=trajectory,arrival_tick=tick,
                         user_order_reclaimed=True,producer_setup=setup,initial_state=initial_state,
@@ -1117,15 +1164,19 @@ def main():
                 pair_fixture=copy.deepcopy(pair_fixture)
                 pair_fixture['inputs']['callback_finish']=dict(trigger=trigger,victim=victim,second_speed_world_bits=0x43000000)
                 if args.completed_member_reuse:pair_fixture['inputs']['callback_finish']['complete_before_reuse']=True
+                if args.retarget_survivor:pair_fixture['inputs']['callback_finish']['survivor_target_bits']=[0x43c00000,0x43e00000]
                 repeats=[dispatch_case(0,0,0,tuple(pair_fixture['inputs']['target_bits']),
                     owner_updates=True,producer_setup=True,shared_pair=True) for _ in range(2)]
                 states=[dict(output(c),callback_finish=c['callback_finish'],member_lifecycle=c['member_lifecycle'],speed_caps=c['speed_caps']) for c in repeats]
+                if args.retarget_survivor:
+                    for state,case in zip(states,repeats):state['survivor_reorder']=case['survivor_reorder']
                 exact_commits+=len(repeats[0].get('verified_velocity_commits',[]))
                 assert states[0]==states[1],first_difference(states[0],states[1])
                 outcomes.append(states[0]);repeat_digests.append([canonical_digest(c) for c in states])
         frozen=dict(version=1,build=dict(game_sha256=digest,crt_sha256=crt_digest),
             parent_fixture_sha256=hashlib.sha256(args.pair_fixture.read_bytes()).hexdigest(),
-            scope=('Original member completion at slot54 entry, real arrival notification/task draining, original mover destruction/reallocation, then original owner survivor movement and cleanup; supplied existing Unit/Move and recycled allocator backing; actual RemoveUnit callback graph, replacement owned path/movement and actual formation refresh excluded' if args.completed_member_reuse else
+            scope=('Original controlled member completion, mover destruction/reallocation, then surviving Unit point-order replacement680320 mode1, original new request route/layout and owner updates through new-goal arrival and cleanup; supplied existing Unit/Move and recycled allocator backing; gameplay RemoveUnit/UI/network callers, replacement actor movement and same-group moving-target refresh excluded' if args.retarget_survivor else
+                'Original member completion at slot54 entry, real arrival notification/task draining, original mover destruction/reallocation, then original owner survivor movement and cleanup; supplied existing Unit/Move and recycled allocator backing; actual RemoveUnit callback graph, replacement owned path/movement and actual formation refresh excluded' if args.completed_member_reuse else
                 'Original member completion at slot54 entry, real arrival notification/task draining, then original owner survivor movement and cleanup; supplied existing Unit/Move backing; mover destruction/reuse and complete gameplay callback graph excluded'),
             cases=outcomes,cases_sha256=canonical_digest(outcomes))
         if args.record_finish_fixture:

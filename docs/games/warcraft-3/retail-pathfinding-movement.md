@@ -2276,3 +2276,84 @@ composition confirms those lifecycle boundaries without requiring a retail
 pool abstraction in the inline-route engine.
 
 Fresh validation is `group-04.8-completed-reuse-frozen-corpus/corpus-results.json`:118/118 declared outcomes, including the two newly frozen exact engine comparisons. All source fingerprints matched at completion. `LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test` passed77 Python tool tests and36678/36678 assertions in2126 tests per RoC/TFT schema (`/tmp/wc3-group-04.8-completed-reuse-full-suite.log`). GROUP-04.8 is closed; actual formation refresh/new destinations remains04.5.
+
+
+## Actual survivor point replacement and formation refresh
+
+GROUP-04.5 uses the completed-member reuse composition in04.8, then at elapsed
+tick3 creates an original `COrderTarget` and invokes the surviving Unit's
+complete `680320(order,1,1)` admission. This is mode1 replacement, not a layout
+helper call or a write to the group's destination/member row. The original
+cancellation drains the old internal point task, new Move tasks assemble a new
+singleton request, and the next owner tick executes
+`16ce10 RequestRoute → 1697a0 AdvanceAndRefreshFormation → 16d990
+RefreshFormationPoint → 16a5b0 LayoutFormation`. The old group remains separately
+tracked through its empty destructor; the new group moves to the new goal and
+also reaches empty teardown. All observer hooks are removed before each repeat.
+
+Reproduce with the existing order oracle's `--shared-pair --callback-finish
+--completed-member-reuse --retarget-survivor --finish-fixture FIXTURE
+--pair-fixture PARENT --engine-library LIBRARY --report REPORT`. Each fixture
+covers both victim roles and both callback positions, with two identical raw
+complete original runs per case. Both initial point/group identities and the
+actual replacement order/new group identities are retained. The supplied
+replacement world point is `(384,448)`, published by the original request as
+fine point `(12,14)`; the retired/reused actor remains outside the new request.
+
+| Frozen fixture | First/second victim survivor arrival | Exact production velocity commits |
+| --- | --- | ---: |
+| `retail-survivor-retarget-1.27.json` | tick98 / tick55 |314|
+| `retail-survivor-retarget-wall-1.27.json` | tick97 / tick61 |324|
+
+The open cases digest is
+`179d8f134d22c50c1893247073bb074da302559550ad55a7d26691a749b4ee6e`;
+the wall digest is
+`a2040d14baa4a4efcae0d64d9bce38497a61b96b89f8d5c222f7063b52dc3758`.
+Original exports are `group-04.5-survivor-retarget-open-export.json` and
+`group-04.5-survivor-retarget-wall-export.json` under the report root. Their
+export flag is explicit; committed frozen replay excludes expectation export.
+The C adapter matches638 observed commits exactly; full engine route/cadence
+parity is still NUM-02.3/E2E, not inferred from those local comparisons.
+
+The survivor's old reserved slot remains unchanged until the real replacement.
+The new singleton row starts with zero destination words at admission. The
+owner refresh/layout centers its offsets to zero and publishes the new point;
+subsequent decisions/commits use that point. Both group destructors see count0.
+Final owner958 has live1/allocation6, preserving the survivor's individual path
+and releasing the retired actor's path plus all group paths. All canonical,
+task/payload free-list, Unit/Move reference, user/internal queue and owner-list
+assertions run through final reclamation and visual idle. Existing mode1 task
+chronology is checked independently: old prefix through point, cancellation
+`d0144,d0162`, then a complete new task chain. Only the new order receives the
+survivor's natural arrival.
+
+OpenRealm's server-frame regression
+`group_survivor_reorder_after_member_reuse_reaches_new_goal` covers both retired
+roles: move a selected pair, Stop/free/reuse one edict, preserve the survivor's
+old slot/cohort, issue its replacement point order, clear cohort ownership and
+reach idle at the new goal with an empty queued-order FIFO. It uses
+`globals.RunFrame` with the normal monster think lifecycle and asserts both
+units actually moved before mutation. The existing Move implementation already
+honors these ownership/destination boundaries, so no speculative production
+change is needed for this composition. Its inactive goal cache remains retained
+on stand, consistent with retail Stop retaining the original goal. Public active
+order queries are separate: ORDER-01.4 explicitly owns the newly identified
+`GetUnitCurrentOrder`/historical issued-ID distinction.
+
+Ghidra `game.dll` is saved with257 names,14 partial layouts,90 verified fields
+and34 instruction-backed x86 prototypes. Five additional ABIs cover the
+request, advance, route preparation, point/target assembly and accelerated-lane
+selection; readback is `group-04.5-ghidra-survivor-retarget-types.json`.
+The only direct point/target setter xref is request assembly16bdfe, and the
+refresh helper's only direct caller is1697a0. Actual replacement evidence
+therefore follows the complete admission/new-request producer instead of
+pretending that invoking either helper proves ordinary runtime retargeting.
+
+Scope is point replacement into a new group after controlled completion/reuse.
+Same-group moving-target refresh remains TARGET-02.1/02.2 and target-speed policy remains GROUP-03.2; the actual
+UI/network/RemoveUnit caller graph and replacement actor Unit binding remain
+BASE-01/03.1. No new live witness is claimed. The original wide callback
+acceptance still requires GROUP-04.6's engine member storage/flags/shared
+parameters/phase integration; closing04.5 does not close that leaf.
+
+Fresh validation is `group-04.5-survivor-retarget-frozen-corpus/corpus-results.json`:120/120 declared outcomes, with all recorded source hashes still matching at completion. `LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test` passed78 Python tool tests and36720/36720 assertions in2127 tests for each RoC/TFT schema (`/tmp/wc3-group-04.5-survivor-retarget-full-suite.log`). Targeted movement validation has1514/1514 assertions in161 tests per schema; only `WC3_PATTERN='wc3_movement*'` selects that suite. Earlier exact/leading-wildcard patterns selected no tests and are not validation. The first full-frame fixture omitted monster think; after supplying the ordinary lifecycle, both roles moved and arrived. GROUP-04.5 is closed within the point-replacement scope; ORDER-01.4 owns the public active-order query discrepancy.

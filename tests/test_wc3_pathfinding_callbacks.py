@@ -37,6 +37,40 @@ class CallbackMachine:
 
 
 class CallbackFixtures(unittest.TestCase):
+    def test_survivor_reorder_runs_actual_refresh_and_reclaims_both_groups(self):
+        for suffix,ticks in (('',[98,55,98,55]),('-wall',[97,61,97,61])):
+            fixture=json.loads((FIXTURES/('retail-survivor-retarget'+suffix+'-1.27.json')).read_text())
+            canonical=json.dumps(fixture['cases'],sort_keys=True,separators=(',',':')).encode()
+            self.assertEqual(hashlib.sha256(canonical).hexdigest(),fixture['cases_sha256'])
+            self.assertEqual([c['arrival_tick'] for c in fixture['cases']],ticks)
+            self.assertEqual({(c['callback_finish']['inputs']['trigger'],c['callback_finish']['inputs']['victim'])
+                for c in fixture['cases']},set(itertools.product(range(2),repeat=2)))
+            for case in fixture['cases']:
+                replacement=case['survivor_reorder'];survivor=replacement['survivor']
+                self.assertNotEqual(replacement['new_group_identity'],replacement['old_group_identity'])
+                self.assertEqual(replacement['target_bits'],[0x43c00000,0x43e00000])
+                self.assertEqual(replacement['new_group_target'],[0x41400000,0x41600000])
+                self.assertEqual(replacement['unit_refs_before'],replacement['unit_refs_after'])
+                events=[e for e in case['member_lifecycle'] if e['group_identity']==replacement['new_group_identity']]
+                sequence=['0x6f16ce10','0x6f1697a0','0x6f16d990','0x6f16a5b0']
+                self.assertEqual([e['entry'] for e in events if e['entry'] in sequence][:4],sequence)
+                layouts=[e for e in events if e['entry']=='0x6f16a5b0']
+                self.assertEqual(len(layouts),1);self.assertEqual(layouts[0]['count'],1)
+                refreshed=[s for s in case['normalized_states'] if s['group']['identity']==replacement['new_group_identity']]
+                for state in refreshed:
+                    for row in state['group']['members']:
+                        self.assertEqual([w & 0x7fffffff for w in row[3:5]],[0,0])
+                        if row[:2]!=[0xffffffff]*2:
+                            expected=[0,0] if state['phase']=='survivor_reorder' else replacement['new_group_target']
+                            self.assertEqual(row[6:8],expected)
+                arrivals=case['arrivals'] if survivor==0 else case['second_arrivals']
+                self.assertEqual(arrivals[0]['target_bits'],replacement['target_bits'])
+                self.assertEqual(arrivals[0]['user_head'],replacement['new_order_identity'])
+                destroys=[e for e in case['member_lifecycle'] if e['entry']=='0x6f1699c0']
+                self.assertEqual(len(destroys),2);self.assertTrue(all(e['count']==0 for e in destroys))
+                cleanup=case['callback_finish']['cleanup']
+                self.assertEqual(cleanup['path_pool'],[1,6]);self.assertEqual(cleanup['group_live'],0)
+
     def test_completed_member_reuse_retains_full_survivor_journey(self):
         for suffix in ('','-wall'):
             fixture=json.loads((FIXTURES/('retail-completed-member-reuse'+suffix+'-1.27.json')).read_text())

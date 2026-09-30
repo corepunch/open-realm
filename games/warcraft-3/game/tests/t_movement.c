@@ -3870,6 +3870,67 @@ TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
     level.time = saved_time;
 }
 
+/* Retail keeps the surviving slot until an actual replacement order creates
+ * a fresh request. Exercise the same ownership boundary through server frames. */
+TEST(wc3_movement, group_survivor_reorder_after_member_reuse_reaches_new_goal) {
+    FOR_LOOP(victim, 2) {
+        edict_t *first = make_moving_unit(0, 0);
+        edict_t *second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+        edict_t *clent = alloc_test_unit(0, 0, 0);
+        edict_t *units[] = {first, second};
+        FOR_LOOP(i, game.max_clients) game.clients[i].connected = false;
+        clent->client = &game.clients[0]; clent->client->ps.number = 0;
+        FOR_LOOP(i, 2) {
+            units[i]->movetype = MOVETYPE_STEP;
+            units[i]->svflags |= SVF_MONSTER;
+            units[i]->stand = unit_stand; units[i]->die = unit_die;
+            units[i]->think = monster_think;
+            units[i]->health.value = units[i]->health.max_value = 250;
+            units[i]->collision = 8;
+            units[i]->selected = 1;
+            unit_stand(units[i]);
+            gi.LinkEntity(units[i]);
+        }
+        first->unitinfo.MoveSpeed = 256; second->unitinfo.MoveSpeed = 128;
+        T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+        edict_t *survivor = units[1-victim];
+        edict_t *old_goal = survivor->goalentity;
+        vec2_t old_slot = old_goal->s.origin2;
+        uint32_t old_group = survivor->movement.group_id;
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        FOR_LOOP(frame, 3) { level.time += FRAMETIME; globals.RunFrame(); }
+        T_ASSERT(first->s.origin2.x != 0 || first->s.origin2.y != 0);
+        T_ASSERT(second->s.origin2.x != 64 || second->s.origin2.y != 0);
+        T_ASSERT(unit_issueimmediateorder(units[victim], "stop"));
+        G_FreeEdict(units[victim]); level.time += 1001;
+        edict_t *reused = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 128);
+        T_ASSERT(reused == units[victim]);
+        T_EQ(reused->movement.group_id, 0);
+        T_ASSERT(survivor->goalentity == old_goal);
+        T_FEQ(old_goal->s.origin2.x, old_slot.x, 0);
+        T_FEQ(old_goal->s.origin2.y, old_slot.y, 0);
+        T_EQ(survivor->movement.group_id, old_group);
+        vec2_t new_goal = {384, 448};
+        T_ASSERT(unit_issueorder(survivor, "move", &new_goal));
+        T_EQ(survivor->movement.group_id, 0);
+        T_FEQ(survivor->goalentity->s.origin2.x, new_goal.x, 0);
+        T_FEQ(survivor->goalentity->s.origin2.y, new_goal.y, 0);
+        for (int frame = 0; frame < 240 && move_is_active_order_walk(survivor); frame++) {
+            level.time += FRAMETIME; globals.RunFrame();
+        }
+        T_ASSERT(!move_is_active_order_walk(survivor));
+        /* Move's idle transition retains the last goal as cached state, as
+         * retail Stop retains its original goal. Activity is owned by Move. */
+        T_NOT_NULL(survivor->goalentity);
+        T_FEQ(survivor->goalentity->s.origin2.x, new_goal.x, 0);
+        T_FEQ(survivor->goalentity->s.origin2.y, new_goal.y, 0);
+        T_ASSERT(Vector2_distance(&survivor->s.origin2, &new_goal) <= survivor->collision + 16);
+        T_EQ(survivor->order_queue.count, 0);
+        level.started = false;
+    }
+}
+
 /* A lone unit keeps its own speed (no group cap). */
 TEST(wc3_movement, single_unit_move_keeps_own_speed) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);

@@ -5309,6 +5309,118 @@
         "C"
       ],
       "scope": "Original member completion at slot54 entry, real arrival notification/task draining, original mover destruction/reallocation, then original owner survivor movement and cleanup; supplied existing Unit/Move and recycled allocator backing; actual RemoveUnit callback graph, replacement owned path/movement and actual formation refresh excluded"
+    },
+    {
+      "id": "survivor-retarget-open",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--shared-pair",
+        "--callback-finish",
+        "--completed-member-reuse",
+        "--retarget-survivor",
+        "--finish-fixture",
+        "tools/ghidra/fixtures/retail-survivor-retarget-1.27.json",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "fixture": "tools/ghidra/fixtures/retail-survivor-retarget-1.27.json",
+        "parent_fixture": "tools/ghidra/fixtures/retail-shared-pair-1.27.json",
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "survivor-retarget-open.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "callback_finish_cases": {
+          "equal": 4
+        },
+        "exact_world_velocity_commits": {
+          "equal": 314
+        },
+        "exported_original_expectations": {
+          "equal": false
+        },
+        "cases_sha256": {
+          "equal": "179d8f134d22c50c1893247073bb074da302559550ad55a7d26691a749b4ee6e"
+        },
+        "parent_fixture_sha256": {
+          "equal": "d5a893efe80c9eaafb9ac950f64b0b57191be96cc5f8165a7c6c1f2507a5b57a"
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Original controlled member completion, mover destruction/reallocation, then surviving Unit point-order replacement680320 mode1, original new request route/layout and owner updates through new-goal arrival and cleanup; supplied existing Unit/Move and recycled allocator backing; gameplay RemoveUnit/UI/network callers, replacement actor movement and same-group moving-target refresh excluded"
+    },
+    {
+      "id": "survivor-retarget-wall",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_tasks.py",
+        "--binary",
+        "{binary}",
+        "--shared-pair",
+        "--callback-finish",
+        "--completed-member-reuse",
+        "--retarget-survivor",
+        "--finish-fixture",
+        "tools/ghidra/fixtures/retail-survivor-retarget-wall-1.27.json",
+        "--pair-fixture",
+        "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "fixture": "tools/ghidra/fixtures/retail-survivor-retarget-wall-1.27.json",
+        "parent_fixture": "tools/ghidra/fixtures/retail-shared-pair-wall-1.27.json",
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "survivor-retarget-wall.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "callback_finish_cases": {
+          "equal": 4
+        },
+        "exact_world_velocity_commits": {
+          "equal": 324
+        },
+        "exported_original_expectations": {
+          "equal": false
+        },
+        "cases_sha256": {
+          "equal": "a2040d14baa4a4efcae0d64d9bce38497a61b96b89f8d5c222f7063b52dc3758"
+        },
+        "parent_fixture_sha256": {
+          "equal": "268571d198602eed7203ba36d20d563738c0ed6279c7cffd84105dd23c043a3d"
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Original controlled member completion, mover destruction/reallocation, then surviving Unit point-order replacement680320 mode1, original new request route/layout and owner updates through new-goal arrival and cleanup; supplied existing Unit/Move and recycled allocator backing; gameplay RemoveUnit/UI/network callers, replacement actor movement and same-group moving-target refresh excluded"
     }
   ],
   "fixtures": [
@@ -5374,7 +5486,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "fd77a2da0d50e6eab759743280ae2ba3bca566e44755a34db5f6e0fb787aabdd"
+      "sha256": "ba33259e7a4e98bf3cc6f55d7bc75a57d681d62f7445e3993527b2e87b84d3bd"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -5407,6 +5519,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-completed-member-reuse-wall-1.27.json",
       "sha256": "9b04bb9446a9bd01a26fa3a1e13ddb28b90b8db217b6702eae4a238939b53538"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-survivor-retarget-1.27.json",
+      "sha256": "01b3a87a16337a6f6d86bff00a708e8120550ddb422b08c8ad384dc6fab83dfe"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-survivor-retarget-wall-1.27.json",
+      "sha256": "5c5b325049a7e1f0a12a6bf24c5814c25b39128cf2dad4267b2f790a5d18c6d5"
     }
   ]
 }

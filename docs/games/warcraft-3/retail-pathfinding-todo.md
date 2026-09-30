@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**45 done / 217 tasks; 172 remaining.** Counts describe this backlog,
+**46 done / 218 tasks; 172 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -26,8 +26,8 @@ Completed evidence now sits next to its specific remaining extension.
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 0 | 11 |
-| ORDER — Orders and reclamation | 5 | 16 |
-| GROUP — Shared movement groups | 10 | 7 |
+| ORDER — Orders and reclamation | 5 | 17 |
+| GROUP — Shared movement groups | 11 | 6 |
 | FORM — Formation and regrouping | 2 | 10 |
 | SEP — Repulsion and spatial records | 2 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -52,22 +52,21 @@ refresh/new-destination producer requirement; both leaves remain required.
 
 ## Work next
 
-Start with **GROUP-04.5**. GROUP-04.2/04 now cover original callback completion,
-mixed-speed survivor arrival on open/wall routes, stable reserved offsets and
-all-invalid empty teardown retaining individual mover/path identities.04.8
-adds completed-member destruction/reallocation and full survivor cleanup. Move
-integrates active cohort speed with independent identity, wrap/reuse and
-save/load tests. Removal alone does not refresh the original fixed-goal layout;
-04.5 must compose the actual refresh producer and new destinations. Full retail
-member storage, flags, shared overrides, queued membership and decision/commit
-phases remain04.6. Ghidra persists254 names,14 layouts,90 fields and29 x86
-prototypes. The strict corpus has118 declared outcomes, including preserved
-native differences and rejected archives. Supplied existing Unit/Move backing
-and class notification traversal still retain BASE-03.1.
+Start with **ORDER-01.4**. GROUP-04.5 now composes actual survivor point
+replacement through680320, original new-request refresh/layout, new-goal arrival
+and both groups' final reclamation on open/wall maps. The638 velocity commits
+match production exactly; the server-frame engine regression preserves the old
+slot through edict reuse and reaches the replacement goal. Its inactive goal
+cache is separate from active order ownership. The engine's public current-order
+native still aliases the historical issued-event array, so that concrete query
+lifecycle is next. Ghidra persists257 names,14 layouts,90 fields and34 x86
+prototypes. The strict corpus has120 declared outcomes. Full retail member
+storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
+existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | GROUP-04.5 | GROUP-04.1/03/04 | Actual refresh/new survivor destinations after mutation and reclaimed mover reuse |
+| 1 | ORDER-01.4 | Actual retail2039d0 getter and complete point-order journeys | Separate active/historical query state, movement lifecycle/save/reuse/callback tests |
 | 2 | NUM-01.2 | Verified scalar/heading slices | Remaining trig/conversion ABI, constants and public input-domain inventory |
 | 3 | MAP-03.4 | Existing widget admission | Footprint refresh and complete escape-order arrival/failure |
 
@@ -425,6 +424,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 - [x] **ORDER-01.1** 24 generated point-order chains arrive and reclaim queues/pools; 288 internal tasks complete. Evidence: [queued arrival][arrival], O `queued_order_arrival_cases=24`; open fine grid and explicit group ticks.
 - [ ] **ORDER-01.2** Enumerate remaining arrival/can't-path early exits and unit-state gates; add one full-dispatch witness per branch, including unit+280 bit40.
 - [ ] **ORDER-01.3** Run one blocked-goal recovery chain through retries and final failure/next-order dispatch; assert unwind and cleanup rather than only notification.
+- [ ] **ORDER-01.4** Trace retail `GetUnitCurrentOrder` and separate OpenRealm's active order query from historical issued-event ID storage. Test ordinary point move admission, replacement, Stop and natural arrival through public natives/server frames, including save/load and edict reuse; preserve queued issued-event callback context. Discovered while04.5 confirmed idle movement with a retained goal cache: current engine native delegates to `G_GetIssuedOrderId`, which returns the last publisher array entry rather than active queue state. Assign uncovered non-movement order domains to BASE-03.1 before closing this bounded movement query lifecycle.
 
 ### ORDER-02 — User/internal queues
 
@@ -487,7 +487,7 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [x] **GROUP-04.2** Complete the last member and run an all-invalid prepass; assert empty-group teardown, owner unlink and retained mover-owned state. Evidence: [callback completion and empty teardown](retail-pathfinding-movement.md#callback-completion-surviving-cohort-and-empty-teardown), open/wall frozen completion fixtures. The last invalid row is pruned, actual group virtual10 runs at count0, group/path pools return and owner unlinks; individual mover/path identities remain owned.
 - [x] **GROUP-04.3** After GROUP-04.1, reclaim and reuse a member's handle through original producers during a callback; prove generation rejection, later iteration and registry/pool accounting. A pre-invalidated slot does not satisfy callback-timed reuse. Evidence: [callback-timed handle reuse](retail-pathfinding-movement.md#callback-timed-handle-reclamation-and-reuse), frozen open/wall reuse fixtures, four trigger/victim combinations each repeated twice, actual destructor/factory/activation, same-address/slot new generation and exact survivor row. Both registry aliases are supplied from the original creation contract; the omitted-alias counterfactual retains stale spatial slots and certifies no fidelity. Full gameplay RemoveUnit callback graph and survivor arrival remain open.
 - [x] **GROUP-04.4** Complete a member at an original callback boundary, then compose the surviving mixed-speed cohort through natural arrival and cleanup; verify repeat raw trajectories and integrate active membership/speed into Move. Evidence: [completion/survivor journeys](retail-pathfinding-movement.md#callback-completion-surviving-cohort-and-empty-teardown), two frozen fixtures, four trigger/victim cases each repeated twice and178 exact C commits; [engine cohort correction](retail-pathfinding-engine.md#active-move-cohort-speed) reproduces six stale-cap failures before fixing them and covers identity wrap, edict reuse and save/load. Fixed-goal survivor offsets/destinations stay unchanged; actual refresh/reuse composition and full engine phases are explicitly split below.
-- [ ] **GROUP-04.5** After GROUP-04.1/03/04, compose actual formation refresh and new survivor destinations after callback mutation, using the original mover reclamation/reuse composition in04.8. Run original owner decisions/commits through survivor natural arrival and cleanup, preserving removed/reused Unit/Move/order ownership and repeat raw trajectories. Directly calling a layout helper does not prove the actual refresh producer; removal alone does not trigger it in the verified fixed-goal journeys.
+- [x] **GROUP-04.5** After GROUP-04.1/03/04, compose actual formation refresh and new survivor destinations after callback mutation, using the original mover reclamation/reuse composition in04.8. Run original owner decisions/commits through survivor natural arrival and cleanup, preserving removed/reused Unit/Move/order ownership and repeat raw trajectories. Evidence: [actual point replacement/refresh](retail-pathfinding-movement.md#actual-survivor-point-replacement-and-formation-refresh), two frozen four-case matrices,638 exact production commits,120/120 strict corpus outcomes and a server-frame engine regression. New point requests create a fresh singleton group; mere removal retains the old slot. Same-group moving-target refresh remains TARGET-02.1/02.2 and the full engine phases remain04.6.
 - [ ] **GROUP-04.6** Replace the engine cohort scan/static queued cap with Move-owned persistent retail group/member storage, generation/ownership checks, eligibility flags/shared override, queued activation/detachment and separate all-member decisions then commits. Integrate verified refresh/new destinations, teardown and save/load; compare intermediate group state and complete trajectories under the original clock contract.
 - [x] **GROUP-04.7** Allocate baseline individual paths through original14ec50/150d50 instead of direct registration. Replay frozen singleton, pair and all callback-reuse cases; assert owner958 live/allocation counts and recycled-header links during mover release/reallocation and final group release, without changing frozen raw motion expectations. Evidence: [owned-path factory accounting](retail-pathfinding-movement.md#owned-path-factory-accounting), unchanged frozen expectations and116/116 strict corpus outcomes. Native heap allocation/failure and the full Unit construction graph remain BASE-03.1/MAP-05.3.
 - [x] **GROUP-04.8** Complete a member at the original region callback, destroy/reallocate its mover through original producers, then run the retained survivor through natural arrival and final cleanup. Cover both victim roles and callback positions on open/wall maps with repeated exact trajectories, old-generation rejection, path/mover/spatial accounting and Unit/Move/order ownership; Evidence: [completed-member reuse](retail-pathfinding-movement.md#completed-member-reuse-through-survivor-arrival), two frozen four-case matrices,178 exact production velocity commits and118/118 strict corpus outcomes. Retain04.5 for actual formation refresh/new destinations and BASE-03.1 for the gameplay RemoveUnit graph/replacement actor binding.

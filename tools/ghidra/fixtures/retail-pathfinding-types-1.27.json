@@ -1094,6 +1094,116 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f16ce10",
+      "name": "PathGroup_RequestRoute",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "destination",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "target_region",
+          "type": "ptr:WC3SpatialPrefix",
+          "storage": 8
+        },
+        {
+          "name": "ready",
+          "type": "ptr:i32",
+          "storage": 12
+        },
+        {
+          "name": "final_destination",
+          "type": "ptr:i32",
+          "storage": 16
+        }
+      ]
+    },
+    {
+      "address": "6f1697a0",
+      "name": "PathGroup_AdvanceAndRefreshFormation",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "reset_members",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "reset_counters",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f16de50",
+      "name": "PathGroup_PrepareRouteFromMembers",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "destination",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f16db00",
+      "name": "PathGroup_SetPointAndTarget",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "target",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f16e430",
+      "name": "PathGroup_SelectAcceleratedLane",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "selector",
+          "type": "ptr:u32",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [

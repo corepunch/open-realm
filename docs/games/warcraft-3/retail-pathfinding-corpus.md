@@ -20,12 +20,12 @@ expected exit/status, report checks, evidence level, scope and exclusions.
 Repository numerical/scenario fixtures carry SHA256 checksums separately.
 GROUP-04.1 adds callback-mutation checks to the motion oracle. GROUP-04.3 adds
 three variants: open/wall callback-timed mover reuse and a missing-registry-alias
-counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. The inventory now has **118 entries**; fixture hashes and Ghidra
+counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. The inventory now has **120 entries**; fixture hashes and Ghidra
 annotation-script fingerprints cover those extensions. See [callback reuse](retail-pathfinding-movement.md#callback-timed-handle-reclamation-and-reuse).
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 32 ordinary oracles, frozen owner baseline, five pair fixtures, two engine comparisons, two callback-reuse variants two callback-completion variants and two completion/reuse journeys | `verified` | Oracle assertions and the listed report checks must pass within their stated scope |
+| 32 ordinary oracles, frozen owner baseline, five pair fixtures, two engine comparisons, two callback-reuse variants two callback-completion variants two completion/reuse journeys and two survivor replacement journeys | `verified` | Oracle assertions and the listed report checks must pass within their stated scope |
 | Two native adaptive size-2 cases | `known-reference-difference`, exit1 | Preserve the four retail/reference reachability differences, one per traversal lane |
 | Two modified adaptive controls and one missing-registry-alias control | `counterfactual-control`, exit0 | Deliberate hierarchy/result interventions explain the native difference; they do not certify native behavior |
 | 54 completed archives | `archive-consistent` | Current generic analyzer accepts the frozen capture; omitted scenario requirements remain omitted |
@@ -129,3 +129,8 @@ this corpus does not close the whole-replacement READY gates.
 ## Completed-member reuse checkpoint
 
 `group-04.8-completed-reuse-frozen-corpus/corpus-results.json` freshly reproduces118/118 declared outcomes with unchanged source fingerprints. The new open/wall matrices combine original completion, mover reclamation/generation reuse and survivor arrival, checking178 commits against the production velocity adapter. All frozen survivor trajectories match completion-without-reuse controls; final path pool live1 and empty group/order state are retained. This closes04.8 independently of actual formation refresh/new destinations in04.5.
+
+
+## Actual survivor replacement checkpoint
+
+`group-04.5-survivor-retarget-frozen-corpus/corpus-results.json` freshly reproduces120/120 declared outcomes with unchanged source fingerprints. Two new four-case matrices run original680320 survivor point replacement after completion/reuse, actual new-request route/layout, new-goal arrival and old/new group teardown. The production velocity adapter matches638 commits exactly. The engine server-frame regression independently checks slot preservation, ownership reset and arrival; its full tests pass without a speculative behavior change. Same-group pursuit refresh and the current-order public query remain separately assigned tasks.
