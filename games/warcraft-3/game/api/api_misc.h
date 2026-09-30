@@ -934,36 +934,36 @@ static uint32_t TerrainDeformEmit(jass_t *j, terrainDeform_t *deformation) {
 }
 
 uint32_t TerrainDeformCrater(jass_t *j) {
-    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_CRATER };
-    deformation.data[0] = jass_checknumber(j, 1); deformation.data[1] = jass_checknumber(j, 2);
-    deformation.data[2] = jass_checknumber(j, 3); deformation.data[3] = jass_checknumber(j, 4);
-    deformation.duration_ms = MAX(0, jass_checkinteger(j, 5));
-    deformation.flags = jass_checkboolean(j, 6) ? TERRAIN_DEFORM_PERMANENT : 0;
-    return TerrainDeformEmit(j, &deformation);
+    return TerrainDeformEmit(j, &MAKE(terrainDeform_t, .type = TERRAIN_DEFORM_CRATER,
+        .crater = { .origin = { jass_checknumber(j, 1), jass_checknumber(j, 2) },
+                    .radius = jass_checknumber(j, 3), .depth = jass_checknumber(j, 4) },
+        .duration_ms = MAX(0, jass_checkinteger(j, 5)),
+        .flags = jass_checkboolean(j, 6) ? TERRAIN_DEFORM_PERMANENT : 0));
 }
 uint32_t TerrainDeformRipple(jass_t *j) {
-    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_RIPPLE };
-    deformation.data[0] = jass_checknumber(j, 1); deformation.data[1] = jass_checknumber(j, 2);
-    deformation.data[2] = jass_checknumber(j, 3); deformation.data[3] = jass_checknumber(j, 4);
-    deformation.duration_ms = MAX(0, jass_checkinteger(j, 5));
-    deformation.count = MAX(0, jass_checkinteger(j, 6));
-    deformation.data[4] = jass_checknumber(j, 7); deformation.data[5] = jass_checknumber(j, 8);
-    deformation.data[6] = jass_checknumber(j, 9); deformation.flags = jass_checkboolean(j, 10) ? TERRAIN_DEFORM_LIMIT_NEGATIVE : 0;
-    return TerrainDeformEmit(j, &deformation);
+    return TerrainDeformEmit(j, &MAKE(terrainDeform_t, .type = TERRAIN_DEFORM_RIPPLE,
+        .ripple = { .origin = { jass_checknumber(j, 1), jass_checknumber(j, 2) },
+                    .radius = jass_checknumber(j, 3), .depth = jass_checknumber(j, 4),
+                    .space_waves = jass_checknumber(j, 7), .time_waves = jass_checknumber(j, 8),
+                    .radius_start = jass_checknumber(j, 9) },
+        .duration_ms = MAX(0, jass_checkinteger(j, 5)), .count = MAX(0, jass_checkinteger(j, 6)),
+        .flags = jass_checkboolean(j, 10) ? TERRAIN_DEFORM_LIMIT_NEGATIVE : 0));
 }
+/* The native's integer trailTime is the wave's lifetime. */
 uint32_t TerrainDeformWave(jass_t *j) {
-    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_WAVE };
-    FOR_LOOP(i, 8) deformation.data[i] = jass_checknumber(j, i + 1);
-    deformation.duration_ms = MAX(0, jass_checkinteger(j, 9));
-    deformation.count = MAX(0, jass_checkinteger(j, 10));
-    return TerrainDeformEmit(j, &deformation);
+    return TerrainDeformEmit(j, &MAKE(terrainDeform_t, .type = TERRAIN_DEFORM_WAVE,
+        .wave = { .origin = { jass_checknumber(j, 1), jass_checknumber(j, 2) },
+                  .dir = { jass_checknumber(j, 3), jass_checknumber(j, 4) },
+                  .distance = jass_checknumber(j, 5), .speed = jass_checknumber(j, 6),
+                  .radius = jass_checknumber(j, 7), .depth = jass_checknumber(j, 8) },
+        .duration_ms = MAX(0, jass_checkinteger(j, 9)), .count = MAX(0, jass_checkinteger(j, 10))));
 }
 uint32_t TerrainDeformRandom(jass_t *j) {
-    terrainDeform_t deformation = { .type = TERRAIN_DEFORM_RANDOM };
-    FOR_LOOP(i, 5) deformation.data[i] = jass_checknumber(j, i + 1);
-    deformation.duration_ms = MAX(0, jass_checkinteger(j, 6));
-    deformation.update_ms = MAX(0, jass_checkinteger(j, 7));
-    return TerrainDeformEmit(j, &deformation);
+    return TerrainDeformEmit(j, &MAKE(terrainDeform_t, .type = TERRAIN_DEFORM_RANDOM,
+        .random = { .origin = { jass_checknumber(j, 1), jass_checknumber(j, 2) },
+                    .radius = jass_checknumber(j, 3), .min_delta = jass_checknumber(j, 4),
+                    .max_delta = jass_checknumber(j, 5) },
+        .duration_ms = MAX(0, jass_checkinteger(j, 6)), .update_ms = MAX(0, jass_checkinteger(j, 7))));
 }
 uint32_t TerrainDeformStop(jass_t *j) {
     uint32_t *handle = jass_checkhandle(j, 1, "terraindeformation");

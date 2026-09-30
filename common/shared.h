@@ -944,16 +944,31 @@ typedef enum {
 #define TERRAIN_DEFORM_PERMANENT (1u << 0) // flag; the deformation ignores duration_ms and stays until stopped
 #define TERRAIN_DEFORM_LIMIT_NEGATIVE (1u << 1) // flag; heights are clamped at zero so the surface never dips
 
-/* Renderer-owned visual command; this descriptor is sent only in a transient event, never in snapshots or saves. */
+#define TERRAIN_DEFORM_FLOATS 8 // floats; the widest variant (wave) and the fixed float count of the wire payload
+
+/* Renderer-owned visual command; this descriptor is sent only in a transient event, never in snapshots or saves.
+ * `type` selects the variant. Producers and the renderer use the named fields; `data` is the same storage as
+ * the wire sees it, so the client can carry every variant without knowing any of them. */
 typedef struct {
     uint32_t id;
     terrainDeformType_t type;
-    float data[8];
+    union {
+        float data[TERRAIN_DEFORM_FLOATS];
+        vec2_t origin; /* world XY; first member of every variant */
+        struct { vec2_t origin; float radius, depth; } crater;
+        /* space_waves ripples fit in the radius, one crest travels it in time_waves seconds, and nothing
+         * moves inside radius_start (a 0..1 fraction of the radius). */
+        struct { vec2_t origin; float radius, depth, space_waves, time_waves, radius_start; } ripple;
+        struct { vec2_t origin, dir; float distance, speed, radius, depth; } wave;
+        struct { vec2_t origin; float radius, min_delta, max_delta; } random;
+    };
     uint32_t duration_ms;
     uint32_t count;
     uint32_t update_ms;
     uint32_t flags; /* TERRAIN_DEFORM_* bits; sent as one byte */
 } terrainDeform_t;
+_Static_assert(sizeof(((terrainDeform_t *)0)->wave) == sizeof(((terrainDeform_t *)0)->data), "the widest terrain-deformation variant must fill the wire payload exactly");
+_Static_assert(offsetof(terrainDeform_t, ripple.radius_start) == offsetof(terrainDeform_t, data) + 6 * sizeof(float), "terrain-deformation variants must be packed floats");
 
 typedef enum {
     FT_NONE,

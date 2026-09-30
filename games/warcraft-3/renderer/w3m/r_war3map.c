@@ -71,48 +71,48 @@ static float R_W3DeformationValue(wc3TerrainDeformation_t const *deform, float x
         fade *= sinf((float)M_PI * elapsed / duration);
     }
 
-    dx = x - p->data[0]; dy = y - p->data[1];
+    dx = x - p->origin.x; dy = y - p->origin.y;
     switch (p->type) {
     case TERRAIN_DEFORM_CRATER:
-        radius = p->data[2];
+        radius = p->crater.radius;
         if (radius <= 0.0f) return 0.0f;
         {
             float q = sqrtf(dx * dx + dy * dy) / radius;
             float edge = 1.0f - R_W3SmoothStep(q);
-            shape = -fabsf(p->data[3]) * edge * edge;
+            shape = -fabsf(p->crater.depth) * edge * edge;
         }
         break;
     case TERRAIN_DEFORM_RIPPLE:
-        radius = p->data[2];
+        radius = p->ripple.radius;
         if (radius <= 0.0f) return 0.0f;
         {
             float q = sqrtf(dx * dx + dy * dy) / radius;
-            float cycles = MAX(1.0f, p->data[4]);
-            float period = MAX(0.05f, p->data[5]);
-            float inner = MAX(0.0f, MIN(0.99f, p->data[6]));
+            float cycles = MAX(1.0f, p->ripple.space_waves);
+            float period = MAX(0.05f, p->ripple.time_waves);
+            float inner = MAX(0.0f, MIN(0.99f, p->ripple.radius_start));
             if (q > 1.0f || q < inner) return 0.0f;
-            shape = p->data[3] * sinf((q - elapsed / period) * cycles * 2.0f * (float)M_PI) *
+            shape = p->ripple.depth * sinf((q - elapsed / period) * cycles * 2.0f * (float)M_PI) *
                     R_W3SmoothStep((1.0f - q) / MAX(0.001f, 1.0f - inner));
             if (p->flags & TERRAIN_DEFORM_LIMIT_NEGATIVE) shape = MAX(0.0f, shape);
         }
         break;
     case TERRAIN_DEFORM_WAVE:
         {
-            float dir_x = p->data[2], dir_y = p->data[3];
+            float dir_x = p->wave.dir.x, dir_y = p->wave.dir.y;
             float dir_len = sqrtf(dir_x * dir_x + dir_y * dir_y);
-            float along, across, speed = fabsf(p->data[5]);
-            radius = p->data[6];
+            float along, across, speed = fabsf(p->wave.speed);
+            radius = p->wave.radius;
             if (dir_len <= 0.0001f || speed <= 0.0f || radius <= 0.0f) return 0.0f;
             dir_x /= dir_len; dir_y /= dir_len;
             along = dx * dir_x + dy * dir_y;
             across = fabsf(dx * dir_y - dy * dir_x);
-            if (along < 0.0f || along > p->data[4] || across > radius) return 0.0f;
-            shape = p->data[7] * sinf((along - speed * elapsed) * (float)M_PI / speed) *
+            if (along < 0.0f || along > p->wave.distance || across > radius) return 0.0f;
+            shape = p->wave.depth * sinf((along - speed * elapsed) * (float)M_PI / speed) *
                     (1.0f - R_W3SmoothStep(across / radius));
             break;
         }
     case TERRAIN_DEFORM_RANDOM:
-        radius = p->data[2];
+        radius = p->random.radius;
         if (radius <= 0.0f) return 0.0f;
         {
             float q = sqrtf(dx * dx + dy * dy) / radius;
@@ -123,7 +123,7 @@ static float R_W3DeformationValue(wc3TerrainDeformation_t const *deform, float x
             random_value = (float)(R_W3DeformHash((uint32_t)lroundf(x / TILE_SIZE),
                                                    (uint32_t)lroundf(y / TILE_SIZE),
                                                    p->id ^ sample) & 0xffffu) / 65535.0f;
-            shape = LerpNumber(p->data[3], p->data[4], random_value) * (1.0f - R_W3SmoothStep(q));
+            shape = LerpNumber(p->random.min_delta, p->random.max_delta, random_value) * (1.0f - R_W3SmoothStep(q));
             break;
         }
     default:
@@ -135,23 +135,28 @@ static float R_W3DeformationValue(wc3TerrainDeformation_t const *deform, float x
 static bool R_W3DeformationBounds(wc3TerrainDeformation_t const *deform, float *min_x,
                                   float *min_y, float *max_x, float *max_y) {
     terrainDeform_t const *p = &deform->params;
-    float radius = p->data[2];
-    if (!isfinite(p->data[0]) || !isfinite(p->data[1])) return false;
-    FOR_LOOP(i, 8) if (!isfinite(p->data[i])) return false;
-    if (p->type == TERRAIN_DEFORM_WAVE) {
-        float dir_x = p->data[2], dir_y = p->data[3], distance = p->data[4], width = p->data[6];
+    float radius;
+    FOR_LOOP(i, TERRAIN_DEFORM_FLOATS) if (!isfinite(p->data[i])) return false;
+    switch (p->type) {
+    case TERRAIN_DEFORM_WAVE: {
+        float dir_x = p->wave.dir.x, dir_y = p->wave.dir.y, distance = p->wave.distance, width = p->wave.radius;
         float len = sqrtf(dir_x * dir_x + dir_y * dir_y);
         if (len <= 0.0001f || distance <= 0.0f || width <= 0.0f) return false;
         dir_x /= len; dir_y /= len;
-        *min_x = p->data[0] + MIN(0.0f, dir_x * distance) - fabsf(dir_y) * width;
-        *max_x = p->data[0] + MAX(0.0f, dir_x * distance) + fabsf(dir_y) * width;
-        *min_y = p->data[1] + MIN(0.0f, dir_y * distance) - fabsf(dir_x) * width;
-        *max_y = p->data[1] + MAX(0.0f, dir_y * distance) + fabsf(dir_x) * width;
+        *min_x = p->origin.x + MIN(0.0f, dir_x * distance) - fabsf(dir_y) * width;
+        *max_x = p->origin.x + MAX(0.0f, dir_x * distance) + fabsf(dir_y) * width;
+        *min_y = p->origin.y + MIN(0.0f, dir_y * distance) - fabsf(dir_x) * width;
+        *max_y = p->origin.y + MAX(0.0f, dir_y * distance) + fabsf(dir_x) * width;
         return true;
     }
+    case TERRAIN_DEFORM_CRATER: radius = p->crater.radius; break;
+    case TERRAIN_DEFORM_RIPPLE: radius = p->ripple.radius; break;
+    case TERRAIN_DEFORM_RANDOM: radius = p->random.radius; break;
+    default: return false;
+    }
     if (radius <= 0.0f) return false;
-    *min_x = p->data[0] - radius; *max_x = p->data[0] + radius;
-    *min_y = p->data[1] - radius; *max_y = p->data[1] + radius;
+    *min_x = p->origin.x - radius; *max_x = p->origin.x + radius;
+    *min_y = p->origin.y - radius; *max_y = p->origin.y + radius;
     return true;
 }
 

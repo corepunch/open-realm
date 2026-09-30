@@ -200,8 +200,7 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
                 int32_t duration_ms, count, update_ms;
                 deformation.id = (uint32_t)MSG_ReadLong(msg);
                 deformation.type = (terrainDeformType_t)MSG_ReadByte(msg);
-                FOR_LOOP(i, sizeof(deformation.data) / sizeof(deformation.data[0]))
-                    deformation.data[i] = MSG_ReadFloat(msg);
+                FOR_LOOP(i, TERRAIN_DEFORM_FLOATS) deformation.data[i] = MSG_ReadFloat(msg);
                 duration_ms = MSG_ReadLong(msg);
                 count = MSG_ReadLong(msg);
                 update_ms = MSG_ReadLong(msg);
@@ -413,7 +412,7 @@ TEST(client_tent, terrain_deform_temp_events_reach_the_renderer_intact) {
     MSG_WriteByte(&sb, TE_TERRAIN_DEFORM);
     MSG_WriteLong(&sb, 41);
     MSG_WriteByte(&sb, TERRAIN_DEFORM_RIPPLE);
-    FOR_LOOP(i, 8) MSG_WriteFloat(&sb, 10.0f + i);
+    FOR_LOOP(i, TERRAIN_DEFORM_FLOATS) MSG_WriteFloat(&sb, 10.0f + i);
     MSG_WriteLong(&sb, 1800);
     MSG_WriteLong(&sb, 3);
     MSG_WriteLong(&sb, 200);
@@ -427,7 +426,7 @@ TEST(client_tent, terrain_deform_temp_events_reach_the_renderer_intact) {
     T_EQ(test_deform_starts, 1);
     T_EQ(test_deform.id, 41);
     T_EQ(test_deform.type, TERRAIN_DEFORM_RIPPLE);
-    FOR_LOOP(i, 8) T_FEQ(test_deform.data[i], 10.0f + i, 0.001f);
+    FOR_LOOP(i, TERRAIN_DEFORM_FLOATS) T_FEQ(test_deform.data[i], 10.0f + i, 0.001f);
     T_EQ(test_deform.duration_ms, 1800);
     T_EQ(test_deform.count, 3);
     T_EQ(test_deform.update_ms, 200);
