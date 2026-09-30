@@ -38,8 +38,7 @@ typedef struct {
     bool loaded;
     bool has_render_time;
     uint32_t last_render_time;
-    bool background_birth_started, background_birth_complete;
-    uint32_t background_birth_start, background_birth_duration;
+    uiBirthSequence_t background_birth;
     model_t const *background, *top_left_panel, *top_right_panel;
     glueLayer_t layers[UI_GLUE_SIDE_COUNT];
     uiGluePanelChanged_f exited, changed;
@@ -48,6 +47,41 @@ typedef struct {
 
 
 static glueScene_t scene;
+
+void UI_BirthSequenceReset(uiBirthSequence_t *sequence) {
+    *sequence = (uiBirthSequence_t){0};
+}
+
+void UI_BirthSequenceBegin(uiBirthSequence_t *sequence, refExport_t *renderer,
+                           model_t const *model, cstring_t label) {
+    UI_BirthSequenceReset(sequence);
+    if (UI_GlueSkipTransitions()) {
+        sequence->complete = true;
+        return;
+    }
+    sequence->started = true;
+    sequence->start = M_Time();
+    if (!renderer || !renderer->GetModelAnimationDuration || !model ||
+        !renderer->GetModelAnimationDuration(model, "Birth", &sequence->duration) ||
+        !sequence->duration) {
+        fprintf(stderr, "UI: %s has no valid Birth sequence duration; using stable pose\n",
+                label ? label : "menu model");
+        sequence->complete = true;
+    }
+}
+
+cstring_t UI_BirthSequenceAnimation(uiBirthSequence_t *sequence, string_t anim,
+                                    size_t anim_size, cstring_t stable) {
+    if (UI_GlueSkipTransitions()) sequence->complete = true;
+    if (!sequence->started || sequence->complete) return stable;
+    uint32_t const elapsed = M_Time() - sequence->start;
+    if (elapsed >= sequence->duration) {
+        sequence->complete = true;
+        return stable;
+    }
+    snprintf(anim, anim_size, "Birth@%.4f", (float)elapsed / (float)sequence->duration);
+    return anim;
+}
 
 bool UI_GlueSkipTransitions(void) {
     cstring_t value = mi.Cvar_String ? mi.Cvar_String("ui_skip_transitions", "0") : "0";
@@ -275,33 +309,11 @@ static cstring_t UI_GlueBackgroundStand(refExport_t *renderer, string_t anim, si
 
 /* The selected background's authored Birth settles into its stable Stand pose. */
 static cstring_t UI_GlueBackgroundAnimation(refExport_t *renderer, string_t anim, size_t anim_size) {
-    uint32_t elapsed;
-
-    if (UI_GlueSkipTransitions()) {
-        scene.background_birth_complete = true;
-        return UI_GlueBackgroundStand(renderer, anim, anim_size);
-    }
-    if (!scene.background_birth_started) {
-        scene.background_birth_started = true;
-        scene.background_birth_start = M_Time();
-        if (!renderer->GetModelAnimationDuration ||
-            !renderer->GetModelAnimationDuration(scene.background, "Birth", &scene.background_birth_duration) ||
-            !scene.background_birth_duration) {
-            fprintf(stderr, "UI: glue background '%s' has no valid Birth sequence duration; using Stand\n",
-                    UI_GlueBackgroundPath());
-            scene.background_birth_complete = true;
-            return UI_GlueBackgroundStand(renderer, anim, anim_size);
-        }
-    }
-    if (scene.background_birth_complete) return UI_GlueBackgroundStand(renderer, anim, anim_size);
-    elapsed = M_Time() - scene.background_birth_start;
-    if (elapsed >= scene.background_birth_duration) {
-        scene.background_birth_complete = true;
-        return UI_GlueBackgroundStand(renderer, anim, anim_size);
-    }
-    snprintf(anim, anim_size, "Birth@%.4f",
-             (float)elapsed / (float)scene.background_birth_duration);
-    return anim;
+    if (!scene.background_birth.started && !scene.background_birth.complete)
+        UI_BirthSequenceBegin(&scene.background_birth, renderer, scene.background,
+                              UI_GlueBackgroundPath());
+    return UI_BirthSequenceAnimation(&scene.background_birth, anim, anim_size,
+                                     UI_GlueBackgroundStand(renderer, anim, anim_size));
 }
 
 /* Left content and right navigation own separate clocks, targets, and readiness.

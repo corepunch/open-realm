@@ -47,22 +47,34 @@ TEST(mdx_ui, particle_uv_curve_uses_start_mid_end_frames) {
 
     p.time = 0.0f;
     uv = FX_GetFrame(&p);
-    T_EQ(uv.r, 64); T_EQ(uv.g, 0); T_EQ(uv.b, 127); T_EQ(uv.a, 127);
+    T_EQ(uv.r, 64); T_EQ(uv.g, 127); T_EQ(uv.b, 127); T_EQ(uv.a, 0);
 
     p.time = BYTE2FLOAT(p.midtime);
     uv = FX_GetFrame(&p);
-    T_EQ(uv.r, 64); T_EQ(uv.g, 128); T_EQ(uv.b, 127); T_EQ(uv.a, 255);
+    T_EQ(uv.r, 64); T_EQ(uv.g, 255); T_EQ(uv.b, 127); T_EQ(uv.a, 128);
 
     p.time = 1.0f;
     uv = FX_GetFrame(&p);
-    T_EQ(uv.r, 192); T_EQ(uv.g, 128); T_EQ(uv.b, 255); T_EQ(uv.a, 255);
+    T_EQ(uv.r, 192); T_EQ(uv.g, 255); T_EQ(uv.b, 255); T_EQ(uv.a, 128);
 }
 
 TEST(mdx_ui, particle_uv_default_still_advances_over_lifetime) {
     cparticle_t p = { .columns = 4, .rows = 1, .lifespan = 1.0f, .time = 0.5f };
     color32_t uv = FX_GetFrame(&p);
 
-    T_EQ(uv.r, 128); T_EQ(uv.g, 0); T_EQ(uv.b, 191); T_EQ(uv.a, 255);
+    T_EQ(uv.r, 128); T_EQ(uv.g, 255); T_EQ(uv.b, 191); T_EQ(uv.a, 0);
+}
+
+TEST(mdx_ui, particle_billboard_top_samples_top_texture_row) {
+    particleVertex_t vertices[NUM_PARTICLE_VERTICES];
+    vec3_t point = {0};
+    color32_t uv = { .r = 0, .g = 255, .b = 255, .a = 0 };
+    R_AddParticle(vertices, &point, NULL, NULL, NULL, uv, (color32_t){0}, 1.0f);
+
+    T_EQ(vertices[2].axis[1], 255);
+    T_FEQ(vertices[2].uv[1], 0.0f, 0.0001f);
+    T_EQ(vertices[0].axis[1], 0);
+    T_FEQ(vertices[0].uv[1], 1.0f, 0.0001f);
 }
 
 static wc3WeatherEffect_t weather_test_state;

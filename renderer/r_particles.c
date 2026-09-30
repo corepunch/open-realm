@@ -391,6 +391,7 @@ static color32_t FX_GetFrame(cparticle_t const *p) {
     uint32_t v = frame / columns;
     uint32_t usize = 256 / columns;
     uint32_t vsize = 256 / rows;
+    /* BLP rows are stored top-down, while the billboard quad maps +Y to V=1. */
     return (color32_t) {
         usize * u,
         vsize * (v + 1) - 1,

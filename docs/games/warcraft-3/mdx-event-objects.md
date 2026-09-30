@@ -34,13 +34,23 @@ slots receive generated IDs and release them when templates are cleared, so
 recycled frame addresses cannot resume stale event clocks. Glue and campaign
 backgrounds release their static IDs when their presentation is reset. Isolated
 camera particles are stored per instance, so concurrently rendered menu scenes
-cannot share particles or advance one another's particle time. UI entities use
+cannot share particles or advance one another's particle time. Retained particle
+scenes are invalidated when an instance keeps its ID but changes model or entity
+generation; persistent scenes also require paired allocation/free imports and a
+nonzero instance ID. UI entities use
 synthetic numbers, so sharing the
 edict-indexed clock can reseed an event on every frame; omitting the camera
 child pass makes one-frame effects such as the main-menu Infernal meteor
-disappear immediately after spawning. Client layout portraits use stable IDs
+disappear immediately after spawning. Persistent layout portraits use stable IDs
 derived from layer and frame number and release those IDs when an empty layer
 packet clears the layout; ordinary packet replacement preserves the clocks.
+Transient window portraits use a per-window namespace and release it when the
+window is replaced or closed.
+
+Particle sprite UVs use the BLP top-down row convention. The billboard quad maps
+its top edge to V=1, so the selected atlas cell reverses its V endpoints before
+upload. This keeps generic MDX, weather, and M2 particle sprites upright while
+leaving authored UV frame selection unchanged.
 
 Current runtime consumers are:
 
