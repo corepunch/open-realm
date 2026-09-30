@@ -49,7 +49,7 @@ typedef struct {
 
 static glueScene_t scene;
 
-static bool UI_GlueSkipTransitions(void) {
+bool UI_GlueSkipTransitions(void) {
     cstring_t value = mi.Cvar_String ? mi.Cvar_String("ui_skip_transitions", "0") : "0";
     return value && atoi(value) != 0;
 }

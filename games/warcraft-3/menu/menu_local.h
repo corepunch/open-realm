@@ -54,6 +54,7 @@ void UI_ResetGlueSceneModels(void);
 void UI_ResetGlueTransitions(void);
 void UI_ReleaseGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
+bool UI_GlueSkipTransitions(void);
 typedef void (*uiGluePanelChanged_f)(void);
 void UI_GotoGluePanel(glueDest_t dest, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed);
 void UI_CloseGluePanel(uiGluePanelChanged_f changed);

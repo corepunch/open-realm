@@ -220,9 +220,10 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' +menu_options +com_frame_limit
 build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +menu_options +com_frame_limit 100
 ```
 
-Campaign background models render their stable `Stand` sequence. Their `Birth` durations vary by race and edition, so they are not
-part of the fixed panel-transition clock. Entering campaign selection waits for `SinglePlayer Death`; returning declares
-`SinglePlayer` as the desired panel and the closed-panel state starts its `Birth`. The retail/Warsmash
+Campaign backdrop changes play the selected model's authored `Birth` sequence, using the MDX-reported duration, then hold
+`Stand`. The duration varies by race and edition, so it has its own clock rather than sharing the fixed panel-transition clock.
+Campaign backdrop views advance their scene clock and isolated particles. Entering campaign selection waits for `SinglePlayer Death`;
+returning declares `SinglePlayer` as the desired panel and the closed-panel state starts its `Birth`. The retail/Warsmash
 `SlidingDoors Birth -> background swap -> SlidingDoors Death` campaign wipe is still separate work; OpenRealm currently keeps
 `SlidingDoors` hidden because its campaign-view ownership does not yet implement that intermediate transition state. Remaining glue
 parity gaps also include `MenuZFog` and edition-sensitive `GlueScreenLoop` ambience.
