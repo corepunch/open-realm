@@ -8,6 +8,24 @@ import ghidra.program.model.symbol.SourceType;
 public class MapPathfinding extends GhidraScript {
     static final String HASH = "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236";
     static final String[][] ROWS = {
+        {"6f0162d0", "MoveSpeed_InitUnitMinimumBound", "EDX1 ECXd709b8 tail070d80."},
+        {"6f0162c0", "MoveSpeed_InitBuildingMinimumBound", "EDX1 ECXd709c0 tail070d80."},
+        {"6f0162b0", "MoveSpeed_InitUnitMaximumBound", "EDX522 ECXd709bc tail070d80."},
+        {"6f016290", "MoveSpeed_InitBuildingMaximumBound", "EDX522 ECXd709c4 tail070d80."},
+        {"6f016240", "MoveSpeed_InitUnitDefaultMinimum", "Copyd709b8 tod709c8, initial1."},
+        {"6f016230", "MoveSpeed_InitBuildingDefaultMinimum", "Copyd709c0 tod709d0, initial1."},
+        {"6f016220", "MoveSpeed_InitUnitDefaultMaximum", "Copyd709bc tod709cc, initial522."},
+        {"6f016210", "MoveSpeed_InitBuildingDefaultMaximum", "Copyd709c4 tod709d4, initial522."},
+        {"6f68ed40", "UnitProfile_GetMaximumMoveSpeed", "ECX output pointer, EDX rawcode, RET plain. Profile1dc/index77; UnitMetaData umas int, cache scalar. Customh001 maximum389 verified live."},
+        {"6f68f010", "UnitProfile_GetMinimumMoveSpeed", "ECX output pointer, EDX rawcode, RET plain. Profile1d8/index76; UnitMetaData umis int, cache scalar. Customh001 minimum173 verified live."},
+        {"6f66ad20", "UnitProfile_GetBaseMoveSpeed", "ECX output scalar pointer, EDX rawcode, RET plain. Authored profile1d4/index75 or zero. Setter does not rewrite immutable profile."},
+        {"6f5fc900", "CAbilityMove_ComputeEffectiveSpeed", "ECX Move, stack4 output pointer, RET4. Base70 plus upgrade, then78 multiplier; optional association/profile branch. Ordinary tail5fc9a4 selects unit/building immutable1..522 bounds; zero profile selects unchanged Misc default, nonzero profile clamps1..522; value lower clamp then upper clamp.1820 original tail/C cases plus26 disabled gate. Special caps and upstream modifiers remain MOVE-01.1/2."},
+        {"6f5fc890", "CAbilityMove_GetCurrentSpeed", "ECX Move, stack4 output pointer, RET4. Move7c disable counter nonzero returns zero, else5fc900.26 complete original disabled calls plus public native witnesses."},
+        {"6f685310", "Unit_GetMoveSpeed", "ECX Unit, stack4 output scalar pointer, RET4. Missing Unit1ec Move yields zero; otherwise5fc890. Live native chain verified."},
+        {"6f698af0", "Unit_SetMoveSpeed", "ECX Unit, stack4 speed scalar pointer, RET4. Unit1ec Move absent means no-op, otherwise5fee60 embedded FloatMini producer. Repeated public inputs verified."},
+        {"6f2154e0", "Jass_SetUnitMoveSpeed", "Registry20948f cdecl stack4 handle, stack8 scalar pointer. Resolve1eef90 then698af0. Repeated negative/zero/boundary/large inputs reach5fc900 bounds and05c5c0 mover publication. Disabledhalt ignores setter."},
+        {"6f203a90", "Jass_GetUnitDefaultMoveSpeed", "Registry20938b cdecl stack4 handle, raw scalar EAX. Immutable profile66ad20; uppercase rawcode may add hero contribution6852f0/528b00 unless flag5c.40000000. Ordinary hfoo270/h001237 unchanged by setters; halt profile0. Hero contribution remains MOVE-01.1."},
+        {"6f203d30", "Jass_GetUnitMoveSpeed", "Registry209377 cdecl stack4 handle, raw scalar EAX. Resolve1eef90, Unit685310 Move5fc890/5fc900.120 repeated public native calls include authored270/237, clamps150..400 or173..389, disabledhalt0. Current differs from immutable default getter."},
         {"6f06f9c0", "Math_Multiply", "NUM-01.12 instruction-checked ECX output,EDX input,stack4 right/RET4; EAX output. Existing original/model/C scalar witnesses retain raw software arithmetic; reachable caller aliases are separate01.17/18/19."},
         {"6f06fa90", "Math_Subtract", "NUM-01.12 instruction-checked ECX output,EDX input,stack4 right/RET4; EAX output. Existing original/model/C scalar witnesses retain raw software arithmetic; reachable caller aliases are separate01.17/18/19."},
         {"6f06fbb0", "Math_Add", "NUM-01.12 instruction-checked ECX output,EDX input,stack4 right/RET4; EAX output. Existing original/model/C scalar witnesses retain raw software arithmetic; reachable caller aliases are separate01.17/18/19."},
@@ -382,7 +400,7 @@ public class MapPathfinding extends GhidraScript {
                 // Verified native registration and complete decoded switch;
                 // Ghidra initially had instructions but no function at2005b0.
                 if (!(row[0].equals("6f2005b0") || row[0].equals("6f001dd0") ||
-                      row[0].equals("6f001a80") || row[0].equals("6f001b80")) || getInstructionAt(toAddr(row[0])) == null ||
+                      row[0].equals("6f001a80") || row[0].equals("6f001b80") || row[0].matches("6f0162(10|20|30|40|90|b0|c0|d0)")) || getInstructionAt(toAddr(row[0])) == null ||
                     getFunctionContaining(toAddr(row[0])) != null)
                     throw new Exception("Missing function " + row[0]);
                 continue;

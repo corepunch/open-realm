@@ -2,6 +2,16 @@
 #include "games/warcraft-3/common/wc3_math.h"
 #include "games/warcraft-3/common/wc3_pathing_masks.h"
 #include "games/warcraft-3/common/wc3_pathing_arrival.h"
+#include "games/warcraft-3/common/wc3_pathing_speed.h"
+
+void pathing_speed_limits(uint32_t const input[6], uint32_t output[3]) {
+    wc3SpeedLimit_t s = { .value = wc3_float(input[0]), .minimum = wc3_float(input[1]),
+        .maximum = wc3_float(input[2]), .default_minimum = wc3_float(input[3]),
+        .default_maximum = wc3_float(input[4]), .disabled = input[5] != 0 };
+    output[0] = wc3_float_bits(wc3_speed_limit_update(&s));
+    output[1] = wc3_float_bits(s.minimum);
+    output[2] = wc3_float_bits(s.maximum);
+}
 
 /* Inputs: source XY, target XY, heading, range, flags. Outputs: distance,
  * signed heading error, in-range, reached; inputs remain untouched. */

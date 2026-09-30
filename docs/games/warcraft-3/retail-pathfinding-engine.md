@@ -1949,3 +1949,84 @@ pathfinding tool tests pass. Debug and release pathfinding each pass573 assertio
 in77 cases, production WC3 builds, and both boundary audits are clean. The fresh
 five-entry arrival corpus passes all expected outcomes, including the rejected
 observer archive. Save remains60; no actor, network or serialized layout changes.
+
+
+## Authored speed limits reach Move
+
+MOVE-01.4 puts the ordinary nonhero speed producer into the engine. Public
+`SetUnitMoveSpeed` now changes Move's runtime value, including explicit zero and
+negative inputs. `GetUnitMoveSpeed`, step budgets and selection-group speed
+selection share the profile/status consumer. `GetUnitDefaultMoveSpeed` reads the
+immutable authored profile rather than the last setter. Movement-disabled units
+ignore setters and return zero current speed.
+
+The actual retail UnitMetaData defines `umvs`, `umis` and `umas` as integers.
+Our typed UnitBalance stores scalars; map-object application previously discarded
+integer modifications to those fields. An actual custom-unit CreateUnit/public
+Move regression failed all three authored-profile assertions before the integer
+to software-scalar conversion fix. The captured custom h001 clone now retains
+speed237, minimum173 and maximum389 through normal map-row binding.
+
+Original `5fc900` first clamps nonzero profile bounds to immutable1..522. Zero
+profile bounds select Misc defaults unchanged; it clamps the effective value
+against minimum, then maximum. Retail Misc supplies unit150..400 and
+building25..400, with map overrides remaining authoritative. Missing data retains
+the instruction-verified startup defaults1/522 and logs the missing key. These
+are distinct from the game owner's additional bridge cap, observed as raw
+`4402aaab`; its producer and exceptional composition remain open.
+
+`verify_wc3_pathing_speed_limits.py` executes1820 original ordinary-tail cases
+plus26 complete disabled getter gates. The production C header matches every
+output word, including adjacent thresholds, zero/negative/inverted profile
+bounds and defaults above522. Asset-free tests replay the frozen1846 cases twice
+against both O0 and O2 builds.
+
+Two owned75-second captures, `runtime/speed-inputs-first-260930.jsonl` and
+`runtime/speed-inputs-repeat-260930.jsonl`, preserve source/map hashes and agree
+on120 public native calls,26 speed publications,152 motion decisions and153
+velocity/position/facing commits. Stock Footman setters clamp150..400 while its
+default remains270; custom h001 clamps173..389 with default237; halt stays0 and
+publishes no speed. The high setter reaches the moving owner's next committed
+cap. **The low restoration occurs after arrival**, so it does not establish
+low-cap integration or temporary-modifier restoration during travel.
+
+`verify_wc3_speed_inputs.py` checks actor/mover identity and epoch, native
+producer sequence, all bounds/default words, actual bridge division32, the high
+setter's next commit, complete300 JASS samples and repeated raw commit digests.
+Damaged-source, missing-record, changed-bound/default/epoch and wrong travel-cap
+controls are rejected. Fixtures are `retail-speed-limits-1.27.json` and
+`retail-public-speed-inputs-1.27.json`; the fresh five-entry corpus is
+`speed-inputs-corpus-fresh-260930/corpus-results.json` under the local report root.
+
+Actual engine regressions cover integer custom-profile binding, low/zero/high
+public setters during Move, disabled-owner no-op, immutable defaults and saved
+explicit-zero motion. Eight post-load steps reproduce position and velocity
+words exactly. The saved bit uses the existing primitive override mask; save60,
+JSVM7, actor/network layouts and field tables remain unchanged. The two existing
+sub-bound velocity-guard tests now explicitly supply a small Misc minimum;
+ordinary inputs correctly encounter the newly implemented bound first.
+
+BASE-02.5 adds the missing stable UnitData map-row cache. The disabled custom
+unit regression first failed because umvt never reached the created entity;
+integer balance fields alone could not fix it. Original edits now serve as
+custom inheritance sources, distinct rows survive further lookups, and map
+cleanup releases them before rebinding stock data. Actual public CreateUnit
+profiles exercise amphibious, floating and flying masks plus inherited turn
+rate/window. This also makes authored custom-map movement settings reach normal
+path queries instead of silently resolving the base unit row. Other unported
+typed tables and full support transitions remain open.
+
+Ghidra now persists380 descriptive functions,119 verified prototypes,143 fields
+and43
+scalar globals plus the registry pointer. The new native/profile/getter/startup
+functions and separate immutable/default bound labels are saved and read back in
+`speed-types-readback.json`. Upstream effect-stack ordering, hero-specific default
+speed, special ability/type caps, immediate old-velocity integration/clamp on a low cap and
+whole engine clock cadence remain MOVE-01.1/2 and NUM-02.3.
+
+
+Validation: full Classic and TFT suites each pass42,005 assertions in2,197 cases,
+with all118 pathfinding tool tests passing. Forced debug and ordinary movement
+builds each pass2,811 assertions in167 cases per schema. The five new corpus
+entries pass their declared outcomes; boundary/menu audits and relative links
+are clean. Production WC3 builds. No whole-trajectory fidelity claim is added.

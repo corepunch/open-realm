@@ -2,6 +2,7 @@
 let installed = false, samples = 0, serial = 0, rebuildSamples = 0;
 let widgetScenario = false;
 let numericCase = null;
+let speedCase = null;
 const counts = {}, active = new Map();
 const headingActive = new Map();
 const emit = (event, data = {}) => send({event, ms: Date.now(), ...data});
@@ -252,6 +253,64 @@ function install(module) {
         });
     }
     if (config.motionEvents) {
+        const speedNatives = new Map();
+        for (const [name, rva] of [['GetUnitMoveSpeed',0x203d30],
+                                  ['GetUnitDefaultMoveSpeed',0x203a90], ['SetUnitMoveSpeed',0x2154e0]]) {
+            hook(rva, {
+                onEnter(args) {
+                    this.previous = speedNatives.get(this.threadId);
+                    this.row = speedCase ? {case:speedCase, name, handle:args[0].toUInt32()} : null;
+                    if (this.row && name === 'SetUnitMoveSpeed') this.row.input = args[1].readU32();
+                    speedNatives.set(this.threadId, this.row);
+                },
+                onLeave(result) {
+                    if (this.row) {
+                        bump('speed-native');
+                        if (counts['speed-native'] <= config.samples)
+                            emit('speed-native', {...this.row,
+                                output:this.row.name === 'SetUnitMoveSpeed' ? null : result.toUInt32(),
+                                bounds:ints(base.add(0xd709b8),8).map(v=>v>>>0)});
+                    }
+                    if (this.previous) speedNatives.set(this.threadId, this.previous);
+                    else speedNatives.delete(this.threadId);
+                }
+            });
+        }
+        hook(0x1eef90, {
+            onEnter() {
+                const row = speedNatives.get(this.threadId);
+                this.row = row && row.handle === this.context.ecx.toUInt32() ? row : null;
+            },
+            onLeave(result) {
+                if (this.row) {
+                    this.row.unit = result.toString();
+                    this.row.rawcode = result.isNull() ? null : result.add(0x30).readU32();
+                }
+            }
+        });
+        hook(0x05c5c0, {
+            onEnter(args) {
+                this.bridge = this.context.ecx;
+                this.row = speedCase ? {case:speedCase, input:args[0].readU32(),
+                    rawcode:this.bridge.sub(0x164).add(0x30).readU32(), identity:ints(this.bridge.add(8),2),
+                    globalCap:base.add(0xd3c82c).readPointer().add(0x80).readU32()} : null;
+            },
+            onLeave() {
+                if (!this.row) return;
+                bump('speed-publication');
+                if (counts['speed-publication'] > config.samples) return;
+                const id = this.row.identity[0] >>> 0;
+                const registry = base.add(0xd68610).readPointer(), alternate = (id & 0x80000000) !== 0;
+                const index = id & 0x7fffffff, limit = registry.add(alternate ? 0x3c : 0x1c).readU32();
+                if (index >= limit) throw new Error('speed bridge identity outside registry');
+                const slot = registry.add(alternate ? 0x2c : 0xc).readPointer().add(index*8);
+                if (slot.readS32() !== -2) throw new Error('speed bridge identity is not live');
+                const mover = slot.add(4).readPointer();
+                if (mover.add(0x18).readS32() !== this.row.identity[1]) throw new Error('speed bridge epoch differs');
+                emit('speed-publication', {...this.row, mover:mover.toString(),
+                    limit:mover.add(0x88).readU32(), increment:mover.add(0xb4).readU32()});
+            }
+        });
         // Verified1710a0: ECX mover, one range* stack argument, RET4.
         hook(0x1710a0, {
             onEnter(args) {
@@ -956,6 +1015,13 @@ function install(module) {
         if (value.startsWith('PATHTARGET ')) emit('target-marker', {value});
         if (value.startsWith('PATHWIDGET ')) emit('widget-marker', {value});
         if (value.startsWith('PATHSTOCK ')) emit('stock-marker', {value});
+        if (config.motionEvents && value.startsWith('PATHSPEED ')) {
+            const match = /^PATHSPEED case=([a-z0-9_]+)$/.exec(value);
+            if (match) speedCase = match[1];
+            else if (/^PATHSPEED done=/.test(value)) speedCase = null;
+            else throw new Error('Malformed speed marker: ' + value);
+            emit('speed-marker', {value});
+        }
         if (value.startsWith('PATHHOLD ')) emit('hold-marker', {value});
         if (value.startsWith('PATHTRACE ')) {
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))

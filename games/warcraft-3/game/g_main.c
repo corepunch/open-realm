@@ -25,6 +25,7 @@
  */
 #include "common/common.h"
 #include "g_local.h"
+#include "games/warcraft-3/common/wc3_math.h"
 #include "common/ui_constants.h"
 #include "games/warcraft-3/common/minimap.h"
 #include "jass/jass.h"
@@ -315,6 +316,17 @@ static void InitMiscValueDefault(cstring_t name, float *dest, float fallback) {
     *dest = strvalue && *strvalue ? (float)atof(strvalue) : fallback;
 }
 
+/* Original016210..240 copies the immutable1/522 bounds as initial defaults.
+ * Real map/Misc data replaces them; retain startup only when the key is absent. */
+static void InitMoveSpeedLimit(cstring_t name, float *dest, float startup) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", name);
+    if (value && *value) *dest = wc3_decimal(value);
+    else {
+        *dest = startup;
+        fprintf(stderr, "WC3 movement: missing Misc.%s; retaining retail startup limit %.0f\n", name, startup);
+    }
+}
+
 static uint32_t InitMiscList(cstring_t name, float *dest, uint32_t capacity) {
     cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", name);
     uint32_t count = 0;
@@ -381,6 +393,10 @@ static void InitConstants(void) {
      * distinct from AcquireRange; map Misc overrides remain authoritative. */
     InitMiscValueDefault("FollowRange", &game.constants.followRange, 300.0f);
     InitMiscValueDefault("StructureFollowRange", &game.constants.structureFollowRange, 100.0f);
+    InitMoveSpeedLimit("MinUnitSpeed", &game.constants.minUnitSpeed, 1.f);
+    InitMoveSpeedLimit("MaxUnitSpeed", &game.constants.maxUnitSpeed, 522.f);
+    InitMoveSpeedLimit("MinBldgSpeed", &game.constants.minBldgSpeed, 1.f);
+    InitMoveSpeedLimit("MaxBldgSpeed", &game.constants.maxBldgSpeed, 522.f);
 
     memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
     FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {

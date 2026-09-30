@@ -605,6 +605,12 @@
           "evidence": "5fcd80 initialization stores scalar1"
         },
         {
+          "offset": 124,
+          "name": "disabled_count",
+          "type": "u32",
+          "evidence": "5fc890 tests Move7c before computing speed; full original disabled gate26 cases and public halt getter/setter witnesses."
+        },
+        {
           "offset": 128,
           "name": "slow_count",
           "type": "u32",
@@ -3143,6 +3149,54 @@
       "name": "Math_RoundHalf",
       "type": "WC3PathScalar",
       "evidence": "NUM-01.10/11 071250 original add-half rounding operand; original startup/constant word verified."
+    },
+    {
+      "address": "6fd709b8",
+      "name": "MoveSpeed_UnitMinimumBound",
+      "type": "WC3PathScalar",
+      "evidence": "MOVE-01.4 instruction-checked startup016210..240/016290..2d0; normal5fc900 tail and repeated120 public native bounds. Immutable1/522; live defaults150/400/25/400."
+    },
+    {
+      "address": "6fd709bc",
+      "name": "MoveSpeed_UnitMaximumBound",
+      "type": "WC3PathScalar",
+      "evidence": "MOVE-01.4 instruction-checked startup016210..240/016290..2d0; normal5fc900 tail and repeated120 public native bounds. Immutable1/522; live defaults150/400/25/400."
+    },
+    {
+      "address": "6fd709c0",
+      "name": "MoveSpeed_BuildingMinimumBound",
+      "type": "WC3PathScalar",
+      "evidence": "MOVE-01.4 instruction-checked startup016210..240/016290..2d0; normal5fc900 tail and repeated120 public native bounds. Immutable1/522; live defaults150/400/25/400."
+    },
+    {
+      "address": "6fd709c4",
+      "name": "MoveSpeed_BuildingMaximumBound",
+      "type": "WC3PathScalar",
+      "evidence": "MOVE-01.4 instruction-checked startup016210..240/016290..2d0; normal5fc900 tail and repeated120 public native bounds. Immutable1/522; live defaults150/400/25/400."
+    },
+    {
+      "address": "6fd709c8",
+      "name": "MoveSpeed_UnitDefaultMinimum",
+      "type": "WC3PathScalar",
+      "evidence": "MOVE-01.4 instruction-checked startup016210..240/016290..2d0; normal5fc900 tail and repeated120 public native bounds. Immutable1/522; live defaults150/400/25/400."
+    },
+    {
+      "address": "6fd709cc",
+      "name": "MoveSpeed_UnitDefaultMaximum",
+      "type": "WC3PathScalar",
+      "evidence": "MOVE-01.4 instruction-checked startup016210..240/016290..2d0; normal5fc900 tail and repeated120 public native bounds. Immutable1/522; live defaults150/400/25/400."
+    },
+    {
+      "address": "6fd709d0",
+      "name": "MoveSpeed_BuildingDefaultMinimum",
+      "type": "WC3PathScalar",
+      "evidence": "MOVE-01.4 instruction-checked startup016210..240/016290..2d0; normal5fc900 tail and repeated120 public native bounds. Immutable1/522; live defaults150/400/25/400."
+    },
+    {
+      "address": "6fd709d4",
+      "name": "MoveSpeed_BuildingDefaultMaximum",
+      "type": "WC3PathScalar",
+      "evidence": "MOVE-01.4 instruction-checked startup016210..240/016290..2d0; normal5fc900 tail and repeated120 public native bounds. Immutable1/522; live defaults150/400/25/400."
     }
   ]
 }

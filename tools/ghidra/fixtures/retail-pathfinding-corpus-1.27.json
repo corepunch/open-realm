@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "Current37 executable original-code oracle scripts,34 selected exact/frozen variants,18 explicit live/profile/repeat contracts and82 archived capture audits. Ghidra decompiles, reduction attempts and scratch reports support research but are not independently accepted corpus entries.",
+  "scope": "Current38 executable original-code oracle scripts,35 selected exact/frozen variants,19 explicit live/profile/repeat contracts and84 archived capture audits. Other research is not independently accepted corpus evidence.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -9587,6 +9587,353 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "oracle-speed-limits",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_speed_limits.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "speed-limits-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 1846
+        },
+        "disabled_cases": {
+          "equal": 26
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Original normal profile-bound speed tail and full disabled getter gate; upstream effects/special caps excluded.",
+      "exclusions": [
+        "whole engine clock/trajectory parity"
+      ]
+    },
+    {
+      "id": "oracle-speed-limits-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_speed_limits.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "speed-limits-engine.json",
+      "expected_exit": 0,
+      "expected_status": "original-engine-exact",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 1846
+        },
+        "disabled_cases": {
+          "equal": 26
+        },
+        "engine_cases": {
+          "equal": 1846
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Original normal profile-bound speed tail and full disabled getter gate; upstream effects/special caps excluded.",
+      "exclusions": [
+        "whole engine clock/trajectory parity"
+      ]
+    },
+    {
+      "id": "capture-speed-inputs-first",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/speed-inputs-first-260930.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/speed-inputs-first-260930.jsonl",
+        "sha256": "3d9aba08543613eb4170e329a20c12ea16be14697c6f88512f76ba603f30f733",
+        "bytes": 288103,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "78201dab2aa4a98630fd94956fd6ad28ce4075ade9e1b302a98db9bbda4c1a31",
+            "wc3_pathfinding_probe.j": "6e743ba375358476f242fa700ae8062cac3dd24fccf26aa7099d9ce1137509ae",
+            "make_wc3_pathfinding_map.py": "7b5fdb79f3b932730b6a22ff912006b254f8c4ac1e67171160100134094a8e30",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "fa360819d3d596174f8d2dc02d1a56c404d55d1b045b9e54ca8ee58dce21102a"
+          },
+          "map": "Maps\\PathingRE-SpeedInputs-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/speed-inputs-first-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen complete authored speed-input scene; semantic replay is live-speed-inputs-repeat.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "capture-speed-inputs-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/speed-inputs-repeat-260930.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/speed-inputs-repeat-260930.jsonl",
+        "sha256": "e12b707c017302e8c3c34133797dd7f8458d26940bc595e8f0fa2af6d60b6ca0",
+        "bytes": 288103,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "78201dab2aa4a98630fd94956fd6ad28ce4075ade9e1b302a98db9bbda4c1a31",
+            "wc3_pathfinding_probe.j": "6e743ba375358476f242fa700ae8062cac3dd24fccf26aa7099d9ce1137509ae",
+            "make_wc3_pathfinding_map.py": "7b5fdb79f3b932730b6a22ff912006b254f8c4ac1e67171160100134094a8e30",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "fa360819d3d596174f8d2dc02d1a56c404d55d1b045b9e54ca8ee58dce21102a"
+          },
+          "map": "Maps\\PathingRE-SpeedInputs-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/speed-inputs-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen complete authored speed-input scene; semantic replay is live-speed-inputs-repeat.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ]
+    },
+    {
+      "id": "live-speed-inputs-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_speed_inputs.py",
+        "{archive}/runtime/speed-inputs-first-260930.jsonl",
+        "--compare",
+        "{archive}/runtime/speed-inputs-repeat-260930.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-speed-inputs-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/speed-inputs-first-260930.jsonl",
+        "sha256": "3d9aba08543613eb4170e329a20c12ea16be14697c6f88512f76ba603f30f733",
+        "bytes": 288103,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "78201dab2aa4a98630fd94956fd6ad28ce4075ade9e1b302a98db9bbda4c1a31",
+            "wc3_pathfinding_probe.j": "6e743ba375358476f242fa700ae8062cac3dd24fccf26aa7099d9ce1137509ae",
+            "make_wc3_pathfinding_map.py": "7b5fdb79f3b932730b6a22ff912006b254f8c4ac1e67171160100134094a8e30",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "fa360819d3d596174f8d2dc02d1a56c404d55d1b045b9e54ca8ee58dce21102a"
+          },
+          "map": "Maps\\PathingRE-SpeedInputs-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "live-speed-inputs-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "public_speed_calls": {
+          "equal": 120
+        },
+        "speed_publications": {
+          "equal": 26
+        },
+        "travel_speed_changes": {
+          "equal": 1
+        },
+        "exact_velocity_commits": {
+          "equal": 153
+        },
+        "repeated": {
+          "equal": true
+        },
+        "passed": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Ordinary nonhero public speed inputs, authored integer limits, immutable default and disabled movement;26 publications and153 exact repeated captured velocity/position commits. Low restore occurs after arrival.",
+      "exclusions": [
+        "whole engine trajectory fidelity"
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/speed-inputs-repeat-260930.jsonl",
+            "sha256": "e12b707c017302e8c3c34133797dd7f8458d26940bc595e8f0fa2af6d60b6ca0",
+            "bytes": 288103,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+                "wc3_pathfinding.js": "78201dab2aa4a98630fd94956fd6ad28ce4075ade9e1b302a98db9bbda4c1a31",
+                "wc3_pathfinding_probe.j": "6e743ba375358476f242fa700ae8062cac3dd24fccf26aa7099d9ce1137509ae",
+                "make_wc3_pathfinding_map.py": "7b5fdb79f3b932730b6a22ff912006b254f8c4ac1e67171160100134094a8e30",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "fa360819d3d596174f8d2dc02d1a56c404d55d1b045b9e54ca8ee58dce21102a"
+              },
+              "map": "Maps\\PathingRE-SpeedInputs-260930.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 4000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -9652,7 +9999,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "d1cec00d86d67e05e839ce0e9d127b3895df75cb63aa9eded88c1e9fa3f6c514"
+      "sha256": "d2a34841ebf36ada6a0fa823566589532a8b970fa94079cf0b9906b78106e160"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -9805,6 +10152,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-point-arrival-inputs-1.27.json",
       "sha256": "829d58e1613bce81fe601b501555ce125dc2bc12154ea83fcac1585e4ae3b013"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-speed-limits-1.27.json",
+      "sha256": "96ee1727960c3b0db9909dd99e61dc40c05bab6b1c35c5831d5b6dd01e33206e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-speed-inputs-1.27.json",
+      "sha256": "0361a74fa158399367691d86980fb5545e02b1fe125ccf380ef014c6a7d2855f"
     }
   ]
 }

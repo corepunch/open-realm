@@ -76,7 +76,15 @@ uint32_t GetUnitPositionLoc(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     return whichUnit ? jass_pushlighthandle(j, &whichUnit->s.origin2, "location") : jass_pushnullhandle(j, "location");
 }
-UNITINFO_ACCESS(MoveSpeed);
+uint32_t SetUnitMoveSpeed(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    S_SetUnitMoveSpeed(unit, jass_checknumber(j, 2));
+    return 0;
+}
+
+uint32_t GetUnitMoveSpeed(jass_t *j) {
+    return jass_pushnumber(j, S_UnitMoveSpeed(jass_checkhandle(j, 1, "unit")));
+}
 
 uint32_t SetUnitFlyHeight(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -851,7 +859,7 @@ uint32_t GetUnitLoc(jass_t *j) {
 }
 uint32_t GetUnitDefaultMoveSpeed(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.MoveSpeed : 0);
+    return jass_pushnumber(j, S_UnitDefaultMoveSpeed(whichUnit));
 }
 uint32_t GetOwningPlayer(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

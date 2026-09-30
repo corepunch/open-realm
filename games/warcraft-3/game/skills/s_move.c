@@ -15,6 +15,7 @@
 #include "s_skills.h"
 #include "games/warcraft-3/common/wc3_math.h"
 #include "games/warcraft-3/common/wc3_pathing_arrival.h"
+#include "games/warcraft-3/common/wc3_pathing_speed.h"
 
 /* With move-time collision (block-and-slide), "blocked" now means the unit
  * could not take a step this frame because it was boxed in — common and
@@ -1212,7 +1213,9 @@ void move_start_displacement(edict_t *self, vec2_t const *target) {
 
 /* Effective current move speed of a unit (runtime override, else data table). */
 static float unit_effective_speed(edict_t *ent) {
-    float speed = ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
+    if (M_UnitMoveDisabled(ent)) return 0;
+    float speed = (ent->unitinfo.move_flags & BZ_UNIT_SPEED_SET) || ent->unitinfo.MoveSpeed > 0
+        ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
     uint32_t level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
     speed *= 1.0f + S_UnholyMoveBonus(ent);
@@ -1232,7 +1235,30 @@ static float unit_effective_speed(edict_t *ent) {
                 speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->data[0].number * 0.01f;
         }
     }
-    return speed;
+    bool building = G_UnitIsStructure(ent);
+    wc3SpeedLimit_t limits = { .value = speed,
+        .minimum = ent->data.UnitBalance->minSpeed, .maximum = ent->data.UnitBalance->maxSpeed,
+        .default_minimum = building ? game.constants.minBldgSpeed : game.constants.minUnitSpeed,
+        .default_maximum = building ? game.constants.maxBldgSpeed : game.constants.maxUnitSpeed };
+    return wc3_speed_limit_update(&limits);
+}
+
+/* Public current speed shares the status/profile consumer used by stepping
+ * and group caps. It is independent of a particular group's slower cap. */
+float S_UnitMoveSpeed(edict_t *ent) { return ent ? unit_effective_speed(ent) : 0; }
+
+float S_UnitDefaultMoveSpeed(edict_t const *ent) {
+    /* TODO: MOVE-01.1 recovers the hero-specific default-speed contribution;
+     * this immutable profile value closes the captured nonhero producers. */
+    return ent && ent->data.UnitBalance ? ent->data.UnitBalance->speed : 0;
+}
+
+void S_SetUnitMoveSpeed(edict_t *ent, float speed) {
+    if (!ent || M_UnitMoveDisabled(ent)) return;
+    ent->unitinfo.MoveSpeed = speed;
+    ent->unitinfo.move_flags |= BZ_UNIT_SPEED_SET;
+    /* TODO: NUM-02.3 ports the immediate15ff40 old-velocity integration/clamp
+     * when publishing a cap below the current velocity. */
 }
 
 /* Slowest move speed across a group, so the whole group travels at it. */

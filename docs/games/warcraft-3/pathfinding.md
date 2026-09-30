@@ -284,6 +284,19 @@ make test-wc3-engine WC3_PATTERN='wc3_movement.lumber_*'
 
 Generic radius-0 point fields are still used for mine entry, resource return, attack, and other behaviors whose real target centre may be blocked. Their flow vectors nevertheless strictly descend to the adjusted legal route endpoint. Once that endpoint is reached, `unit_changeangle()` exposes `flow_goal_reached` and steers toward the real entity target. The owning behavior decides what that means: attack/range behaviors continue using their range test, while Gold Mine entry/return may hand off immediately at the route goal or after Move's bounded near-goal settle detector proves a crowded worker has stopped making progress at the interaction edge. This keeps routing monotonic without turning a distant blocked route into a successful interaction.
 
+## Authored movement profiles and public speed
+
+Original and custom map UnitData rows now retain movement type, turn rate and
+movement window through normal unit creation. Custom types select the same
+ground/water/amphibious/flight query masks as stock units. UnitBalance speed,
+minimum and maximum editor fields accept their authored integer representation.
+Move steps, group caps and `GetUnitMoveSpeed` share the effective speed consumer;
+`GetUnitDefaultMoveSpeed` keeps the immutable profile value. Explicit zero speed
+is clamped by the authored limits and survives save/load; disabled movement
+ignores setters. Misc unit/building limits remain map data. See
+[the speed producer port](retail-pathfinding-engine.md#authored-speed-limits-reach-move)
+for the original/live evidence and remaining hero, modifier and clock gaps.
+
 ## See Also
 
 - [Unit Altitude And Support Surfaces](unit-altitude.md) — vertical support surfaces share the WPM terrain classification but are independent of horizontal routing.

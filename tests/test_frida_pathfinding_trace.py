@@ -804,6 +804,25 @@ class ProbeMapTests(unittest.TestCase):
         self.assertIn("'nwgt'", active)
         self.assertIn('WaygateSetDestination', active)
 
+    def test_speed_scene_preserves_object_rows_and_authors_integer_limits(self):
+        original = b'hpea' + bytes(4) + struct.pack('<I', 1) + b'unam' + struct.pack('<I', 3) + b'original\0' + bytes(4)
+        custom = b'hfoo' + b'h002' + struct.pack('<I', 1) + b'umvs' + struct.pack('<Ii', 0, 300) + b'h002'
+        source = struct.pack('<II', 1, 1) + original + struct.pack('<I', 1) + custom
+        output = self.builder.speed_unit_limits(source)
+        self.assertEqual(output[:8 + len(original)], source[:8 + len(original)])
+        self.assertEqual(output[12 + len(original):len(source)], source[12 + len(original):])
+        self.assertEqual(struct.unpack_from('<I', output, 8 + len(original))[0], 2)
+        expected = b'hfoo' + b'h001' + struct.pack('<I', 3)
+        for field, value in ((b'umvs', 237), (b'umis', 173), (b'umas', 389)):
+            expected += field + struct.pack('<Ii', 0, value) + b'h001'
+        self.assertEqual(output[len(source):], expected)
+        with self.assertRaises(ValueError): self.builder.speed_unit_limits(output)
+        with self.assertRaises(ValueError): self.builder.speed_unit_limits(source + b'junk')
+        script = self.builder.instrument(self.source, self.probe, 'speed_inputs')
+        self.assertIn('PATH_PROBE_SCENARIO = 32', script)
+        self.assertIn("CreateUnit(Player(0), 'h001'", script)
+        self.assertIn('GetUnitDefaultMoveSpeed', script)
+
     def test_profile_scene_creates_all_authored_movement_types(self):
         output = self.builder.instrument(self.source, self.probe, 'profiles')
         self.assertIn('PATH_PROBE_SCENARIO = 31', output)

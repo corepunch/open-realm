@@ -899,6 +899,7 @@ typedef struct {
 
 #define BZ_UNIT_TURN_SET 1u // bit; distinguishes scripted turn speed from authored speed; unitInfo_t.move_flags
 #define BZ_UNIT_WINDOW_SET 2u // bit; zero is a valid scripted movement window; unitInfo_t.move_flags
+#define BZ_UNIT_SPEED_SET 4u // bit; zero/negative scripted speeds must reach the authored clamp
 
 typedef struct gameevent_s {
     EVENTTYPE type;
@@ -1805,6 +1806,8 @@ struct game_locals {
          * acquisition range. war3mapMisc.txt may override either value. */
         float followRange;
         float structureFollowRange;
+        float minUnitSpeed, maxUnitSpeed;
+        float minBldgSpeed, maxBldgSpeed;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
         float defenseArmor;
@@ -2496,6 +2499,9 @@ void unit_setmove(edict_t *, umove_t *);
 void M_MoveFrame(edict_t *);
 float M_DistanceToGoal(edict_t *);
 float unit_movedistance(edict_t *);
+float S_UnitMoveSpeed(edict_t *);
+float S_UnitDefaultMoveSpeed(edict_t const *);
+void S_SetUnitMoveSpeed(edict_t *, float);
 uint32_t M_RefreshHeatmap(edict_t *, float);
 uint32_t M_RefreshHeatmapForMover(edict_t const *, edict_t *, float);
 uint8_t M_UnitStaticPathingFlags(edict_t const *);

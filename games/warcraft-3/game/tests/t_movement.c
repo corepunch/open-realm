@@ -115,17 +115,22 @@ TEST(wc3_movement, retail_oblique_velocity_and_step_words) {
 /* Original160060 measures squared velocity in fine-grid units, with32 world units per cell. */
 TEST(wc3_movement, retail_committed_facing_guard_uses_grid_velocity) {
     edict_t *unit = make_moving_unit(320, 320);
+    /* An authored Misc minimum override exposes these sub-bound guards. */
+    float minimum = game.constants.minUnitSpeed; game.constants.minUnitSpeed = 0.01f;
     unit->unitinfo.MoveSpeed = 0.016f;
     unit->s.angle = 0.125f;
     unit->movement.flow_direct = true;
     unit_moveindirection(unit);
     T_ASSERT(unit->movement.velocity.x > 0);
     T_EQ(wc3_float_bits(unit->s.angle), 0x3e000000u);
+    game.constants.minUnitSpeed = minimum;
 }
 
 /* Original16fe20 clears squared fine velocity below2e-7, before the distinct facing guard. */
 TEST(wc3_movement, retail_velocity_guard_uses_fine_grid_scale) {
     edict_t *unit = make_moving_unit(320, 320);
+    /* An authored Misc minimum override exposes these sub-bound guards. */
+    float minimum = game.constants.minUnitSpeed; game.constants.minUnitSpeed = 0.01f;
     unit->unitinfo.MoveSpeed = 0.01f;
     unit->s.angle = 0.125f;
     unit->movement.flow_direct = true;
@@ -135,6 +140,7 @@ TEST(wc3_movement, retail_velocity_guard_uses_fine_grid_scale) {
     T_EQ(wc3_float_bits(unit->s.origin2.x), 0x43a00000u);
     T_EQ(wc3_float_bits(unit->s.origin2.y), 0x43a00000u);
     T_EQ(wc3_float_bits(unit->s.angle), 0x3e000000u);
+    game.constants.minUnitSpeed = minimum;
 }
 
 /* Saved velocity must resume with the same cancellation words, not a fresh zero-velocity approximation. */
@@ -213,6 +219,202 @@ TEST(wc3_movement, stock_getters_keep_authored_defaults_after_setters) {
         " call BJassAssert(GetUnitTurnSpeed(u) == 0.125 and GetUnitPropWindow(u) == 0.5, \"current overrides\")\n"
         " call BJassAssert(GetUnitDefaultTurnSpeed(u) == 0.6 and GetUnitDefaultPropWindow(u) == 60.0, \"defaults immutable\")\n"
         "endfunction\n"));
+}
+
+/* Same authored clone as the retail speed-input witness: integer w3u fields,
+ * immutable237 default and173..389 limits. Exercise real natives and Move. */
+TEST(wc3_movement, public_speed_setter_uses_authored_limits_and_keeps_default) {
+    int32_t speed = 237, minimum = 173, maximum = 389;
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('u','m','v','s'), .type = mod_int, .data = &speed },
+        { .modID = MAKEFOURCC('u','m','i','s'), .type = mod_int, .data = &minimum },
+        { .modID = MAKEFOURCC('u','m','a','s'), .type = mod_int, .data = &maximum }
+    };
+    unitData_t custom = { .originalUnitID = MAKEFOURCC('h','f','o','o'),
+        .newUnitID = MAKEFOURCC('h','0','0','1'), .numbeOfModifications = 3, .modifications = mods };
+    reset_entities();
+    setup_test_world();
+    mapInfo_t const *saved_mapinfo = level.mapinfo;
+    mapInfo_t info = *saved_mapinfo;
+    info.num_userCreatedUnits = 1;
+    info.userCreatedUnits = &custom;
+    level.mapinfo = &info;
+    G_SetMapUnitOverrides(&info);
+    T_ASSERT(run_test_jass(
+        "globals\n unit speedUnit\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set speedUnit = CreateUnit(Player(0), 'h001', 320.0, 320.0, 0.0)\n"
+        " call SetUnitMoveSpeed(speedUnit, 100.0)\n"
+        " call IssuePointOrder(speedUnit, \"move\", 600.0, 320.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 173.0, \"authored speed minimum\")\n"
+        " call BJassAssert(GetUnitDefaultMoveSpeed(speedUnit) == 237.0, \"immutable authored speed\")\n"
+        "endfunction\n"
+        "function SetZeroSpeed takes nothing returns nothing\n"
+        " call SetUnitMoveSpeed(speedUnit, 0.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 173.0, \"explicit zero clamps to minimum\")\n"
+        " call BJassAssert(GetUnitDefaultMoveSpeed(speedUnit) == 237.0, \"zero keeps default\")\n"
+        "endfunction\n"
+        "function SetHighSpeed takes nothing returns nothing\n"
+        " call SetUnitMoveSpeed(speedUnit, 1000.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 389.0, \"authored speed maximum\")\n"
+        " call BJassAssert(GetUnitDefaultMoveSpeed(speedUnit) == 237.0, \"high keeps default\")\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == custom.newUnitID) unit = g_edicts + i;
+    }
+    T_NOT_NULL(unit);
+    if (unit) {
+        T_FEQ(unit->data.UnitBalance->speed, 237.f, .00001f);
+        T_FEQ(unit->data.UnitBalance->minSpeed, 173.f, .00001f);
+        T_FEQ(unit->data.UnitBalance->maxSpeed, 389.f, .00001f);
+        T_FEQ(unit_movedistance(unit), 17.3f, .001f);
+        unit->currentmove->think(unit);
+        T_FEQ(unit->s.origin2.x, 337.3f, .001f);
+        jass_callbyname(level.vm, "SetZeroSpeed", true); jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_FEQ(unit_movedistance(unit), 17.3f, .001f);
+        jass_callbyname(level.vm, "SetHighSpeed", true); jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_FEQ(unit_movedistance(unit), 38.9f, .001f);
+    }
+    reset_entities();
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+    setup_test_world();
+}
+
+TEST(wc3_movement, public_speed_disabled_owner_ignores_setter) {
+    int32_t speed = 0;
+    char move_type[] = "_";
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('u','m','v','s'), .type = mod_int, .data = &speed },
+        { .modID = MAKEFOURCC('u','m','v','t'), .type = mod_string, .data = move_type }
+    };
+    unitData_t custom = { .originalUnitID = MAKEFOURCC('h','f','o','o'),
+        .newUnitID = MAKEFOURCC('h','0','0','2'), .numbeOfModifications = 2, .modifications = mods };
+    reset_entities(); setup_test_world();
+    mapInfo_t const *saved = level.mapinfo;
+    mapInfo_t info = *saved;
+    info.num_userCreatedUnits = 1; info.userCreatedUnits = &custom;
+    level.mapinfo = &info; G_SetMapUnitOverrides(&info);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        " local unit u = CreateUnit(Player(0), 'h002', 320.0, 320.0, 0.0)\n"
+        " call SetUnitMoveSpeed(u, 1000.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(u) == 0.0, \"disabled owner speed remains zero\")\n"
+        " call BJassAssert(GetUnitDefaultMoveSpeed(u) == 0.0, \"disabled authored default\")\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == custom.newUnitID) unit = g_edicts + i;
+    T_NOT_NULL(unit);
+    if (unit) {
+        T_ASSERT(M_UnitMoveDisabled(unit));
+        T_EQ(unit->unitinfo.MoveSpeed, 0); T_EQ(unit->unitinfo.move_flags & BZ_UNIT_SPEED_SET, 0);
+        T_EQ(unit_movedistance(unit), 0);
+    }
+    reset_entities(); G_SetMapUnitOverrides(NULL); level.mapinfo = saved; setup_test_world();
+}
+
+TEST(wc3_movement, map_movement_profiles_inherit_and_bind_to_created_units) {
+    reset_entities(); setup_test_world();
+    uint32_t base_id = MAKEFOURCC('h','f','o','o');
+    UnitData_t const *stock = G_UnitData(base_id);
+    float turn = .125f, window = .25f;
+    char amphibious[] = "amph", floating[] = "float", flying[] = "fly";
+    unitModification_t original_mods[] = {
+        { .modID = MAKEFOURCC('u','m','v','t'), .type = mod_string, .data = amphibious },
+        { .modID = MAKEFOURCC('u','m','v','r'), .type = mod_real, .data = &turn },
+        { .modID = MAKEFOURCC('u','p','r','w'), .type = mod_real, .data = &window }
+    };
+    unitModification_t float_mod = { .modID = MAKEFOURCC('u','m','v','t'), .type = mod_string, .data = floating };
+    unitModification_t fly_mod = { .modID = MAKEFOURCC('u','m','v','t'), .type = mod_string, .data = flying };
+    unitData_t original = { .originalUnitID = base_id, .numbeOfModifications = 3, .modifications = original_mods };
+    unitData_t custom[] = {
+        { .originalUnitID = base_id, .newUnitID = MAKEFOURCC('h','0','0','3') },
+        { .originalUnitID = base_id, .newUnitID = MAKEFOURCC('h','0','0','4'), .numbeOfModifications = 1, .modifications = &float_mod },
+        { .originalUnitID = base_id, .newUnitID = MAKEFOURCC('h','0','0','5'), .numbeOfModifications = 1, .modifications = &fly_mod }
+    };
+    mapInfo_t const *saved = level.mapinfo;
+    mapInfo_t info = *saved;
+    info.num_originalUnits = 1; info.originalUnits = &original;
+    info.num_userCreatedUnits = 3; info.userCreatedUnits = custom;
+    level.mapinfo = &info; G_SetMapUnitOverrides(&info);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        " local unit a = CreateUnit(Player(0), 'h003', 320.0, 320.0, 0.0)\n"
+        " local unit b = CreateUnit(Player(0), 'h004', 480.0, 320.0, 0.0)\n"
+        " local unit c = CreateUnit(Player(0), 'h005', 640.0, 320.0, 0.0)\n"
+        "endfunction\n"));
+    uint32_t found = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *unit = g_edicts + i;
+        if (!unit->inuse) continue;
+        FOR_LOOP(j, 3) {
+            if (unit->class_id != custom[j].newUnitID) continue;
+            cstring_t types[] = { amphibious, floating, flying };
+            uint8_t masks[] = { CM_PATHING_UNAMPHIBIOUS, CM_PATHING_UNFLOATABLE, CM_PATHING_UNFLYABLE };
+            ++found;
+            T_EQ(unit->data.UnitData, G_UnitData(custom[j].newUnitID));
+            T_STREQ(unit->data.UnitData->moveTypeName, types[j]);
+            T_EQ(unit->data.UnitData->turnRate, turn); T_EQ(unit->data.UnitData->propWin, window);
+            T_EQ(M_UnitStaticPathingFlags(unit), masks[j]);
+        }
+    }
+    T_EQ(found, 3); T_STREQ(G_UnitData(base_id)->moveTypeName, amphibious);
+    reset_entities(); G_SetMapUnitOverrides(NULL); level.mapinfo = saved; setup_test_world();
+    T_EQ(G_UnitData(base_id), stock);
+}
+
+/* Explicit zero is a setter value, and must survive the normal save image. */
+TEST(wc3_movement, public_speed_zero_survives_save_and_resumes_identically) {
+    reset_entities(); setup_test_world();
+    float old_minimum = game.constants.minUnitSpeed, old_maximum = game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed = 150; game.constants.maxUnitSpeed = 400;
+    cstring_t file = "/tmp/openwarcraft3-speed-zero-save.bin";
+    T_ASSERT(run_test_jass(
+        "globals\n unit speedUnit\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set speedUnit = CreateUnit(Player(0), 'hpea', 320.0, 320.0, 0.0)\n"
+        " call SetUnitMoveSpeed(speedUnit, 0.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 150.0, \"zero selects configured minimum\")\n"
+        "endfunction\n"
+        "function BeginSpeedMove takes nothing returns nothing\n"
+        " call BJassAssert(IssuePointOrder(speedUnit, \"move\", 800.0, 320.0), \"saved Move accepted\")\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) unit = g_edicts + i;
+    T_NOT_NULL(unit);
+    if (unit) {
+        /* Minimal fixture needs the ordinary active lifecycle before public orders. */
+        unit->health.value = unit->health.max_value = 250; unit->stand = unit_stand; unit_stand(unit);
+        jass_callbyname(level.vm, "BeginSpeedMove", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_NOT_NULL(unit->currentmove->think);
+        if (!unit->currentmove->think) goto done;
+        unit->currentmove->think(unit);
+        T_ASSERT(WriteGame(file));
+        uint32_t expected[8][4];
+        FOR_LOOP(i, 8) {
+            unit->currentmove->think(unit);
+            expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
+            expected[i][2] = wc3_float_bits(unit->movement.velocity.x); expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
+        }
+        S_SetUnitMoveSpeed(unit, 1000);
+        T_ASSERT(ReadGame(file));
+        T_EQ(unit->unitinfo.MoveSpeed, 0); T_ASSERT(unit->unitinfo.move_flags & BZ_UNIT_SPEED_SET);
+        T_EQ(S_UnitMoveSpeed(unit), 150); T_FEQ(unit_movedistance(unit), 15, .001f);
+        FOR_LOOP(i, 8) {
+            unit->currentmove->think(unit);
+            T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
+        }
+    }
+done:
+    remove(file);
+    game.constants.minUnitSpeed = old_minimum; game.constants.maxUnitSpeed = old_maximum;
 }
 
 TEST(wc3_movement, authored_zero_window_and_turn_rate_keep_their_meaning) {

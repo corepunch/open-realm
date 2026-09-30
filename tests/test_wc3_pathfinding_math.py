@@ -22,6 +22,7 @@ from verify_wc3_pathing_power import corelog, reducedlog, log, exp, power, publi
 from verify_wc3_byte_inputs import source_bytes
 from verify_wc3_heading_aliases import verify as verify_heading_aliases
 from verify_wc3_arrival_trace import verify as verify_arrival, configure as configure_arrival
+from verify_wc3_speed_inputs import verify as verify_speed_inputs, digest as speed_digest
 
 
 class PathingMathTests(unittest.TestCase):
@@ -61,6 +62,48 @@ class PathingMathTests(unittest.TestCase):
                     engine.pathing_arrival(inputs, output)
                     self.assertEqual(list(output), case['output'], case['input'])
                     self.assertEqual(list(inputs), case['input'])
+
+    def test_speed_limits_match_original_profile_clamp_and_disabled_gate(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-speed-limits-1.27.json').read_text())
+        for engine in self.engines:
+            engine.pathing_speed_limits.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            for _ in range(2):
+                for case in fixture['cases']:
+                    inputs = (ctypes.c_uint32 * 6)(*case['input'])
+                    output = (ctypes.c_uint32 * 3)()
+                    engine.pathing_speed_limits(inputs, output)
+                    self.assertEqual(list(output), case['output'], case['input'])
+                    self.assertEqual(list(inputs), case['input'])
+
+    def test_public_speed_observer_rejects_damaged_producers_and_travel_cap(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-public-speed-inputs-1.27.json').read_text())
+        rows = [dict(event='metadata', sha256=fixture['binary_sha256'], source_sha256=fixture['source_sha256'],
+                     owned=True, motionEvents=True, velocityEvents=True, taskEvents=True), *copy.deepcopy(fixture['sample'])]
+        index = next(i for i, r in enumerate(rows) if r.get('event') == 'speed-publication' and r.get('case') == 'foot_travel_high')
+        rows.insert(index + 1, fixture['travel_commit'])
+        for tick, label in [(0, 'start_speed_inputs'), (10, 'order_accepted'), *[(t, 'sample') for t in range(1, 301)], (300, 'complete')]:
+            rows.append(dict(event='marker', value=f'PATHTRACE tick={tick} label={label} x=0 y=0 order=851986'))
+        rows.append(dict(event='trace-end', installed=True, counts={'speed-native': 120, 'speed-publication': 26}))
+        mutations = []
+        changed = copy.deepcopy(rows); changed.pop(1); mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[-1]['counts']['speed-native'] -= 1; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[index + 1]['before'][6] ^= 1; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[-2]['value'] = 'PATHTRACE tick=300 label=sample x=0 y=0 order=851986'; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[0]['source_sha256']['map'] = '0' * 64; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed.insert(1, dict(type='error')); mutations.append(changed)
+        for engine in self.engines:
+            with patch('verify_wc3_speed_inputs.verify_motion', return_value={'passed': True}):
+                self.assertEqual(verify_speed_inputs(rows, engine, fixture)['travel_speed_changes'], 1)
+                for changed in mutations:
+                    with self.assertRaises(ValueError): verify_speed_inputs(changed, engine, fixture)
+                # Independent semantic checks must survive a newly computed sequence digest.
+                for key in ('bounds', 'output', 'identity', 'limit'):
+                    changed = copy.deepcopy(rows)
+                    row = next(r for r in changed if key in r and r.get(key) is not None)
+                    if isinstance(row[key], list): row[key][0] ^= 1
+                    else: row[key] ^= 1
+                    adjusted = dict(fixture, speed_sha256=speed_digest(changed))
+                    with self.assertRaises(ValueError): verify_speed_inputs(changed, engine, adjusted)
 
     def test_point_arrival_observer_rejects_missing_or_changed_contract(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-point-arrival-inputs-1.27.json').read_text())

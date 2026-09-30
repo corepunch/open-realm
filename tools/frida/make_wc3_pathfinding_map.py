@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 
 SCENARIOS = {'open': 0, 'wall': 1, 'insert': 2, 'remove': 3, 'remove_reorder': 4,
-             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29, 'numeric_bytes': 30, 'profiles': 31}
+             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29, 'numeric_bytes': 30, 'profiles': 31, 'speed_inputs': 32}
 
 
 def byte_unit_name(data):
@@ -39,6 +39,43 @@ def byte_unit_name(data):
     # hfoo original override: unam string, terminated by null original object ID.
     row = b'hfoo'+b'\0'*4+struct.pack('<I', 1)+b'unam'+struct.pack('<I', 3)+bytes(range(128,256))+b'\0'*5
     return data[:4]+struct.pack('<I', count+1)+data[8:cursor]+row+data[cursor:]
+
+
+
+def speed_unit_limits(data):
+    """Append an authored hfoo clone; integer fields match retail UnitMetaData."""
+    version = struct.unpack_from('<I', data)[0]
+    if version != 1:
+        raise ValueError('speed fixture requires version1 unit modifications')
+    cursor = 4
+    custom_count_at = None
+    custom_ids = set()
+    for table in range(2):
+        if table == 1:
+            custom_count_at = cursor
+        count = struct.unpack_from('<I', data, cursor)[0]
+        cursor += 4
+        for _ in range(count):
+            old, new, modifications = struct.unpack_from('<4s4sI', data, cursor)
+            custom_ids.add(new)
+            cursor += 12
+            for _ in range(modifications):
+                field, kind = struct.unpack_from('<4sI', data, cursor)
+                cursor += 8
+                if kind in (0, 1, 2):
+                    cursor += 4
+                elif kind == 3:
+                    cursor = data.index(b'\0', cursor) + 1
+                else:
+                    raise ValueError('unsupported speed fixture modification type')
+                cursor += 4
+    if cursor != len(data) or b'h001' in custom_ids:
+        raise ValueError('speed fixture trailing bytes or existing h001')
+    row = b'hfoo' + b'h001' + struct.pack('<I', 3)
+    for field, value in [(b'umvs', 237), (b'umis', 173), (b'umas', 389)]:
+        row += field + struct.pack('<Ii', 0, value) + b'h001'
+    count = struct.unpack_from('<I', data, custom_count_at)[0]
+    return data[:custom_count_at] + struct.pack('<I', count + 1) + data[custom_count_at + 4:] + row
 
 
 def numeric_calls(filename="wc3_numeric_inputs.json"):
@@ -139,8 +176,8 @@ def main():
     members = subprocess.check_output([tool, '-mpq', str(args.base), 'ls']).decode().splitlines()
     if members.count('war3map.j') != 1:
         parser.error('source must have exactly one war3map.j')
-    if args.scenario == 'numeric_bytes' and members.count('war3map.w3u') != 1:
-        parser.error('byte probe requires the original unit modification member')
+    if args.scenario in ('numeric_bytes', 'speed_inputs') and members.count('war3map.w3u') != 1:
+        parser.error('object probe requires the original unit modification member')
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='wc3-path-map-') as temp:
         root = Path(temp)
@@ -155,6 +192,9 @@ def main():
             if member == 'war3map.w3u' and args.scenario == 'numeric_bytes':
                 data = byte_unit_name(data)
                 args.output.with_suffix('.w3u').write_bytes(data)
+            if member == 'war3map.w3u' and args.scenario == 'speed_inputs':
+                data = speed_unit_limits(data)
+                args.output.with_suffix('.w3u').write_bytes(data)
             path = root / str(i)
             path.write_bytes(data)
             command.extend([str(path), member])
@@ -164,7 +204,7 @@ def main():
               'remove_tick': args.remove_tick,
               'gate_y': args.gate_y, 'gate_exit_y': args.gate_exit_y,
               'map_sha256': hashlib.sha256(args.output.read_bytes()).hexdigest(), 'members': members,
-              'changed_members': ['war3map.j', 'war3map.w3u'] if args.scenario == 'numeric_bytes' else ['war3map.j'],
+              'changed_members': ['war3map.j', 'war3map.w3u'] if args.scenario in ('numeric_bytes', 'speed_inputs') else ['war3map.j'],
               'script_encoding': 'UTF-8',
               'byte_string_source': 'hfoo unam object field, GetUnitName, raw bytes 80..ff' if args.scenario == 'numeric_bytes' else None,
               'container': 'rebuilt MPQ with original HM3W header; signature not retained'}

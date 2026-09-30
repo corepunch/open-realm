@@ -136,12 +136,88 @@ function PathProbeByteInputs takes nothing returns nothing
 @BYTE_CASES@
 endfunction
 
+function PathProbeSpeedInputs takes unit u, string label returns nothing
+    local real observed = 0.0
+    call Preload("PATHSPEED case=" + label + "_default")
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_n10")
+    call SetUnitMoveSpeed(u, -10.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_0")
+    call SetUnitMoveSpeed(u, 0.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_1")
+    call SetUnitMoveSpeed(u, 1.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_100")
+    call SetUnitMoveSpeed(u, 100.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_149")
+    call SetUnitMoveSpeed(u, 149.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_150")
+    call SetUnitMoveSpeed(u, 150.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_151")
+    call SetUnitMoveSpeed(u, 151.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_399")
+    call SetUnitMoveSpeed(u, 399.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_400")
+    call SetUnitMoveSpeed(u, 400.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_401")
+    call SetUnitMoveSpeed(u, 401.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_522")
+    call SetUnitMoveSpeed(u, 522.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED case=" + label + "_1000")
+    call SetUnitMoveSpeed(u, 1000.0)
+    set observed = GetUnitMoveSpeed(u)
+    set observed = GetUnitDefaultMoveSpeed(u)
+    call Preload("PATHSPEED done=" + label)
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
     local real numericX = 0.0
     local real numericY = 0.0
     set udg_PathProbeTick = udg_PathProbeTick + 1
+    if PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 1 then
+        call PathProbeSpeedInputs(udg_PathProbeUnit, "foot")
+        call PathProbeSpeedInputs(udg_PathProbeCrowd[0], "custom")
+        call PathProbeSpeedInputs(udg_PathProbeCrowd[1], "disabled")
+        call SetUnitMoveSpeed(udg_PathProbeUnit, 100.0)
+    endif
+    if PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 50 then
+        call Preload("PATHSPEED case=foot_travel_high")
+        call SetUnitMoveSpeed(udg_PathProbeUnit, 401.0)
+        set numericX = GetUnitMoveSpeed(udg_PathProbeUnit)
+        set numericY = GetUnitDefaultMoveSpeed(udg_PathProbeUnit)
+        call Preload("PATHSPEED done=travel")
+    endif
+    if PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 70 then
+        call Preload("PATHSPEED case=foot_travel_low")
+        call SetUnitMoveSpeed(udg_PathProbeUnit, 100.0)
+        set numericX = GetUnitMoveSpeed(udg_PathProbeUnit)
+        set numericY = GetUnitDefaultMoveSpeed(udg_PathProbeUnit)
+        call Preload("PATHSPEED done=travel")
+    endif
     if PATH_PROBE_SCENARIO == 23 and udg_PathProbeTick == 1 then
         call PathProbeNumericInputs()
     endif
@@ -443,7 +519,12 @@ function PathProbeInit takes nothing returns nothing
         set udg_PathProbeCrowd[5] = CreateUnit(Player(0), 'halt', -1024.0, -1216.0, 90.0)
         call Preload("PATHTRACE tick=0 label=profiles_created x=" + R2S(GetUnitX(udg_PathProbeUnit)) + " y=" + R2S(GetUnitY(udg_PathProbeUnit)) + " order=" + I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))
     endif
-    call SetUnitMoveSpeed(udg_PathProbeUnit, 100.0)
+    if PATH_PROBE_SCENARIO == 32 then
+        set udg_PathProbeCrowd[0] = CreateUnit(Player(0), 'h001', -2304.0, -1216.0, 90.0)
+        set udg_PathProbeCrowd[1] = CreateUnit(Player(0), 'halt', -2560.0, -1216.0, 90.0)
+    else
+        call SetUnitMoveSpeed(udg_PathProbeUnit, 100.0)
+    endif
     call FogEnable(PATH_PROBE_SCENARIO == 14 or PATH_PROBE_SCENARIO == 15)
     call FogMaskEnable(false)
     call SetCameraPosition(-1936.0, -560.0)
