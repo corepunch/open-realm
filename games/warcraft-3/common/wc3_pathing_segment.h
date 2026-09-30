@@ -67,16 +67,32 @@ static inline bool wc3_segment_foot(wc3FineSegment_t const *query, wc3FinePoint_
     }
 }
 
+/* 14b890/14b9b0/14bae0/14bc10 admit the same entering cells as these
+ * strips. Current-cell interiors remain unchecked, allowing overlap escape. */
+static inline uint8_t wc3_fine_cell_edges(wc3FineSegment_t const *query, wc3FinePoint_t pos) {
+    uint8_t result = 0;
+    for (int i = 0; i < 8; i++) {
+        wc3FinePoint_t dir = wc3_fine_dirs[i], next = {pos.x + dir.x, pos.y + dir.y};
+        unsigned code = (dir.x < 0 ? 8u : dir.x > 0 ? 2u : 0u) | (dir.y < 0 ? 1u : dir.y > 0 ? 4u : 0u);
+        if (wc3_segment_foot(query, next, code)) result |= (uint8_t)(1u << i);
+    }
+    return result;
+}
+
 /* 168d30: previous starts at0,0; neither endpoint is checked here. This
  * helper tests supplied fine-cell scalars; callers own admission/eligibility. */
+static inline wc3FinePoint_t wc3_segment_point(wc3FineSegment_t const *query, float step) {
+    float x = wc3_add(query->start[0], wc3_mul(step, query->direction[0]));
+    float y = wc3_add(query->start[1], wc3_mul(step, query->direction[1]));
+    return (wc3FinePoint_t){ (int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(x))),
+                             (int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(y))) };
+}
+
 static inline bool wc3_segment_test(wc3FineSegment_t const *query) {
     wc3FinePoint_t previous = {0, 0};
     assert(query->cls < 4);
     for (float step = 1.f; step < query->length; step = wc3_add(step, 1.f)) {
-        float x = wc3_add(query->start[0], wc3_mul(step, query->direction[0]));
-        float y = wc3_add(query->start[1], wc3_mul(step, query->direction[1]));
-        wc3FinePoint_t pos = { (int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(x))),
-                              (int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(y))) };
+        wc3FinePoint_t pos = wc3_segment_point(query, step);
         if (pos.x == previous.x && pos.y == previous.y) continue;
         unsigned code = (pos.x < previous.x ? 8u : pos.x > previous.x ? 2u : 0u) |
                         (pos.y < previous.y ? 1u : pos.y > previous.y ? 4u : 0u);

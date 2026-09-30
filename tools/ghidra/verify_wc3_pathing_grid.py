@@ -16,6 +16,10 @@ from pathlib import Path
 from verify_wc3_pathing_footprints import CLASSES, DIRECTIONS, perimeter
 
 
+class ObjectInput(ctypes.Structure):
+    _fields_ = [('cells', ctypes.POINTER(ctypes.c_uint8)), ('objects', ctypes.POINTER(ctypes.c_uint32))]
+
+
 def footprint_graph(blocked, dimensions, size_class):
     """Recovered legal graph, independent of the C search's queue/heuristic."""
     width, height = dimensions
@@ -61,12 +65,16 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--fixture', type=Path, help='freeze original cell routes for asset-free engine comparisons')
     parser.add_argument('--engine-library', type=Path, help='compare production C cell routes, work and node creation')
+    parser.add_argument('--objects', action='store_true', help='full mixed object chains for ground/flight query masks')
     parser.add_argument('--corridors', action='store_true', help='cardinal corridors of width 0..5 across four classes')
     args = parser.parse_args()
+    if args.objects and args.corridors: parser.error('choose objects or corridors')
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
         engine.pathing_fine_grid.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint8),
                                             ctypes.POINTER(ctypes.c_int32)]
+        engine.pathing_fine_objects.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ObjectInput),
+                                               ctypes.POINTER(ctypes.c_int32)]
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -125,12 +133,42 @@ def main():
     if args.corridors:
         fixtures = [(f'corridor_{span}', {(x, y) for y in range(height) for x in range(width)
                                          if not 8 - span // 2 <= x < 8 - span // 2 + span}) for span in range(6)]
+    profiles = {}
+    if args.objects:
+        fixtures = []
+        rect = [10, 10, 14, 14]
+        def obj(flags=0, mask=0x010000ca, linked=True, bounds=rect):
+            return dict(bounds=bounds, flags=flags, mask=mask, linked=linked)
+        variants = {
+            'idle': [obj()], 'moving': [obj(0x20000000)], 'transient': [obj(0x40000000)],
+            'suppressed': [obj(1)], 'disabled': [obj(0x80000000)], 'unlinked': [obj(linked=False)],
+            'inactive': [obj(mask=0xca)], 'flight_category': [obj(mask=0x01000000)],
+            'moving_then_idle': [obj(0x20000000), obj()],
+            'idle_then_moving': [obj(), obj(0x20000000)],
+            'overlap_categories': [obj(mask=0x01000000), obj(bounds=[12, 9, 16, 13])],
+            'idle_wall': [obj(bounds=[12, 0, 14, 24])],
+        }
+        for terrain, static in [('open', set()), ('gap4', {(12,y) for y in range(height) if not 10 <= y < 14})]:
+            for label, objects in variants.items():
+                for mask in (0x02000002, 0x04000004):
+                    name = f'{terrain}_{label}_{mask:08x}'
+                    fixtures.append((name, static))
+                    profiles[name] = dict(mask=mask, objects=objects)
     records, edge_cases, engine_cases = [], [], []
     for name, blocked in fixtures:
+        profile = profiles.get(name, dict(mask=0x02000000, objects=[]))
+        query_mask, objects = profile['mask'], profile['objects']
+        effective = set(blocked)
+        for object in objects:
+            flags = object['flags']
+            if (object['linked'] and object['mask'] & 0x01000000 and not flags & 0x8fffffff and
+                    not flags & 0x60000000 and object['mask'] & query_mask & 0xffffff):
+                x0,y0,x1,y1 = object['bounds']
+                effective.update((x,y) for y in range(y0,y1) for x in range(x0,x1))
         for size_class in range(4):
             machine.mem_write(system, bytes(0x400))
-            machine.mem_write(bitmap, bytes(128))
-            machine.mem_write(cells, b''.join(struct.pack('<I', 0x02ffffff if (x, y) in blocked else 0x00ffffff)
+            machine.mem_write(bitmap, bytes(1024))
+            machine.mem_write(cells, b''.join(struct.pack('<I', (query_mask & 0xff000000) | 0xffffff if (x, y) in blocked else 0x00ffffff)
                                             for y in range(height) for x in range(width)))
             write(system + 0x1c, tilemap, 1)
             write(system + 0x30, nodes)
@@ -139,18 +177,33 @@ def main():
             write(system + 0x5c, 32768, 1, -3, 100000, 0)
             write(system + 0x80, *start, *goal)
             write(system + 0x98, sum((a - b) ** 2 for a, b in zip(start, goal)), 0)
-            write(system + 0xa0, size_class, 0x02000000)
+            write(system + 0xa0, size_class, query_mask)
             write(tilemap + 0x28, cells)
             write(tilemap + 0x3c, width, height)
             write(tilemap + 0x78, links)
-            write(tilemap + 0x84, 1024, 0)
+            write(tilemap + 0x84, 8192, 0)
             write(tilemap + 0x98, bitmap)
             write(tilemap + 0xac, 0xffffff)
+            link_count = 0
+            for i, object in enumerate(objects):
+                address = 0x10118000 + i * 0x80
+                machine.mem_write(address, bytes(0x80))
+                write(address + 0x34, object['mask'], 0 if object['linked'] else -1)
+                write(address + 0x40, object['flags'])
+                x0,y0,x1,y1 = object['bounds']
+                for y in range(y0,y1):
+                    for x in range(x0,x1):
+                        cell = cells + 4 * (y * width + x)
+                        old = read(cell)[0]
+                        write(links + 8 * link_count, 0x01000000 | (old & 0xffffff), address)
+                        write(cell, (old & 0xff000000) | link_count)
+                        link_count += 1
+            write(tilemap + 0x88, link_count)
             start_index = run(0x6f147af0, system, *start)
             goal_index = run(0x6f147af0, system, *goal)
             write(system + 0x90, start_index, goal_index)
             result = run(0x6f14aa10, system)
-            expected, reachable = reference(blocked, width, height, start, goal, size_class)
+            expected, reachable = reference(effective, width, height, start, goal, size_class)
             actual = None if result == 0xffffffff else read(nodes + result * 36 + 0x14)[0]
             if (result != 0xffffffff and result != goal_index) or actual != expected:
                 raise RuntimeError(f'grid mismatch {name} class={size_class} result={result} cost={actual} wanted={expected}')
@@ -171,7 +224,7 @@ def main():
                     delta = b[0] - a[0], b[1] - a[1]
                     mask = masks[DIRECTIONS.index(delta)]
                     bits = sum(1 << i for i, p in enumerate(perimeter(*a, offset, ring_width))
-                               if not (0 <= p[0] < width and 0 <= p[1] < height) or p in blocked)
+                               if not (0 <= p[0] < width and 0 <= p[1] < height) or p in effective)
                     if bits & mask:
                         raise RuntimeError('retail chain contains forbidden footprint edge')
                     reconstructed_cost += 21 if all(delta) else 15
@@ -183,13 +236,22 @@ def main():
                     raise RuntimeError('failed search nearest-distance mismatch')
             first_pops, first_nodes = read(system + 0x6c)[0], read(system + 0x40)[0]
             if engine:
-                graph = footprint_graph(blocked, (width, height), size_class)
+                graph = footprint_graph(effective, (width, height), size_class)
                 edges = (ctypes.c_uint8 * len(graph)).from_buffer_copy(graph)
                 query = (ctypes.c_uint32 * 7)(width, height, *start, *goal, 2048)
                 wanted = [actual if actual is not None else -1, first_pops, first_nodes, len(points)]
                 for _ in range(2):
                     output = (ctypes.c_int32 * (6 + 2 * 16386))()
-                    engine.pathing_fine_grid(query, edges, output)
+                    if args.objects:
+                        raw = [v for obj in objects for v in (*obj['bounds'], obj['mask'], obj['flags'], obj['linked'])]
+                        object_words = (ctypes.c_uint32 * len(raw))(*raw)
+                        terrain = (ctypes.c_uint8 * (width * height))(*(query_mask >> 24 if (x,y) in blocked else 0
+                            for y in range(height) for x in range(width)))
+                        data = ObjectInput(terrain, object_words)
+                        inp = (ctypes.c_uint32 * 11)(*query, size_class, query_mask, 0, len(objects))
+                        engine.pathing_fine_objects(inp, ctypes.byref(data), output)
+                    else:
+                        engine.pathing_fine_grid(query, edges, output)
                     path = [[output[6 + i * 2], output[7 + i * 2]] for i in range(output[3])]
                     if list(output[:4]) != wanted or path != [list(p) for p in points]:
                         raise RuntimeError(f'production C fine-search mismatch: {name} class={size_class}')
@@ -213,7 +275,7 @@ def main():
             machine.mem_write(source_ptr, struct.pack('<ff', *source))
             machine.mem_write(target_ptr, struct.pack('<ff', *target))
             machine.mem_write(radius_ptr, struct.pack('<f', .25 + .5 * size_class))
-            write(mask_ptr, 0x02000000)
+            write(mask_ptr, query_mask)
             write(route + 0xc, route_data)
             write(route + 0x18, 1024, 0)
             request_result = run(0x6f148100, system, route, source_ptr, target_ptr, mask_ptr, 100000, radius_ptr, 0)
@@ -252,8 +314,8 @@ def main():
             print(f'{len(records)} retail footprint searches and repeats checked', flush=True)
     report = dict(binary_sha256=digest, cases=len(records), repeated_searches=len(records), complete_requests=len(records), request_edge_cases=edge_cases, mismatches=[],
                   reached=sum(r['cost'] is not None for r in records), exhausted=sum(r['cost'] is None for r in records),
-                  seed=None if args.corridors else 12717085, dimensions=[width, height], start=start, goal=goal,
-                  scope='original core loop and full setup/search/reconstruction request; allocation/reset/stamp reuse; direct initialized storage and -1/0/1 runtime constants; static terrain only; Dijkstra reference uses recovered footprint graph; no path-owned admission or smoothing',
+                  seed=None if args.corridors or args.objects else 12717085, dimensions=[width, height], start=start, goal=goal,
+                  scope='original core loop and full setup/search/reconstruction request; allocation/reset/stamp reuse; direct initialized storage and -1/0/1 runtime constants; static terrain and optional mixed object chains; Dijkstra reference uses recovered footprint graph; no path-owned admission or smoothing',
                   searches=records)
     if engine:
         report.update(engine_queries=len(records), engine_repeats=len(records),
@@ -261,8 +323,9 @@ def main():
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     if args.fixture:
-        fixture = dict(binary_sha256=digest, seed=None if args.corridors else 12717085, dimensions=[width, height], start=start, goal=goal,
-                       scope='original static fine-search cell route, cost, pops and allocated nodes; excludes admission and smoothing',
+        fixture = dict(binary_sha256=digest, seed=None if args.corridors or args.objects else 12717085, dimensions=[width, height], start=start, goal=goal,
+                       scope='original full fine-search cell route, cost, pops and allocated nodes; initialized static/object chains; excludes public admission and smoothing',
+                       profiles=profiles,
                        maps={name: bytes(int((x, y) in blocked) for y in range(height) for x in range(width)).hex()
                              for name, blocked in fixtures}, cases=engine_cases)
         args.fixture.parent.mkdir(parents=True, exist_ok=True)

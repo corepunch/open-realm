@@ -1,7 +1,10 @@
 #include "g_local.h"
 #include "../common/wc3_pathing_segment.h"
 
-typedef struct { int size; uint8_t flags; } moveFineGraph_t;
+typedef struct { int size; uint8_t flags; uint32_t objects; } moveFineGraph_t;
+static wc3FineBox_t move_objects[MAX_ENTITIES];
+typedef struct { moveFineGraph_t *graph; movePathQuery_t const *query; } moveObjectScan_t;
+static moveObjectScan_t *move_scan;
 static wc3FineSearch_t move_fine;
 static wc3FineVector_t move_fine_points[BZ_WC3_FINE_NODES];
 
@@ -73,10 +76,85 @@ static pathGridQuery_t move_field_shape(float radius, uint8_t flags) {
                              normalize_blocked_flags(flags) };
 }
 
+/* Sort quantized object rectangles once per request. A cell only needs objects
+ * starting in its four-column range: retail's largest fine footprint is4 cells. */
+static int move_object_compare(void const *a, void const *b) {
+    wc3FineBox_t const *left = a, *right = b;
+    return (left->min.x > right->min.x) - (left->min.x < right->min.x);
+}
+
+/* TODO: the complete authored category table is BASE-02. This game adapter
+ * retains existing ground-unit eligibility; observed foot units publishca,
+ * flyers publish0. Buildings/destructables already own static footprints. */
+static bool move_object_collect(edict_t const *ent) {
+    moveFineGraph_t *graph = move_scan->graph;
+    movePathQuery_t const *query = move_scan->query;
+    if (ent == query->mover || ent == query->target || IS_HOLLOW(ent) || !ent->data.UnitData ||
+        G_UnitIsStructure(ent) || ent->no_pathing || ent->collision <= 0 || (ent->aiflags & AI_FLYING)) return false;
+    uint32_t flags = ent->movement.velocity.x || ent->movement.velocity.y ? 0x20000000 : 0;
+    if (!wc3_fine_object_blocks((wc3FineObject_t){0x010000ca, flags, true}, 0x02000002, false)) return false;
+    vec2_t n = CM_GetNormalizedMapPosition(ent->s.origin2.x, ent->s.origin2.y);
+    wc3FinePoint_t point = { (int)floorf(n.x * pathmap.width), (int)floorf(n.y * pathmap.height) };
+    assert(graph->objects < MAX_ENTITIES);
+    move_objects[graph->objects++] = wc3_fine_cover(wc3_fine_class(ent->collision / pathmap_cell_world_size()), point);
+    return false; /* Collect rectangles directly; no capped BoxEdicts pointer list. */
+}
+
+/* A segment uses area-tree pruning; a fine detour may leave that rectangle,
+ * so its snapshot scans the actor set once. Neither invalidates static fields. */
+static void move_query_objects(moveFineGraph_t *graph, movePathQuery_t const *query, box2_t const *bounds) {
+    graph->objects = 0;
+    if (!query->units || !query->mover || (query->mover->aiflags & AI_FLYING)) return;
+    moveObjectScan_t scan = {graph, query};
+    move_scan = &scan;
+    if (bounds) {
+        edict_t *unused;
+        gi.BoxEdicts(bounds, &unused, 1, move_object_collect);
+    } else {
+        FILTER_EDICTS(ent, ent->inuse) move_object_collect(ent);
+    }
+    move_scan = NULL;
+    qsort(move_objects, graph->objects, sizeof(*move_objects), move_object_compare);
+}
+
+/* Integer samples are monotone along each axis. Include predecessor strips,
+ * then invert the largest object's half-open cover to bound its centre.
+ * Use actual first/last samples: software normalization can shift the last cell. */
+static box2_t move_segment_bounds(wc3FineSegment_t const *query) {
+    wc3FinePoint_t a = wc3_segment_point(query, 1.f), b = wc3_segment_point(query, ceilf(query->length) - 1.f);
+    wc3FinePoint_t min = {MIN(a.x, b.x), MIN(a.y, b.y)}, max = {MAX(a.x, b.x), MAX(a.y, b.y)};
+    wc3FineBox_t lo = wc3_fine_cover(query->cls, min), hi = wc3_fine_cover(query->cls, max);
+    wc3FineBox_t obj = wc3_fine_cover(3, (wc3FinePoint_t){0, 0});
+    vec2_t p = CM_GetDenormalizedMapPosition((float)(lo.min.x - obj.max.x) / pathmap.width,
+                                            (float)(lo.min.y - obj.max.y) / pathmap.height);
+    vec2_t q = CM_GetDenormalizedMapPosition((float)(hi.max.x + 1 - obj.min.x) / pathmap.width,
+                                            (float)(hi.max.y + 1 - obj.min.y) / pathmap.height);
+    return (box2_t){ {MIN(p.x, q.x), MIN(p.y, q.y)}, {MAX(p.x, q.x), MAX(p.y, q.y)} };
+}
+
+/* Rectangles coexist rather than overwriting a cell: a moving object must
+ * never hide an idle object occupying the same cells. */
+static bool move_cell_ok(void const *data, wc3FinePoint_t pos) {
+    moveFineGraph_t const *graph = data;
+    if (!is_pathable_node_original_flags(pos.x, pos.y, graph->flags)) return false;
+    uint32_t lo = 0, hi = graph->objects;
+    while (lo < hi) {
+        uint32_t mid = lo + (hi - lo) / 2;
+        if (move_objects[mid].min.x < pos.x - 3) lo = mid + 1;
+        else hi = mid;
+    }
+    for (uint32_t i = lo; i < graph->objects && move_objects[i].min.x <= pos.x; i++) {
+        wc3FineBox_t const *box = &move_objects[i];
+        if (pos.x < box->max.x && pos.y >= box->min.y && pos.y < box->max.y) return false;
+    }
+    return true;
+}
+
 static bool move_foot_ok(moveFineGraph_t const *graph, wc3FinePoint_t pos) {
-    wc3FineBox_t box = wc3_fine_cover((unsigned)graph->size - 1, (wc3FinePoint_t){0, 0});
-    pathGridQuery_t query = { {box.min.x, box.min.y}, {box.max.x, box.max.y}, graph->flags };
-    return path_query_ok((point2_t){pos.x, pos.y}, &query);
+    wc3FineBox_t box = wc3_fine_cover((unsigned)graph->size - 1, pos);
+    for (int y = box.min.y; y < box.max.y; y++) for (int x = box.min.x; x < box.max.x; x++)
+        if (!move_cell_ok(graph, (wc3FinePoint_t){x, y})) return false;
+    return true;
 }
 
 uint32_t G_RequestMovePathField(edict_t const *goal, float radius, uint8_t flags) {
@@ -102,7 +180,7 @@ bool G_ClosestReachableMovePoint(pathAccelParams_t const *params, vec2_t *out) {
 
 static moveFineGraph_t move_foot_shape(pathAccelParams_t const *params) {
     return (moveFineGraph_t){ (int)wc3_fine_class(params->radius / pathmap_cell_world_size()) + 1,
-                             normalize_blocked_flags(params->blocked_flags) };
+                             normalize_blocked_flags(params->blocked_flags), 0 };
 }
 
 /* Endpoint geometry is shared by routing and the Move step validator. */
@@ -127,52 +205,52 @@ bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out) {
     return true;
 }
 
-static bool move_segment_cell(void const *data, wc3FinePoint_t pos) {
-    uint8_t const *flags = data;
-    return is_pathable_node_original_flags(pos.x, pos.y, *flags);
-}
-
 /* Engine admission checks both endpoints; the recovered interior sampler
  * itself leaves them unchecked and starts its previous cell at0,0. */
-bool G_MovePathLineIsPathable(pathAccelParams_t const *params) {
+static bool move_query_line(movePathQuery_t const *input) {
+    pathAccelParams_t const *params = &input->geometry;
     if (!params || !params->from || !params->target) return false;
     if (!pathmap.width || !pathmap.height) return true;
     pathAccelParams_t end = *params; end.from = params->target;
     if (!G_MovePathPointIsPathable(params) || !G_MovePathPointIsPathable(&end)) return false;
     vec2_t a = CM_GetNormalizedMapPosition(params->from->x, params->from->y);
     vec2_t b = CM_GetNormalizedMapPosition(params->target->x, params->target->y);
-    uint8_t flags = normalize_blocked_flags(params->blocked_flags);
+    moveFineGraph_t graph = move_foot_shape(params);
     wc3FineSegment_t query = { .start = {a.x * pathmap.width, a.y * pathmap.height},
         .cls = wc3_fine_class(params->radius / pathmap_cell_world_size()),
-        .cell = move_segment_cell, .data = &flags };
+        .cell = move_cell_ok, .data = &graph };
     query.direction[0] = wc3_sub(b.x * pathmap.width, query.start[0]);
     query.direction[1] = wc3_sub(b.y * pathmap.height, query.start[1]);
     query.length = wc3_segment_normalize(query.direction);
+    if (query.length > 1.f) {
+        box2_t bounds = move_segment_bounds(&query);
+        move_query_objects(&graph, input, &bounds);
+    }
     return wc3_segment_test(&query);
 }
 
-/* For a legal current footprint, checking the new square and both diagonal
- * side squares is equivalent to the original entering perimeter strips. */
+/* Static geometry remains available to admission and step validation. */
+bool G_MovePathLineIsPathable(pathAccelParams_t const *params) {
+    if (!params) return false;
+    return move_query_line(&(movePathQuery_t){ .geometry = *params });
+}
+
+bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query) {
+    return query && move_query_line(query);
+}
+
+/* Original fine expansion tests entering strips, including both diagonal sides. */
 static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
     moveFineGraph_t const *graph = data;
-    uint8_t edges = 0;
-    bool legal[8];
-    for (int dir = 0; dir < 8; dir++) {
-        wc3FinePoint_t delta = wc3_fine_dirs[dir];
-        legal[dir] = move_foot_ok(graph, (wc3FinePoint_t){ pos.x + delta.x, pos.y + delta.y });
-    }
-    for (int dir = 0; dir < 8; dir++) {
-        wc3FinePoint_t delta = wc3_fine_dirs[dir];
-        if (!legal[dir] || (delta.x && delta.y &&
-            (!legal[delta.x < 0 ? 3 : 4] || !legal[delta.y < 0 ? 1 : 6]))) continue;
-        edges |= (uint8_t)(1u << dir);
-    }
-    return edges;
+    wc3FineSegment_t query = { .cls = (unsigned)graph->size - 1, .cell = move_cell_ok, .data = graph };
+    return wc3_fine_cell_edges(&query, pos);
 }
 
 /* Reconstruct destination-first points, then use the original next-point /
  * progressively farther selection policy. Move retains the selected turn. */
-bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
+bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
+    if (!input) return false;
+    pathAccelParams_t const *params = &input->geometry;
     vec2_t source, target;
     if (!params || !params->from || !params->target || !out || !pathmap.width || !pathmap.height) return false;
     pathAccelParams_t dest = *params; dest.from = params->target;
@@ -182,6 +260,7 @@ bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
     wc3FinePoint_t goal = { (int)floorf(b.x * pathmap.width), (int)floorf(b.y * pathmap.height) };
     if (abs(start.x - goal.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - goal.y) > PATH_ACCEL_MAX_DISTANCE) return false;
     moveFineGraph_t graph = move_foot_shape(params);
+    move_query_objects(&graph, input, NULL);
     wc3FineRequest_t req = { .start = {start.x, start.y}, .goal = {goal.x, goal.y},
         .width = pathmap.width, .height = pathmap.height, .budget = BZ_WC3_FINE_WORK,
         .edges = move_fine_edges, .data = &graph };
@@ -194,13 +273,18 @@ bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
         at = node->parent;
     }
     if (count < 2) return false;
-    uint8_t flags = graph.flags;
     wc3FineSegment_t query = { .start = {a.x * pathmap.width, a.y * pathmap.height},
-        .cls = (unsigned)graph.size - 1, .cell = move_segment_cell, .data = &flags };
+        .cls = (unsigned)graph.size - 1, .cell = move_cell_ok, .data = &graph };
     uint32_t chosen = wc3_segment_waypoint(&query, (wc3FineRoute_t){move_fine_points, count - 1});
     wc3FineVector_t point = move_fine_points[chosen];
     *out = CM_GetDenormalizedMapPosition(point.x / pathmap.width, point.y / pathmap.height);
     return true;
+}
+
+/* Asset-free/static callers deliberately request no transient unit objects. */
+bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
+    if (!params) return false;
+    return G_FindUnitMovePathWaypoint(&(movePathQuery_t){ .geometry = *params }, out);
 }
 
 /* WC3 Way Gate entry selection uses the shared router's static grid, but this

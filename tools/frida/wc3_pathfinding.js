@@ -235,14 +235,17 @@ function install(module) {
                 const clock = owner.add(mover.add(0x14).readU32() & 0x80000000 ? 0x68 : 0x14);
                 const words = (p, n) => Array.from({length:n}, (_,i) => p.add(i*4).readU32());
                 this.row = {mover:mover.toString(), speed:args[0].readU32(), heading:args[1].readU32(),
-                    before:words(mover.add(0x70),8), clock:words(clock.add(0x40),3)};
+                    before:words(mover.add(0x70),8), clock:words(clock.add(0x40),3),
+                    fineObject:mover.add(0x98).readPointer().toString(),
+                    fineFlagsBefore:mover.add(0x98).readPointer().isNull() ? null : mover.add(0x98).readPointer().add(0x40).readU32()};
             },
             onLeave() {
                 bump('velocity-commit');
                 if (counts['velocity-commit'] <= config.samples) {
                     const words = (p, n) => Array.from({length:n}, (_,i) => p.add(i*4).readU32());
                     emit('velocity-commit', {...this.row, after:words(this.mover.add(0x70),8),
-                        requested:words(this.mover.add(0xc0),2)});
+                        requested:words(this.mover.add(0xc0),2),
+                        fineFlagsAfter:this.mover.add(0x98).readPointer().isNull() ? null : this.mover.add(0x98).readPointer().add(0x40).readU32()});
                 }
             }
         });

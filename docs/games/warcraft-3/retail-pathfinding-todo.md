@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**71 done / 254 tasks; 183 remaining.** Counts describe this backlog,
+**72 done / 255 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -19,7 +19,7 @@ Completed evidence now sits next to its specific remaining extension.
 | BASE — Baseline and reproducibility | 10 | 10 |
 | MAP — Map construction and lifetime | 5 | 15 |
 | FOOT — Footprints and query policy | 3 | 8 |
-| FINE — Fine search | 2 | 8 |
+| FINE — Fine search | 3 | 8 |
 | ACC — Adaptive search | 1 | 10 |
 | NUM — Numbers and random state | 16 | 12 |
 | ROUTE — Route progression and yielding | 1 | 9 |
@@ -46,7 +46,7 @@ Runtime radius producers and the full passage matrices remain FOOT-01.2/03 and
 FOOT-02; the bounded cardinal witnesses do not close them.
 FINE-01.4 explicitly owns incremental engine integration of the completed static
 search policy; it does not replace FINE-01.2/03 dynamic composition or FINE-02
-termination requirements.
+termination requirements. FINE-01.5 explicitly adds the independently reviewable engine idle-object port; ground/flight original composition is completed within01.2, while its other public lanes remain required.
 NUM-01.4 explicitly splits01.2's paired-trig production consumer from its
 remaining arithmetic/conversion and public-domain inventory; both are required.
 NUM-01.5/06 explicitly split the decimal/public-native engine integration from01.2.
@@ -97,9 +97,7 @@ FOOT-01.4 now applies the verified class footprint to nearby routing, destinatio
 correction and actual Move stepping. FOOT-01.5 now uses that geometry for
 long/shared expansion, flow sampling, class-aware cache reuse and unreachable
 fallbacks. ROUTE-02.1 now ports all-class segment sampling, software normalization
-and original next-point/progressively-farther waypoint selection. Next compose
-mixed dynamic eligibility and target exclusion through full fine requests,
-with a concrete engine obstruction/route payoff; retain FOOT-04 admission scopes.
+and original next-point/progressively-farther waypoint selection. FINE-01.5 now routes location orders around idle ground units and rechecks retained segments, with exact192 original mixed-chain/C searches and fresh hfoo/hgry profile/velocity evidence. Next port original nearest-node partial routes for blocked goals (FINE-02.2), then extend BASE-02 profiles to water/amphibious lanes; retain FOOT-04 admission scopes.
 Keep dynamic eligibility and full-trajectory gates explicit.
 Numeric inventory/alias leaves remain open, but do not expand them ahead of a
 concrete routing, stepping, collision or arrival payoff. MOVE-02.3 now connects
@@ -297,10 +295,12 @@ Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
 ### FINE-01 — Full searches with objects
 
 - [x] **FINE-01.1** 288 complete static searches plus repeat/stamp reuse pass with exact route/state expectations. Evidence: [static fine searches][fine-static]; mixed dynamic objects remain excluded.
-- [ ] **FINE-01.2** Add stationary and moving object chains to a full search for each lane/class; compare queue, parents, termination and route.
+- [ ] **FINE-01.2** Add stationary and moving object chains to a full search for each lane/class; compare queue, parents, termination and route. Ground/flight masks and all four classes now have192 exact full requests with mixed chains and metadata reuse; water/amphibious public lanes remain.
 - [ ] **FINE-01.3** Add self/suppressed objects and target-exit cases to the same matrix; assert eligibility changes rather than only reachability.
 
 - [x] **FINE-01.4** Port the recovered static search policy into the engine and retain its turns through actual Move steering. All288 original cell routes/costs/pops/node counts match C at O0/O2 with reuse; three blocked wall-gap Move cases retain their turn with a ready generic field. Current radius/corner legality, visible-point adapter, long-route fields and dynamic objects remain separate. Evidence: [engine fine routing](retail-pathfinding-engine.md#retail-fine-search-drives-nearby-detours).
+
+- [x] **FINE-01.5** Port idle ground-object occupancy into location-order direct checks, fine search, waypoint selection and retained-segment validation. Initial actual Move failed to detour; all four classes now pass the fixed idle unit. Moving/idle transitions, overlapping objects, self/target exclusion and unchanged static field generation have regressions.192 original mixed-chain routes/costs/pops/nodes match C at O0/O2; fresh read-only hfoo/hgry captures verify profiles and velocity flags. Interaction queues stay ability-owned; full categories, endpoint admission and partial routes remain separate. Evidence: [engine idle objects](retail-pathfinding-engine.md#idle-objects-affect-nearby-move-routes).
 
 ### FINE-02 — Search termination
 

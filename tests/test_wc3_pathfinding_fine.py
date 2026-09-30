@@ -12,7 +12,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools/ghidra'))
-from verify_wc3_pathing_grid import footprint_graph
+from verify_wc3_pathing_grid import footprint_graph, ObjectInput
 
 
 class FineSearchTests(unittest.TestCase):
@@ -60,6 +60,31 @@ class FineSearchTests(unittest.TestCase):
                     self.assertEqual(self.run_search(engine, graph), (head, path))
                     stale += head[5]
             self.assertGreater(stale, 0)
+
+    def test_complete_object_routes_and_stamp_reuse_match_original(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-fine-objects-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']), 192)
+        for engine in self.engines:
+            engine.pathing_fine_objects.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ObjectInput),
+                                                   ctypes.POINTER(ctypes.c_int32)]
+            for case in fixture['cases']:
+                profile = fixture['profiles'][case['fixture']]
+                objects, mask = profile['objects'], profile['mask']
+                width, height = fixture['dimensions']
+                cells = bytes.fromhex(fixture['maps'][case['fixture']])
+                terrain = (ctypes.c_uint8 * len(cells))(*(mask >> 24 if c else 0 for c in cells))
+                raw = [v for obj in objects for v in (*obj['bounds'], obj['mask'], obj['flags'], obj['linked'])]
+                object_words = (ctypes.c_uint32 * len(raw))(*raw)
+                data = ObjectInput(terrain, object_words)
+                inp = (ctypes.c_uint32 * 11)(width, height, *fixture['start'], *fixture['goal'],
+                                            2048, case['size_class'], mask, 0, len(objects))
+                for repeat in range(2):
+                    out = (ctypes.c_int32 * (6 + 2 * 16386))()
+                    engine.pathing_fine_objects(inp, ctypes.byref(data), out)
+                    with self.subTest(case=case['fixture'], cls=case['size_class'], repeat=repeat, opt=engine._name):
+                        self.assertEqual(list(out[:4]), [case['cost'] if case['cost'] is not None else -1,
+                                                        case['pops'], case['nodes'], len(case['path'])])
+                        self.assertEqual([[out[6 + 2*i], out[7 + 2*i]] for i in range(out[3])], case['path'])
 
     def test_original_queue_witnesses_cover_reopening_and_equal_keys(self):
         # verify_wc3_pathing_queue.py executes original 14a560 for these values.

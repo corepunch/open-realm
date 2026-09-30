@@ -218,6 +218,52 @@ uint32_t pathing_footprint(uint32_t const input[6], uint8_t const *cells) {
 
 #include "games/warcraft-3/common/wc3_pathing_segment.h"
 typedef struct {
+    uint32_t const *query, *objects;
+    uint8_t const *cells;
+} fineObjectProbe_t;
+
+/* Use production eligibility before constructing edges, rather than supplying
+ * a graph with objects already flattened by the Python reference. */
+static bool fine_object_cell(void const *data, wc3FinePoint_t pos) {
+    fineObjectProbe_t const *probe = data;
+    uint32_t const *q = probe->query;
+    if ((uint32_t)pos.x >= q[0] || (uint32_t)pos.y >= q[1] ||
+        (probe->cells[(uint32_t)pos.y * q[0] + (uint32_t)pos.x] & (q[8] >> 24))) return false;
+    for (uint32_t i = 0; i < q[10]; i++) {
+        uint32_t const *obj = probe->objects + 7 * i;
+        if (pos.x < (int32_t)obj[0] || pos.y < (int32_t)obj[1] ||
+            pos.x >= (int32_t)obj[2] || pos.y >= (int32_t)obj[3]) continue;
+        if (wc3_fine_object_blocks((wc3FineObject_t){obj[4], obj[5], obj[6]}, q[8], q[9])) return false;
+    }
+    return true;
+}
+
+static uint8_t fine_object_edges(void const *data, wc3FinePoint_t pos) {
+    fineObjectProbe_t const *probe = data;
+    wc3FineSegment_t query = { .cls = probe->query[7], .cell = fine_object_cell, .data = probe };
+    return wc3_fine_cell_edges(&query, pos);
+}
+
+typedef struct { uint8_t const *cells; uint32_t const *objects; } fineObjectInput_t;
+
+/* Query: grid input7,class,mask,endpoint-mode,object count. Objects: half-open
+ * bounds4,category,flags,linked. This exercises the actual C search policy. */
+void pathing_fine_objects(uint32_t const *input, fineObjectInput_t const *data, int32_t *out) {
+    fineObjectProbe_t graph = { input, data->objects, data->cells };
+    wc3FineRequest_t req = { .start = {(int)input[2], (int)input[3]}, .goal = {(int)input[4], (int)input[5]},
+        .width = input[0], .height = input[1], .budget = input[6], .edges = fine_object_edges, .data = &graph };
+    int at = wc3_fine_search(&fine_probe, &req), length = 0;
+    out[0] = at < 0 ? -1 : (int32_t)fine_probe.nodes[at].g;
+    out[1] = (int32_t)fine_probe.pops; out[2] = (int32_t)fine_probe.count;
+    out[4] = (int32_t)fine_probe.reopens; out[5] = (int32_t)fine_probe.stale;
+    for (int node = at; node >= 0; node = fine_probe.nodes[node].parent) length++;
+    out[3] = length;
+    for (int i = length - 1; i >= 0; i--, at = fine_probe.nodes[at].parent) {
+        out[6 + i * 2] = fine_probe.nodes[at].pos.x; out[7 + i * 2] = fine_probe.nodes[at].pos.y;
+    }
+}
+
+typedef struct {
     uint32_t width, height, mask, count;
     uint8_t const *cells;
     int32_t *out;

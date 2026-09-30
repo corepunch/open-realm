@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **158 entries**: **37** distinct original-code oracle
-scripts plus **28** declared variants, **79** archived JSONL audits and **14**
+The inventory now has **161 entries**: **37** distinct original-code oracle
+scripts plus **29** declared variants, **79** archived JSONL audits and **16**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,12 +20,12 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 60 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 61 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 72 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Seven rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
-| Five numerical replays and one profile replay | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
+| Five numerical replays and three profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
 | Eight public/native/compiler/heading repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 NUM-01.13 adds original CRT byte classification and the complete authored-name
@@ -276,3 +276,22 @@ reachable frozen fine chains also match. The class0 baseline entry remains
 unchanged in scope. Fresh selected `segments-engine-validated-corpus/corpus-results.json`
 passes both entries; no full158-entry run is claimed. See [engine consumers and
 limits](retail-pathfinding-engine.md#retail-segment-sampling-and-waypoint-selection).
+
+
+## Idle-object engine and live profile contracts
+
+`oracle-grid-objects-engine` executes192 mixed-chain searches plus original
+metadata repeats and complete requests, comparing actual C eligibility and
+entering-strip expansion before the search. The pinned new fixture is
+`retail-fine-objects-1.27.json`. `live-ground-fine-objects` and
+`live-air-fine-objects` pin fresh observer/map provenance and require complete
+profile publications, committed-vector/20000000 flag transitions and idle
+blocker records. The original captures have3012/1661 commits,90/9 starts and
+stops,56/9 fine searches, and2423/0 idle hits. These are observed profiles and
+policy transitions, not a trajectory repeat certificate.
+
+`idle-objects-final-corpus/corpus-results.json` passes the static baseline,
+new original/C oracle and both live contracts:4/4 selected entries. An earlier
+attempt under system Python failed visibly because Unicorn was absent; the
+accepted run uses the existing analysis environment. No full161-entry rerun is
+claimed. See [engine behavior and limits](retail-pathfinding-engine.md#idle-objects-affect-nearby-move-routes).

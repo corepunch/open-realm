@@ -13,6 +13,7 @@
 
 typedef struct { int x, y; } wc3FinePoint_t;
 typedef struct { wc3FinePoint_t min, max; } wc3FineBox_t;
+typedef struct { uint32_t mask, flags; bool linked; } wc3FineObject_t;
 typedef enum { WC3_FINE_NEW, WC3_FINE_OPEN, WC3_FINE_CLOSED } wc3FineState_t;
 typedef struct {
     wc3FinePoint_t pos;
@@ -49,6 +50,13 @@ static inline wc3FineBox_t wc3_fine_cover(unsigned cls, wc3FinePoint_t pos) {
     int size = (int)cls + 1;
     wc3FinePoint_t min = { pos.x - size / 2, pos.y - size / 2 };
     return (wc3FineBox_t){ min, { min.x + size, min.y + size } };
+}
+
+/* Original1489a0: endpoint mode includes moving/transient objects; ordinary
+ * searches exclude them. Suppression counters and the high disable bit win. */
+static inline bool wc3_fine_object_blocks(wc3FineObject_t object, uint32_t mask, bool endpoint) {
+    return object.linked && (object.mask & 0x01000000) && !(object.flags & 0x8fffffff) &&
+        (endpoint || !(object.flags & 0x60000000)) && (object.mask & mask & 0xffffff);
 }
 
 /* Original 14a560's integer heuristic requires reopening cheaper closed nodes. */
@@ -116,9 +124,9 @@ static void wc3_fine_relax(wc3FineSearch_t *search, wc3FinePoint_t goal, wc3Fine
     wc3_fine_enqueue(search, step.node);
 }
 
-/* Static 14aa10/14a4c0 search policy; callers supply the legal eight-edge graph.
- * TODO: dynamic target exits, retail admission/footprints and smoothing have
- * separate owners; this port does not infer their policy from a unit radius. */
+/* 14aa10/14a4c0 search policy; callers supply the legal eight-edge graph.
+ * TODO: target exits and public admission remain separate. The game adapter
+ * now supplies verified entering strips and idle-object eligibility. */
 static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req) {
     assert(req->budget <= BZ_WC3_FINE_WORK);
     memset(search->hash, 0, sizeof(search->hash));

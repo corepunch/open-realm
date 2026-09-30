@@ -33,5 +33,41 @@ class ProfileTraceTests(unittest.TestCase):
             row[field]^=1
             with self.assertRaises(ValueError):verify(changed)
 
+    def fine_rows(self):
+        # Controlled transport fixture: the live captures remain pinned in the
+        # corpus. +88 deliberately stays nonzero while actual velocity stops.
+        rows=[copy.deepcopy(r) for r in self.rows if r['event'] in
+              ('metadata','movement-profile','movement-mask-publication','trace-end')]
+        rows[0].update(blockers=True,velocityEvents=True)
+        mover=next(r['mover'] for r in rows if r['event']=='movement-mask-publication')
+        commits=[dict(event='velocity-commit',mover=mover,fineObject='0x1234',fineFlagsBefore=0,
+                      fineFlagsAfter=0x20000000,after=[0,0,0,0,0x3f800000,0,0x41400000,0]),
+                 dict(event='velocity-commit',mover=mover,fineObject='0x1234',fineFlagsBefore=0x20000000,
+                      fineFlagsAfter=0,after=[0,0,0,0,0,0,0x41400000,0])]
+        search=dict(event='search',kind='fine',blockers=dict(objectHits=1,omittedHits=0,unclassifiedHits=0,
+            objects={'0x1234':dict(isMover=True,payload=mover,flags=0,mode=0,objectMask=0x010000ca,
+                                  queryMask=0x02000002)}))
+        rows[-1]['counts'].update({'velocity-commit':2,'fine-search':1})
+        return rows[:-1]+commits+[search]+rows[-1:]
+
+    def test_fine_object_velocity_uses_actual_vector_and_complete_idle_hits(self):
+        result=verify(self.fine_rows(),True)
+        self.assertEqual([result[k] for k in ('velocity_commits','moving_transitions','idle_transitions',
+                                             'fine_searches','object_hits','object_records')],[2,1,1,1,1,1])
+
+    def test_fine_object_truncation_flag_and_blocker_changes_are_rejected(self):
+        for mutation in ('truncated','flag','missing-object','mode','mask','omitted'):
+            rows=self.fine_rows()
+            commits=[r for r in rows if r['event']=='velocity-commit']
+            stats=next(r['blockers'] for r in rows if r['event']=='search')
+            obj=next(iter(stats['objects'].values()))
+            if mutation=='truncated':rows.remove(commits[-1])
+            elif mutation=='flag':commits[-1]['fineFlagsAfter']=0x20000000
+            elif mutation=='missing-object':commits[0].pop('fineObject')
+            elif mutation=='mode':obj['mode']=1
+            elif mutation=='mask':obj['objectMask']^=2
+            else:stats['omittedHits']=1
+            with self.subTest(mutation=mutation),self.assertRaises(ValueError):verify(rows,True)
+
 
 if __name__=='__main__':unittest.main()

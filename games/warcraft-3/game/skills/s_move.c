@@ -48,6 +48,11 @@ typedef enum {
     MOVE_AVOID_RESOURCE_WORKER,
     MOVE_AVOID_STATIC_ONLY,
 } moveAvoidPolicy_t;
+typedef struct {
+    vec2_t const *point;
+    float radius;
+    moveAvoidPolicy_t policy;
+} moveRoutePoint_t;
 
 typedef enum {
     MOVE_COLLIDE_UNITS,
@@ -223,6 +228,22 @@ static bool move_static_point(edict_t const *self, vec2_t const *point) {
 static bool move_static_line(edict_t const *self, vec2_t const *point, float radius) {
     pathAccelParams_t params = { &self->s.origin2, point, radius, M_UnitStaticPathingFlags(self) };
     return G_MovePathLineIsPathable(&params);
+}
+
+/* Route eligibility follows the same ability-owned collision query as steps.
+ * Fine search ignores moving neighbours; precise step collision still sees them. */
+static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
+    /* Interaction abilities retain their range/queue policy; this increment
+     * adds live fine occupancy to location orders only. */
+    bool units = unit_routes_to_location(self) && point.policy != MOVE_AVOID_STATIC_ONLY &&
+        !S_UnitStatusAbilityEvent(self, A_MOVE_COLLISION_QUERY, NULL);
+    return (movePathQuery_t){ {&self->s.origin2, point.point, point.radius, M_UnitStaticPathingFlags(self)},
+                             self, self->goalentity, units };
+}
+
+static bool move_route_line(edict_t *self, moveRoutePoint_t point) {
+    movePathQuery_t query = move_route_query(self, point);
+    return G_UnitMovePathLineIsPathable(&query);
 }
 
 /* Check static pathing and live units; retain the rejecting unit for give-way. */
@@ -590,25 +611,21 @@ static void unit_changeangle_towards_point_policy(edict_t *self, vec2_t const *p
 
 /* Keep the bounded point-route turn until it is reached; retail likewise owns
  * route progress on each mover instead of rebuilding from its current point. */
-static bool unit_accel_direction_to_point(edict_t *self, vec2_t const *target,
-                                          float radius, vec2_t *dir) {
-    if (!self || !target || !dir) return false;
-    pathAccelParams_t params = { &self->s.origin2, target, radius, M_UnitStaticPathingFlags(self) };
+static bool unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *dir) {
+    if (!self || !point.point || !dir) return false;
+    movePathQuery_t query = move_route_query(self, point);
     routePath_t *path = &self->movement.path;
-    if (path->valid && (Vector2_distance(&path->target, target) >= 1.0f ||
-        fabsf(path->radius - radius) >= 0.01f || Vector2_distance(params.from, &path->waypoint) <= CM_PathCellWorldSize() ||
-        !move_static_line(self, &path->waypoint, radius))) path->valid = false;
+    moveRoutePoint_t turn = { &path->waypoint, point.radius, point.policy };
+    if (path->valid && (Vector2_distance(&path->target, point.point) >= 1.0f ||
+        fabsf(path->radius - point.radius) >= 0.01f ||
+        Vector2_distance(query.geometry.from, &path->waypoint) <= CM_PathCellWorldSize() ||
+        !move_route_line(self, turn))) path->valid = false;
     if (!path->valid) {
-        if (!G_FindMovePathWaypoint(&params, &path->waypoint)) return false;
-        path->target = *target; path->radius = radius; path->valid = true;
+        if (!G_FindUnitMovePathWaypoint(&query, &path->waypoint)) return false;
+        path->target = *point.point; path->radius = point.radius; path->valid = true;
     }
-    *dir = Vector2_sub(&path->waypoint, params.from);
+    *dir = Vector2_sub(&path->waypoint, query.geometry.from);
     return true;
-}
-
-static bool unit_accel_direction(edict_t *self, float radius, vec2_t *dir) {
-    return unit_accel_direction_to_point(self, &self->goalentity->s.origin2,
-                                         radius, dir);
 }
 
 void unit_changeangle_towards_point(edict_t *self, vec2_t const *point) {
@@ -636,11 +653,11 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
      * exact point when it is directly reachable; otherwise use the same
      * collision-sized mover-owned A* accelerator used while shared fields are
      * pending.  Live units remain ignored by the steering/move policy. */
-    if (move_static_line(self, point, self->collision)) {
+    if (move_route_line(self, (moveRoutePoint_t){point, self->collision, MOVE_AVOID_STATIC_ONLY})) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = Vector2_sub(point, &self->s.origin2);
-    } else if (!unit_accel_direction_to_point(self, point, self->collision, &dir)) {
+    } else if (!unit_accel_direction(self, (moveRoutePoint_t){point, self->collision, MOVE_AVOID_STATIC_ONLY}, &dir)) {
         return false;
     }
 
@@ -673,7 +690,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
      * Move orders own radius-valid reserved destinations, so their route must
      * use the same footprint as move-time collision; point routing previously
      * sent units into narrow gaps and touching obstacle corners. */
-    if (move_static_line(self, &self->goalentity->s.origin2, radius)) {
+    if (move_route_line(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy})) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
@@ -687,11 +704,21 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
          * same footprint geometry for expansion and flow sampling. */
         bool fine = unit_routes_to_location(self) || !heatmap ||
                     !CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y);
-        if (fine && unit_accel_direction(self, radius, &dir)) {
+        if (fine && unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir)) {
             unit_apply_heading(self, &dir, policy);
             return;
         }
-        if (!heatmap) return; /* long incremental route is still building; keep the order */
+        if (!heatmap) {
+            /* A live object can occupy the goal while the static field is
+             * still pending. Keep collision-aware local steering in that
+             * clear static corridor; pausing here stranded occupied-goal Move.
+             * TODO: port the original nearest-node partial route (FINE-02.2). */
+            if (move_static_line(self, &self->goalentity->s.origin2, radius)) {
+                unit_apply_heading(self, &to_goal, policy);
+                self->movement.flow_direct = true;
+            }
+            return;
+        }
         self->movement.path.valid = false;
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             /* Location orders stop at their collision-safe route endpoint in
@@ -776,7 +803,7 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
 
-    if (move_static_line(self, &self->goalentity->s.origin2, radius)) {
+    if (move_route_line(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy})) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
@@ -784,7 +811,7 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
         uint32_t heatmap = M_RefreshHeatmapForMover(self, self->goalentity, radius);
         self->movement.flow_generation = heatmap;
         if (!heatmap) {
-            if (!unit_accel_direction(self, radius, &dir))
+            if (!unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir))
                 return; /* long incremental route is still building */
             unit_apply_heading(self, &dir, policy);
             return;
@@ -1583,8 +1610,7 @@ static void ai_move_walk(edict_t *ent) {
              * the flow interpolation has no descending neighbour. Use the
              * persistent A* accelerator for the actual detour before falling
              * back to local steering; a cinematic move must not be cancelled. */
-            if (unit_accel_direction_to_point(ent, &ent->goalentity->s.origin2,
-                                              ent->collision, &direction)) {
+            if (unit_accel_direction(ent, (moveRoutePoint_t){&ent->goalentity->s.origin2, ent->collision, MOVE_AVOID_GENERIC}, &direction)) {
                 ent->movement.flow_unreachable = false;
                 ent->movement.flow_direct = false;
                 unit_apply_heading(ent, &direction, MOVE_AVOID_GENERIC);

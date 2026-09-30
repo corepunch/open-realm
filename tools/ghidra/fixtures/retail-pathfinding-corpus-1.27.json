@@ -8500,6 +8500,412 @@
         "reconstruction coordinates outside the supplied cell-centred chains",
         "full trajectories"
       ]
+    },
+    {
+      "id": "oracle-grid-objects-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_grid.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--objects",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-objects-engine-exact.json",
+      "expected_exit": 0,
+      "expected_status": "original-model-engine-exact",
+      "checks": {
+        "cases": {
+          "equal": 192
+        },
+        "repeated_searches": {
+          "equal": 192
+        },
+        "complete_requests": {
+          "equal": 192
+        },
+        "engine_queries": {
+          "equal": 192
+        },
+        "engine_repeats": {
+          "equal": 192
+        },
+        "mismatches": {
+          "length": 0
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original mixed object chains and retained search metadata across all four classes and ground/flight masks; C eligibility, entering strips and search produce exact full routes/costs/pops/nodes.",
+      "exclusions": [
+        "water/amphibious public mask producers",
+        "target exit",
+        "public endpoint admission",
+        "whole engine trajectory"
+      ]
+    },
+    {
+      "id": "live-ground-fine-objects",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_profile_trace.py",
+        "{archive}/runtime/ground-object-policy-first-260930.jsonl",
+        "--fine-objects",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/ground-object-policy-first-260930.jsonl",
+        "sha256": "a3788dcb30334142732ca6ee20b007bd403886b88a967cb751f6515bc4f5579c",
+        "bytes": 2502217,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "486af1aaf31ece335360ea4582747d698cf0384c9fd97dfb9a4402f8a3a992ed",
+            "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+            "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "7db09483b816f5462454b022123d58ee79627154afe58cc1f3506593c1a96563"
+          },
+          "map": "Maps\\PathingRE-GroundObjects-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": true,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "live-ground-fine-objects-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "live-profile-replay",
+      "checks": {
+        "rawcode": {
+          "equal": 1751543663
+        },
+        "category": {
+          "equal": 202
+        },
+        "query_mask": {
+          "equal": 2
+        },
+        "path_mask": {
+          "equal": 33554434
+        },
+        "publications": {
+          "equal": [
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ],
+            [
+              16777418,
+              33554434
+            ]
+          ]
+        },
+        "passed": {
+          "equal": true
+        },
+        "velocity_commits": {
+          "equal": 3012
+        },
+        "moving_transitions": {
+          "equal": 90
+        },
+        "idle_transitions": {
+          "equal": 90
+        },
+        "fine_searches": {
+          "equal": 56
+        },
+        "object_hits": {
+          "equal": 2423
+        },
+        "object_records": {
+          "equal": 179
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Fresh read-only crowd profile publication, complete velocity20000000 transitions and idle blocker hits; actor poses/velocities are observed only.",
+      "exclusions": [
+        "no repeat trajectory certification",
+        "group transient40000000 not observed in this capture",
+        "water/amphibious profiles"
+      ]
+    },
+    {
+      "id": "live-air-fine-objects",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_profile_trace.py",
+        "{archive}/runtime/air-object-policy-first-260930.jsonl",
+        "--fine-objects",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/air-object-policy-first-260930.jsonl",
+        "sha256": "343b24cb5b2da44ec0d3a3bc8d3c5c5e56574d65cb6bc28b0dcb51041a474a37",
+        "bytes": 1750483,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "486af1aaf31ece335360ea4582747d698cf0384c9fd97dfb9a4402f8a3a992ed",
+            "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+            "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "7dad6fe61ada003b8c4258c82399bfe2f4c2f42224ac975687a568db92578e88"
+          },
+          "map": "Maps\\PathingRE-AirObjects-260930.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": true,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "live-air-fine-objects-corpus.json",
+      "expected_exit": 0,
+      "expected_status": "live-profile-replay",
+      "checks": {
+        "rawcode": {
+          "equal": 1751609977
+        },
+        "category": {
+          "equal": 0
+        },
+        "query_mask": {
+          "equal": 4
+        },
+        "path_mask": {
+          "equal": 67108868
+        },
+        "publications": {
+          "equal": [
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ],
+            [
+              16777216,
+              67108868
+            ]
+          ]
+        },
+        "passed": {
+          "equal": true
+        },
+        "velocity_commits": {
+          "equal": 1661
+        },
+        "moving_transitions": {
+          "equal": 9
+        },
+        "idle_transitions": {
+          "equal": 9
+        },
+        "fine_searches": {
+          "equal": 9
+        },
+        "object_hits": {
+          "equal": 0
+        },
+        "object_records": {
+          "equal": 0
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Fresh read-only crowd profile publication, complete velocity20000000 transitions and idle blocker hits; actor poses/velocities are observed only.",
+      "exclusions": [
+        "no repeat trajectory certification",
+        "group transient40000000 not observed in this capture",
+        "water/amphibious profiles"
+      ]
     }
   ],
   "fixtures": [
@@ -8686,6 +9092,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-sampled-segments-1.27.json",
       "sha256": "8fe0a4d4fb6677d1111b4df863b92e8e433a2fe66ed239fe53731f42c66b1163"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-objects-1.27.json",
+      "sha256": "fee48c62cc0855675b80c02b86713798d41e0398f97878f4cd02af84657aa267"
     }
   ]
 }

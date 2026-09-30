@@ -1628,3 +1628,101 @@ with119 existing prototypes unchanged and links both sampler and waypoint
 consumers to their production helpers. Next integrate mixed dynamic eligibility
 and target exclusion through the full fine request; shared adaptive routing and
 whole trajectories remain separate required work.
+
+
+## Idle objects affect nearby Move routes
+
+FINE-01.5 puts live idle ground-unit footprints into location-order direct
+checks, nearby fine searches, waypoint selection and retained-segment checks.
+An idle unit ahead now produces a detour before local circle collision. Actual
+Move order/think/step regressions pass for all four mover/object classes and
+leave the idle unit fixed. A new object entering a retained segment invalidates
+that turn and produces a fresh route.
+
+Original `1489a0` blocks a live kind1 object when its active category bit is
+set, its low24 category overlaps the query, and `flags40 & 8fffffff` is zero.
+Normal search mode0 additionally excludes `20000000` and `40000000` objects.
+Endpoint mode1 includes those objects. Original `1606e0` maintains `20000000`
+from committed velocity at mover+80/+84; mover+88 is the speed cap, not the
+current vector. Merely entering the walk animation does not set that bit.
+
+Fresh read-only crowd captures establish these profile publications:
+
+| Unit | Getter category/query | Fine object / owned path | Velocity commits | Starts / stops | Idle object hits |
+| --- | --- | --- | ---: | ---: | ---: |
+| Footman `hfoo` | `ca / 2` | `010000ca / 02000002` | 3,012 | 90 / 90 | 2,423 across179 per-request records |
+| Hippogryph `hgry` | `0 / 4` | `01000000 / 04000004` | 1,661 | 9 / 9 | 0 |
+
+Each capture contains18 getter pairs/publications, all velocity commits,
+completed crowd markers and a successful observer end. Fine search counts
+are56 and9. The new observer fields only read the occupancy pointer and flags;
+no retail object or velocity is changed. `verify_wc3_profile_trace.py
+--fine-objects` rejects truncated counters, missing identities, altered
+velocity flags, omitted/unclassified hits and blocker records inconsistent
+with published profiles. The captures do not observe the transient group
+`40000000` flag; its existing composed producer evidence remains separate.
+
+`verify_wc3_pathing_grid.py --objects` adds **192 complete original searches**,
+192 retained-cell-metadata repeats and192 setup/search/reconstruction requests:
+four classes, ground/flight masks, open/gapped static terrain and12 object-chain
+variants. Variants include idle, moving, transient, suppressed, disabled,
+unlinked, inactive, empty flight category, overlapping movers/idle objects in
+both chain orders, mixed categories and a solid object wall. The actual original
+linked records coexist with generated search-node metadata. The independent
+reference checks reachability/cost; production C eligibility, entering-strip
+geometry and search match every parent chain, cost, pop count and node count
+at O0/O2. Frozen evidence: `retail-fine-objects-1.27.json`.
+
+Game queries snapshot eligible idle-unit class rectangles. Overlapping objects
+coexist; a moving object never erases an idle blocker. Direct/retained queries
+use a conservative area-tree region derived from the sampled strips and largest
+object cover. The1900-idle-unit direct query falls from0.19ms to below0.005ms
+per call in the same benchmark. A regression keeps a class3 biased edge even
+when its physical bounds miss the class0 segment. Fine searches retain a full snapshot because their detours can
+leave the endpoint rectangle. Rectangles are sorted by their minimum X; each
+cell only examines rectangles starting in its four-column range. Shared static
+fields are untouched and retain their generations when a neighbour starts or
+stops. Scratch stays in the game module; edict/network/save layouts are unchanged.
+
+Interaction abilities keep their existing range/queue policy. Gold/resource
+return collision queries still ignore peers; lumber still uses its local queue
+and bounded pass. When a live object occupies the goal and the static field is
+pending, a clear static corridor keeps collision-aware local steering rather
+than pausing forever. The original nearest-node partial route is still
+FINE-02.2; public self/target admission and target-exit semantics remain
+FOOT-04/FINE-01.3. The engine adapter retains existing ground-unit eligibility
+until BASE-02 supplies the complete authored category table. Water/amphibious
+profiles and native pathing-disable producers are not certified by this slice.
+
+Reports under the standard report root:
+`fine-objects-engine.json`, `ground-object-policy-live.json`,
+`air-object-policy-live.json`, and
+`idle-objects-final-corpus/corpus-results.json`. The fresh selected corpus
+passes4/4 entries (static baseline, mixed-object C comparison and both live
+contracts); no full161-entry rerun or whole-trajectory match is claimed.
+Ghidra saves360 names with prototypes unchanged and updates the occupied-cell,
+velocity flag, profile publication/getter and fine-rectangle contracts.
+
+Reproduce the original/C comparison with:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --output /tmp/wc3-idle-objects-new-corpus \
+  --only oracle-grid --only oracle-grid-objects-engine \
+  --only live-ground-fine-objects --only live-air-fine-objects
+```
+
+The output directory must be fresh. Use the Unicorn environment for the runner;
+the default system Python lacks Unicorn and is correctly rejected. Capture
+metadata pins the builder/probe/controller/observer and map hashes; source copies
+are archived alongside `runtime/{ground,air}-object-policy-first-260930.jsonl`.
+
+
+Final validation: both Classic/TFT suites pass41,787/41,787 assertions in2,184
+WC3 cases per variant, all106 pathfinding tool tests pass, the debug pathfinding
+suite passes443 assertions in68 cases, and the production WC3 build passes.
+The renderer suite also passes5,862 assertions after reproducing/fixing a
+multi-statement macro that dropped higher ground layers when a lower texture
+was missing; see [ground list lifetime](loading-and-assets.md#whole-map-ground-list-preserves-earlier-layers).

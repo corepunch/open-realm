@@ -586,6 +586,177 @@ TEST(wc3_pathfinding, move_segments_use_retail_first_sample_strips) {
     setup_test_world();
 }
 
+/* Live ground-crowd Frida fine queries reject idle Footman objects with
+ * category010000ca/flags0 under mask02000002. An idle unit ahead must affect
+ * routing before it becomes a one-step local collision. */
+TEST(wc3_pathfinding, nearby_move_routes_around_idle_unit_footprint) {
+    uint8_t cells[24 * 24] = {0};
+    vec2_t target = {19.5f, 4.5f};
+    reset_entities();
+    setup_test_world();
+    setup_test_pathmap(24, 24, cells);
+    edict_t *unit = make_unit_at(4.5f, 4.5f), *idle = make_unit_at(12.5f, 4.5f);
+    unit->collision = idle->collision = 0.5f;
+    unit->unitinfo.MoveSpeed = 2.f;
+    gi.LinkEntity(unit);
+    gi.LinkEntity(idle);
+    T_ASSERT(unit_issueorder(unit, "move", &target));
+    unit_changeangle(unit);
+    T_ASSERT(!unit->movement.flow_direct);
+    T_ASSERT(unit->movement.path.valid);
+    T_ASSERT(unit->movement.path.waypoint.x > unit->s.origin2.x);
+    T_ASSERT(fabsf(unit->movement.path.waypoint.y - 4.5f) > 0.01f);
+    reset_entities();
+    setup_test_world();
+}
+
+/* Captured hfoo objects useca/2, hgry objects0/4; original1606e0 sets and
+ * clears20000000 with velocity. Mixed chains retain the idle obstruction. */
+TEST(wc3_pathfinding, nearby_unit_routes_follow_live_object_eligibility) {
+    uint8_t cells[24 * 24] = {0};
+    vec2_t target = {19.5f, 4.5f};
+    reset_entities();
+    setup_test_world();
+    setup_test_pathmap(24, 24, cells);
+    edict_t *unit = make_unit_at(4.5f, 4.5f), *idle = make_unit_at(12.5f, 4.5f);
+    unit->collision = idle->collision = 0.5f;
+    gi.LinkEntity(unit);
+    gi.LinkEntity(idle);
+    movePathQuery_t query = { {&unit->s.origin2, &target, 0.5f, CM_PATHING_UNWALKABLE}, unit, NULL, true };
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    edict_t *goal = make_waypoint(target.x, target.y);
+    G_RequestMovePathField(goal, 0.5f, CM_PATHING_UNWALKABLE);
+    CM_ProcessPathJobs(UINT_MAX);
+    uint32_t gen = G_RequestMovePathField(goal, 0.5f, CM_PATHING_UNWALKABLE);
+    T_ASSERT(G_ActivateMovePathField(gen, 0.5f, CM_PATHING_UNWALKABLE));
+    idle->movement.velocity.x = 0.2f;
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    T_ASSERT(G_ActivateMovePathField(gen, 0.5f, CM_PATHING_UNWALKABLE));
+    T_EQ(G_RequestMovePathField(goal, 0.5f, CM_PATHING_UNWALKABLE), gen);
+    edict_t *other = make_unit_at(12.5f, 4.5f);
+    other->collision = 0.5f;
+    gi.LinkEntity(other);
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    other->aiflags |= AI_FLYING;
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    idle->movement.velocity = (vec2_t){0};
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    query.target = idle;
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    query.target = NULL;
+    query.units = false;
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    query.units = true;
+    unit->aiflags |= AI_FLYING;
+    query.geometry.blocked_flags = CM_PATHING_UNFLYABLE;
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    reset_entities();
+    setup_test_world();
+}
+
+/* Use actual order/think/step entry points for each mover/object footprint.
+ * The idle unit stays fixed; the walker must get past it without cancelling. */
+TEST(wc3_pathfinding, nearby_move_passes_idle_units_for_all_fine_classes) {
+    float const radii[] = {0.25f, 0.5f, 1.0f, 1.5f};
+    uint8_t cells[24 * 24] = {0};
+    vec2_t target = {19.5f, 4.5f};
+    uint32_t old_time = level.time;
+    for (unsigned i = 0; i < 4; i++) {
+        reset_entities();
+        setup_test_world();
+        setup_test_pathmap(24, 24, cells);
+        edict_t *unit = make_unit_at(4.5f, 4.5f), *idle = make_unit_at(12.5f, 4.5f);
+        unit->collision = idle->collision = radii[i];
+        unit->unitinfo.MoveSpeed = 2.f;
+        gi.LinkEntity(unit);
+        gi.LinkEntity(idle);
+        T_ASSERT(unit_issueorder(unit, "move", &target));
+        unit_changeangle(unit);
+        T_ASSERT(!unit->movement.flow_direct);
+        T_ASSERT(unit->movement.path.valid);
+        for (int tick = 0; tick < 140; tick++) {
+            level.time += FRAMETIME;
+            if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+        }
+        T_ASSERT(unit->s.origin2.x > idle->s.origin2.x + 2.f);
+        T_ASSERT(Vector2_distance(&unit->s.origin2, &target) <= 4.1f);
+        T_FEQ(idle->s.origin2.x, 12.5f, 0.00001f);
+        T_FEQ(idle->s.origin2.y, 4.5f, 0.00001f);
+    }
+    level.time = old_time;
+    reset_entities();
+    setup_test_world();
+}
+
+/* A retained turn is rechecked against current live occupancy each tick. */
+TEST(wc3_pathfinding, nearby_move_replans_when_idle_object_enters_retained_segment) {
+    uint8_t cells[24 * 24] = {0};
+    vec2_t target = {19.5f, 4.5f};
+    reset_entities();
+    setup_test_world();
+    setup_test_pathmap(24, 24, cells);
+    edict_t *unit = make_unit_at(4.5f, 4.5f), *idle = make_unit_at(12.5f, 4.5f);
+    unit->collision = idle->collision = 0.5f;
+    gi.LinkEntity(unit);
+    gi.LinkEntity(idle);
+    T_ASSERT(unit_issueorder(unit, "move", &target));
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement.path.valid);
+    vec2_t old = unit->movement.path.waypoint;
+    edict_t *other = make_unit_at((unit->s.origin2.x + old.x) * 0.5f, (unit->s.origin2.y + old.y) * 0.5f);
+    other->collision = 0.5f;
+    gi.LinkEntity(other);
+    movePathQuery_t query = { {&unit->s.origin2, &old, 0.5f, CM_PATHING_UNWALKABLE}, unit, unit->goalentity, true };
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement.path.valid);
+    T_ASSERT(Vector2_distance(&old, &unit->movement.path.waypoint) > 0.01f);
+    reset_entities();
+    setup_test_world();
+}
+
+/* Fine rectangles can extend beyond an entity's physical circle. Broadphase
+ * pruning must keep that biased class3 edge for a class0 line query. */
+TEST(wc3_pathfinding, nearby_line_sees_quantized_object_edge_beyond_physical_bounds) {
+    uint8_t cells[24 * 24] = {0};
+    vec2_t target = {19.5f, 16.2f};
+    reset_entities();
+    setup_test_world();
+    setup_test_pathmap(24, 24, cells);
+    edict_t *unit = make_unit_at(4.5f, 16.2f), *idle = make_unit_at(12.5f, 18.9f);
+    unit->collision = 0.25f;
+    idle->collision = 1.5f;
+    gi.LinkEntity(unit);
+    gi.LinkEntity(idle);
+    movePathQuery_t query = { {&unit->s.origin2, &target, 0.25f, CM_PATHING_UNWALKABLE}, unit, NULL, true };
+    T_ASSERT(idle->bounds.min.y > target.y);
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    idle->s.origin2.y = 19.1f;
+    gi.LinkEntity(idle);
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    reset_entities();
+    setup_test_world();
+}
+
+/* Direct/retained checks run for each mover every tick. Off-route crowds
+ * should not require sorting the entire map's idle objects each time. */
+TEST(wc3_perf, nearby_line_query_with_1900_idle_units) {
+    reset_entities();
+    setup_test_world();
+    for (int i = 0; i < 1900; i++) {
+        edict_t *idle = make_unit_at((i % 50) * 32.f, 512.f + (i / 50) * 32.f);
+        idle->collision = 16.f;
+        gi.LinkEntity(idle);
+    }
+    edict_t *unit = make_unit_at(128.f, 128.f);
+    vec2_t target = {448.f, 128.f};
+    movePathQuery_t query = { {&unit->s.origin2, &target, 16.f, CM_PATHING_UNWALKABLE}, unit, NULL, true };
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    T_BENCH("Move direct line (1900 idle units)", 100, G_UnitMovePathLineIsPathable(&query));
+    reset_entities();
+    setup_test_world();
+}
+
 /* The endpoint is beyond the synchronous fine-search envelope. A two-cell L
  * corridor must remain usable by class1 in the shared incremental field. */
 TEST(wc3_pathfinding, class_sized_long_field_reaches_winding_corridor_and_invalidates) {

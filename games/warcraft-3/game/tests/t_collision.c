@@ -249,6 +249,12 @@ static float peak_lateral_against_blocker(float mover_speed, float blocker_speed
     blocker->unitinfo.MoveSpeed = blocker_speed;
     vec2_t dest = {300.0f, 0.0f};
     unit_issueorder(blocker, "move", &dest);   /* blocker is in the walking state */
+    /* A walk order alone still has zero velocity and retail fine search treats
+     * it as idle. Commit actual motion, then freeze its pose for this fixture. */
+    blocker->currentmove->think(blocker);
+    T_ASSERT(fabsf(blocker->movement.velocity.x) > 0.01f);
+    blocker->s.origin2 = (vec2_t){45.f, 0.f};
+    gi.LinkEntity(blocker);
     unit_issueorder(mover, "move", &dest);     /* (only the mover is stepped)     */
     float peak = 0.0f;
     for (int i = 0; i < 10; i++) {

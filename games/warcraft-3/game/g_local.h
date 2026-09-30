@@ -2591,6 +2591,13 @@ void G_PushEntity3(edict_t *ent, float distance, vec3_t const *direction);
 bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, box2_t const *bounds,
                                                       float radius, uint8_t blocked_flags, vec2_t *out);
 bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out);
+typedef struct {
+    pathAccelParams_t geometry;
+    edict_t const *mover, *target;
+    bool units;
+} movePathQuery_t;
+bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
+bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params);
 bool G_MovePathLineIsPathable(pathAccelParams_t const *params);
 bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out);

@@ -952,3 +952,18 @@ world point`+10`, orientation`+18`, texture`+54` and excluded mover bridge`+50`;
 pixel sets context`+34` and stops the raster; `68f700` maps it to44 after restoring
 its builder`+4c` and temporarily excluded objects. This is saved instruction/live
 rejection evidence; a successful public construction escape producer is still open.
+
+
+## Mixed fine objects reach the engine
+
+The [idle-object engine integration](retail-pathfinding-engine.md#idle-objects-affect-nearby-move-routes)
+adds192 full original mixed-chain searches, repeated metadata reuse and complete
+requests under observed ground/flight masks. Production eligibility and entering
+strips feed the C search directly; all route/cost/work/node results match at
+O0/O2. Fresh read-only hfoo/hgry captures correlate velocity bit20000000 with
+actual vector80/84 and distinguish categoryca from flight category0. The active
+fine-region high bit alone does not make flyers block a flight search.
+
+This closes incremental engine occupancy, not the full movement-category table
+or target-exit matrix. Water/amphibious producers, public start/goal admission,
+endpoint-mode composition and group transient policy still have separate owners.

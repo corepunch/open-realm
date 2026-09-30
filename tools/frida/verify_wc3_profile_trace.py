@@ -12,7 +12,7 @@ def word(value):
     return value
 
 
-def verify(rows):
+def verify(rows, fine_objects=False):
     if any(row.get('type')=='error' for row in rows):raise ValueError('profile observer error')
     metadata=[r for r in rows if r.get('event')=='metadata']
     end=[r for r in rows if r.get('event')=='trace-end']
@@ -43,16 +43,58 @@ def verify(rows):
         if word(row['pathMask'])!=expected:raise ValueError('owned path mask differs')
         if not row.get('mover'):raise ValueError('published mover missing')
         observations.append([row['objectCategory'],row['pathMask']])
-    return dict(binary_sha256=GAME_SHA,rawcode=rawcodes.pop(),category=profile['category'],
+    result=dict(binary_sha256=GAME_SHA,rawcode=rawcodes.pop(),category=profile['category'],
                 query_mask=profile['query-mask'],path_mask=expected,publications=observations,passed=True)
+    if fine_objects:
+        if not metadata[0].get('velocityEvents') or not metadata[0].get('blockers'):
+            raise ValueError('fine object observer options missing')
+        commits=[r for r in rows if r.get('event')=='velocity-commit']
+        if not commits or len(commits)!=end[0]['counts'].get('velocity-commit'):
+            raise ValueError('truncated fine object velocity commits')
+        movers={r['mover'] for r in published}
+        set_count=clear_count=0
+        for r in commits:
+            before,after=word(r['fineFlagsBefore']),word(r['fineFlagsAfter'])
+            if r['mover'] not in movers or not r.get('fineObject') or r['fineObject']=='0x0':
+                raise ValueError('fine object identity missing from profile publication')
+            if len(r['after'])!=8:
+                raise ValueError('invalid committed velocity words')
+            # +88 is the speed cap; actual velocity is mover+80/+84.
+            moving=any(word(v) & 0x7fffffff for v in r['after'][4:6])
+            if bool(after & 0x20000000)!=moving or (before & 0xdfffffff)!=(after & 0xdfffffff):
+                raise ValueError('fine object velocity flag differs from commit')
+            set_count+=int(not before & 0x20000000 and moving)
+            clear_count+=int(bool(before & 0x20000000) and not moving)
+        if not set_count or not clear_count:raise ValueError('fine object moving/idle transitions missing')
+        searches=[r for r in rows if r.get('event')=='search' and r.get('kind')=='fine']
+        if not searches or len(searches)!=end[0]['counts'].get('fine-search'):
+            raise ValueError('truncated fine object searches')
+        hits=records=0
+        for r in searches:
+            stats=r['blockers']
+            if stats['omittedHits'] or stats['unclassifiedHits']:raise ValueError('incomplete fine object hits')
+            hits+=stats['objectHits']
+            for obj in stats['objects'].values():
+                if (not obj['isMover'] or obj['payload'] not in movers or obj['flags']!=0 or obj['mode']!=0 or
+                        obj['objectMask'] & 0xffffff != profile['category'] or obj['queryMask']!=expected):
+                    raise ValueError('fine search blocker differs from published idle profile')
+                records+=1
+        if profile['category'] & profile['query-mask'] and not hits:
+            raise ValueError('fine object overlap lacks an observed idle blocker')
+        if not profile['category'] & profile['query-mask'] and hits:
+            raise ValueError('fine object nonblocking category produced hits')
+        result.update(velocity_commits=len(commits),moving_transitions=set_count,idle_transitions=clear_count,
+                      fine_searches=len(searches),object_hits=hits,object_records=records)
+    return result
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('capture',type=Path)
     parser.add_argument('--report',type=Path,required=True)
+    parser.add_argument('--fine-objects',action='store_true',help='require complete velocity/idle blocker observations')
     args=parser.parse_args()
-    result=verify([json.loads(line) for line in args.capture.read_text().splitlines() if line])
+    result=verify([json.loads(line) for line in args.capture.read_text().splitlines() if line],args.fine_objects)
     args.report.parent.mkdir(parents=True,exist_ok=True)
     args.report.write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps(result))
