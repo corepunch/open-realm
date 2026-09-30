@@ -697,6 +697,10 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, patrol_target, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, follow_target, F_EDICT, 0, FIELD_NONE),
     F(edictMovement_s, explicit_allied_attack, F_INT),
+    F(edictMovement_s, cargo_unload_pending, F_INT),
+    F(edictMovement_s, cargo_unload_ability, F_INT),
+    TF(edictMovement_s, cargo_unload_goal, F_EDICT, 0, FIELD_NONE),
+    F(edictMovement_s, cargo_unload_goal_spawn_time, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
