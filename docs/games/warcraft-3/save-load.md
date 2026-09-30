@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 57, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 58, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -556,3 +556,5 @@ Version 55 persisted each attacker's remaining weapon cooldown independently of 
 Version 52 saves are rejected by the exact-version guard.
 
 Version 57 persists `edict_t.attack_target_spawn_time` alongside the active Attack target pointer. This prevents a direct Attack order from following a different unit after the target edict slot is reused. Version 56 saves are rejected because the expanded edict layout adds the target incarnation field.
+
+Version 58 adds `edict_s.attack_backswing_end_time`, the simulation-time deadline measured from a committed melee hit or projectile launch. Recovery after the attack animation ends now waits only for the backswing time that remains, while preserving the swing-start cooldown deadline. The deadline is serialized with the attack cooldown state so a save/load during recovery does not restart backswing. Version 57 saves are rejected by the exact-version guard because the edict schema grew.

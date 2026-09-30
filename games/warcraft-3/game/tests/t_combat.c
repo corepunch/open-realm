@@ -1832,6 +1832,74 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_swing_cooldown) {
     T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
 }
 
+TEST(wc3_combat, attack_animation_end_does_not_restart_expired_swing_cooldown) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+    uint32_t swing_cooldown_end;
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.damageBase = 10.0f;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.cooldown = 0.4f;
+    attacker->attack1.damagePoint = 0.03f;
+    attacker->attack1.backswingPoint = 0.8f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    swing_cooldown_end = attacker->attack_cooldown_end_time;
+    attach_stub_anim(attacker);
+    attacker->wait = FRAMETIME / 1000.0f;
+    attacker->currentmove->think(attacker);
+    T_ASSERT(target->health.value < target->health.max_value);
+
+    /* Ability think observes the expired cooldown before the attack animation
+     * ends. Recovery must still recognize the move as an existing swing. */
+    level.time = swing_cooldown_end + 100;
+    attacker->currentmove->think(attacker);
+    T_ASSERT(!attacker->attack_cooldown_active);
+    level.time = swing_cooldown_end + 200;
+    attacker->currentmove->endfunc(attacker);
+
+    T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
+    T_ASSERT(!attacker->attack_cooldown_active);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_FEQ(attacker->wait, 0.2f, 0.01f);
+}
+
+TEST(wc3_combat, backswing_recovery_uses_damage_point_deadline) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+    uint32_t swing_cooldown_end;
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.damageBase = 10.0f;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damagePoint = 0.03f;
+    attacker->attack1.backswingPoint = 0.8f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    swing_cooldown_end = attacker->attack_cooldown_end_time;
+    attach_stub_anim(attacker);
+    attacker->wait = FRAMETIME / 1000.0f;
+    attacker->currentmove->think(attacker);
+    T_ASSERT(target->health.value < target->health.max_value);
+
+    /* Damage point is at 30 ms; by animation end at 600 ms, only 230 ms of
+     * the authored 800 ms backswing remains. Cooldown still has 400 ms. */
+    level.time += 600;
+    attacker->currentmove->endfunc(attacker);
+    T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
+    T_FEQ(attacker->wait, 0.4f, 0.01f);
+}
+
 TEST(wc3_combat, attack_max_range_uses_both_unit_collision_edges) {
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 150.0f, 0.0f);
