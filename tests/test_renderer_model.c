@@ -602,6 +602,34 @@ TEST(renderer_model, mdx_particle_velocity_follows_emitter_node_rotation) {
     tr.viewDef = saved;
 }
 
+TEST(renderer_model, mdx_xyquad_axes_use_orientation_without_world_translation) {
+    mdxParticleEmitter_t emitter = { .node.node_id = 0, .node.flags = MDLXNODE_XYQuad,
+        .LifeSpan = 1, .EmissionRate = 100, .Speed = 1, .Latitude = 0,
+        .Alpha = {255, 255, 255}, .ParticleScaling = {1, 1, 1},
+        .SegmentColor = {1,1,1, 1,1,1, 1,1,1}, .Rows = 1, .Columns = 1 };
+    mdxModel_t model = { .emitters = &emitter };
+    renderEntity_t entity = { .frame = 0, .oldframe = 0 };
+    mat4_t matrix;
+    viewDef_t saved = tr.viewDef;
+
+    Matrix4_identity(&matrix);
+    matrix.v[12] = 17.0f; matrix.v[13] = -23.0f; matrix.v[14] = 31.0f;
+    Matrix4_identity(&node_matrices[0]);
+    Matrix4_rotate(&node_matrices[0], &(vec3_t){90, 0, 0}, ROTATE_XYZ);
+    tr.viewDef.deltaTime = 10;
+    emit_count = 0;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+
+    T_EQ(emit_count, 1);
+    T_FEQ(emitted[0].quad_right.x, 1.0f, 0.001f);
+    T_FEQ(emitted[0].quad_right.y, 0.0f, 0.001f);
+    T_FEQ(emitted[0].quad_right.z, 0.0f, 0.001f);
+    T_FEQ(emitted[0].quad_up.x, 0.0f, 0.001f);
+    T_FEQ(emitted[0].quad_up.y, 0.0f, 0.001f);
+    T_FEQ(emitted[0].quad_up.z, 1.0f, 0.001f);
+    tr.viewDef = saved;
+}
+
 TEST(renderer_model, mdx_ribbon_trail_emits_connected_edges_and_expires) {
     trail_t trail = { 0 };
     vec3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
@@ -1327,6 +1355,24 @@ TEST(renderer_model, clock_emission_ignores_zero_rate_and_delta) {
     R_EmitParticlesAtTime(0.0f, 1050, 100, test_spawn, &spawn_count);
     R_EmitParticlesAtTime(10.0f, 1050, 0, test_spawn, &spawn_count);
     T_EQ(spawn_count, 0);
+}
+
+TEST(renderer_model, frame_emission_bounds_extreme_authored_rates) {
+    uint32_t count = 0;
+    float accum = 0.0f;
+
+    R_EmitParticles(1000000000.0f, &accum, 100, test_spawn, &count);
+    T_EQ(count, R_EMIT_PARTICLE_BUDGET);
+    T_FEQ(accum, 0.0f, 0.001f);
+}
+
+TEST(renderer_model, frame_emission_rejects_nonfinite_rates) {
+    uint32_t count = 0;
+    float accum = 0.5f;
+
+    R_EmitParticles(INFINITY, &accum, 100, test_spawn, &count);
+    T_EQ(count, 0);
+    T_FEQ(accum, 0.0f, 0.001f);
 }
 
 TEST(renderer_alpha, active_samples_require_a_real_multisample_buffer) {

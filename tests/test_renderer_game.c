@@ -116,6 +116,39 @@ TEST(renderer_game, reused_entity_generation_seeds_mdx_event_clock) {
     R_W3ClearEventSplats();
 }
 
+TEST(renderer_game, entity_camera_event_state_invalidates_when_model_has_no_events) {
+    uint32_t key = 100;
+    mdxEvent_t event = { .num_keys = 1, .globalSeqId = (uint32_t)-1, .keys = &key };
+    mdxModel_t mdx_with_events = { .events = &event };
+    mdxModel_t mdx_without_events = { 0 };
+    model_t model_with_events = { .modeltype = ID_MDLX, .mdx = &mdx_with_events };
+    model_t model_without_events = { .modeltype = ID_MDLX, .mdx = &mdx_without_events };
+    renderEntity_t entity = { .model = &model_with_events, .number = 12, .frame = 0,
+                              .generation = 1, .instance_id = 99127 };
+    uint32_t saved_rdflags = tr.viewDef.rdflags;
+    render_phase_t saved_phase = tr.render_phase;
+
+    R_W3ClearCameraEventStates();
+    tr.viewDef.rdflags = RDF_USE_ENTITY_CAMERA;
+    tr.render_phase = RENDER_PHASE_SOLID;
+    R_UpdateEntityPresentation(&entity);
+    wc3EventState_t *state = R_W3CameraEventState(&entity);
+    T_NOT_NULL(state);
+    T_ASSERT(state->valid);
+    T_EQ(state->model, &model_with_events);
+
+    entity.model = &model_without_events;
+    R_UpdateEntityPresentation(&entity);
+    state = R_W3CameraEventState(&entity);
+    T_NOT_NULL(state);
+    T_ASSERT(!state->valid);
+    T_NULL(state->model);
+
+    R_W3ClearCameraEventStates();
+    tr.viewDef.rdflags = saved_rdflags;
+    tr.render_phase = saved_phase;
+}
+
 static handle_t test_renderer_alloc(long size) { return calloc(1, (size_t)size); }
 static void test_renderer_free(handle_t ptr) { free(ptr); }
 
