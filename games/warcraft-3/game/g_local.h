@@ -1695,6 +1695,7 @@ struct edict_s {
     unitRace_t race;
     float wait;
     bool attack_cooldown_active;
+    float attack_cooldown_remaining;
     unitInfo_t unitinfo;
     unitAttack_t attack1;
     unitAttack_t attack2;

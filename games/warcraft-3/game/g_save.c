@@ -770,6 +770,7 @@ field_t edict_fields[] = {
     F(edict_s, projectile_reflected, F_INT),
     F(edict_s, collision, F_FLOAT),
     F(edict_s, attack_cooldown_active, F_INT),
+    F(edict_s, attack_cooldown_remaining, F_FLOAT),
     F(edict_s, unitinfo, F_STRUCT, 1, unit_info_fields),
     F(edict_s, attack1, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, attack2, F_STRUCT, 1, unit_attack_fields),
