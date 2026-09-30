@@ -1698,6 +1698,7 @@ struct edict_s {
     bool attack_cooldown_active;
     float attack_cooldown_remaining;
     uint32_t attack_cooldown_end_time;
+    uint32_t attack_backswing_end_time;
     unitInfo_t unitinfo;
     unitAttack_t attack1;
     unitAttack_t attack2;

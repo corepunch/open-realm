@@ -29,6 +29,9 @@ static bool attack_target_out_of_range(edict_t *ent);
 static bool attack_target_out_of_base_range(edict_t *ent);
 static bool attack_target_too_close(edict_t *ent);
 static bool attack_cooldown_elapsed(edict_t *ent, bool tick_recovery);
+static float attack_speed_divisor(edict_t *self);
+static void attack_set_backswing_deadline(edict_t *ent);
+static float attack_backswing_remaining(edict_t const *ent);
 static umove_t attack_move_melee_cooldown;
 static umove_t attack_move_ranged_cooldown;
 
@@ -457,11 +460,23 @@ static bool attack_animation_can_finish(edict_t const *ent) {
     return ent && ent->animation && ent->animation->interval[1] > ent->animation->interval[0];
 }
 
+static void attack_set_backswing_deadline(edict_t *ent) {
+    uint32_t duration = (uint32_t)ceilf(MAX(0.0f, ACTIVE_ATTACK(ent)->backswingPoint /
+                                                      attack_speed_divisor(ent)) * 1000.0f);
+    ent->attack_backswing_end_time = G_Time() + duration;
+}
+
+static float attack_backswing_remaining(edict_t const *ent) {
+    int32_t remaining = ent ? (int32_t)(ent->attack_backswing_end_time - G_Time()) : 0;
+    return remaining > 0 ? remaining / 1000.0f : 0.0f;
+}
+
 static void damage_target(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
     if (attack_stop_if_target_invalid(ent)) return;
     umove_t const *move = ent->currentmove;
     edict_t *target = ent->goalentity;
+    attack_set_backswing_deadline(ent);
     S_ResolveAttackHit(ent, ent->goalentity, G_AttackDamage(ent, ent->goalentity, ai_rolldamage1(ent, 1)));
     /* Normal units enter recovery from the attack animation's end callback.
      * Some building models (notably Orc Burrows in the current asset path) do
@@ -490,6 +505,7 @@ static void throw_missile(edict_t *ent) {
     unitAttack_t const *atk = ACTIVE_ATTACK(ent);
     vec3_t origin = Matrix4_multiply_vector3(&matrix, &atk->origin);
     vec2_t impact = other->s.origin2;
+    attack_set_backswing_deadline(ent);
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .target = other,
@@ -821,13 +837,17 @@ void attack_melee_cooldown(edict_t *self) {
      * deadline instead of restarting cooldown - damagePoint from here. The
      * fallback covers callers that enter recovery without an active swing
      * deadline (for example zero-length animation paths). */
-    if (self->attack_cooldown_active && self->currentmove == &attack_move_melee)
+    if (self->currentmove == &attack_move_melee)
         attack_cooldown_elapsed(self, false);
-    else
+    else {
         attack_set_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
+        /* Direct calls without a preceding swing model the damage point at
+         * recovery entry; normal attack moves set this at the committed hit. */
+        attack_set_backswing_deadline(self);
+    }
     unit_setmove(self, &attack_move_melee_cooldown);
     self->wait = MAX(self->attack_cooldown_remaining,
-                     ACTIVE_ATTACK(self)->backswingPoint / divisor);
+                     attack_backswing_remaining(self));
     /* The next swing must satisfy both authored gates: weapon cooldown from
      * swing start and backswing after damage point.  If both have already
      * elapsed, transition explicitly instead of parking on wait==0. */
@@ -844,13 +864,15 @@ void attack_melee(edict_t *self) {
 
 void attack_ranged_cooldown(edict_t *self) {
     float divisor = attack_speed_divisor(self);
-    if (self->attack_cooldown_active && self->currentmove == &attack_move_ranged)
+    if (self->currentmove == &attack_move_ranged)
         attack_cooldown_elapsed(self, false);
-    else
+    else {
         attack_set_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
+        attack_set_backswing_deadline(self);
+    }
     unit_setmove(self, &attack_move_ranged_cooldown);
     self->wait = MAX(self->attack_cooldown_remaining,
-                     ACTIVE_ATTACK(self)->backswingPoint / divisor);
+                     attack_backswing_remaining(self));
     if (self->wait <= 0.0f) attack_ranged(self);
 }
 
