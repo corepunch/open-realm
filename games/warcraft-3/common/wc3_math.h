@@ -6,6 +6,8 @@
 #include <string.h>
 #include "wc3_math_tables.h"
 
+static uint32_t const wc3_exp_coeffs[] = { 0x3c1a534c, 0x3d296ec9, 0x3e2ab479, 0x3effffbd, 0x3f800000, 0x3f800000 };
+
 /* Retail 1.27 software scalars truncate significands rather than rounding to nearest.
  * Integer operations keep the simulation independent of host FP rounding and contraction. */
 static inline uint32_t wc3_float_bits(float f) { uint32_t w; memcpy(&w, &f, sizeof(w)); return w; }
@@ -152,6 +154,75 @@ static inline float wc3_integer_power(float base, uint32_t exponent) {
     }
     return result;
 }
+
+/* 0715c0 truncates the raw significand, including signed zero and exceptional words. */
+static inline uint32_t wc3_trunc_bits(uint32_t word) {
+    int exp = ((word >> 23) & 255) - 127;
+    return exp < 0 ? 0 : exp >= 23 ? word : word & (UINT32_MAX << (23 - exp));
+}
+
+/* 06fd50 retains the rational log curve's scalar order and explicit numerator doubling. */
+static inline float wc3_ln_core(float value) {
+    float ratio = wc3_div(wc3_add(value, -1.0f), wc3_add(value, 1.0f));
+    float square = wc3_mul(ratio, ratio);
+    float numer = wc3_mul(ratio, wc3_add(1.0f, wc3_mul(wc3_float(0xbe88d424), square)));
+    uint32_t word = wc3_float_bits(numer);
+    if (word & 0x7f800000u) word += 0x800000u;
+    return wc3_div(wc3_float(word), wc3_add(1.0f, wc3_mul(wc3_float(0xbf19bf59), square)));
+}
+
+/* 06ff20 selects the exact reduction thresholds; unordered compares take the low branch. */
+static inline float wc3_ln_reduced(float value) {
+    if (value >= wc3_float(0x3f612ad1)) return wc3_ln_core(value);
+    if (!(value >= wc3_float(0x3f28e5a3)))
+        return wc3_add(wc3_ln_core(wc3_mul(value, wc3_float(0x3fdedc67))), wc3_float(0xbf0df4e0));
+    return wc3_add(wc3_ln_core(wc3_mul(value, wc3_float(0x3fa8e5a3))), wc3_float(0xbe8df4e0));
+}
+
+/* 070f70 decomposes magnitude, then retains reciprocal-ln2/exponent/ln2 scalar scaling. */
+static inline float wc3_ln(float value) {
+    uint32_t word = wc3_float_bits(value);
+    float mant = wc3_float((word & 0x7fffffu) | 0x3f800000u);
+    float frac = wc3_mul(wc3_ln_reduced(mant), wc3_float(0x3fb8aa3b));
+    float exp = wc3_float(wc3_from_int((uint32_t)((int)((word >> 23) & 255) - 127)));
+    return wc3_mul(wc3_add(exp, frac), wc3_float(0x3f317218));
+}
+
+/* 070c20/06fe10: quarter-step integer power and ordered polynomial, reciprocal for negative input.
+ * False denotes the original signed-SAR exponent loop's nonterminating domain; output is untouched. */
+static inline bool wc3_exp(float value, float *output) {
+    uint32_t word = wc3_float_bits(value);
+    bool neg = word & 0x80000000u && (word & 0x7fffffffu);
+    if (neg) word ^= 0x80000000u;
+    uint32_t scaled = word + (word & 0x7f800000u ? 0x1000000u : 0);
+    uint32_t whole = wc3_trunc_bits(scaled), exp = wc3_int_bits(whole);
+    if (exp & 0x80000000u) return false;
+    uint32_t frac = wc3_float_bits(wc3_sub(wc3_float(scaled), wc3_float(whole)));
+    frac = ((frac - 0x1800000u) ^ frac) & 0x80000000u ? 0 : frac - 0x1000000u;
+    float part = wc3_float(frac), result = wc3_float(wc3_exp_coeffs[0]);
+    for (unsigned i = 1; i < sizeof(wc3_exp_coeffs) / sizeof(wc3_exp_coeffs[0]); i++)
+        result = wc3_add(wc3_mul(result, part), wc3_float(wc3_exp_coeffs[i]));
+    result = wc3_mul(result, wc3_integer_power(wc3_float(0x3fa45af2), exp));
+    *output = neg ? wc3_recip(result) : result;
+    return true;
+}
+
+/* 0710e0 uses integer powers only for exact nonnegative integral exponents; other powers use ln/exp. */
+static inline bool wc3_pow(float base, float power, float *output) {
+    uint32_t word = wc3_float_bits(power);
+    if (wc3_float(wc3_trunc_bits(word)) == power && !(word & 0x80000000u && (word & 0x7fffffffu))) {
+        uint32_t exp = wc3_int_bits(word);
+        if (exp & 0x80000000u) return false;
+        *output = wc3_integer_power(base, exp);
+        return true;
+    }
+    if (!(wc3_float_bits(base) & 0x7f800000u)) {
+        *output = 0.0f;
+        return true;
+    }
+    return wc3_exp(wc3_mul(power, wc3_ln(base)), output);
+}
+
 
 /* Public S2R's decimal parser070de0: optional sign, one point, nine significant
  * digits, no whitespace skipping/exponents. Scalar scaling also truncates.

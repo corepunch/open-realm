@@ -1,6 +1,49 @@
 /* Compile as a shared library to compare the same arithmetic used by Move with retail calls. */
 #include "games/warcraft-3/common/wc3_math.h"
 
+/* Three-word ABI bridges preserve output on the declared nonreturning retail power domain. */
+void pathing_corelog(uint32_t a, uint32_t b, uint32_t output[2]) {
+    (void)b;
+    output[0] = 1;
+    output[1] = wc3_float_bits(wc3_ln_core(wc3_float(a)));
+}
+void pathing_reducedlog(uint32_t a, uint32_t b, uint32_t output[2]) {
+    (void)b;
+    output[0] = 1;
+    output[1] = wc3_float_bits(wc3_ln_reduced(wc3_float(a)));
+}
+void pathing_log(uint32_t a, uint32_t b, uint32_t output[2]) {
+    (void)b;
+    output[0] = 1;
+    output[1] = wc3_float_bits(wc3_ln(wc3_float(a)));
+}
+void pathing_exp(uint32_t a, uint32_t b, uint32_t output[2]) {
+    float value;
+    (void)b;
+    output[0] = wc3_exp(wc3_float(a), &value);
+    if (output[0]) output[1] = wc3_float_bits(value);
+}
+void pathing_power(uint32_t a, uint32_t b, uint32_t output[2]) {
+    float value;
+    output[0] = wc3_pow(wc3_float(a), wc3_float(b), &value);
+    if (output[0]) output[1] = wc3_float_bits(value);
+}
+void pathing_public_power(uint32_t a, uint32_t b, uint32_t output[2]) {
+    float value;
+    bool small = wc3_float(wc3_float_bits(wc3_sub(wc3_float(a), 0.0f)) & 0x7fffffffu) < wc3_float(0x3a83126f);
+    bool tiny = wc3_float(wc3_float_bits(wc3_sub(wc3_float(b), 0.0f)) & 0x7fffffffu) < wc3_float(0x3a83126f);
+    if (small && wc3_float(b) < 0.0f) {
+        output[0] = 1;
+        output[1] = 0;
+    } else if (!small && tiny) {
+        output[0] = 1;
+        output[1] = 0x3f800000;
+    } else {
+        output[0] = wc3_pow(wc3_float(a), wc3_float(b), &value);
+        if (output[0]) output[1] = wc3_float_bits(value);
+    }
+}
+
 uint32_t pathing_add(uint32_t a, uint32_t b) { return wc3_add_bits(a, b); }
 uint32_t pathing_subtract(uint32_t a, uint32_t b) { return wc3_add_bits(a, b ^ 0x80000000u); }
 uint32_t pathing_multiply(uint32_t a, uint32_t b) { return wc3_mul_bits(a, b); }

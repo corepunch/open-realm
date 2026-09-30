@@ -54,7 +54,8 @@ def main():
                     Path(__file__).with_name('wc3_pathfinding_probe.j'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),
-                    Path(__file__).with_name('wc3_angle_inputs.json')]
+                    Path(__file__).with_name('wc3_angle_inputs.json'),
+                    Path(__file__).with_name('wc3_power_inputs.json')]
     provenance = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths}
     map_path = args.data / args.map.replace('\\', '/')
     if args.numeric_events and not map_path.is_file():

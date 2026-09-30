@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / 'tools/frida'))
 from verify_wc3_pathing_numeric import add, subtract, multiply, bits, trig_bits, square_root, reciprocal, acos_bits, fractional, modulo, decimal_bits, integer_float, saturating_integer_word, asin_bits, atan_bits, atan2_bits, divide
 from generate_wc3_math_tables import sine_table, reciprocal_table, acos_tables
 from verify_wc3_motion_trace import verify
+from verify_wc3_pathing_power import corelog, reducedlog, log, exp, power, public as public_power
 
 
 class PathingMathTests(unittest.TestCase):
@@ -41,6 +42,43 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def power_bridge(self, engine, name, a, b=0):
+        proc = getattr(engine, 'pathing_' + name)
+        proc.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32)]
+        proc.restype = None
+        result = (ctypes.c_uint32 * 2)(0xabcdef01, 0xabcdef02)
+        proc(a, b, result)
+        return list(result)
+
+    def test_power_curves_and_compiler_optimization_agree(self):
+        rng = random.Random(0x127190)
+        words = [rng.getrandbits(32) for _ in range(3000)]
+        words += [bits(v / 32) for v in range(-256, 257)]
+        for engine in self.engines:
+            for name, model in [('corelog', corelog), ('reducedlog', reducedlog), ('log', log), ('exp', exp)]:
+                for word in words:
+                    try:
+                        expected = [1, model(word)]
+                    except ValueError:
+                        expected = [0, 0xabcdef02]
+                    self.assertEqual(self.power_bridge(engine, name, word), expected, (name, hex(word)))
+
+    def test_public_power_matches_live_words(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-public-power-inputs-1.27.json').read_text())
+        for case in fixture['cases']:
+            a, b = case['input_word']
+            self.assertEqual(public_power(a, b), case['output'])
+            for engine in self.engines:
+                self.assertEqual(self.power_bridge(engine, 'public_power', a, b), [1, case['output']])
+
+    def test_power_nontermination_does_not_invent_output(self):
+        for engine in self.engines:
+            for name, a, b in [('power', bits(2), bits(2147483648)),
+                               ('public_power', bits(2), bits(2147483648)),
+                               ('exp', bits(536870912), 0)]:
+                self.assertEqual(self.power_bridge(engine, name, a, b), [0, 0xabcdef02])
+            self.assertEqual(self.power_bridge(engine, 'power', bits(2), bits(3)), [1, bits(8)])
 
     def test_integer_reference_and_compiler_optimization_agree(self):
         rng = random.Random(0x12717085)

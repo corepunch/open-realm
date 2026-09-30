@@ -1,0 +1,540 @@
+{
+  "target_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "trace_wc3_pathfinding.py": "992dafd24cdbfca912a2c2d0414a0aac2f62a6d27fc055bc2bd996d45316e4a7",
+    "wc3_pathfinding.js": "0ea98bc28d0439a6fa35141c6e553dcf31b96424ac66cad52000db4c0a86ca04",
+    "wc3_pathfinding_probe.j": "84d98e931923e835ddd70206754697aa2fa185f1f7c9a7136b68a89ddba5670f",
+    "make_wc3_pathfinding_map.py": "2cde7f6f05896c6a8897396babfff8ae1c01008c09cb9cecc63da02102aa2e63",
+    "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+    "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+    "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+    "map": "0207fa6018d07b53ec4ee53cd7b005254fd96ecf56cd4b55b6568a93d0742781"
+  },
+  "cases": [
+    {
+      "id": "pow_0",
+      "native": "Pow",
+      "input": [
+        0,
+        -1
+      ],
+      "input_word": [
+        0,
+        3212836864
+      ],
+      "output": 0
+    },
+    {
+      "id": "pow_1",
+      "native": "Pow",
+      "input": [
+        0,
+        0
+      ],
+      "input_word": [
+        0,
+        0
+      ],
+      "output": 1065353216
+    },
+    {
+      "id": "pow_2",
+      "native": "Pow",
+      "input": [
+        0,
+        0.5
+      ],
+      "input_word": [
+        0,
+        1056964608
+      ],
+      "output": 0
+    },
+    {
+      "id": "pow_3",
+      "native": "Pow",
+      "input": [
+        -0.0005,
+        -1
+      ],
+      "input_word": [
+        3120763503,
+        3212836864
+      ],
+      "output": 0
+    },
+    {
+      "id": "pow_4",
+      "native": "Pow",
+      "input": [
+        0.0005,
+        -1
+      ],
+      "input_word": [
+        973279855,
+        3212836864
+      ],
+      "output": 0
+    },
+    {
+      "id": "pow_5",
+      "native": "Pow",
+      "input": [
+        0.0005,
+        0.5
+      ],
+      "input_word": [
+        973279855,
+        1056964608
+      ],
+      "output": 1018637770
+    },
+    {
+      "id": "pow_6",
+      "native": "Pow",
+      "input": [
+        0.001,
+        -1
+      ],
+      "input_word": [
+        981668463,
+        3212836864
+      ],
+      "output": 1148846058
+    },
+    {
+      "id": "pow_7",
+      "native": "Pow",
+      "input": [
+        -0.001,
+        -1
+      ],
+      "input_word": [
+        3129152111,
+        3212836864
+      ],
+      "output": 1148846058
+    },
+    {
+      "id": "pow_8",
+      "native": "Pow",
+      "input": [
+        1,
+        -3
+      ],
+      "input_word": [
+        1065353216,
+        3225419776
+      ],
+      "output": 1065353216
+    },
+    {
+      "id": "pow_9",
+      "native": "Pow",
+      "input": [
+        1,
+        0.0005
+      ],
+      "input_word": [
+        1065353216,
+        973279855
+      ],
+      "output": 1065353216
+    },
+    {
+      "id": "pow_10",
+      "native": "Pow",
+      "input": [
+        2,
+        0.0005
+      ],
+      "input_word": [
+        1073741824,
+        973279855
+      ],
+      "output": 1065353216
+    },
+    {
+      "id": "pow_11",
+      "native": "Pow",
+      "input": [
+        -2,
+        0.0005
+      ],
+      "input_word": [
+        3221225472,
+        973279855
+      ],
+      "output": 1065353216
+    },
+    {
+      "id": "pow_12",
+      "native": "Pow",
+      "input": [
+        2,
+        0
+      ],
+      "input_word": [
+        1073741824,
+        0
+      ],
+      "output": 1065353216
+    },
+    {
+      "id": "pow_13",
+      "native": "Pow",
+      "input": [
+        2,
+        -0.0
+      ],
+      "input_word": [
+        1073741824,
+        0
+      ],
+      "output": 1065353216
+    },
+    {
+      "id": "pow_14",
+      "native": "Pow",
+      "input": [
+        2,
+        0.5
+      ],
+      "input_word": [
+        1073741824,
+        1056964608
+      ],
+      "output": 1068827891
+    },
+    {
+      "id": "pow_15",
+      "native": "Pow",
+      "input": [
+        -2,
+        0.5
+      ],
+      "input_word": [
+        3221225472,
+        1056964608
+      ],
+      "output": 1068827891
+    },
+    {
+      "id": "pow_16",
+      "native": "Pow",
+      "input": [
+        2,
+        -0.5
+      ],
+      "input_word": [
+        1073741824,
+        3204448256
+      ],
+      "output": 1060439285
+    },
+    {
+      "id": "pow_17",
+      "native": "Pow",
+      "input": [
+        -2,
+        -0.5
+      ],
+      "input_word": [
+        3221225472,
+        3204448256
+      ],
+      "output": 1060439285
+    },
+    {
+      "id": "pow_18",
+      "native": "Pow",
+      "input": [
+        2,
+        3
+      ],
+      "input_word": [
+        1073741824,
+        1077936128
+      ],
+      "output": 1090519040
+    },
+    {
+      "id": "pow_19",
+      "native": "Pow",
+      "input": [
+        -2,
+        3
+      ],
+      "input_word": [
+        3221225472,
+        1077936128
+      ],
+      "output": 3238002688
+    },
+    {
+      "id": "pow_20",
+      "native": "Pow",
+      "input": [
+        2,
+        4
+      ],
+      "input_word": [
+        1073741824,
+        1082130432
+      ],
+      "output": 1098907648
+    },
+    {
+      "id": "pow_21",
+      "native": "Pow",
+      "input": [
+        -2,
+        4
+      ],
+      "input_word": [
+        3221225472,
+        1082130432
+      ],
+      "output": 1098907648
+    },
+    {
+      "id": "pow_22",
+      "native": "Pow",
+      "input": [
+        0.5,
+        -3
+      ],
+      "input_word": [
+        1056964608,
+        3225419776
+      ],
+      "output": 1090519035
+    },
+    {
+      "id": "pow_23",
+      "native": "Pow",
+      "input": [
+        -0.5,
+        -3
+      ],
+      "input_word": [
+        3204448256,
+        3225419776
+      ],
+      "output": 1090519035
+    },
+    {
+      "id": "pow_24",
+      "native": "Pow",
+      "input": [
+        16,
+        0.5
+      ],
+      "input_word": [
+        1098907648,
+        1056964608
+      ],
+      "output": 1082130427
+    },
+    {
+      "id": "pow_25",
+      "native": "Pow",
+      "input": [
+        10,
+        -0.3
+      ],
+      "input_word": [
+        1092616192,
+        3197737370
+      ],
+      "output": 1056984529
+    },
+    {
+      "id": "pow_26",
+      "native": "Pow",
+      "input": [
+        100,
+        0.3
+      ],
+      "input_word": [
+        1120403456,
+        1050253722
+      ],
+      "output": 1082051031
+    },
+    {
+      "id": "pow_27",
+      "native": "Pow",
+      "input": [
+        -100,
+        0.3
+      ],
+      "input_word": [
+        3267887104,
+        1050253722
+      ],
+      "output": 1082051031
+    },
+    {
+      "id": "pow_28",
+      "native": "Pow",
+      "input": [
+        1.5,
+        2.25
+      ],
+      "input_word": [
+        1069547521,
+        1074790400
+      ],
+      "output": 1075797164
+    },
+    {
+      "id": "pow_29",
+      "native": "Pow",
+      "input": [
+        1.25,
+        7.5
+      ],
+      "input_word": [
+        1067450368,
+        1089470465
+      ],
+      "output": 1084922158
+    },
+    {
+      "id": "pow_30",
+      "native": "Pow",
+      "input": [
+        10,
+        10
+      ],
+      "input_word": [
+        1092616192,
+        1092616192
+      ],
+      "output": 1343554297
+    },
+    {
+      "id": "pow_31",
+      "native": "Pow",
+      "input": [
+        100,
+        -20
+      ],
+      "input_word": [
+        1120403456,
+        3248488448
+      ],
+      "output": 2130706432
+    },
+    {
+      "id": "pow_32",
+      "native": "Pow",
+      "input": [
+        100,
+        20
+      ],
+      "input_word": [
+        1120403456,
+        1101004800
+      ],
+      "output": 0
+    },
+    {
+      "id": "pow_33",
+      "native": "Pow",
+      "input": [
+        0.0009999999,
+        -1
+      ],
+      "input_word": [
+        981668463,
+        3212836864
+      ],
+      "output": 1148846058
+    },
+    {
+      "id": "pow_34",
+      "native": "Pow",
+      "input": [
+        0.0010000002,
+        -1
+      ],
+      "input_word": [
+        981668465,
+        3212836864
+      ],
+      "output": 1148846058
+    },
+    {
+      "id": "pow_35",
+      "native": "Pow",
+      "input": [
+        2,
+        8388608
+      ],
+      "input_word": [
+        1073741824,
+        1258291200
+      ],
+      "output": 0
+    },
+    {
+      "id": "pow_36",
+      "native": "Pow",
+      "input": [
+        1,
+        2147483520
+      ],
+      "input_word": [
+        1065353216,
+        1325400063
+      ],
+      "output": 1065353216
+    },
+    {
+      "id": "pow_37",
+      "native": "Pow",
+      "input": [
+        2,
+        -17
+      ],
+      "input_word": [
+        1073741824,
+        3246915584
+      ],
+      "output": 922746898
+    },
+    {
+      "id": "pow_38",
+      "native": "Pow",
+      "input": [
+        2,
+        63.5
+      ],
+      "input_word": [
+        1073741824,
+        1115553793
+      ],
+      "output": 1597310133
+    },
+    {
+      "id": "pow_39",
+      "native": "Pow",
+      "input": [
+        2,
+        -63.5
+      ],
+      "input_word": [
+        1073741824,
+        3263037441
+      ],
+      "output": 531957043
+    }
+  ],
+  "move_destination_words": [
+    3304194048,
+    3272605696
+  ],
+  "scope": "Forty actual registered20f990 Pow calls with observed S2R argument words and outputs, repeated identically in two complete owned captures. Independent log/exp/scalar model matches all outputs. Source/map hashes embedded at capture start; adjacent archived exact sources retained. Ordinary Move/timer completion witnesses prove progression, not full pathfinding parity. Signed-SAR nontermination controls are isolated original-code budgets, excluded from live fixture."
+}

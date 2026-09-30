@@ -996,3 +996,62 @@ summary SHA256
 `94fc67963332bff10a955bbc43297951f5e607c78d00657650a4302195bf33fe`.
 Logs are `/tmp/wc3-map-03.7-final-full-suite.log`, `wc3-map-03.7-debug.log`,
 `wc3-map-03.7-normal-restored.log` and `wc3-map-03.7-production.log`.
+
+
+## Public Pow and exact logarithm/exponential arithmetic
+
+NUM-01.9 recovers the registered cdecl Pow adapter`20f990` and its scalar
+`0710e0` helper. The adapter compares absolute software differences from zero
+against raw`3a83126f`, strictly: small base plus negative exponent returns0;
+non-small base plus small exponent returns1. Otherwise an exact nonnegative
+integral exponent uses wrapped`070120` conversion and binary power`071180`.
+Other exponents use magnitude-log`070f70`, scalar multiplication by the exponent,
+and exp`070c20`. Negative bases with fractional/negative exponents therefore use
+magnitude, unlike the former host `pow` call. Exponent-zero base is guarded inside
+the noninteger branch, so public`Pow(0,0)` still reaches integer power and returns1.
+
+The magnitude-log strips sign/exponent into a1.x mantissa, applies rational
+`06fd50` through reduction`06ff20`, scales by reciprocal-ln2, adds a truncated
+integer exponent, then multiplies by ln2. The rational curve uses
+`t=(x-1)/(x+1)`, ordered software products and an explicit raw exponent increment
+for numerator doubling. Exp splits four times the magnitude into a truncated
+whole and fractional quarter-step, runs the five-term ordered polynomial, then
+multiplies integer power of the original quarter-step constant. Negative input
+uses the original reciprocal. All constants and operation order are retained;
+production uses the same integer scalar operations as Move, with no host log/exp.
+
+The original/model/C oracle verifies24,423 completed calls, including12,000
+arbitrary raw log words, exceptional exp words, output aliases, stack guards and
+nonvolatile registers. O0/O2 yield identical outcome digest
+`7cf000cfa0a565663f3828dc3186a88efe463c7a9a27ea12494024ba0d13430e`.
+Expanded raw testing corrected a reference-model mistake: original`0715c0`
+truncates toward zero, whereas`070c80` floors. A wrapped scaled negative sub-unit
+from raw`ff920e3a` distinguishes them; the C port already used truncation.
+Ghidra saves329 descriptive names,22 layouts,138 verified fields,93 exact x86
+prototypes and31 named globals, including all15 immutable log/exp operands.
+
+Two complete owned Frida captures repeat40 actual Pow argument/output pairs
+exactly. Arguments are real public S2R products; compiled literals remain
+NUM-01.7. Capture start pins all observer/generator/input/map hashes; adjacent
+archived files reproduce each hash. The strict native sequence digest is
+`238d8a90f6f0153a8311e673b62cb1c3b41f7f9a6e00f8406baa1fb917160888`.
+The frozen fixture is`retail-public-power-inputs-1.27.json`.
+The engine public-native regression reproduces27 host-Pow mismatches before the
+port, then passes all40 exact cases. The wider public numeric subset passes136
+checks, including the new error/inverse case. Fixtures compare real constants;
+an earlier scratch version used integer expected literals and was corrected
+before accepting the baseline.
+
+There is a distinct nonreturning helper domain: wrapped integer conversion can
+produce a negative signed exponent, and original`071180` arithmetic-shifts it
+until it stays`ffffffff`, never returning. The oracle records173 separate bounded
+controls, including full registered Pow with exponent2147483648; it assigns no
+numeric output. The C helper returns a failure status without changing its
+output, and the native reports a visible runtime error instead of fabricating a
+number or hanging the server. This is an explicit bounded integration limit:
+retail VM watchdog/lifetime behavior is not observed and remains NUM-01.2. The
+engine error case uses a runtime-produced exponent and verifies the next normal
+Pow call still succeeds. Shared initialization producers, non-ASCII parser
+locale and other arithmetic consumers remain in that inventory; attack's
+separate armor `powf` consumer has not been promoted without its own retail
+producer evidence. No save/network or movement-clock representation changes.

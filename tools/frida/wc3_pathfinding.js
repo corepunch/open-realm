@@ -21,13 +21,13 @@ function install(module) {
                                   ['Sin',0x215d00], ['Cos',0x1f9580], ['Acos',0x1f75d0],
                                   ['SquareRoot',0x215d30], ['Asin',0x1f8250], ['Atan',0x1f8310],
                                   ['Tan',0x216750], ['Atan2',0x1f8290], ['Deg2Rad',0x1fcda0],
-                                  ['Rad2Deg',0x210480]]) {
+                                  ['Rad2Deg',0x210480], ['Pow',0x20f990]]) {
             hook(rva, {
                 onEnter(args) {
                     this.numeric = numericCase && numericCase.native === name ? {...numericCase} : null;
                     if (!this.numeric) return;
                     if (name !== 'S2R')
-                        this.numeric.input = name === 'I2R' ? args[0].toUInt32() : name === 'Atan2' ?
+                        this.numeric.input = name === 'I2R' ? args[0].toUInt32() : (name === 'Atan2' || name === 'Pow') ?
                             [args[0].readU32(),args[1].readU32()] : args[0].readU32();
                 },
                 onLeave(result) {

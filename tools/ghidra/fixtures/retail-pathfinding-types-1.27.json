@@ -2289,6 +2289,168 @@
       "returns": "u32",
       "convention": "__cdecl",
       "parameters": []
+    },
+    {
+      "address": "6f20f990",
+      "name": "Jass_Pow",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "base",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "power",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f0710e0",
+      "name": "Math_Power",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "base",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        },
+        {
+          "name": "power",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f070c20",
+      "name": "Math_Exp",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f06fe10",
+      "name": "Math_ExpQuarterPolynomial",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f070f70",
+      "name": "Math_LogMagnitude",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f06ff20",
+      "name": "Math_LogReduced",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f06fd50",
+      "name": "Math_LogRationalCurve",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f0715c0",
+      "name": "Math_TruncateScalar",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f070120",
+      "name": "Math_ToIntegerWrapped",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "input",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        }
+      ]
     }
   ],
   "globals": [
@@ -2387,6 +2549,96 @@
       "name": "Math_AtanReductionNegative",
       "type": "WC3PathScalar",
       "evidence": "Stored PE scalarbf13cd3a; consumed by original angle helper/native matrix. No direct write xrefs found; historical authored generation and indirect producer inventory not inferred."
+    },
+    {
+      "address": "6fcd5434",
+      "name": "Math_Ln2",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd5438",
+      "name": "Math_ReciprocalLn2",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd588c",
+      "name": "Math_LogReductionHigh",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd5890",
+      "name": "Math_LogMidScale",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd5894",
+      "name": "Math_LogReductionLow",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd5898",
+      "name": "Math_LogLowScale",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd589c",
+      "name": "Math_LogMidCorrection",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd58a0",
+      "name": "Math_LogLowCorrection",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd58a4",
+      "name": "Math_LogNumeratorCoefficient",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd58a8",
+      "name": "Math_LogDenominatorCoefficient",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd58ac",
+      "name": "Math_ExpQuarterBase",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd58b0",
+      "name": "Math_ExpCoefficient2",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd58b4",
+      "name": "Math_ExpCoefficient3",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd58b8",
+      "name": "Math_ExpCoefficient4",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
+    },
+    {
+      "address": "6fcd58bc",
+      "name": "Math_ExpCoefficient5",
+      "type": "WC3PathScalar",
+      "evidence": "NUM-01.9 exact original log/exp operand; immutable DLL bytes verified against independent model."
     }
   ]
 }

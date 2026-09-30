@@ -114,6 +114,11 @@ function PathProbeAngleInputs takes nothing returns nothing
 @ANGLE_CASES@
 endfunction
 
+function PathProbePowerInputs takes nothing returns nothing
+    local real realResult = 0.0
+@POWER_CASES@
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
@@ -125,6 +130,9 @@ function PathProbeTick takes nothing returns nothing
     endif
     if PATH_PROBE_SCENARIO == 24 and udg_PathProbeTick == 1 then
         call PathProbeAngleInputs()
+    endif
+    if PATH_PROBE_SCENARIO == 27 and udg_PathProbeTick == 1 then
+        call PathProbePowerInputs()
     endif
     if PATH_PROBE_SCENARIO == 22 then
         call PathProbeOrderLifecycle()

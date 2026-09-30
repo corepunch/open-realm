@@ -6478,6 +6478,293 @@
       ],
       "scope": "Original retained solid9x9 stock Footman widget cannot-path recovery. Uninterrupted admission, empty initial route, seven unchanged raw position/zero velocity ticks, original recovery/task drain and complete reclamation. Supplied RTTI parent ord., profile/cache/radius8/pools; whole owner cadence/authored public producer excluded.",
       "exclusions": []
+    },
+    {
+      "id": "oracle-power",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_power.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "power-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "binary_sha256": {
+          "equal": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+        },
+        "verified_calls": {
+          "equal": 24423
+        },
+        "nontermination_control_count": {
+          "equal": 173
+        },
+        "engine_compared": {
+          "equal": true
+        },
+        "outcome_sha256": {
+          "equal": "7cf000cfa0a565663f3828dc3186a88efe463c7a9a27ea12494024ba0d13430e"
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original scalar log/exp/power and registered Pow wrappers; supplied original -1/0/1 globals, immutable DLL constants/table validated. Independent integer scalar model, finite/public guards, sign/near-zero, raw log words, output aliases, ABI guards and nonvolatile registers. Signed negative integer-power exponents stop at declared instruction budgets with no numeric result. Public creation/compiled literals and original VM watchdog excluded.",
+      "exclusions": [
+        "Supplied -1/0/1 globals; full initialization/compiled decimal literals/original VM watchdog remain NUM-01.2/07. No numeric result is assigned to budget-stopped negative signed exponents."
+      ]
+    },
+    {
+      "id": "capture-num-01.9-power-first",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/num-01.9-power-first-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.9-power-first-raw.jsonl",
+        "sha256": "623181d3ec394a63f16634dde20261af51ce0db293566e190769b4672d9facc0",
+        "bytes": 91934,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "992dafd24cdbfca912a2c2d0414a0aac2f62a6d27fc055bc2bd996d45316e4a7",
+            "wc3_pathfinding.js": "0ea98bc28d0439a6fa35141c6e553dcf31b96424ac66cad52000db4c0a86ca04",
+            "wc3_pathfinding_probe.j": "84d98e931923e835ddd70206754697aa2fa185f1f7c9a7136b68a89ddba5670f",
+            "make_wc3_pathfinding_map.py": "2cde7f6f05896c6a8897396babfff8ae1c01008c09cb9cecc63da02102aa2e63",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "map": "0207fa6018d07b53ec4ee53cd7b005254fd96ecf56cd4b55b6568a93d0742781"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 60.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true
+        }
+      },
+      "report": "captures/num-01.9-power-first-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned public Pow capture with40 native calls, embedded source/map hashes and adjacent exact archived sources. Generic archive consistency is distinct from the strict repeat/native model contract.",
+      "exclusions": [
+        "Archive audit alone does not establish numerical parity; live-public-power-repeat and oracle-power own those contracts."
+      ]
+    },
+    {
+      "id": "capture-num-01.9-power-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/num-01.9-power-repeat-raw.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.9-power-repeat-raw.jsonl",
+        "sha256": "5559876e43159c5f8a67505e130a3c9a9a9c1c1c533df204e3ebe9cba3ca1ee8",
+        "bytes": 91934,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "992dafd24cdbfca912a2c2d0414a0aac2f62a6d27fc055bc2bd996d45316e4a7",
+            "wc3_pathfinding.js": "0ea98bc28d0439a6fa35141c6e553dcf31b96424ac66cad52000db4c0a86ca04",
+            "wc3_pathfinding_probe.j": "84d98e931923e835ddd70206754697aa2fa185f1f7c9a7136b68a89ddba5670f",
+            "make_wc3_pathfinding_map.py": "2cde7f6f05896c6a8897396babfff8ae1c01008c09cb9cecc63da02102aa2e63",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "map": "0207fa6018d07b53ec4ee53cd7b005254fd96ecf56cd4b55b6568a93d0742781"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 60.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true
+        }
+      },
+      "report": "captures/num-01.9-power-repeat-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete owned public Pow capture with40 native calls, embedded source/map hashes and adjacent exact archived sources. Generic archive consistency is distinct from the strict repeat/native model contract.",
+      "exclusions": [
+        "Archive audit alone does not establish numerical parity; live-public-power-repeat and oracle-power own those contracts."
+      ]
+    },
+    {
+      "id": "live-public-power-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_numeric_inputs.py",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-power-inputs-1.27.json",
+        "--capture",
+        "{archive}/runtime/num-01.9-power-first-raw.jsonl",
+        "--repeat",
+        "{archive}/runtime/num-01.9-power-repeat-raw.jsonl",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.9-power-first-raw.jsonl",
+        "sha256": "623181d3ec394a63f16634dde20261af51ce0db293566e190769b4672d9facc0",
+        "bytes": 91934,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "992dafd24cdbfca912a2c2d0414a0aac2f62a6d27fc055bc2bd996d45316e4a7",
+            "wc3_pathfinding.js": "0ea98bc28d0439a6fa35141c6e553dcf31b96424ac66cad52000db4c0a86ca04",
+            "wc3_pathfinding_probe.j": "84d98e931923e835ddd70206754697aa2fa185f1f7c9a7136b68a89ddba5670f",
+            "make_wc3_pathfinding_map.py": "2cde7f6f05896c6a8897396babfff8ae1c01008c09cb9cecc63da02102aa2e63",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "map": "0207fa6018d07b53ec4ee53cd7b005254fd96ecf56cd4b55b6568a93d0742781"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 60.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 2000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": true
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/num-01.9-power-repeat-raw.jsonl",
+            "sha256": "5559876e43159c5f8a67505e130a3c9a9a9c1c1c533df204e3ebe9cba3ca1ee8",
+            "bytes": 91934,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "992dafd24cdbfca912a2c2d0414a0aac2f62a6d27fc055bc2bd996d45316e4a7",
+                "wc3_pathfinding.js": "0ea98bc28d0439a6fa35141c6e553dcf31b96424ac66cad52000db4c0a86ca04",
+                "wc3_pathfinding_probe.j": "84d98e931923e835ddd70206754697aa2fa185f1f7c9a7136b68a89ddba5670f",
+                "make_wc3_pathfinding_map.py": "2cde7f6f05896c6a8897396babfff8ae1c01008c09cb9cecc63da02102aa2e63",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "map": "0207fa6018d07b53ec4ee53cd7b005254fd96ecf56cd4b55b6568a93d0742781"
+              },
+              "map": "Maps\\New.w3m",
+              "seconds": 60.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 2000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": false,
+              "velocityEvents": false,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": true
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-public-power-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-public-power-repeat",
+      "checks": {
+        "violations": {
+          "equal": []
+        },
+        "repeat_equal": {
+          "equal": true
+        },
+        "native_cases": {
+          "equal": 40
+        },
+        "parser_cases": {
+          "equal": 0
+        },
+        "numeric_sha256": {
+          "equal": "238d8a90f6f0153a8311e673b62cb1c3b41f7f9a6e00f8406baa1fb917160888"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Forty repeated original registered Pow calls on actual public S2R words. Exact guards, negative-base fractional magnitude, integer exponents and software ln/exp outputs. Capture start pins source/map hashes and owned timer completion.",
+      "exclusions": [
+        "Compiled decimal producers, whole trajectories and original VM/watchdog handling of helper nontermination remain separately owned."
+      ]
     }
   ],
   "fixtures": [
@@ -6543,7 +6830,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "1a539da2fd3727e239d934175c958bdf18af2dfce19c658ef8f1b4a297076e05"
+      "sha256": "445efea14323333c1ead09277bf016b9d189cc3171b7e3d94c103b437021950a"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -6616,6 +6903,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-widget-solid-failure-1.27.json",
       "sha256": "2a7761dc1452dbc95badaf54f6f67558afd4a96dc32c4332b52d70b36a899b27"
+    },
+    {
+      "path": "tools/frida/wc3_power_inputs.json",
+      "sha256": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-power-inputs-1.27.json",
+      "sha256": "0430bbc1685d73693451ed403307a80d1e61348c04ed70891405fcdfbdb98f09"
     }
   ]
 }

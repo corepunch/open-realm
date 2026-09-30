@@ -126,7 +126,20 @@ uint32_t R2I(jass_t *j) {
     memcpy(&value, &word, sizeof(value));
     return jass_pushinteger(j, value);
 }
-MATH_FUNC2(Pow, pow, number);
+/* Registered20f990 applies strict scalar near-zero guards before original power arithmetic. */
+uint32_t Pow(jass_t *j) {
+    float base = jass_checknumber(j, 1), power = jass_checknumber(j, 2), result;
+    bool small = api_scalar_is_near_zero(base);
+    if (small && power < 0.0f) return jass_pushnumber(j, 0.0f);
+    if (!small && api_scalar_is_near_zero(power)) return jass_pushnumber(j, 1.0f);
+    if (!wc3_pow(base, power, &result)) {
+        /* TODO: original VM watchdog/lifetime remains NUM-01.2; the isolated
+         * retail helper never returns here. Report it instead of inventing a value. */
+        jass_rterror(j, "Pow: retail integer-power exponent does not terminate");
+        return 0;
+    }
+    return jass_pushnumber(j, result);
+}
 /* Registered1f8290 rejects only when both scalar distances are strictly small. */
 uint32_t Atan2(jass_t *j) {
     float y = jass_checknumber(j, 1), x = jass_checknumber(j, 2);

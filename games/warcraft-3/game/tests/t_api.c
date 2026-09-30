@@ -220,6 +220,67 @@ TEST(wc3_api, pathfinding_public_angle_natives_match_retail_words) {
     reset_entities();
 }
 
+/* Original registered20f990 outputs, verified against independent scalar models. */
+TEST(wc3_api, pathfinding_public_power_native_matches_retail_words) {
+    static char const *assertions[] = {
+        "  call BJassAssert(Pow(S2R(\"0\"), S2R(\"-1\")) == 0.0, \"pow_0 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"0\"), S2R(\"0\")) == 1.0, \"pow_1 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"0\"), S2R(\"0.5\")) == 0.0, \"pow_2 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"-0.0005\"), S2R(\"-1\")) == 0.0, \"pow_3 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"0.0005\"), S2R(\"-1\")) == 0.0, \"pow_4 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"0.0005\"), S2R(\"0.5\")) == 0.0223607011139392852783203125, \"pow_5 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"0.001\"), S2R(\"-1\")) == 999.9986572265625, \"pow_6 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"-0.001\"), S2R(\"-1\")) == 999.9986572265625, \"pow_7 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"1\"), S2R(\"-3\")) == 1.0, \"pow_8 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"1\"), S2R(\"0.0005\")) == 1.0, \"pow_9 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"0.0005\")) == 1.0, \"pow_10 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"-2\"), S2R(\"0.0005\")) == 1.0, \"pow_11 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"0\")) == 1.0, \"pow_12 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"-0.0\")) == 1.0, \"pow_13 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"0.5\")) == 1.41421353816986083984375, \"pow_14 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"-2\"), S2R(\"0.5\")) == 1.41421353816986083984375, \"pow_15 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"-0.5\")) == 0.707106888294219970703125, \"pow_16 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"-2\"), S2R(\"-0.5\")) == 0.707106888294219970703125, \"pow_17 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"3\")) == 8.0, \"pow_18 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"-2\"), S2R(\"3\")) == -8.0, \"pow_19 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"4\")) == 16.0, \"pow_20 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"-2\"), S2R(\"4\")) == 16.0, \"pow_21 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"0.5\"), S2R(\"-3\")) == 7.999997615814208984375, \"pow_22 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"-0.5\"), S2R(\"-3\")) == 7.999997615814208984375, \"pow_23 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"16\"), S2R(\"0.5\")) == 3.9999988079071044921875, \"pow_24 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"10\"), S2R(\"-0.3\")) == 0.501187384128570556640625, \"pow_25 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"100\"), S2R(\"0.3\")) == 3.9810693264007568359375, \"pow_26 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"-100\"), S2R(\"0.3\")) == 3.9810693264007568359375, \"pow_27 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"1.5\"), S2R(\"2.25\")) == 2.49003124237060546875, \"pow_28 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"1.25\"), S2R(\"7.5\")) == 5.33119869232177734375, \"pow_29 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"10\"), S2R(\"10\")) == 10000000000.0, \"pow_30 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"100\"), S2R(\"-20\")) == 170141183460469231731687303715884105728.0, \"pow_31 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"100\"), S2R(\"20\")) == 0.0, \"pow_32 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"0.0009999999\"), S2R(\"-1\")) == 999.9986572265625, \"pow_33 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"0.0010000002\"), S2R(\"-1\")) == 999.9986572265625, \"pow_34 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"8388608\")) == 0.0, \"pow_35 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"1\"), S2R(\"2147483520\")) == 1.0, \"pow_36 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"-17\")) == 0.000007629410902154631912708282470703125, \"pow_37 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"63.5\")) == 13043749432376426496.0, \"pow_38 exact retail word\")\n",
+        "  call BJassAssert(Pow(S2R(\"2\"), S2R(\"-63.5\")) == 0.000000000000000000076665083112415025059396106975329043820011065690778195858001708984375, \"pow_39 exact retail word\")\n",
+    };
+    setup_test_world();
+    FOR_LOOP(i, sizeof(assertions) / sizeof(assertions[0])) {
+        char script[1024];
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n%sendfunction\n", assertions[i]);
+        T_ASSERT(run_test_jass(script));
+    }
+    reset_entities();
+}
+
+/* A converted negative signed exponent has no retail helper result; reject without inventing one. */
+TEST(wc3_api, pathfinding_power_nonterminating_domain_reports_error) {
+    setup_test_world();
+    T_ASSERT(!run_test_jass("function main takes nothing returns nothing\n  local real r = Pow(2.0, I2R(1073741824) * 2.0)\nendfunction\n"));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n  call BJassAssert(Pow(2.0, 3.0) == 8.0, \"power recovers after rejected domain\")\nendfunction\n"));
+    reset_entities();
+}
+
 TEST(wc3_api, revive_hero_location_native_restores_grom_style_death) {
     edict_t *hero;
 

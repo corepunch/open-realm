@@ -24,7 +24,7 @@ restored-valid checks). Cdecl stack, callee registers, SEH and Unit references
 are checked. Existing VM backing is supplied; full construction stays excluded.
 GROUP-04.1 adds callback-mutation checks to the motion oracle. GROUP-04.3 adds
 three variants: open/wall callback-timed mover reuse and a missing-registry-alias
-counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. NUM-01.5/06 add one repeated public numeric/parser and parsed Move admission capture; NUM-01.8 adds one48-pair public-angle repeat. The inventory now has **134 entries**; fixture hashes and Ghidra
+counterfactual. GROUP-04.4 adds two mixed-speed callback-completion/survivor variants with178 exact C world commits and empty teardown. GROUP-04.8 adds two completed-member reclamation/reuse through survivor arrival variants, also178 exact C commits. GROUP-04.5 adds two actual survivor point-replacement/refresh journeys with638 exact C commits. NUM-01.5/06 add one repeated public numeric/parser and parsed Move admission capture; NUM-01.8 adds one48-pair public-angle repeat. The inventory now has **138 entries**; fixture hashes and Ghidra
 annotation-script fingerprints cover those extensions. MAP-03.4 adds the
 original-mask Footman escape variant and eight complete negative public-widget
 producer captures. Frozen route states cover every tick of both seven/thirteen
@@ -181,3 +181,26 @@ summary SHA256
 `94fc67963332bff10a955bbc43297951f5e607c78d00657650a4302195bf33fe`.
 Logs are `/tmp/wc3-map-03.7-final-full-suite.log`, `wc3-map-03.7-debug.log`,
 `wc3-map-03.7-normal-restored.log` and `wc3-map-03.7-production.log`.
+
+
+NUM-01.9 adds `oracle-power`, two complete source-pinned Pow archives and
+`live-public-power-repeat`. Inventory is57 original-code oracles,71 archives and10
+live contracts. The power oracle distinguishes24,423 completed numerical/ABI
+calls from173 budget-stopped signed exponent loops. Both compiler modes preserve
+the frozen digest; the live contract repeats40 actual public Pow word pairs.
+Numerical result parity does not imply parity with the unobserved original VM
+watchdog on nonreturning inputs. Existing trajectory fixtures remain unchanged.
+
+
+NUM-01.9 validation: final umbrella tests pass88 pathfinding tool tests and
+37,328 assertions in2,157 engine tests per Classic/TFT; the numeric API selection
+passes136 assertions in5 cases. WC3/SC2 production builds pass. Fresh
+`num-01.9-final-corpus/corpus-results.json` passes138/138 with unchanged source
+fingerprints. Manifest SHA256
+`56adeb3edd9890dde9cbef33318a3508f67645d3173aa4634b138993713b8f61`;
+summary SHA256
+`ecb01952b670dcaeb6fb1e17fc5cd81606c20b61f5f9a9ac8b8d5902e7d044ca`.
+Logs: `/tmp/wc3-num-01.9-final-full-suite.log`,
+`/tmp/wc3-num-01.9-final-corpus.log` and
+`/tmp/wc3-num-01.9-production.log`. Original/model/C digest for both compiler
+modes is `7cf000cfa0a565663f3828dc3186a88efe463c7a9a27ea12494024ba0d13430e`.
