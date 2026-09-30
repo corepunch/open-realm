@@ -816,7 +816,15 @@ static float attack_speed_divisor(edict_t *self) {
 
 void attack_melee_cooldown(edict_t *self) {
     float divisor = attack_speed_divisor(self);
-    attack_set_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
+    /* A normal animated swing starts its cooldown at attack_melee(). The
+     * animation end callback can run well after damage point, so retain that
+     * deadline instead of restarting cooldown - damagePoint from here. The
+     * fallback covers callers that enter recovery without an active swing
+     * deadline (for example zero-length animation paths). */
+    if (self->attack_cooldown_active && self->currentmove == &attack_move_melee)
+        attack_cooldown_elapsed(self, false);
+    else
+        attack_set_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
     unit_setmove(self, &attack_move_melee_cooldown);
     self->wait = MAX(self->attack_cooldown_remaining,
                      ACTIVE_ATTACK(self)->backswingPoint / divisor);
@@ -836,7 +844,10 @@ void attack_melee(edict_t *self) {
 
 void attack_ranged_cooldown(edict_t *self) {
     float divisor = attack_speed_divisor(self);
-    attack_set_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
+    if (self->attack_cooldown_active && self->currentmove == &attack_move_ranged)
+        attack_cooldown_elapsed(self, false);
+    else
+        attack_set_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
     unit_setmove(self, &attack_move_ranged_cooldown);
     self->wait = MAX(self->attack_cooldown_remaining,
                      ACTIVE_ATTACK(self)->backswingPoint / divisor);
