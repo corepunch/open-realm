@@ -1793,9 +1793,17 @@ static void test_splat_polygon_offset(GLfloat factor, GLfloat units) {
 #define glEnable test_splat_enable
 #define glDisable test_splat_disable
 #define glPolygonOffset test_splat_polygon_offset
+static struct { uint32_t calls, first, count; float z; } ground_update;
+static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t const *vertices, uint32_t count) {
+    (void)buffer;
+    ground_update.calls++; ground_update.first = first; ground_update.count = count;
+    ground_update.z = vertices[0].position.z;
+}
 #define R_RenderRectSplatUV R_TestProductionRenderRectSplatUV
 #define R_RenderSplat R_TestProductionRenderSplat
+#define R_UpdateVertexArrayObject test_ground_update
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
+#undef R_UpdateVertexArrayObject
 #undef glEnable
 #undef glDisable
 #undef glPolygonOffset
@@ -1816,6 +1824,45 @@ TEST(renderer_terrain, null_segment_layer_does_not_drop_existing_layers) {
     R_AddMapSegmentLayer(&segment, &(maplayer_t){0});
     T_ASSERT(segment.layers != &first);
     T_ASSERT(segment.layers->next == &first);
+}
+
+/* The ground stays one whole-map buffer per layer; a changed segment overwrites exactly its own slice. */
+TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
+    enum { W = 2 * SEGMENT_SIZE + 1, H = SEGMENT_SIZE + 1, SLICE = SEGMENT_SIZE * SEGMENT_SIZE * 6 };
+    static war3mapVertex_t verts[W * H];
+    war3map_t map = { .width = W, .height = H, .vertices = verts };
+    texture_t texture = { .width = 256, .height = 256 };
+    maplayer_t *layer;
+    float flat_z;
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    memset(verts, 0, sizeof(verts));
+    R_ResetGroundTextures();
+    g_groundTextures[0] = &texture;
+    layer = R_BuildGroundLayerGlobal(&map, 0);
+    T_NOT_NULL(layer);
+    T_EQ(layer->num_vertices, 2 * SLICE);
+    T_EQ(g_groundBatches[0].first[0], 0);
+    T_EQ(g_groundBatches[0].first[1], SLICE);
+    T_EQ(g_groundBatches[0].first[2], 2 * SLICE);
+
+    memset(&ground_update, 0, sizeof(ground_update));
+    R_UpdateGroundSegment(&map, 1, 0);
+    flat_z = ground_update.z;
+    T_EQ(ground_update.calls, 1);
+    T_EQ(ground_update.first, SLICE);
+    T_EQ(ground_update.count, SLICE);
+
+    /* Moving a corner height (what a deformation does) changes the baked height but not the slice size. */
+    verts[SEGMENT_SIZE].accurate_height += 2000;
+    R_UpdateGroundSegment(&map, 1, 0);
+    T_EQ(ground_update.calls, 2);
+    T_EQ(ground_update.count, SLICE);
+    T_ASSERT(ground_update.z > flat_z + 1.0f);
+
+    R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
+    test_free(layer);
+    R_ResetGroundTextures();
 }
 
 TEST(renderer_terrain, deformation_updates_and_expires_height_offsets) {

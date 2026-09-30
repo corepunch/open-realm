@@ -9,6 +9,7 @@
 
 #define WC3_CAMERA_HEIGHT_RADIUS 4 // terrain cells; half-width of the client camera blur footprint
 mapsegment_t *g_mapSegments = NULL;
+maplayer_t *g_groundLayers = NULL;
 static cameraHeightMap_t w3_camera_height;
 
 #define WC3_TERRAIN_DEFORM_MAX 32
@@ -360,9 +361,12 @@ static void R_W3SetMapTerrainOffsets(war3map_t *map) {
     w3_terrain_offset_count = (uint32_t)count;
 }
 
+/* A deformed segment rebuilds its own water and cliff layers and overwrites its slice of each whole-map
+ * ground buffer, so the ground stays one draw call per layer while a deformation is running. */
 static void R_W3RebuildSegmentGeometry(mapsegment_t *segment) {
     mapsegment_t *fresh;
     if (!tr.world || !segment) return;
+    R_UpdateGroundSegment(tr.world, segment->sx, segment->sy);
     fresh = R_BuildMapSegment(tr.world, segment->sx, segment->sy);
     R_FinishCliffs();
     R_FreeMapLayers(&segment->layers);
@@ -479,6 +483,7 @@ void _W3M_ClearMap(void) {
     texture_t *shadow = tr.texture[TEX_TERRAIN_SHADOW];
 
     R_FreeMapSegments();
+    R_FreeMapLayers(&g_groundLayers);
     R_W3ClearTerrainDeformations();
     R_ResetGroundTextures();
     R_ResetCliffCache();
@@ -529,10 +534,6 @@ static mapsegment_t *R_BuildMapSegment(war3map_t const *map, uint32_t sx, uint32
     maplayer_t *mapLayer;
     mapSegment->sx = sx;
     mapSegment->sy = sy;
-    for (uint32_t layer = map->num_grounds; layer > 0; layer--) {
-        mapLayer = R_BuildMapSegmentLayer(map, sx, sy, layer - 1);
-        R_AddMapSegmentLayer(mapSegment, mapLayer);
-    }
     mapLayer = R_BuildMapSegmentWater(map, sx, sy);
     R_AddMapSegmentLayer(mapSegment, mapLayer);
     FOR_LOOP(cliff, map->num_cliffs) {
@@ -543,6 +544,13 @@ static mapsegment_t *R_BuildMapSegment(war3map_t const *map, uint32_t sx, uint32
     mapSegment->bbox.min = MAKE(vec3_t, FLT_MAX, FLT_MAX, FLT_MAX);
     mapSegment->bbox.max = MAKE(vec3_t, -FLT_MAX, -FLT_MAX, -FLT_MAX);
     return mapSegment;
+}
+
+static void R_BuildGroundLayers(war3map_t const *map) {
+    for (uint32_t layer = map->num_grounds; layer > 0; layer--) {
+        maplayer_t *mapLayer = R_BuildGroundLayerGlobal(map, layer - 1);
+        if (mapLayer) ADD_TO_LIST(mapLayer, g_groundLayers);
+    }
 }
 
 static vec3_t R_GetMapVertexPoint(war3map_t const *map, uint32_t x, uint32_t y) {
@@ -728,6 +736,7 @@ void _W3M_RegisterMap(char const *mapFilename) {
 
     R_LoadMapSegments(map);
     R_FinishCliffs();
+    R_BuildGroundLayers(map);
     w3_terrain_rebuild_pending = false;
 }
 
@@ -801,9 +810,17 @@ void _W3M_DrawWorld(void) {
                                  ? &lighting : NULL);
     }
 
-    R_Call(glDisable, GL_BLEND);
-    FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments)
-        R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_GROUND));
+    FOR_EACH_LIST(maplayer_t, layer, g_groundLayers) {
+        if (layer == g_groundLayers) {
+            R_Call(glDisable, GL_BLEND);
+        } else {
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
+        R_BindTexture(layer->texture, 0);
+        R_ApplyShader(&tr.shader_default);
+        R_DrawBuffer(layer->buffer, layer->num_vertices);
+    }
 
     R_UpdateBlightLayer();
     R_Call(glEnable, GL_BLEND);

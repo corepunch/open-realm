@@ -6,8 +6,14 @@ MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[IND
 
 texture_t const *g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 static bool g_warn_missing_terrain_art[MAX_MAP_LAYERS];
+/* Whole-map ground buffer plus the first vertex of each segment's slice (segment count + 1 entries). */
+typedef struct { maplayer_t *layer; uint32_t *first; } groundBatch_t;
+static groundBatch_t g_groundBatches[MAX_MAP_LAYERS];
 
+/* The layers themselves belong to g_groundLayers and are freed with it; only the range tables live here. */
 void R_ResetGroundTextures(void) {
+    FOR_LOOP(i, MAX_MAP_LAYERS) SAFE_DELETE(g_groundBatches[i].first, ri.MemFree);
+    memset(g_groundBatches, 0, sizeof(g_groundBatches));
     memset(g_groundTextures, 0, sizeof(g_groundTextures));
     memset(g_warn_missing_terrain_art, 0, sizeof(g_warn_missing_terrain_art));
 }
@@ -522,40 +528,91 @@ void R_RenderRectSplat(vec2_t const *mins,
         .uv_mins = &uv_mins, .uv_maxs = &uv_maxs, .texture = texture, .shader = shader, .color = color));
 }
 
-maplayer_t *R_BuildMapSegmentLayer(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t layer) {
-    maplayer_t *mapLayer;
-    PATHSTR zBuffer;
+/* Resolve and cache one ground layer's tileset texture; a missing TerrainArt row is reported once per layer. */
+static texture_t const *R_GroundLayerTexture(war3map_t const *map, uint32_t layer) {
+    PATHSTR path;
+    w3TerrainArt_t const *terrain;
     if (layer >= MAX_MAP_LAYERS) return NULL;
-    if (g_groundTextures[layer] == NULL) {
-        w3TerrainArt_t const *terrain = R_TerrainArt(map->grounds[layer]);
-        if (terrain && terrain->file && terrain->dir) {
-            snprintf(zBuffer, sizeof(zBuffer), "%s\\%s.blp", terrain->dir, terrain->file);
-            g_groundTextures[layer] = R_LoadTexture(zBuffer);
-        } else {
-            if (!g_warn_missing_terrain_art[layer]) {
-                fprintf(stderr, "WC3 renderer: missing terrain art for ground layer %u (rawcode %u)\n",
-                        layer, map->grounds[layer]);
-                g_warn_missing_terrain_art[layer] = true;
-            }
-            return NULL;
-        }
+    if (g_groundTextures[layer]) return g_groundTextures[layer];
+    terrain = R_TerrainArt(map->grounds[layer]);
+    if (terrain && terrain->file && terrain->dir) {
+        snprintf(path, sizeof(path), "%s\\%s.blp", terrain->dir, terrain->file);
+        return g_groundTextures[layer] = R_LoadTexture(path);
     }
-    mapLayer = ri.MemAlloc(sizeof(maplayer_t));
-    if (!mapLayer) {
-        fprintf(stderr, "WC3 renderer: failed to allocate ground layer %u\n", layer);
+    if (!g_warn_missing_terrain_art[layer]) {
+        fprintf(stderr, "WC3 renderer: missing terrain art for ground layer %u (rawcode %u)\n", layer, map->grounds[layer]);
+        g_warn_missing_terrain_art[layer] = true;
+    }
+    return NULL;
+}
+
+/* Bake one segment's tiles for a ground layer into the scratch buffer and return the vertex count. */
+static uint32_t R_BakeGroundSegment(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t layer) {
+    ground_current_vertex = ground_vertex_buffer;
+    for (uint32_t x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++)
+        for (uint32_t y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++)
+            R_MakeTile(map, x, y, layer, g_groundTextures[layer]);
+    return (uint32_t)(ground_current_vertex - ground_vertex_buffer);
+}
+
+/* One whole-map vertex buffer per ground texture keeps the ground at one draw call per layer instead of one
+ * per segment per layer. Tiles are baked segment by segment and each segment's first vertex is recorded, so
+ * a terrain deformation re-bakes only its own slice in place (R_UpdateGroundSegment). */
+maplayer_t *R_BuildGroundLayerGlobal(war3map_t const *map, uint32_t layer) {
+    uint32_t const segs_x = (map->width - 1) / SEGMENT_SIZE, segs_y = (map->height - 1) / SEGMENT_SIZE;
+    maplayer_t *mapLayer;
+    vertex_t *whole, *cursor;
+    uint32_t *first;
+
+    if (!R_GroundLayerTexture(map, layer)) return NULL;
+    /* Construction scratch must not remain resident (or leak when the next map is larger). */
+    whole = cursor = ri.MemAlloc(sizeof(vertex_t) * (map->width - 1) * (map->height - 1) * 6);
+    first = ri.MemAlloc(sizeof(uint32_t) * (segs_x * segs_y + 1));
+    FOR_LOOP(sy, segs_y) FOR_LOOP(sx, segs_x) {
+        uint32_t const count = R_BakeGroundSegment(map, sx, sy, layer);
+        first[sx + sy * segs_x] = (uint32_t)(cursor - whole);
+        memcpy(cursor, ground_vertex_buffer, count * sizeof(vertex_t));
+        cursor += count;
+    }
+    first[segs_x * segs_y] = (uint32_t)(cursor - whole);
+    /* Tiles past the last complete segment are static: such maps reject deformation, so they need no range. */
+    ground_current_vertex = cursor;
+    for (uint32_t x = 0; x < map->width - 1; x++)
+        for (uint32_t y = 0; y < map->height - 1; y++)
+            if (x >= segs_x * SEGMENT_SIZE || y >= segs_y * SEGMENT_SIZE)
+                R_MakeTile(map, x, y, layer, g_groundTextures[layer]);
+    cursor = ground_current_vertex;
+    ground_current_vertex = NULL;
+    if (cursor == whole) {
+        ri.MemFree(whole); ri.MemFree(first);
         return NULL;
     }
+    mapLayer = ri.MemAlloc(sizeof(maplayer_t));
     mapLayer->texture = g_groundTextures[layer];
     mapLayer->type = MAPLAYERTYPE_GROUND;
-    ground_current_vertex = ground_vertex_buffer;
-    for (uint32_t x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
-        for (uint32_t y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
-            R_MakeTile(map, x, y, layer, mapLayer->texture);
-        }
-    }
-    mapLayer->num_vertices = (uint32_t)(ground_current_vertex - ground_vertex_buffer);
-    mapLayer->buffer = R_MakeVertexArrayObject(ground_vertex_buffer, mapLayer->num_vertices);
+    mapLayer->num_vertices = (uint32_t)(cursor - whole);
+    mapLayer->buffer = R_MakeVertexArrayObject(whole, mapLayer->num_vertices);
+    ri.MemFree(whole);
+    g_groundBatches[layer] = (groundBatch_t){ .layer = mapLayer, .first = first };
     return mapLayer;
+}
+
+/* Re-bake one segment of every ground batch after its vertex heights changed. A tile's vertex count depends
+ * on its ground type and cliff flags, never on height, so the slice is overwritten where it already lives. */
+void R_UpdateGroundSegment(war3map_t const *map, uint32_t sx, uint32_t sy) {
+    uint32_t const index = sx + sy * ((map->width - 1) / SEGMENT_SIZE);
+    FOR_LOOP(layer, MAX_MAP_LAYERS) {
+        groundBatch_t const *batch = &g_groundBatches[layer];
+        uint32_t count;
+        if (!batch->layer) continue;
+        count = R_BakeGroundSegment(map, sx, sy, layer);
+        ground_current_vertex = NULL;
+        if (count != batch->first[index + 1] - batch->first[index]) {
+            fprintf(stderr, "WC3 renderer: ground layer %u segment (%u,%u) re-baked %u vertices, expected %u\n", layer, sx, sy, count, batch->first[index + 1] - batch->first[index]);
+            continue;
+        }
+        if (count) R_UpdateVertexArrayObject(batch->layer->buffer, batch->first[index], ground_vertex_buffer, count);
+    }
 }
 
 void R_RenderFlatRectSplat(vec2_t const *mins,
