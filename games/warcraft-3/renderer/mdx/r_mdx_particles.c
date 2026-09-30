@@ -44,6 +44,10 @@ static void mdx_spawn_particle(void *raw) {
     p->org = Matrix4_multiply_vector3(ctx->matrix, &pivoted);
     p->vel = Vector3_scale(&world_dir, ctx->speed + (r - 0.5f) * ctx->varia);
     p->accel = (vec3_t){ 0, 0, -ctx->grav };
+    if (ctx->emitter->node.flags & MDLXNODE_XYQuad) {
+        p->quad_right = Matrix4_multiply_vector3(ctx->matrix, &(vec3_t){1, 0, 0});
+        p->quad_up = Matrix4_multiply_vector3(ctx->matrix, &(vec3_t){0, 1, 0});
+    }
     p->lifespan = ctx->life; p->time = 0;
     p->midtime = ctx->emitter->Time * 0xff;
     p->texture = MDLX_GetTexture(ctx->model, ctx->team_id, ctx->emitter->TextureID, ctx->emitter->ReplaceableId, NULL, 0);

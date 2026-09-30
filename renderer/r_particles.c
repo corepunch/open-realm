@@ -9,6 +9,8 @@ typedef struct particle_vertex {
     color32_t color;
     float size;
     vec3_t tail;
+    vec3_t quadRight;
+    vec3_t quadUp;
     float uv[2];
     uint8_t axis[2];
 } particleVertex_t;
@@ -19,7 +21,7 @@ typedef enum {
 } PARTICLEUVORDER;
 
 typedef struct particlequad_s {
-    vec3_t const *point, *tail;
+    vec3_t const *point, *tail, *quad_right, *quad_up;
     float u0, v0, u1, v1;
     color32_t color;
     float size;
@@ -104,6 +106,7 @@ cparticle_t *R_SpawnParticle(void) {
     p->blend_mode = BLEND_MODE_ADD;
     p->emitter_id = 0;
     p->tail = (vec3_t){0};
+    p->quad_right = p->quad_up = (vec3_t){0};
     p->use_uv_curve = false;
     p->uv_start = p->uv_mid = p->uv_end = 0;
     p->size_value_scale = p->size_time_scale = 1.0f;
@@ -152,6 +155,8 @@ static const shader_desc_t sd_particle = {
         ATTRIB(texcoord, attrib_texcoord,     UT_FLOAT_VEC2),
         ATTRIB(size,     attrib_particleSize, UT_FLOAT),
         ATTRIB(tail,     attrib_particleTail, UT_FLOAT_VEC3),
+        ATTRIB(quadRight, attrib_particleQuadRight, UT_FLOAT_VEC3),
+        ATTRIB(quadUp, attrib_particleQuadUp, UT_FLOAT_VEC3),
         ATTRIB(axis,     attrib_particleAxis, UT_FLOAT_VEC2),
     },
     .Shared = {
@@ -166,7 +171,9 @@ static const shader_desc_t sd_particle = {
         "  vec3 left = cameraLeft * a_size;\n"
         "  vec3 up = normalize(vec3(m[0][1], m[1][1], m[2][1])) * a_size;\n"
         "  vec3 pos;\n"
-        "  if (dot(a_tail, a_tail) > 0.0) {\n"
+        "  if (dot(a_quadRight, a_quadRight) > 0.0) {\n"
+        "    pos = a_position + a_quadRight * ((a_axis.x - 0.5) * a_size) + a_quadUp * ((a_axis.y - 0.5) * a_size);\n"
+        "  } else if (dot(a_tail, a_tail) > 0.0) {\n"
         "    vec3 point = a_position - a_tail * (1.0 - a_axis.y);\n"
         "    vec3 side = cross(normalize(a_tail), u_eye - point);\n"
         "    float sideLength = length(side);\n"
@@ -218,6 +225,8 @@ static particleVertex_t *R_AddParticleQuad(particleVertex_t *buffer,
             .color = quad->color,
             .size = quad->size,
             .tail = tail,
+            .quadRight = quad->quad_right ? *quad->quad_right : (vec3_t){0},
+            .quadUp = quad->quad_up ? *quad->quad_up : (vec3_t){0},
             .uv = {uv[uv_index[order][i][0]], uv[uv_index[order][i][1]]},
             .axis = {axis[i][0], axis[i][1]},
         };
@@ -229,13 +238,15 @@ static particleVertex_t *R_AddParticleQuad(particleVertex_t *buffer,
 particleVertex_t *R_AddParticle(particleVertex_t *buffer,
               vec3_t const *point,
               vec3_t const *tail,
+              vec3_t const *quad_right,
+              vec3_t const *quad_up,
               color32_t uvr,
               color32_t color,
               float size)
 {
     uint8_t *uv = (uint8_t *)&uvr;
     particleQuad_t const quad = {
-        .point = point, .tail = tail,
+        .point = point, .tail = tail, .quad_right = quad_right, .quad_up = quad_up,
         .u0 = BYTE2FLOAT(uv[0]), .v0 = BYTE2FLOAT(uv[1]),
         .u1 = BYTE2FLOAT(uv[2]), .v1 = BYTE2FLOAT(uv[3]),
         .color = color, .size = size,
@@ -411,10 +422,12 @@ void R_DrawParticles(void) {
         vec3_t halfAccelT = Vector3_scale(&p->accel, 0.5f * p->time);
         vec3_t vel = Vector3_add(&p->vel, &halfAccelT);
         vec3_t org = Vector3_mad(&p->org, p->time, &vel);
+        vec3_t tail = p->tail;
+        vec3_t quad_right = p->quad_right, quad_up = p->quad_up;
         color32_t col = FX_BlendColor(p);
         float size = p->size_value_scale * FX_BlendFloat(p->size, p->time * p->size_time_scale,
                                                          BYTE2FLOAT(p->midtime));
-        pv = R_AddParticle(pv, &org, &p->tail, FX_GetFrame(p), col, size);
+        pv = R_AddParticle(pv, &org, &tail, &quad_right, &quad_up, FX_GetFrame(p), col, size);
         texture = p->texture;
         blend_mode = p->blend_mode;
     }
@@ -433,7 +446,7 @@ void R_DrawBillboardSprite(texture_t const *texture, vec3_t const *origin, float
 
     if (!texture) texture = particles_resources.texture;
     Matrix4_identity(&matrix);
-    pv = R_AddParticle(pv, origin, NULL, uv, color, size);
+    pv = R_AddParticle(pv, origin, NULL, NULL, NULL, uv, color, size);
     R_FlushParticles(texture, &matrix, pv, BLEND_MODE_BLEND);
     R_SetAlphaKeyState(false);
 }
@@ -487,6 +500,8 @@ static buffer_t *R_MakeParticlesVertexArrayObject(void) {
     R_Call(glEnableVertexAttribArray, attrib_texcoord);
     R_Call(glEnableVertexAttribArray, attrib_particleSize);
     R_Call(glEnableVertexAttribArray, attrib_particleTail);
+    R_Call(glEnableVertexAttribArray, attrib_particleQuadRight);
+    R_Call(glEnableVertexAttribArray, attrib_particleQuadUp);
     R_Call(glEnableVertexAttribArray, attrib_particleAxis);
     
     R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, position));
@@ -494,6 +509,8 @@ static buffer_t *R_MakeParticlesVertexArrayObject(void) {
     R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, uv));
     R_Call(glVertexAttribPointer, attrib_particleSize, 1, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, size));
     R_Call(glVertexAttribPointer, attrib_particleTail, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, tail));
+    R_Call(glVertexAttribPointer, attrib_particleQuadRight, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, quadRight));
+    R_Call(glVertexAttribPointer, attrib_particleQuadUp, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, quadUp));
     R_Call(glVertexAttribPointer, attrib_particleAxis, 2, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, axis));
     return buf;
 }

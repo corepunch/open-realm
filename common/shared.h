@@ -1380,6 +1380,8 @@ typedef struct particle_s {
     vec3_t vel;
     vec3_t accel;
     vec3_t tail;       /* optional world-space trail vector; zero keeps billboard behavior */
+    vec3_t quad_right; /* optional XYQuad half-axes */
+    vec3_t quad_up;
     color32_t color[3];
     uint8_t size[3];
     uint8_t midtime;
