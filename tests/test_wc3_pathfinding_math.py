@@ -51,6 +51,21 @@ class PathingMathTests(unittest.TestCase):
                 for engine in self.engines:
                     self.assertEqual(getattr(engine, 'pathing_' + name)(a, b), reference(a, b), (name, hex(a), hex(b)))
 
+    def test_paired_trig_matches_independent_raw_word_model(self):
+        rng = random.Random(0x71340)
+        angles = [rng.getrandbits(32) for _ in range(20000)]
+        for angle in (0, 0x80000000, 1, 0x80000001, 0x3f490fdb, 0x3fc90fdb, 0x40490fdb, 0x40c90fdb):
+            angles.extend((angle + offset) & 0xffffffff for offset in range(-2, 3))
+        sines = sine_table()
+        for engine in self.engines:
+            proc = engine.pathing_sincos
+            proc.argtypes = [ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32)]
+            proc.restype = None
+            for angle in angles:
+                result = (ctypes.c_uint32 * 2)()
+                proc(angle, result)
+                self.assertEqual(list(result), [trig_bits(angle, False, sines), trig_bits(angle, True, sines)])
+
     def test_live_open_decision_and_window_boundary(self):
         # Frozen first open-ground Frida decision; the two nonzero significands truncate during addition.
         live = [1083572252, 1070141402, 0, 1083572224, 1058642330, 1065749137, 0]

@@ -205,6 +205,10 @@ def main():
     args = parser.parse_args()
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
+        engine.pathing_sincos.argtypes = [ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32)]
+        engine.pathing_sincos.restype = None
+        engine.pathing_sincos_alias.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.c_uint32]
+        engine.pathing_sincos_alias.restype = None
         for name in ('add', 'subtract', 'multiply', 'divide','modulo'):
             proc = getattr(engine, 'pathing_' + name)
             proc.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
@@ -386,6 +390,49 @@ def main():
     trig_table = list(struct.unpack('<1025I', uc.mem_read(0x6fa820c8, 4100)))
     trig_hash = hashlib.sha256(uc.mem_read(0x6fa820c8, 4100)).hexdigest()
     assert trig_table == generate_sines()
+    pair_rng = random.Random(0x71340)
+    pair_words = {0, SIGN, 1, SIGN | 1, 0x3f490fdb, 0x3fc90fdb, 0x40490fdb, 0x40c90fdb}
+    for word in tuple(pair_words):
+        pair_words.update((word + offset) & MASK for offset in range(-2, 3))
+    pair_words.update(pair_rng.getrandbits(32) for _ in range(20000))
+    pair_records, pair_aliases = [], 0
+    for word in sorted(pair_words):
+        expected = [trig_bits(word, False, trig_table), trig_bits(word, True, trig_table)]
+        for mode in range(5):
+            sine = 0 if mode in (1, 4) else 1
+            cosine = 0 if mode in (2, 4) else 1 if mode == 3 else 2
+            slots = [left, right, output]
+            initial = [word, 0xdeadbeef, 0xdeadbeef]
+            for slot, value in zip(slots, initial):
+                write(slot - 4, 0xabcddcba, value, 0x12344321)
+            write(stack, stop, slots[cosine])
+            uc.reg_write(UC_X86_REG_ESP, stack)
+            uc.reg_write(UC_X86_REG_ECX, left)
+            uc.reg_write(UC_X86_REG_EDX, slots[sine])
+            for reg in preserved:
+                uc.reg_write(reg, 0x12120000)
+            uc.emu_start(0x6f071340, stop, count=10000)
+            assert uc.reg_read(UC_X86_REG_EIP) == stop and uc.reg_read(UC_X86_REG_ESP) == stack + 8
+            assert all(uc.reg_read(reg) == 0x12120000 for reg in preserved)
+            wanted = initial[:]
+            wanted[sine], wanted[cosine] = expected
+            actual = [read(slot) for slot in slots]
+            assert actual == wanted, ('sincos', hex(word), mode, actual, wanted)
+            assert all(read(slot - 4) == 0xabcddcba and read(slot + 4) == 0x12344321 for slot in slots)
+            if engine:
+                result = (ctypes.c_uint32 * 3)(*initial)
+                engine.pathing_sincos_alias(result, mode)
+                assert list(result) == actual, ('C-sincos-alias', hex(word), mode)
+                result = (ctypes.c_uint32 * 2)()
+                engine.pathing_sincos(word, result)
+                assert list(result) == expected, ('C-sincos', hex(word))
+            if mode == 0:
+                pair_records.append([word, *actual[1:]])
+            else:
+                pair_aliases += 1
+    counts['sincos'] = len(pair_records) + pair_aliases
+    pair_digest = hashlib.sha256(json.dumps(pair_records, separators=(',', ':')).encode()).hexdigest()
+    assert read(0x6fcd58d8) == 0x4822f983
     trig_words = unary + [bits(i*math.pi/2048)+offset
                          for i in range(-4096,4097,17) for offset in (-1,0,1)]
     for name, entry, cosine in [('sin',0x6f071280,False),('cos',0x6f070790,True)]:
@@ -489,7 +536,9 @@ def main():
                    'floor':'Negative nonzero values below one become -1; both signed zeros become +0; fractional mantissa truncation with negative ceiling of magnitude; exponent >=150 unchanged',
                    'integer':'Truncation toward zero for ordinary values; exponent <127 returns zero; larger exponents use x86 modulo-32 shifts and modulo-32-bit output, without saturation'},
         engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest() if engine else None,
-        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','acos','sqrt','reciprocal','divide','fractional','modulo')} if engine else {},
+        paired_trig_cases=len(pair_records), paired_trig_alias_cases=pair_aliases, paired_trig_sha256=pair_digest,
+        paired_trig_abi='ECX angle pointer, EDX sine pointer, stack4 cosine pointer, RET4; sine stored before cosine',
+        engine_exact_cases={name: counts[name] for name in ('add','subtract','multiply','sin','cos','sincos','acos','sqrt','reciprocal','divide','fractional','modulo')} if engine else {},
         exclusions=['Producer reachability of raw NaN/infinity/denormal/overflow patterns',
                     'Full spatial mutation after bounds construction',
                     'General simulation trajectories; trig helper domains are raw input words, not public producer proof',

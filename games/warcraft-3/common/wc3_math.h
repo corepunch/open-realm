@@ -69,9 +69,8 @@ static inline uint32_t wc3_from_int(uint32_t w) {
     return ((uint32_t)(exp + 127) << 23) | (mant & 0x7fffff) | (w & 0x80000000u);
 }
 
-/* 6f071280/070790: quarter-wave fixed-point interpolation, then truncating scalar conversion. */
-static inline float wc3_trig(float angle, bool cosine) {
-    uint32_t phase = wc3_int_bits(wc3_mul_bits(wc3_float_bits(angle), 0x4822f983));
+/* The paired and single helpers use the same quarter-wave interpolation after phase reduction. */
+static inline float wc3_trig_phase(uint32_t phase, bool cosine) {
     uint32_t quad = ((phase >> 18) + cosine) & 3, idx = (phase >> 8) & 1023;
     uint32_t weight = (phase & 255) * 0x01010101u, val;
     if (quad & 1) {
@@ -85,8 +84,20 @@ static inline float wc3_trig(float angle, bool cosine) {
     return wc3_float(w - (w & 0x7f800000 ? 0x0f800000u : 0));
 }
 
+/* 6f071280/070790: quarter-wave fixed-point interpolation, then truncating scalar conversion. */
+static inline float wc3_trig(float angle, bool cosine) {
+    return wc3_trig_phase(wc3_int_bits(wc3_mul_bits(wc3_float_bits(angle), 0x4822f983)), cosine);
+}
+
 static inline float wc3_sin(float a) { return wc3_trig(a, false); }
 static inline float wc3_cos(float a) { return wc3_trig(a, true); }
+
+/* 6f071340 reduces once, then stores sine before cosine; aliased outputs retain the latter. */
+static inline void wc3_sincos(float angle, float *sine, float *cosine) {
+    uint32_t phase = wc3_int_bits(wc3_mul_bits(wc3_float_bits(angle), 0x4822f983));
+    *sine = wc3_trig_phase(phase, false);
+    *cosine = wc3_trig_phase(phase, true);
+}
 
 /* Restoring integer root reproduces 6f071530 without a host libm operation. */
 static inline uint32_t wc3_isqrt(uint32_t n) {
@@ -259,7 +270,8 @@ static inline void wc3_integrate(float pos[2], float const vel[2], float elapsed
 
 /* Desired-minus-old is added back before testing length; cancellation truncation is observable. */
 static inline void wc3_velocity_update(wc3Velocity_t *v) {
-    float dir[2] = { wc3_cos(v->heading), wc3_sin(v->heading) };
+    float dir[2];
+    wc3_sincos(v->heading, &dir[1], &dir[0]);
     for (unsigned i = 0; i < 2; i++) {
         float want = v->speed > 0 ? wc3_mul(v->speed, dir[i]) : 0;
         v->vel[i] = wc3_add(v->vel[i], wc3_sub(want, v->vel[i]));

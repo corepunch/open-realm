@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**53 done / 232 tasks; 179 remaining.** Counts describe this backlog,
+**54 done / 233 tasks; 179 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -21,7 +21,7 @@ Completed evidence now sits next to its specific remaining extension.
 | FOOT — Footprints and query policy | 1 | 8 |
 | FINE — Fine search | 1 | 8 |
 | ACC — Adaptive search | 1 | 10 |
-| NUM — Numbers and random state | 5 | 6 |
+| NUM — Numbers and random state | 6 | 6 |
 | ROUTE — Route progression and yielding | 0 | 10 |
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
@@ -37,6 +37,8 @@ Completed evidence now sits next to its specific remaining extension.
 Update these counts when checking, adding or splitting a task. Report progress
 as **IDs closed + artifact + next runnable ID**, not additional raw test counts.
 The denominator changes only when a new task is explicitly added or split.
+NUM-01.4 explicitly splits01.2's paired-trig production consumer from its
+remaining arithmetic/conversion and public-domain inventory; both are required.
 NUM-02.4 was added explicitly to own the previously unassigned committed-facing
 exclusion of NUM-02.2; it is closed independently of whole-trajectory NUM-02.3.
 GROUP-04.1's callback removal/reuse and refreshed survivor requirement is split
@@ -78,8 +80,8 @@ activation, Stop, arrival, save/load and reuse (ORDER-01.4). Other command
 owners remain ORDER-01.10..14/16..18. ORDER-01.5 fixes immutable issued-event metadata through
 delayed/reentrant and saved/suspended callbacks; it does not fix current-order
 state. Follow query ownership is integrated through Move, while completed Hold
-correctly retains behavior with current head0 (ORDER-01.7/08). Ghidra persists277
-names,18 layouts,115 fields and45 x86 prototypes. The strict corpus has122
+correctly retains behavior with current head0 (ORDER-01.7/08). Ghidra persists278
+names,18 layouts,115 fields and46 x86 prototypes. The strict corpus has122
 declared outcomes, including the repeated public order-lifecycle witness. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
@@ -307,6 +309,8 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 - [x] **NUM-01.1** 200,330 exact scalar calls, 2,130 normalizations and 864 bounds prefixes are recorded. Evidence: [scalar arithmetic][numeric]; trig and general trajectories remain open.
 - [ ] **NUM-01.2** Inventory the remaining trig/conversion helpers with operand ABI, constant initialization and public input domains; link the already verified scalar helpers.
 - [x] **NUM-01.3** Independent integer formula regenerates all 1,025 embedded reciprocal entries exactly; Ghidra references identify a static table consumed by0711e0, with no runtime producer. Same generator also reproduces all 1,025 sine entries. Evidence: [generated tables](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry), report `scalar-trig-engine-exact.json`; historical build-time source is unavailable.
+
+- [x] **NUM-01.4** Split01.2's paired-trig consumer integration: execute original071340 with raw angle words and verified ECX/EDX/stack4/RET4 ABI, independently regenerated sine table, alias/guard/nonvolatile-register controls and optimized/unoptimized C. Integrate shared phase calculation into production velocity without changing any frozen velocity/facing/position words. Evidence: [paired trigonometry](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry),20,032 distinct raw angles plus80,128 aliases through original code/C with guards, independent table model and-O0/-O2 regression; frozen digest01131f85... and122/122 unchanged-trajectory corpus outcomes. Remaining conversion/angle-helper ABI and public-domain inventory stays01.2.
 
 ### NUM-02 — Branch-sensitive arithmetic
 

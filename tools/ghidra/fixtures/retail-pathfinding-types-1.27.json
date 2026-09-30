@@ -1502,6 +1502,29 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f071340",
+      "name": "Math_SinCosPaired",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "angle",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "sine",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        },
+        {
+          "name": "cosine",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [
@@ -1516,6 +1539,12 @@
       "name": "PathRegistryCurrent",
       "type": "ptr:WC3HandleRegistryPrefix",
       "evidence": "04a6b0 publishes same registry;054530 and1c5490 consume this alias"
+    },
+    {
+      "address": "6fcd58d8",
+      "name": "Math_TrigPhaseScale",
+      "type": "WC3PathScalar",
+      "evidence": "Stored scalar4822f983;071340 consumes static angle-to-phase multiplier. Complete raw/helper alias matrix and generated sine table verification. No runtime initialization producer inferred."
     }
   ]
 }

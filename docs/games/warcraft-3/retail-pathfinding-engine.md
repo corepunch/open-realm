@@ -114,6 +114,43 @@ comparisons are in `scalar-trig-engine-exact.json`: add/subtract/multiply 21,772
 each, sine/cosine 21,668 each, square root/reciprocal 25,542 each and divide 21,732.
 Raw exceptional inputs establish helper behavior, not public producer validity.
 
+
+NUM-01.4 adds the complete paired helper071340. It uses ECX angle pointer,
+EDX sine output, stack4 cosine output and RET4; sine is stored before cosine.
+`num-01.4-paired-all-alias-numeric-exact.json` executes20,032 raw angles and
+80,128 alias cases against an independent generated-table model and production
+C, with adjacent quarter-turn inputs, signed zeros, exceptional raw words,
+input/output aliases, shared outputs, guard words, nonvolatile registers and
+stack cleanup. The distinct-angle output digest is unchanged from the earlier
+inventory experiment:
+`01131f854754268404722dcdae905cde29dcbb40228f0c30c877a346dd21c44e`.
+
+Production `wc3_sincos` computes the phase once and reuses the same interpolation
+as the singles. `wc3_velocity_update` consumes that pair. The test-first probe
+fails before the paired API exists, then verifies both-O0 and-O2 words against
+the independent model. This shares calculation without changing the requested
+velocity formula or making a new clock/trajectory claim. The original paired
+helper has verified formation/random-direction callers; its use here does not
+claim that the original velocity kernel itself calls071340. The strict corpus
+requires the paired case/alias counts and frozen digest in both numeric entries,
+then replays the existing velocity/facing/position witnesses unchanged.
+
+Ghidra now persists278 recovered names,18 partial layouts,115 fields and46
+explicit x86 prototypes, including `Math_SinCosPaired` and scalar phase constant
+`Math_TrigPhaseScale` atcd58d8. Remaining conversion/angle-helper comments retain
+partial ABI/semantics and direct caller counts, with unverified public domains
+explicitly excluded. Full remaining arithmetic inventory stays NUM-01.2; public
+exceptional inputs remain NUM-03, and whole-engine timing remains NUM-02.3.
+
+Validation for01.4: full `make test` passes81 tool tests and37,010 assertions
+in2,138 engine tests; WC3/SC2 production builds pass. Fresh strict corpus
+`num-01.4-paired-corpus/corpus-results.json` passes122/122 and verifies unchanged
+source fingerprints at completion. The velocity/facing/position expectations
+remain frozen. Manifest SHA256:
+`6061e98eac2f62b11d32aefad73e5650290632ce51ee884e8602adf4863b5ef5`;
+summary SHA256:
+`1c4f5ed3eea55779bd0942f1f9d533af29668130e3fad5878490596733d50912`.
+
 ## Velocity and position integration
 
 `wc3_velocity_update()` computes desired-minus-old velocity and adds that delta
@@ -496,7 +533,7 @@ The FIFO calls these owners again at activation; it must not make a pending
 entry current merely because the issued event was published. Generic
 `S_UnitAbilityOrderAccepted` is a post-accept hook, not universal head activation.
 
-Ghidra now persists **277 names,18 partial layouts,115 fields and45 explicit
+Ghidra now persists **278 names,18 partial layouts,115 fields and46 explicit
 x86 prototypes**. New names cover Hold creation/enter/leave, Patrol/Attack Move
 creation, Smart target dispatch and the shared owner/interception roots.
 Move20 bit200 is named in the existing Move prefix; instruction labels at

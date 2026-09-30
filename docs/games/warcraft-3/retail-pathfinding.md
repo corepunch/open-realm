@@ -40,7 +40,7 @@ composition closes a gap.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
   `MapPathfindingTypes.java` also persists 18 partial layouts,115 verified
-  fields and45 instruction-established prototypes with explicit register/stack
+  fields and46 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -50,7 +50,7 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `order-01.6-ghidra-owner-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  277 function names/comments applied and saved. Names are recovered roles, not original debug symbols;
+  278 function names/comments applied and saved. Names are recovered roles, not original debug symbols;
   RTTI names are original. No inferred prototypes installed.
 - Local Ghidra project: `/GitHub/wc3-analysis/projects/WC3Audio.gpr`, program
   `game.dll`, backend `http://127.0.0.1:8089`.

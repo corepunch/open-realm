@@ -7,6 +7,20 @@ uint32_t pathing_multiply(uint32_t a, uint32_t b) { return wc3_mul_bits(a, b); }
 uint32_t pathing_angle(uint32_t a) { return wc3_float_bits(wc3_angle(wc3_float(a))); }
 uint32_t pathing_sin(uint32_t a) { return wc3_float_bits(wc3_sin(wc3_float(a))); }
 uint32_t pathing_cos(uint32_t a) { return wc3_float_bits(wc3_cos(wc3_float(a))); }
+void pathing_sincos(uint32_t a, uint32_t output[2]) {
+    float result[2];
+    wc3_sincos(wc3_float(a), &result[0], &result[1]);
+    for (unsigned i = 0; i < 2; i++) output[i] = wc3_float_bits(result[i]);
+}
+/* Match the original pointer-alias matrix without violating C's scalar representation rules. */
+void pathing_sincos_alias(uint32_t words[3], unsigned mode) {
+    float slots[3];
+    for (unsigned i = 0; i < 3; i++) slots[i] = wc3_float(words[i]);
+    unsigned sine = mode == 1 || mode == 4 ? 0 : 1;
+    unsigned cosine = mode == 2 || mode == 4 ? 0 : mode == 3 ? 1 : 2;
+    wc3_sincos(slots[0], &slots[sine], &slots[cosine]);
+    for (unsigned i = 0; i < 3; i++) words[i] = wc3_float_bits(slots[i]);
+}
 uint32_t pathing_acos(uint32_t a) { return wc3_float_bits(wc3_acos(wc3_float(a))); }
 uint32_t pathing_heading(uint32_t x, uint32_t y) {
     return wc3_float_bits(wc3_vector_heading(wc3_float(x), wc3_float(y)));

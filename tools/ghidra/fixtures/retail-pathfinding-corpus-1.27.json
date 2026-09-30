@@ -402,12 +402,21 @@
         },
         "composed_normalizer_cases": {
           "minimum": 1
+        },
+        "paired_trig_cases": {
+          "equal": 20032
+        },
+        "paired_trig_alias_cases": {
+          "equal": 80128
+        },
+        "paired_trig_sha256": {
+          "equal": "01131f854754268404722dcdae905cde29dcbb40228f0c30c877a346dd21c44e"
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers.",
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability.",
       "exclusions": [
         "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
         "Full spatial mutation after bounds construction",
@@ -1595,12 +1604,21 @@
         },
         "engine_exact_cases": {
           "nonempty": true
+        },
+        "paired_trig_cases": {
+          "equal": 20032
+        },
+        "paired_trig_alias_cases": {
+          "equal": 80128
+        },
+        "paired_trig_sha256": {
+          "equal": "01131f854754268404722dcdae905cde29dcbb40228f0c30c877a346dd21c44e"
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels.",
+      "scope": "Bit-exact retail 1.27 arithmetic and composed spatial-bound oracle.\n\nReference models operate on integers, independently of the emulated helpers.\nRaw-bit probes establish helper behavior, not validity at gameplay producers. Also compare production C words with executed original kernels. Includes complete071340 paired sin/cos:20,032 raw angles,80,128 aliases with pointer guards and nonvolatile/RET4 checks; phase/table constants are authoritative. Raw exceptional patterns do not establish public producer reachability.",
       "exclusions": [
         "Producer reachability of raw NaN/infinity/denormal/overflow patterns",
         "Full spatial mutation after bounds construction",
@@ -5630,7 +5648,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "a9a8bfaf05794ccb996a2d0a83359db9b7700853445181b59c3c83e92a6417a2"
+      "sha256": "a9c149376a243e7191cab59532d16c958defe8c89beda48437bd0871ace2be62"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",

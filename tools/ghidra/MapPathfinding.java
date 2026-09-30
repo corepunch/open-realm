@@ -8,6 +8,7 @@ import ghidra.program.model.symbol.SourceType;
 public class MapPathfinding extends GhidraScript {
     static final String HASH = "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236";
     static final String[][] ROWS = {
+        {"6f071340", "Math_SinCosPaired", "ECX angle pointer, EDX sine output, stack4 cosine output; RET4. Shared phase scale4822f983 atcd58d8, independent1025 sine table;20,032 raw angle words and80,128 alias cases match original/C exactly with guards and nonvolatile checks. Sine stored before cosine. Formation/random-direction callers are indexed; raw exceptional inputs do not prove public reachability."},
         {"6f5fccf0", "Move_CreateHoldTasks", "d0019 Hold Position dispatcher; ECX Move, no stack args, RET plain. Original factories create d0148,d014e,d0177,d0144 then action0 (prepend reverses dispatch). Live public Hold retires its user head immediately to0 while behavior remains; hold state is not a persistent current command."},
         {"6f5ffad0", "Move_EnterHoldState", "d0177 task: republish current speed via owning Unit virtualb8/mover virtual18, OR Move20 bit200, notify Unit693d20. ECX Move, no stack args, RET plain. Behavior state is separate from GetUnitCurrentOrder."},
         {"6f5ffe50", "Move_LeaveHoldState", "d0178 task: republish speed, clear Move20 bit200, notify Unit693d20. ECX Move, no stack args, RET plain. Point and target task chains leave prior Hold behavior."},
