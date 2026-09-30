@@ -50,8 +50,17 @@ For each `unitAttack_t`:
 - `numberOfDice`, `sidesPerDie`: `NdS` random component.
 - `permanentDamageBonus`: permanent modifier ledger used to survive Hero stat recomputation (for example `ratx`).
 - `temporaryDamageBonus`: item/temporary modifier added to each roll but not folded into the base range.
-- `cooldown`, `damagePoint`, `range`: attack timing/range.
+- `cooldown`, `damagePoint`, `backswingPoint`: attack-cycle timing.
+- `range`, `rangeBuffer`: true weapon range and cooldown-only movement hysteresis.
 - artillery splash metadata (`Farea`/`Harea`/`Qarea`, `Hfact`/`Qfact`, `splashTargs`) is consumed by the generic `WPN_ARTILLERY` impact path; bounce/line/missile-splash weapon classes remain separate gaps.
+
+### Chase range and attack timing
+
+Direct Attack continues to use the compatible runtime Attack 1/Attack 2 profile selected for the current target. While the weapon is in its post-damage cooldown state, that selected profile's `RngBuff1`/`RngBuff2` runtime copy (`rangeBuffer`) extends only the range at which the attacker may remain stationary. When the cooldown expires, OpenRealm rechecks the unbuffered weapon range before beginning the next swing, so `RngBuff` cannot become extra firing range. Ensnare's forced melee-range rule remains authoritative and does not receive the normal range buffer.
+
+Before melee damage or a projectile is committed at damage point, the target is rechecked against the **true**, unbuffered weapon range and minimum range. A target that escapes during windup cancels the pending launch and returns the attacker to chase; a projectile already launched remains owned by the projectile system.
+
+Runtime attacks now retain the authored `backSw1`/`backSw2` value as `backswingPoint`. Post-damage recovery waits for whichever gate is longer: the remaining weapon cooldown (`cooldown - damagePoint`) or authored backswing. This prevents custom data with backswing longer than the remaining cooldown from starting the next swing early. Animation presentation is still driven by the existing model-sequence state machine; this change does not introduce a separate global surround or combat-animation scheduler.
 
 The displayed permanent range is:
 

@@ -851,8 +851,10 @@ typedef struct {
     float permanentDamageBonus;
     float temporaryDamageBonus;
     float damagePoint;
+    float backswingPoint;
     float cooldown;
     float range;
+    float rangeBuffer;
     uint32_t targetsAllowed; /* WC3 targetflag bitmask (ua1g/ua2g) */
     /* Splash (area-of-effect) attack: full/medium/small radii and the damage
      * factors applied in the medium and small rings. */

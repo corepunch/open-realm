@@ -3489,6 +3489,44 @@ TEST(wc3_movement, immobile_unit_neither_moves_nor_rotates) {
     T_FEQ(unit->s.angle, angle, 0.01f);
 }
 
+TEST(wc3_movement, propwin_turns_in_place_until_inside_authored_window) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    UnitData_t data = *unit->data.UnitData;
+    vec2_t const target = {-100.0f, 0.0f};
+    vec2_t const origin = unit->s.origin2;
+
+    data.turnRate = 0.1f;
+    data.propWin = 10.0f;
+    unit->data.UnitData = &data;
+    unit->unitinfo.MoveSpeed = 100.0f;
+    unit->s.angle = 0.0f;
+
+    unit_changeangle_towards_point(unit, &target);
+    unit_moveindirection(unit);
+
+    T_FEQ(unit->s.origin2.x, origin.x, 0.001f);
+    T_FEQ(unit->s.origin2.y, origin.y, 0.001f);
+    T_ASSERT(fabsf(unit->s.angle) > 0.01f);
+}
+
+TEST(wc3_movement, propwin_large_window_allows_translation_while_turning) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    UnitData_t data = *unit->data.UnitData;
+    vec2_t const target = {-100.0f, 0.0f};
+    vec2_t const origin = unit->s.origin2;
+
+    data.turnRate = 0.1f;
+    data.propWin = 180.0f;
+    unit->data.UnitData = &data;
+    unit->unitinfo.MoveSpeed = 100.0f;
+    unit->s.angle = 0.0f;
+
+    unit_changeangle_towards_point(unit, &target);
+    unit_moveindirection(unit);
+
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
+}
+
 TEST(wc3_movement, immobile_unit_rejects_ground_move_order) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     vec2_t dest = {100.0f, 0.0f};

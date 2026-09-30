@@ -23,6 +23,12 @@ void attack_ranged(edict_t *ent);
 void attack_ranged_cooldown(edict_t *ent);
 void order_attack(edict_t *self, edict_t *target);
 
+static void ai_melee_cooldown(edict_t *ent);
+static void ai_ranged_cooldown(edict_t *ent);
+static bool attack_target_out_of_range(edict_t *ent);
+static bool attack_target_out_of_base_range(edict_t *ent);
+static bool attack_target_too_close(edict_t *ent);
+
 typedef struct {
     edict_t *target;
     vec2_t const *fixed_target;
@@ -510,6 +516,13 @@ static void ai_melee(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
+    /* The target must still satisfy the true weapon range at damage point.
+     * RngBuff is cooldown hysteresis only; it must never preserve a pending
+     * melee hit after the target has escaped the real attack envelope. */
+    if (attack_target_out_of_base_range(ent) || attack_target_too_close(ent)) {
+        attack_walk(ent);
+        return;
+    }
     unit_changeangle(ent);
     unit_runwait(ent, damage_target);
 }
@@ -517,6 +530,12 @@ static void ai_melee(edict_t *ent) {
 static void ai_ranged(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
+        return;
+    }
+    /* A projectile is committed only at damage point.  Until then, leaving
+     * true range cancels the windup and returns to chase just like melee. */
+    if (attack_target_out_of_base_range(ent) || attack_target_too_close(ent)) {
+        attack_walk(ent);
         return;
     }
     unit_changeangle(ent);
@@ -553,14 +572,29 @@ static void attack_retreat_from_target(edict_t *ent) {
     unit_moveindirection(ent);
 }
 
-static bool attack_target_out_of_range_for(edict_t const *ent, edict_t const *target) {
+/* RngBuff applies only while the normal post-damage attack cooldown state is
+ * active; windup and ordinary chase must continue using true weapon range. */
+static bool attack_is_cooling_down(edict_t const *ent) {
+    if (!ent || !ent->currentmove || ent->wait <= 0.0f) return false;
+    return ent->currentmove->think == ai_melee_cooldown ||
+           ent->currentmove->think == ai_ranged_cooldown;
+}
+
+/* Centralize attack-range geometry so buffered cooldown range and true firing
+ * range share the same footprint/minimum-range-independent distance contract. */
+static bool attack_target_out_of_range_for_mode(edict_t const *ent, edict_t const *target,
+                                                 bool allow_cooldown_buffer) {
+    unitAttack_t const *attack;
     float footprint, range, ensnare_range;
 
     if (!ent || !target) return true;
 
     /* Ensnare DataC forces the bound unit's own attacks to melee range. */
     ensnare_range = S_EnsnareMeleeRange(ent);
-    range = ensnare_range > 0.0f ? ensnare_range : attack_profile(ent, target)->range;
+    attack = attack_profile(ent, target);
+    range = ensnare_range > 0.0f ? ensnare_range : attack->range;
+    if (ensnare_range <= 0.0f && allow_cooldown_buffer && attack_is_cooling_down(ent))
+        range += MAX(0.0f, attack->rangeBuffer);
     if ((G_UnitIsStructure(target) || G_IsDestructable(target)) && target->pathtex) {
         footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
         if (footprint < FLT_MAX) {
@@ -570,8 +604,16 @@ static bool attack_target_out_of_range_for(edict_t const *ent, edict_t const *ta
     return Vector2_distance(&target->s.origin2, &ent->s.origin2) > range;
 }
 
+static bool attack_target_out_of_range_for(edict_t const *ent, edict_t const *target) {
+    return attack_target_out_of_range_for_mode(ent, target, true);
+}
+
 static bool attack_target_out_of_range(edict_t *ent) {
     return !ent || attack_target_out_of_range_for(ent, ent->goalentity);
+}
+
+static bool attack_target_out_of_base_range(edict_t *ent) {
+    return !ent || attack_target_out_of_range_for_mode(ent, ent->goalentity, false);
 }
 
 /* Movement-disabled attackers (ordinary towers/buildings) must not auto-acquire
@@ -586,6 +628,18 @@ bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
     return true;
 }
 
+/* Tick the recovery timer explicitly so the frame where cooldown expires can
+ * drop RngBuff and revalidate true range before another swing starts. */
+static bool attack_cooldown_elapsed(edict_t *ent) {
+    float const step = FRAMETIME / 1000.0f;
+    if (ent->wait > step) {
+        ent->wait -= step;
+        return false;
+    }
+    ent->wait = 0.0f;
+    return true;
+}
+
 static void ai_melee_cooldown(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
@@ -593,8 +647,14 @@ static void ai_melee_cooldown(edict_t *ent) {
     }
     if (attack_target_out_of_range(ent) || attack_target_too_close(ent)) {
         attack_walk(ent);
-    } else {
-        unit_runwait(ent, attack_melee);
+    } else if (attack_cooldown_elapsed(ent)) {
+        /* RngBuff disappears exactly when the weapon becomes ready.  Recheck
+         * true range before starting the next swing so the buffer cannot turn
+         * into extra firing range. */
+        if (attack_target_out_of_base_range(ent) || attack_target_too_close(ent))
+            attack_walk(ent);
+        else
+            attack_melee(ent);
     }
 }
 
@@ -605,8 +665,11 @@ static void ai_ranged_cooldown(edict_t *ent) {
     }
     if (attack_target_out_of_range(ent) || attack_target_too_close(ent)) {
         attack_walk(ent);
-    } else {
-        unit_runwait(ent, attack_ranged);
+    } else if (attack_cooldown_elapsed(ent)) {
+        if (attack_target_out_of_base_range(ent) || attack_target_too_close(ent))
+            attack_walk(ent);
+        else
+            attack_ranged(ent);
     }
 }
 
@@ -713,11 +776,11 @@ static float attack_speed_divisor(edict_t *self) {
 void attack_melee_cooldown(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_melee_cooldown);
-    self->wait = MAX(0.0f, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
-    /* Burrow cargo can reduce the authored cooldown below damagePoint.  A zero
-     * recovery means the next swing starts immediately; unit_runwait() treats
-     * wait==0 as inactive, so transition explicitly instead of stalling after
-     * one attack. */
+    self->wait = MAX(0.0f, MAX(ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint,
+                               ACTIVE_ATTACK(self)->backswingPoint) / divisor);
+    /* The next swing must satisfy both authored gates: weapon cooldown from
+     * swing start and backswing after damage point.  If both have already
+     * elapsed, transition explicitly instead of parking on wait==0. */
     if (self->wait <= 0.0f) attack_melee(self);
 }
 
@@ -731,7 +794,8 @@ void attack_melee(edict_t *self) {
 void attack_ranged_cooldown(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_ranged_cooldown);
-    self->wait = MAX(0.0f, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
+    self->wait = MAX(0.0f, MAX(ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint,
+                               ACTIVE_ATTACK(self)->backswingPoint) / divisor);
     if (self->wait <= 0.0f) attack_ranged(self);
 }
 
