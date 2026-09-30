@@ -52,6 +52,11 @@ Current runtime consumers are:
 | `FPT` | `Splats\SplatData.slk` | Use the same SplatData path for footprint event objects; placement comes from the animated event-node transform. |
 | `UBR` | `Splats\UberSplatData.slk` | Create a renderer-owned terrain splat at the animated event-node position and apply the authored birth/pause/decay colour phases. |
 
+Entity-camera scenes retain and draw `SPN` children for the owning model instance.
+`SPL`, `FPT`, and `UBR` are terrain effects, so an event from an entity-camera
+scene does not create a world decal; the renderer emits a bounded diagnostic
+instead of allowing a menu or portrait event to leak into the map.
+
 Warsmash uses the same `SPN` lookup chain: `EventObjectEmitterObject` loads
 `Splats\SpawnData.slk`, reads the row's `Model`, and `EventObjectSpn` creates an
 independent model instance at the event node's world location/rotation/scale,

@@ -258,6 +258,7 @@ static slkField_t const uber_splat_data_schema[] = {
 };
 static wc3UberSplatData_t *uber_splat_rows; static uint32_t uber_splat_count;
 typedef struct { model_t const *model; uint32_t frame, render_time, generation; bool valid; } wc3EventState_t;
+typedef struct { uintptr_t instance_id; wc3EventState_t state; } wc3CameraEventState_t;
 typedef enum {
     WC3_EVENT_NONE, WC3_EVENT_SOUND, WC3_EVENT_SPAWN, WC3_EVENT_SPLAT, WC3_EVENT_FOOTPRINT, WC3_EVENT_UBER_SPLAT,
 } wc3EventKind_t;
@@ -276,6 +277,9 @@ typedef struct {
     mat4_t const *transform;
     wc3EventFamily_t const *family;
     uint32_t depth;
+    bool entity_camera;
+    model_t const *source_model;
+    uintptr_t source_instance_id;
 } wc3EventParams_t;
 typedef struct {
     renderEntity_t const *entity;
@@ -283,8 +287,13 @@ typedef struct {
     wc3EventState_t *state;
     mat4_t const *transform;
     uint32_t depth;
+    bool entity_camera;
+    model_t const *source_model;
+    uintptr_t source_instance_id;
 } wc3EventDispatchParams_t;
 static wc3EventState_t event_state[MAX_GAME_ENTITIES];
+static wc3CameraEventState_t *camera_event_states;
+static size_t camera_event_state_count, camera_event_state_capacity;
 #define WC3_EVENT_WARNING_MAX 128
 typedef struct { char kind[32], name[80]; } wc3EventWarning_t;
 static wc3EventWarning_t event_warnings[WC3_EVENT_WARNING_MAX];
@@ -292,10 +301,10 @@ static uint32_t event_warning_count;
 static bool event_warning_overflow_logged;
 #define WC3_EVENT_SPAWN_MAX 128 // effects; bounds renderer-owned SPN children without heap growth
 typedef struct {
-    model_t *model; mat4_t transform;
+    model_t *model; model_t const *source_model; uintptr_t source_instance_id; mat4_t transform;
     uint32_t team, flags, start_time, frame, serial, depth;
     uint32_t event_frame, event_render_time;
-    float scale; bool active, event_valid;
+    float scale; bool active, event_valid, entity_camera;
 } wc3EventSpawn_t;
 static wc3EventSpawn_t event_spawns[WC3_EVENT_SPAWN_MAX];
 static uint32_t event_spawn_serial;
@@ -314,12 +323,14 @@ typedef struct {
 } wc3EventSplat_t;
 static wc3EventSplat_t event_splats[WC3_EVENT_SPLAT_MAX];
 static uint32_t event_splat_serial;
-static void R_W3DrawEventSpawns(void);
+static void R_W3DrawEventSpawns(bool entity_camera, model_t const *source_model, uintptr_t source_instance_id);
 static void R_W3DrawEventSplats(void);
 static bool R_W3RenderEventSplat(wc3EventSplat_t *splat);
 static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params);
 static bool R_W3EventWarningShouldLog(cstring_t kind, cstring_t name);
 static void R_W3ClearEventWarnings(void);
+static void R_W3ClearCameraSpawns(model_t const *source_model, uintptr_t source_instance_id);
+static void R_W3ClearCameraEventStates(void);
 
 /* WorldEditData is the authoritative tileset-to-Blight-art mapping.  Keep the
  * lookup data-driven because custom/expansion tilesets can add rows there. */
@@ -643,6 +654,90 @@ static void R_W3ClearEventSpawns(void) {
     event_spawn_serial = 0;
 }
 
+static void R_W3ClearCameraSpawns(model_t const *source_model, uintptr_t source_instance_id) {
+    FOR_LOOP(i, WC3_EVENT_SPAWN_MAX) {
+        wc3EventSpawn_t *spawn = event_spawns + i;
+        if (spawn->active && spawn->entity_camera && spawn->source_model == source_model &&
+            spawn->source_instance_id == source_instance_id) spawn->active = false;
+    }
+}
+
+static void R_W3ClearCameraEventStates(void) {
+    if (camera_event_states) {
+        if (!ri.MemFree) {
+            fprintf(stderr, "WC3 renderer: cannot free entity-camera event states without MemFree\n");
+            memset(camera_event_states, 0, camera_event_state_capacity * sizeof(*camera_event_states));
+            camera_event_state_count = 0;
+            return;
+        }
+        ri.MemFree(camera_event_states);
+    }
+    camera_event_states = NULL;
+    camera_event_state_count = camera_event_state_capacity = 0;
+}
+
+static wc3EventState_t *R_W3CameraEventState(renderEntity_t const *entity) {
+    wc3CameraEventState_t *state;
+
+    if (!entity || !entity->instance_id) {
+        static bool missing_identity_logged;
+        if (!missing_identity_logged) {
+            fprintf(stderr, "WC3 renderer: entity-camera MDX events require a stable instance_id\n");
+            missing_identity_logged = true;
+        }
+        return NULL;
+    }
+    FOR_LOOP(i, camera_event_state_count) {
+        state = camera_event_states + i;
+        if (state->instance_id != entity->instance_id) continue;
+        if (state->state.model != entity->model || state->state.generation != entity->generation) {
+            R_W3ClearCameraSpawns(state->state.model, state->instance_id);
+            state->state = (wc3EventState_t){0};
+        }
+        return &state->state;
+    }
+    if (camera_event_state_count == camera_event_state_capacity) {
+        size_t capacity = camera_event_state_capacity ? camera_event_state_capacity * 2 : 16;
+        if (capacity < camera_event_state_capacity ||
+            capacity > (size_t)LONG_MAX / sizeof(*camera_event_states)) {
+            fprintf(stderr, "WC3 renderer: entity-camera event-state capacity overflow\n");
+            return NULL;
+        }
+        if (!ri.MemAlloc || !ri.MemFree) {
+            fprintf(stderr, "WC3 renderer: entity-camera event states require MemAlloc and MemFree\n");
+            return NULL;
+        }
+        wc3CameraEventState_t *states = ri.MemAlloc((long)(capacity * sizeof(*states)));
+        if (!states) {
+            fprintf(stderr, "WC3 renderer: failed to grow entity-camera event states to %zu entries\n", capacity);
+            return NULL;
+        }
+        memset(states, 0, capacity * sizeof(*states));
+        if (camera_event_state_count)
+            memcpy(states, camera_event_states, camera_event_state_count * sizeof(*states));
+        if (camera_event_states) ri.MemFree(camera_event_states);
+        camera_event_states = states;
+        camera_event_state_capacity = capacity;
+    }
+    state = camera_event_states + camera_event_state_count++;
+    state->instance_id = entity->instance_id;
+    state->state.model = entity->model;
+    state->state.generation = entity->generation;
+    return &state->state;
+}
+
+void R_ReleaseGameEntityCameraEvents(uintptr_t instance_id) {
+    FOR_LOOP(i, camera_event_state_count) {
+        wc3CameraEventState_t *state = camera_event_states + i;
+        if (state->instance_id != instance_id) continue;
+        R_W3ClearCameraSpawns(state->state.model, state->instance_id);
+        camera_event_state_count--;
+        if (i != camera_event_state_count)
+            camera_event_states[i] = camera_event_states[camera_event_state_count];
+        return;
+    }
+}
+
 /* Keep repeated authored-event failures visible without printing on every animation loop. */
 static bool R_W3EventWarningShouldLog(cstring_t kind, cstring_t name) {
     if (!kind || !name) return false;
@@ -690,6 +785,7 @@ void R_LoadAssets(void) {
     anim_sound_count = ri.LoadSlk("UI\\SoundInfo\\AnimSounds.slk", anim_sound_schema,
                                   (void **)&anim_sound_rows, sizeof(wc3AnimSound_t));
     R_W3ClearEventSpawns();
+    R_W3ClearCameraEventStates();
     R_W3ClearEventSplats();
     R_W3ClearEventWarnings();
     R_W3LoadSpawnData();
@@ -741,6 +837,7 @@ void R_Shutdown(void) {
     anim_lookup_rows = NULL; anim_lookup_count = 0;
     anim_sound_rows = NULL; anim_sound_count = 0;
     R_W3ClearEventSpawns();
+    R_W3ClearCameraEventStates();
     R_W3ClearEventSplats();
     R_W3ClearEventWarnings();
     R_W3FreeSpawnData(false);
@@ -1054,6 +1151,7 @@ void R_RegisterMap(cstring_t mapFileName) {
     R_SetMapAssetScope(mapFileName);
     R_AdvanceTextureGeneration();
     R_W3ClearEventSpawns();
+    R_W3ClearCameraEventStates();
     R_W3ClearEventSplats();
     R_W3ClearEventWarnings();
     R_W3LoadSpawnData();
@@ -1082,7 +1180,11 @@ void R_SetupEnvironmentLighting(void) {
 void R_DrawWorld(void) {
     _W3M_DrawWorld();
     R_W3DrawEventSplats();
-    R_W3DrawEventSpawns();
+    R_W3DrawEventSpawns(false, NULL, 0);
+}
+
+void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source_instance_id) {
+    R_W3DrawEventSpawns(true, source_model, source_instance_id);
 }
 
 void R_DrawTerrainShadows(void) {
@@ -1366,6 +1468,7 @@ static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
     child.model = spawn->model;
     child.number = MAX_GAME_ENTITIES + slot + 1;
     child.generation = spawn->serial;
+    child.instance_id = spawn->source_instance_id;
     child.team = spawn->team;
     child.flags = spawn->flags | RF_NO_SHADOW | RF_NO_UBERSPLAT;
     child.scale = spawn->scale;
@@ -1380,7 +1483,8 @@ static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
         };
         R_W3DispatchModelEvents(&MAKE(wc3EventDispatchParams_t, .entity = &child,
             .model = spawn->model->mdx, .state = &state, .transform = &spawn->transform,
-            .depth = spawn->depth));
+            .depth = spawn->depth, .entity_camera = spawn->entity_camera,
+            .source_model = spawn->source_model, .source_instance_id = spawn->source_instance_id));
         /* A nested SPN may recycle this slot when the bounded transient pool is full.
          * Do not write the parent's event state into the replacement instance. */
         if (spawn->serial != serial) return true;
@@ -1429,6 +1533,9 @@ static void R_W3EmitSpawnEvent(wc3EventParams_t const *params) {
     seq = child_model->mdx->sequences;
     *spawn = (wc3EventSpawn_t){
         .model = child_model, .team = params->entity->team,
+        .source_model = params->source_model,
+        .source_instance_id = params->source_instance_id,
+        .entity_camera = params->entity_camera,
         .flags = params->entity->flags & (RF_NO_FOGOFWAR | RF_NO_LIGHTING | RF_PORTRAIT_LIGHTING),
         .start_time = tr.viewDef.time, .frame = seq->interval[0], .depth = params->depth,
         .serial = ++event_spawn_serial,
@@ -1686,9 +1793,15 @@ static void R_W3DrawEventSplats(void) {
     FOR_LOOP(i, WC3_EVENT_SPLAT_MAX) R_W3RenderEventSplat(event_splats + i);
 }
 
-static void R_W3DrawEventSpawns(void) {
+static void R_W3DrawEventSpawns(bool entity_camera, model_t const *source_model, uintptr_t source_instance_id) {
     if (tr.render_phase != RENDER_PHASE_SOLID) return;
-    FOR_LOOP(i, WC3_EVENT_SPAWN_MAX) R_W3RenderEventSpawn(event_spawns + i, i);
+    FOR_LOOP(i, WC3_EVENT_SPAWN_MAX) {
+        wc3EventSpawn_t *spawn = event_spawns + i;
+        if (!spawn->active || spawn->entity_camera != entity_camera) continue;
+        if (entity_camera && spawn->source_model != source_model) continue;
+        if (entity_camera && spawn->source_instance_id != source_instance_id) continue;
+        R_W3RenderEventSpawn(spawn, i);
+    }
 }
 
 /* Dispatch event-key crossings for normal entities and renderer-owned child model instances. */
@@ -1717,7 +1830,9 @@ static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params) {
             continue;
         }
         event_params = MAKE(wc3EventParams_t, .entity = params->entity, .model = params->model,
-            .event = event, .transform = params->transform, .family = family, .depth = params->depth);
+            .event = event, .transform = params->transform, .family = family, .depth = params->depth,
+            .entity_camera = params->entity_camera, .source_model = params->source_model,
+            .source_instance_id = params->source_instance_id);
         FOR_LOOP(i, event->num_keys) {
             uint32_t key = event->keys[i];
             if (!MDLX_EventKeyCrossed(params->model, event, key, params->state->frame,
@@ -1728,11 +1843,17 @@ static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params) {
                 R_W3EmitSoundEvent(&event_params, key);
                 break;
             case WC3_EVENT_UBER_SPLAT:
-                R_W3EmitUberSplatEvent(&event_params);
-                break;
             case WC3_EVENT_SPLAT:
             case WC3_EVENT_FOOTPRINT:
-                R_W3EmitSplatEvent(&event_params);
+                if (params->entity_camera) {
+                    if (R_W3EventWarningShouldLog("camera-splat-event", event->node.name))
+                        fprintf(stderr, "WC3 renderer: entity-camera event '%s' cannot emit a world terrain splat\n",
+                                event->node.name);
+                } else if (family->kind == WC3_EVENT_UBER_SPLAT) {
+                    R_W3EmitUberSplatEvent(&event_params);
+                } else {
+                    R_W3EmitSplatEvent(&event_params);
+                }
                 break;
             case WC3_EVENT_SPAWN:
                 if (params->depth < WC3_EVENT_MAX_DEPTH) {
@@ -1759,13 +1880,19 @@ static void R_W3UpdateModelEvents(renderEntity_t const *entity) {
 
     /* Presentation events belong to the color pass, not the shadow-map pass. */
     if (tr.render_phase == RENDER_PHASE_LIGHTS) return;
+    bool entity_camera = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) != 0;
+
     if (!entity || (entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX ||
-        !entity->model->mdx || entity->number >= MAX_GAME_ENTITIES) return;
+        !entity->model->mdx || (!entity_camera && entity->number >= MAX_GAME_ENTITIES)) return;
     model = entity->model->mdx;
     if (!model->events) return;
     R_GetEntityMatrix(entity, &transform);
+    wc3EventState_t *state = entity_camera ? R_W3CameraEventState(entity) : event_state + entity->number;
+    if (!state) return;
     R_W3DispatchModelEvents(&MAKE(wc3EventDispatchParams_t, .entity = entity, .model = model,
-        .state = event_state + entity->number, .transform = &transform, .depth = 0));
+        .state = state, .transform = &transform, .depth = 0, .entity_camera = entity_camera,
+        .source_model = entity_camera ? entity->model : NULL,
+        .source_instance_id = entity_camera ? entity->instance_id : 0));
 }
 
 void R_UpdateEntityPresentation(renderEntity_t const *entity) {

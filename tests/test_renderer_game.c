@@ -188,8 +188,10 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
     static mdxModel_t parent_mdx;
     static model_t parent_model;
     static renderEntity_t parent;
+    renderEntity_t camera_parent;
     wc3EventState_t saved_state = event_state[7];
     uint32_t saved_time = tr.viewDef.time;
+    uint32_t saved_rdflags = tr.viewDef.rdflags;
     render_phase_t saved_phase = tr.render_phase;
     refImport_t saved_imports = ri;
     model_t *child_model = NULL;
@@ -253,17 +255,62 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
     T_FEQ(test_spn_render_transform.v[14], 33.0f, 0.001f);
 
     /* Drawing the pool does not depend on another parent entity update. */
-    tr.viewDef.time = 250; R_W3DrawEventSpawns();
+    tr.viewDef.time = 250; R_W3DrawEventSpawns(false, NULL, 0);
     T_EQ(test_spn_render_count, 2);
     T_EQ(test_spn_render_entity.frame, 100);
-    tr.render_phase = RENDER_PHASE_LIGHTS; R_W3DrawEventSpawns();
+    tr.render_phase = RENDER_PHASE_LIGHTS; R_W3DrawEventSpawns(false, NULL, 0);
     T_EQ(test_spn_render_count, 2);
-    tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 1150; R_W3DrawEventSpawns();
+    tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 1150; R_W3DrawEventSpawns(false, NULL, 0);
     T_EQ(test_spn_render_count, 2);
     T_ASSERT(!event_spawns[0].active);
 
+    /* Separate entity cameras can use the same synthetic entity number. Their
+     * event clocks must remain independent so both authored SPN keys fire. */
+    R_W3ClearEventSpawns();
+    test_spn_render_count = 0;
+    event_state[7] = (wc3EventState_t){ 0 };
+    parent = (renderEntity_t){ .origin = { 10.0f, 20.0f, 30.0f }, .model = &parent_model,
+                               .number = 7, .team = 2, .scale = 1.0f, .instance_id = 1001 };
+    camera_parent = parent;
+    camera_parent.instance_id = 1002;
+    tr.viewDef.rdflags = RDF_USE_ENTITY_CAMERA;
+    tr.viewDef.time = 200;
+    R_UpdateEntityPresentation(&parent);
+    R_UpdateEntityPresentation(&camera_parent);
+    parent.frame = camera_parent.frame = 150;
+    tr.viewDef.time = 350;
+    R_UpdateEntityPresentation(&parent);
+    R_UpdateEntityPresentation(&camera_parent);
+    T_EQ(test_spn_render_count, 2);
+    T_ASSERT(event_spawns[0].entity_camera && event_spawns[1].entity_camera);
+    T_EQ(event_spawns[0].source_instance_id, 1001);
+    T_EQ(event_spawns[1].source_instance_id, 1002);
+    R_DrawEntityCameraEventSpawns(&parent_model, parent.instance_id);
+    T_EQ(test_spn_render_count, 3);
+    R_DrawEntityCameraEventSpawns(camera_parent.model, camera_parent.instance_id);
+    T_EQ(test_spn_render_count, 4);
+    R_W3DrawEventSpawns(false, NULL, 0);
+    T_EQ(test_spn_render_count, 4);
+    T_EQ(camera_event_state_count, 2);
+    for (uint32_t i = 0; i < 40; i++) {
+        camera_parent.instance_id = 2000 + i;
+        T_NOT_NULL(R_W3CameraEventState(&camera_parent));
+    }
+    camera_parent.instance_id = 1002;
+    T_EQ(camera_event_state_count, 42);
+    T_EQ(R_W3CameraEventState(&parent)->frame, 150);
+    R_ReleaseGameEntityCameraEvents(parent.instance_id);
+    T_EQ(camera_event_state_count, 41);
+    R_DrawEntityCameraEventSpawns(&parent_model, parent.instance_id);
+    T_EQ(test_spn_render_count, 4);
+    R_ReleaseGameEntityCameraEvents(camera_parent.instance_id);
+    T_EQ(camera_event_state_count, 40);
+    R_W3ClearCameraEventStates();
+    T_EQ(camera_event_state_count, 0);
+
 cleanup_spn_test:
     R_W3ClearEventSpawns();
+    R_W3ClearCameraEventStates();
     R_W3ClearEventSplats();
     R_W3FreeSpawnData(true);
     R_W3FreeSplatData();
@@ -272,7 +319,8 @@ cleanup_spn_test:
     R_TestUseProductionModelLoader(false);
     if (test_renderer_archive) { SFileCloseArchive(test_renderer_archive); test_renderer_archive = NULL; }
     ri = saved_imports;
-    event_state[7] = saved_state; tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
+    event_state[7] = saved_state; tr.viewDef.time = saved_time; tr.viewDef.rdflags = saved_rdflags;
+    tr.render_phase = saved_phase;
 }
 
 TEST(renderer_model, production_spl_dispatch_uses_splat_atlas_and_event_transform) {
