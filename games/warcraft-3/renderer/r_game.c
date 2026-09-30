@@ -166,6 +166,12 @@ typedef struct {
     texture_t const **texture;
     bool *attempted;
 } wc3SplatTextureParams_t;
+typedef struct {
+    cstring_t path, family;
+    slkField_t const *schema;
+    void **rows;
+    uint32_t size;
+} wc3EventTable_t;
 
 static slkField_t const anim_lookup_schema[] = {
     { "", offsetof(wc3AnimLookup_t, name), STB_SLK_STR },
@@ -473,6 +479,28 @@ static void R_W3ReleaseSpawnModels(void) {
     }
 }
 
+/* MDX event-object tables (SPN/SPL/FPT/UBR) share one contract: the map archive's copy overrides the retail
+ * table, and rows are keyed by the name in their first field. One loader and one lookup serve every family. */
+static uint32_t R_W3LoadEventTable(wc3EventTable_t const *table) {
+    PATHSTR scoped;
+    uint32_t count = 0;
+
+    if (R_MapAssetCandidate(table->path, scoped, sizeof(scoped)))
+        count = ri.LoadSlk(scoped, table->schema, table->rows, table->size);
+    if (!count) count = ri.LoadSlk(table->path, table->schema, table->rows, table->size);
+    if (!count) fprintf(stderr, "WC3 renderer: failed to load %s for MDX %s events\n", table->path, table->family);
+    return count;
+}
+
+static void *R_W3EventRow(void *rows, uint32_t count, uint32_t size, cstring_t id) {
+    if (!id || !*id) return NULL;
+    FOR_LOOP(i, count) {
+        cstring_t const *name = (cstring_t const *)((uint8_t *)rows + (size_t)i * size);
+        if (*name && !strcasecmp(*name, id)) return (void *)name;
+    }
+    return NULL;
+}
+
 static void R_W3FreeSpawnData(bool release_models) {
     if (release_models) R_W3ReleaseSpawnModels();
     FS_SLKFreeRows(spawn_data_schema, spawn_data_rows, spawn_data_count, sizeof(wc3SpawnData_t));
@@ -480,25 +508,13 @@ static void R_W3FreeSpawnData(bool release_models) {
 }
 
 static void R_W3LoadSpawnData(void) {
-    PATHSTR scoped;
-
     R_W3FreeSpawnData(true);
-    if (ri.LoadSlk && R_MapAssetCandidate("Splats\\SpawnData.slk", scoped, sizeof(scoped)))
-        spawn_data_count = ri.LoadSlk(scoped, spawn_data_schema,
-                                      (void **)&spawn_data_rows, sizeof(wc3SpawnData_t));
-    if (!spawn_data_count && ri.LoadSlk)
-        spawn_data_count = ri.LoadSlk("Splats\\SpawnData.slk", spawn_data_schema,
-                                      (void **)&spawn_data_rows, sizeof(wc3SpawnData_t));
-    if (ri.LoadSlk && !spawn_data_count)
-        fprintf(stderr, "WC3 renderer: failed to load Splats\\SpawnData.slk for MDX SPN events\n");
+    spawn_data_count = R_W3LoadEventTable(&MAKE(wc3EventTable_t, .path = "Splats\\SpawnData.slk", .family = "SPN",
+        .schema = spawn_data_schema, .rows = (void **)&spawn_data_rows, .size = sizeof(wc3SpawnData_t)));
 }
 
 static wc3SpawnData_t *R_W3SpawnData(cstring_t id) {
-    if (!id || !*id) return NULL;
-    FOR_LOOP(i, spawn_data_count)
-        if (spawn_data_rows[i].name && !strcasecmp(spawn_data_rows[i].name, id))
-            return spawn_data_rows + i;
-    return NULL;
+    return R_W3EventRow(spawn_data_rows, spawn_data_count, sizeof(wc3SpawnData_t), id);
 }
 
 static model_t *R_W3SpawnModel(wc3SpawnData_t *row) {
@@ -512,27 +528,14 @@ static void R_W3FreeSplatData(void) {
     splat_data_rows = NULL; splat_data_count = 0;
 }
 
-/* Reload map-scoped SplatData so custom archives override the retail table. */
 static void R_W3LoadSplatData(void) {
-    PATHSTR scoped;
-
     R_W3FreeSplatData();
-    if (ri.LoadSlk && R_MapAssetCandidate("Splats\\SplatData.slk", scoped, sizeof(scoped)))
-        splat_data_count = ri.LoadSlk(scoped, splat_data_schema,
-                                     (void **)&splat_data_rows, sizeof(wc3SplatData_t));
-    if (!splat_data_count && ri.LoadSlk)
-        splat_data_count = ri.LoadSlk("Splats\\SplatData.slk", splat_data_schema,
-                                     (void **)&splat_data_rows, sizeof(wc3SplatData_t));
-    if (ri.LoadSlk && !splat_data_count)
-        fprintf(stderr, "WC3 renderer: failed to load Splats\\SplatData.slk for MDX SPL/FPT events\n");
+    splat_data_count = R_W3LoadEventTable(&MAKE(wc3EventTable_t, .path = "Splats\\SplatData.slk", .family = "SPL/FPT",
+        .schema = splat_data_schema, .rows = (void **)&splat_data_rows, .size = sizeof(wc3SplatData_t)));
 }
 
 static wc3SplatData_t *R_W3SplatData(cstring_t id) {
-    if (!id || !*id) return NULL;
-    FOR_LOOP(i, splat_data_count)
-        if (splat_data_rows[i].name && !strcasecmp(splat_data_rows[i].name, id))
-            return splat_data_rows + i;
-    return NULL;
+    return R_W3EventRow(splat_data_rows, splat_data_count, sizeof(wc3SplatData_t), id);
 }
 
 /* Resolve and cache one data-row texture; R_LoadTexture owns missing-asset placeholders/logging. */
@@ -591,27 +594,14 @@ static void R_W3FreeUberSplatData(void) {
     uber_splat_rows = NULL; uber_splat_count = 0;
 }
 
-/* Reload map-scoped UberSplatData for renderer-only UBR event transients. */
 static void R_W3LoadUberSplatData(void) {
-    PATHSTR scoped;
-
     R_W3FreeUberSplatData();
-    if (ri.LoadSlk && R_MapAssetCandidate("Splats\\UberSplatData.slk", scoped, sizeof(scoped)))
-        uber_splat_count = ri.LoadSlk(scoped, uber_splat_data_schema,
-                                     (void **)&uber_splat_rows, sizeof(wc3UberSplatData_t));
-    if (!uber_splat_count && ri.LoadSlk)
-        uber_splat_count = ri.LoadSlk("Splats\\UberSplatData.slk", uber_splat_data_schema,
-                                     (void **)&uber_splat_rows, sizeof(wc3UberSplatData_t));
-    if (ri.LoadSlk && !uber_splat_count)
-        fprintf(stderr, "WC3 renderer: failed to load Splats\\UberSplatData.slk for MDX UBR events\n");
+    uber_splat_count = R_W3LoadEventTable(&MAKE(wc3EventTable_t, .path = "Splats\\UberSplatData.slk", .family = "UBR",
+        .schema = uber_splat_data_schema, .rows = (void **)&uber_splat_rows, .size = sizeof(wc3UberSplatData_t)));
 }
 
 static wc3UberSplatData_t *R_W3UberSplatData(cstring_t id) {
-    if (!id || !*id) return NULL;
-    FOR_LOOP(i, uber_splat_count)
-        if (uber_splat_rows[i].name && !strcasecmp(uber_splat_rows[i].name, id))
-            return uber_splat_rows + i;
-    return NULL;
+    return R_W3EventRow(uber_splat_rows, uber_splat_count, sizeof(wc3UberSplatData_t), id);
 }
 
 static texture_t const *R_W3UberSplatTexture(wc3UberSplatData_t *row) {
@@ -1311,7 +1301,7 @@ static void R_W3EmitSoundEvent(wc3EventParams_t const *params, uint32_t key) {
     vec3_t origin;
 
     if (!params || !params->entity || !params->model || !params->event || !params->transform ||
-        !params->family || !ri.PlaySoundAt ||
+        !params->family ||
         !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
     label = R_W3AnimLookupLabel(id);
     row = R_W3AnimSound(label ? label : id);
