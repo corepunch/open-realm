@@ -20,15 +20,18 @@ edict number plus `spawn_time`.
 
 UnitData `propWin` is authored in degrees and converted once to radians when
 spawning. `SetUnitPropWindow`/`GetUnitPropWindow` use the native radian value.
-Movement applies the window in the shared steering step. The selected
+Movement applies the window in the shared steering step; zero prevents
+translation while turning. Move, Follow, and Build leave the Walk/Stand
+transition to that shared steering decision so blocked turns do not restart
+the Stand animation each tick. The selected
 weapon's `rangeBuffer` is used only while its saved simulation-time cooldown
 deadline is active; the damage point still rechecks true range. See
 [Attack Damage](attack-damage.md) for weapon timing, legality, and projectile
 contracts, [Pathfinding](pathfinding.md) for shared route behavior, and
 [Shift Order Queue](order-queue.md) for queued-target identity.
 The active direct target also retains its edict spawn generation through
-save/load, and zero `PropWindow` remains the runtime sentinel for no authored
-window.
+save/load, and zero `PropWindow` blocks translation while the unit turns in
+place.
 
 ## Resolved Fixes And Remaining Gaps
 

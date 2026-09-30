@@ -6456,6 +6456,7 @@ TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
     subject->die = unit_die;
     subject->think = monster_think;
     subject->collision = 0.0f;
+    T_FEQ(subject->unitinfo.PropWindow, DEG2RAD(60.0f), 0.001f);
     subject->health.value = 250.0f;
     subject->health.max_value = 250.0f;
     unit_stand(subject);

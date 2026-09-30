@@ -56,7 +56,6 @@ static void ai_build_walk(edict_t *ent) {
     distance = M_DistanceToGoal(ent);
     step = unit_movedistance(ent);
     if (move_displacement_active(ent) && !move_displacement_reached(ent)) {
-        unit_setanimation(ent, "walk");
         unit_changeangle_towards_point(ent, &goal->s.origin2);
         unit_moveindirection(ent);
         return;

@@ -50,9 +50,16 @@ extern void ai_train_build(edict_t *ent);
  * (movement tests don't want unintended push-apart).  Resets entity pool
  * so each test starts from a clean slate. */
 static edict_t *make_moving_unit(float x, float y) {
+    static UnitData_t movement_unit_data;
     reset_entities();
     setup_test_world();
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
+    movement_unit_data = *ent->data.UnitData;
+    /* Synthetic rows need a permissive default; individual PropWindow tests
+     * override it with the authored boundary under test. */
+    movement_unit_data.propWin = 360.0f;
+    ent->data.UnitData = &movement_unit_data;
+    ent->unitinfo.PropWindow = DEG2RAD(movement_unit_data.propWin);
     ent->movetype  = MOVETYPE_STEP;
     ent->stand     = unit_stand;
     ent->birth     = unit_birth;
@@ -3510,6 +3517,31 @@ TEST(wc3_movement, propwin_turns_in_place_until_inside_authored_window) {
     T_ASSERT(fabsf(unit->s.angle) > 0.01f);
 }
 
+TEST(wc3_movement, propwin_turning_keeps_stand_animation_advancing) {
+    static animation_t const stand = { .name = "Stand", .interval = { 10, 5000 } };
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t target = {-100.0f, 0.0f};
+    UnitData_t data = *unit->data.UnitData;
+    data.turnRate = 0.1f;
+    data.propWin = 10.0f;
+    unit->data.UnitData = &data;
+    unit->unitinfo.PropWindow = DEG2RAD(data.propWin);
+    unit->unitinfo.MoveSpeed = 100.0f;
+    unit->goalentity = alloc_test_unit(0, target.x, target.y);
+    unit->s.angle = 0.0f;
+    unit_issueorder(unit, "move", &target);
+    unit->animation = &stand;
+    strlcpy(unit->animation_request, "stand", sizeof(unit->animation_request));
+    unit->s.frame = stand.interval[0];
+
+    monster_think(unit);
+    T_STREQ(unit->animation_request, "stand");
+    uint32_t const stand_frame = unit->s.frame;
+    monster_think(unit);
+    T_STREQ(unit->animation_request, "stand");
+    T_ASSERT(unit->s.frame > stand_frame);
+}
+
 TEST(wc3_movement, propwin_large_window_allows_translation_while_turning) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     UnitData_t data = *unit->data.UnitData;
@@ -3549,7 +3581,7 @@ TEST(wc3_movement, propwin_uses_mutable_runtime_unit_value) {
     T_FEQ(unit->s.origin2.y, origin.y, 0.001f);
 }
 
-TEST(wc3_movement, zero_propwin_keeps_default_permissive_translation) {
+TEST(wc3_movement, zero_propwin_blocks_translation) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     UnitData_t data = *unit->data.UnitData;
     vec2_t const target = {-100.0f, 0.0f};
@@ -3561,7 +3593,8 @@ TEST(wc3_movement, zero_propwin_keeps_default_permissive_translation) {
     unit->s.angle = 0.0f;
     unit_changeangle_towards_point(unit, &target);
     unit_moveindirection(unit);
-    T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
+    T_FEQ(unit->s.origin2.x, origin.x, 0.001f);
+    T_FEQ(unit->s.origin2.y, origin.y, 0.001f);
 }
 
 TEST(wc3_movement, immobile_unit_rejects_ground_move_order) {
