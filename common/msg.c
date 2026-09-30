@@ -138,9 +138,8 @@ netField_t playerStateFields[] = {
     { NETF(player_t, viewangles), NFT_VECTOR3_FLOAT },
     { NETF(player_t, vieworigin), NFT_VECTOR3_FLOAT },
     { NETF(player_t, fov), NFT_FLOAT },
-    { NETF(player_t, camera_target_noise), NFT_VECTOR2 },
-    { NETF(player_t, camera_source_noise), NFT_VECTOR2 },
-    { NETF(player_t, camera_noise_flags), NFT_LONG },
+    { NETF(player_t, viewoffset), NFT_VECTOR3_FLOAT },
+    { NETF(player_t, eyeoffset), NFT_VECTOR3_FLOAT },
     /* distance, znear, zfar are consecutive FLOATs packed as one VECTOR3 field. */
     { NETF(player_t, distance), NFT_VECTOR3_FLOAT },
     { NETF(player_t, rdflags), NFT_LONG },

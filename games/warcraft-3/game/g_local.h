@@ -533,6 +533,8 @@ typedef struct {
     int32_t thematic_volume;
 } wc3MusicState_t;
 
+typedef enum { CAMERA_NOISE_TARGET, CAMERA_NOISE_SOURCE, CAMERA_NOISE_COUNT } cameraNoiseSlot_t;
+
 struct client_s {
     player_t ps;
     bool connected; /* ClientBegin completed for this reserved player edict. */
@@ -586,6 +588,9 @@ struct client_s {
         vec2_t pan_start;
         vec2_t pan_destination;
         vec2_t pan_rate;         /* world units per second: X=strafe, Y=forward */
+        /* CameraSet*Noise[Ex] parameters. The game evaluates them every server frame into
+         * ps.viewoffset/ps.eyeoffset; the client never sees magnitude, velocity or vertOnly. */
+        struct { float magnitude, velocity; bool vert_only; } noise[CAMERA_NOISE_COUNT];
     } camera;
     /* Info-panel cache. For single units entity/xp track static presentation;
      * HP/mana are retained for save-layout compatibility because live portrait

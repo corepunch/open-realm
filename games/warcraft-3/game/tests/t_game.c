@@ -3532,6 +3532,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.pan_start = (vec2_t){ 10.0f, 20.0f };
     game.clients[0].camera.pan_destination = (vec2_t){ 110.0f, 220.0f };
     game.clients[0].camera.pan_rate = (vec2_t){ 100.0f, 200.0f };
+    game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].magnitude = 9.5f;
+    game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].velocity = 3.25f;
+    game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].vert_only = true;
     game.clients[0].modal_flags = WC3_MODAL_CLIENT | WC3_MODAL_QUEST;
     game.clients[0].quest_dialog_open = true;
     game.clients[0].canvas = UI_CANVAS_WIDE;
@@ -3570,6 +3573,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.target_controller = NULL;
     game.clients[0].camera.target_inherit_orientation = false;
     game.clients[0].camera.orient_eye = (vec3_t){ 0.0f, 0.0f, 0.0f };
+    memset(game.clients[0].camera.noise, 0, sizeof(game.clients[0].camera.noise));
     G_ClearCameraPan(&game.clients[0]);
     game.clients[0].rally_indicator = NULL;
     saved_quest->discovered = saved_quest->required = saved_quest->enabled = false;
@@ -3668,6 +3672,10 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(game.clients[0].camera.pan_destination.y, 220.0f, 0.001f);
     T_FEQ(game.clients[0].camera.pan_rate.x, 100.0f, 0.001f);
     T_FEQ(game.clients[0].camera.pan_rate.y, 200.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].magnitude, 9.5f, 0.001f);
+    T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].velocity, 3.25f, 0.001f);
+    T_ASSERT(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].vert_only);
+    T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_TARGET].magnitude, 0.0f, 0.001f);
     T_EQ(game.clients[0].modal_flags, 0);
     T_ASSERT(!game.clients[0].quest_dialog_open);
     /* The window class belongs to the reconnecting client, which reports it again before begin. */
