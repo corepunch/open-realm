@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**65 done / 246 tasks; 181 remaining.** Counts describe this backlog,
+**67 done / 251 tasks; 184 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -21,11 +21,11 @@ Completed evidence now sits next to its specific remaining extension.
 | FOOT — Footprints and query policy | 1 | 8 |
 | FINE — Fine search | 1 | 8 |
 | ACC — Adaptive search | 1 | 10 |
-| NUM — Numbers and random state | 15 | 9 |
+| NUM — Numbers and random state | 16 | 12 |
 | ROUTE — Route progression and yielding | 0 | 10 |
 | TARGET — Pursuit and arrival policy | 1 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
-| MOVE — Stepping and callbacks | 0 | 11 |
+| MOVE — Stepping and callbacks | 1 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
 | GROUP — Shared movement groups | 11 | 6 |
 | FORM — Formation and regrouping | 2 | 10 |
@@ -83,7 +83,13 @@ Patrol admission/current ownership, endpoint reversal and queued/save lifecycle
 
 ## Work next
 
-Start with **NUM-01.2** remaining numeric inventory, with **NUM-01.12** reachable operand aliases as the next producer experiment. NUM-01.13 closes the default CRT byte grammar, exact native CRT identity and public high-byte Move inputs. NUM-01.16 closes decimal/octal/hex integer wrapping, native inputs and Move/save-load integration. NUM-01.7 closes the compiled decimal producer, raw native words and engine Move/save/load integration; full source grammar remains01.15. NUM-01.10/11 close rounding and shared scalar startup. NUM-01.9 closes terminating Pow/log/exp arithmetic and its public adapter; original nonreturning VM lifetime remains01.14. MAP-03.7 closes retained solid-footprint failure and engine cleanup; exact retry timing stays NUM-02.3. MAP-03.4 now retains the original Footman mask through thirteen-tick arrival and reclamation. GROUP-04.5 now composes actual survivor point
+Prioritize a verified behavior change in the engine for each work slice. The next
+implementation is Move-owned fine routing using the recovered heap, heuristic
+and neighbor policy, with a failing engine route comparison before the port.
+Numeric inventory/alias leaves remain open, but do not expand them ahead of a
+concrete routing, stepping, collision or arrival payoff. MOVE-02.3 now connects
+authored speed modifiers to actual individual/group movement; NUM-01.20 retains
+the completed vector-heading alias evidence. NUM-01.13 closes the default CRT byte grammar, exact native CRT identity and public high-byte Move inputs. NUM-01.16 closes decimal/octal/hex integer wrapping, native inputs and Move/save-load integration. NUM-01.7 closes the compiled decimal producer, raw native words and engine Move/save/load integration; full source grammar remains01.15. NUM-01.10/11 close rounding and shared scalar startup. NUM-01.9 closes terminating Pow/log/exp arithmetic and its public adapter; original nonreturning VM lifetime remains01.14. MAP-03.7 closes retained solid-footprint failure and engine cleanup; exact retry timing stays NUM-02.3. MAP-03.4 now retains the original Footman mask through thirteen-tick arrival and reclamation. GROUP-04.5 now composes actual survivor point
 replacement through680320, original new-request refresh/layout, new-goal arrival
 and both groups' final reclamation on open/wall maps. The638 velocity commits
 match production exactly; the server-frame engine regression preserves the old
@@ -97,8 +103,8 @@ state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
-(NUM-01.8). Ghidra mapping persists340
-names,23 layouts,142 fields,104 x86 prototypes and35 scalar globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has150
+(NUM-01.8). Ghidra mapping persists354
+names,23 layouts,142 fields,119 x86 prototypes and35 scalar globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has154
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
@@ -106,12 +112,12 @@ existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
 | 1 | NUM-01.2 | Verified scalar/heading/Pow/rounding/startup/literal slices | Remaining arithmetic/conversion ABI and producer ownership inventory |
-| 2 | NUM-01.12 | Verified scalar ABI plus actual movement caller sites | Reachable pointer-alias inventory and composed operation-order witnesses |
+| 2 | NUM-01.18 | Verified scalar ABI plus original trig/vector-heading caller sites | Trig producer pointer witnesses;01.17/19 retain basic and power callers |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
 decimal CRT grammar/locale, source lexer domains and original nonreturning VM
 lifetime. Shared scalar startup and ceil/round conversions are closed01.10/11;
-01.12..16 explicitly own the remaining producer experiments. Completed Pow helper/public input
+01.12..19 explicitly own the remaining producer experiments. Completed Pow helper/public input
 evidence is linked below; do not repeat those contracts as new coverage.
 
 ## What counts as done
@@ -328,7 +334,7 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 ### NUM-01 — Arithmetic inventory
 
 - [x] **NUM-01.1** 200,330 exact scalar calls, 2,130 normalizations and 864 bounds prefixes are recorded. Evidence: [scalar arithmetic][numeric]; trig and general trajectories remain open.
-- [ ] **NUM-01.2** Publish the remaining arithmetic/conversion inventory with original caller sites and evidence/task ownership; link verified scalars and completed paired/decimal/public/angle/Pow slices01.4..6/08/09. Explicit extensions01.10..16 own rounding, shared constant initialization, reachable operand aliases, decimal CRT grammar/locale and nonreturning VM lifetime; compiled literal producers remain01.7. Classify any newly discovered numeric helper into existing evidence or an explicit follow-up leaf.
+- [ ] **NUM-01.2** Publish the remaining arithmetic/conversion inventory with original caller sites and evidence/task ownership; link verified scalars and completed paired/decimal/public/angle/Pow slices01.4..6/08/09. Explicit extensions01.10..19 own rounding, shared constant initialization, reachable operand aliases, decimal CRT grammar/locale and nonreturning VM lifetime; compiled literal producers remain01.7. Classify any newly discovered numeric helper into existing evidence or an explicit follow-up leaf.
 - [x] **NUM-01.3** Independent integer formula regenerates all 1,025 embedded reciprocal entries exactly; Ghidra references identify a static table consumed by0711e0, with no runtime producer. Same generator also reproduces all 1,025 sine entries. Evidence: [generated tables](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry), report `scalar-trig-engine-exact.json`; historical build-time source is unavailable.
 
 - [x] **NUM-01.4** Split01.2's paired-trig consumer integration: execute original071340 with raw angle words and verified ECX/EDX/stack4/RET4 ABI, independently regenerated sine table, alias/guard/nonvolatile-register controls and optimized/unoptimized C. Integrate shared phase calculation into production velocity without changing any frozen velocity/facing/position words. Evidence: [paired trigonometry](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry),20,032 distinct raw angles plus80,128 aliases through original code/C with guards, independent table model and-O0/-O2 regression; frozen digest01131f85... and122/122 unchanged-trajectory corpus outcomes. Remaining conversion/angle-helper ABI and public-domain inventory stays01.2.
@@ -350,6 +356,12 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 
 - [ ] **NUM-01.15** Split01.2's full source-number lexical grammar from the bounded decimal producer01.7: recover original9249d0 numeric DFA/token boundaries and nan/inf/exponent/point/hex-like acceptance or rejection through actual source compilation; preserve source-language distinctions and report invalid syntax in the engine. Current VM explicitly rejects host-strtod nondecimal real tokens instead of feeding unverified bytes into925260's port. Recover original constant-token storage/consumption beyond the verified lexer+24 slot where needed; do not infer full compiler equivalence from public native input words.
 - [x] **NUM-01.16** Split01.2's compiled integer producers925210/925490/925350: decimal/octal/hex lexical token108, ECX lexer/token lengthc4, hex prefix-length stack argument, signed32 accumulation and unary sign boundaries; capture actual oversized decimal/octal/hex constants and I2R native argument words, reproduce host-strtol width/saturation differences, and integrate verified JASS integer parsing while preserving Galaxy and save/load. Keep integer lexer evidence separate from real-token prefix wrapping01.7. Evidence: [compiled JASS integer words](retail-pathfinding-engine.md#compiled-jass-integer-words),16,080 original/model/C calls per-O0/-O2 with guarded token108 and exact digest3affdc0f; repeated44 actual I2R input/output pairs and42 compiler word/radix/prefix/caller observations. Nine engine word failures precede the port; all source/native words, Move/save-load and mixed-language policies pass. Unsigned unary subtraction retains INT_MIN wrapping. Saved340 names/104 prototypes and fresh146/146 corpus. Full invalid-token grammar remains01.15.
+
+- [ ] **NUM-01.17** Split01.12's basic arithmetic/conversion callers: classify reachable Add/Subtract/Multiply/Divide/reciprocal/sqrt/fractional/rounding/integer inputs and destinations, retain composed read/write order, and integrate any difference through Move. The original33-function xref inventory records6,898 references; name-only movement filtering is not reachability proof.
+- [ ] **NUM-01.18** Split01.12's trig/inverse/paired callers: audit all140 direct references across Sin/Cos/Acos/Asin/Atan/Atan2/Tan/SinCos, include vector-heading1d4c80 and indirect wrapper relationships, observe actual producer pointers, reproduce alias-sensitive stores/sign rereads, and preserve reachable behavior in engine regressions. Acos's three sites and Atan2's26 sites must not be confused with Atan's three sites.
+- [ ] **NUM-01.19** Split01.12's Pow/log/exp callers: recover source/output/exponent pointer relationships through all referenced wrappers and internal reductions; compare reachable operation order with guarded original-code witnesses and engine consumers. Original nonreturning VM lifetime remains01.14.
+
+- [x] **NUM-01.20** Split01.18's actual vector-heading/Acos producer: prove1d4c80's quotient/destination separation through original pointer observations and negative helper-alias controls, compare complete16f630 with guarded external output aliases, confirm the same live movement call chain, and retain exact engine heading words. Other trig callers remain01.18. Evidence: [vector-heading operand relationships](retail-pathfinding-engine.md#vector-heading-operand-relationships),5488 guarded original/model/C producer cases per-O0/-O2 and repeated191 actual nested heading chains (181 negative inputs). Existing engine heading words remain correct.
 
 ### NUM-02 — Branch-sensitive arithmetic
 
@@ -464,6 +476,8 @@ Evidence: [movement evidence][M]. Tools/artifacts: motion, speed, numeric.
 
 - [ ] **MOVE-02.1** After NUM-02, compare a long oblique trajectory with speed and heading changes at fixed ticks; assert old-velocity integration and exact positions.
 - [ ] **MOVE-02.2** Exercise stationary turn, Stop and restart at a cell boundary; assert facing, zero velocity and occupancy before/after each event.
+
+- [x] **MOVE-02.3** Integrate existing authored status/aura speed consumers into individual Move stepping and active selection-group caps. Evidence: [effective speed reaches movement](retail-pathfinding-engine.md#effective-speed-reaches-actual-movement); four actual Cripple/Bloodlust Move failures precede the shared consumer fix, then individual/group step lengths and expiry pass22 assertions. No field/version/wire change; retail effect-stack ordering and full clock parity remain open.
 
 ### MOVE-03 — Spatial and presentation callbacks
 
@@ -721,7 +735,7 @@ Evidence: [scope and contracts][ledger]. Tools/artifacts: frozen corpus, coverag
 
 ### READY-04 — Implementation handoff gate
 
-- [ ] **READY-04.1** Review the frozen specification and OpenRealm interface design against the baseline; record no remaining decisions that require guessing, then authorize starting the replacement against this corpus.
+- [ ] **READY-04.1** Review the complete replacement specification and OpenRealm interfaces against the baseline; record no remaining decisions that require guessing. This is the final full-replacement gate; incremental engine integration is already authorized and must continue alongside RE.
 
 ## Previous milestone IDs
 

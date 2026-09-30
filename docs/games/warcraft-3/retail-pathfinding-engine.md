@@ -1363,3 +1363,55 @@ tool tests; WC3/SC2 production builds pass. Fresh `num-01.13-validated-corpus/co
 outcomes (60 oracles,77 archive audits,13 strict live contracts), with all63
 recorded source fingerprints unchanged. NUM-01.13 is closed; reachable alias
 producer work remains NUM-01.12.
+
+## Effective speed reaches actual movement
+
+`unit_current_speed()` now consumes the same existing `unit_effective_speed()`
+as selection-group minima. Previously individual stepping read only the raw
+MoveSpeed override/authored base (plus Earthquake), leaving Cripple, Bloodlust,
+Wind Walk, Slow, Purge, poison and movement auras disconnected from single-unit
+travel. A group also capped a boosted member against its unmodified own speed.
+The effect formulas stay in their owning abilities; Move applies their existing
+composition once before selecting a group cap.
+
+`wc3_spell.movement_statuses_change_actual_steps_and_expire` executes the owning
+Cripple/Bloodlust procedures with non-stock37%/17% data, issues Move, and advances
+the actual Move thinker. Four failures precede the fix. A200-speed unit now
+travels12.6/23.4 units per current100ms frame; a220-speed peer shares12.6/22.0
+formation travel, and expiration restores20-unit travel. The regression checks
+step length because routing may adjust the final point to a legal cell center.
+No saved fields or wire contracts change. This repairs an engine consumer gap;
+full retail modifier ordering, clamps and32ms owner cadence remain unproved.
+
+## Vector-heading operand relationships
+
+Original `1d4c80` divides vector X by the separately supplied length into
+`EBP-4`, then writes Acos into `EBP+c`. At Acos entry these are `ESP+8` and
+`ESP+24`, respectively. They stay distinct even when the caller's final output
+aliases vector X/Y or the length. `16f630` similarly computes its complete
+heading error before the final output store. The raw Acos helper instead loses
+a negative sign when its input/output pointers alias; this is a negative control,
+not behavior to inject into the movement consumer.
+
+`verify_wc3_pathing_heading_aliases.py` checks784 vector and4704 full heading
+cases, ten direct Acos controls, guards, stack/nonvolatile registers, original
+startup and independent generated-table arithmetic, against-O0/-O2 production C.
+Word digest: `641aa3b6156fde2731578ffe95660150b98ea56700f8b83c7765b14fe486e2cf`.
+Two actual turn captures retain191 nested heading chains (181 negative quotient
+inputs),192 velocity/position/facing commits and exact repeat. Private captures:
+`runtime/num-01.20-heading-alias-{first,repeat}-raw.jsonl`, each with adjacent exact
+source/map archive; report `num-01.20-live-heading-alias-repeat.json`.
+The strict verifier rejects changed source/map provenance, missing/reordered
+observations, changed pointers, sequence linkage and quotient/output words.
+
+Ghidra now retains354 names and119 explicit prototypes, including the scalar
+helpers and these producer signatures. The33-function inventory records6898
+references; name-only filtering is not reachability proof. Other trig, basic
+arithmetic and power aliases remain NUM-01.17/18/19. This witness confirms the
+existing heading implementation; it adds no new movement behavior.
+
+Validation for this integration: full `make test` passes40329 assertions in2172
+WC3 cases for both Classic/TFT plus97 pathfinding tool tests. The focused
+movement/status regression passes22 assertions with DEBUG enabled and disabled;
+WC3/SC2/WoW production builds and both boundary audits pass. Only the four new
+heading entries were rerun in `num-01.20-status-final-corpus`; all four pass.

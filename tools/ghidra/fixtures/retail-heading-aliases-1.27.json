@@ -1,0 +1,62 @@
+{
+  "target_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+    "wc3_pathfinding.js": "4c8fa5df8c0d7e6ea05677376a6a944738486190ee60357f55ee5f6e269d76cd",
+    "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+    "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+    "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+    "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+    "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+    "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+    "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+    "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+    "map": "37888eb499d97a9aac9b15ee30d4fd730d46943834c22003af4e05c10ea6b9b8"
+  },
+  "heading_cases": 191,
+  "alias_sha256": "e8c2b98c0b49cadb1aa17293097d11a2e7b308ecfcc6d05c0b15656fc48401c3",
+  "scope": "Nested actual turn-scenario16f630/1d4c80/Acos caller relationships, exact scalar/velocity/heading words and repeat. Other trig callers, public input domains and whole-engine cadence are excluded.",
+  "sample": [
+    {
+      "event": "heading-acos-alias",
+      "ms": 1790777662028,
+      "sequence": 14,
+      "caller": 1920191,
+      "outputPointer": "0x26f9c0",
+      "inputPointer": "0x26f9b0",
+      "stackPointer": "0x26f9a8",
+      "input": 3135282436,
+      "output": 1070155777
+    },
+    {
+      "event": "heading-vector-alias",
+      "ms": 1790777662028,
+      "sequence": 14,
+      "caller": 1504892,
+      "vectorPointer": "0x26fa04",
+      "outputPointer": "0x26f9d4",
+      "lengthPointer": "0x26f9e4",
+      "length": 1104080627,
+      "vector": [
+        3174404096,
+        1104080564
+      ],
+      "output": 1070155777
+    },
+    {
+      "event": "heading-error",
+      "ms": 1790777662029,
+      "vector": [
+        3174404096,
+        1104080564
+      ],
+      "heading": 1067450399,
+      "sequence": 14,
+      "outputPointer": "0x26fa34",
+      "vectorPointer": "0x26fa04",
+      "headingPointer": "0x13321aec",
+      "error": 1051008904
+    }
+  ],
+  "sample_sha256": "db679d46bd97e2d1f9a4594e11bdc2ecc1cbc3f3975a4c25179d96b6e318f1e6"
+}

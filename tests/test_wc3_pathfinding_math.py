@@ -1,5 +1,6 @@
 """Asset-free differential checks of the production C arithmetic, plus trace rejection tests."""
 import ctypes
+import copy
 import json
 from pathlib import Path
 import random
@@ -7,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools/ghidra'))
@@ -18,6 +20,7 @@ from verify_wc3_pathing_integers import integer_literal_word, source_word as int
 from verify_wc3_pathing_literals import literal_word, source_word
 from verify_wc3_pathing_power import corelog, reducedlog, log, exp, power, public as public_power
 from verify_wc3_byte_inputs import source_bytes
+from verify_wc3_heading_aliases import verify as verify_heading_aliases
 
 
 class PathingMathTests(unittest.TestCase):
@@ -53,6 +56,28 @@ class PathingMathTests(unittest.TestCase):
         result = (ctypes.c_uint32 * 2)(0xabcdef01, 0xabcdef02)
         proc(a, b, result)
         return list(result)
+
+    def test_heading_alias_observer_rejects_changed_or_missing_producer_evidence(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-heading-aliases-1.27.json').read_text())
+        fixture['heading_cases'] = 1
+        fixture['alias_sha256'] = fixture['sample_sha256']
+        rows = [dict(event='metadata', source_sha256=fixture['source_sha256'],
+                     sha256=fixture['target_sha256'], headingEvents=True), *fixture['sample'],
+                dict(event='trace-end', counts={'heading-acos-alias': 1, 'heading-vector-alias': 1, 'heading-error': 1})]
+        mutations = []
+        changed = copy.deepcopy(rows); changed.pop(1); mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[1], changed[2] = changed[2], changed[1]; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[1]['inputPointer'] = changed[1]['outputPointer']; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[2]['length'] ^= 1; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[2]['sequence'] += 1; mutations.append(changed)
+        changed = copy.deepcopy(rows); changed[0]['source_sha256']['map'] = '0' * 64; mutations.append(changed)
+        for engine in self.engines:
+            # Motion's existing tests cover its complete trace contract; isolate the added nested observer checks.
+            with patch('verify_wc3_heading_aliases.verify_motion', return_value={'passed': True}):
+                self.assertEqual(verify_heading_aliases(rows, engine, fixture)['alias_cases'], 1)
+                for changed in mutations:
+                    with self.assertRaises(ValueError):
+                        verify_heading_aliases(changed, engine, fixture)
 
     def test_compiled_integers_match_wrapped_model_and_live_native_inputs(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-compiled-integer-inputs-1.27.json').read_text())

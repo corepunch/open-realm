@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **340 game functions annotated. Incremental scalar, velocity and stock-turn integration implemented;
+composition. **354 game functions annotated. Incremental scalar, velocity and stock-turn integration implemented;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
 comparisons and remaining velocity/clock/trajectory gaps.
@@ -40,7 +40,7 @@ composition closes a gap.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
   `MapPathfindingTypes.java` also persists 23 partial layouts,142 verified
-  fields and104 instruction-established prototypes with explicit register/stack
+  fields and119 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -50,7 +50,7 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  340 function names/comments applied and saved. Names are recovered roles, not original debug symbols;
+  354 function names/comments applied and saved. Names are recovered roles, not original debug symbols;
   RTTI names are original. No inferred prototypes installed.
 - `MapPathfindingCRT.java` separately saves the exact sibling CRT byte/locale map:
   three partial types, eight function roles, seven global labels and the verified
@@ -117,7 +117,7 @@ Counts overlap; do not sum them into a coverage percentage.
 | ORDER — completion/lifetime | **S/O/C/L:** 1,536 completion + next-prepass cases; real CUnit bridge; 12 subscriber prefixes; 144 full arrival calls including next-task rejection/acceptance and group/path preparation plus36 fresh fine-search ticks and78 elapsed travel/arrival/reclamation trajectories including fine/adaptive/full-owner wall detours and one active singleton plus repulsor; 288 full ordinary-point order producers/984 direct point-task producers/24 produced-chain queued-order arrivals and four two-order FIFO cases, with34 complete initial unit admissions; live d016b acceptance/arrival and blocked-goal recovery; 432 generic queue pops/releases; 216 retained-ref notifications; 8 zero-ref reclaim cycles/6 factory reuses; S plus engine regression proof of immutable issued-order event ID/point/target snapshots through reentry and save/load, separately from live current-order state; registered2039d0 at42 frozen owner states plus18 invalid-backing controls and engine point-Move active-head lifecycle/save/reuse; repeated public Follow/Hold/Patrol/death query witness and engine Move-owned Follow/save/reuse plus completed-Hold behavior regression and synchronous healthy Follow RemoveUnit/queued handoff and public/UI Patrol reversal/queued/save/reuse | UI/network producers feeding the verified unit-admission-to-arrival composition; broader obstacle/adaptive/crowd travel; alternate can't-path branches; callback reentrancy/user-order progression; remaining current-order owners (ORDER-01.10..14/16..18); cancellation variants; live registration, populated targets/relations/subscriptions; negative-domain/repeating requests and heap ordering |
 | SEP — separation/spatial | **S/O/C/L:** filters/cooldown, candidate order/stamps, arithmetic slices, overlap PRNG, endpoint validation, bounds/lazy links/reclamation; Footman/Gryphon controls; 16 post-arrival pair ticks (10 accepted/4 blocked attempts) and 43 separation updates within an active-singleton owner trajectory | Exact per-neighbor live replay; full numeric parity; config/category/rank producers; mixed owners/blocked repulsion; allocation failure/growth, stamp repair, full scheduling |
 | GATE — special edges | **S/O/C/L:** native/source/ID chains, sentinel handling, active/inactive traversal, outside approach, cached retarget and disable→walking; ordinary transition oracle | Destroy during approach; fresh retarget order; disabled edge over impassable terrain; overlapping/multiple gates; ID exhaustion/reuse; unreachable exits and mover eligibility |
-| E2E — reproducibility/parity | **O/C/L:** hash guards, independent references for selected routines, bounded manifests/captures/analyzers; producer-built point/FIFO baseline with42 frozen snapshots and two identical repeats; BASE-05 versioned corpus and150 declared outcomes, retaining native differences, counterfactual controls and rejected archives | Broader unified intermediate-state/trajectory corpus; historical observer/map provenance gaps; full order-to-arrival/failure compositions; eventual OpenRealm differential runner |
+| E2E — reproducibility/parity | **O/C/L:** hash guards, independent references for selected routines, bounded manifests/captures/analyzers; producer-built point/FIFO baseline with42 frozen snapshots and two identical repeats; BASE-05 versioned corpus and154 declared outcomes, retaining native differences, counterfactual controls and rejected archives | Broader unified intermediate-state/trajectory corpus; historical observer/map provenance gaps; full order-to-arrival/failure compositions; eventual OpenRealm differential runner |
 
 ## Next work and completion criteria
 

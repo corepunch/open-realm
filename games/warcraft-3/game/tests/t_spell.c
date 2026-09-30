@@ -3834,6 +3834,65 @@ TEST(wc3_spell, unholy_frenzy_accepts_enemy_and_reads_tft_buffid) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Movement must consume the same authored speed modifiers as selection-group caps. */
+TEST(wc3_spell, movement_statuses_change_actual_steps_and_expire) {
+    cstring_t slk =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+        "C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"Acri\"\nC;Y2;X2;K\"Acri\"\nC;Y2;X3;K\"2\"\nC;Y2;X4;K\"2\"\n"
+        "C;Y2;X5;K\"0.37\"\nC;Y2;X7;K\"Bcri\"\n"
+        "C;Y3;X1;K\"Ablo\"\nC;Y3;X2;K\"Ablo\"\nC;Y3;X3;K\"2\"\nC;Y3;X4;K\"2\"\n"
+        "C;Y3;X6;K\"0.17\"\nC;Y3;X7;K\"Bblo\"\nE\n";
+    FOR_LOOP(kind, 2) {
+        reset_entities(); setup_test_world();
+        slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+        edict_t *caster = make_hero(MAKEFOURCC('h','p','r','i'), 300, 300, 0, 0);
+        edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 512, 0);
+        unit->s.player = kind == 0 ? 1 : 0;
+        unit->svflags |= SVF_MONSTER;
+        unit->health.value = unit->health.max_value = 500;
+        unit->unitinfo.MoveSpeed = 200;
+        unit->collision = 0;
+        unit->stand = unit_stand;
+        unit_stand(unit);
+        test_execute_code(caster, kind == 0 ? "Acri" : "Ablo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = unit));
+        T_EQ(G_UnitStatusLevel(unit, kind == 0 ? MAKEFOURCC('B','c','r','i') : MAKEFOURCC('B','b','l','o')), 1);
+        float step = 10.0f * (kind == 0 ? 126.0f : 234.0f) / FRAMETIME;
+        T_FEQ(unit_movedistance(unit), step, 0.001f);
+        T_ASSERT(unit_issueorder(unit, "move", &(vec2_t){1536, 0}));
+        vec2_t before = unit->s.origin2;
+        unit->currentmove->think(unit);
+        T_FEQ(Vector2_distance(&unit->s.origin2, &before), step, 0.002f);
+        edict_t *peer = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1024, 0);
+        edict_t *clent = alloc_test_unit(0, 0, 0);
+        clent->client = &game.clients[0];
+        clent->client->ps.number = unit->s.player;
+        peer->s.player = unit->s.player;
+        peer->svflags |= SVF_MONSTER;
+        peer->health.value = peer->health.max_value = 500;
+        peer->unitinfo.MoveSpeed = 220;
+        peer->stand = unit_stand;
+        unit_stand(peer);
+        unit->selected = peer->selected = 1u << unit->s.player;
+        T_ASSERT(move_selectlocation(clent, &(vec2_t){1536, 0}));
+        float group_step = kind == 0 ? 12.6f : 22.0f;
+        T_FEQ(unit_movedistance(unit), group_step, 0.001f);
+        T_FEQ(unit_movedistance(peer), group_step, 0.001f);
+        before = unit->s.origin2;
+        unit->currentmove->think(unit);
+        T_FEQ(Vector2_distance(&unit->s.origin2, &before), group_step, 0.002f);
+        level.time += 2001;
+        unit_updatestatuses(unit);
+        T_EQ(G_UnitStatusLevel(unit, kind == 0 ? MAKEFOURCC('B','c','r','i') : MAKEFOURCC('B','b','l','o')), 0);
+        T_FEQ(unit_movedistance(unit), 20.0f, 0.001f);
+        before = unit->s.origin2;
+        unit->currentmove->think(unit);
+        T_FEQ(Vector2_distance(&unit->s.origin2, &before), 20.0f, 0.002f);
+        G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+    }
+}
+
 TEST(wc3_spell, cripple_and_soul_burn_apply_status_and_read_authored_consumers) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y4;X10\n"

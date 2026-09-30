@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **150 entries**: **36** distinct original-code oracle
-scripts plus **24** declared variants, **77** archived JSONL audits and **13**
+The inventory now has **154 entries**: **37** distinct original-code oracle
+scripts plus **24** declared variants, **79** archived JSONL audits and **14**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,13 +20,13 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 55 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 56 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 70 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 72 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Seven rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Five numerical replays and one profile replay | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Seven public/native/compiler repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Eight public/native/compiler/heading repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 NUM-01.13 adds original CRT byte classification and the complete authored-name
 producer:514 public S2R/parser calls and1,040 classifier observations repeat,
@@ -225,3 +225,10 @@ passes40,186 assertions/2,163 WC3 cases per Classic/TFT fixture and96 pathfindin
 tool tests; WC3 and SC2 production builds pass. Logs are
 `/tmp/wc3-num13-full-test-registered.log`, `/tmp/wc3-num13-production.log`,
 `/tmp/wc3-num13-validated-corpus.log` and `/tmp/wc3-num13-final-tool-tests.log`.
+
+NUM-01.20 adds the composed heading alias oracle, two complete turn archives and
+their strict nested-pointer/word repeat checker. Four new entries pass in fresh
+`num-01.20-status-validated-corpus`; the preceding150-entry complete run remains
+`num-01.13-validated-corpus`. The new run is a selected four-entry check, not a
+claim that all154 entries were rerun. Fixture mutation tests retain the negative
+Acos-input witness. See [vector-heading relationships](retail-pathfinding-engine.md#vector-heading-operand-relationships).

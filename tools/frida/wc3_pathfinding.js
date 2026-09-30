@@ -3,6 +3,7 @@ let installed = false, samples = 0, serial = 0, rebuildSamples = 0;
 let widgetScenario = false;
 let numericCase = null;
 const counts = {}, active = new Map();
+const headingActive = new Map();
 const emit = (event, data = {}) => send({event, ms: Date.now(), ...data});
 const bump = kind => {counts[kind] = (counts[kind] || 0) + 1;};
 const ints = (p, n) => Array.from({length: n}, (_, i) => p.add(i * 4).readS32());
@@ -175,13 +176,53 @@ function install(module) {
         hook(0x16f630, {
             onEnter(args) {
                 this.output = this.context.ecx;
+                this.previous = headingActive.get(this.threadId);
+                this.sequence = ++serial;
+                this.observe = (counts['heading-error'] || 0) < config.samples;
+                headingActive.set(this.threadId, {sequence:this.sequence, observe:this.observe});
                 this.row = {vector:[args[0].readU32(),args[0].add(4).readU32()],
-                    heading:this.context.edx.readU32()};
+                    heading:this.context.edx.readU32(), sequence:this.sequence,
+                    outputPointer:this.output.toString(), vectorPointer:args[0].toString(),
+                    headingPointer:this.context.edx.toString()};
             },
             onLeave() {
                 bump('heading-error');
-                if (counts['heading-error'] <= config.samples)
+                if (this.observe)
                     emit('heading-error', {...this.row,error:this.output.readU32()});
+                if (this.previous) headingActive.set(this.threadId, this.previous);
+                else headingActive.delete(this.threadId);
+            }
+        });
+        // Observe only the nested movement producer; public and unrelated raw Acos calls are separate evidence.
+        hook(0x1d4c80, {
+            onEnter(args) {
+                this.heading = headingActive.get(this.threadId);
+                if (!this.heading || !this.heading.observe) return;
+                this.output = args[0];
+                this.row = {sequence:this.heading.sequence, caller:this.returnAddress.sub(base).toUInt32(),
+                    vectorPointer:this.context.ecx.toString(), outputPointer:this.output.toString(),
+                    lengthPointer:args[1].toString(), length:args[1].readU32(),
+                    vector:[this.context.ecx.readU32(),this.context.ecx.add(4).readU32()]};
+            },
+            onLeave() {
+                if (!this.row) return;
+                bump('heading-vector-alias');
+                emit('heading-vector-alias', {...this.row, output:this.output.readU32()});
+            }
+        });
+        hook(0x06ffa0, {
+            onEnter() {
+                this.heading = headingActive.get(this.threadId);
+                if (!this.heading || !this.heading.observe) return;
+                this.output = this.context.ecx;
+                this.row = {sequence:this.heading.sequence, caller:this.returnAddress.sub(base).toUInt32(),
+                    outputPointer:this.output.toString(), inputPointer:this.context.edx.toString(),
+                    stackPointer:this.context.esp.toString(), input:this.context.edx.readU32()};
+            },
+            onLeave() {
+                if (!this.row) return;
+                bump('heading-acos-alias');
+                emit('heading-acos-alias', {...this.row, output:this.output.readU32()});
             }
         });
     }

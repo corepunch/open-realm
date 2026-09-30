@@ -8008,6 +8008,322 @@
         "Alternative CRT locale creation and full source lexical grammar",
         "Prior captures without this native-CRT header guard are not retroactively certified as native-CRT observations"
       ]
+    },
+    {
+      "id": "oracle-heading-aliases",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_heading_aliases.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "heading-aliases-engine-exact.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "engine_checked": {
+          "equal": true
+        },
+        "vector_cases": {
+          "equal": 784
+        },
+        "heading_cases": {
+          "equal": 4704
+        },
+        "word_sequence_sha256": {
+          "equal": "641aa3b6156fde2731578ffe95660150b98ea56700f8b83c7765b14fe486e2cf"
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Original vector-heading distinct quotient/Acos operands and complete heading-error output aliases; exact production C words. Other trig caller domains and whole-frame cadence excluded.",
+      "exclusions": [
+        "All other trigonometric caller input domains",
+        "Complete owner clock/trajectory parity"
+      ]
+    },
+    {
+      "id": "capture-heading-alias-first",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/num-01.20-heading-alias-first-raw.jsonl",
+        "--scenario",
+        "turn",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.20-heading-alias-first-raw.jsonl",
+        "sha256": "db33011d7aef391343044b7c5af95b3114270198f4e18627018d24fe10d520ee",
+        "bytes": 340730,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "4c8fa5df8c0d7e6ea05677376a6a944738486190ee60357f55ee5f6e269d76cd",
+            "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+            "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "37888eb499d97a9aac9b15ee30d4fd730d46943834c22003af4e05c10ea6b9b8"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 3000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": true,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "heading-alias-first-archive.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete actual turn map capture including nested heading operand observers.",
+      "exclusions": [
+        "Complete retail/engine trajectory equivalence"
+      ]
+    },
+    {
+      "id": "capture-heading-alias-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/num-01.20-heading-alias-repeat-raw.jsonl",
+        "--scenario",
+        "turn",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.20-heading-alias-repeat-raw.jsonl",
+        "sha256": "73f51ec5b837cd38d7a077f456492c62ec6fca46d6dde2ea36d272f30562c68b",
+        "bytes": 340733,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "4c8fa5df8c0d7e6ea05677376a6a944738486190ee60357f55ee5f6e269d76cd",
+            "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+            "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "37888eb499d97a9aac9b15ee30d4fd730d46943834c22003af4e05c10ea6b9b8"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 3000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": true,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "heading-alias-repeat-archive.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete actual turn map capture including nested heading operand observers.",
+      "exclusions": [
+        "Complete retail/engine trajectory equivalence"
+      ]
+    },
+    {
+      "id": "live-heading-alias-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_heading_aliases.py",
+        "--capture",
+        "{archive}/runtime/num-01.20-heading-alias-first-raw.jsonl",
+        "--repeat",
+        "{archive}/runtime/num-01.20-heading-alias-repeat-raw.jsonl",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/num-01.20-heading-alias-first-raw.jsonl",
+        "sha256": "db33011d7aef391343044b7c5af95b3114270198f4e18627018d24fe10d520ee",
+        "bytes": 340730,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "4c8fa5df8c0d7e6ea05677376a6a944738486190ee60357f55ee5f6e269d76cd",
+            "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+            "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "37888eb499d97a9aac9b15ee30d4fd730d46943834c22003af4e05c10ea6b9b8"
+          },
+          "map": "Maps\\New.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 3000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": true,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/num-01.20-heading-alias-repeat-raw.jsonl",
+            "sha256": "73f51ec5b837cd38d7a077f456492c62ec6fca46d6dde2ea36d272f30562c68b",
+            "bytes": 340733,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+                "wc3_pathfinding.js": "4c8fa5df8c0d7e6ea05677376a6a944738486190ee60357f55ee5f6e269d76cd",
+                "wc3_pathfinding_probe.j": "0b482c3af61a1183452d8df4b3232747946a49e81046d1179f41e66e80bb2111",
+                "make_wc3_pathfinding_map.py": "485aa1bdfa7c301d1c3462b5abce4733ef23157f60de526fefeb19472713474a",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "37888eb499d97a9aac9b15ee30d4fd730d46943834c22003af4e05c10ea6b9b8"
+              },
+              "map": "Maps\\New.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 3000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "headingEvents": true,
+              "profileEvents": false,
+              "numericEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-heading-alias-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-heading-alias-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeat_equal": {
+          "equal": true
+        },
+        "alias_cases": {
+          "equal": 191
+        },
+        "negative_quotients": {
+          "equal": 181
+        },
+        "alias_sha256": {
+          "equal": "e8c2b98c0b49cadb1aa17293097d11a2e7b308ecfcc6d05c0b15656fc48401c3"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Nested actual turn-scenario16f630/1d4c80/Acos caller relationships, exact scalar/velocity/heading words and repeat. Other trig callers, public input domains and whole-engine cadence are excluded.",
+      "exclusions": [
+        "Other trig callers",
+        "Whole engine cadence"
+      ]
     }
   ],
   "fixtures": [
@@ -8073,7 +8389,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "bbdf3eb7942cd4d1b043d4a54db7a6934f9c8ae232a6d67c8f0fb7a1d296c933"
+      "sha256": "d1cec00d86d67e05e839ce0e9d127b3895df75cb63aa9eded88c1e9fa3f6c514"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -8178,6 +8494,10 @@
     {
       "path": "tools/frida/wc3_byte_inputs.json",
       "sha256": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-heading-aliases-1.27.json",
+      "sha256": "70d3b46481a4ef4db8799a2d36a7abb0d75f1e13f2b77f8b7876cbc1a347c129"
     }
   ]
 }

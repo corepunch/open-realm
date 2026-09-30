@@ -133,12 +133,12 @@ static float unit_apply_earthquake_speed(edict_t const *unit, float speed) {
 }
 
 static float move_active_group_speed(edict_t const *self);
+static float unit_effective_speed(edict_t *ent);
 
-static float unit_current_speed(edict_t const *self) {
-    float speed = self->unitinfo.MoveSpeed > 0
-        ? self->unitinfo.MoveSpeed
-        : self->data.UnitBalance->speed;
-    speed = unit_apply_earthquake_speed(self, speed);
+static float unit_current_speed(edict_t *self) {
+    /* Step budgets and group caps must consume the same status/aura speed.
+     * Using raw speed here left individual walkers unaffected by slows/bonuses. */
+    float speed = unit_effective_speed(self);
     if (unit_is_walking(self)) {
         float cap = self->movement.group_id ? move_active_group_speed(self) : self->movement.group_speed;
         if (cap > 0 && cap < speed) speed = cap;

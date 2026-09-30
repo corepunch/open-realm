@@ -1,6 +1,10 @@
 /* Compile as a shared library to compare the same arithmetic used by Move with retail calls. */
 #include "games/warcraft-3/common/wc3_math.h"
 
+uint32_t pathing_vector_heading(uint32_t x, uint32_t y) {
+    return wc3_float_bits(wc3_vector_heading(wc3_float(x), wc3_float(y)));
+}
+
 /* Three-word ABI bridges preserve output on the declared nonreturning retail power domain. */
 void pathing_corelog(uint32_t a, uint32_t b, uint32_t output[2]) {
     (void)b;

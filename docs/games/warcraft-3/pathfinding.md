@@ -13,6 +13,9 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 Move's scalar turn update and scripted movement-window gate now use
 [verified retail arithmetic](retail-pathfinding-engine.md). This is an incremental
 integration; the routing/velocity pipeline does not yet have full retail parity.
+Individual stepping now consumes the same existing status/aura speed composition as
+selection-group caps. Actual Cripple/Bloodlust Move/expiry tests cover slowing,
+boosting and mixed-speed formations; see [effective-speed integration](retail-pathfinding-engine.md#effective-speed-reaches-actual-movement).
 Simultaneous selection Move orders now [refresh their active cohort speed](retail-pathfinding-engine.md#active-move-cohort-speed)
 after member completion, replacement, death/removal and speed changes; reserved
 destinations remain stable.

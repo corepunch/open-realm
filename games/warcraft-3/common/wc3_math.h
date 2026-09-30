@@ -395,7 +395,9 @@ static inline float wc3_degrees_to_radians(float angle) { return wc3_mul(angle, 
 static inline float wc3_radians_to_degrees(float angle) { return wc3_mul(angle, wc3_float(0x42652ee1)); }
 
 
-/* 6f1d4c80 takes length separately; the tiny-angle guard runs after acos as well. */
+/* 6f1d4c80 takes length separately; the tiny-angle guard runs after acos as well.
+ * Its quotient and acos destination occupy distinct stack slots. The value API
+ * preserves negative X; the raw acos helper's aliased sign loss is unreachable here. */
 static inline float wc3_vector_heading(float x, float y) {
     float len = wc3_sqrt(wc3_add(wc3_mul(x, x), wc3_mul(y, y)));
     if (wc3_float(wc3_float_bits(len) & 0x7fffffffu) <= wc3_float(0x3727c5ac)) return 0;
