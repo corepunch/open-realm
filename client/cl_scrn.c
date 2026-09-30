@@ -929,6 +929,7 @@ void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen) {
 
     renderEntity_t entity = {0};
     entity.model = draw; entity.scale = 1.0f;
+    entity.instance_id = (uintptr_t)frame;
     entity.team = frame->stat;
     entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
     re.SetEntityAnimFrame(draw, anim, &entity);

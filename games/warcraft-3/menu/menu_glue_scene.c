@@ -337,6 +337,8 @@ void UI_DrawGlueScene(void) {
     if (scene.background) {
         renderEntity_t entity = {
             .model = scene.background, .scale = 1.0f,
+            .number = MAX_GAME_ENTITIES - 2,
+            .instance_id = (uintptr_t)&scene,
             .flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING,
         };
         char background_anim[UI_GLUE_ANIM_NAME];

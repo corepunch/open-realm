@@ -45,7 +45,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
         bool const isolated_particles = (tr.viewDef.rdflags & RDF_ISOLATED_PARTICLES) != 0;
         if (isolated_particles)
             previous_particles = R_BeginParticleScene(&entity_camera_particles);
-        R_DrawEntityCameraEventSpawns(entity->model);
+        R_DrawEntityCameraEventSpawns(entity->model, entity->instance_id);
         R_DrawEntities();
         if (isolated_particles && !(tr.viewDef.rdflags & RDF_NOPARTICLES))
             R_DrawParticles();

@@ -139,6 +139,7 @@ typedef struct {
     cstring_t name;                      /* server-authored world label (NULL = none) */
     uint32_t number;
     uint32_t generation; /* client-local entity incarnation; not serialized */
+    uintptr_t instance_id; /* Stable identity for retained renderer presentation state. */
     uint32_t owner;                     /* authoritative entity owner/player slot when the game assigns one */
     uint32_t team;
 #ifdef WOW
