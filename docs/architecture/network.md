@@ -165,10 +165,15 @@ are unchanged. `net.entity_delta_preserves_radian_headings` covers signed, wrapp
 headings; `sc2_control.snapshot_preserves_authored_placement` exercises the codec and renderer together.
 See [coordinate contracts](../../AXIS.md).
 
-Protocol version 15 adds target-noise and source-noise vectors plus presentation flags to
-`playerState_t`. Camera noise is evaluated on the client, but its parameters are sent in
-player-state deltas; mixed version 14/15 peers therefore cannot decode these snapshots
-consistently and are rejected by the versioned handshake.
+`playerState_t.viewoffset` and `playerState_t.eyeoffset` are generic, game-evaluated transient offsets
+of the look-at target and the derived orbit eye (camera shake). They follow Quake 2's `viewoffset` /
+`kick_angles` split: the game module samples whatever waveform it owns once per server frame, the
+values ride ordinary player-state deltas (no bytes while zero), and the client only interpolates the
+previous and current sample before re-aiming the view. They are deliberately separate from
+`vieworigin`, so game logic, input focus movement and camera getters keep reading a steady camera.
+Protocol 15 briefly sent WC3 noise parameters (magnitude, velocity, `vertOnly`) and evaluated the
+waveform in `client/cl_view.c`; protocol 17 replaced that with these offsets, and older peers are
+rejected by the versioned handshake.
 
 ## Key files
 

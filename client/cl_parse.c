@@ -415,6 +415,8 @@ void CL_ParsePlayerInfo(sizeBuf_t *msg) {
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
     cl.viewDef.camerastate[0].origin = cl.playerstate.vieworigin;
     cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
+    cl.viewDef.camerastate[0].viewoffset = cl.playerstate.viewoffset;
+    cl.viewDef.camerastate[0].eyeoffset = cl.playerstate.eyeoffset;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
     cl.viewDef.camerastate[0].znear = cl.playerstate.znear;

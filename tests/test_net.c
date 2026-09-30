@@ -31,10 +31,6 @@
 #include "../client/client.h"
 #include "../client/cl_input_local.h"
 
-TEST(net, protocol_version_covers_camera_noise_player_state_fields) {
-    T_EQ(BZ_PROTOCOL_VERSION, 16);
-}
-
 static cstring_t minimap_map;
 static void capture_minimap(rect_t const *screen, cstring_t map) { (void)screen; minimap_map = map; }
 
@@ -2636,28 +2632,29 @@ TEST(client_layout, sprite_sequence_can_be_selected_by_second_stat) {
     T_FEQ(ratio, 32768.0f / (float)UINT16_MAX, 0.00001f);
 }
 
-TEST(net, camera_noise_presentation_roundtrips) {
+/* Game-evaluated view offsets travel as ordinary player-state deltas and reach the interpolated camera sample. */
+TEST(net, playerinfo_view_offsets_roundtrip_into_camera_sample) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    player_t from = { 0 }, to = { 0 }, out = { 0 };
-    uint32_t bits;
-    int number;
+    player_t from = { 0 }, to = { 0 };
 
-    to.number = 3;
-    to.camera_target_noise = (vec2_t){ 12.5f, 34.5f };
-    to.camera_source_noise = (vec2_t){ 56.5f, 78.5f };
-    to.camera_noise_flags = CAMERA_NOISE_TARGET_VERTICAL;
+    test_client_stubs_init();
+    to.number = 1;
+    to.client_ui_state = CLIENT_UI_GAME;
+    to.viewoffset = (vec3_t){ 1.5f, -2.5f, 12.5f };
+    to.eyeoffset = (vec3_t){ -3.5f, 4.5f, 56.5f };
+    MSG_WriteByte(&sb, svc_playerinfo);
     MSG_WriteDeltaPlayerState(&sb, &from, &to);
-    sb.readcount = 0;
-    number = MSG_ReadPlayerBits(&sb, &bits);
-    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+    CL_ParseServerMessage(&sb);
 
-    T_EQ(number, 3);
-    T_FEQ(out.camera_target_noise.x, 12.5f, 0.001f);
-    T_FEQ(out.camera_target_noise.y, 34.5f, 0.001f);
-    T_FEQ(out.camera_source_noise.x, 56.5f, 0.001f);
-    T_FEQ(out.camera_source_noise.y, 78.5f, 0.001f);
-    T_EQ(out.camera_noise_flags, CAMERA_NOISE_TARGET_VERTICAL);
+    T_FEQ(cl.viewDef.camerastate[0].viewoffset.x, 1.5f, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].viewoffset.y, -2.5f, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].viewoffset.z, 12.5f, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].eyeoffset.x, -3.5f, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].eyeoffset.y, 4.5f, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].eyeoffset.z, 56.5f, 0.001f);
+    /* The previous sample keeps the old (zero) offsets so the renderer can interpolate the change. */
+    T_FEQ(cl.viewDef.camerastate[1].viewoffset.z, 0.0f, 0.001f);
 }
 
 TEST(net, environment_variant_stat_roundtrips) {

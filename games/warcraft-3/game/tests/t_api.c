@@ -1727,37 +1727,68 @@ TEST(wc3_api, camera_runtime_getters_report_interpolated_state_and_eye) {
     currentplayer = NULL;
 }
 
-TEST(wc3_api, camera_noise_natives_store_independent_presentation_state) {
+/* The natives only store inputs; the game frame turns them into plain view offsets and leaves the logical
+ * camera (vieworigin, angles, distance, target height) untouched so scripts and input read a steady view. */
+TEST(wc3_api, camera_noise_is_evaluated_by_the_game_into_view_offsets) {
     gameClient_t *gc = &game.clients[0];
+    player_t steady;
+    float steady_height;
 
+    setup_test_world();
     gc->ps.number = 0;
-    gc->ps.camera_target_noise = (vec2_t){ 0 };
-    gc->ps.camera_source_noise = (vec2_t){ 0 };
-    gc->ps.camera_noise_flags = 0;
+    memset(gc->camera.noise, 0, sizeof(gc->camera.noise));
+    level.time = 250;
+    G_RunClients();
+    steady = gc->ps;
+    steady_height = gc->camera.target_height;
+    T_FEQ(Vector3_len(&gc->ps.viewoffset), 0.0f, 0.001f);
+    T_FEQ(Vector3_len(&gc->ps.eyeoffset), 0.0f, 0.001f);
     currentplayer = &gc->ps;
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
-        "  call CameraSetTargetNoiseEx(12.0, 34.0, true)\n"
-        "  call CameraSetSourceNoiseEx(56.0, 78.0, false)\n"
+        "  call CameraSetTargetNoiseEx(12.0, 4.0, true)\n"
+        "  call CameraSetSourceNoiseEx(56.0, 7.0, false)\n"
         "endfunction\n"));
-    T_FEQ(gc->ps.camera_target_noise.x, 12.0f, 0.001f);
-    T_FEQ(gc->ps.camera_target_noise.y, 34.0f, 0.001f);
-    T_FEQ(gc->ps.camera_source_noise.x, 56.0f, 0.001f);
-    T_FEQ(gc->ps.camera_source_noise.y, 78.0f, 0.001f);
-    T_ASSERT(gc->ps.camera_noise_flags & CAMERA_NOISE_TARGET_VERTICAL);
-    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_SOURCE_VERTICAL));
+    T_FEQ(gc->camera.noise[CAMERA_NOISE_TARGET].magnitude, 12.0f, 0.001f);
+    T_FEQ(gc->camera.noise[CAMERA_NOISE_TARGET].velocity, 4.0f, 0.001f);
+    T_ASSERT(gc->camera.noise[CAMERA_NOISE_TARGET].vert_only);
+    T_FEQ(gc->camera.noise[CAMERA_NOISE_SOURCE].magnitude, 56.0f, 0.001f);
+    T_FEQ(gc->camera.noise[CAMERA_NOISE_SOURCE].velocity, 7.0f, 0.001f);
+    T_ASSERT(!gc->camera.noise[CAMERA_NOISE_SOURCE].vert_only);
+
+    G_RunClients();
+    /* vertOnly target noise stays on world Z and inside its magnitude. */
+    T_FEQ(gc->ps.viewoffset.x, 0.0f, 0.001f);
+    T_FEQ(gc->ps.viewoffset.y, 0.0f, 0.001f);
+    T_ASSERT(fabsf(gc->ps.viewoffset.z) > 0.001f && fabsf(gc->ps.viewoffset.z) <= 12.0f);
+    /* Source noise is independent and uses all three axes. */
+    T_ASSERT(fabsf(gc->ps.eyeoffset.x) > 0.001f && fabsf(gc->ps.eyeoffset.x) <= 56.0f);
+    T_ASSERT(fabsf(gc->ps.eyeoffset.y) > 0.001f && fabsf(gc->ps.eyeoffset.y) <= 56.0f);
+    T_ASSERT(fabsf(gc->ps.eyeoffset.z) <= 56.0f);
+    T_ASSERT(memcmp(&gc->ps.vieworigin, &steady.vieworigin, sizeof(vec3_t)) == 0);
+    T_ASSERT(memcmp(&gc->ps.viewangles, &steady.viewangles, sizeof(vec3_t)) == 0);
+    T_FEQ(gc->ps.distance, steady.distance, 0.001f);
+    T_FEQ(gc->camera.target_height, steady_height, 0.001f);
+
+    /* The oscillator advances with simulation time through the real per-frame entry point. */
+    {
+        float const first = gc->ps.viewoffset.z;
+        bool const started = level.started;
+        level.started = true;
+        level.time = 350;
+        globals.RunFrame();
+        level.started = started;
+        T_ASSERT(fabsf(gc->ps.viewoffset.z - first) > 0.001f);
+    }
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call CameraSetTargetNoise(0.0, 0.0)\n"
         "  call CameraSetSourceNoise(0.0, 0.0)\n"
         "endfunction\n"));
-    T_FEQ(gc->ps.camera_target_noise.x, 0.0f, 0.001f);
-    T_FEQ(gc->ps.camera_target_noise.y, 0.0f, 0.001f);
-    T_FEQ(gc->ps.camera_source_noise.x, 0.0f, 0.001f);
-    T_FEQ(gc->ps.camera_source_noise.y, 0.0f, 0.001f);
-    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_TARGET_VERTICAL));
-    T_ASSERT(!(gc->ps.camera_noise_flags & CAMERA_NOISE_SOURCE_VERTICAL));
+    G_RunClients();
+    T_FEQ(Vector3_len(&gc->ps.viewoffset), 0.0f, 0.001f);
+    T_FEQ(Vector3_len(&gc->ps.eyeoffset), 0.0f, 0.001f);
     currentplayer = NULL;
 }
 

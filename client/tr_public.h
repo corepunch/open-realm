@@ -121,6 +121,8 @@ typedef struct {
     vec3_t origin;
     vec3_t eye;       /* derived rendered eye; camerastate[0] is refreshed from the final orbit view */
     vec3_t viewangles;
+    vec3_t viewoffset; /* server-authored transient look-at offset; interpolated like origin */
+    vec3_t eyeoffset;  /* server-authored transient eye offset */
     float distance;
     float fov;      /* vertical field of view in degrees */
     float znear;

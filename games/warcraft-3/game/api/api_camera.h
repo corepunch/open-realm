@@ -696,34 +696,30 @@ uint32_t CameraSetupApplyForceDurationWithZ(jass_t *j) {
 #endif
     return 0;
 }
-static void G_SetCameraNoise(bool target, float magnitude, float velocity, bool vertical_only) {
+/* Store the native's inputs only; G_RunClients owns the waveform so the shake stays game logic. */
+static void G_SetCameraNoise(cameraNoiseSlot_t slot, float magnitude, float velocity, bool vert_only) {
     gameClient_t *gc = G_CurrentCameraClient("G_SetCameraNoise");
-    vec2_t *noise;
-    uint32_t flag;
 
     if (!gc) return;
-    noise = target ? &gc->ps.camera_target_noise : &gc->ps.camera_source_noise;
-    flag = target ? CAMERA_NOISE_TARGET_VERTICAL : CAMERA_NOISE_SOURCE_VERTICAL;
-    noise->x = magnitude;
-    noise->y = velocity;
-    if (vertical_only) gc->ps.camera_noise_flags |= flag;
-    else gc->ps.camera_noise_flags &= ~flag;
+    gc->camera.noise[slot].magnitude = magnitude;
+    gc->camera.noise[slot].velocity = velocity;
+    gc->camera.noise[slot].vert_only = vert_only;
 }
 
 uint32_t CameraSetTargetNoise(jass_t *j) {
-    G_SetCameraNoise(true, jass_checknumber(j, 1), jass_checknumber(j, 2), false);
+    G_SetCameraNoise(CAMERA_NOISE_TARGET, jass_checknumber(j, 1), jass_checknumber(j, 2), false);
     return 0;
 }
 uint32_t CameraSetSourceNoise(jass_t *j) {
-    G_SetCameraNoise(false, jass_checknumber(j, 1), jass_checknumber(j, 2), false);
+    G_SetCameraNoise(CAMERA_NOISE_SOURCE, jass_checknumber(j, 1), jass_checknumber(j, 2), false);
     return 0;
 }
 uint32_t CameraSetTargetNoiseEx(jass_t *j) {
-    G_SetCameraNoise(true, jass_checknumber(j, 1), jass_checknumber(j, 2), jass_checkboolean(j, 3));
+    G_SetCameraNoise(CAMERA_NOISE_TARGET, jass_checknumber(j, 1), jass_checknumber(j, 2), jass_checkboolean(j, 3));
     return 0;
 }
 uint32_t CameraSetSourceNoiseEx(jass_t *j) {
-    G_SetCameraNoise(false, jass_checknumber(j, 1), jass_checknumber(j, 2), jass_checkboolean(j, 3));
+    G_SetCameraNoise(CAMERA_NOISE_SOURCE, jass_checknumber(j, 1), jass_checknumber(j, 2), jass_checkboolean(j, 3));
     return 0;
 }
 uint32_t CameraSetSmoothingFactor(jass_t *j) {
