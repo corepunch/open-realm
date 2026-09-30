@@ -70,6 +70,7 @@ bool UI_EnsureFDF(cstring_t filename);
 void UI_ParseFDF(cstring_t filename);
 void UI_ParseFDF_Buffer(cstring_t filename, string_t buffer);
 void UI_ClearTemplates(void);
+void UI_SetCameraEventRelease(void (*release)(uintptr_t));
 void UI_ReleaseAssets(void);
 void UI_WireFrameTypeFunctions(frameDef_t *frame);
 void UI_SetText(frameDef_t *, cstring_t, ...);

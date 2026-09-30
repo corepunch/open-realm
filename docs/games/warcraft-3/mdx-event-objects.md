@@ -26,12 +26,17 @@ camera entity supplies a stable, unique `renderEntity_t.instance_id`; that key
 is independent of both the model and the synthetic entity number, so two
 instances of one model do not share an event clock or retained child. Replacing
 an instance ID's model clears that instance's retained children. Camera event
-clocks grow to accommodate each distinct live presentation ID and are released
-at map registration or renderer shutdown, so visiting another portrait cannot
-evict an existing clock. UI entities use synthetic numbers, so sharing the
+clocks grow to accommodate each distinct live presentation ID. Owners release
+an ID when its presentation instance is destroyed; release also removes retained
+`SPN` children for that instance. Map registration and renderer shutdown clear
+any remaining clocks. FDF frame slots receive generated IDs and release them
+when templates are cleared, so recycled frame addresses cannot resume stale
+event clocks. UI entities use synthetic numbers, so sharing the
 edict-indexed clock can reseed an event on every frame; omitting the camera
 child pass makes one-frame effects such as the main-menu Infernal meteor
-disappear immediately after spawning.
+disappear immediately after spawning. Client layout portraits use stable IDs
+derived from layer and frame number and release those IDs when an empty layer
+packet clears the layout; ordinary packet replacement preserves the clocks.
 
 Current runtime consumers are:
 

@@ -160,6 +160,7 @@ typedef struct {
 #ifndef UIFRAMEDEF_S_DEFINED
 #define UIFRAMEDEF_S_DEFINED
 struct uiFrameDef_s {
+    uintptr_t camera_event_instance_id;
     frameDef_t const *Parent;
     FRAMETYPE Type;
     UINAME Name;
@@ -1089,6 +1090,8 @@ cstring_t CornerFlags[] = {
 
 static PATHSTR ui_loaded_fdfs[128] = { 0 };
 static uint32_t ui_num_loaded_fdfs = 0;
+static uintptr_t ui_camera_event_instance_id = 1;
+static void (*ui_release_camera_event_instance)(uintptr_t);
 
 void FDF_ParseFrame(wordExtractor_t *p, frameDef_t *frame);
 static char *UI_Trim(char *text);
@@ -1104,6 +1107,8 @@ static void UI_ClearStringList(void);
 
 void UI_ClearTemplates(void) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (frames[i].camera_event_instance_id && ui_release_camera_event_instance)
+            ui_release_camera_event_instance(frames[i].camera_event_instance_id);
         UI_FreeFrameDynamicText(&frames[i]);
         UI_FreeFrameMenuItems(&frames[i]);
     }
@@ -1115,12 +1120,18 @@ void UI_ClearTemplates(void) {
     UI_ClearTextures();
 }
 
+void UI_SetCameraEventRelease(void (*release)(uintptr_t)) {
+    ui_release_camera_event_instance = release;
+}
+
 frameDef_t *UI_Spawn(FRAMETYPE type, frameDef_t *parent) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (i==0) continue;
         frameDef_t *frame = &frames[i];
         if (!frame->inuse) {
             UI_InitFrame(frame, type);
+            frame->camera_event_instance_id = ui_camera_event_instance_id++;
+            if (!ui_camera_event_instance_id) ui_camera_event_instance_id = 1;
             UI_WireFrameTypeFunctions(frame);
             frame->Parent = parent;
             return frame;
@@ -1771,6 +1782,7 @@ void UI_InheritFrom(frameDef_t *frame, cstring_t inheritName) {
         UI_FreeFrameDynamicText(frame);
         UI_FreeFrameMenuItems(frame);
         memcpy(frame, inherit, sizeof(FRAMEDEF));
+        frame->camera_event_instance_id = tmp.camera_event_instance_id;
         frame->Menu.Items = NULL; frame->Menu.ItemCount = 0; // clear aliased pointer memcpy just copied in; UI_FixCopiedFrameMenuItems below gives it its own buffer
         UI_FixCopiedFrameTextPointer(frame, inherit);
         UI_FixCopiedFrameMenuItems(frame, inherit);
@@ -1868,7 +1880,9 @@ frameDef_t *UI_CloneFrameTree(frameDef_t const *source, frameDef_t *parent) {
         if (!copies[i]) {
             return NULL;
         }
+        uintptr_t camera_event_instance_id = copies[i]->camera_event_instance_id;
         *copies[i] = *sources[i];
+        copies[i]->camera_event_instance_id = camera_event_instance_id;
         copies[i]->Menu.Items = NULL; copies[i]->Menu.ItemCount = 0; // clear aliased pointer the struct copy just copied in; fix-up below gives it its own buffer
         UI_FixCopiedFrameTextPointer(copies[i], sources[i]);
         UI_FixCopiedFrameMenuItems(copies[i], sources[i]);

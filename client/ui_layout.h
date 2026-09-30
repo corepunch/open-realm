@@ -19,6 +19,7 @@ typedef void (*layoutDrawFunc_t)(uiFrame_t const *frame, rect_t const *screen);
 /* Layout system functions (implemented in cl_unit_layout.c) */
 void SCR_SetLayoutLayer(uint32_t layer, handle_t data);
 void SCR_ClearLayoutLayer(uint32_t layer);
+void SCR_ReleaseLayoutCameraEvents(uint32_t layer);
 void SCR_SetLayoutRoot(rect_t const *root);
 rect_t SCR_LayoutSceneRect(void);
 float SCR_UICanvasWidth(void);

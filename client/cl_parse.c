@@ -522,6 +522,7 @@ void CL_ParseLayout(sizeBuf_t *msg) {
      * allocated terminator-only blob: callers use a non-NULL layer as evidence
      * that the layer exists, including generic modal ownership. */
     if (!has_frames) {
+        SCR_ReleaseLayoutCameraEvents(layer);
         if (Cvar_Integer("ui_layout_debug", 0)) {
             fprintf(stderr, "UI_LAYOUT_DEBUG clear layer=%u\n", (unsigned)layer);
         }
