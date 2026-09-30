@@ -65,15 +65,18 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--fixture', type=Path, help='freeze original cell routes for asset-free engine comparisons')
     parser.add_argument('--engine-library', type=Path, help='compare production C cell routes, work and node creation')
+    parser.add_argument('--partials', action='store_true', help='freeze nearest-chain results at request budget boundaries')
     parser.add_argument('--objects', action='store_true', help='full mixed object chains for ground/flight query masks')
     parser.add_argument('--corridors', action='store_true', help='cardinal corridors of width 0..5 across four classes')
     args = parser.parse_args()
-    if args.objects and args.corridors: parser.error('choose objects or corridors')
+    if args.corridors and (args.objects or args.partials): parser.error('corridors is a separate matrix')
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
         engine.pathing_fine_grid.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint8),
                                             ctypes.POINTER(ctypes.c_int32)]
         engine.pathing_fine_objects.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ObjectInput),
+                                               ctypes.POINTER(ctypes.c_int32)]
+        engine.pathing_fine_partial.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ObjectInput),
                                                ctypes.POINTER(ctypes.c_int32)]
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
@@ -102,6 +105,7 @@ def main():
         machine.mem_write(address, struct.pack('<f', value))
     width = height = 24
     start, goal = (4, 4), (19, 19)
+    if args.partials: goal = (19, 4)
     if args.corridors:
         width = height = 16
         start, goal = (8, 4), (8, 11)
@@ -148,13 +152,16 @@ def main():
             'overlap_categories': [obj(mask=0x01000000), obj(bounds=[12, 9, 16, 13])],
             'idle_wall': [obj(bounds=[12, 0, 14, 24])],
         }
+        if args.partials:
+            variants['idle_wall'] = [obj(bounds=[11, 0, 13, 24])]
+            variants['idle_goal'] = [obj(bounds=[18, 3, 20, 5])]
         for terrain, static in [('open', set()), ('gap4', {(12,y) for y in range(height) if not 10 <= y < 14})]:
             for label, objects in variants.items():
                 for mask in (0x02000002, 0x04000004):
                     name = f'{terrain}_{label}_{mask:08x}'
                     fixtures.append((name, static))
                     profiles[name] = dict(mask=mask, objects=objects)
-    records, edge_cases, engine_cases = [], [], []
+    records, edge_cases, engine_cases, budget_cases = [], [], [], []
     for name, blocked in fixtures:
         profile = profiles.get(name, dict(mask=0x02000000, objects=[]))
         query_mask, objects = profile['mask'], profile['objects']
@@ -234,6 +241,15 @@ def main():
                 nearest = min(sum((a - b) ** 2 for a, b in zip(p, goal)) for p in reachable)
                 if read(system + 0x98)[0] != nearest:
                     raise RuntimeError('failed search nearest-distance mismatch')
+            nearest_at = read(system + 0x9c)[0]
+            partial = []
+            if result == 0xffffffff:
+                index = nearest_at
+                while index != 0xffffffff:
+                    partial.append(list(read(nodes + index * 36, 2)))
+                    index = read(nodes + index * 36 + 0x1c)[0]
+                    if len(partial) > 1024: raise RuntimeError('cyclic nearest-node chain')
+                partial.reverse()
             first_pops, first_nodes = read(system + 0x6c)[0], read(system + 0x40)[0]
             if engine:
                 graph = footprint_graph(effective, (width, height), size_class)
@@ -297,7 +313,45 @@ def main():
                                 request_result=request_result, route_points=route_count, route_end=route_points[0]))
             if args.fixture:
                 engine_cases.append(dict(fixture=name, size_class=size_class, cost=actual, pops=first_pops,
-                                         nodes=first_nodes, path=points))
+                                         nodes=first_nodes, path=points, partial=partial,
+                                         nearest=list(read(nodes + nearest_at * 36, 2)), distance=read(system + 0x98)[0]))
+            if args.partials:
+                for budget in sorted({0, 1, 5, max(0, first_pops - 1), first_pops, first_pops + 1, 2048}):
+                    machine.mem_write(target_ptr, struct.pack('<ff', *target))
+                    value = run(0x6f148100, system, route, source_ptr, target_ptr, mask_ptr, budget, radius_ptr, 0)
+                    nearest = read(system + 0x9c)[0]
+                    index = read(system + 0x94)[0] if value else nearest
+                    parent_chain = []
+                    while index != 0xffffffff:
+                        parent_chain.append(list(read(nodes + index * 36, 2)))
+                        index = read(nodes + index * 36 + 0x1c)[0]
+                        if len(parent_chain) > 1024: raise RuntimeError('cyclic budget partial chain')
+                    parent_chain.reverse()
+                    route_count = read(route + 0x1c)[0]
+                    route_xy = [list(struct.unpack('<ff', machine.mem_read(route_data + 8*i, 8)))
+                                for i in range(route_count)]
+                    endpoint = list(target) if value else list(source) if nearest == 0 else [v+.5 for v in read(nodes + 36*nearest,2)]
+                    if not route_xy or route_xy[0] != endpoint or route_xy[-1] != list(source):
+                        raise RuntimeError('budget partial request endpoint differs from nearest node')
+                    if read(system + 0x6c)[0] > budget + 1: raise RuntimeError('budget overcharged')
+                    budget_cases.append(dict(fixture=name, size_class=size_class, budget=budget, result=value,
+                        pops=read(system + 0x6c)[0], nodes=read(system + 0x40)[0], path=parent_chain,
+                        nearest=list(read(nodes + nearest*36,2)), distance=read(system + 0x98)[0], route=route_xy))
+                    if engine:
+                        raw = [v for obj in objects for v in (*obj['bounds'], obj['mask'], obj['flags'], obj['linked'])]
+                        words = (ctypes.c_uint32 * len(raw))(*raw)
+                        terrain = (ctypes.c_uint8 * (width * height))(*(query_mask >> 24 if (x,y) in blocked else 0
+                            for y in range(height) for x in range(width)))
+                        data = ObjectInput(terrain, words)
+                        inp = (ctypes.c_uint32 * 11)(width, height, *start, *goal, budget, size_class, query_mask, 0, len(objects))
+                        record = budget_cases[-1]
+                        wanted = [value, record['pops'], record['nodes'], len(parent_chain), *record['nearest'], record['distance']]
+                        for _ in range(2):
+                            output = (ctypes.c_int32 * (7 + 2 * 16386))()
+                            engine.pathing_fine_partial(inp, ctypes.byref(data), output)
+                            path = [[output[7 + 2*i], output[8 + 2*i]] for i in range(output[3])]
+                            if list(output[:7]) != wanted or path != parent_chain:
+                                raise RuntimeError(f'production C partial mismatch: {name} class={size_class} budget={budget}')
             if name == 'open':
                 for label, destination, budget, wanted_result, wanted_pops in (
                         ('same_cell', (start[0] + .875, start[1] + .125), 100000, 1, 0),
@@ -316,9 +370,10 @@ def main():
                   reached=sum(r['cost'] is not None for r in records), exhausted=sum(r['cost'] is None for r in records),
                   seed=None if args.corridors or args.objects else 12717085, dimensions=[width, height], start=start, goal=goal,
                   scope='original core loop and full setup/search/reconstruction request; allocation/reset/stamp reuse; direct initialized storage and -1/0/1 runtime constants; static terrain and optional mixed object chains; Dijkstra reference uses recovered footprint graph; no path-owned admission or smoothing',
-                  searches=records)
+                  searches=records, budget_cases=len(budget_cases))
     if engine:
         report.update(engine_queries=len(records), engine_repeats=len(records),
+                      engine_partial_queries=len(budget_cases), engine_partial_repeats=len(budget_cases),
                       engine_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest())
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
@@ -326,6 +381,7 @@ def main():
         fixture = dict(binary_sha256=digest, seed=None if args.corridors or args.objects else 12717085, dimensions=[width, height], start=start, goal=goal,
                        scope='original full fine-search cell route, cost, pops and allocated nodes; initialized static/object chains; excludes public admission and smoothing',
                        profiles=profiles,
+                       budget_cases=budget_cases,
                        maps={name: bytes(int((x, y) in blocked) for y in range(height) for x in range(width)).hex()
                              for name, blocked in fixtures}, cases=engine_cases)
         args.fixture.parent.mkdir(parents=True, exist_ok=True)

@@ -8906,6 +8906,68 @@
         "group transient40000000 not observed in this capture",
         "water/amphibious profiles"
       ]
+    },
+    {
+      "id": "oracle-grid-partials-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_grid.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--objects",
+        "--partials",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-partials-engine-exact.json",
+      "expected_exit": 0,
+      "expected_status": "original-model-engine-exact",
+      "checks": {
+        "cases": {
+          "equal": 208
+        },
+        "repeated_searches": {
+          "equal": 208
+        },
+        "complete_requests": {
+          "equal": 208
+        },
+        "budget_cases": {
+          "equal": 1456
+        },
+        "engine_queries": {
+          "equal": 208
+        },
+        "engine_repeats": {
+          "equal": 208
+        },
+        "engine_partial_queries": {
+          "equal": 1456
+        },
+        "engine_partial_repeats": {
+          "equal": 1456
+        },
+        "mismatches": {
+          "length": 0
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original budget-boundary requests retain nearest identities and exact parent chains, charged pops and node counts; C matches each full/failed result and repeat. Includes a blocked goal and a full object wall.",
+      "exclusions": [
+        "original public scheduler budget producers",
+        "full route coordinate reconstruction",
+        "target exit",
+        "whole engine trajectories"
+      ]
     }
   ],
   "fixtures": [
@@ -9096,6 +9158,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-fine-objects-1.27.json",
       "sha256": "fee48c62cc0855675b80c02b86713798d41e0398f97878f4cd02af84657aa267"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-partials-1.27.json",
+      "sha256": "e3f156911b9ecbbbf62bb2c63cdf50ba645427a4e30b2fa72c48cfd7f08d9ce0"
     }
   ]
 }

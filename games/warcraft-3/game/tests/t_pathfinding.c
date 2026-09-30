@@ -715,6 +715,50 @@ TEST(wc3_pathfinding, nearby_move_replans_when_idle_object_enters_retained_segme
     setup_test_world();
 }
 
+/* Retail148100 retains the nearest reachable chain on failure. A full-height
+ * idle-unit wall must still give Move a useful approach turn. */
+TEST(wc3_pathfinding, nearby_move_retains_partial_approach_to_idle_object_wall) {
+    uint8_t cells[24 * 24] = {0};
+    vec2_t target = {19.5f, 4.5f};
+    edict_t *wall[24];
+    uint32_t old_time = level.time;
+    reset_entities();
+    setup_test_world();
+    setup_test_pathmap(24, 24, cells);
+    edict_t *unit = make_unit_at(4.5f, 4.5f);
+    unit->collision = 0.5f;
+    unit->unitinfo.MoveSpeed = 2.f;
+    gi.LinkEntity(unit);
+    for (int y = 0; y < 24; y++) {
+        edict_t *idle = make_unit_at(12.5f, y + 0.5f);
+        wall[y] = idle;
+        idle->collision = 0.5f;
+        gi.LinkEntity(idle);
+    }
+    T_ASSERT(unit_issueorder(unit, "move", &target));
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement.path.valid);
+    T_ASSERT(!unit->movement.flow_direct);
+    T_FEQ(unit->movement.path.waypoint.x, 10.5f, 0.00001f);
+    T_FEQ(unit->movement.path.waypoint.y, 4.5f, 0.00001f);
+    T_FEQ(unit->goalentity->s.origin2.x, target.x, 0.00001f);
+    for (int tick = 0; tick < 10; tick++) {
+        level.time += FRAMETIME;
+        unit->currentmove->think(unit);
+    }
+    T_ASSERT(unit->s.origin2.x > 4.5f);
+    T_ASSERT(unit->s.origin2.x < 10.5f);
+    for (int y = 0; y < 24; y++) G_FreeEdict(wall[y]);
+    for (int tick = 0; tick < 100; tick++) {
+        level.time += FRAMETIME;
+        if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    }
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &target) <= 4.1f);
+    level.time = old_time;
+    reset_entities();
+    setup_test_world();
+}
+
 /* Fine rectangles can extend beyond an entity's physical circle. Broadphase
  * pruning must keep that biased class3 edge for a class0 line query. */
 TEST(wc3_pathfinding, nearby_line_sees_quantized_object_edge_beyond_physical_bounds) {

@@ -33,12 +33,19 @@ typedef struct {
     wc3FineNode_t nodes[BZ_WC3_FINE_NODES];
     wc3FineEntry_t heap[BZ_WC3_FINE_NODES];
     uint32_t hash[BZ_WC3_FINE_HASH];
-    uint32_t count, queued, pops, reopens, stale;
+    uint32_t count, queued, pops, reopens, stale, nearest, dist2;
 } wc3FineSearch_t;
 
 static wc3FinePoint_t const wc3_fine_dirs[] = {
     {-1,-1}, {0,-1}, {1,-1}, {-1,0}, {1,0}, {-1,1}, {0,1}, {1,1}
 };
+
+/* Original14a560 compares unsigned wrapped squared distance, with strict
+ * improvement: equal-distance cells preserve the first admitted identity. */
+static inline uint32_t wc3_fine_dist2(wc3FinePoint_t a, wc3FinePoint_t b) {
+    uint32_t x = (uint32_t)a.x - (uint32_t)b.x, y = (uint32_t)a.y - (uint32_t)b.y;
+    return x * x + y * y;
+}
 
 /* 14ad50/16ee80 use the same three comparisons on the fine-cell scalar. */
 static inline unsigned wc3_fine_class(float radius) {
@@ -115,6 +122,10 @@ static wc3FineEntry_t wc3_fine_pop(wc3FineSearch_t *search) {
  * original does not relax equal costs, preserving the first parent on ties. */
 static void wc3_fine_relax(wc3FineSearch_t *search, wc3FinePoint_t goal, wc3FineStep_t step) {
     wc3FineNode_t *next = &search->nodes[step.node];
+    if (next->state == WC3_FINE_NEW) {
+        uint32_t dist2 = wc3_fine_dist2(next->pos, goal);
+        if (dist2 < search->dist2) { search->dist2 = dist2; search->nearest = step.node; }
+    }
     if (next->state != WC3_FINE_NEW) {
         if (step.cost >= next->g) return;
         if (next->state == WC3_FINE_CLOSED) search->reopens++;
@@ -131,6 +142,7 @@ static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req)
     assert(req->budget <= BZ_WC3_FINE_WORK);
     memset(search->hash, 0, sizeof(search->hash));
     search->count = search->queued = search->pops = search->reopens = search->stale = 0;
+    search->nearest = 0; search->dist2 = wc3_fine_dist2(req->start, req->goal);
     int start = wc3_fine_node(search, req, req->start), goal = wc3_fine_node(search, req, req->goal);
     if (start < 0 || goal < 0) return -1;
     search->nodes[start].h = wc3_fine_heuristic(req->start, req->goal);

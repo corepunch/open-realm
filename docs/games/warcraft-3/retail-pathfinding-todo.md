@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**72 done / 255 tasks; 183 remaining.** Counts describe this backlog,
+**73 done / 255 tasks; 182 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -19,7 +19,7 @@ Completed evidence now sits next to its specific remaining extension.
 | BASE — Baseline and reproducibility | 10 | 10 |
 | MAP — Map construction and lifetime | 5 | 15 |
 | FOOT — Footprints and query policy | 3 | 8 |
-| FINE — Fine search | 3 | 8 |
+| FINE — Fine search | 4 | 7 |
 | ACC — Adaptive search | 1 | 10 |
 | NUM — Numbers and random state | 16 | 12 |
 | ROUTE — Route progression and yielding | 1 | 9 |
@@ -97,7 +97,7 @@ FOOT-01.4 now applies the verified class footprint to nearby routing, destinatio
 correction and actual Move stepping. FOOT-01.5 now uses that geometry for
 long/shared expansion, flow sampling, class-aware cache reuse and unreachable
 fallbacks. ROUTE-02.1 now ports all-class segment sampling, software normalization
-and original next-point/progressively-farther waypoint selection. FINE-01.5 now routes location orders around idle ground units and rechecks retained segments, with exact192 original mixed-chain/C searches and fresh hfoo/hgry profile/velocity evidence. Next port original nearest-node partial routes for blocked goals (FINE-02.2), then extend BASE-02 profiles to water/amphibious lanes; retain FOOT-04 admission scopes.
+and original next-point/progressively-farther waypoint selection. FINE-01.5 now routes location orders around idle ground units and rechecks retained segments, with exact192 original mixed-chain/C searches and fresh hfoo/hgry profile/velocity evidence. FINE-02.2 now retains nearest partial routes and resumes actual Move after idle blocker removal. Next extend BASE-02 profiles to water/amphibious lanes and port the resulting masks; retain FOOT-04 admission scopes.
 Keep dynamic eligibility and full-trajectory gates explicit.
 Numeric inventory/alias leaves remain open, but do not expand them ahead of a
 concrete routing, stepping, collision or arrival payoff. MOVE-02.3 now connects
@@ -116,16 +116,16 @@ state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
-(NUM-01.8). Ghidra mapping persists354
-names,23 layouts,142 fields,119 x86 prototypes and35 scalar globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has154
+(NUM-01.8). Ghidra mapping persists360
+names,23 layouts,142 fields,119 x86 prototypes and35 scalar globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has162
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | NUM-01.2 | Verified scalar/heading/Pow/rounding/startup/literal slices | Remaining arithmetic/conversion ABI and producer ownership inventory |
-| 2 | NUM-01.18 | Verified scalar ABI plus original trig/vector-heading caller sites | Trig producer pointer witnesses;01.17/19 retain basic and power callers |
+| 1 | BASE-02.1 | Ground/flight profiles and verified fine masks | Authored water/amphibious table and engine terrain masks |
+| 2 | FOOT-04 | Verified static and idle-object geometry | Public placement/teleport admission contracts and engine consumers |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
 decimal CRT grammar/locale, source lexer domains and original nonreturning VM
@@ -305,7 +305,7 @@ Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
 ### FINE-02 — Search termination
 
 - [ ] **FINE-02.1** Compose equal-cost ties, reopenings and stale heap entries in one full request; compare pop order, generations and charged work.
-- [ ] **FINE-02.2** Force budget exhaustion and nearest-node fallback around the final pop boundary; assert result, chosen node and reconstructed partial path.
+- [x] **FINE-02.2** Force budget exhaustion and nearest-node fallback around final-pop boundaries.1456 complete original requests (four classes, ground/flight masks, mixed objects, blocked goal) freeze result/nearest/distance/parent chain/endpoints/work/nodes; C matches at O0/O2 with reuse.177 failures already admit the goal before its denied final pop. Actual Move retains the idle-wall approach, advances and resumes its original destination after blocker removal; known-disconnected static fields keep their component fallback. Public scheduler budget producers and full-coordinate reconstruction beyond supplied backing remain separate. Evidence: [engine partial routes](retail-pathfinding-engine.md#nearest-partial-routes-survive-blocked-goals).
 
 ### FINE-03 — Fine storage lifetime
 

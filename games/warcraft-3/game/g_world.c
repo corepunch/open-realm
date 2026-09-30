@@ -265,6 +265,9 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
         .width = pathmap.width, .height = pathmap.height, .budget = BZ_WC3_FINE_WORK,
         .edges = move_fine_edges, .data = &graph };
     int at = wc3_fine_search(&move_fine, &req);
+    /* Original148100 retains the nearest admitted chain after exhaustion.
+     * Location Move can approach that endpoint without replacing its order. */
+    if (at < 0 && input->units) at = (int)move_fine.nearest;
     uint32_t count = 0;
     while (at >= 0) {
         wc3FineNode_t const *node = &move_fine.nodes[at];

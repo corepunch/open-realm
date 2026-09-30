@@ -1726,3 +1726,56 @@ suite passes443 assertions in68 cases, and the production WC3 build passes.
 The renderer suite also passes5,862 assertions after reproducing/fixing a
 multi-statement macro that dropped higher ground layers when a lower texture
 was missing; see [ground list lifetime](loading-and-assets.md#whole-map-ground-list-preserves-earlier-layers).
+
+
+## Nearest partial routes survive blocked goals
+
+FINE-02.2 ports the original nearest-node update from `14a560` and retains its
+parent chain when `14a4c0` exhausts its queue or work budget. Distance is an
+unsigned wrapped integer square; only a strict improvement replaces the
+nearest identity. Equal-distance candidates retain the first admitted node.
+The update occurs on fresh/list-invalid admission, before that node is popped.
+
+`verify_wc3_pathing_grid.py --objects --partials` executes208 complete core,
+metadata-repeat and setup/search/reconstruction scenarios, then **1,456 full
+requests** at budgets0/1/5, one before/equal/one after the unrestricted pop count,
+and2048. Four classes, ground/flight masks and mixed chains include an idle
+object covering the destination and a full-height idle wall. There are925 failed
+and531 successful requests. **177 failures already have the goal as nearest**:
+its node was admitted, but the final goal pop was denied. Budget failure still
+returns a partial route; it must not discard that chain or claim search success.
+
+Original `148100` preserves the exact source when nearest is the start;
+otherwise it reconstructs toward the nearest cell centre and updates its stored
+adjusted destination. Original wrapper output/source/endpoints, nearest identity,
+distance, parent chain, queue charge and allocation count are frozen in
+`retail-fine-partials-1.27.json`. Production C matches all nearest chains and
+metadata at O0/O2 with storage reuse, plus208 full chains. No public scheduler
+budget-producer or unrelated target-exit behavior is inferred from these
+supplied requests.
+
+Location Move now uses a useful nearest chain even when the requested point
+cannot be reached. A full-height wall of idle units first reproduced four failed
+engine assertions: no retained path or approach turn. The same scene now selects
+the original `(10.5,4.5)` turn, advances through actual Move thinks and retains
+its original `(19.5,4.5)` order. Removing the wall through actor lifetime calls
+lets that Move finish toward the unchanged destination. A nearest chain with
+only the current cell still supplies no advancing turn; the existing local
+collision/settling policy remains responsible there.
+
+A completed static field that proves disconnection continues to own the existing
+component fallback. Without that check, a valid partial fine turn postponed the
+already-verified static fallback. Static-only query callers retain their prior
+complete-route result contract; interaction abilities keep their existing policy.
+No persistent actor, save or network layout changes.
+
+Reports: `fine-partials-engine.json` and
+`partials-engine-final-corpus/corpus-results.json`. The selected static baseline,
+mixed-object C and partial-route entries pass3/3; no full162-entry rerun or whole
+trajectory certification is claimed. Ghidra saves the nearest-admission,
+termination and wrapper contracts alongside the existing layouts/prototypes.
+
+Validation: both Classic/TFT suites pass 41,796/41,796 assertions in 2,185
+WC3 cases per variant. All 107 pathfinding tool tests pass; debug and release
+pathfinding each pass 452 assertions in 69 cases. The production WC3 build
+and game/client boundary audits pass.

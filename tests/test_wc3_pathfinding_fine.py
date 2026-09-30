@@ -86,6 +86,39 @@ class FineSearchTests(unittest.TestCase):
                                                         case['pops'], case['nodes'], len(case['path'])])
                         self.assertEqual([[out[6 + 2*i], out[7 + 2*i]] for i in range(out[3])], case['path'])
 
+    def test_original_nearest_chains_survive_request_budget_boundaries(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-fine-partials-1.27.json').read_text())
+        self.assertEqual(len(fixture['budget_cases']), 1456)
+        reached = exhausted = zero_distance_failures = 0
+        for engine in self.engines:
+            engine.pathing_fine_partial.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ObjectInput),
+                                                   ctypes.POINTER(ctypes.c_int32)]
+            for case in fixture['budget_cases']:
+                profile = fixture['profiles'][case['fixture']]
+                objects, mask = profile['objects'], profile['mask']
+                cells = bytes.fromhex(fixture['maps'][case['fixture']])
+                terrain = (ctypes.c_uint8 * len(cells))(*(mask >> 24 if c else 0 for c in cells))
+                raw = [v for obj in objects for v in (*obj['bounds'], obj['mask'], obj['flags'], obj['linked'])]
+                words = (ctypes.c_uint32 * len(raw))(*raw)
+                data = ObjectInput(terrain, words)
+                inp = (ctypes.c_uint32 * 11)(*fixture['dimensions'], *fixture['start'], *fixture['goal'],
+                    case['budget'], case['size_class'], mask, 0, len(objects))
+                for repeat in range(2):
+                    out = (ctypes.c_int32 * (7 + 2 * 16386))()
+                    engine.pathing_fine_partial(inp, ctypes.byref(data), out)
+                    with self.subTest(case=case['fixture'], cls=case['size_class'], budget=case['budget'],
+                                      repeat=repeat, opt=engine._name):
+                        self.assertEqual(list(out[:7]), [case['result'], case['pops'], case['nodes'],
+                                         len(case['path']), *case['nearest'], case['distance']])
+                        self.assertEqual([[out[7+2*i], out[8+2*i]] for i in range(out[3])], case['path'])
+                reached += case['result']
+                exhausted += not case['result']
+                zero_distance_failures += not case['result'] and case['distance'] == 0
+        self.assertGreater(reached, 0)
+        self.assertGreater(exhausted, 0)
+        # The nearest node can already be the goal when its final pop is denied.
+        self.assertGreater(zero_distance_failures, 0)
+
     def test_original_queue_witnesses_cover_reopening_and_equal_keys(self):
         # verify_wc3_pathing_queue.py executes original 14a560 for these values.
         # The complete 288-map corpus above does not exercise a closed reopen.

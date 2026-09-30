@@ -704,6 +704,9 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
          * same footprint geometry for expansion and flow sampling. */
         bool fine = unit_routes_to_location(self) || !heatmap ||
                     !CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y);
+        /* A completed static field already proves disconnection. Preserve its
+         * component fallback; a partial fine turn must not postpone it. */
+        if (heatmap && !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y)) fine = false;
         if (fine && unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir)) {
             unit_apply_heading(self, &dir, policy);
             return;
@@ -712,7 +715,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
             /* A live object can occupy the goal while the static field is
              * still pending. Keep collision-aware local steering in that
              * clear static corridor; pausing here stranded occupied-goal Move.
-             * TODO: port the original nearest-node partial route (FINE-02.2). */
+             * A nearest chain containing only the current cell gives no turn. */
             if (move_static_line(self, &self->goalentity->s.origin2, radius)) {
                 unit_apply_heading(self, &to_goal, policy);
                 self->movement.flow_direct = true;

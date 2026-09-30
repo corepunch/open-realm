@@ -263,6 +263,22 @@ void pathing_fine_objects(uint32_t const *input, fineObjectInput_t const *data, 
     }
 }
 
+/* Full request failure retains the closest admitted node, even if its goal
+ * entry has not yet been popped. Output: result,pops,nodes,count,nearXY,dist2,
+ * then the nearest start-to-end parent chain. */
+void pathing_fine_partial(uint32_t const *input, fineObjectInput_t const *data, int32_t *out) {
+    pathing_fine_objects(input, data, out);
+    out[0] = out[0] >= 0;
+    int at = (int)fine_probe.nearest, length = 0;
+    out[4] = fine_probe.nodes[at].pos.x; out[5] = fine_probe.nodes[at].pos.y;
+    out[6] = (int32_t)fine_probe.dist2;
+    for (int node = at; node >= 0; node = fine_probe.nodes[node].parent) length++;
+    out[3] = length;
+    for (int i = length - 1; i >= 0; i--, at = fine_probe.nodes[at].parent) {
+        out[7 + i * 2] = fine_probe.nodes[at].pos.x; out[8 + i * 2] = fine_probe.nodes[at].pos.y;
+    }
+}
+
 typedef struct {
     uint32_t width, height, mask, count;
     uint8_t const *cells;

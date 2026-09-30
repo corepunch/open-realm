@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **161 entries**: **37** distinct original-code oracle
-scripts plus **29** declared variants, **79** archived JSONL audits and **16**
+The inventory now has **162 entries**: **37** distinct original-code oracle
+scripts plus **30** declared variants, **79** archived JSONL audits and **16**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 61 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 62 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 72 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -295,3 +295,18 @@ new original/C oracle and both live contracts:4/4 selected entries. An earlier
 attempt under system Python failed visibly because Unicorn was absent; the
 accepted run uses the existing analysis environment. No full161-entry rerun is
 claimed. See [engine behavior and limits](retail-pathfinding-engine.md#idle-objects-affect-nearby-move-routes).
+
+
+## Nearest partial-route budget boundaries
+
+`oracle-grid-partials-engine` adds208 full mixed-object searches/repeats/requests
+and1456 original complete requests around the final work boundary. Exact C
+comparisons include failed-result nearest nodes, squared distances, parent
+chains, charged pops and node counts, repeated at O0/O2 by the asset-free suite.
+The fixture `retail-fine-partials-1.27.json` also pins original wrapper coordinates.
+The corpus compares C parent chains, not an invented complete reconstruction.
+
+`partials-engine-final-corpus/corpus-results.json` passes3/3 selected entries
+(static baseline, mixed objects, partial routes). The earlier161-entry selected
+idle-object checkpoint remains historical; no full162-entry rerun is claimed.
+See [engine partial route behavior](retail-pathfinding-engine.md#nearest-partial-routes-survive-blocked-goals).
