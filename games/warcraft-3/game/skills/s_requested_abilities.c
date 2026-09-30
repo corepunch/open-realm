@@ -69,13 +69,20 @@ static void radial_damage_status(edict_t *caster, vec2_t point, abilityitem_t co
     }
 }
 
-/* Retail AOeq/SNeq masks author no relationship token; until retail's reading of that
- * omission is verified, keep Earthquake enemy-only rather than hitting the caster's own base. */
+/* Retail AOeq/SNeq masks author no relationship token, and the generic mask rule reads that as "any
+ * player". That is the original release behaviour: Earthquake shook every building in the area, the
+ * caster's own included. A later Blizzard patch stopped it hurting the caster's side without touching the
+ * mask, so the patched rule lives here: with no authored relationship, only enemies are hit.
+ * Build with WC3_EARTHQUAKE_FRIENDLY_FIRE=1 for the pre-patch behaviour, the authored mask as written. */
 static bool earthquake_allows_unit(uint32_t code, cstring_t targets, edict_t *caster, edict_t *target) {
-    bool const relationship = S_SpellTargetHasToken(targets, "friend", NULL) ||
-        S_SpellTargetHasToken(targets, "enemy", NULL) || S_SpellTargetHasToken(targets, "neutral", NULL);
-    return S_SpellIsAliveTarget(target) && S_SpellAllowsAreaTarget(code, caster, target) &&
-        (relationship || S_SpellIsEnemy(caster, target));
+    if (!S_SpellIsAliveTarget(target) || !S_SpellAllowsAreaTarget(code, caster, target)) return false;
+#ifdef WC3_EARTHQUAKE_FRIENDLY_FIRE
+    (void)targets;
+    return true;
+#else
+    return S_SpellTargetHasToken(targets, "friend", NULL) || S_SpellTargetHasToken(targets, "enemy", NULL) ||
+        S_SpellTargetHasToken(targets, "neutral", NULL) || S_SpellIsEnemy(caster, target);
+#endif
 }
 
 static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, float radius, vec2_t const *origin) {
