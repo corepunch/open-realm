@@ -3,13 +3,14 @@
 
 #define CL_MINIMAP_PING_COUNT 16 // markers; bounds simultaneous transient minimap attention effects
 #define CL_MINIMAP_RECENT_COUNT 8 // positions; bounds Warcraft-style recent-alert Space recall
-#define CL_MINIMAP_PACKET_SIZE 17 // bytes; fixed svc_minimap_ping payload size used for bounds validation
-#define CL_MINIMAP_CONTACT_SIZE 0.002f // UI-canvas units; matches the WC3 unit marker footprint
+#define CL_MINIMAP_PACKET_SIZE 21 // bytes; fixed svc_minimap_ping payload size used for bounds validation
+#define CL_MINIMAP_DEFAULT_ALERT_SIZE 0.002f // UI-canvas units; ordinary WC3 unit footprint
 
 typedef struct {
     bool active;
     vec2_t position;
     color32_t color;
+    float marker_size;
     uint32_t start_time, end_time;
     uint32_t flags;
 } minimapPing_t;
@@ -71,11 +72,12 @@ void CL_ParseMinimapPing(sizeBuf_t *msg) {
     }
     ping.position.x = MSG_ReadFloat(msg); ping.position.y = MSG_ReadFloat(msg);
     duration = MSG_ReadFloat(msg);
+    ping.marker_size = MSG_ReadFloat(msg);
     ping.color = MAKE(color32_t, MSG_ReadByte(msg), MSG_ReadByte(msg), MSG_ReadByte(msg), MSG_ReadByte(msg));
     ping.flags = (uint32_t)MSG_ReadByte(msg);
     if (!isfinite(ping.position.x) || !isfinite(ping.position.y) || !isfinite(duration) || duration <= 0.0f ||
-        duration > MINIMAP_PING_DURATION_MAX) {
-        fprintf(stderr, "CL_ParseMinimapPing: invalid duration=%.3f\n", duration);
+        duration > MINIMAP_PING_DURATION_MAX || !isfinite(ping.marker_size) || ping.marker_size < 0.0f || ping.marker_size > 1.0f) {
+        fprintf(stderr, "CL_ParseMinimapPing: invalid duration=%.3f marker_size=%.4f\n", duration, ping.marker_size);
         return;
     }
     ping.end_time = cl.time + (uint32_t)MAX(1.0f, duration * 1000.0f);
@@ -105,9 +107,8 @@ static void CL_DrawMinimapPings(void) {
             continue;
         }
         if (ping->flags & MINIMAP_PING_FORCE_COLOR) {
-            marker = MAKE(rect_t, screen.x - CL_MINIMAP_CONTACT_SIZE * 0.5f,
-                          screen.y - CL_MINIMAP_CONTACT_SIZE * 0.5f,
-                          CL_MINIMAP_CONTACT_SIZE, CL_MINIMAP_CONTACT_SIZE);
+            float const size = ping->marker_size > 0.0f ? ping->marker_size : CL_MINIMAP_DEFAULT_ALERT_SIZE;
+            marker = MAKE(rect_t, screen.x - size * 0.5f, screen.y - size * 0.5f, size, size);
             re.DrawFill(&marker, ping->color);
             continue;
         }

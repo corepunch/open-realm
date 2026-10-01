@@ -1519,7 +1519,7 @@ static uint32_t G_HoverResourceValue(edict_t const *ent) {
  * object-editor suppression flags. The distinct uhhm/uhom fields are kept
  * independent: hiding only the Hero icon falls through to the ordinary path,
  * while uhom can suppress that fallback. */
-static wc3MinimapContact_t G_MinimapMarkerForEntity(edict_t const *ent, entityState_t const *state) {
+wc3MinimapContact_t G_WC3_MinimapMarkerForEntity(edict_t const *ent, entityState_t const *state) {
     UnitUI_t const *ui;
 
     if (!ent || !state || !(ent->svflags & SVF_MONSTER) ||
@@ -1560,7 +1560,7 @@ static bool G_IsSnapshotPriorityEntity(uint32_t player, edict_t const *ent) {
     if ((state.renderfx & RF_HIDDEN) && S_UnitUsesInvisibilityRenderFlag(ent) &&
         !S_UnitIsInvisibleToPlayer(ent, player))
         state.renderfx &= ~RF_HIDDEN;
-    return G_MinimapMarkerForEntity(ent, &state) != WC3_MINIMAP_CONTACT_NONE;
+    return G_WC3_MinimapMarkerForEntity(ent, &state) != WC3_MINIMAP_CONTACT_NONE;
 }
 
 /* Selection voices are local feedback; suppress them in snapshots for clients
@@ -1573,7 +1573,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         !S_UnitIsInvisibleToPlayer(ent, player)) {
         state->renderfx &= ~RF_HIDDEN;
     }
-    wc3MinimapContact_t const minimap_marker = G_MinimapMarkerForEntity(ent, state);
+    wc3MinimapContact_t const minimap_marker = G_WC3_MinimapMarkerForEntity(ent, state);
     state->effect_flags = wc3_minimap_contact_set(state->effect_flags, minimap_marker);
 
     bool const hoverable = (ent->svflags & SVF_MONSTER) &&

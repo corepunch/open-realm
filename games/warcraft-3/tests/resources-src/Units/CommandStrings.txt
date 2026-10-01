@@ -54,3 +54,9 @@ ResearchArt=TestUI\\CommandButtons\\BTN-AHtb.blp
 
 [CmdCancel]
 Art=TestUI\\CommandButtons\\BTN-Cancel.blp
+
+[AdvisorStrings]
+Unitattack=The battle has been joined.
+Townattack=Our town is under siege!
+Allyunderattack=%s is under attack.
+Allytownattack=%s's city is under siege!

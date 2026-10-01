@@ -3,9 +3,11 @@
 
 #define WC3_DEFAULT_MINIMAP_INDICATOR "UI\\Minimap\\Minimap-Ping.mdl"
 #define WC3_DEFAULT_ALERT_PING_DURATION 1.0f
+#define WC3_ATTACK_ADVISOR_AUTOMATIC_DURATION (-1.0f)
 
 /* Serialize transient minimap presentation for one connected client. */
-void G_SendMinimapPing(gameClient_t *client, vec2_t const *position, float duration, color32_t color, uint32_t flags) {
+static void G_SendMinimapPingSized(gameClient_t *client, vec2_t const *position, float duration,
+                                   color32_t color, uint32_t flags, float marker_size) {
     edict_t *clent;
     cstring_t model;
 
@@ -15,7 +17,11 @@ void G_SendMinimapPing(gameClient_t *client, vec2_t const *position, float durat
 
     model = Theme_PlayerString(client, "MinimapIndicator", WC3_DEFAULT_MINIMAP_INDICATOR);
     gi.configstring(CS_MINIMAP, model && model[0] ? model : WC3_DEFAULT_MINIMAP_INDICATOR);
-    gi.MinimapPing(clent, position, duration, color.a ? color : COLOR32_WHITE, flags);
+    gi.MinimapPing(clent, position, duration, color.a ? color : COLOR32_WHITE, flags, marker_size);
+}
+
+void G_SendMinimapPing(gameClient_t *client, vec2_t const *position, float duration, color32_t color, uint32_t flags) {
+    G_SendMinimapPingSized(client, position, duration, color, flags, MINIMAP_PING_DEFAULT_SIZE);
 }
 
 /* Derive owner alerts from the completed entity so no alert state enters save/load. */
@@ -64,6 +70,64 @@ static void G_AttackAlertCommitCooldown(gameClient_t const *recipient) {
     wc3_attack_alert_until[recipient->ps.number] = G_Time() + millis;
 }
 
+/* Attack alerts use CommandStrings [AdvisorStrings], not the command-error [Errors]
+ * table. Keep the stock text data-driven so archive localization and map overrides
+ * remain authoritative. */
+static cstring_t G_AttackAlertAdvisorString(bool allied, bool town) {
+    cstring_t key = allied
+        ? (town ? "Allytownattack" : "Allyunderattack")
+        : (town ? "Townattack" : "Unitattack");
+    cstring_t value = FindConfigValue("AdvisorStrings", key);
+    return value && value[0] ? G_LevelString(value) : NULL;
+}
+
+/* Replace the one retail %s player-name token without treating map data as a C
+ * printf format string. Unknown percent sequences remain literal. */
+static cstring_t G_AttackAlertFormatAdvisor(cstring_t source, cstring_t player_name) {
+    static char formatted[4][MAX_GAMECACHE_STRING];
+    static uint32_t cursor;
+    char *out = formatted[cursor++ & 3];
+    char *write = out;
+    size_t remaining = sizeof(formatted[0]);
+
+    if (!source || !source[0]) return NULL;
+    while (*source && remaining > 1) {
+        if (source[0] == '%' && source[1] == 's') {
+            cstring_t name = player_name ? player_name : "";
+            size_t count = MIN(strlen(name), remaining - 1);
+            memcpy(write, name, count);
+            write += count;
+            remaining -= count;
+            source += 2;
+            continue;
+        }
+        *write++ = *source++;
+        remaining--;
+    }
+    *write = '\0';
+    return out;
+}
+
+static void G_AttackAlertShowAdvisor(gameClient_t *recipient, gameClient_t const *owner,
+                                     bool allied, bool town) {
+    edict_t *clent;
+    cstring_t text;
+
+    if (!recipient) return;
+    text = G_AttackAlertAdvisorString(allied, town);
+    if (!text || !text[0]) return;
+    if (allied) text = G_AttackAlertFormatAdvisor(text, owner && owner->ps.name ? owner->ps.name : "");
+    clent = G_GetPlayerEntityByNumber(recipient->ps.number);
+    if (!clent || !clent->client) return;
+
+    /* BZ_COMPAT_GUESS: the AdvisorStrings wording and alert semantics are retail
+     * data, but the exact advisor-message lifetime/fade is not recovered in-tree.
+     * Reuse the gameplay message overlay's automatic text-duration policy until a
+     * direct retail capture supplies dedicated timing. Transient text deliberately
+     * stays out of the Message Log. */
+    UI_ShowTransientText(clent, NULL, text, WC3_ATTACK_ADVISOR_AUTOMATIC_DURATION);
+}
+
 static void G_AttackAlertPlaySound(gameClient_t *recipient, bool allied, bool town) {
     edict_t *clent;
     cstring_t skin_key, alias;
@@ -84,9 +148,18 @@ static void G_AttackAlertNotify(gameClient_t *recipient, edict_t *victim, bool a
      * contacts, combat, or the generic minimap wire contract. */
     color32_t const attacked_signal = MAKE(color32_t, 255, 0, 0, 255);
     if (!recipient || !victim || !G_AttackAlertCanNotify(recipient, &victim->s.origin2)) return;
+    entityState_t marker_state = victim->s;
+    /* Match G_CustomizeEntity's recipient-specific visibility adjustment before
+     * classifying the marker, so a true-sight Hero keeps its larger footprint. */
+    if ((marker_state.renderfx & RF_HIDDEN) && S_UnitUsesInvisibilityRenderFlag(victim) &&
+        !S_UnitIsInvisibleToPlayer(victim, recipient->ps.number))
+        marker_state.renderfx &= ~RF_HIDDEN;
+    wc3MinimapContact_t const contact = G_WC3_MinimapMarkerForEntity(victim, &marker_state);
+    float const marker_size = wc3_minimap_contact_size(contact != WC3_MINIMAP_CONTACT_NONE ? contact : WC3_MINIMAP_CONTACT_UNIT);
     G_AttackAlertPlaySound(recipient, allied, town);
-    G_SendMinimapPing(recipient, &victim->s.origin2, WC3_DEFAULT_ALERT_PING_DURATION,
-                      attacked_signal, MINIMAP_PING_REMEMBER | MINIMAP_PING_FORCE_COLOR);
+    G_AttackAlertShowAdvisor(recipient, G_GetPlayerClientByNumber(victim->s.player), allied, town);
+    G_SendMinimapPingSized(recipient, &victim->s.origin2, WC3_DEFAULT_ALERT_PING_DURATION,
+                           attacked_signal, MINIMAP_PING_REMEMBER | MINIMAP_PING_FORCE_COLOR, marker_size);
     G_AttackAlertCommitCooldown(recipient);
 }
 

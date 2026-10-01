@@ -16,7 +16,7 @@ simulation event / JASS native
 
 The server does not move the camera when an alert is emitted, and a ping does not change fog or selection. Recent-alert state is client-local and is not added to `playerState_t`/`entityState_t`.
 
-The wire contract is the generic `svc_minimap_ping` message: world position, lifetime, RGBA color, and behavior flags. The authored alert model name is the server-owned `CS_MINIMAP` configstring, following Quake's `CS_SKY` pattern; `client/cl_minimap.c` loads it through the normal configstring lifecycle. No minimap state belongs to a game UI library.
+The wire contract is the generic `svc_minimap_ping` message: world position, lifetime, UI-canvas marker size, RGBA color, and behavior flags. A zero marker size selects the client's default sizing behavior. The authored alert model name is the server-owned `CS_MINIMAP` configstring, following Quake's `CS_SKY` pattern; `client/cl_minimap.c` loads it through the normal configstring lifecycle. No minimap state belongs to a game UI library.
 
 Ordinary minimap unit/building contacts are not pings. Warcraft III assigns its contact classes to the generic three-bit `EFX_GAME_VARIANT_*` payload in `entityState_t.effect_flags`; shared/client code carries that payload opaquely and the WC3 renderer interprets it. See [minimap markers](minimap-markers.md). A ping is a transient attention event, analogous to `svc_sound`, and therefore does not use the automatic-contact variant or survive save/load.
 
@@ -37,6 +37,9 @@ The completion path currently uses a one-second alert-ping lifetime. That is an 
 Automatic normal-weapon attack alerts are also produced by the WC3 game module. The resolved primary weapon-hit path calls `G_WC3_AttackAlert()` before applying the hit; direct spell, DoT, splash, and scripted `T_Damage()` callers do not automatically become attack alarms. A qualifying remote alert:
 
 - resolves `AttackNotifyDelay` and `AttackNotifyRange` from the active Misc data, with stock fallbacks of 30 seconds and 1250 world units;
+- resolves the stock `Units\\CommandStrings.txt` `[AdvisorStrings]` text (`Unitattack` / `Townattack`) through the same archive/`TRIGSTR` string path used elsewhere;
+- resolves allied advisor text through `Allyunderattack` / `Allytownattack` and substitutes the attacked player's current name for the stock `%s` token;
+- presents advisor text through the ordinary transient gameplay-message layer, not the command-error HUD and not the persistent Message Log;
 - uses the recipient's race/map skin `UnderAttackSound` or `TownAttackSound`;
 - uses `AllyUnderAttackSound` / `AllyTownUnderAttackSound` for passive allies for whom the attacked owner has `ALLIANCE_HELP_REQUEST`;
 - emits a transient red minimap attention signal with `MINIMAP_PING_REMEMBER`, so only notifications which survive range/cooldown filtering enter the existing eight-entry Space history;
@@ -49,8 +52,9 @@ The following compatibility choices are deliberately marked in code with `BZ_COM
 3. An authored building (`G_UnitIsBuilding`) is classified as a town alert; other units use the forces alert.
 4. The attacked signal currently uses opaque red, forces the generic packet-colour marker instead of the normally authored `MinimapIndicator`, and uses the existing one-second alert lifetime. Warcraft exposes a dedicated attacked-signal color, but the underlying raw Misc field and exact retail lifetime/animation have not yet been recovered in-tree.
 5. The automatic alarm is currently produced on a resolved primary normal-weapon hit. This intentionally excludes direct spell/DoT/script damage, but direct retail capture is still needed to decide whether a missed/evaded attack should alarm earlier at swing or projectile-launch time.
+6. Advisor text uses the existing gameplay-message overlay's automatic duration rule (message length / 6 + 5 seconds) and no dedicated fade. The retail `[AdvisorStrings]` keys/wording are data-backed; the exact retail advisor position, lifetime, and fade curve still need direct capture.
 
-These guesses are confined to the attack-alert call site and `g_minimap.c`; replacing any of them after direct retail capture must not require changes to generic damage, the generic minimap packet, or ordinary minimap contact rendering. Hero-revive and building-morph completion alerts remain separate work.
+These guesses are confined to the attack-alert call site and `g_minimap.c`; replacing any of them after direct retail capture must not require changes to generic damage or ordinary minimap contact rendering. The alert packet carries the attacked entity's WC3 contact marker size, so a unit, building, or Hero alert overlays a square matching that entity's minimap footprint. Hero-revive and building-morph completion alerts remain separate work.
 
 ## JASS Minimap Pings
 

@@ -57,7 +57,7 @@ static void sc2_order_clear_targeting(edict_t *client) {
 void SC2_CancelCommand(edict_t *client) { sc2_order_clear_targeting(client); }
 bool SC2_CommandPoint(edict_t *client, vec2_t const *point) {
     if (client->client->minimap_signal) {
-        gi.MinimapPing(client,point,3,COLOR32_WHITE,MINIMAP_PING_REMEMBER);
+        gi.MinimapPing(client,point,3,COLOR32_WHITE,MINIMAP_PING_REMEMBER,MINIMAP_PING_DEFAULT_SIZE);
         sc2_order_clear_targeting(client); return true;
     }
     uint32_t kind=client->client->pending_order;

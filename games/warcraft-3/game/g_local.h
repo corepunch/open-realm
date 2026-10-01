@@ -9,6 +9,7 @@
 #include "common/common.h"
 #include "common/weather.h"
 #include "games/warcraft-3/common/terrain.h"
+#include "games/warcraft-3/common/minimap.h"
 #include "common/stb_fdf.h"
 #include "common/stb_slk.h"
 #include "server/game.h"
@@ -2988,6 +2989,7 @@ void G_QueueReadySound(edict_t *);
 void G_QueueOwnerSoundAlias(edict_t *, cstring_t);
 void G_QueueOwnerUISound(edict_t *, cstring_t);
 void G_SendMinimapPing(gameClient_t *, vec2_t const *, float, color32_t, uint32_t);
+wc3MinimapContact_t G_WC3_MinimapMarkerForEntity(edict_t const *, entityState_t const *);
 void G_SendOwnerMinimapAlert(edict_t *);
 void G_ResetAttackAlerts(void);
 void G_WC3_AttackAlert(edict_t *victim, edict_t *attacker);
