@@ -31,6 +31,31 @@ def capture(*searches, calls=None):
 
 
 class PathTraceTests(unittest.TestCase):
+    def test_pathing_toggle_rejects_lost_brackets_masks_identity_and_wall_crossing(self):
+        rows=[]; markers=[]
+        for tick,flag,name in ((10,0,'disable'),(20,1,'enable'),(30,0,'disable'),(40,1,'enable')):
+            rows.extend([dict(event='pathing-toggle',handle=123,enabled=flag,phase='enter'),
+                dict(event='movement-mask-publication',rawcode=1751543663,category=202,queryMask=flag*2,
+                     objectCategory=0x010000ca,pathMask=flag*0x02000002,mover='0x1234',identity=[17,19]),
+                dict(event='pathing-toggle',handle=123,enabled=flag,phase='leave')])
+            markers.extend(dict(tick=tick,label='pathing_'+name+'_'+phase,x=-1936,y=-600,order=851986)
+                           for phase in ('before','after'))
+        markers.append(dict(tick=38,label='sample',x=-1936,y=-550,order=851986))
+        violations=[]; trace.check_pathing_toggle(rows,markers,violations); self.assertEqual(violations,[])
+        for mode in ('bracket','category','query','path-mask','identity','receiver','script','crossing','order'):
+            changed=copy.deepcopy(rows); samples=copy.deepcopy(markers)
+            if mode=='bracket': changed.pop(2)
+            elif mode=='category': changed[1]['objectCategory']=0
+            elif mode=='query': changed[1]['queryMask']=2
+            elif mode=='path-mask': changed[4]['pathMask']=2
+            elif mode=='identity': changed[4]['identity']=[17,20]
+            elif mode=='receiver': changed[3]['handle']=124
+            elif mode=='script': samples.pop(1)
+            elif mode=='crossing': samples[-1]['x']=-1872
+            elif mode=='order': samples[3]['order']=0
+            violations=[]; trace.check_pathing_toggle(changed,samples,violations)
+            self.assertTrue(violations,mode)
+
     def test_byte_capture_rejects_substituted_producers_locales_and_lost_brackets(self):
         fixture = json.loads(BYTE_FIXTURE.read_text())
         rows = [dict(event='metadata', sha256=fixture['target_sha256'], source_sha256=fixture['source_sha256'],

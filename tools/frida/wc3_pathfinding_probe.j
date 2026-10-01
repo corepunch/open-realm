@@ -358,6 +358,17 @@ function PathProbeTick takes nothing returns nothing
         set numericY = GetUnitDefaultMoveSpeed(udg_PathProbeUnit)
         call Preload("PATHSPEED done=travel")
     endif
+    if PATH_PROBE_SCENARIO == 41 then
+        if udg_PathProbeTick == 10 or udg_PathProbeTick == 30 then
+            call PathProbeRecord("pathing_disable_before")
+            call SetUnitPathing(udg_PathProbeUnit, false)
+            call PathProbeRecord("pathing_disable_after")
+        elseif udg_PathProbeTick == 20 or udg_PathProbeTick == 40 then
+            call PathProbeRecord("pathing_enable_before")
+            call SetUnitPathing(udg_PathProbeUnit, true)
+            call PathProbeRecord("pathing_enable_after")
+        endif
+    endif
     if PATH_PROBE_SCENARIO == 40 and udg_PathProbeTick == 1 then
         call PathProbeRandom()
     endif
@@ -755,7 +766,7 @@ function PathProbeInit takes nothing returns nothing
             call PathProbeRecord("gate_inactive")
         endif
     endif
-    if PATH_PROBE_SCENARIO == 1 or PATH_PROBE_SCENARIO == 3 or PATH_PROBE_SCENARIO == 4 then
+    if PATH_PROBE_SCENARIO == 1 or PATH_PROBE_SCENARIO == 3 or PATH_PROBE_SCENARIO == 4 or PATH_PROBE_SCENARIO == 41 then
         call PathProbeWall(false)
     endif
     if PATH_PROBE_SCENARIO == 16 then

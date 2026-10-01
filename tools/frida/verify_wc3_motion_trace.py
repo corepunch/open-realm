@@ -93,7 +93,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('trace', type=Path)
     parser.add_argument('--engine-library', required=True, type=Path)
-    parser.add_argument('--scenario', required=True, choices=('open', 'turn', 'stock_turn'))
+    parser.add_argument('--scenario', required=True, choices=('open', 'turn', 'stock_turn', 'pathing_toggle'))
     parser.add_argument('--compare', type=Path, help='repeat capture; compare normalized raw decision sequence')
     parser.add_argument('--report', required=True, type=Path)
     args = parser.parse_args()

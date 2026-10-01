@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "44 executable original-code oracle scripts,42 selected exact/frozen variants,27 explicit live/profile/repeat contracts and100 archived capture audits.",
+  "scope": "44 executable original-code oracle scripts,42 selected exact/frozen variants,28 explicit live/profile/repeat contracts and102 archived capture audits.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -13099,6 +13099,300 @@
         "Dynamic blockers/yielding",
         "Portal execution"
       ]
+    },
+    {
+      "id": "capture-pathing-toggle-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/pathing-toggle-first-261001.jsonl",
+        "--scenario",
+        "pathing_toggle",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/pathing-toggle-first-261001.jsonl",
+        "sha256": "20ebbc6a1a3d63f9cc5559319cf5a33ec4145d11b3dfc5940efde5e49cf68941",
+        "bytes": 277687,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "c61fbdbfdc46c2b35cee522b2a1a2bfad952acf96f88c7014972d244c06ec380",
+            "wc3_pathfinding.js": "c036935c8e4240c9291777a48a8e4af881aae23230030c4172f9f83603c53408",
+            "wc3_pathfinding_probe.j": "eb4d6575d8fdc7e5d210182c6eeb0040738516cf5da3d085859dd708f7e767fb",
+            "make_wc3_pathfinding_map.py": "9b9add02798e2578b11b3289da96708ac3cd674dde271909e87223e47e801c48",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "e30bdc258278bc09d8ce412b3dab58eb9c4f97a703a111b162cd949d2917be31"
+          },
+          "map": "Maps\\PathingRE-ToggleFirst261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/pathing-toggle-first-261001-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Two public toggles each direction on stock Footman; other classes, placement, separation and whole engine phase parity remain separate."
+      ]
+    },
+    {
+      "id": "capture-pathing-toggle-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/pathing-toggle-repeat-261001.jsonl",
+        "--scenario",
+        "pathing_toggle",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/pathing-toggle-repeat-261001.jsonl",
+        "sha256": "945ef012a12150681793c4ae08c63a164d03a615124ef6fd28c647d4c96aa220",
+        "bytes": 277687,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "c61fbdbfdc46c2b35cee522b2a1a2bfad952acf96f88c7014972d244c06ec380",
+            "wc3_pathfinding.js": "c036935c8e4240c9291777a48a8e4af881aae23230030c4172f9f83603c53408",
+            "wc3_pathfinding_probe.j": "eb4d6575d8fdc7e5d210182c6eeb0040738516cf5da3d085859dd708f7e767fb",
+            "make_wc3_pathfinding_map.py": "9b9add02798e2578b11b3289da96708ac3cd674dde271909e87223e47e801c48",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "e30bdc258278bc09d8ce412b3dab58eb9c4f97a703a111b162cd949d2917be31"
+          },
+          "map": "Maps\\PathingRE-ToggleRepeat261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/pathing-toggle-repeat-261001-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Two public toggles each direction on stock Footman; other classes, placement, separation and whole engine phase parity remain separate."
+      ]
+    },
+    {
+      "id": "live-pathing-toggle-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_motion_trace.py",
+        "{archive}/runtime/pathing-toggle-first-261001.jsonl",
+        "--scenario",
+        "pathing_toggle",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}",
+        "--compare",
+        "{archive}/runtime/pathing-toggle-repeat-261001.jsonl"
+      ],
+      "inputs": {
+        "capture": "runtime/pathing-toggle-first-261001.jsonl",
+        "sha256": "20ebbc6a1a3d63f9cc5559319cf5a33ec4145d11b3dfc5940efde5e49cf68941",
+        "bytes": 277687,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "c61fbdbfdc46c2b35cee522b2a1a2bfad952acf96f88c7014972d244c06ec380",
+            "wc3_pathfinding.js": "c036935c8e4240c9291777a48a8e4af881aae23230030c4172f9f83603c53408",
+            "wc3_pathfinding_probe.j": "eb4d6575d8fdc7e5d210182c6eeb0040738516cf5da3d085859dd708f7e767fb",
+            "make_wc3_pathfinding_map.py": "9b9add02798e2578b11b3289da96708ac3cd674dde271909e87223e47e801c48",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "e30bdc258278bc09d8ce412b3dab58eb9c4f97a703a111b162cd949d2917be31"
+          },
+          "map": "Maps\\PathingRE-ToggleFirst261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/pathing-toggle-repeat-261001.jsonl",
+            "sha256": "945ef012a12150681793c4ae08c63a164d03a615124ef6fd28c647d4c96aa220",
+            "bytes": 277687,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "c61fbdbfdc46c2b35cee522b2a1a2bfad952acf96f88c7014972d244c06ec380",
+                "wc3_pathfinding.js": "c036935c8e4240c9291777a48a8e4af881aae23230030c4172f9f83603c53408",
+                "wc3_pathfinding_probe.j": "eb4d6575d8fdc7e5d210182c6eeb0040738516cf5da3d085859dd708f7e767fb",
+                "make_wc3_pathfinding_map.py": "9b9add02798e2578b11b3289da96708ac3cd674dde271909e87223e47e801c48",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "e30bdc258278bc09d8ce412b3dab58eb9c4f97a703a111b162cd949d2917be31"
+              },
+              "map": "Maps\\PathingRE-ToggleRepeat261001.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 1000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-pathing-toggle-repeat-261001.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-replay",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "exact_decisions": {
+          "equal": 182
+        },
+        "stopped_decisions": {
+          "equal": 0
+        },
+        "movers": {
+          "equal": 1
+        },
+        "decision_sha256": {
+          "equal": "71f6aff3e9169954337be618d6bf36d771fda15e7b1b1ca10747763bfef2cf60"
+        },
+        "exact_velocity_commits": {
+          "equal": 183
+        },
+        "exact_position_commits": {
+          "equal": 183
+        },
+        "exact_facing_commits": {
+          "equal": 183
+        },
+        "velocity_sha256": {
+          "equal": "0a92f9a1f77540bddd3cdcab1a5829c6fd8f29f322a89bb5c2bd997fdd523edd"
+        },
+        "repeat_equal": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Four public SetUnitPathing native/profile brackets preserve occupancy and toggle own query. Stock Footman crosses a static wall while query zero. Complete captured scalar decisions and velocity/position/facing commits exactly match C and repeat.",
+      "exclusions": [
+        "Whole engine admission/cadence, other profiles, placement and separation policy remain open. Engine retained-route toggle is a behavior regression, not a bitwise live full-path comparison."
+      ]
     }
   ],
   "fixtures": [
@@ -13164,7 +13458,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "f1b0c63dc8a1033bb23ebcf35a48f9a7a2d251d558f60ddf20c63e453b525eb7"
+      "sha256": "1b5e7cbbf1d0dd496da7b2460dbe3b2057123b109186843c4ceb2345d3be5949"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",

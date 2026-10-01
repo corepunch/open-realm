@@ -39,7 +39,7 @@ static bool entity_is_live_walkable_surface(edict_t const *ent) {
 static uint8_t entity_static_pathing_flags(edict_t const *ent) { (void)ent; return 0xc2; }
 static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) {
     /* Query masks describe the mover; occupancy describes the encountered unit. */
-    return !ent || ent->no_pathing || M_UnitMoveDisabled(ent) || (ent->aiflags & AI_FLYING) ? 0 : 0xca;
+    return !ent || M_UnitMoveDisabled(ent) || (ent->aiflags & AI_FLYING) ? 0 : 0xca;
 }
 static bool entity_is_pathing_ignored(edict_t const *ent) {
     /* A construction-site indicator is a visible reservation, not a building
@@ -188,7 +188,7 @@ static bool move_object_collect(edict_t const *ent) {
     moveFineGraph_t *graph = move_scan->graph;
     movePathQuery_t const *query = move_scan->query;
     if (ent == query->mover || ent == query->target || IS_HOLLOW(ent) || !ent->data.UnitData ||
-        G_UnitIsStructure(ent) || M_UnitMoveDisabled(ent) || ent->no_pathing || ent->collision <= 0 || (ent->aiflags & AI_FLYING)) return false;
+        G_UnitIsStructure(ent) || M_UnitMoveDisabled(ent) || ent->collision <= 0 || (ent->aiflags & AI_FLYING)) return false;
     uint32_t flags = ent->movement.velocity.x || ent->movement.velocity.y ? 0x20000000 : 0;
     uint32_t mask = graph->flags;
     mask |= mask << 24;
@@ -527,7 +527,7 @@ static bool move_find_fine_route(movePathQuery_t const *input, moveFineRoute_t *
     edict_t const *object = input->target;
     if (input->units && input->mover && !(input->mover->aiflags & AI_FLYING) && object && object->inuse &&
         !IS_HOLLOW(object) && object->data.UnitData && !G_UnitIsStructure(object) &&
-        !M_UnitMoveDisabled(object) && !object->no_pathing && object->collision > 0 && !(object->aiflags & AI_FLYING)) {
+        !M_UnitMoveDisabled(object) && object->collision > 0 && !(object->aiflags & AI_FLYING)) {
         vec2_t pos = move_grid_from_world(object->s.origin2.x, object->s.origin2.y);
         graph.target = wc3_fine_cover(wc3_fine_class(object->collision / pathmap_cell_world_size()),
             (wc3FinePoint_t){(int)floorf(pos.x), (int)floorf(pos.y)});

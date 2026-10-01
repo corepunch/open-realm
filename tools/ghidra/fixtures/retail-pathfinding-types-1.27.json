@@ -4219,6 +4219,77 @@
           "storage": 36
         }
       ]
+    },
+    {
+      "address": "6f215540",
+      "name": "Jass_SetUnitPathing",
+      "returns": "void",
+      "convention": "__cdecl",
+      "evidence": "Registered native, actual CUnit vtable6fb77eb0, instruction/RET readback and two complete public live four-toggle profile/velocity witnesses (engine payoff25).",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f05ac60",
+      "name": "UnitMoverBridge_GetPathingCategory",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Registered native, actual CUnit vtable6fb77eb0, instruction/RET readback and two complete public live four-toggle profile/velocity witnesses (engine payoff25).",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f699200",
+      "name": "CUnit_PublishPathingProfile",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Registered native, actual CUnit vtable6fb77eb0, instruction/RET readback and two complete public live four-toggle profile/velocity witnesses (engine payoff25).",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "category",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "query",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f6864d0",
+      "name": "CUnit_GetMoverBridge",
+      "returns": "ptr:WC3UnitMoverBridge",
+      "convention": "__thiscall",
+      "evidence": "Registered native, actual CUnit vtable6fb77eb0, instruction/RET readback and two complete public live four-toggle profile/velocity witnesses (engine payoff25).",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
     }
   ],
   "globals": [

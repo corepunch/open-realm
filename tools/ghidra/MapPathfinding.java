@@ -8,6 +8,10 @@ import ghidra.program.model.symbol.SourceType;
 public class MapPathfinding extends GhidraScript {
     static final String HASH = "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236";
     static final String[][] ROWS = {
+        {"6f215540","Jass_SetUnitPathing","Registered cdecl native(unit handle,bool), RETplain. Resolve/live canonical type2b61676c gate; false gets current bridge occupancy category via05ac60 and virtual15c publishes category/zero query. True restores authored query/category via vtable164/160 then15c. Two complete public live four-toggle captures retain hfoo categoryca, active object010000ca, own mask0/02000002, order and pose at each native bracket. Engine payoff25 separates own query from occupancy."},
+        {"6f05ac60","UnitMoverBridge_GetPathingCategory","ThiscallECX bridge, RETplain,u32EAX. Resolve bridge8/c identity through054530; canonical98 owned mover; mover34&00ffffff. Current occupancy category, not query mask. Public SetUnitPathing(false) preserves this while clearing own query."},
+        {"6f699200","CUnit_PublishPathingProfile","Actual CUnit vtable6fb77eb0 slot15c. ThiscallECX unit, stack4 category,stack8 query, tail-jump05c7e0 with ECX+164 bridge. Public SetUnitPathing changes own query while retaining occupancy."},
+        {"6f6864d0","CUnit_GetMoverBridge","Actual CUnit vtable6fb77eb0 slotb8, ECX receiver, returnsECX+164 inEAX, RETplain. SetUnitPathing(false) obtains current occupancy from bridge05ac60."},
         {"6f163b60","PathAcc_Size2BaseNorthRight","Base north admission requires the right base cell clear. This is separate from coarse north boundary policy."},
         {"6f163cd0","PathAcc_Size2NorthRight","Coarse north side interior requires right clear; level-boundary uses163dd0 instead."},
         {"6f163d40","PathAcc_Size2BaseNorthPromotedOdd","Odd-X promoted base north additionally requires right/up2 OR left. Representative coordinates remain the first lookup input."},

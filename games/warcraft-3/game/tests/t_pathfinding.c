@@ -892,9 +892,9 @@ TEST(wc3_pathfinding, fine_target_exit_preserves_approach_endpoint) {
         T_ASSERT(G_FindUnitMovePathWaypoint(&query, &out));
         T_EQ(out.x, goal.x); T_EQ(out.y, goal.y);
         target->movement.velocity = (vec2_t){0};
-        query.target = target; /* Inactive category never reports target identity. */
+        query.target = target; /* SetUnitPathing(false) preserves the target occupancy category. */
         T_ASSERT(G_FindUnitMovePathWaypoint(&query, &out));
-        T_EQ(out.x, goal.x); T_EQ(out.y, goal.y);
+        T_EQ(out.x, cls < 2 ? 11.5f : 10.5f); T_EQ(out.y, cls < 2 ? 11.5f : 10.5f);
     }
     reset_entities();
     setup_test_world();

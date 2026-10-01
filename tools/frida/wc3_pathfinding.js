@@ -203,6 +203,14 @@ function install(module) {
         }
     }
     if (config.profileEvents) {
+        hook(0x215540, {
+            onEnter(args) {
+                this.row={handle:args[0].toUInt32(),enabled:args[1].toUInt32()};
+                emit('pathing-toggle', {...this.row,phase:'enter'});
+            },
+            onLeave() { emit('pathing-toggle', {...this.row,phase:'leave'}); }
+        });
+
         for (const [rva, kind] of [[0x690c20, 'query-mask'], [0x690c80, 'category']]) {
             hook(rva, {
                 onEnter() { this.rawcode = this.context.ecx.toUInt32(); },

@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**103 done / 286 tasks; 183 remaining.** Counts describe this backlog,
+**104 done / 287 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -18,7 +18,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 
 | Area | Done | Remaining |
 | --- | ---: | ---: |
-| BASE — Baseline and reproducibility | 14 | 10 |
+| BASE — Baseline and reproducibility | 15 | 10 |
 | MAP — Map construction and lifetime | 7 | 15 |
 | FOOT — Footprints and query policy | 4 | 9 |
 | FINE — Fine search | 6 | 6 |
@@ -212,6 +212,8 @@ BASE-02.1's remaining full authored producer/lane/support-surface inventory.
 - [ ] **BASE-02.3** Record valid coordinate, radius and map-size domains from public producers; attach rejection or propagation evidence for boundary inputs.
 - [x] **BASE-02.4** Capture stock foot/horse/hover/fly/float/amph/disabled profiles and port their terrain/object masks. Seven public CreateUnit types publish14 paired getter/mask rows; float40/amph80 now reach engine Move validation, routes and command destinations. Original WPM256-byte outputs match C, including02+40 ->80; original widgetc2 now blocks all ground lanes and releases correctly. Evidence: [authored movement masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries). Full authored parsing and support transitions remain02.1.
 - [x] **BASE-02.5** Explicitly add the missing typed UnitData map-row producer discovered by MOVE-01.4: bind original/custom movement types, turn rate and window to created units, inherit original edits, preserve stable distinct rows and free/rebind at map cleanup. Evidence: [authored speed limits reach Move](retail-pathfinding-engine.md#authored-speed-limits-reach-move), actual disabled-owner public setter regression fails before the cache port and passes afterward; public custom amph/float/fly units use their authored terrain masks. Full retail authored producer/support-surface inventory remains02.1.
+
+- [x] **BASE-02.6** Explicitly split public SetUnitPathing's ordinary query/category policy from02.1's larger runtime producer inventory. Trace actual native/bridge getters/setters; false preserves occupancy while zeroing own query, true restores authored masks. Two complete four-toggle live Footman captures preserve categoryca/object010000ca and cross a static wall under queryzero. All182 motion/183 velocity-position-facing commits match C and repeat. Reproduce four engine failures, then preserve disabled neighbours/target identity and bypass a retained detour for the disabled mover; public frames, wall crossing, collision restoration and240 saved continuation words pass261 assertions. Evidence: [engine payoff25](retail-pathfinding-engine.md#public-pathing-toggle-separates-query-from-occupancy). Placement, blocked command destinations, other profiles, repulsion/fallbacks and whole live phase parity remain02.1/FOOT-04/SEP/E2E.
 
 ### BASE-03 — Coverage inventory
 

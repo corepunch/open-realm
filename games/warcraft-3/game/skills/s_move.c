@@ -266,6 +266,8 @@ static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
 }
 
 static bool move_route_line(edict_t *self, moveRoutePoint_t point) {
+    /* Original215540 clears only the mover query. Its category remains an obstacle to others. */
+    if (self->no_pathing) return true;
     movePathQuery_t query = move_route_query(self, point);
     return G_UnitMovePathLineIsPathable(&query);
 }
@@ -962,7 +964,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
      * use the same footprint as move-time collision; point routing previously
      * sent units into narrow gaps and touching obstacle corners. */
     if (move_route_line(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}) &&
-        !(unit_routes_to_location(self) && self->movement.path.valid && self->movement.fine_route.count)) {
+        !(unit_routes_to_location(self) && !self->no_pathing && self->movement.path.valid && self->movement.fine_route.count)) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;

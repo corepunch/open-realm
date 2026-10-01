@@ -760,6 +760,64 @@ TEST(wc3_movement, retail_primary_owner_wall_trajectory_words) {
 
 /* Use the real order owner and scheduler to check retained curves through pause,
  * Stop, replacement and deferred public removal; inactive storage is not an order. */
+/* Retail SetUnitPathing clears the mover query, retaining its own occupancy category. */
+TEST(wc3_movement, public_pathing_toggle_keeps_occupancy_and_crosses_wall) {
+    reset_entities(); setup_test_world();
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[16*16]={0};
+    for (int y=2;y<=6;y++) cells[y*16+6]=2;
+    box2_t bounds={{0,0},{512,512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nunit blocker\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',128,128,0)\n"
+        "set blocker=CreateUnit(Player(0),'hRTE',352,320,0)\n"
+        "call SetUnitPathing(blocker,false)\nendfunction\n"
+        "function disable takes nothing returns nothing\ncall SetUnitPathing(mover,false)\nendfunction\n"
+        "function enable takes nothing returns nothing\ncall SetUnitPathing(mover,true)\nendfunction\n"));
+    edict_t *unit=NULL,*blocker=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+        if (ent->no_pathing) blocker=ent; else unit=ent;
+    }
+    T_NOT_NULL(unit); T_NOT_NULL(blocker); if (!unit || !blocker) return;
+    unit->stand=unit_stand; unit->think=monster_think;
+    unit->svflags|=SVF_MONSTER; unit->movetype=MOVETYPE_STEP; unit_stand(unit);
+    gi.LinkEntity(blocker);
+    vec2_t from={288,320},to={416,320};
+    movePathQuery_t query={{&from,&to,unit->collision,2},unit,NULL,true};
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){256,128}));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,3) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_ASSERT(unit->movement.path.valid); T_NOT_NULL(unit->movement.fine_route.points);
+    jass_callbyname(level.vm,"disable",false);
+    /* Keep a previously acquired detour: toggling during travel must bypass it. */
+    unit_changeangle(unit); T_ASSERT(unit->movement.flow_direct);
+    T_ASSERT(!unit->movement.path.valid);
+    cstring_t file="/tmp/openwarcraft3-pathing-toggle-save.bin";
+    T_ASSERT(WriteGame(file));
+    uint32_t words[60][4]; bool crossed=false;
+    FOR_LOOP(i,60) {
+        level.time+=FRAMETIME; globals.RunFrame();
+        crossed |= unit->s.origin2.x>=192 && unit->s.origin2.x<224 &&
+                   unit->s.origin2.y>=64 && unit->s.origin2.y<224;
+        words[i][0]=wc3_float_bits(unit->s.origin2.x); words[i][1]=wc3_float_bits(unit->s.origin2.y);
+        words[i][2]=wc3_float_bits(unit->movement.velocity.x); words[i][3]=wc3_float_bits(unit->movement.velocity.y);
+    }
+    T_EQ(unit->current_order_id,0); T_ASSERT(unit->s.origin2.x>224); T_ASSERT(crossed);
+    T_ASSERT(ReadGame(file)); T_ASSERT(unit->no_pathing); T_ASSERT(blocker->no_pathing);
+    FOR_LOOP(i,60) {
+        level.time+=FRAMETIME; globals.RunFrame();
+        T_EQ(wc3_float_bits(unit->s.origin2.x),words[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y),words[i][1]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x),words[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y),words[i][3]);
+    }
+    jass_callbyname(level.vm,"enable",false); T_ASSERT(!unit->no_pathing);
+    /* Return across the same wall with collision restored; the route must detour. */
+    T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){128,128}));
+    unit_changeangle(unit); T_ASSERT(!unit->movement.flow_direct); T_ASSERT(unit->movement.path.valid);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started=false; reset_entities(); setup_test_world(); remove(file);
+}
+
 TEST(wc3_movement, retained_fine_route_public_lifecycle) {
     reset_entities(); setup_test_world();
     uint8_t cells[16*16]={0};

@@ -3142,3 +3142,65 @@ without C compiler warnings. All141 pathfinding tool tests, ability coverage,
 corpus hashes, backlog counts/IDs, document targets and diff checks pass. Invalid
 fine/adaptive extent, index, nonfinite and truncated-tail tests reject all eight
 payloads and retain no serialized process pointers.
+
+
+## Public pathing toggle separates query from occupancy
+
+Engine payoff25 fixes a public behavior gap, rather than adding another unused
+helper. The registered `SetUnitPathing` native is `6f215540`. Its false branch
+gets the embedded mover bridge through the actual CUnit vtable `6fb77eb0` slot
+`b8` (`6864d0`), reads the **current occupancy category** through `05ac60`, then
+publishes that category with query zero through virtual `15c` (`699200` →
+`05c7e0`). The true branch restores the authored query and category through
+slots `164`/`160` (`678b50`/`678b60`). The occupancy and query are separate inputs;
+clearing the query does not make the unit invisible to other movers.
+
+Two newly generated `pathing_toggle` maps invoke false/true/false/true at ticks
+10/20/30/40. Both complete owned, observational Frida captures contain all four
+native enter/publication/leave brackets: stock Footman category stays `ca`,
+object category stays `010000ca`, and its own query alternates zero and
+`02000002`. Native brackets preserve position and current order. The travelling
+Footman crosses the wall at x=-1936/y=-560 while its own query is zero. All182
+scalar motion decisions and183 velocity, position/clock and facing commits
+match the production C arithmetic; the independently repeated raw decision and
+commit sequences are identical. Accepted evidence:
+`pathing-toggle-corpus-accepted-261001/corpus-results.json`; raw captures are
+`runtime/pathing-toggle-{first,repeat}-261001.jsonl`. The strict scenario checker
+rejects lost brackets, category/mask substitution, receiver/identity changes,
+script transition loss, order replacement and a missing straight wall crossing.
+
+The engine regression first fails four assertions: a disabled blocker vanishes
+from another mover's route query; a disabled mover keeps its retained detour;
+that route remains active; and it never crosses the blocked wall cells. The fix
+retains ordinary occupancy/category and target identity when `no_pathing` is
+true. Move's own route-line policy bypasses geometry, and its direct branch
+ignores an existing fine curve while disabled. Re-enabling pathing rebuilds a
+collision-aware route from the current source. Existing precise step collision
+already ignored collisions for the disabled mover and retained disabled
+neighbours; it did not need a second collision representation. Legacy generic
+geometry mask zero still means walking: this public toggle does not alter that
+separate compatibility contract.
+
+The public JASS/frame regression passes261 assertions, including an actual
+blocked-cell crossing, a pre-existing detour, resumed collision-aware return,
+and240 exact position/velocity words after save/load while disabled. Target
+perimeter regression expectations now preserve the disabled target's category.
+Save68, JASS semantic snapshot7 and the wire layout are unchanged: `no_pathing`
+already has a persistence contract and no runtime field was added. This proves
+the bounded ordinary Move policy and saved continuation; it does not claim the
+engine's complete public trajectory equals the live capture. Placement,
+blocked command destination admission, repulsion/fallback ownership, other
+profiles and native retained-buffer lifetime remain separate work.
+
+Ghidra now retains460 names,31 partial layouts,177 fields and175 explicit
+prototypes. All four new native/bridge functions have verified receiver/stack
+storage and saved descriptive comments. Readbacks:
+`runtime/pathing-toggle-ghidra-types-261001.json` and
+`runtime/pathing-toggle-ghidra-readback-261001.json`. Corpus inventory now has
+220 entries:90 original-code oracles,102 archived audits and28 live contracts;
+78 repository fixtures remain hash checked.
+
+Validation: forced release RoC/TFT suites each pass54,720 assertions in2,233
+cases;142 pathfinding tool tests pass. Full `make BUILD=release test` and
+production `openwarcraft3` builds pass without C compiler warnings. Ability
+coverage, backlog counts/IDs/areas, local links and `git diff --check` pass.

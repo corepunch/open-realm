@@ -9,6 +9,40 @@ import re
 from pathlib import Path
 
 
+def check_pathing_toggle(rows, markers, violations):
+    """Bracket public SetUnitPathing and distinguish own query from occupancy."""
+    events = [r for r in rows if r.get('event') in ('pathing-toggle','movement-mask-publication')]
+    native = [r for r in events if r['event']=='pathing-toggle']
+    expected = [(flag, phase) for flag in (0,1,0,1) for phase in ('enter','leave')]
+    if [(r.get('enabled'),r.get('phase')) for r in native] != expected:
+        violations.append('pathing toggle lacks four complete ordered native brackets')
+        return
+    if len({r.get('handle') for r in native}) != 1 or not native[0].get('handle'):
+        violations.append('pathing toggle changed native receiver')
+    publications=[]
+    for i in range(0,8,2):
+        start,end=native[i:i+2]
+        group=events[events.index(start)+1:events.index(end)]
+        if len(group)!=1 or group[0].get('event')!='movement-mask-publication':
+            violations.append('pathing toggle lacks unique bracketed mask publication')
+            continue
+        row=group[0]; mask=2 if start['enabled'] else 0
+        if (row.get('rawcode'),row.get('category'),row.get('queryMask'),row.get('objectCategory'),row.get('pathMask')) != (1751543663,202,mask,0x010000ca,mask | mask<<24):
+            violations.append('pathing toggle changed occupancy or published wrong query mask')
+        publications.append(row)
+    if len({(r.get('mover'),tuple(r.get('identity',[]))) for r in publications}) != 1:
+        violations.append('pathing toggle changed mover identity')
+    transitions=[m for m in markers if m['label'].startswith('pathing_')]
+    wanted=[(tick,'pathing_'+name+'_'+phase) for tick,name in ((10,'disable'),(20,'enable'),(30,'disable'),(40,'enable')) for phase in ('before','after')]
+    if [(m['tick'],m['label']) for m in transitions]!=wanted:
+        violations.append('pathing toggle has missing or unordered script transitions')
+    elif any((a['x'],a['y'],a['order'])!=(b['x'],b['y'],b['order']) for a,b in zip(transitions[::2],transitions[1::2])):
+        violations.append('pathing native moved unit or replaced its order')
+    crossing=[m for m in markers if m['label']=='sample' and 30<=m['tick']<40 and -576<=m['y']<-544]
+    if not crossing or any(m['x']!=-1936 or m['order']!=851986 for m in crossing):
+        violations.append('disabled pathing lacks active straight wall crossing')
+
+
 def check_crowd_experiment(rows, violations):
     samples = collections.defaultdict(list)
     orders = []
@@ -589,6 +623,7 @@ def analyze(rows, scenario=None):
         expected = {'open': {}, 'turn': {}, 'stock_turn': {}, 'wall': {'wall_query_true': 1},
                     'insert': {'before_insert': 1, 'after_insert': 1, 'wall_query_true': 1},
                     'remove': {'before_remove': 1, 'after_remove': 1, 'wall_query_true': 1, 'wall_query_false': 1}}
+        expected['pathing_toggle'] = {}
         expected['order_lifecycle'] = {}
         expected['remove_reorder'] = {**expected['remove'], 'before_reorder': 1, 'stop_accepted': 1, 'reorder_accepted': 1}
         expected['crowd'] = expected['crowd_air'] = {}
@@ -610,6 +645,8 @@ def analyze(rows, scenario=None):
         expected['gate_disable'] = {'gate_active': 1, 'before_gate_disable': 1, 'after_gate_disable': 1}
         if any(labels.count(label) != count for label, count in expected[scenario].items()):
             violations.append('scenario obstacle transition markers missing or duplicated')
+        if scenario == 'pathing_toggle':
+            check_pathing_toggle(rows, markers, violations)
         if scenario == 'order_lifecycle':
             check_order_lifecycle(markers, violations)
             check_patrol_reversal(markers, violations)
@@ -732,6 +769,7 @@ def analyze(rows, scenario=None):
                 violations.append('blocked goal order remained active at completion')
         terrain = [r for r in rows if r.get('event') == 'terrain-native']
         states = {'open': [], 'turn': [], 'stock_turn': [], 'wall': [0] * 4, 'insert': [0] * 4, 'remove': [0] * 4 + [1] * 4}
+        states['pathing_toggle'] = [0]*4
         states['remove_reorder'] = states['remove']
         states['follow'] = states['follow_shift'] = states['follow_walk'] = states['follow_invisible'] = states['follow_fog'] = states['follow_fog_reacquire'] = []
         states['crowd'] = states['crowd_air'] = []
@@ -790,7 +828,7 @@ def main():
     parser.add_argument('--output', type=Path)
     parser.add_argument('--compare', type=Path, help='require identical complete public order-lifecycle timer/health markers')
     parser.add_argument('--require', choices=['widget', 'task', 'fine', 'acc', 'hierarchy', 'gate', 'arrival', 'reset', 'refresh', 'target-loss', 'target-perimeter', 'retry-exhaustion', 'separation'], action='append', default=[])
-    parser.add_argument('--scenario', choices=['open', 'turn', 'stock_turn', 'wall', 'insert', 'remove', 'remove_reorder', 'gate', 'gate_off', 'gate_retarget', 'gate_disable', 'owner_change', 'follow', 'follow_shift', 'follow_walk', 'follow_invisible', 'follow_fog', 'follow_fog_reacquire', 'blocked_goal', 'crowd', 'crowd_air', 'widget_lifecycle', 'order_lifecycle'])
+    parser.add_argument('--scenario', choices=['pathing_toggle', 'open', 'turn', 'stock_turn', 'wall', 'insert', 'remove', 'remove_reorder', 'gate', 'gate_off', 'gate_retarget', 'gate_disable', 'owner_change', 'follow', 'follow_shift', 'follow_walk', 'follow_invisible', 'follow_fog', 'follow_fog_reacquire', 'blocked_goal', 'crowd', 'crowd_air', 'widget_lifecycle', 'order_lifecycle'])
     args = parser.parse_args()
     if args.compare and args.scenario != 'order_lifecycle':
         parser.error('--compare requires --scenario order_lifecycle')
