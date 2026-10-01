@@ -1234,20 +1234,29 @@ TEST(wc3_unit, hero_dissipate_alpha_tracks_timer_without_mutating_vertex_color) 
     clent->client = &game.clients[0];
     clent->client->ps.number = 0;
 
+    level.time = 1000;
     unit_begin_decay(hero);
     T_FEQ(G_UnitDissipatePresentationAlpha(hero), 1.0f, 0.001f);
-    hero->wait = 0.5f;
+    FOR_LOOP(i, 5) {
+        level.time += FRAMETIME;
+        if (hero->currentmove && hero->currentmove->think) hero->currentmove->think(hero);
+    }
     T_FEQ(G_UnitDissipatePresentationAlpha(hero), 0.5f, 0.001f);
     T_ASSERT(unit_datagram_tint(clent, hero->s.number, &color));
     T_EQ(color.r, 210); T_EQ(color.g, 180); T_EQ(color.b, 150);
     T_EQ(color.a, 100);
     T_EQ(hero->vertex_color.a, 200);
 
-    hero->wait = 0.0f;
+    FOR_LOOP(i, 5) {
+        level.time += FRAMETIME;
+        if (hero->currentmove && hero->currentmove->think) hero->currentmove->think(hero);
+    }
     T_FEQ(G_UnitDissipatePresentationAlpha(hero), 0.0f, 0.001f);
     T_ASSERT(unit_datagram_tint(clent, hero->s.number, &color));
     T_EQ(color.a, 0);
     T_EQ(hero->vertex_color.a, 200);
+    T_ASSERT(hero->revival.awaiting);
+    T_ASSERT(hero->s.renderfx & RF_HIDDEN);
 }
 
 TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
