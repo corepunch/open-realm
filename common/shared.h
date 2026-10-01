@@ -382,6 +382,7 @@ typedef enum {
 /* Transient minimap attention-marker flags. */
 #define MINIMAP_PING_REMEMBER      0x01 // bit; add position to recent-alert history; used by svc_minimap_ping
 #define MINIMAP_PING_EXTRA_EFFECTS 0x02 // bit; draw an additional pulse; used by PingMinimapEx
+#define MINIMAP_PING_FORCE_COLOR   0x04 // bit; ignore authored model and draw packet RGBA; game-selected alerts
 #define MINIMAP_PING_DURATION_MAX 4294967.0f // seconds; uint32_t millisecond clock ceiling; bounds packet lifetime
 
 /* Sound channels follow Quake 2; high bits select server delivery policy. */

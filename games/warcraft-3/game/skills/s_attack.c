@@ -370,6 +370,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     damage = S_PossessionDamageTaken(target, damage);
     damage = S_HardenedSkinDamage(target, damage);
     if (damage <= 0) return;
+    G_WC3_AttackAlert(target, attacker);
     G_PlayCombatImpactSound(attacker, target);
     S_IncinerateOnHit(attacker, target);
     T_Damage(target, attacker, damage);

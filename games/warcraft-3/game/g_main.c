@@ -276,6 +276,7 @@ static bool G_LoadMap(cstring_t mapFilename) {
     gi.configstring(CS_ORDER_MARKER, marker ? marker : "");
     gi.LoadingFrame();
     G_MusicResetState();
+    G_ResetAttackAlerts();
     G_SetMapUnitOverrides(CM_GetMapInfo());
     G_SetMapAbilityOverrides(CM_GetMapInfo());
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Bind every panel once so write
@@ -381,6 +382,9 @@ static void InitConstants(void) {
      * distinct from AcquireRange; map Misc overrides remain authoritative. */
     InitMiscValueDefault("FollowRange", &game.constants.followRange, 300.0f);
     InitMiscValueDefault("StructureFollowRange", &game.constants.structureFollowRange, 100.0f);
+    /* Stock WC3 Units\MiscData.txt values. war3mapMisc.txt remains authoritative. */
+    InitMiscValueDefault("AttackNotifyDelay", &game.constants.attackNotifyDelay, 30.0f);
+    InitMiscValueDefault("AttackNotifyRange", &game.constants.attackNotifyRange, 1250.0f);
 
     memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
     FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {
