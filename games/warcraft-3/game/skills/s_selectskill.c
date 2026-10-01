@@ -31,6 +31,7 @@ void ui_selectskill(gameClient_t *client) {
         }
         memcpy(&abilcode, abil, sizeof(abilcode));
         state = G_HeroSkillState(ent, abilcode, &next_level, &required_level);
+        /* Player-wide availability suppresses learning as well as later use. */
         if (state == HERO_SKILL_ABSENT || state == HERO_SKILL_DISABLED || state == HERO_SKILL_MAXED) {
             continue;
         }

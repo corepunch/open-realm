@@ -206,42 +206,6 @@ static float G_UpgradeEffectValue(UpgradeData_t const *upgrade, uint32_t effect,
     return upgrade->effectBase[effect] + upgrade->effectMod[effect] * (float)(level_value - 1);
 }
 
-static bool G_UpgradeHasNoEffect(UpgradeData_t const *upgrade) {
-    if (!upgrade) return true;
-    FOR_LOOP(i, 4) {
-        if (upgrade->effect[i] && upgrade->effect[i] != MAKEFOURCC('_', 0, 0, 0) &&
-            upgrade->effect[i] != MAKEFOURCC('-', 0, 0, 0)) return false;
-    }
-    return true;
-}
-
-static bool G_ResearchCommentsMatch(cstring_t ability_comments, cstring_t upgrade_comments) {
-    cstring_t ability_word, upgrade_word;
-
-    if (!ability_comments || !*ability_comments || !upgrade_comments || !*upgrade_comments) return false;
-    for (ability_word = ability_comments; *ability_word;) {
-        size_t ability_length;
-        while (*ability_word && !isalpha((unsigned char)*ability_word)) ability_word++;
-        if (!*ability_word) break;
-        ability_length = 0;
-        while (isalpha((unsigned char)ability_word[ability_length])) ability_length++;
-        if (ability_length >= 4) for (upgrade_word = upgrade_comments; *upgrade_word;) {
-            size_t upgrade_length;
-            while (*upgrade_word && !isalpha((unsigned char)*upgrade_word)) upgrade_word++;
-            if (!*upgrade_word) break;
-            upgrade_length = 0;
-            while (isalpha((unsigned char)upgrade_word[upgrade_length])) upgrade_length++;
-            /* Compare complete words: prefix overlap such as "Canine" and
-             * "Cannibalize" must not invent an ability/research dependency. */
-            if (ability_length == upgrade_length && !strncasecmp(ability_word, upgrade_word, ability_length))
-                return true;
-            upgrade_word += upgrade_length;
-        }
-        ability_word += ability_length;
-    }
-    return false;
-}
-
 typedef struct {
     bool matched;
     int32_t required_level;
@@ -253,14 +217,14 @@ typedef struct {
     int32_t required_level;
 } stockAbilityUpgradeRequirement_t;
 
-/* HACK: Retail AbilityData / UpgradeData omits the relationship and tier for
- * caster-training spells, so keep the four stock associations in one place
- * until the game data exposes that dependency. */
-static stockAbilityUpgradeRequirement_t const stock_caster_requirements[] = {
+/* HACK: Retail omits structured links for caster training and gate-only
+ * Cannibalize research. Keep those stock associations centralized here. */
+static stockAbilityUpgradeRequirement_t const stock_ability_requirements[] = {
     { MAKEFOURCC('R', 'h', 's', 't'), MAKEFOURCC('A', 'i', 'v', 's'), 1 },
     { MAKEFOURCC('R', 'h', 's', 't'), MAKEFOURCC('A', 'p', 'l', 'y'), 2 },
     { MAKEFOURCC('R', 'h', 'p', 't'), MAKEFOURCC('A', 'd', 'i', 's'), 1 },
     { MAKEFOURCC('R', 'h', 'p', 't'), MAKEFOURCC('A', 'i', 'n', 'f'), 2 },
+    { MAKEFOURCC('R', 'u', 'a', 'c'), MAKEFOURCC('A', 'c', 'a', 'n'), 1 },
 };
 
 static abilityUpgradeRequirement_t G_GetAbilityUpgradeRequirement(
@@ -281,16 +245,10 @@ static abilityUpgradeRequirement_t G_GetAbilityUpgradeRequirement(
         }
     }
 
-    if (ability->checkDep && G_UpgradeHasNoEffect(upgrade) &&
-        G_ResearchCommentsMatch(ability->comments, upgrade->comments)) {
-        result.matched = true;
-        result.required_level = 1;
-        return result;
-    }
-
-    FOR_LOOP(i, (uint32_t)(sizeof(stock_caster_requirements) / sizeof(stock_caster_requirements[0]))) {
-        stockAbilityUpgradeRequirement_t const *stock = stock_caster_requirements + i;
-        if (upgrade->id == stock->upgrade_id && ability->id == stock->ability_id) {
+    if (ability->checkDep) {
+        FOR_LOOP(i, (uint32_t)(sizeof(stock_ability_requirements) / sizeof(stock_ability_requirements[0]))) {
+            stockAbilityUpgradeRequirement_t const *stock = stock_ability_requirements + i;
+            if (upgrade->id != stock->upgrade_id || ability->id != stock->ability_id) continue;
             result.matched = true;
             result.required_level = stock->required_level;
             return result;
@@ -320,11 +278,8 @@ float G_UnitUpgradeEffectBonus(edict_t const *unit, uint32_t effect) {
 }
 
 /* Command abilities such as Footman Defend are authored on the unit before
- * their research completes.  UpgradeData rlev names the ability that the
- * research unlocks/levels.  Gate-only dependency upgrades use AbilityData's
- * checkDep flag and the authored ability/upgrade comments because those rows
- * have no effect/code pair.  Keep both paths data-driven so custom
- * units/upgrades inherit the same command-card and execution gate. */
+ * their research completes. UpgradeData rlev and the stock compatibility
+ * table share this gate for command visibility and direct execution. */
 static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
                                       bool *visible) {
     gameClient_t *owner;

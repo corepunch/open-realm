@@ -239,12 +239,12 @@ researched the matching upgrade. Human Footman Defend
 same data contract inherit it without rawcode-specific code.
 
 Some stock dependencies are authored as gate-only upgrade rows with no effect
-or target code. When the ability's `checkDep` flag is set, OpenRealm matches
-complete words in the ability and upgrade's authored comments within the
-unit's `Upgrades Used` list. Prefix-only matches do not create a dependency.
-Undead Ghoul Cannibalize (`Ruac` / `Acan`) uses this path. It has the same
-command-card and direct-execution gate as an `rlev` dependency, but the ability
-does not gain a level from the research.
+or target code. `checkDep` indicates that an ability checks dependencies, but
+it does not identify the governing upgrade. Comments are descriptive text, so
+OpenRealm does not infer links from overlapping words. Undead Ghoul
+Cannibalize (`Ruac` / `Acan`) uses a stock compatibility entry; it has the
+same command-card and direct-execution gate as an `rlev` dependency, but the
+ability does not gain a level from the research.
 
 Retail Sorceress training (`Rhst`) is an explicit stock relation that the SLKs
 do not encode as an effect/code pair: `hsor` lists `Rhst` in `UnitBalance` and
@@ -265,11 +265,11 @@ the meaning.
 
 OpenRealm therefore uses one small stock compatibility table for the links
 that retail omits: Invisibility (`Aivs`) requires `Rhst` level 1, Polymorph
-(`Aply`) level 2, Dispel Magic (`Adis`) requires `Rhpt` level 1, and Inner Fire
-(`Ainf`) level 2. Other dependencies use the parsed `UpgradeData.effect` /
-`effectCode` pair when it contains `rlev`, or the existing gate-only
-`checkDep` plus comments relation when the upgrade has no effects. The generic
-`rlev` path doesn't recognize any of these stock spell rawcodes specially.
+(`Aply`) level 2, Dispel Magic (`Adis`) requires `Rhpt` level 1, Inner Fire
+(`Ainf`) level 2, and Cannibalize (`Acan`) is gated by `Ruac`. Custom
+dependencies use the parsed `UpgradeData.effect` / `effectCode` pair when it
+contains `rlev`; descriptive comments alone do not create a dependency. The
+generic `rlev` path doesn't recognize these stock spell rawcodes specially.
 
 `UnitBalance.upgrades` links a unit to the upgrade; `Upgrades Used` alone
 doesn't name which ability each caster-training level unlocks. Human05's
