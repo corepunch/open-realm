@@ -363,6 +363,10 @@ uint32_t MergeUnits(jass_t *j) {
     uint32_t a = (uint32_t)jass_checkinteger(j, 2), b = (uint32_t)jass_checkinteger(j, 3), make = (uint32_t)jass_checkinteger(j, 4);
     return jass_pushboolean(j, G_BotMergeUnits(player, qty, a, b, make));
 }
+uint32_t ConvertUnits(jass_t *j) {
+    return jass_pushboolean(j, G_BotConvertUnits(jass_getcontext(j)->playerState,
+        jass_checkinteger(j, 1), (uint32_t)jass_checkinteger(j, 2)));
+}
 static int32_t BotUpgradeNextLevel(jass_t *j, uint32_t upgrade_id) {
     player_t *player = jass_getcontext(j)->playerState;
     UpgradeData_t const *upgrade = G_UpgradeData(upgrade_id);

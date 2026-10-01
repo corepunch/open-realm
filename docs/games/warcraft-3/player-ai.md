@@ -363,14 +363,13 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Sixty-one of those names are registered in OpenRealm's JASS
-module; the following 11 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+functions, but their reachable native surface is the same. Sixty-two of those names are registered in OpenRealm's JASS
+module; the following 10 are still unresolved and will cause a native lookup/runtime failure when their call paths are
 reached:
 
 | Unregistered native | Reachable role in `common.ai` |
 |---|---|
 | `CaptainRetreating` | Poll whether an attack captain is retreating; the state enum exists, but no runtime transition currently initiates or completes retreat |
-| `ConvertUnits` | Convert eligible units into a requested type |
 | `GetCreepCamp` | Find a creep camp within a level range |
 | `GetEnemyBase`, `GetEnemyExpansion` | Locate enemy bases and expansion targets |
 | `GetMegaTarget` | Retrieve a high priority target |
@@ -393,6 +392,21 @@ injured units toward the invoking player's primary gold-dropoff when one exists.
 the injured threshold and describes returning injured assault units home or to a healing location. `BZ_COMPAT_GUESS`:
 the exact preference between a captain home, town, and nearby Fountain of Health is unresolved; OpenRealm uses the main
 gold-dropoff and keeps that destination choice inside this behavior.
+
+### Unit Conversion
+
+`ConvertUnits(qty, id)` consumes owned live units of source type `id` through their authored no-target metamorphosis
+ability. Stock `common.ai` calls `ConvertUnits(desire, OBS_STATUE)` while satisfying a requested Destroyer count, so the
+implementation treats `qty` as the desired final count of the authored target form, counts already-completed target
+units first, and converts only the remaining shortfall. The native uses the ordinary spell path rather than directly
+rebinding the entity, preserving ability validation, spell events, cooldown/mana handling, and the existing in-place
+morph identity.
+
+`BZ_COMPAT_GUESS`: Blizzard does not document the `qty` interpretation directly; deriving it as a desired final target
+count comes from the surrounding stock `Conversions(desire, unitid)` helper and avoids over-converting when target-form
+units already exist. OpenRealm's generic `CAbilityMetamorphosis` path does not yet model Destroyer Form's retail
+gold/lumber/food delta, so that resource-cost parity remains separate ability work rather than special-cased AI-native
+accounting.
 
 `RemoveSiege()` compacts the attack-captain roster and removes live members classified as siege units before the next
 melee assault group is assembled. This matches stock `common.ai`, where `InitMeleeGroup()` calls `RemoveInjuries()` and

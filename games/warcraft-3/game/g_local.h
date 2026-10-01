@@ -2298,6 +2298,7 @@ void G_BotShiftTownSpot(player_t *, float, float);
 bool G_BotSuicideUnits(player_t *, int32_t, uint32_t, int32_t);
 bool G_BotSuicidePlayer(player_t *, uint32_t, bool);
 bool G_BotMergeUnits(player_t *, int32_t, uint32_t, uint32_t, uint32_t);
+bool G_BotConvertUnits(player_t *, int32_t, uint32_t);
 
 // g_blight.c
 void G_BlightInit(void);
