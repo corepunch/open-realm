@@ -4013,23 +4013,17 @@ TEST(wc3_save, field_channel_origin_round_trip) {
 TEST(wc3_save, movement_guard_state_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-movement-guard.bin";
     field_t const *position = find_save_field("movement.guard_position");
-    field_t const *valid = find_save_field("movement.guard_position_valid");
-    field_t const *combat = find_save_field("movement.guard_combat");
-    field_t const *returning = find_save_field("movement.guard_returning");
+    field_t const *state = find_save_field("movement.guard_state");
     field_t const *holding = find_save_field("movement.holding_position");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
 
     T_NOT_NULL(position); if (position) T_EQ(position->type, F_VECTOR);
-    T_NOT_NULL(valid); if (valid) T_EQ(valid->type, F_INT);
-    T_NOT_NULL(combat); if (combat) T_EQ(combat->type, F_INT);
-    T_NOT_NULL(returning); if (returning) T_EQ(returning->type, F_INT);
+    T_NOT_NULL(state); if (state) T_EQ(state->type, F_INT);
     T_NOT_NULL(holding); if (holding) T_EQ(holding->type, F_INT);
 
     unit->movement.guard_position = (vec2_t){ 123.5f, 456.5f };
-    unit->movement.guard_position_valid = true;
-    unit->movement.guard_combat = true;
-    unit->movement.guard_returning = true;
+    unit->movement.guard_state = GUARD_RETURNING;
     unit->movement.holding_position = true;
     T_ASSERT(WriteGame(filename));
     memset(&unit->movement, 0, sizeof(unit->movement));
@@ -4037,9 +4031,7 @@ TEST(wc3_save, movement_guard_state_round_trip) {
 
     T_FEQ(unit->movement.guard_position.x, 123.5f, 0.001f);
     T_FEQ(unit->movement.guard_position.y, 456.5f, 0.001f);
-    T_ASSERT(unit->movement.guard_position_valid);
-    T_ASSERT(unit->movement.guard_combat);
-    T_ASSERT(unit->movement.guard_returning);
+    T_EQ(unit->movement.guard_state, GUARD_RETURNING);
     T_ASSERT(unit->movement.holding_position);
     remove(filename);
 }
@@ -4057,20 +4049,19 @@ TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
     unit->die = unit_die;
     unit_stand(unit);
     order_stop(unit);
-    T_ASSERT(unit->movement.guard_position_valid);
+    T_ASSERT(unit->movement.guard_state != GUARD_NONE);
 
     S_UnitAbilityEvent(unit, A_AUTO_COMBAT_START);
     unit->s.origin2.x = unit->s.origin.x = 400;
     gi.LinkEntity(unit);
     T_ASSERT(S_UnitAbilityEvent(unit, A_AUTO_COMBAT_END));
-    T_ASSERT(unit->movement.guard_returning);
+    T_ASSERT(unit->movement.guard_state == GUARD_RETURNING);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
     T_ASSERT(WriteGame(filename));
 
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + unit_index;
-    T_ASSERT(unit->movement.guard_position_valid);
-    T_ASSERT(unit->movement.guard_returning);
+    T_ASSERT(unit->movement.guard_state == GUARD_RETURNING);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
     T_NOT_NULL(unit->goalentity);
     if (unit->goalentity) {
@@ -4082,8 +4073,7 @@ TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
     unit->s.origin.y = unit->s.origin2.y;
     gi.LinkEntity(unit);
     unit->currentmove->think(unit);
-    T_ASSERT(!unit->movement.guard_returning);
-    T_ASSERT(unit->movement.guard_position_valid);
+    T_ASSERT(unit->movement.guard_state == GUARD_IDLE);
     T_ASSERT(unit->currentmove->think == ai_stand);
     remove(filename);
 }

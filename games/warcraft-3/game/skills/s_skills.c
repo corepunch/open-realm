@@ -19,12 +19,12 @@ static cstring_t const entangle_orders[] = {
 };
 
 static ability_t abilitylist[] = {
-    { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Stop — engine command and unit-order policy
+    { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Stop command policy
     { STR_CmdMove, CAbilityMove, AB_COMMAND },  // Move — engine command
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND },  // Attack — engine command
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
-    { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND | AB_QUEUEABLE },  // Hold Position — engine command
+    { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Hold command policy
     { STR_CmdPatrol, CAbilityPatrol, AB_COMMAND },  // Patrol — engine command
     { STR_CmdRally, CAbilityRally, AB_COMMAND },  // Rally — engine command
     { STR_CmdCancel, CAbilityCancel, AB_COMMAND },  // Cancel — engine command
@@ -895,7 +895,7 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     bool handled = false;
 
     if (!ent) return false;
-    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END)
+    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, NULL);
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;

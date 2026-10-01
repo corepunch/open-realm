@@ -525,12 +525,11 @@ TEST(wc3_movement, explicit_gold_harvest_retires_stop_guard_position) {
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
     worker->data.UnitAbilities = &harvest_abilities;
     order_stop(worker);
-    T_ASSERT(worker->movement.guard_position_valid);
+    T_ASSERT(worker->movement.guard_state != GUARD_NONE);
 
     old_abilities = install_goldmine_test_data(&rows);
     T_ASSERT(G_IssueUnitTargetOrder(worker, "harvest", mine, false, 0));
-    T_ASSERT(!worker->movement.guard_position_valid);
-    T_ASSERT(!worker->movement.guard_combat);
+    T_ASSERT(worker->movement.guard_state == GUARD_NONE);
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }

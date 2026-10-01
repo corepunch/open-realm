@@ -183,16 +183,10 @@ static void unit_prepare_stand(edict_t *self) {
     self->movement.blocked_frames = 0;
 }
 
+/* Let a persistent ability claim the stand transition before the generic idle move is installed. */
 static void unit_install_stand_move(edict_t *self) {
-    if (self->movement.holding_position) {
-        unit_setmove(self, unit_affectingcombat(self)
-            ? &holdpos_move_stand_ready
-            : &holdpos_move_stand);
-    } else {
-        unit_setmove(self, unit_affectingcombat(self)
-            ? &unit_move_stand_ready
-            : &unit_move_stand);
-    }
+    if (S_UnitAbilityEvent(self, A_UNIT_STAND)) return;
+    unit_setmove(self, unit_affectingcombat(self) ? &unit_move_stand_ready : &unit_move_stand);
 }
 
 void unit_stand_no_queue(edict_t *self) {

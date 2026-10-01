@@ -674,6 +674,13 @@ typedef struct {
     uint32_t count;
 } unitOrderQueue_t;
 
+typedef enum {
+    GUARD_NONE,
+    GUARD_IDLE,
+    GUARD_COMBAT,
+    GUARD_RETURNING,
+} unitGuardState_t;
+
 /* Independent policies consumed by ability command and cast dispatch. */
 #define AB_PASSIVE      (1u << 0)  // bit 0; passive command policy; used in ability flags
 #define AB_TOGGLE       (1u << 1)  // bit 1; reversible on/off action; used in ability flags
@@ -766,6 +773,7 @@ typedef enum {
     A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
     A_AUTO_COMBAT_START, /* Generic AI acquired/retaliated against a target; persistent behaviors may mark a detour. */
     A_AUTO_COMBAT_END,   /* Generic combat ended; persistent behaviors may resume or restore their order. */
+    A_UNIT_STAND,       /* Common stand installation; an owning ability may install its persistent stand behavior. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
@@ -1660,9 +1668,7 @@ struct edict_s {
         /* Stop establishes a WC3 guard point. Automatic idle combat may leave
          * that point temporarily, then returns once the combat detour ends. */
         vec2_t guard_position;
-        bool guard_position_valid;
-        bool guard_combat;
-        bool guard_returning;
+        unitGuardState_t guard_state;
         bool explicit_allied_attack;
         bool cargo_unload_pending; /* Drop ability: unload after point-move arrival */
         uint32_t cargo_unload_ability; /* initiating concrete AbilityData rawcode */
