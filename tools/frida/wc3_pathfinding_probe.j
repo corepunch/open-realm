@@ -279,6 +279,53 @@ function PathProbeForcedPosition takes nothing returns nothing
     endif
 endfunction
 
+function PathProbeBlockedPosition takes nothing returns nothing
+    local integer x = 0
+    local integer y = 0
+    local string label = ""
+    local real targetX = -1936.0
+    local real targetY = -512.0
+    if udg_PathProbeTick == 20 or udg_PathProbeTick == 45 then
+        loop
+            exitwhen x == 5
+            set y = 0
+            loop
+                exitwhen y == 5
+                if udg_PathProbeTick == 45 or (x > 0 and x < 4 and y > 0 and y < 4) then
+                    call SetTerrainPathable(-2000.0 + I2R(x) * 32.0, -576.0 + I2R(y) * 32.0, PATHING_TYPE_WALKABILITY, false)
+                endif
+                set y = y + 1
+            endloop
+            set x = x + 1
+        endloop
+    endif
+    if udg_PathProbeTick == 20 then
+        set label = "blocked_centre"
+    elseif udg_PathProbeTick == 25 then
+        set label = "blocked_fractional"
+        set targetX = targetX + 0.125
+        set targetY = targetY - 0.125
+    elseif udg_PathProbeTick == 30 then
+        set label = "blocked_west"
+        set targetX = targetX - 32.0
+    elseif udg_PathProbeTick == 35 then
+        set label = "blocked_east"
+        set targetX = targetX + 32.0
+    elseif udg_PathProbeTick == 40 then
+        set label = "blocked_north"
+        set targetY = targetY + 32.0
+    elseif udg_PathProbeTick == 50 then
+        set label = "blocked_large"
+    endif
+    if label != "" then
+        call Preload("PATHPOSE case=" + label)
+        call PathProbeRecord("placement_before_" + label)
+        call SetUnitPosition(udg_PathProbeUnit, targetX, targetY)
+        call PathProbeRecord("placement_after_" + label)
+        call Preload("PATHPOSE done=" + label)
+    endif
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
@@ -309,6 +356,8 @@ function PathProbeTick takes nothing returns nothing
         call PathProbeAxisPosition()
     elseif PATH_PROBE_SCENARIO == 38 then
         call PathProbeForcedPosition()
+    elseif PATH_PROBE_SCENARIO == 39 then
+        call PathProbeBlockedPosition()
     endif
     if (PATH_PROBE_SCENARIO == 34 or PATH_PROBE_SCENARIO == 35) then
         if udg_PathProbeTick == 1 then

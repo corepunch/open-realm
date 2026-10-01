@@ -1,13 +1,15 @@
 #include "g_local.h"
 #include "../common/wc3_pathing_route.h"
 #include "../common/wc3_pathing_coordinates.h"
+#include "../common/wc3_pathing_placement.h"
 
 typedef struct {
     int size;
     uint8_t flags;
     uint32_t objects;
     wc3FineBox_t target;
-    bool has_target;
+    bool has_target, endpoint;
+    uint32_t level;
     bool *target_hit;
 } moveFineGraph_t;
 static wc3FineBox_t move_objects[MAX_ENTITIES];
@@ -122,7 +124,7 @@ static bool move_object_collect(edict_t const *ent) {
     uint32_t flags = ent->movement.velocity.x || ent->movement.velocity.y ? 0x20000000 : 0;
     uint32_t mask = graph->flags;
     mask |= mask << 24;
-    if (!wc3_fine_object_blocks((wc3FineObject_t){0x010000ca, flags, true}, mask, false)) return false;
+    if (!wc3_fine_object_blocks((wc3FineObject_t){0x010000ca, flags, true}, mask, graph->endpoint)) return false;
     vec2_t n = move_grid_from_world(ent->s.origin2.x, ent->s.origin2.y);
     wc3FinePoint_t point = { (int)floorf(n.x), (int)floorf(n.y) };
     assert(graph->objects < MAX_ENTITIES);
@@ -181,6 +183,47 @@ static bool move_cell_ok(void const *data, wc3FinePoint_t pos) {
     if (graph->has_target && pos.x >= graph->target.min.x && pos.x < graph->target.max.x &&
         pos.y >= graph->target.min.y && pos.y < graph->target.max.y)
         *graph->target_hit = true;
+    return true;
+}
+
+/* Original744040/750100 select the nearest W3E vertex from the fine cell.
+ * TODO FOOT-04:78bc90 also overlays bridge levels; recover that producer before
+ * claiming forced placement across a bridge or a layered support surface. */
+static uint32_t placement_terrain_level(float const *point) {
+    uint32_t x = wc3_int_bits(wc3_float_bits(point[0]));
+    uint32_t y = wc3_int_bits(wc3_float_bits(point[1]));
+    if (x >= pathmap.width || y >= pathmap.height) return UINT32_MAX;
+    x = (x + 2) / 4; y = (y + 2) / 4;
+    if (x >= world.map->width || y >= world.map->height) return UINT32_MAX;
+    return CM_GetWar3MapVertex(x,y)->level;
+}
+
+static bool placement_admit(void const *data, float const *point) {
+    moveFineGraph_t const *graph = data;
+    return placement_terrain_level(point) == graph->level;
+}
+
+/* Public SetUnitPosition's point/ring admission. CreateUnit and item drops
+ * retain their separately tracked producer rather than borrowing this policy. */
+bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t *out) {
+    *out = *requested;
+    if (M_UnitMoveDisabled(unit)) return true;
+    if (!world.map || !world.map->vertices || !pathmap.width || !pathmap.height) {
+        fprintf(stderr,"WC3 placement: terrain/pathing data unavailable\n");
+        return false;
+    }
+    vec2_t point = move_grid_from_world(requested->x,requested->y);
+    uint8_t flags = M_UnitStaticPathingFlags(unit);
+    moveFineGraph_t graph = {.flags = flags, .endpoint = true};
+    float fine[2] = {point.x,point.y}; graph.level = placement_terrain_level(fine);
+    movePathQuery_t objects = {.mover = unit, .units = true};
+    move_query_objects(&graph,&objects,NULL);
+    wc3FinePlacement_t query = {.point = {point.x,point.y}, .limit = 32,
+        .footprint = {.cls = wc3_fine_class(unit->collision / pathmap_cell_world_size()),
+                      .cell = move_cell_ok, .data = &graph}, .admit = placement_admit};
+    float admitted[2];
+    if (!wc3_fine_place(&query,admitted)) return false;
+    *out = move_world_from_grid(admitted[0],admitted[1]);
     return true;
 }
 

@@ -2352,6 +2352,7 @@ bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif
 bool SP_FindEmptySpaceAround(edict_t *, uint32_t, vec2_t *, float *);
 bool G_FindUnitUnstuckPosition(edict_t *unit, vec2_t const *requested, vec2_t *out);
+bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t *out);
 bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, float *angle);
 edict_t *SP_SpawnAtLocation(uint32_t, uint32_t, vec2_t const *);
 edict_t *SP_SpawnAtLocationNoBirth(uint32_t, uint32_t, vec2_t const *);

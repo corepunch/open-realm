@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **200 entries**: **40** distinct original-code oracle
-scripts plus **39** declared variants, **96** archived JSONL audits and **25**
+The inventory now has **204 entries**: **41** distinct original-code oracle
+scripts plus **39** declared variants, **98** archived JSONL audits and **26**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,13 +20,13 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 74 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 75 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 88 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 90 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Five numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Sixteen public/native/compiler/heading/arrival/speed/pose/clock/placement repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Seventeen public/native/compiler/heading/arrival/speed/pose/clock/placement repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 NUM-01.13 adds original CRT byte classification and the complete authored-name
 producer:514 public S2R/parser calls and1,040 classifier observations repeat,
@@ -474,3 +474,10 @@ then compares99 motion and velocity commits. Both captures repeat exactly.
 Fresh acceptance is in `forced-position-corpus-accepted-261001`; the inventory
 contains69 pinned fixtures. See [the engine port](retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine)
 for the public Move/Patrol, queued-order, exact-word and save/load regressions.
+
+Blocked point admission adds `oracle-point-placement`, two completed archives
+and `live-blocked-position-repeat`:2,304 complete original calls retain1,152
+exact C endpoints; seven actual candidate searches and six scalar writes repeat.
+Fresh acceptance is `blocked-position-corpus-final-accepted-261001`; the inventory
+now contains71 pinned fixtures. [Scope and engine evidence](retail-pathfinding-engine.md#blocked-placement-reaches-the-engine)
+keep the five-ring embedded Stop producer and bridge/outside-map admission open.

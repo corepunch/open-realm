@@ -1121,6 +1121,48 @@
           "evidence": "1489a0 moving60000000 eligibility policy"
         }
       ]
+    },
+    {
+      "name": "WC3TerrainLevelPrefix",
+      "length": 232,
+      "fields": [
+        {
+          "offset": 180,
+          "name": "tile_columns",
+          "type": "u32",
+          "evidence": "744040 row stride uses fieldb4+1"
+        },
+        {
+          "offset": 188,
+          "name": "fine_columns",
+          "type": "u32",
+          "evidence": "744040 unsigned fine-cell X admission"
+        },
+        {
+          "offset": 192,
+          "name": "fine_rows",
+          "type": "u32",
+          "evidence": "744040 unsigned fine-cell Y admission"
+        },
+        {
+          "offset": 228,
+          "name": "vertices",
+          "type": "ptr:WC3TerrainVertexLevelPrefix",
+          "evidence": "74404028-byte vertex array indexed after750100"
+        }
+      ]
+    },
+    {
+      "name": "WC3TerrainVertexLevelPrefix",
+      "length": 28,
+      "fields": [
+        {
+          "offset": 10,
+          "name": "level_and_flags",
+          "type": "u8",
+          "evidence": "744040 returns low4 bits; other flags remain unassigned"
+        }
+      ]
     }
   ],
   "methods": [
@@ -3571,6 +3613,194 @@
           "name": "flags",
           "type": "u32",
           "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f14a1e0",
+      "name": "PathFine_FindPlacement",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "bounds",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "policy",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "radius",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "mask",
+          "type": "ptr:u32",
+          "storage": 20
+        },
+        {
+          "name": "limit",
+          "type": "u32",
+          "storage": 24
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 28
+        },
+        {
+          "name": "context",
+          "type": "ptr:void",
+          "storage": 32
+        },
+        {
+          "name": "integer_result",
+          "type": "u32",
+          "storage": 36
+        }
+      ]
+    },
+    {
+      "address": "6f14b580",
+      "name": "PathFine_ScanClockwiseRing",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "bounds",
+          "type": "ptr:i32",
+          "storage": 4
+        },
+        {
+          "name": "output",
+          "type": "ptr:i32",
+          "storage": 8
+        },
+        {
+          "name": "mask",
+          "type": "ptr:u32",
+          "storage": 12
+        },
+        {
+          "name": "footprint_class",
+          "type": "u32",
+          "storage": 16
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 20
+        },
+        {
+          "name": "context",
+          "type": "ptr:void",
+          "storage": 24
+        }
+      ]
+    },
+    {
+      "address": "6f05ee40",
+      "name": "Rect_FloorToCellBounds",
+      "returns": "ptr:i32",
+      "convention": "__stdcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:i32",
+          "storage": 4
+        },
+        {
+          "name": "bounds",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f744040",
+      "name": "Terrain_GetFineCellCliffLevel",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "terrain",
+          "type": "ptr:WC3TerrainLevelPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f750100",
+      "name": "Terrain_FineCellToNearestVertex",
+      "returns": "void",
+      "convention": "__stdcall",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "vertex_x",
+          "type": "ptr:i32",
+          "storage": 12
+        },
+        {
+          "name": "vertex_y",
+          "type": "ptr:i32",
+          "storage": 16
+        }
+      ]
+    },
+    {
+      "address": "6f654060",
+      "name": "Placement_MatchesSupportLevel",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "point",
+          "type": "ptr:WC3PathVector2",
+          "storage": "ECX"
+        },
+        {
+          "name": "level",
+          "type": "ptr:u32",
+          "storage": "EDX"
         }
       ]
     }

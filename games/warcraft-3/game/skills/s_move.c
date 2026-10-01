@@ -451,7 +451,7 @@ void S_SetUnitPosition(edict_t *self, vec2_t const *requested) {
     order_stop(self);
     self->movement.velocity = (vec2_t){0};
     self->movement.clock_valid = false;
-    G_FindUnitUnstuckPosition(self, requested, &position);
+    G_FindUnitPlacementPosition(self, requested, &position);
     wc3GridPose_t pose;
     unit_grid_pose(self, &pose);
     float point[2] = {position.x, position.y};

@@ -2605,3 +2605,70 @@ assertions in2,212 cases;131 pathfinding tool tests, production release build,
 engine/menu boundary audits and all three strict corpus entries pass. Tests use
 the [documented native SDL2 runtime](../../build-and-renderer-platforms.md#headless-sdl-input-regression-runtime).
 No production C warnings are reported.
+
+
+## Blocked placement reaches the engine
+
+The ordinary CUnit vtable180 producer698050 enters653510, vtableDC67f490,
+6515f0 and bridge058cd0. The bridge converts world coordinates to fine cells,
+clips the permitted rectangle, and reaches owner16ecc0/fine14a1e0. Public
+point placement uses policy2, limit32, radius31/32 for Footman, mask02000002,
+and callback654060 with the requested support level. The callback truncates
+fine coordinates and compares78bc90's terrain/bridge level to that context.
+The terrain producer744040 reads the low four bits of a28-byte vertex record;
+750100 selects `(cell+2)/4`, divided toward zero, rather than interpolation.
+
+14a1e0 preserves a legal requested scalar pair. Otherwise it floors the
+rectangle and expands half-open cell rings, counting the initial point in the
+budget. 14b580 scans bottom/right/top/left, with explicit corner ownership and
+first-success ordering. The accepted callback point contains integer scalars;
+only afterward does ordinary output add one half to produce a cell centre.
+Endpoint mode includes moving objects and restores the previous mode on every
+return. This is different from the previous64-unit,300-candidate spiral.
+
+`verify_wc3_pathing_placement.py` executes2,304 complete original calls over
+1,152 cases: four masks/classes, open/single/square/sealed terrain, fractional
+and negative points, integer/centre output, budgets1/5/32 and mode0/7 repeats.
+Actual original scalar startup runs before negative-floor controls. Output
+words, stack cleanup, endpoint mode and SEH restoration are checked. The
+production C selector matches every endpoint; the compact frozen fixture also
+retains original candidate counts/digests. This isolated matrix supplies a
+null admission callback; it does not claim bridge or public wrapper parity.
+
+Two owned scene39 captures each contain770 records without observer errors.
+The actual34 terrain edits precede six public blocked destinations. Seven
+searches repeat candidate order and footprint results; every observed search
+accepts its first legal same-level footprint. `verify_wc3_placement_trace.py`
+checks the original arguments, all observed footprint decisions against the
+synthetic edited patch, raw C endpoints,78 predicted queries, six scalar writes
+and33 motion/velocity commits. Public getter results and stationary samples
+remain associated with the same resolved actor. A separate five-ring search
+occurs inside Stop when the old point is embedded before the final32-ring
+placement; its engine producer is explicitly FOOT-04.4.
+
+Move's public position writer now uses `G_FindUnitPlacementPosition`. The game
+adapter collects endpoint-eligible ground rectangles, including moving units,
+and supplies terrain/object cells plus the authored terrain-level condition to
+`wc3_fine_place`. All six captured public destinations initially differed in
+both coordinate words; the actual JASS regression now passes26 assertions with
+exact destinations. Existing public SetUnitPosition/Loc blocked-cell tests now
+expect the retail cell centre272,240. CreateUnit and item drops retain their
+separate placement producer, whose native parity remains open.
+
+The engine regression installs the synthetic edited pathmap directly. The
+engine `SetTerrainPathable` native remains unimplemented; the complete retail
+scene is not yet runnable unchanged in the engine. Bridge support-level
+overlays, outside-map clipping, callback rejection controls and broader object
+categories also remain open. The base authored terrain-level condition is
+ported; no bridge-level approximation is claimed. Save63 and wire layouts are
+unchanged.
+
+Ghidra saves423 descriptive names and156 explicit prototypes. Two new partial
+terrain prefixes bring readback to29 layouts/164 verified fields, with44 globals
+unchanged, in `runtime/blocked-position-ghidra-readback-261001.json`. All four
+fresh entries pass in `blocked-position-corpus-final-accepted-261001`.
+
+Validation: required `make test` and forced release RoC/TFT each pass45,325
+assertions in2,213 cases;133 pathfinding tool tests, production release build,
+engine/menu boundary audits and all four strict corpus entries pass. Native
+SDL2 is used as documented; production builds report no C warnings.

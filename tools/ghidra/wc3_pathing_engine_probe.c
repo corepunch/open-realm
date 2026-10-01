@@ -5,6 +5,7 @@
 #include "games/warcraft-3/common/wc3_pathing_arrival.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
 #include "games/warcraft-3/common/wc3_pathing_formation.h"
+#include "games/warcraft-3/common/wc3_pathing_placement.h"
 
 /* Existing mover image70..8c, current clock, new cap and fine flags. */
 void pathing_speed_cap(uint32_t const input[13], uint32_t output[10]) {
@@ -499,4 +500,16 @@ void pathing_clock_advance(uint32_t const *input, uint32_t *out) {
     bool wrapped = wc3_clock_advance(&clock, wc3_float(input[4]), input[3]);
     out[0] = wc3_float_bits(clock.time); out[1] = clock.epoch;
     out[2] = wc3_float_bits(clock.span); out[3] = wrapped;
+}
+
+
+/* Public policy2 point admission; actual terrain/object cell data is supplied. */
+void pathing_fine_placement(uint32_t const *input, uint8_t const *cells, uint32_t *out) {
+    uint32_t query[12] = {input[0],input[1],0,0,0,0,0,input[5],input[6],1,0,0};
+    fineObjectProbe_t graph = {query,NULL,cells,NULL};
+    wc3FinePlacement_t request = {.point = {wc3_float(input[2]),wc3_float(input[3])},
+        .limit = input[4], .footprint = {.cls = input[5], .cell = fine_object_cell, .data = &graph},
+        .integer_result = input[7] != 0};
+    float point[2]; out[0] = wc3_fine_place(&request,point);
+    out[1] = wc3_float_bits(point[0]); out[2] = wc3_float_bits(point[1]);
 }

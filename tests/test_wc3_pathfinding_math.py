@@ -27,6 +27,7 @@ from verify_wc3_speed_drop import verify as verify_speed_drop, digest as speed_d
 from verify_wc3_item_speed import verify as verify_item_speed, digest as item_speed_digest
 from verify_wc3_axis_position import verify as verify_axis_position, digest as axis_position_digest
 from verify_wc3_forced_position import verify as verify_forced_position, digest as forced_position_digest
+from verify_wc3_placement_trace import verify as verify_placement, digest as placement_digest
 from verify_wc3_primary_clock import verify_primary, digest as primary_digest
 
 
@@ -217,6 +218,47 @@ class PathingMathTests(unittest.TestCase):
                 adjusted=dict(fixture,position_sha256=forced_position_digest(changed))
                 with self.subTest(mutation=mutation,opt=engine._name), self.assertRaises(ValueError):
                     verify_forced_position(changed,engine,adjusted)
+
+    def test_public_blocked_placement_replays_candidates_and_rejects_changes(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-placement-1.27.json').read_text())
+        rows=fixture['observations']
+        for engine in self.engines:
+            configure_arrival(engine)
+            for repeat in range(2):
+                result=verify_placement(rows,engine,fixture)
+                self.assertEqual([result[k] for k in ('placement_searches','public_position_calls','position_queries','position_commits')],[7,30,78,6])
+            for mutation in ('truncated','terrain','policy','mask','radius','limit','callback','context','mode','result','candidate','endpoint','getter','velocity','source','samples'):
+                changed=copy.deepcopy(rows)
+                if mutation=='truncated':changed.pop()
+                elif mutation=='terrain':next(r for r in changed if r.get('event')=='terrain-native')['x']+=32
+                elif mutation=='getter':next(r for r in changed if r.get('event')=='position-native')['output']^=1
+                elif mutation=='velocity':next(r for r in changed if r.get('event')=='forced-position-stop-end')['after']['pose'][4]=1
+                elif mutation=='source':changed[0]['source_sha256']['wc3_pathfinding.js']='0'*64
+                elif mutation=='samples':changed.remove(next(r for r in changed if r.get('event')=='marker' and 'tick=100 label=sample ' in r.get('value','')))
+                else:
+                    r=next(r for r in changed if r.get('event')=='placement-search-end')
+                    if mutation=='candidate':r['visits'][0]['result']=1
+                    elif mutation=='endpoint':r['after'][0]^=1
+                    elif mutation=='callback':r['callback']=None
+                    elif mutation=='mode':r['restoredMode']^=1
+                    else:r[mutation]^=1
+                adjusted=dict(fixture,placement_sha256=placement_digest(changed))
+                with self.subTest(mutation=mutation,opt=engine._name),self.assertRaises(ValueError):
+                    verify_placement(changed,engine,adjusted)
+
+    def test_point_placement_matches_original_ring_endpoints(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-point-placement-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']),1152)
+        for engine in self.engines:
+            engine.pathing_fine_placement.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.POINTER(ctypes.c_uint8),ctypes.POINTER(ctypes.c_uint32)]
+            for repeat in range(2):
+                for case in fixture['cases']:
+                    q=case['input']; width,height=q[:2]; terrain=case['terrain']
+                    blocked={(12,12)} if terrain=='one' else {(x,y) for y in range(10,15) for x in range(10,15)} if terrain=='square' else {(x,y) for y in range(height) for x in range(width)} if terrain=='sealed' else set()
+                    data=[(q[6]>>24) if (x,y) in blocked else 0 for y in range(height) for x in range(width)]
+                    output=(ctypes.c_uint32*3)()
+                    engine.pathing_fine_placement((ctypes.c_uint32*8)(*q),(ctypes.c_uint8*len(data))(*data),output)
+                    self.assertEqual(list(output),case['output'],(q,terrain,engine._name,repeat))
 
     def test_native_pose_retains_original_words_and_world_publication_rounding(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-native-pose-1.27.json').read_text())

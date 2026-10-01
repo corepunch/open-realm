@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**89 done / 269 tasks; 180 remaining.** Counts describe this backlog,
+**90 done / 271 tasks; 181 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -20,7 +20,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 14 | 10 |
 | MAP — Map construction and lifetime | 6 | 15 |
-| FOOT — Footprints and query policy | 3 | 8 |
+| FOOT — Footprints and query policy | 4 | 9 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 1 | 10 |
 | NUM — Numbers and random state | 17 | 12 |
@@ -297,6 +297,8 @@ Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers,
 
 - [ ] **FOOT-04.1** Test start inside self, target and unrelated blocker; assert the public caller's clamping, exclusion and first accepted route point.
 - [ ] **FOOT-04.2** Test blocked/outside/overlapping goals and target removal; assert perimeter choice, rejection or fallback with original result codes.
+- [x] **FOOT-04.3** Split ordinary in-map blocked ground SetUnitPosition/Loc point admission from04.2: recover policy2 cell rings, initial attempt budget and first-cell tie order; port32-ring admission and authored nearest-vertex terrain level. Evidence: [blocked placement reaches the engine](retail-pathfinding-engine.md#blocked-placement-reaches-the-engine),2304 complete original point calls/1152 endpoints across four masks/classes, two repeated public captures with seven searches/six placements,26 actual public engine assertions with all six retail destinations exact. Bridge overlays, outside-map clipping, rejected-level live controls, broader object categories and terrain-writer native implementation remain04.2/BASE-02/MAP.
+- [ ] **FOOT-04.4** Port the embedded-start Stop recovery observed inside public blocked placement: preserve the separate five-ring request before the32-ring final write, recover its actual caller/admission flags and exact next-pose words. Reuse scene39's nested search;04.3 ports the final selector and does not close this Stop producer.
 
 ## FINE — Fine search
 

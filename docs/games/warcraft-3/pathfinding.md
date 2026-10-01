@@ -372,3 +372,9 @@ routing before writing the retained fine pose. Save/load preserves the resulting
 stationary state. [Original Stop/placement evidence](retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine)
 includes repeated native words and actual engine regressions; blocked placement
 legality and the remaining forced writers are still tracked separately.
+
+Blocked public ground placement now uses retail32-unit cell rings and the
+first accepted cell centre, with the authored nearest-vertex terrain-level
+condition. [Original evidence and limits](retail-pathfinding-engine.md#blocked-placement-reaches-the-engine)
+include six exact public destinations; bridge overlays, map edges and the
+separate embedded Stop recovery remain open.

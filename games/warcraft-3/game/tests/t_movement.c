@@ -854,6 +854,45 @@ TEST(wc3_movement, forced_position_matches_original_native_pose_words) {
     reset_entities(); setup_test_world();
 }
 
+/* Original public scene39 ring endpoints, with its terrain edits and31-unit
+ * Footman footprint. Use the actual JASS native rather than the ring helper. */
+TEST(wc3_movement, blocked_position_matches_original_ring_endpoints) {
+    static uint8_t cells[256 * 128];
+    box2_t bounds = {{-7168,-3072},{1024,1024}};
+    static vec2_t const expected[] = {{-1968,-560},{-1936,-560},{-2000,-464},
+                                    {-1936,-560},{-1872,-400},{-2000,-592}};
+    static cstring_t const functions[] = {"centre","fractional","west","east","north","centre"};
+    reset_entities(); setup_test_world(); memset(cells,0,sizeof(cells));
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells);
+    memset(level.regions,0,sizeof(level.regions)); level.num_regions = 0;
+    memset(level.triggers,0,sizeof(level.triggers)); level.num_triggers = 0;
+    memset(&level.events,0,sizeof(level.events));
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover = CreateUnit(Player(0),'hfoo',-1936,-976,0)\nendfunction\n"
+        "function centre takes nothing returns nothing\ncall SetUnitPosition(mover,-1936,-512)\nendfunction\n"
+        "function fractional takes nothing returns nothing\ncall SetUnitPosition(mover,-1935.875,-512.125)\nendfunction\n"
+        "function west takes nothing returns nothing\ncall SetUnitPosition(mover,-1968,-512)\nendfunction\n"
+        "function east takes nothing returns nothing\ncall SetUnitPosition(mover,-1904,-512)\nendfunction\n"
+        "function north takes nothing returns nothing\ncall SetUnitPosition(mover,-1936,-480)\nendfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i,globals.num_edicts) if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) unit = g_edicts+i;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->collision = 31; unit->stand = unit_stand; unit_stand(unit);
+    for (unsigned i=0;i<6;i++) {
+        unsigned radius = i==5 ? 2 : 1;
+        for (unsigned y=80-radius;y<=80+radius;y++)
+            for (unsigned x=163-radius;x<=163+radius;x++) cells[y*256+x] = WC3_PATH_UNWALKABLE;
+        CM_SetupTestPathmap(256,128,cells);
+        jass_callbyname(level.vm,functions[i],false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(expected[i].x));
+        T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(expected[i].y));
+        T_EQ(unit->current_order_id,0);
+    }
+    reset_entities(); setup_test_world();
+}
+
 /* Natural point completion must integrate the same retained fine pose before publishing zero velocity. */
 TEST(wc3_movement, native_fine_pose_reaches_final_point_commit) {
     edict_t *unit = make_moving_unit(-2012, 568);

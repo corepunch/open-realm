@@ -3401,9 +3401,10 @@ TEST(wc3_api, set_unit_position_unstucks_from_blocked_pathing) {
 
     moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(moved);
-    /* Warsmash checks (256,256), then the first 64-unit spiral point below it. */
-    T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
-    T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
+    /* Retail policy2 visits cell(8,7) first and publishes its centre.
+     * CreateUnit has a separately tracked placement producer below. */
+    T_FEQ(moved->s.origin.x, 272.0f, 0.001f);
+    T_FEQ(moved->s.origin.y, 240.0f, 0.001f);
 }
 
 TEST(wc3_api, createunit_unstucks_from_blocked_pathing) {
@@ -3676,8 +3677,8 @@ TEST(wc3_api, set_unit_position_loc_uses_same_unstuck_search) {
 
     moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(moved);
-    T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
-    T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
+    T_FEQ(moved->s.origin.x, 272.0f, 0.001f);
+    T_FEQ(moved->s.origin.y, 240.0f, 0.001f);
 }
 
 /* Issue-418: HumanX03.w3x calls OffsetLocation(GetUnitLoc(null unit), ...) which

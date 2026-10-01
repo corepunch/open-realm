@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "40 executable original-code oracle scripts,39 selected exact/frozen variants,25 explicit live/profile/repeat contracts and96 archived capture audits.",
+  "scope": "41 executable original-code oracle scripts,39 selected exact/frozen variants,26 explicit live/profile/repeat contracts and98 archived capture audits.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -11919,6 +11919,336 @@
       "exclusions": [
         "Blocked/overlapping placement, cargo/gold-mine/dead actors, other forced writers and live SetUnitPositionLoc capture."
       ]
+    },
+    {
+      "id": "capture-blocked-position-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/blocked-position-mask-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/blocked-position-mask-first-261001.jsonl",
+        "sha256": "8b20eccdd7331a66ab9b1f25e96bbbb7d15b8af997a2b4283935c53205becdac",
+        "bytes": 173937,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "f1cf55e358c03232759bf6b16870e13e8a9147b8662fb57c00cc804c65880a13",
+            "wc3_pathfinding.js": "cab6ee30a9a821cf73b5a3ff8e2c9cdbf57c572a843545794212f25d99afa24a",
+            "wc3_pathfinding_probe.j": "bd77ec725b0ac616a6fb7d1481b732c3ef68d49fc0581942558f28a25cbbf18b",
+            "make_wc3_pathfinding_map.py": "53cd74730df0c1c81022c9633b9a735ba62853c21268f196b53e77823d698d6e",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "8138d5da6b03d37c1bfcd2e0ce14c7a34eb9f4f00eb824b910c6fba97fe71252"
+          },
+          "map": "Maps\\PathingRE-BlockedPosition-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "capture-blocked-position-first-261001.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Owned original blocked-position scene39, six public writes and seven observed candidate searches.",
+      "exclusions": [
+        "Presentation clock determinism and complete engine route fidelity."
+      ]
+    },
+    {
+      "id": "capture-blocked-position-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/blocked-position-mask-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/blocked-position-mask-repeat-261001.jsonl",
+        "sha256": "7ad31646c7fd9ae523ee2d027cd5d50fec69aec2dafc30cd76da0072bc14cbfe",
+        "bytes": 173936,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "f1cf55e358c03232759bf6b16870e13e8a9147b8662fb57c00cc804c65880a13",
+            "wc3_pathfinding.js": "cab6ee30a9a821cf73b5a3ff8e2c9cdbf57c572a843545794212f25d99afa24a",
+            "wc3_pathfinding_probe.j": "bd77ec725b0ac616a6fb7d1481b732c3ef68d49fc0581942558f28a25cbbf18b",
+            "make_wc3_pathfinding_map.py": "53cd74730df0c1c81022c9633b9a735ba62853c21268f196b53e77823d698d6e",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "8138d5da6b03d37c1bfcd2e0ce14c7a34eb9f4f00eb824b910c6fba97fe71252"
+          },
+          "map": "Maps\\PathingRE-BlockedPosition-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "capture-blocked-position-repeat-261001.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Owned original blocked-position scene39, six public writes and seven observed candidate searches.",
+      "exclusions": [
+        "Presentation clock determinism and complete engine route fidelity."
+      ]
+    },
+    {
+      "id": "live-blocked-position-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_placement_trace.py",
+        "{archive}/runtime/blocked-position-mask-first-261001.jsonl",
+        "--repeat",
+        "{archive}/runtime/blocked-position-mask-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-placement-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/blocked-position-mask-first-261001.jsonl",
+        "sha256": "8b20eccdd7331a66ab9b1f25e96bbbb7d15b8af997a2b4283935c53205becdac",
+        "bytes": 173937,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "f1cf55e358c03232759bf6b16870e13e8a9147b8662fb57c00cc804c65880a13",
+            "wc3_pathfinding.js": "cab6ee30a9a821cf73b5a3ff8e2c9cdbf57c572a843545794212f25d99afa24a",
+            "wc3_pathfinding_probe.j": "bd77ec725b0ac616a6fb7d1481b732c3ef68d49fc0581942558f28a25cbbf18b",
+            "make_wc3_pathfinding_map.py": "53cd74730df0c1c81022c9633b9a735ba62853c21268f196b53e77823d698d6e",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "8138d5da6b03d37c1bfcd2e0ce14c7a34eb9f4f00eb824b910c6fba97fe71252"
+          },
+          "map": "Maps\\PathingRE-BlockedPosition-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/blocked-position-mask-repeat-261001.jsonl",
+            "sha256": "7ad31646c7fd9ae523ee2d027cd5d50fec69aec2dafc30cd76da0072bc14cbfe",
+            "bytes": 173936,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "f1cf55e358c03232759bf6b16870e13e8a9147b8662fb57c00cc804c65880a13",
+                "wc3_pathfinding.js": "cab6ee30a9a821cf73b5a3ff8e2c9cdbf57c572a843545794212f25d99afa24a",
+                "wc3_pathfinding_probe.j": "bd77ec725b0ac616a6fb7d1481b732c3ef68d49fc0581942558f28a25cbbf18b",
+                "make_wc3_pathfinding_map.py": "53cd74730df0c1c81022c9633b9a735ba62853c21268f196b53e77823d698d6e",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "8138d5da6b03d37c1bfcd2e0ce14c7a34eb9f4f00eb824b910c6fba97fe71252"
+              },
+              "map": "Maps\\PathingRE-BlockedPosition-261001.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-blocked-position-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "public_position_calls": {
+          "equal": 30
+        },
+        "position_queries": {
+          "equal": 78
+        },
+        "position_commits": {
+          "equal": 6
+        },
+        "placement_searches": {
+          "equal": 7
+        },
+        "terrain_edits": {
+          "equal": 34
+        },
+        "exact_decisions": {
+          "equal": 33
+        },
+        "exact_velocity_commits": {
+          "equal": 33
+        },
+        "repeated": {
+          "equal": true
+        },
+        "placement_sha256": {
+          "equal": "b0af5bf8d6cc473e6f23853a77e15a6221d0c426a6bf334db8c6d947917f7955"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Repeated public ground blocked placement: actual terrain edits, candidate visits, same-level first legal acceptance and scalar writes match C; six literal destinations match engine public JASS regression.",
+      "exclusions": [
+        "Bridge-layer overlay, outside-map clipping, rejected support-level callbacks, overlapping foreign categories and five-ring embedded Stop recovery engine port."
+      ]
+    },
+    {
+      "id": "oracle-point-placement",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_placement.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "oracle-point-placement.json",
+      "expected_exit": 0,
+      "expected_status": "original-engine-exact",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 1152
+        },
+        "original_calls": {
+          "equal": 2304
+        },
+        "stack_abi_verified": {
+          "equal": true
+        },
+        "mode_seh_restoration": {
+          "equal": true
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Full original14a1e0 policy2 point admission; four masks/classes, integer/centre, budgets1/5/32 and repeated mode0/7, exact production C endpoints.",
+      "exclusions": [
+        "Nondegenerate rectangles, other scan policies, caller clipping and nonnull callbacks."
+      ]
     }
   ],
   "fixtures": [
@@ -11984,7 +12314,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "f6190831c903b98e6f91b8d15c5e21a1389c780b5735dea61940abb6dbbd7866"
+      "sha256": "e0c9b9f0ede1af8e9215d5943c70612e481efd3a5fcdbeee581f523a7f51b6ab"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -12197,6 +12527,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-forced-position-1.27.json",
       "sha256": "cec8de5c81af558752a526de603c3b5d0bb345cc7e5582dac529995249ead8bc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-point-placement-1.27.json",
+      "sha256": "96c07ff60ff97fa4000aa10be2d1d4d51caae1b44674e94b49737aa74219e064"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-placement-1.27.json",
+      "sha256": "6e9bcfad764275e396d858234daad70b6ddb8c2bd38422c9f7c0101aa0122fbc"
     }
   ]
 }

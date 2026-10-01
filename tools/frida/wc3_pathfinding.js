@@ -326,6 +326,40 @@ function install(module) {
                 pose:words(mover.add(0x70),8), group:ints(mover.add(0x9c),2),
                 hasPath:!mover.add(0xa8).readPointer().isNull()};
         };
+        const placementQueries = new Map();
+        hook(0x14a1e0, {
+            onEnter(args) {
+                const native = positionNatives.get(this.threadId);
+                if (!native || native.name !== 'SetUnitPosition') return;
+                this.previous = placementQueries.get(this.threadId);
+                this.output = args[0]; this.fine = this.context.ecx;
+                this.row = {case:positionCase, unit:native.unit, before:words(this.output,2),
+                    rect:words(args[1],4), policy:args[2].toUInt32(), radius:args[3].readU32(),
+                    mask:args[4].readU32(), limit:args[5].toUInt32(),
+                    callback:args[6].isNull() ? null : args[6].sub(base).toString(),
+                    context:args[7].isNull() ? null : args[7].readU32(),
+                    integerResult:args[8].toUInt32(), savedMode:this.fine.add(0xd4).readU32(), visits:[]};
+                placementQueries.set(this.threadId,this.row);
+                bump('placement-search-begin'); emit('placement-search-begin',this.row);
+            },
+            onLeave(result) {
+                if (!this.row) return;
+                bump('placement-search-end'); emit('placement-search-end', {...this.row,
+                    result:result.toUInt32(), after:words(this.output,2), restoredMode:this.fine.add(0xd4).readU32()});
+                if (this.previous) placementQueries.set(this.threadId,this.previous);
+                else placementQueries.delete(this.threadId);
+            }
+        });
+        hook(0x1492b0, {
+            onEnter(args) {
+                this.row = placementQueries.get(this.threadId);
+                if (!this.row) return;
+                this.visit = {point:ints(args[0],2), mask:args[1].readU32(), cls:args[2].toUInt32()};
+            },
+            onLeave(result) {
+                if (this.visit) this.row.visits.push({...this.visit, result:result.toUInt32()});
+            }
+        });
         hook(0x6803f0, {
             onEnter(args) {
                 const native = positionNatives.get(this.threadId);
