@@ -4,6 +4,7 @@ let widgetScenario = false;
 let numericCase = null;
 let speedCase = null;
 let positionCase = null;
+let clockScenario = false, clockSerial = 0;
 const counts = {}, active = new Map();
 const headingActive = new Map();
 const emit = (event, data = {}) => send({event, ms: Date.now(), ...data});
@@ -30,6 +31,57 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.clockEvents) {
+        const words = (p, n) => Array.from({length:n}, (_,i) => p.add(i*4).readU32());
+        const clocks = owner => [0x14,0x68].map(offset => words(owner.add(offset+0x40),4));
+        for (const [name,rva] of [['subdivide',0x04c0d0],['direct',0x04c1a0]]) hook(rva, {
+            onEnter() {
+                this.row = null;
+                if (!clockScenario) return;
+                this.owner = base.add(0xd53a48).readPointer();
+                this.row = {serial:++clockSerial, source:name, input:this.context.ecx.readU32(),
+                    maximum:base.add(0xd3c844).readU32(), before:clocks(this.owner),
+                    caller:this.returnAddress.sub(base).toString()};
+                bump('clock-source-begin'); emit('clock-source-begin',this.row);
+            },
+            onLeave() {
+                if (!this.row) return;
+                bump('clock-source-end'); emit('clock-source-end',{serial:this.row.serial,source:name,after:clocks(this.owner)});
+            }
+        });
+        hook(0x054190, {
+            onEnter() {
+                this.row = null;
+                if (!clockScenario) return;
+                const owner = base.add(0xd53a48).readPointer();
+                this.clock = this.context.edx;
+                const offset = this.clock.sub(owner).toUInt32();
+                if (offset !== 0x14 && offset !== 0x68) throw new Error('Unknown motion clock domain');
+                this.row = {serial:++clockSerial,domain:offset,input:this.context.ecx.readU32(),
+                    before:words(this.clock.add(0x40),4),caller:this.returnAddress.sub(base).toString()};
+                bump('clock-advance-begin'); emit('clock-advance-begin',this.row);
+            },
+            onLeave(result) {
+                if (!this.row) return;
+                bump('clock-advance-end'); emit('clock-advance-end',{serial:this.row.serial,domain:this.row.domain,
+                    after:words(this.clock.add(0x40),4),output:result.toUInt32()});
+            }
+        });
+        hook(0x15aa80, {
+            onEnter() {
+                this.row = null;
+                if (!clockScenario) return;
+                this.owner = this.context.ecx;
+                this.row = {serial:++clockSerial,clock:clocks(this.owner),counter:this.owner.add(0x538).readU32()};
+                bump('clock-owner-begin'); emit('clock-owner-begin',this.row);
+            },
+            onLeave() {
+                if (!this.row) return;
+                bump('clock-owner-end'); emit('clock-owner-end',{serial:this.row.serial,clock:clocks(this.owner),
+                    counter:this.owner.add(0x538).readU32()});
+            }
+        });
+    }
     if (config.numericEvents) {
         for (const [name, rva] of [['S2R',0x211080], ['I2R',0x204c80], ['R2I',0x2103a0],
                                   ['Sin',0x215d00], ['Cos',0x1f9580], ['Acos',0x1f75d0],
@@ -1158,6 +1210,8 @@ function install(module) {
         }
         if (value.startsWith('PATHHOLD ')) emit('hold-marker', {value});
         if (value.startsWith('PATHTRACE ')) {
+            if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
+            if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
             emit('marker', {value});

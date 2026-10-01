@@ -1049,6 +1049,36 @@
           "evidence": "16cb80/16d270/16a5b0 original layout865 raw comparisons; arrays remain unnamed gaps"
         }
       ]
+    },
+    {
+      "name": "WC3SimulationClockPrefix",
+      "length": 80,
+      "fields": [
+        {
+          "offset": 64,
+          "name": "time",
+          "type": "WC3PathScalar",
+          "evidence": "054050/0540f0/054190/054230 software advance and due-request dispatch; repeated raw primary producer"
+        },
+        {
+          "offset": 68,
+          "name": "epoch",
+          "type": "u32",
+          "evidence": "052170/0521b0/0521f0/052230 deadline rebase increments epoch"
+        },
+        {
+          "offset": 72,
+          "name": "span",
+          "type": "WC3PathScalar",
+          "evidence": "054190 single wrap; actual primary clock span300"
+        },
+        {
+          "offset": 76,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "054190 bit1 pause; actual primary1000 flag permits advance"
+        }
+      ]
     }
   ],
   "methods": [
@@ -3237,6 +3267,157 @@
           "storage": 8
         }
       ]
+    },
+    {
+      "address": "6f36aba0",
+      "name": "Game_OnPrimaryClockAdvance",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f04c1a0",
+      "name": "Game_AdvancePrimaryClocks",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "increment",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f04c0d0",
+      "name": "Game_AdvancePresentationClocks",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "increment",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f054190",
+      "name": "SimClock_AdvanceRequests",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "increment",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f054050",
+      "name": "SimClock_AdvanceTimers",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "increment",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f0540f0",
+      "name": "SimClock_AdvanceCallbacks",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "increment",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f054230",
+      "name": "SimClock_AdvanceUnitTicks",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "increment",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f0521f0",
+      "name": "SimClock_RebaseRequestDeadlines",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f0522e0",
+      "name": "SimClock_DrainDueTimers",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f001e70",
+      "name": "SimClock_InitPresentationMaximum",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": []
+    },
+    {
+      "address": "6f04da30",
+      "name": "PathOwner_UpdateGlobal",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": []
     }
   ],
   "globals": [
@@ -3497,6 +3678,12 @@
       "name": "MoveSpeed_BuildingDefaultMaximum",
       "type": "WC3PathScalar",
       "evidence": "MOVE-01.4 instruction-checked startup016210..240/016290..2d0; normal5fc900 tail and repeated120 public native bounds. Immutable1/522; live defaults150/400/25/400."
+    },
+    {
+      "address": "6fd3c844",
+      "name": "Simulation_PresentationAdvanceMaximum",
+      "type": "WC3PathScalar",
+      "evidence": "001e70 original initializer EDX299/ECXthis global tail070d80. Presentation subdivision04c0d0; primary04c1a0 bypasses it. Both live captures read43958000."
     }
   ]
 }

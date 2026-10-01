@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**86 done / 266 tasks; 180 remaining.** Counts describe this backlog,
+**87 done / 267 tasks; 180 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -23,7 +23,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FOOT — Footprints and query policy | 3 | 8 |
 | FINE — Fine search | 5 | 6 |
 | ACC — Adaptive search | 1 | 10 |
-| NUM — Numbers and random state | 16 | 12 |
+| NUM — Numbers and random state | 17 | 12 |
 | ROUTE — Route progression and yielding | 2 | 9 |
 | TARGET — Pursuit and arrival policy | 2 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
@@ -399,6 +399,9 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 - [ ] **NUM-02.3** Extend that exact case to a fixed long oblique trajectory at small/large valid values; compare every committed position and cell crossing.
 - [x] **NUM-02.4** Verify committed facing from resulting velocity, its tiny-speed guard/equality and stopped-heading remainder normalization; compare original/C/live words. Evidence: [committed facing](retail-pathfinding-engine.md#committed-facing-and-remainder-arithmetic), reports `fraction-modulo-engine-exact.json`, `facing-chain-engine-exact.json`, `facing-stock-turn-fresh-exact.json`;810 heading guards,44 angle boundaries,140 full commits and184 fresh live commits. Accepted-step engine regressions cover oblique facing and fine-grid scale; original full owner cadence/steering state remains open.
 - [x] **NUM-02.5** Explicitly split retained native fine pose from the large02.3 clock/trajectory task: integrate and preserve fine words between accepted Move commits, publish through the original scalar world inverse, and retain those words across save/load. Evidence: [retained fine pose](retail-pathfinding-engine.md#retained-fine-pose-reaches-move),288 complete original supplied-.1 commits over18 sequences,139 differ from direct world integration; repeated O0/O2 comparisons and actual16-step Move/save/rejection/reposition/arrival regressions. Original public clock cadence, old-velocity phase and forced-position producers remain02.3/BASE-01.4.
+
+
+- [x] **NUM-02.6** Split the primary source/owner clock and previous-velocity phase from02.3: recover and repeat the5ms source/six-advance owner cadence, port scheduled point Move and between-callback prediction, then preserve clock/pose/phase across save/load and interruptions. Evidence: [primary clock reaches Move](retail-pathfinding-engine.md#primary-clock-reaches-move-and-predicted-positions),6000 complete original/C advances,1944 boundary/pause/epoch controls,1000 original controlled commits,300 original queries, two identical primary/live movement sequences and an actual30-second engine trajectory matching2100 words. Production public Move/save/pause/stun/Stop/region and queued-Patrol regressions pass. Save63, persistent Ghidra clock prefix/prototypes,195-entry corpus and67 frozen fixtures are synchronized. Full original routes, other ability clocks and small/large public producer trajectories remain02.3/ROUTE/MOVE.
 
 ### NUM-03 — Exceptional numeric inputs
 

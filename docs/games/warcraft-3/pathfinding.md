@@ -16,7 +16,9 @@ whose dimensions are not powers of two.
 
 Move now [retains native fine-grid position](retail-pathfinding-engine.md#retained-fine-pose-reaches-move)
 through accepted steps, final point arrival and save/load. World publication
-preserves the original scalar rounding; owner-clock cadence remains open.
+preserves the original scalar rounding. Point Move now uses the measured
+[primary clock and old-velocity phase](retail-pathfinding-engine.md#primary-clock-reaches-move-and-predicted-positions),
+with predictions between30ms owner callbacks and saved clock/phase state.
 
 Selection Move and Shift queues now use [retail ranked formation geometry](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders)
 for up to twelve members. Authored ranks, collision radii, tie assignments,
@@ -354,4 +356,5 @@ Public `SetUnitX/Y` also reprojects both fine axes through the retail delta
 operation, preserving velocity, facing and the active order. Even a setter
 that writes the same visible coordinate can change the next movement words.
 See [axis-position evidence](retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step).
-Original clock cadence and prediction between engine frames remain open.
+Point Move now consumes [primary-clock prediction](retail-pathfinding-engine.md#primary-clock-reaches-move-and-predicted-positions)
+between callbacks. Other ability cadence and the full original route owner remain open.

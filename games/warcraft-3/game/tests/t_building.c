@@ -2339,7 +2339,7 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     level.started = true;
     level.scriptsStarted = true;
     FOR_LOOP(frame, 240) {
-        globals.RunFrame();
+        level.time += FRAMETIME; globals.RunFrame();
         FOR_LOOP(i, 3) {
             if (issued[i] || workers[i]->s.origin2.x < region_min[i].x ||
                 workers[i]->s.origin2.x > region_max[i].x ||
@@ -2596,24 +2596,25 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     level.started = true;
     level.scriptsStarted = true;
-    globals.RunFrame();
+    level.time += FRAMETIME; globals.RunFrame();
     after_first_step = worker->s.origin2;
-    /* Stock propagation gating can hold the first displacement think while turning.
-     * The first accepted step still has the unit's normal movement budget. */
+    /* Stock propagation gating can hold movement while turning. The first
+     * snapshot may contain only the remaining part of its movement interval. */
     FOR_LOOP(frame, 8) {
         if (Vector2_distance(&after_first_step, &before_displace) > 0.001f) break;
         T_ASSERT(worker->movement.turn_blocked);
-        globals.RunFrame();
+        level.time += FRAMETIME; globals.RunFrame();
         after_first_step = worker->s.origin2;
     }
-    T_FEQ(Vector2_distance(&after_first_step, &before_displace), normal_step, 0.001f);
+    T_ASSERT(Vector2_distance(&after_first_step, &before_displace) > 0);
+    T_ASSERT(Vector2_distance(&after_first_step, &before_displace) <= normal_step + 0.001f);
     T_ASSERT(move_displacement_active(worker));
     /* Sample mid-displacement. The route-heading stepper covers the 192-unit exit in about eight 27-unit
      * steps, so the old eight-frame sample sat on the arrival threshold and flipped with libm rounding. */
-    FOR_LOOP(frame, 3) globals.RunFrame();
+    FOR_LOOP(frame, 3) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(Vector2_distance(&worker->s.origin2, &before_displace) > 1.0f);
     T_STREQ(worker->animation_request, "walk");
-    FOR_LOOP(frame, 240) globals.RunFrame();
+    FOR_LOOP(frame, 240) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(Vector2_distance(&worker->s.origin2, &later_build) <= worker->collision + 64.0f);
     T_ASSERT(!move_displacement_active(worker));
     T_ASSERT(worker->goalentity == waypoint);

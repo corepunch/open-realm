@@ -57,6 +57,7 @@ def main():
     parser.add_argument('--facing-fixture', type=Path, help='export original committed facing inputs/results')
     parser.add_argument('--formation-fixture', type=Path, help='export complete original formation inputs/offset words')
     parser.add_argument('--native-pose-fixture', type=Path, help='export retained fine-pose sequences and original world inverse')
+    parser.add_argument('--clock-trajectory-fixture', type=Path, help='export original primary-clock and old-velocity trajectory')
     parser.add_argument('--position-fixture', type=Path, help='export original world-position bridge writes')
     parser.add_argument('--heading-fixture', type=Path, help='export raw original vector-heading errors for asset-free C replay')
     args = parser.parse_args()
@@ -3008,6 +3009,71 @@ def main():
     if args.position_fixture:
         args.position_fixture.write_text(json.dumps(dict(binary_sha256=digest,cases=position_cases,
             scope='Complete original05c200/058900 with supplied clocks, retained spatial records and notification flag1. Unit virtual callbacks disabled by original mover flags; public producers and clock owner cadence covered separately.'),separators=(',',':'))+'\n')
+    # Actual primary producer04c1a0 advances timer clock, gameplay clock,
+    # auxiliary callbacks and unit clock in that order. Empty original heaps
+    # isolate the producer; owner phase is separately observed in owned retail.
+    clock_memory=0x61000000
+    machine.mem_map(clock_memory,0x4000)
+    clock_config,clock_aux,clock_delta=clock_memory,clock_memory+0x1000,clock_memory+0x2000
+    write(0x6fd3c82c,clock_config);write(clock_config+0x40,clock_aux)
+    for clock in [clock_aux,owner+0x14,owner+0xbc,owner+0x164]:
+        write(clock+0x20,1);floats(clock+0x40,0);write(clock+0x44,0);floats(clock+0x48,300);write(clock+0x4c,0)
+    write(owner+0x14+0x4c,0x1000)
+    write(mover+0x14,0,100);write(axis_bridge+8,0,100)
+    write(mover+0x70,0,0);floats(mover+0x78,1.125,1.75);floats(mover+0x80,0,0)
+    floats(mover+0x88,100/32);floats(mover+0x8c,.125);write(mover+0xd8,0)
+    floats(clock_config+0x6c,-2048,512);floats(clock_delta,.005)
+    clock_advances=[];clock_trajectory=[];clock_frames=[]
+    for tick in range(1,6001):
+        previous = read(owner+0x14+0x40,4)
+        run(0x6f04c1a0,clock_delta)
+        states=[read(c+0x40,4) for c in [clock_aux,owner+0x14,owner+0xbc,owner+0x164]]
+        assert all(state[:3]==states[0][:3] for state in states)
+        clock_advances.append(states[1][:3])
+        if engine:
+            result=(ctypes.c_uint32*4)()
+            engine.pathing_clock_advance((ctypes.c_uint32*5)(*previous,float_bits(.005)),result)
+            assert list(result)[:3]==states[1][:3] and result[3]==0
+        if tick%6==0:
+            before=read(mover+0x70,8)
+            floats(speed_ptr,100/32);floats(heading_ptr,.125)
+            run(0x6f16fe20,mover,speed_ptr,heading_ptr)
+            velocity=[original_scalar(0x6f06f9c0,v,float_bits(32)) for v in read(mover+0x80,2)]
+            run(0x6f058900,axis_bridge,axis_out)
+            clock_trajectory.append(dict(tick=tick,clock=states[1][:3],before=before,
+                after=read(mover+0x70,8),output=read(mover+0x78,2)+read(axis_out,2)+velocity+read(mover+0x8c)))
+        if tick%20==0:
+            run(0x6f058900,axis_bridge,axis_out)
+            clock_frames.append(dict(tick=tick,clock=states[1][:3],state=read(mover+0x70,8),
+                output=read(mover+0x78,2)+read(axis_out,2)+velocity+read(mover+0x8c)))
+    assert len(clock_advances)==6000 and len(clock_trajectory)==1000 and len(clock_frames)==300
+    clock_controls=[]
+    clock=owner+0x14
+    for span,time,epoch,flags,increment in itertools.product([8,300],
+            [0,-.125,.125,7.999999,8,8.000001,299.99999,300,300.00003],
+            [0,1,0xffffffff],[0,1,0x1000,0x1001],
+            [0,-0.0,.005,-.005,.125,8,300,0.0000008,-0.0000008]):
+        floats(clock+0x40,time);write(clock+0x44,epoch);floats(clock+0x48,span);write(clock+0x4c,flags)
+        floats(clock_delta,increment)
+        supplied=read(clock+0x40,4)+read(clock_delta)
+        saved=[machine.reg_read(reg) for reg in [UC_X86_REG_EBX,UC_X86_REG_ESI,UC_X86_REG_EDI,UC_X86_REG_EBP]]
+        machine.reg_write(UC_X86_REG_EDX,clock)
+        run(0x6f054190,clock_delta)
+        assert machine.reg_read(UC_X86_REG_EAX)==1 and machine.reg_read(UC_X86_REG_ESP)==stack+4
+        assert saved==[machine.reg_read(reg) for reg in [UC_X86_REG_EBX,UC_X86_REG_ESI,UC_X86_REG_EDI,UC_X86_REG_EBP]]
+        assert read(clock+0x48,2)==supplied[2:4] and read(clock+0x20)==[1]
+        actual=read(clock+0x40,3)+[int(read(clock+0x44)[0]!=epoch)]
+        if engine:
+            arg=(ctypes.c_uint32*5)(*supplied);result=(ctypes.c_uint32*4)()
+            engine.pathing_clock_advance(arg,result)
+            assert list(result)==actual,(supplied,list(result),actual)
+            assert list(arg)==supplied
+        clock_controls.append(dict(input=supplied,output=actual))
+    if args.clock_trajectory_fixture:
+        args.clock_trajectory_fixture.write_text(json.dumps(dict(binary_sha256=digest,
+            origin=[float_bits(-2048),float_bits(512)],position=[float_bits(1.125),float_bits(1.75)],
+            speed=float_bits(100),heading=float_bits(.125),advances=clock_advances,steps=clock_trajectory,frames=clock_frames,controls=clock_controls,
+            scope='Complete primary producer04c1a0 with empty original timer/request heaps; supplied5ms source and controlled mover commit every6 advances before the next advance. Retained spatial records, old-velocity integration and scalar world query. Live source/owner order separately observed; complete original owner route is excluded.'),separators=(',',':'))+'\n')
     if args.native_pose_fixture:
         args.native_pose_fixture.write_text(json.dumps(dict(binary_sha256=digest,sequences=native_pose_sequences,
             scope='Retained native pose/spatial records with supplied constant elapsed; zero-elapsed velocity then integration and scalar world inverse. Original owner/public-clock producer excluded.'),separators=(',',':'))+'\n')
@@ -3028,7 +3094,10 @@ def main():
                             'full owner singleton executes scheduler and visual-facing updates with empty shared/separation lists; two controlled post-arrival repulsors also execute alternating separation; active singleton plus eligible repulsor also composes; crowded active groups and mixed profiles remain open',
                             'accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed',
                             'elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open'])
-    report.update(position_write_cases=len(position_cases),position_next_move_cases=len(position_cases),
+    report.update(primary_clock_advances=len(clock_advances),primary_clock_motion_commits=len(clock_trajectory),
+                  engine_primary_clock_advances=len(clock_advances) if engine else 0,
+                  primary_clock_controls=len(clock_controls),engine_primary_clock_controls=len(clock_controls) if engine else 0,
+                  position_write_cases=len(position_cases),position_next_move_cases=len(position_cases),
                   engine_position_write_cases=len(position_cases) if engine else 0,
                   engine_position_next_move_cases=len(position_cases) if engine else 0)
     report.update(native_pose_sequences=len(native_pose_sequences),native_pose_commits=sum(len(s['steps']) for s in native_pose_sequences),

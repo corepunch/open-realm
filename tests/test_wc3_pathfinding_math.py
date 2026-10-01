@@ -26,6 +26,7 @@ from verify_wc3_speed_inputs import verify as verify_speed_inputs, digest as spe
 from verify_wc3_speed_drop import verify as verify_speed_drop, digest as speed_drop_digest
 from verify_wc3_item_speed import verify as verify_item_speed, digest as item_speed_digest
 from verify_wc3_axis_position import verify as verify_axis_position, digest as axis_position_digest
+from verify_wc3_primary_clock import verify_primary, digest as primary_digest
 
 
 class PathingMathTests(unittest.TestCase):
@@ -53,6 +54,80 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_primary_clock_observer_requires_native_order_and_words(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-primary-clock-inputs-1.27.json').read_text())
+        trajectory = json.loads((ROOT / 'tools/ghidra/fixtures/retail-primary-clock-trajectory-1.27.json').read_text())
+        # Reconstruct the primary observer rows using frozen original clock words;
+        # presentation records and their host-dependent timing are outside this contract.
+        rows = []; state = [0, 0, bits(300), 4096]; owners = 0
+        for tick in range(6001):
+            rows.append(dict(event='clock-source-begin', source='direct', input=bits(.005),
+                maximum=bits(299), before=[state], caller='0x36aba8'))
+            if tick and tick % 6 == 0:
+                rows.append(dict(event='clock-owner-begin', clock=[state], counter=1024 + owners))
+                rows.append(dict(event='clock-owner-end', clock=[state], counter=1025 + owners))
+                owners += 1
+            after = trajectory['advances'][tick] + [4096] if tick < 6000 else [fixture['completion_time'], 0, bits(300), 4096]
+            if tick < 6000:
+                rows.append(dict(event='clock-advance-begin', domain=20, input=bits(.005), before=state, caller='0x4f7ed'))
+                rows.append(dict(event='clock-advance-end', domain=20, after=after, output=1))
+            rows.append(dict(event='clock-source-end', source='direct', after=[after]))
+            state = after
+        self.assertEqual(primary_digest(rows), fixture['primary_sha256'])
+        for engine in self.engines:
+            self.assertEqual(verify_primary(rows, engine, fixture)['owner_callbacks'], 1000)
+            for event, field, value in [('clock-source-begin', 'input', bits(.03)),
+                ('clock-source-begin', 'caller', '0x4c0d0'),
+                ('clock-advance-begin', 'domain', 21), ('clock-advance-end', 'output', True),
+                ('clock-owner-begin', 'counter', 1025)]:
+                changed = copy.deepcopy(rows)
+                next(r for r in changed if r['event'] == event)[field] = value
+                adjusted = dict(fixture, primary_sha256=primary_digest(changed))
+                with self.assertRaises(ValueError): verify_primary(changed, engine, adjusted)
+            changed = copy.deepcopy(rows)
+            next(r for r in changed if r['event'] == 'clock-advance-end')['after'][0] ^= 1
+            with self.assertRaises(ValueError): verify_primary(changed, engine, dict(fixture, primary_sha256=primary_digest(changed)))
+            with self.assertRaises(ValueError): verify_primary(rows[:-1], engine, dict(fixture, primary_sha256=primary_digest(rows[:-1])))
+
+    def test_original_primary_clock_old_velocity_and_predicted_frames(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-primary-clock-trajectory-1.27.json').read_text())
+        self.assertEqual([len(fixture[k]) for k in ('advances', 'steps', 'frames', 'controls')],
+                         [6000, 1000, 300, 1944])
+        for engine in self.engines:
+            engine.pathing_clock_advance.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            engine.pathing_native_pose.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            for _ in range(2):
+                state = [0, 0, bits(300)]
+                for expected in fixture['advances']:
+                    out = (ctypes.c_uint32 * 4)()
+                    engine.pathing_clock_advance((ctypes.c_uint32 * 5)(*state, 4096, bits(.005)), out)
+                    self.assertEqual(list(out)[:3], expected)
+                    self.assertEqual(out[3], 0)
+                    state = list(out)[:3]
+                for case in fixture['controls']:
+                    out = (ctypes.c_uint32 * 4)()
+                    arg = (ctypes.c_uint32 * 5)(*case['input'])
+                    engine.pathing_clock_advance(arg, out)
+                    self.assertEqual(list(out), case['output'])
+                    self.assertEqual(list(arg), case['input'])
+                for row in fixture['steps']:
+                    old = row['before']
+                    elapsed = subtract(row['clock'][0], old[0])
+                    velocity = [multiply(v, bits(32)) for v in old[4:6]]
+                    out = (ctypes.c_uint32 * 4)()
+                    engine.pathing_native_pose((ctypes.c_uint32 * 7)(*old[2:4], *velocity,
+                        *fixture['origin'], elapsed), out)
+                    self.assertEqual(list(out), row['output'][:4])
+                for row in fixture['frames']:
+                    old = row['state']
+                    elapsed = subtract(row['clock'][0], old[0])
+                    velocity = [multiply(v, bits(32)) for v in old[4:6]]
+                    out = (ctypes.c_uint32 * 4)()
+                    engine.pathing_native_pose((ctypes.c_uint32 * 7)(*old[2:4], *velocity,
+                        *fixture['origin'], elapsed), out)
+                    self.assertEqual(list(out)[2:4], row['output'][2:4])
+                    self.assertEqual(old[2:4], row['output'][:2])
 
     def test_public_axis_write_matches_original_and_next_move_commit(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-axis-position-1.27.json').read_text())

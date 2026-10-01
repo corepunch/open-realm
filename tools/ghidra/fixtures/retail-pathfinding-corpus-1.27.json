@@ -388,6 +388,15 @@
         },
         "position_next_move_cases": {
           "equal": 576
+        },
+        "primary_clock_advances": {
+          "equal": 6000
+        },
+        "primary_clock_motion_commits": {
+          "equal": 1000
+        },
+        "primary_clock_controls": {
+          "equal": 1944
         }
       },
       "evidence": [
@@ -1829,6 +1838,21 @@
         },
         "engine_position_next_move_cases": {
           "equal": 576
+        },
+        "primary_clock_advances": {
+          "equal": 6000
+        },
+        "primary_clock_motion_commits": {
+          "equal": 1000
+        },
+        "primary_clock_controls": {
+          "equal": 1944
+        },
+        "engine_primary_clock_advances": {
+          "equal": 6000
+        },
+        "engine_primary_clock_controls": {
+          "equal": 1944
         }
       },
       "evidence": [
@@ -11248,6 +11272,286 @@
       "exclusions": [
         "Whole engine clock cadence and between-frame getter prediction."
       ]
+    },
+    {
+      "id": "capture-clock-oblique-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/clock-oblique-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/clock-oblique-first-261001.jsonl",
+        "sha256": "87d7e765efd73252601c2e818ef216beb45f70f94d06f9b6f82810e54f5e79ef",
+        "bytes": 5460883,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "f1cf55e358c03232759bf6b16870e13e8a9147b8662fb57c00cc804c65880a13",
+            "wc3_pathfinding.js": "287fd5a80b538fcc99e1e17ece90e93cf41dda3f5813ba94a8e268f258a2fdf5",
+            "wc3_pathfinding_probe.j": "17926de3c2f6bc85769a5eb6b98735bb7f8af602ed215952cc34106f626e380e",
+            "make_wc3_pathfinding_map.py": "a93c42eba5beee1bf7243c730f2b86ab988f8b53f0bea176fa7816072a0e8eeb",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "0a968f7de82eaf48933eee2f358522fae9d6beb4c801f8cf3cc6a14269bcb43b"
+          },
+          "map": "Maps\\PathingRE-ClockOblique-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/clock-oblique-first-261001-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Owned primary clock scene37 with complete source/owner observers and scalar commits. Primary numerical/order contract belongs live-primary-clock-repeat.",
+      "exclusions": [
+        "Presentation clock determinism and complete engine route fidelity."
+      ]
+    },
+    {
+      "id": "capture-clock-oblique-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/clock-oblique-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/clock-oblique-repeat-261001.jsonl",
+        "sha256": "acb599f042dbd45d7ca3700e39867424842c166af8dcc24a0d9f9094d8a0ea16",
+        "bytes": 5455162,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "f1cf55e358c03232759bf6b16870e13e8a9147b8662fb57c00cc804c65880a13",
+            "wc3_pathfinding.js": "287fd5a80b538fcc99e1e17ece90e93cf41dda3f5813ba94a8e268f258a2fdf5",
+            "wc3_pathfinding_probe.j": "17926de3c2f6bc85769a5eb6b98735bb7f8af602ed215952cc34106f626e380e",
+            "make_wc3_pathfinding_map.py": "a93c42eba5beee1bf7243c730f2b86ab988f8b53f0bea176fa7816072a0e8eeb",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "0a968f7de82eaf48933eee2f358522fae9d6beb4c801f8cf3cc6a14269bcb43b"
+          },
+          "map": "Maps\\PathingRE-ClockOblique-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/clock-oblique-repeat-261001-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Owned primary clock scene37 with complete source/owner observers and scalar commits. Primary numerical/order contract belongs live-primary-clock-repeat.",
+      "exclusions": [
+        "Presentation clock determinism and complete engine route fidelity."
+      ]
+    },
+    {
+      "id": "live-primary-clock-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_primary_clock.py",
+        "{archive}/runtime/clock-oblique-first-261001.jsonl",
+        "--repeat",
+        "{archive}/runtime/clock-oblique-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-primary-clock-inputs-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/clock-oblique-first-261001.jsonl",
+        "sha256": "87d7e765efd73252601c2e818ef216beb45f70f94d06f9b6f82810e54f5e79ef",
+        "bytes": 5460883,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "f1cf55e358c03232759bf6b16870e13e8a9147b8662fb57c00cc804c65880a13",
+            "wc3_pathfinding.js": "287fd5a80b538fcc99e1e17ece90e93cf41dda3f5813ba94a8e268f258a2fdf5",
+            "wc3_pathfinding_probe.j": "17926de3c2f6bc85769a5eb6b98735bb7f8af602ed215952cc34106f626e380e",
+            "make_wc3_pathfinding_map.py": "a93c42eba5beee1bf7243c730f2b86ab988f8b53f0bea176fa7816072a0e8eeb",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "0a968f7de82eaf48933eee2f358522fae9d6beb4c801f8cf3cc6a14269bcb43b"
+          },
+          "map": "Maps\\PathingRE-ClockOblique-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "live-primary-clock-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "primary_advances": {
+          "equal": 6000
+        },
+        "owner_callbacks": {
+          "equal": 1000
+        },
+        "completion_boundary_advances": {
+          "equal": 1
+        },
+        "exact_decisions": {
+          "equal": 205
+        },
+        "exact_velocity_commits": {
+          "equal": 206
+        },
+        "repeat_verified": {
+          "equal": true
+        },
+        "primary_sha256": {
+          "equal": "c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Repeated primary .005 source, six-advance owner phase and scalar commits match production C. Engine schedules point Move and predicts fine/world pose between commits.",
+      "exclusions": [
+        "Variable presentation time, other ability owner cadence, complete retail route state, crowd/portal fidelity."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/clock-oblique-repeat-261001.jsonl",
+            "sha256": "acb599f042dbd45d7ca3700e39867424842c166af8dcc24a0d9f9094d8a0ea16",
+            "bytes": 5455162,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "f1cf55e358c03232759bf6b16870e13e8a9147b8662fb57c00cc804c65880a13",
+                "wc3_pathfinding.js": "287fd5a80b538fcc99e1e17ece90e93cf41dda3f5813ba94a8e268f258a2fdf5",
+                "wc3_pathfinding_probe.j": "17926de3c2f6bc85769a5eb6b98735bb7f8af602ed215952cc34106f626e380e",
+                "make_wc3_pathfinding_map.py": "a93c42eba5beee1bf7243c730f2b86ab988f8b53f0bea176fa7816072a0e8eeb",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "0a968f7de82eaf48933eee2f358522fae9d6beb4c801f8cf3cc6a14269bcb43b"
+              },
+              "map": "Maps\\PathingRE-ClockOblique-261001.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -11313,7 +11617,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "c4ecde38372f6b564579ea45f66ca0949121e2a40b296546e872ea9e51c0f185"
+      "sha256": "1c93dff95cb0b19397453bf6909ffae6eb7321195a079cd79509caaa189ce63f"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -11510,6 +11814,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-axis-position-1.27.json",
       "sha256": "02af835e08d374c8cf149f1e67825b2c1bfbfc40cbdac90d294b9b0248ef45a8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-primary-clock-trajectory-1.27.json",
+      "sha256": "a46fd29ca708a64192b6c7032e584179e6abbc9a21bca028b7e86f013eb3a771"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-primary-clock-inputs-1.27.json",
+      "sha256": "132e3e493dfb71df1bb458d21e48bde008997a8b8db043081e2903ee1782f9d7"
     }
   ]
 }

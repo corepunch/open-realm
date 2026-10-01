@@ -752,6 +752,8 @@ void G_SpawnEntities(void) {
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     G_ResetStartingResourceCheat();
     level.time = gi.GetTime();
+    level.pathing_msec = level.time;
+    level.pathing_clock.span = 300;
 
     level.mapinfo = mapinfo;
     G_BlightInit();

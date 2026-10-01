@@ -693,7 +693,7 @@ uint32_t SetUnitInvulnerable(jass_t *j) {
 uint32_t PauseUnit(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     bool flag = jass_checkboolean(j, 2);
-    if (whichUnit) whichUnit->paused = flag;
+    S_SetUnitPaused(whichUnit, flag);
     return 0;
 }
 uint32_t IsUnitPaused(jass_t *j) {

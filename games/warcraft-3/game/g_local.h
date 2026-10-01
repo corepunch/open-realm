@@ -16,6 +16,7 @@
 #include "g_shared.h"
 #include "g_unitrow.h"
 #include "jass/jlex.h"
+#include "games/warcraft-3/common/wc3_math.h"
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
@@ -840,6 +841,9 @@ typedef struct {
      * Warcraft corpse decay. M_MoveFrame maps the selected model sequence
      * across this duration instead of assuming one model frame per ms tick. */
     float (*animation_duration)(edict_t const *);
+    bool scheduled_think; /* dispatched by the game owner clock instead of the snapshot frame */
+    void (*sample_pose)(edict_t *);
+    void (*leave)(edict_t *); /* publish the current clock's pose without committing a decision */
 } umove_t;
 
 typedef struct {
@@ -1340,6 +1344,7 @@ typedef enum {
 
 struct edict_s {
     entityState_t s;
+    uint32_t scheduled_think_frame; /* transient: prevent two owner thinks after a frame-local transition */
     gameClient_t *client;
     pathTex_t *pathtex;
     float collision;
@@ -1658,6 +1663,10 @@ struct edict_s {
         vec2_t velocity;    /* committed Move velocity in world units/second; software scalar cancellation retains its bits */
         vec2_t fine_pose; /* native fine position; world publication can lose these low bits */
         bool pose_valid; /* initialized by accepted Move integration; explicit world commits invalidate it */
+        vec2_t sampled_pose; /* exact predicted fine pose at the last published sample */
+        vec2_t pose_world; /* last published world pair; detects explicit external position writes */
+        wc3Clock_t pose_clock; /* time origin of the retained fine pose */
+        bool clock_valid;
         bool turn_blocked;  /* translation decision from the heading error before this tick's turn */
         vec2_t worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
@@ -2105,6 +2114,11 @@ struct level_locals {
     cineFilter_t cinefilter;
     uint32_t framenum;
     uint32_t time;
+    wc3Clock_t pathing_clock;
+    uint32_t pathing_msec;
+    uint32_t pathing_phase; /* six primary advances per owner update */
+    bool pathing_due; /* owner request due at the next timer dispatch */
+    bool scheduled_frame, scheduled_think; /* transient callback dispatch context */
     bool script_paused;
     bool quest_paused;
     bool modal_paused;
@@ -2448,6 +2462,8 @@ void G_UnregisterGroundSurface(edict_t *);
 void G_ClearGroundSurfaces(void);
 void monster_start(edict_t *);
 void monster_think(edict_t *);
+void M_RunScheduledThinks(void);
+void M_SamplePoses(void);
 
 // g_model.c
 void         G_NormalizeModelFilename(cstring_t authored, string_t out, size_t out_size);
@@ -2508,6 +2524,8 @@ float S_UnitMoveSpeed(edict_t *);
 float S_UnitDefaultMoveSpeed(edict_t const *);
 void S_SetUnitMoveSpeed(edict_t *, float);
 void S_SetUnitAxisPosition(edict_t *, uint32_t, float);
+void S_PublishMovement(edict_t *);
+void S_SetUnitPaused(edict_t *, bool);
 uint32_t M_RefreshHeatmap(edict_t *, float);
 uint32_t M_RefreshHeatmapForMover(edict_t const *, edict_t *, float);
 uint8_t M_UnitStaticPathingFlags(edict_t const *);
@@ -3288,6 +3306,7 @@ bool jass_dobuffer(jass_t *, string_t);
 void jass_runevents(jass_t *);
 
 // g_events.c
+void G_BeginEntityFrame(void);
 void G_RunEntities(void);
 void G_RunEvents(void);
 void G_DrainPausedResultEvents(void);

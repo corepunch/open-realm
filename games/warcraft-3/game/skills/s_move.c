@@ -163,7 +163,10 @@ static float unit_current_speed(edict_t *self) {
 }
 
 float unit_movedistance(edict_t *self) {
-    return 10 * unit_current_speed(self) / FRAMETIME;
+    float elapsed = level.scheduled_think ? (self->movement.clock_valid ?
+        wc3_elapsed(&level.pathing_clock, &self->movement.pose_clock) : 0) : 10.0f / FRAMETIME;
+    return level.scheduled_think ? wc3_mul(unit_current_speed(self), elapsed) :
+        10 * unit_current_speed(self) / FRAMETIME;
 }
 
 /* --- Collision-aware movement (block-and-slide) ---------------------------
@@ -336,6 +339,7 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     self->s.origin2 = *cand;
     self->movement.pose_valid = false;
+    self->movement.clock_valid = false;
     self->movement.worker_avoid_blocked_frames = 0;
     self->s.origin.x = cand->x;
     self->s.origin.y = cand->y;
@@ -347,8 +351,9 @@ static void unit_grid_pose(edict_t const *self, wc3GridPose_t *pose) {
     box2_t const bounds = CM_GetWorldBounds();
     *pose = (wc3GridPose_t){ .grid = {self->movement.fine_pose.x, self->movement.fine_pose.y},
         .origin = {bounds.min.x, bounds.min.y}, .world = {self->s.origin2.x, self->s.origin2.y} };
+    float const published[2] = {self->movement.pose_world.x, self->movement.pose_world.y};
     FOR_LOOP(k, 2) {
-        float old = wc3_world_coordinate(pose->grid[k], pose->origin[k], 32);
+        float old = published[k];
         if (!self->movement.pose_valid || wc3_float_bits(old) != wc3_float_bits(pose->world[k]))
             pose->grid[k] = wc3_grid_coordinate(pose->world[k], pose->origin[k], 32);
     }
@@ -358,31 +363,103 @@ static void unit_grid_pose(edict_t const *self, wc3GridPose_t *pose) {
 static void unit_commit_pose(edict_t *self, wc3GridPose_t const *pose) {
     vec2_t cand = {pose->world[0], pose->world[1]};
     unit_commit_step(self, &cand);
-    self->movement.fine_pose = (vec2_t){pose->grid[0], pose->grid[1]};
+    self->movement.fine_pose = self->movement.sampled_pose = (vec2_t){pose->grid[0], pose->grid[1]};
     self->movement.pose_valid = true;
+    self->movement.pose_world = cand;
+    if (level.scheduled_think) {
+        self->movement.pose_clock = level.pathing_clock;
+        self->movement.clock_valid = true;
+    }
 }
 
-/* Retail axis setters reproject both coordinates through the predicted fine pose.
- * TODO: NUM-02.3 owns prediction between engine frames; here the pose is committed. */
+/* Queries predict from the retained fine pose without committing its time origin. */
+void S_PublishMovement(edict_t *self) {
+    if (!self->movement.clock_valid || !self->movement.pose_valid) return;
+    if (self->paused || self->stunned) {
+        self->movement.fine_pose = self->movement.sampled_pose;
+        self->movement.pose_clock = level.pathing_clock;
+        return;
+    }
+    wc3GridPose_t pose;
+    unit_grid_pose(self, &pose);
+    float velocity[2] = {self->movement.velocity.x, self->movement.velocity.y};
+    wc3_grid_step(&pose, velocity, wc3_elapsed(&level.pathing_clock, &self->movement.pose_clock));
+    vec2_t point = {pose.world[0], pose.world[1]};
+    self->movement.sampled_pose = (vec2_t){pose.grid[0], pose.grid[1]};
+    if (wc3_float_bits(point.x) == wc3_float_bits(self->s.origin2.x) &&
+        wc3_float_bits(point.y) == wc3_float_bits(self->s.origin2.y)) return;
+    if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    self->s.origin2 = self->movement.pose_world = point;
+    gi.LinkEntity(self);
+}
+
+/* A native write first commits the old velocity at the current clock. */
+static void unit_commit_current_pose(edict_t *self) {
+    wc3GridPose_t pose;
+    unit_grid_pose(self, &pose);
+    bool clocked = self->movement.clock_valid;
+    uint32_t blocked = self->movement.worker_avoid_blocked_frames;
+    if (clocked) {
+        float velocity[2] = {self->movement.velocity.x, self->movement.velocity.y};
+        wc3_grid_step(&pose, velocity, wc3_elapsed(&level.pathing_clock, &self->movement.pose_clock));
+    }
+    unit_commit_pose(self, &pose);
+    self->movement.worker_avoid_blocked_frames = blocked;
+    if (clocked) {
+        self->movement.pose_clock = level.pathing_clock;
+        self->movement.clock_valid = true;
+    }
+}
+
+/* Pause retains the mover velocity but consumes no movement time until resumed. */
+void S_SetUnitPaused(edict_t *self, bool paused) {
+    if (!self || self->paused == paused) return;
+    if (self->movement.clock_valid) unit_commit_current_pose(self);
+    self->paused = paused;
+}
+
+/* A different behavior must not inherit the previous Move's prediction velocity. */
+static void move_leave(edict_t *self) {
+    if (!self->movement.clock_valid) return;
+    unit_commit_current_pose(self);
+    self->movement.velocity = (vec2_t){0};
+    self->movement.clock_valid = false;
+}
+
+/* Retail axis setters reproject both coordinates through the predicted fine pose. */
 void S_SetUnitAxisPosition(edict_t *self, uint32_t axis, float value) {
     wc3GridPose_t pose;
-    float point[2] = {self->s.origin2.x, self->s.origin2.y};
     uint32_t blocked = self->movement.worker_avoid_blocked_frames;
-    unit_grid_pose(self, &pose); point[axis] = value;
+    bool clocked = self->movement.clock_valid;
+    if (clocked) unit_commit_current_pose(self);
+    unit_grid_pose(self, &pose);
+    float point[2] = {pose.world[0], pose.world[1]}; point[axis] = value;
     wc3_grid_place(&pose, point); unit_commit_pose(self, &pose);
+    if (clocked) {
+        self->movement.pose_clock = level.pathing_clock;
+        self->movement.clock_valid = true;
+    }
     self->movement.worker_avoid_blocked_frames = blocked;
 }
 
-/* Preview in the retained native fine pose before collision admission.
- * TODO: NUM-02.3 owns original clock cadence and integrate-old-velocity phase. */
+/* Native scheduled Move integrates old velocity before requesting its new heading.
+ * Other owners retain their existing snapshot-step contract until separately measured. */
 static vec2_t unit_step_heading(edict_t *self, float angle, moveStep_t *step) {
     float speed = unit_current_speed(self);
     wc3Velocity_t *v = &step->velocity;
     *v = (wc3Velocity_t){ .vel = {self->movement.velocity.x, self->movement.velocity.y},
         .speed = speed, .heading = angle, .limit = speed };
-    wc3_velocity_update_world(v);
     unit_grid_pose(self, &step->pose);
-    wc3_grid_step(&step->pose, v->vel, 10.0f / FRAMETIME);
+    if (level.scheduled_think) {
+        float old[2] = {self->movement.velocity.x, self->movement.velocity.y};
+        float elapsed = self->movement.clock_valid ?
+            wc3_elapsed(&level.pathing_clock, &self->movement.pose_clock) : 0;
+        wc3_grid_step(&step->pose, old, elapsed);
+        wc3_velocity_update_world(v);
+    } else {
+        wc3_velocity_update_world(v);
+        wc3_grid_step(&step->pose, v->vel, 10.0f / FRAMETIME);
+    }
     return (vec2_t){step->pose.world[0], step->pose.world[1]};
 }
 
@@ -1308,10 +1385,11 @@ void S_SetUnitMoveSpeed(edict_t *ent, float speed) {
     ent->movement.flat_speed_bonus = S_MoveSpeedBonus(ent);
     wc3Velocity_t v = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
         .limit = unit_effective_speed(ent) };
-    if (wc3_velocity_cap_world(&v)) ent->movement.velocity = (vec2_t){v.vel[0], v.vel[1]};
-    /* TODO: NUM-02.3 supplies the owner clock for nonzero elapsed time before
-     * this clamp. The captured public low-cap witness has zero elapsed time;
-     * it preserves pose/facing and changes velocity immediately. */
+    if (wc3_velocity_cap_world(&v)) {
+        if (ent->movement.clock_valid) unit_commit_current_pose(ent);
+        ent->movement.velocity = (vec2_t){v.vel[0], v.vel[1]};
+    }
+
 }
 
 /* Slowest move speed across a group, so the whole group travels at it. */
@@ -1614,12 +1692,13 @@ static void move_hold(edict_t *ent) {
 
 /* Actual zero-range point Move publishes .49 fine cells. Target approaches
  * and other ability owners retain their own arrival contract (TARGET-01.2/3).
- * TODO: NUM-02.3 supplies the original clock cadence; fine-pose integration
- * and arrival geometry already retain the original scalar words. */
+ * Scheduled Move predicts from its last primary-clock commit. */
 static bool move_point_arrival(edict_t *ent) {
     wc3GridPose_t pose; unit_grid_pose(ent, &pose);
     float velocity[2] = {ent->movement.velocity.x, ent->movement.velocity.y};
-    wc3_grid_step(&pose, velocity, 10.0f / FRAMETIME);
+    float elapsed = level.scheduled_think ? (ent->movement.clock_valid ?
+        wc3_elapsed(&level.pathing_clock, &ent->movement.pose_clock) : 0) : 10.0f / FRAMETIME;
+    wc3_grid_step(&pose, velocity, elapsed);
     vec2_t forecast = {pose.world[0], pose.world[1]};
     float cell = CM_PathCellWorldSize();
     float target[2] = {ent->goalentity->s.origin2.x, ent->goalentity->s.origin2.y};
@@ -1777,7 +1856,8 @@ static void ai_move_walk(edict_t *ent) {
     }
 }
 
-static umove_t move_move_walk = { "walk", ai_move_walk, NULL, CAbilityMove };
+static umove_t move_move_walk = { .animation = "walk", .think = ai_move_walk,
+    .proc = CAbilityMove, .scheduled_think = true, .sample_pose = S_PublishMovement, .leave = move_leave };
 
 /* Identify the ordinary walk move so spell approach orders can detect replacement. */
 bool move_is_active_order_walk(edict_t const *ent) {
@@ -1806,6 +1886,7 @@ void order_move(edict_t *self, edict_t *target) {
     if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || S_UnitIsEntanglingRooted(self)
         || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self))
         return;
+    if (self->movement.clock_valid) unit_commit_current_pose(self);
     move_cancel_displacement(self);
     self->goalentity = target;
     self->movement.attackmove_waypoint = NULL;
@@ -1823,6 +1904,9 @@ void order_move(edict_t *self, edict_t *target) {
     self->movement.flat_speed_bonus = S_MoveSpeedBonus(self);
     move_reset_progress(self);
     unit_setmove(self, &move_move_walk);
+    unit_commit_current_pose(self);
+    self->movement.pose_clock = level.pathing_clock;
+    self->movement.clock_valid = true;
     /* No route heading exists at submission time. Hold the stand pose instead
      * of showing a walking unit facing its previous, often opposite, heading. */
     unit_setanimation(self, "stand");

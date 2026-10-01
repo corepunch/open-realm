@@ -409,7 +409,7 @@ function PathProbeTick takes nothing returns nothing
             else
                 call PathProbeRecord("order_rejected")
             endif
-        elseif PATH_PROBE_SCENARIO == 36 then
+        elseif PATH_PROBE_SCENARIO == 36 or PATH_PROBE_SCENARIO == 37 then
             if IssuePointOrder(udg_PathProbeUnit, "move", -1600.0, -144.0) then
                 call PathProbeRecord("order_accepted")
             else

@@ -2363,17 +2363,18 @@ have identical normalized producer digest
 `4686d7cec6b781cadc351bb39fa965e6215d172a520cfcd08e2554dee74ad5c6`.
 The accepted report is `runtime/axis-position-original-C-repeat-261001.json`.
 
-OpenRealm routes public axis setters through Move's `S_SetUnitAxisPosition`,
-using the currently committed pose and the verified delta/reprojection.
+The initial OpenRealm axis-setter port used Move's `S_SetUnitAxisPosition`
+with committed-pose geometry. The [primary clock port](#primary-clock-reaches-move-and-predicted-positions)
+below extends the same verified delta/reprojection to current prediction.
 Position linking, fog invalidation and position-change events remain in their
 normal order; worker avoidance state, current order and goal are preserved.
 The actual JASS/Move regression first failed32 coordinate assertions, then
 passes128 checks including the next oblique step before/after save/load.
 Save62 already owns the fine pose; no new saved or network fields are needed.
 
-This closes geometry at the engine's committed-pose boundary. Public getters
-still expose that pose; original prediction between frames and clock cadence
-remain NUM-02.3. The retail captures show accumulated clock spans and varying
+This initial port closed geometry at the engine's committed-pose boundary.
+The following primary clock section extends getters/publication between callbacks;
+the complete original route owner remains NUM-02.3. The retail captures show accumulated clock spans and varying
 elapsed intervals; they do not justify substituting a guessed fixed32Hz step.
 Ghidra saves397 names,133 explicit prototypes and the existing25 layouts/149
 fields, including each native/bridge ABI and these limits.
@@ -2385,3 +2386,112 @@ Validation: debug and forced optimized RoC/TFT suites each pass42,727
 assertions in2207 cases;127 pathfinding tool tests pass. All five fresh
 strict corpus entries pass, and Ghidra readback reports the nine new explicit
 prototypes with no unsaved changes.
+
+## Primary clock reaches Move and predicted positions
+
+OpenRealm now schedules point Move on the measured retail owner cadence. The
+private gameplay clock advances by the scalar word `3ba3d70a` (.005 seconds),
+and Move runs after each six advances, during timer dispatch before the next
+advance. The engine still emits its ordinary100ms snapshots. An accepted Move
+first integrates the previous velocity from its last clock origin, then requests
+the new velocity/facing. Between callbacks, publication predicts from the
+retained fine pose without consuming that origin. A repeated .03 addition or a
+new-velocity100ms step produces different coordinate words.
+
+Owned scene37 (`clock_oblique`) supplies a quiet Footman Move from(-1936,-976)
+to(-1600,-144). Both75-second captures contain6000 completed primary advances,
+1000 owner callbacks,205 motion decisions,206 velocity/facing/position commits
+and300 public samples. The source word, span300 and flags4096 remain fixed.
+Owner callbacks see the sixth completed clock value before the seventh advance.
+The final source call includes the1000th owner callback and scenario completion;
+its advance observer is disabled by completion, but its source-end row still
+records the actual next clock. This boundary is checked explicitly.
+
+The primary sequence digest is
+`c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae`.
+`verify_wc3_primary_clock.py` checks source/owner/advance order, actual C clock
+words, source hashes, admission, all300 samples and repeated movement commits.
+It excludes the presentation clock: host intervals and interleaving vary between
+runs. That variation must not be described as primary nondeterminism.
+Captures live in `runtime/clock-oblique-{first,repeat}-261001.jsonl`; the accepted
+live report is `runtime/primary-clock-original-C-repeat-261001.json`.
+
+The original-code oracle separately executes the complete primary producer with
+empty original timer/request heaps, preserving the actual fine/spatial mover.
+It supplies the observed5ms input and a controlled constant .125 heading every
+six advances. It freezes6000 clock values,1000 old-velocity commits and300 world
+queries in `retail-primary-clock-trajectory-1.27.json`. Another1944 original
+controls cover paused flags, negative/zero increments, span boundaries, strict
+residual cancellation and epoch overflow. Production C matches every word twice
+at O0/O2. This isolates the clock and movement contracts; it does not emulate the
+complete original route owner by substituting engine routes into the oracle.
+
+### Recovered producer and persistent annotations
+
+| RVA | Recovered role and ABI |
+| --- | --- |
+| `36aba0` | Registered primary event callback; adds14 to ECX and calls04c1a0; returns1. |
+| `04c1a0` | Primary source, ECX scalar pointer; timer, gameplay request, auxiliary callback and unit clocks advance in order. |
+| `04c0d0` | Presentation source, ECX scalar pointer; subdivides at global299. This is not the primary quantum. |
+| `001e70` | Initializes `Simulation_PresentationAdvanceMaximum` atd3c844. |
+| `054050` | Timer clock advance, ECX increment pointer/EDX clock. |
+| `054190` | Gameplay request-clock advance, same fastcall ABI; flags bit1 pauses. |
+| `0540f0` / `054230` | Auxiliary callback/unit-clock advances. |
+| `0521f0` | Request deadline rebase; subtracts span from heap deadlines and increments epoch once. |
+| `0522e0` | Timer drain temporarily publishes each due deadline during callback dispatch. |
+| `04da30` | Loads the original path owner and tail-calls15aa80. |
+
+All four advances perform software addition and a single epoch rebase. Residual
+cancellation uses a strict comparison against `3556bf95`, distinct from elapsed
+movement's `38d1b717` deadzone. The80-byte `WC3SimulationClockPrefix` names only
+verified time40/epoch44/span48/flags4c fields. Timer/request containers remain
+opaque. Ghidra saves408 names,144 explicit prototypes,26 layouts/153 fields and
+44 scalar globals plus the ability registry. `primary-clock-ghidra-readback-261001.json`
+records the applied types; the event producer's broader registration/scheduling
+chain remains open.
+
+### Engine lifecycle and evidence limits
+
+Move owns pose prediction, native axis writes, speed-cap integration and pause
+state. A higher speed cap does not consume the old pose origin; only a cap below
+current velocity commits elapsed motion before clamping. Public axis writes now
+consume the actual primary-clock prediction. A paused or stunned mover freezes
+its last exact sampled fine pose, avoiding both continued prediction and a jump
+on resume. Leaving Move consumes its current pose and clears prediction velocity.
+
+Generic move callbacks select scheduled think, pose sampling and leave behavior.
+The generic dispatcher prevents a newly activated queued Patrol from also taking
+a snapshot-sized movement step in the same frame. Region comparison positions
+are sampled before scheduled movement, so a Move crossing still reaches its
+JASS entry action. Other ability owners and animations retain their existing
+snapshot cadence; their retail timing has not been measured by this scene.
+
+Save63 persists primary time/epoch/span,5ms cursor, six-step phase, pending owner
+request, retained/predicted fine pose and mover time origin. Transient dispatch
+flags and per-frame callback stamps are cleared on load. Save62 and older layouts
+are rejected. The production point-order test saves at all three snapshot phases
+and compares six subsequent frames word for word after restoration; pause,
+resume, stun, Stop and region entry are exercised through the real owner/VM.
+A test fixture originally retained trigger pointers after closing its earlier
+VMs; the full-suite backtrace isolated that stale registry, and each independent
+phase now retires its trigger/event/region registries before VM replacement.
+
+The engine's fixed-input regression originally failed128 of224 coordinate
+checks while all96 velocity/facing checks passed. With the port it drives the
+real server-frame dispatcher over the full30-second original controlled
+trajectory, comparing each fine/world/velocity/facing word. This proves the
+measured movement kernel and publication phase. Adaptive waypoint selection,
+local avoidance, group refresh, retry/task timing, other ability clocks and
+forced `SetUnitPosition` placement remain separate open tasks.
+
+Fresh strict outcomes are in `primary-clock-corpus-accepted-261001`: both motion
+oracles, both clock archive audits and the repeated clock/movement contract.
+The earlier corpus run used the system Python without Unicorn and is retained
+as a failed environment run. Use `/GitHub/wc3-analysis/verify-venv/bin/python`
+for executable retail oracles.
+
+Validation: the required `make -j8 test` passes; debug and forced optimized
+RoC/TFT suites each pass45,084 assertions in2209 cases, including2101 fixed
+trajectory and255 public lifecycle assertions. All129 pathfinding tool tests,
+all five fresh strict corpus entries, engine/menu boundary audits and the
+production release build pass. Ghidra readback and explicit program save succeed.

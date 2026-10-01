@@ -77,9 +77,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format62 retains Move native fine-pose words across world publication and
- * save/load. Earlier edict layouts are rejected. */
-static uint32_t const save_version = 62;
+/* Format63 retains Move's primary clock, callback phase and prediction origin.
+ * Earlier edict layouts are rejected. */
+static uint32_t const save_version = 63;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -445,6 +445,14 @@ static fieldRing_t const game_event_ring = {
 static field_t const level_fields[] = {
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
+    F(level_locals, pathing_clock.time, F_FLOAT),
+    F(level_locals, pathing_clock.epoch, F_INT),
+    F(level_locals, pathing_clock.span, F_FLOAT),
+    F(level_locals, pathing_msec, F_INT),
+    F(level_locals, pathing_phase, F_INT),
+    F(level_locals, pathing_due, F_INT),
+    F(level_locals, scheduled_frame, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, scheduled_think, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, stock.item_slots, F_INT),
     F(level_locals, stock.unit_slots, F_INT),
     F(level_locals, timeofday.elapsed, F_FLOAT),
@@ -652,6 +660,14 @@ static field_t const ancient_root_fields[] = {
 };
 
 static field_t const movement_fields[] = {
+    TF(edictMovement_s, fine_pose, F_VECTOR),
+    TF(edictMovement_s, pose_valid, F_INT),
+    TF(edictMovement_s, pose_world, F_VECTOR),
+    TF(edictMovement_s, sampled_pose, F_VECTOR),
+    TF(edictMovement_s, pose_clock.time, F_FLOAT),
+    TF(edictMovement_s, pose_clock.epoch, F_INT),
+    TF(edictMovement_s, pose_clock.span, F_FLOAT),
+    TF(edictMovement_s, clock_valid, F_INT),
     TF(edictMovement_s, group_id, F_INT),
     TF(edictMovement_s, waygate_target, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, waygate_goal, F_EDICT, 0, FIELD_NONE),
@@ -739,6 +755,7 @@ static field_t const stock_fields[] = {
 
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
 field_t edict_fields[] = {
+    F(edict_s, scheduled_think_frame, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, class_id, F_INT),
     F(edict_s, variation, F_INT),
     F(edict_s, build_project, F_INT),
@@ -1888,6 +1905,7 @@ bool ReadGame(cstring_t filename) {
     if (!ReadMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
+    ClearRuntimeFields(&level, level_fields, FIELD_RUNTIME);
     FOR_LOOP(i, MAX_EVENTS) if (current_nonregion_event_slots[i] && !level.events.handlers[i].inuse) {
         fprintf(stderr, "WC3 LoadGame: saved event registry dropped live non-region slot %u\n", (unsigned)i);
         fclose(f); return false;
@@ -2039,8 +2057,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-59.bin",
         "/tmp/openwarcraft3-wc3-save-version-60.bin",
         "/tmp/openwarcraft3-wc3-save-version-61.bin",
+        "/tmp/openwarcraft3-wc3-save-version-62.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62 };
 
     reset_entities();
     setup_test_world();

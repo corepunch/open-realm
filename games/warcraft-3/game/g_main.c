@@ -1077,13 +1077,31 @@ static void G_RunFrame(void) {
         return;
 
     level.framenum++;
-    level.time = gi.GetTime();
-
+    uint32_t end_time = gi.GetTime();
+    G_BeginEntityFrame();
+    level.time = level.pathing_msec;
+    level.scheduled_frame = true;
     G_StartScripts();
+    /* Timer actions and the owner update precede the next primary advance.
+     * The game clock is private; the engine still sends its ordinary snapshots. */
+    while (end_time - level.pathing_msec >= 5) {
+        G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
+        if (level.pathing_due) {
+            M_RunScheduledThinks(); level.pathing_due = false;
+        }
+        wc3_clock_advance(&level.pathing_clock, wc3_float(0x3ba3d70a), 0);
+        level.pathing_phase = (level.pathing_phase + 1) % 6;
+        level.pathing_due = !level.pathing_phase;
+        level.pathing_msec += 5; level.time = level.pathing_msec;
+        M_SamplePoses();
+    }
+    level.time = end_time;
     G_UpdateTimeOfDay();
-    G_RunTimers();
-    G_RunEvents();
-    jass_runevents(level.vm);
+    G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
+    if (level.pathing_due) {
+        M_RunScheduledThinks(); level.pathing_due = false;
+        M_SamplePoses();
+    }
     G_UpdateTimerDialogs();
     G_UpdateLeaderboards();
 
@@ -1097,6 +1115,7 @@ static void G_RunFrame(void) {
     G_RunClients();
 
     G_RunEntities();
+    level.scheduled_frame = false;
 
     /* Flow-field cache misses are resumable so arbitrary reachable move orders
      * never depend on a lifetime quota of synchronous whole-map floods.  Keep

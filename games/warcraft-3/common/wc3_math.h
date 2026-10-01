@@ -495,6 +495,22 @@ static inline float wc3_elapsed(wc3Clock_t const *cur, wc3Clock_t const *old) {
     return dt;
 }
 
+/* Original054190 advances once and rebases one epoch. The caller dispatches
+ * due requests at the span boundary before rebasing their deadlines. */
+static inline bool wc3_clock_advance(wc3Clock_t *clock, float increment, uint32_t flags) {
+    if (flags & 1u) return false;
+    float next = wc3_add(clock->time, increment);
+    bool wrapped = clock->span <= next;
+    if (wrapped) {
+        next = wc3_sub(next, clock->span);
+        float residual = wc3_float(wc3_float_bits(wc3_sub(next, 0)) & 0x7fffffffu);
+        if (residual < wc3_float(0x3556bf95)) next = 0;
+        clock->epoch++;
+    }
+    clock->time = next;
+    return wrapped;
+}
+
 /* 6f1603d0 commits old velocity before a requested velocity change, then explicit displacement. */
 static inline void wc3_integrate(float pos[2], float const vel[2], float elapsed) {
     for (unsigned i = 0; i < 2; i++) pos[i] = wc3_add(pos[i], wc3_mul(vel[i], elapsed));
