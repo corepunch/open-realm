@@ -100,67 +100,22 @@ TEST(wc3_rally, default_target_is_producer_itself) {
     T_FEQ(point.y, 96.0f, 0.01f);
 }
 
-TEST(wc3_rally, default_orc_barracks_rally_stops_trained_unit_outside_footprint) {
-    enum { W = 8, H = 8 };
-    float const old_structure = game.constants.structureFollowRange;
-    size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(color32_t);
-    pathTex_t *pathtex;
+TEST(wc3_rally, default_self_target_does_not_issue_order_to_trained_unit) {
     edict_t *producer;
     edict_t *trained;
-    vec2_t exit;
-    float angle;
 
     reset_entities();
-    setup_test_world();
-    producer = rally_unit(MAKEFOURCC('o','b','a','r'), 0.0f, 0.0f);
-    trained = rally_unit(MAKEFOURCC('o','g','r','u'), 0.0f, 0.0f);
+    producer = rally_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    trained = rally_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 0.0f);
     producer->data.UnitProfile = &rally_train_profile;
     producer->s.player = trained->s.player = 0;
-    producer->s.flags |= EF_BUILDING;
-    producer->movetype = MOVETYPE_NONE;
-    producer->collision = 128.0f;
-    trained->collision = 16.0f;
-    trained->stand = unit_stand;
-    game.constants.structureFollowRange = 100.0f;
 
-    pathtex = gi.MemAlloc(pathtex_size);
-    T_NOT_NULL(pathtex);
-    memset(pathtex, 0, pathtex_size);
-    pathtex->width = W;
-    pathtex->height = H;
-    FOR_LOOP(i, W * H) pathtex->map[i].b = 0xff;
-    producer->pathtex = pathtex;
-    CM_BakeStaticObstacles();
-
-    /* Training exit placement first finds a legal radius-safe point outside
-     * the producer.  The untouched rally target is still the Barracks entity
-     * at its centre, matching Warsmash. */
-    T_ASSERT(SP_FindUnitExitPosition(producer, trained, &exit, &angle));
-    trained->s.origin2 = exit;
-    trained->s.origin.x = exit.x;
-    trained->s.origin.y = exit.y;
-    T_ASSERT(CM_PointIsPathableForRadius(&exit, trained->collision));
-    T_ASSERT(CM_DistanceToPathingFootprint(producer, &exit) <
-             game.constants.structureFollowRange);
-    T_ASSERT(Vector2_distance(&producer->s.origin2, &exit) >
-             G_FollowStopRange(trained, producer));
-
-    T_ASSERT(G_ApplyRallyOrder(producer, trained));
-    T_ASSERT(trained->movement.follow_target == producer);
-    T_ASSERT(trained->goalentity == producer);
-    trained->animation = &(animation_t){ .name = "stand", .interval = { 0, 300 } };
-    trained->currentmove->think(trained);
-
-    /* The default Smart-to-producer order remains active, but the trained unit
-     * recognizes that its legal exit is already close enough to the authored
-     * footprint instead of walking back toward the blocked building centre. */
-    T_ASSERT(trained->movement.follow_target == producer);
-    T_ASSERT(G_AnimationHasPrimary(trained->animation, "stand"));
-
-    producer->pathtex = NULL;
-    gi.MemFree(pathtex);
-    CM_BakeStaticObstacles();
-    game.constants.structureFollowRange = old_structure;
+    /* The default self target is displayed as the rally point, but completing
+     * production must not Smart-interact with the producer. */
+    T_ASSERT(!G_ApplyRallyOrder(producer, trained));
+    T_NULL(trained->goalentity);
+    T_NULL(trained->movement.follow_target);
+    T_NULL(trained->build);
 }
 
 TEST(wc3_rally, setrally_and_smart_store_point_and_widget_targets) {
@@ -301,6 +256,25 @@ TEST(wc3_rally, point_handoff_uses_smart_movement) {
     T_FEQ(produced->goalentity->s.origin2.y, point.y, 0.01f);
 }
 
+TEST(wc3_rally, explicit_entity_handoff_uses_smart_target_order) {
+    edict_t *producer;
+    edict_t *target;
+    edict_t *produced;
+
+    reset_entities();
+    setup_test_world();
+    producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    target = rally_unit(MAKEFOURCC('h','t','o','w'), 256, 0);
+    produced = rally_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
+    producer->data.UnitProfile = &rally_train_profile;
+    produced->stand = unit_stand;
+
+    T_ASSERT(G_SetRallyEntity(producer, target));
+    T_ASSERT(G_ApplyRallyOrder(producer, produced));
+    T_ASSERT(produced->movement.follow_target == target);
+    T_ASSERT(produced->goalentity == target);
+}
+
 TEST(wc3_rally, training_completion_reads_latest_rally_target) {
     UnitBalance_t balance = { .buildTime = 1, .foodUsed = 0, .foodMade = 0 };
     edict_t *producer;
@@ -334,6 +308,40 @@ TEST(wc3_rally, training_completion_reads_latest_rally_target) {
     T_NOT_NULL(trained->goalentity);
     T_FEQ(trained->goalentity->s.origin2.x, latest.x, 0.01f);
     T_FEQ(trained->goalentity->s.origin2.y, latest.y, 0.01f);
+}
+
+TEST(wc3_rally, training_completion_leaves_unit_idle_on_default_rally) {
+    UnitBalance_t balance = { .buildTime = 1, .foodUsed = 0, .foodMade = 0 };
+    edict_t *producer;
+    edict_t *trained;
+
+    reset_entities();
+    setup_test_world();
+    producer = rally_unit(MAKEFOURCC('h','t','o','w'), 0, 0);
+    trained = rally_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    producer->data.UnitProfile = &rally_train_profile;
+    producer->s.player = trained->s.player = 0;
+    producer->movetype = MOVETYPE_NONE;
+    producer->collision = 64.0f;
+    producer->stand = unit_stand;
+    trained->collision = 16.0f;
+    trained->stand = unit_stand;
+    trained->data.UnitBalance = &balance;
+    trained->health.value = trained->health.max_value = 100.0f;
+    trained->training = true;
+    trained->s.renderfx |= RF_HIDDEN;
+    producer->build = trained;
+    producer->health.max_value = 1000.0f;
+    producer->health.value = 500.0f;
+
+    ai_train_build(producer);
+
+    T_ASSERT(!trained->training);
+    T_ASSERT(!(trained->s.renderfx & RF_HIDDEN));
+    T_NULL(trained->goalentity);
+    T_NULL(trained->movement.follow_target);
+    T_NULL(trained->build);
+    T_EQ(trained->buildwork.ability, 0);
 }
 
 #endif
