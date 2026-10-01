@@ -800,6 +800,84 @@ bool G_BotMergeUnits(player_t *player, int32_t qty, uint32_t a, uint32_t b, uint
     return have >= qty;
 }
 
+/* Find the no-target morph ability that turns this source unit into its authored
+ * alternate unit. Stock common.ai uses ConvertUnits for Obsidian Statue ->
+ * Destroyer, whose Aave ability is represented by the shared metamorphosis
+ * handler. Keep lookup data-driven so custom source units can use the same AI
+ * primitive without hard-coding uobs/Aave. */
+static uint32_t G_BotConversionAbility(edict_t *unit, uint32_t *target_type) {
+    if (target_type) *target_type = 0;
+    if (!unit) return 0;
+
+#define TRY_CONVERSION_ABILITY(alias_) do { \
+        uint32_t const alias = (alias_); \
+        abilityitem_t const item = S_AbilityItem(alias); \
+        uint32_t const level = G_UnitAbilityLevel(unit, alias); \
+        uint32_t const target = level ? S_SpellUnitId(alias, level) : 0; \
+        if (level && item.ability && item.ability->proc == CAbilityMetamorphosis && \
+            item.ability->target_type == SPELL_TARGET_NONE && target && target != unit->class_id) { \
+            if (target_type) *target_type = target; \
+            return alias; \
+        } \
+    } while (0)
+
+    if (unit->data.UnitAbilities && unit->data.UnitAbilities->abilList) {
+        PARSE_LIST(unit->data.UnitAbilities->abilList, token, parse_segment) {
+            uint32_t alias = 0;
+            if (strlen(token) != 4) continue;
+            memcpy(&alias, token, 4);
+            TRY_CONVERSION_ABILITY(alias);
+        }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(unit->abilities.added)) {
+        uint32_t const alias = unit->abilities.added[i];
+        if (alias) TRY_CONVERSION_ABILITY(alias);
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        uint32_t const alias = unit->heroabilities[i].code;
+        if (alias) TRY_CONVERSION_ABILITY(alias);
+    }
+#undef TRY_CONVERSION_ABILITY
+    return 0;
+}
+
+/* Stock common.ai calls ConvertUnits(desire, OBS_STATUE) while satisfying a
+ * desired Destroyer count. BZ_COMPAT_GUESS: interpret qty as the desired final
+ * count of the authored conversion target, not simply the number of source
+ * units to click. That avoids over-converting when some Destroyers already
+ * exist and matches the surrounding Conversions(desire, unitid) helper.
+ * Conversion itself uses the ordinary spell path so ability validation,
+ * cooldown/mana, events, and in-place handle-preserving morph logic remain
+ * authoritative. */
+bool G_BotConvertUnits(player_t *player, int32_t qty, uint32_t source_type) {
+    uint32_t player_num, ability = 0, target_type = 0;
+    int32_t have = 0, needed;
+
+    if (!player || qty <= 0 || !source_type) return qty <= 0;
+    player_num = PLAYER_NUM(player);
+
+    FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == player_num && ent->class_id == source_type) {
+        ability = G_BotConversionAbility(ent, &target_type);
+        if (ability && target_type) break;
+    }
+    if (!ability || !target_type) return false;
+
+    FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == player_num &&
+        ent->class_id == target_type && !ent->construction.active && !ent->training) have++;
+    if (have >= qty) return true;
+    needed = qty - have;
+
+    FILTER_EDICTS(ent, needed > 0 && G_BotUnitAlive(ent) && ent->s.player == player_num &&
+        ent->class_id == source_type) {
+        uint32_t target = 0;
+        uint32_t code = G_BotConversionAbility(ent, &target);
+        if (!code || target != target_type) continue;
+        if (S_CastNoTargetSpell(ent, code)) needed--;
+    }
+
+    return needed <= 0;
+}
+
 /* CommandAI is a per-player stack: GetLast* observes the newest command until PopLastCommand removes it. */
 bool G_BotPushCommand(player_t *player, int32_t command, int32_t data) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;

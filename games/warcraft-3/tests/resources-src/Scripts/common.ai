@@ -31,6 +31,7 @@ native GetUpgradeGoldCost takes integer id returns integer
 native GetUpgradeWoodCost takes integer id returns integer
 native GetUpgradeLumberCost takes integer id returns integer
 native UnitAlive takes unit id returns boolean
+native ConvertUnits takes integer qty, integer id returns boolean
 native SetCampaignAI takes nothing returns nothing
 native SetMeleeAI takes nothing returns nothing
 native SetHeroLevels takes code func returns nothing

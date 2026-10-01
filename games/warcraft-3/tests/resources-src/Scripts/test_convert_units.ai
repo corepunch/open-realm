@@ -1,0 +1,6 @@
+function main takes nothing returns nothing
+    if not ConvertUnits(0, 'hpea') then
+        call MissingAIAction()
+    endif
+    call Sleep(10)
+endfunction

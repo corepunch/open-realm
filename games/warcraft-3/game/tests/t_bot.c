@@ -1118,4 +1118,45 @@ TEST(wc3_bot, command_stack_is_player_owned_and_consumed_by_ai_natives) {
     T_EQ(G_BotCommandsWaiting(&game.clients[1].ps), 1);
 }
 
+TEST(wc3_bot, convert_units_native_is_registered_for_player_bound_ai) {
+    bot_t *bot = level.bots + 2;
+
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_convert_units.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, convert_units_uses_authored_morph_and_stops_at_desired_target_count) {
+    static UnitAbilities_t const conversion_abilities = { .abilList = "Aave" };
+    player_t *player = &game.clients[2].ps;
+    edict_t *existing, *first, *second;
+
+    reset_entities();
+    InitUnitData();
+    existing = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    existing->s.player = first->s.player = second->s.player = 2;
+    first->data.UnitAbilities = second->data.UnitAbilities = &conversion_abilities;
+
+    T_ASSERT(G_BotConvertUnits(player, 2, MAKEFOURCC('h','p','e','a')));
+    T_EQ(existing->class_id, MAKEFOURCC('h','f','o','o'));
+    T_EQ(first->class_id, MAKEFOURCC('h','f','o','o'));
+    T_EQ(second->class_id, MAKEFOURCC('h','p','e','a'));
+    T_ASSERT(G_BotConvertUnits(player, 2, MAKEFOURCC('h','p','e','a')));
+    T_EQ(second->class_id, MAKEFOURCC('h','p','e','a'));
+}
+
+TEST(wc3_bot, convert_units_rejects_missing_conversion_ability) {
+    player_t *player = &game.clients[2].ps;
+    edict_t *source;
+
+    reset_entities();
+    source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    source->s.player = 2;
+    source->data.UnitAbilities = NULL;
+    T_ASSERT(!G_BotConvertUnits(player, 1, MAKEFOURCC('h','p','e','a')));
+}
+
 #endif /* BZ_TESTS */

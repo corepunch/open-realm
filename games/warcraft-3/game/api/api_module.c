@@ -108,6 +108,7 @@ jassModule_t jass_funcs[] = {
     { "SuicideUnitEx", SuicideUnitEx },
     { "SuicidePlayer", SuicidePlayer },
     { "MergeUnits", MergeUnits },
+    { "ConvertUnits", ConvertUnits },
     { "GetUpgradeGoldCost", GetUpgradeGoldCost },
     { "GetUpgradeWoodCost", GetUpgradeWoodCost },
     { "GetUpgradeLumberCost", GetUpgradeLumberCost },
