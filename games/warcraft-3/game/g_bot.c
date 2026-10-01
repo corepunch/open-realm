@@ -10,6 +10,7 @@
 #define BOT_TOWERED_GUARD_RADIUS 1024.0f // world units; BZ_COMPAT_GUESS: exact retail IsTowered tower-proximity radius is unknown
 #define BOT_MEGA_DEFENDER_RADIUS 1200.0f // world units; BZ_COMPAT_GUESS: exact retail mega-target protection radius is unknown
 #define BOT_CREEP_CAMP_RADIUS 600.0f // world units; BZ_COMPAT_GUESS: exact retail creep-camp grouping radius is unknown
+#define BOT_ENEMY_BASE_SEARCH_DELAY_MS 1000u // milliseconds; BZ_COMPAT_GUESS: exact retail asynchronous discovery latency is unknown
 #define BOT_DEFAULT_REPLACEMENT_COUNT 3
 
 static bot_t *G_BotState(uint32_t player) {
@@ -263,6 +264,64 @@ void G_BotPurchaseZeppelin(player_t *player) {
     }
 
     if (best_shop) G_ShopPurchaseUnit(clent, best_shop, zeppelin);
+}
+
+/* Start/Wait/Get form one asynchronous discovery contract in common.ai. Retail-facing
+ * documentation requires Start before Get, while stock scripts poll Wait once per second.
+ * BZ_COMPAT_GUESS: retail does not expose the exact discovery latency or internal path/search
+ * algorithm. OpenRealm uses a one-second asynchronous latch and chooses the nearest live hostile
+ * AI town hall to the caller's primary town (or first live owned unit when no town exists). */
+static edict_t *G_BotFindEnemyBase(player_t *player) {
+    edict_t *origin = NULL, *best = NULL;
+    float best_dist = 0.0f;
+    uint32_t caller;
+    if (!player || (caller = PLAYER_NUM(player)) >= MAX_PLAYERS) return NULL;
+    origin = G_BotTown(player, 0);
+    if (!origin) FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == caller) { origin = unit; break; }
+
+    FOR_LOOP(i, MAX_PLAYERS) {
+        player_t *enemy;
+        edict_t *hall;
+        if (i == caller) continue;
+        enemy = &game.clients[i].ps;
+        for (int32_t town_id = 0; (hall = G_BotTown(enemy, town_id)); town_id++) {
+            float dist;
+            if (!G_BotUnitAlive(hall) || !G_BotIsHostile(player, hall)) continue;
+            if (!origin) return hall;
+            dist = Vector2_distance(&origin->s.origin2, &hall->s.origin2);
+            if (!best || dist < best_dist || (dist == best_dist && hall->s.number < best->s.number)) {
+                best = hall; best_dist = dist;
+            }
+        }
+    }
+    return best;
+}
+
+void G_BotStartGetEnemyBase(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    bot->enemy_base_target = NULL;
+    bot->enemy_base_search_active = true;
+    bot->enemy_base_ready_time = G_Time() + BOT_ENEMY_BASE_SEARCH_DELAY_MS;
+}
+
+bool G_BotWaitGetEnemyBase(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot || !bot->enemy_base_search_active) return false;
+    if (G_Time() < bot->enemy_base_ready_time) return true;
+    bot->enemy_base_target = G_BotFindEnemyBase(player);
+    bot->enemy_base_search_active = false;
+    return false;
+}
+
+edict_t *G_BotGetEnemyBase(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot || bot->enemy_base_search_active || !G_BotUnitAlive(bot->enemy_base_target) ||
+        !G_BotIsHostile(player, bot->enemy_base_target)) {
+        if (bot && !bot->enemy_base_search_active) bot->enemy_base_target = NULL;
+        return NULL;
+    }
+    return bot->enemy_base_target;
 }
 
 /* Retail common.ai asks GetEnemyExpansion before asynchronous enemy-main

@@ -2020,6 +2020,9 @@ typedef struct {
     bool town_spot_valid;
     botExpansion_t expansion;
     edict_t *alliance_target; /* common.ai shared assault target; publication never issues orders */
+    edict_t *enemy_base_target; /* completed StartGetEnemyBase result; NULL until discovery finishes */
+    uint32_t enemy_base_ready_time;
+    bool enemy_base_search_active;
     ARRAY(botCommand_t, commands);
     ARRAY(edict_t *, harvesters);
     ARRAY(botGuardPost_t, guards);
@@ -2255,6 +2258,9 @@ bool G_BotTownThreatened(player_t *);
 bool G_BotIsTowered(player_t *, edict_t *);
 edict_t *G_BotGetMegaTarget(player_t *);
 edict_t *G_BotGetEnemyExpansion(player_t *);
+void G_BotStartGetEnemyBase(player_t *);
+bool G_BotWaitGetEnemyBase(player_t *);
+edict_t *G_BotGetEnemyBase(player_t *);
 edict_t *G_BotGetCreepCamp(player_t *, int32_t, int32_t, bool);
 void G_BotPurchaseZeppelin(player_t *);
 void G_BotSetAllianceTarget(player_t *, edict_t *);

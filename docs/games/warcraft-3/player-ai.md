@@ -363,15 +363,13 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Sixty-eight of those names are registered in OpenRealm's JASS
-module; the following 4 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+functions, but their reachable native surface is the same. Seventy-one of those names are registered in OpenRealm's JASS
+module; the following native is still unresolved and will cause a native lookup/runtime failure when its call path is
 reached:
 
 | Unregistered native | Reachable role in `common.ai` |
 |---|---|
 | `CaptainRetreating` | Poll whether an attack captain is retreating; the state enum exists, but no runtime transition currently initiates or completes retreat |
-| `GetEnemyBase` | Locate enemy bases |
-| `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
 
 ### Alliance Assault Target
 
@@ -462,6 +460,25 @@ the qualifying component nearest the invoking AI's primary town. If no town exis
 the search origin. The returned representative is the camp member nearest that origin. Keep this geometry confined to
 `G_BotGetCreepCamp` so direct retail/native capture can replace it without changing creep ownership, unit level data, or
 assault behavior.
+
+### Enemy Base Discovery
+
+`StartGetEnemyBase()` / `WaitGetEnemyBase()` / `GetEnemyBase()` implement the stock asynchronous enemy-base query
+contract. Retail-facing documentation requires Start before Get, and unchanged melee AI polls Wait once per second until
+it returns false. OpenRealm keeps discovery state per AI player: Start clears any prior result and begins a search, Wait
+reports that search as pending until completion, and Get returns only the completed live hostile town-hall result.
+Calling Get before Start or while discovery remains pending returns null.
+
+The completed search chooses the nearest live hostile AI town hall to the invoking AI's primary town. If the caller has no
+primary town, its first live owned unit supplies the distance origin; without either, stable player/town enumeration wins.
+All current town IDs are eligible because retail/community observation describes `GetEnemyBase()` as finding the closest
+enemy base, while stock `common.ai` separately gives `GetEnemyExpansion()` higher priority before starting this discovery.
+The query is read-only and does not issue captain orders, publish an alliance target, or reveal fog.
+
+`BZ_COMPAT_GUESS`: Warcraft exposes this as an asynchronous search but does not document its exact latency or internal
+search algorithm. OpenRealm currently holds the search pending for 1000 milliseconds, matching the stock script's polling
+cadence, then performs the deterministic nearest-town query above. Keep the delay and target arbitration confined to the
+bot discovery helpers so direct retail/native capture can replace them without changing the JASS API or town bookkeeping.
 
 ### Enemy Expansion Query
 

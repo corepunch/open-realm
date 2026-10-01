@@ -1167,6 +1167,47 @@ TEST(wc3_bot, get_enemy_expansion_native_is_registered_for_player_bound_ai) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
+TEST(wc3_bot, enemy_base_discovery_natives_are_registered_for_player_bound_ai) {
+    bot_t *bot = level.bots + 2;
+
+    reset_entities();
+    level.time = 1000;
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_get_enemy_base.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, enemy_base_discovery_requires_start_waits_then_returns_nearest_hostile_town) {
+    player_t *caller = &game.clients[2].ps;
+    edict_t *home, *far, *near;
+
+    reset_entities();
+    InitUnitData();
+    home = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    far = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 5000, 0, 1, &bot_hall_abilities);
+    near = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 2500, 0, 3, &bot_hall_abilities);
+    level.time = 1000;
+
+    T_NULL(G_BotGetEnemyBase(caller));
+    G_BotStartGetEnemyBase(caller);
+    T_NULL(G_BotGetEnemyBase(caller));
+    T_ASSERT(G_BotWaitGetEnemyBase(caller));
+    level.time = 1999;
+    T_ASSERT(G_BotWaitGetEnemyBase(caller));
+    level.time = 2000;
+    T_ASSERT(!G_BotWaitGetEnemyBase(caller));
+    T_ASSERT(G_BotGetEnemyBase(caller) == near);
+
+    near->health.value = 0;
+    T_NULL(G_BotGetEnemyBase(caller));
+    G_BotStartGetEnemyBase(caller);
+    level.time = 3000;
+    T_ASSERT(!G_BotWaitGetEnemyBase(caller));
+    T_ASSERT(G_BotGetEnemyBase(caller) == far);
+    (void)home;
+}
+
 TEST(wc3_bot, get_enemy_expansion_returns_nearest_hostile_non_primary_town) {
     player_t *caller = &game.clients[2].ps;
     player_t *enemy = &game.clients[1].ps;

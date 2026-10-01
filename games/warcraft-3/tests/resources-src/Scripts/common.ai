@@ -32,6 +32,9 @@ native GetUpgradeWoodCost takes integer id returns integer
 native GetUpgradeLumberCost takes integer id returns integer
 native UnitAlive takes unit id returns boolean
 native IsTowered takes unit target returns boolean
+native StartGetEnemyBase takes nothing returns nothing
+native WaitGetEnemyBase takes nothing returns boolean
+native GetEnemyBase takes nothing returns unit
 native GetEnemyExpansion takes nothing returns unit
 native GetMegaTarget takes nothing returns unit
 native GetCreepCamp takes integer min, integer max, boolean flyers_ok returns unit
