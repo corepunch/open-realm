@@ -241,6 +241,40 @@ FT_STRING   → SCR_LayoutDrawString
 
 This is the generic renderer — it handles all three games (WC3, SC2, WoW) the same way. Game-specific layout is built by the game module on the server side and transmitted as `uiFrame_t` arrays.
 
+#### Status-bar paint order
+
+`SCR_LayoutDrawOverlay()` currently paints the main passes in this order:
+
+1. Non-overlay sprites.
+2. `FT_TEXTURE` frames.
+3. `FT_SIMPLESTATUSBAR` frames.
+4. Other non-sprite frame types, including text.
+5. Glue-button highlights, then overlay sprites.
+
+The intended visual stack for a bar with sibling text is background texture, bar
+fill/border, then text. `SCR_LayoutDrawStatusbar()` draws a simple status bar's
+fill first and its optional `tex.index2` border second. For world-hover health
+and mana bars, the black backing is a sibling `FT_TEXTURE`; it must be painted
+before the bar fill. FDF frame numbers can reflect parse/allocation order rather
+than the desired paint order, so the client groups these frame types to keep
+the Hero level label above its XP bar and the hover fills above their black
+backings.
+
+This type-based grouping affects every in-game layout: all textures now paint
+below all simple status bars, regardless of their original relative order. A
+texture intentionally authored as a foreground overlay can therefore end up
+behind a later status bar. That limitation is known; the current order encodes
+the common background/bar/text stack rather than preserving arbitrary sibling
+paint order.
+
+Potential improvement: add a generic paint-order contract that preserves
+authored sibling/z order while allowing a frame group to declare a local stack
+(background, bar, foreground text/overlay). The order should travel through the
+existing UI-frame protocol or be derived from the generic frame tree; it should
+not depend on Warcraft-specific frame names or a per-game client exception.
+Until then, layouts that combine textures and status bars should avoid relying
+on a texture drawing above a status bar.
+
 ## Mouse Input Architecture
 
 Mouse state is owned by the client (`mouseEvent_t` in `client/cl_input.c`). The UI library receives mouse events via push-based dispatch:
