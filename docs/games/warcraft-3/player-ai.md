@@ -363,15 +363,14 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Sixty-six of those names are registered in OpenRealm's JASS
-module; the following 6 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+functions, but their reachable native surface is the same. Sixty-seven of those names are registered in OpenRealm's JASS
+module; the following 5 are still unresolved and will cause a native lookup/runtime failure when their call paths are
 reached:
 
 | Unregistered native | Reachable role in `common.ai` |
 |---|---|
 | `CaptainRetreating` | Poll whether an attack captain is retreating; the state enum exists, but no runtime transition currently initiates or completes retreat |
 | `GetEnemyBase`, `GetEnemyExpansion` | Locate enemy bases and expansion targets |
-| `PurchaseZeppelin` | Request a transport for an assault |
 | `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
 
 ### Alliance Assault Target
@@ -437,6 +436,17 @@ non-`ATK_NONE` attack) rather than hardcoded Guard Tower/Cannon Tower/etc. rawco
 1024 world units for each test. Those constants live only in `g_bot.c`; direct retail/native capture can replace them without
 changing generic combat range, acquisition, building metadata, or the JASS API. The defending tower is required to share the
 target's owner; the invoking AI player's own towers do not make an enemy expansion "towered".
+
+### Zeppelin Purchase
+
+`PurchaseZeppelin()` implements the `common.ai` convenience action for obtaining a Goblin Zeppelin (`nzep`). Retail-facing
+native documentation says the call requires one of the AI player's Heroes near a Goblin Laboratory. OpenRealm searches
+live Neutral Passive unit shops that sell `nzep`, requires a live owned Hero within the shop's authored `Aneu`/`Aall`
+activation radius plus ordinary unit/shop collision reach, then delegates to `G_ShopPurchaseUnit`.
+
+The neutral-unit shop path remains authoritative for stock/restock, resource and food checks, legal exit placement, and
+unit ownership. This native does not spawn or grant a Zeppelin directly; without a qualifying Hero/shop pair it does
+nothing.
 
 ### Creep Camp Query
 

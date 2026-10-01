@@ -1203,6 +1203,68 @@ TEST(wc3_bot, get_creep_camp_filters_total_level_flyers_and_nearest_camp) {
     (void)hall;
 }
 
+TEST(wc3_bot, purchase_zeppelin_native_is_registered_for_player_bound_ai) {
+    bot_t *bot = level.bots + 2;
+
+    reset_entities();
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_purchase_zeppelin.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purchase) {
+    static UnitProfile_t lab_profile;
+    static UnitAbilities_t const lab_abilities = { .abilList = "Aneu,Asud", .heroAbilList = "" };
+    player_t *player = &game.clients[2].ps;
+    gameClient_t *client = &game.clients[2];
+    edict_t *lab, *hero;
+    uint32_t zeppelins = 0;
+
+    reset_entities();
+    InitUnitData();
+    client->ps.number = 2;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 20;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
+
+    memset(&lab_profile, 0, sizeof(lab_profile));
+    lab_profile.sellUnits = "nzep";
+    lab = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    lab->s.player = PLAYER_NEUTRAL_PASSIVE;
+    lab->data.UnitProfile = &lab_profile;
+    lab->data.UnitAbilities = &lab_abilities;
+    lab->stock.unit_slots = 11;
+    lab->spawn_time = G_Time();
+    lab->collision = 32.0f;
+    gi.LinkEntity(lab);
+    T_ASSERT(G_AddUnitStock(lab, MAKEFOURCC('n','z','e','p'), 1, 1));
+
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 1000, 0);
+    hero->s.player = 2;
+    hero->collision = 16.0f;
+    hero->svflags |= SVF_MONSTER;
+    gi.LinkEntity(hero);
+
+    G_BotPurchaseZeppelin(player);
+    FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == 2 && unit->class_id == MAKEFOURCC('n','z','e','p')) zeppelins++;
+    T_EQ(zeppelins, 0);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 1000);
+
+    hero->s.origin2 = MAKE(vec2_t, 64, 0);
+    hero->s.origin.x = 64;
+    gi.LinkEntity(hero);
+    G_BotPurchaseZeppelin(player);
+
+    zeppelins = 0;
+    FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == 2 && unit->class_id == MAKEFOURCC('n','z','e','p')) zeppelins++;
+    T_EQ(zeppelins, 1);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 760);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 440);
+    T_EQ(lab->stock.units[0].current, 0);
+}
+
 TEST(wc3_bot, get_mega_target_requires_watch_and_vulnerable_hostile_main) {
     static UnitWeapons_t const enabled_attack = { .attacksEnabled = 1 };
     player_t *caller = &game.clients[2].ps;

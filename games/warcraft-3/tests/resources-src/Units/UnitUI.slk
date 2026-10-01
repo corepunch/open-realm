@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X4;Y15;D0
+B;X4;Y16;D0
 C;X1;Y1;K"unitUIID"
 C;X2;K"isbldg"
 C;X4;K"file"
@@ -37,5 +37,7 @@ C;X1;Y14;K"htow"
 C;X2;K"1"
 C;X4;K"TestUI\\Models\\anim_pulse.mdx"
 C;X1;Y15;K"hgry"
+C;X4;K"TestUI\\Models\\anim_pulse.mdx"
+C;X1;Y16;K"nzep"
 C;X4;K"TestUI\\Models\\anim_pulse.mdx"
 E
