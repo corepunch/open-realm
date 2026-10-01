@@ -1809,7 +1809,9 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #define R_RenderRectSplatUV R_TestProductionRenderRectSplatUV
 #define R_RenderSplat R_TestProductionRenderSplat
 #define R_UpdateVertexArrayObject test_ground_update
+#define WC3_TERRAIN_NORMAL_TESTS
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
+#undef WC3_TERRAIN_NORMAL_TESTS
 #undef R_UpdateVertexArrayObject
 #undef glEnable
 #undef glDisable
@@ -1870,6 +1872,36 @@ TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
     R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
     test_free(layer);
     R_ResetGroundTextures();
+}
+
+TEST(renderer_terrain, terrain_normal_cache_hits_and_invalidates_between_bakes) {
+    war3mapVertex_t verts[25] = {0};
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts };
+    war3map_t const *saved_world = tr.world;
+    vec3_t first, repeated, updated;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 25) verts[i].accurate_height = 8192;
+    tr.world = &map;
+    terrain_normal_cache_hits = terrain_normal_cache_misses = 0;
+    R_BeginTerrainNormalCache(&map);
+    first = R_GetVertexNormal(&map, 2, 2);
+    repeated = R_GetVertexNormal(&map, 2, 2);
+    T_FEQ(first.x, repeated.x, 0.0f);
+    T_FEQ(first.y, repeated.y, 0.0f);
+    T_FEQ(first.z, repeated.z, 0.0f);
+    T_EQ(terrain_normal_cache_misses, 1);
+    T_EQ(terrain_normal_cache_hits, 1);
+
+    R_EndTerrainNormalCache();
+    verts[1 + 2 * 5].accurate_height += 1024;
+    R_BeginTerrainNormalCache(&map);
+    updated = R_GetVertexNormal(&map, 2, 2);
+    T_ASSERT(first.x != updated.x || first.y != updated.y || first.z != updated.z);
+    T_EQ(terrain_normal_cache_misses, 2);
+    T_EQ(terrain_normal_cache_hits, 1);
+    R_EndTerrainNormalCache();
+    R_ResetTerrainNormalCache();
+    tr.world = saved_world;
 }
 
 TEST(renderer_terrain, deformation_updates_and_expires_height_offsets) {
@@ -1996,9 +2028,15 @@ w3CliffType_t const *R_CliffType(uint32_t id) {
 }
 #include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
 /* The cliff material test needs the real bake/finalize lifecycle, but no OpenGL context. */
-static buffer_t *test_cliff_buffer(vertex_t const *vertices, uint32_t count) { return test_alloc(sizeof(buffer_t)); }
+static uint32_t cliff_buffer_upload_count;
+static buffer_t *test_cliff_buffer(vertex_t const *vertices, uint32_t count) {
+    cliff_buffer_upload_count++;
+    return test_alloc(sizeof(buffer_t));
+}
 #define R_MakeVertexArrayObject test_cliff_buffer
+#define WC3_CLIFF_TESTS
 #include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
+#undef WC3_CLIFF_TESTS
 #undef R_MakeVertexArrayObject
 
 TEST(renderer_terrain, cliff_cache_distinguishes_model_directories) {
@@ -2016,6 +2054,86 @@ TEST(renderer_terrain, cliff_cache_distinguishes_model_directories) {
     T_STREQ(last_model_load, "Doodads\\Terrain\\CliffTrans\\CliffTransBALH0.mdx");
     T_ASSERT(R_LoadCliffModel(&city, "BALH", true) == a); T_EQ(load_count, 4);
     R_ResetCliffCache(); T_EQ(release_count, 4);
+}
+
+TEST(renderer_terrain, cliff_baker_samples_each_indexed_vertex_once_per_piece) {
+    war3mapVertex_t verts[25] = {0};
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts };
+    vec3_t pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}};
+    vec3_t norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
+    vec2_t uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
+    short tris[] = {0,1,2,2,1,0};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 6,
+        .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo,
+        .bounds.box = { .min = {-128,0,0}, .max = {0,256,128} } };
+    cliffData_t data = { .cliff = 1, .rampModelDir = "CityCliffTrans", .cliffModelDir = "CityCliffs" };
+    float first_height;
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    reset_registry(); R_SetMapAssetScope(NULL);
+    FOR_LOOP(i, 25) verts[i] = (war3mapVertex_t){ .level = 5, .cliff = 1, .accurate_height = 8192 };
+    verts[6].level = verts[11].level = 6;
+    tr.world = &map; cliff_model = &mdx;
+    cliff_vertex_sample_count = cliff_vertex_cache_hit_count = 0;
+    cliff_bake.num_vertices = 0;
+    R_MakeCliff(&map, 1, 1, &data);
+    T_EQ(cliff_bake.num_vertices, 6);
+    T_EQ(cliff_vertex_sample_count, 3);
+    T_EQ(cliff_vertex_cache_hit_count, 3);
+    first_height = cliff_bake.vertices[0].position.z;
+    FOR_LOOP(i, 3) {
+        vertex_t const *a = &cliff_bake.vertices[i];
+        vertex_t const *b = &cliff_bake.vertices[5-i];
+        T_FEQ(a->position.x, b->position.x, 0.0f);
+        T_FEQ(a->position.y, b->position.y, 0.0f);
+        T_FEQ(a->position.z, b->position.z, 0.0f);
+        T_FEQ(a->normal.x, b->normal.x, 0.0f);
+        T_FEQ(a->normal.y, b->normal.y, 0.0f);
+        T_FEQ(a->normal.z, b->normal.z, 0.0f);
+        T_FEQ(a->texcoord.x, b->texcoord.x, 0.0f);
+        T_FEQ(a->texcoord.y, b->texcoord.y, 0.0f);
+    }
+
+    /* A later piece must sample the updated terrain instead of reusing the prior piece's values. */
+    FOR_LOOP(i, 25) verts[i].accurate_height += 128;
+    cliff_bake.num_vertices = 0;
+    R_MakeCliff(&map, 1, 1, &data);
+    T_EQ(cliff_bake.num_vertices, 6);
+    T_EQ(cliff_vertex_sample_count, 6);
+    T_EQ(cliff_vertex_cache_hit_count, 6);
+    T_ASSERT(cliff_bake.vertices[0].position.z != first_height);
+
+    cliff_model = NULL; tr.world = NULL;
+    R_ResetCliffCache(); R_FinishCliffs();
+}
+
+TEST(renderer_terrain, cliff_weld_context_does_not_upload_discarded_layers) {
+    enum { span = SEGMENT_SIZE + 1 };
+    war3mapVertex_t verts[span * span];
+    uint32_t cliffs[] = { MAKEFOURCC('C','L','g','r') };
+    war3map_t map = { .width = span, .height = span, .vertices = verts,
+        .cliffs = cliffs, .num_cliffs = 1 };
+    vec3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}};
+    vec3_t norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vec2_t uv[3] = {0}; short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3,
+        .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo,
+        .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    reset_registry(); R_SetMapAssetScope(NULL);
+    FOR_LOOP(y, span) FOR_LOOP(x, span)
+        verts[x + y * span] = (war3mapVertex_t){ .level = y >= 2 ? 5 : 4, .cliff = 0, .accurate_height = 8192 };
+    tr.world = &map; cliff_model = &mdx; cliff_buffer_upload_count = 0;
+    R_BakeMapSegmentCliffsForWeld(&map, 0, 0, 0);
+    T_ASSERT(cliff_bake.num_vertices > 0);
+    R_FinishCliffs();
+    T_EQ(cliff_buffer_upload_count, 0);
+    T_EQ(cliff_bake.num_vertices, 0);
+
+    cliff_model = NULL; tr.world = NULL; R_ResetCliffCache();
 }
 
 TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage) {

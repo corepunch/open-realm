@@ -9,6 +9,72 @@ static bool g_warn_missing_terrain_art[MAX_MAP_LAYERS];
 /* Whole-map ground buffer plus the first vertex of each segment's slice (segment count + 1 entries). */
 typedef struct { maplayer_t *layer; uint32_t *first; } groundBatch_t;
 static groundBatch_t g_groundBatches[MAX_MAP_LAYERS];
+typedef struct {
+    size_t index;
+    uint32_t generation;
+    vec3_t normal;
+} terrainNormalCacheEntry_t;
+static terrainNormalCacheEntry_t *terrain_normal_cache;
+static size_t terrain_normal_cache_capacity, terrain_normal_cache_count;
+static uint32_t terrain_normal_cache_generation;
+static war3map_t const *terrain_normal_cache_map;
+static bool terrain_normal_cache_active, terrain_normal_cache_warned;
+
+#ifdef WC3_TERRAIN_NORMAL_TESTS
+static uint32_t terrain_normal_cache_hits, terrain_normal_cache_misses;
+#endif
+
+static size_t R_TerrainNormalCacheSlot(size_t index, size_t capacity) {
+    return (size_t)(((uint64_t)index * UINT64_C(11400714819323198485)) & (capacity - 1));
+}
+
+static bool R_GrowTerrainNormalCache(void) {
+    size_t capacity = terrain_normal_cache_capacity ? terrain_normal_cache_capacity * 2 : 256;
+    terrainNormalCacheEntry_t *entries;
+    if (capacity < terrain_normal_cache_capacity || capacity > SIZE_MAX / sizeof(*entries)) return false;
+    entries = ri.MemAlloc(capacity * sizeof(*entries));
+    if (!entries) return false;
+    memset(entries, 0, capacity * sizeof(*entries));
+    if (terrain_normal_cache) {
+        for (size_t i = 0; i < terrain_normal_cache_capacity; i++) {
+            terrainNormalCacheEntry_t const *old = &terrain_normal_cache[i];
+            if (old->generation != terrain_normal_cache_generation) continue;
+            size_t slot = R_TerrainNormalCacheSlot(old->index, capacity);
+            while (entries[slot].generation == terrain_normal_cache_generation)
+                slot = (slot + 1) & (capacity - 1);
+            entries[slot] = *old;
+        }
+        ri.MemFree(terrain_normal_cache);
+    }
+    terrain_normal_cache = entries;
+    terrain_normal_cache_capacity = capacity;
+    return true;
+}
+
+void R_BeginTerrainNormalCache(war3map_t const *map) {
+    terrain_normal_cache_active = map != NULL;
+    terrain_normal_cache_map = map;
+    terrain_normal_cache_count = 0;
+    if (++terrain_normal_cache_generation == 0) {
+        if (terrain_normal_cache)
+            memset(terrain_normal_cache, 0,
+                terrain_normal_cache_capacity * sizeof(*terrain_normal_cache));
+        terrain_normal_cache_generation = 1;
+    }
+}
+
+void R_EndTerrainNormalCache(void) {
+    terrain_normal_cache_active = false;
+    terrain_normal_cache_map = NULL;
+}
+
+void R_ResetTerrainNormalCache(void) {
+    SAFE_DELETE(terrain_normal_cache, ri.MemFree);
+    terrain_normal_cache_capacity = terrain_normal_cache_count = 0;
+    terrain_normal_cache_generation = 0;
+    terrain_normal_cache_map = NULL;
+    terrain_normal_cache_active = terrain_normal_cache_warned = false;
+}
 
 /* The layers themselves belong to g_groundLayers and are freed with it; only the range tables live here. */
 void R_ResetGroundTextures(void) {
@@ -46,7 +112,46 @@ static float r_war3_normal_height(void const *data, uint32_t x, uint32_t y) {
 
 vec3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y) {
     terrainNormals_t grid = { map, r_war3_normal_height, map->width, map->height, TILE_SIZE };
-
+    size_t index;
+    if (!terrain_normal_cache_active || map != terrain_normal_cache_map)
+        return R_TerrainGridNormal(&grid, x, y);
+    index = (size_t)x + (size_t)y * map->width;
+    if (!terrain_normal_cache_capacity ||
+        terrain_normal_cache_count >= terrain_normal_cache_capacity - terrain_normal_cache_capacity / 4 - 1) {
+        if (!R_GrowTerrainNormalCache() && !terrain_normal_cache_warned) {
+            fprintf(stderr, "WC3 renderer: unable to grow terrain normal cache; calculating normals directly\n");
+            terrain_normal_cache_warned = true;
+        }
+    }
+    if (!terrain_normal_cache_capacity)
+        return R_TerrainGridNormal(&grid, x, y);
+    {
+        size_t slot = R_TerrainNormalCacheSlot(index, terrain_normal_cache_capacity);
+        for (size_t n = 0; n < terrain_normal_cache_capacity; n++) {
+            terrainNormalCacheEntry_t *entry = &terrain_normal_cache[slot];
+            if (entry->generation == terrain_normal_cache_generation && entry->index == index) {
+#ifdef WC3_TERRAIN_NORMAL_TESTS
+                terrain_normal_cache_hits++;
+#endif
+                return entry->normal;
+            }
+            if (entry->generation != terrain_normal_cache_generation) {
+                entry->index = index;
+                entry->generation = terrain_normal_cache_generation;
+                entry->normal = R_TerrainGridNormal(&grid, x, y);
+                terrain_normal_cache_count++;
+#ifdef WC3_TERRAIN_NORMAL_TESTS
+                terrain_normal_cache_misses++;
+#endif
+                return entry->normal;
+            }
+            slot = (slot + 1) & (terrain_normal_cache_capacity - 1);
+        }
+    }
+    if (!terrain_normal_cache_warned) {
+        fprintf(stderr, "WC3 renderer: terrain normal cache is full; calculating normals directly\n");
+        terrain_normal_cache_warned = true;
+    }
     return R_TerrainGridNormal(&grid, x, y);
 }
 
