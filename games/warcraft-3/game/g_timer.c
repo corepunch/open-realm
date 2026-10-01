@@ -97,12 +97,16 @@ void G_FormatTimerDialogValue(gtimer_t const *timer, string_t out, size_t out_si
     snprintf(out, out_size, "%02u:%02u", (unsigned)minutes, (unsigned)(seconds % 60u));
 }
 
-uint32_t G_TimerRemaining(gtimer_t const *timer) { return timer ? timer->remaining : 0; }
+uint32_t G_TimerRemaining(gtimer_t const *timer) {
+    if (!timer) return 0;
+    uint32_t elapsed = timer->running && !timer->paused ? level.time - timer->updated : 0;
+    return timer->remaining > elapsed ? timer->remaining - elapsed : 0;
+}
 
 void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, jassFunc_t const *handler) {
     if (!timer) return;
     timer->generation++;
-    timer->handler = handler; timer->duration = timeout; timer->remaining = timeout;
+    timer->handler = handler; timer->duration = timeout; timer->remaining = timeout; timer->updated = level.time;
     timer->periodic = periodic; timer->paused = false; timer->running = true;
     FOR_LOOP(i, MAX_TIMERDIALOGS) if (level.timer_dialogs[i].inuse && level.timer_dialogs[i].timer == timer)
         WC3_TIMERDIALOG_LOG("start dialog=%d duration=%u periodic=%d visible=0x%08x\n",
@@ -112,13 +116,14 @@ void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, jassFunc_t c
 
 void G_TimerPause(gtimer_t *timer) {
     if (!timer || !timer->running || timer->paused) return;
+    timer->remaining = G_TimerRemaining(timer); timer->updated = level.time;
     timer->generation++;
     timer->paused = true;
 }
 
 void G_TimerResume(gtimer_t *timer) {
     if (!timer || !timer->running || !timer->paused) return;
-    timer->paused = false;
+    timer->updated = level.time; timer->paused = false;
 }
 
 void G_TimerDestroy(gtimer_t *timer) {
@@ -173,10 +178,13 @@ void G_RunTimers(void) {
     FOR_LOOP(i, level.num_timers) {
         gtimer_t *timer = &level.timers[i];
         if (!timer->running || timer->paused) continue;
-        /* Countdown rather than a level.time deadline: a save carries no clock-absolute
-         * state, so a loaded timer resumes with exactly the time it had left. */
-        timer->remaining = timer->remaining > FRAMETIME ? timer->remaining - FRAMETIME : 0;
+        /* RunFrame drains before every primary quantum and again at publication.
+         * Consume elapsed simulation time once; repeated drains cannot age a timer.
+         * Save restores both the countdown cursor and the owning server clock. */
+        timer->remaining = G_TimerRemaining(timer); timer->updated = level.time;
         if (timer->remaining) continue;
+        /* TODO: Port scalar heap deadlines/rearm and zero-period policy after
+         * NUM-02 timer controls. The existing millisecond timeout API remains. */
         timer->remaining = timer->periodic ? timer->duration : 0;
         timer->running = timer->periodic;
         if (timer->handler)

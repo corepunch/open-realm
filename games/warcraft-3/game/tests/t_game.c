@@ -3730,7 +3730,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     remove(filename);
 }
 
-/* A load restores the Q2-style server tick; timers are clock-free countdowns and need no rebase. */
+/* Load restores the Q2 server tick and the timer countdown cursor together. */
 TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-clock.bin";
     gtimer_t *timer;
@@ -3753,6 +3753,8 @@ TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
     T_ASSERT(timer->running && !timer->paused);
     T_EQ(G_TimerRemaining(timer), 2000u);
     G_RunTimers();
+    T_EQ(G_TimerRemaining(timer), 2000u);
+    level.time += FRAMETIME; G_RunTimers();
     T_EQ(G_TimerRemaining(timer), 2000u - FRAMETIME);
     remove(filename);
 }
@@ -5173,18 +5175,18 @@ TEST(wc3_save, round_trip_jass_timers) {
         "  call TriggerRegisterTimerExpireEvent(timerTrigger, runningTimer)\n"
         "endfunction\n"));
     level.time = 100;
-    level.timers[1].duration = 4 * FRAMETIME; level.timers[1].remaining = 4 * FRAMETIME;
+    G_TimerStart(&level.timers[1], 4 * FRAMETIME, true, level.timers[1].handler);
     T_ASSERT(WriteGame(filename));
     jass_callbyname(level.vm, "mutate", false);
     T_ASSERT(ReadGame(filename));
     T_EQ(level.time, 100);
     T_EQ(G_TimerRemaining(&level.timers[1]), 4 * FRAMETIME);
     jass_callbyname(level.vm, "verifyRestored", false);
-    /* Countdown timers ignore level.time entirely: only elapsed frames expire them. */
-    FOR_LOOP(i, 4) G_RunTimers();
+    /* The restored cursor consumes actual time once, independent of drain count. */
+    FOR_LOOP(i, 4) { level.time += FRAMETIME; G_RunTimers(); }
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyExpired", false);
-    FOR_LOOP(i, 4) G_RunTimers();
+    FOR_LOOP(i, 4) { level.time += FRAMETIME; G_RunTimers(); }
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyPeriodic", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -5239,6 +5241,48 @@ TEST(wc3_save, restores_triggers_and_events_created_after_main) {
     jass_callbyname(level.vm, "verify", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     remove(filename);
+}
+
+TEST(wc3_jass, timer_countdown_uses_elapsed_time_and_pause_cursor) {
+    level.time = 1000;
+    gtimer_t *timer = G_AllocJassTimer(); T_NOT_NULL(timer); if (!timer) return;
+    G_TimerStart(timer, 100, false, NULL);
+    FOR_LOOP(i, 10) G_RunTimers();
+    T_EQ(G_TimerRemaining(timer), 100u); T_EQ(timer->updated, 1000u);
+    level.time = 1035; G_TimerPause(timer);
+    T_EQ(timer->remaining, 65u); T_EQ(timer->updated, 1035u);
+    level.time = 2000; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 65u);
+    G_TimerResume(timer); T_EQ(timer->updated, 2000u);
+    level.time = 2025; G_RunTimers(); G_RunTimers(); T_EQ(G_TimerRemaining(timer), 40u);
+    G_TimerStart(timer, 12, false, NULL); T_EQ(G_TimerRemaining(timer), 12u);
+    level.time = 2035; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 2u); T_ASSERT(timer->running);
+    level.time = 2037; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 0u); T_ASSERT(!timer->running);
+    G_TimerStart(timer, 100, true, NULL); G_TimerDestroy(timer);
+    level.time = 3000; G_RunTimers(); T_ASSERT(!timer->running && timer->paused);
+    T_EQ(G_TimerRemaining(timer), 100u);
+}
+
+TEST(wc3_save, timer_callback_restart_and_unconsumed_elapsed_round_trip) {
+    cstring_t file = "/tmp/openwarcraft3-timer-elapsed-save.bin";
+    cstring_t script = "globals\ntimer moverTimer\ninteger calls=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset calls=calls+1\n"
+        "if calls==1 then\ncall TimerStart(GetExpiredTimer(),0.2,false,function on_tick)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset moverTimer=CreateTimer()\n"
+        "call TimerStart(moverTimer,0.1,true,function on_tick)\nendfunction\n"
+        "function first takes nothing returns nothing\ncall BJassAssert(calls==1,\"timer restarted early\")\nendfunction\n"
+        "function second takes nothing returns nothing\ncall BJassAssert(calls==2,\"timer restart deadline missed\")\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    level.time = 100; G_RunTimers(); jass_runevents(level.vm); jass_callbyname(level.vm, "first", false);
+    gtimer_t *timer = &level.timers[0]; T_EQ(timer->duration, 200u); T_EQ(timer->updated, 100u);
+    level.time = 145; T_EQ(G_TimerRemaining(timer), 155u); T_ASSERT(WriteGame(file));
+    G_TimerDestroy(timer); level.time = 1000; T_ASSERT(ReadGame(file));
+    timer = &level.timers[0]; T_EQ(level.time, 145u); T_EQ(timer->updated, 100u);
+    T_EQ(timer->remaining, 200u); T_EQ(G_TimerRemaining(timer), 155u);
+    G_RunTimers(); G_RunTimers(); T_EQ(timer->remaining, 155u);
+    level.time = 299; G_RunTimers(); jass_runevents(level.vm); jass_callbyname(level.vm, "first", false);
+    T_EQ(G_TimerRemaining(timer), 1u);
+    level.time = 300; G_RunTimers(); jass_runevents(level.vm); jass_callbyname(level.vm, "second", false);
+    T_ASSERT(!timer->running); T_ASSERT(!jass_rterror_pending(level.vm)); remove(file);
 }
 
 TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {

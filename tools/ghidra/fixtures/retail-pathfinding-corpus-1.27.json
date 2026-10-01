@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "95 executable original oracle contracts,116 archive audits and35 strict live contracts;246 total entries. Archive audits and stronger live contracts are distinct evidence levels.",
+  "scope": "95 executable original oracle contracts,118 archive audits and36 strict live contracts;249 total entries. Archive audits and stronger live contracts are distinct evidence levels.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -15714,6 +15714,353 @@
         "Bridge/rejected-level and outside clipping",
         "Whole engine cadence and crowd/group trajectories"
       ]
+    },
+    {
+      "id": "capture-spawn-phase-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/spawn-phase-live-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/spawn-phase-live-first-261001.jsonl",
+        "sha256": "bdd0a78b78d03507117a63325b45f6f07831b4cc3a15390e017ebad4c0e8f82c",
+        "bytes": 5661674,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+            "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+          },
+          "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+          "seconds": 150.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "spawn-phase-first-capture-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Observed normal periodic public spawn-to-Move lifetimes with6000 completed primary advances and1000 owner callbacks.",
+      "exclusions": [
+        "Outside-map, layered terrain/bridge and other actor forms; full engine trajectory parity."
+      ]
+    },
+    {
+      "id": "capture-spawn-phase-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/spawn-phase-live-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/spawn-phase-live-repeat-261001.jsonl",
+        "sha256": "559524c7a983dbb2a8eaa52ee13b4ca959c8a1c2e0195128da08979aa88a5a84",
+        "bytes": 5557283,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+            "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+          },
+          "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+          "seconds": 150.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "spawn-phase-repeat-capture-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Observed normal periodic public spawn-to-Move lifetimes with6000 completed primary advances and1000 owner callbacks.",
+      "exclusions": [
+        "Outside-map, layered terrain/bridge and other actor forms; full engine trajectory parity."
+      ]
+    },
+    {
+      "id": "live-public-spawn-phase-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_spawn_phase_trace.py",
+        "{archive}/runtime/spawn-phase-live-first-261001.jsonl",
+        "--repeat",
+        "{archive}/runtime/spawn-phase-live-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-spawn-phase-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/spawn-phase-live-first-261001.jsonl",
+        "sha256": "bdd0a78b78d03507117a63325b45f6f07831b4cc3a15390e017ebad4c0e8f82c",
+        "bytes": 5661674,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+            "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+          },
+          "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+          "seconds": 150.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/spawn-phase-live-repeat-261001.jsonl",
+            "sha256": "559524c7a983dbb2a8eaa52ee13b4ca959c8a1c2e0195128da08979aa88a5a84",
+            "bytes": 5557283,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+                "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+                "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+              },
+              "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+              "seconds": 150.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-public-spawn-phase-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "public_create_calls": {
+          "equal": 8
+        },
+        "placement_searches": {
+          "equal": 8
+        },
+        "position_commits": {
+          "equal": 16
+        },
+        "position_queries": {
+          "equal": 104
+        },
+        "exact_decisions": {
+          "equal": 239
+        },
+        "spawn_sha256": {
+          "equal": "860c89180e22330fdba167e727887383550d82c8650f46c27d177e54cfef99b5"
+        },
+        "repeated": {
+          "equal": true
+        },
+        "journeys": {
+          "equal": 8
+        },
+        "arrival_evaluations": {
+          "equal": 247
+        },
+        "exact_velocity_commits": {
+          "equal": 247
+        },
+        "exact_position_commits": {
+          "equal": 247
+        },
+        "exact_facing_commits": {
+          "equal": 247
+        },
+        "final_old_velocity_stops": {
+          "equal": 8
+        },
+        "journey_sha256": {
+          "equal": "c9bdf0f74634db0555f2625776af7d97d8838997999efd5a6f8c37c6a593bf96"
+        },
+        "primary_advances": {
+          "equal": 6000
+        },
+        "owner_callbacks": {
+          "equal": 1000
+        },
+        "public_births": {
+          "equal": 8
+        },
+        "birth_phases": {
+          "equal": [
+            2,
+            0,
+            4,
+            2,
+            0,
+            4,
+            2,
+            0
+          ]
+        },
+        "birth_primary_advances": {
+          "equal": [
+            20,
+            420,
+            820,
+            1220,
+            1620,
+            2020,
+            2420,
+            2820
+          ]
+        },
+        "primary_sha256": {
+          "equal": "c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "Zero-clock observed primary source/owner, all eight public periodic timer admission phases and247 original movement commits; actual scheduled engine producer tested independently.",
+      "exclusions": [
+        "General scalar timer deadlines and zero/submillisecond callback policy",
+        "Other profiles, long oblique small/large producers and populated groups"
+      ]
     }
   ],
   "fixtures": [
@@ -15779,7 +16126,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "cbd51bf19989e07082bbbfa9280b43116cf7298b0082a58dc6a69d476951b2e1"
+      "sha256": "a99b73ee0dc31b47d17bfe020c9956506aaf29488099e50846737ee661d1cf47"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -16084,6 +16431,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-spawn-motion-1.27.json",
       "sha256": "1178a6ca4d2dfa96f4d76ba53f1d85641c325ce5f37d6a8e2557d143054ede89"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-spawn-phase-1.27.json",
+      "sha256": "64d7bfb1caf08397991d2d577fcf5c47d9a3eb9910e78e97e584447f201775c3"
     }
   ]
 }

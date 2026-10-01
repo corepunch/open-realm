@@ -1087,10 +1087,12 @@ static void G_RunFrame(void) {
     /* Timer actions and the owner update precede the next primary advance.
      * The game clock is private; the engine still sends its ordinary snapshots. */
     while (end_time - level.pathing_msec >= 5) {
-        G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
+        /* Observed public spawns at phases0/2/4 see the due owner before
+         * authored map-timer callbacks in the same primary quantum. */
         if (level.pathing_due) {
             M_RunScheduledThinks(); level.pathing_due = false;
         }
+        G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
         wc3_clock_advance(&level.pathing_clock, wc3_float(0x3ba3d70a), 0);
         level.pathing_phase = (level.pathing_phase + 1) % 6;
         level.pathing_due = !level.pathing_phase;
@@ -1099,11 +1101,11 @@ static void G_RunFrame(void) {
     }
     level.time = end_time;
     G_UpdateTimeOfDay();
-    G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
     if (level.pathing_due) {
         M_RunScheduledThinks(); level.pathing_due = false;
         M_SamplePoses();
     }
+    G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
     G_UpdateTimerDialogs();
     G_UpdateLeaderboards();
 

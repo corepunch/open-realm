@@ -25,8 +25,8 @@ class CorpusTests(unittest.TestCase):
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),95)
-        self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),116)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),35)
+        self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),118)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),36)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))
@@ -49,7 +49,7 @@ class CorpusTests(unittest.TestCase):
             for word in [r['clock'][0],*r['after'][2:6],r['after'][7]]]
         self.assertEqual(len(expected),247*6)
         self.assertEqual(actual,expected)
-        terrain=source.split('uint32_t const terrain_rows[]={',1)[1].split('};',1)[0]
+        terrain=source.split('uint32_t const spawn_terrain_rows[]={',1)[1].split('};',1)[0]
         self.assertEqual([int(w,16) for w in re.findall(r'0x([0-9a-f]+)u',terrain)],frozen['terrain_control']['rows'])
         self.assertEqual(frozen['terrain_control']['bounds'],[152,56,184,72])
         self.assertEqual(frozen['terrain_control']['dimensions'],[384,256])

@@ -2706,8 +2706,7 @@ TEST(wc3_movement, forced_position_matches_original_native_pose_words) {
 
 /* Actual scene44 spawn-to-Move trajectories through the production thinker.
  * Initial primary phase is a measured control, not a phase-producer claim. */
-TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes) {
-    uint32_t const spawn_motion[][6]={
+static uint32_t const spawn_motion[][6]={
         {0x3df5c287u,0x43228000u,0x427e0000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
         {0x3e199993u,0x4322c0ccu,0x427e0000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
         {0x3e3851e3u,0x43230198u,0x427e0000u,0x4106fef5u,0x3d3c8fa0u,0x3be630a0u},
@@ -2957,7 +2956,7 @@ TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes)
         {0x416d937eu,0x432c92d8u,0x42830020u,0x00000000u,0x00000000u,0x3bbdf0ffu},
     };
     /* First row, commits, initial clock, first elapsed milliseconds, phase. */
-    uint32_t const cases[][5]={
+static uint32_t const spawn_motion_cases[][5]={
         {0x00000000u,0x0000002cu,0x3dccccc7u,0x00000014u,0x00000002u},
         {0x0000002cu,0x0000001eu,0x40066654u,0x0000001eu,0x00000000u},
         {0x0000004au,0x0000001eu,0x408332b8u,0x0000000au,0x00000004u},
@@ -2967,6 +2966,9 @@ TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes)
         {0x000000c1u,0x0000001du,0x41419562u,0x00000014u,0x00000002u},
         {0x000000deu,0x00000019u,0x41619402u,0x0000001eu,0x00000000u},
     };
+static uint32_t const spawn_terrain_rows[]={0x0fff00ffu,0x0fff00ffu,0x0fff00ffu,0x0fff00ffu,0xff0f00ffu,0xff0f00ffu,0xff0f00ffu,0xff0f00ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu};
+
+TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes) {
     cstring_t offsets[]={"0","16","31","32","60","63.9999","64","96"};
     float radius=31,speed=270;
     unitModification_t mods[]={
@@ -2979,16 +2981,15 @@ TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes)
     mapInfo_t const *oldinfo=level.mapinfo;
     static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
     /* Ground walk-bit clip of scene44 WPM, x152..183/y56..71. */
-    uint32_t const terrain_rows[]={0x0fff00ffu,0x0fff00ffu,0x0fff00ffu,0x0fff00ffu,0xff0f00ffu,0xff0f00ffu,0xff0f00ffu,0xff0f00ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu};
     cstring_t file="/tmp/openwarcraft3-spawn-motion-save.bin";
     FOR_LOOP(c,8) {
         reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
         memset(cells,0,sizeof(cells));
-        FOR_LOOP(y,16) FOR_LOOP(x,32) if (terrain_rows[y]&(1u<<x)) cells[(y+56)*384+x+152]=2;
+        FOR_LOOP(y,16) FOR_LOOP(x,32) if (spawn_terrain_rows[y]&(1u<<x)) cells[(y+56)*384+x+152]=2;
         CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
         level.waypoints=(typeof(level.waypoints)){0};
-        level.pathing_clock=(wc3Clock_t){wc3_float(cases[c][2]),0,300};
-        level.time=level.pathing_msec=0; level.pathing_phase=cases[c][4]; level.pathing_due=false;
+        level.pathing_clock=(wc3Clock_t){wc3_float(spawn_motion_cases[c][2]),0,300};
+        level.time=level.pathing_msec=0; level.pathing_phase=spawn_motion_cases[c][4]; level.pathing_due=false;
         char script[800];
         snprintf(script,sizeof(script),"globals\nunit source\nunit mover\nendglobals\n"
             "function main takes nothing returns nothing\n"
@@ -3005,9 +3006,9 @@ TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes)
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
         FOR_LOOP(pass,c==5 ? 2 : 1) {
             if (pass) T_ASSERT(ReadGame(file));
-            for (unsigned i=pass ? 8 : 0;i<cases[c][1];i++) {
-                level.time+=i ? 30 : cases[c][3]; globals.RunFrame();
-                uint32_t const *expected=spawn_motion[cases[c][0]+i];
+            for (unsigned i=pass ? 8 : 0;i<spawn_motion_cases[c][1];i++) {
+                level.time+=i ? 30 : spawn_motion_cases[c][3]; globals.RunFrame();
+                uint32_t const *expected=spawn_motion[spawn_motion_cases[c][0]+i];
                 T_EQ(wc3_float_bits(level.pathing_clock.time),expected[0]);
                 T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[1]);
                 T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[2]);
@@ -3022,6 +3023,88 @@ TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes)
         level.started=false;
     }
     remove(file); reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+/* Same eight public orders, now admitted by normal periodic JASS callbacks.
+ * Start at zero; no captured per-actor clock or primary phase is supplied. */
+TEST(wc3_movement, periodic_public_spawn_orders_match_retail_from_zero_clock) {
+    float radius=31,speed=270;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','P','N'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    memset(cells,0,sizeof(cells));
+    FOR_LOOP(y,16) FOR_LOOP(x,32) if (spawn_terrain_rows[y]&(1u<<x)) cells[(y+56)*384+x+152]=2;
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit source\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nlocal integer i\nlocal real offset=0\n"
+        "set tick=tick+1\nset i=(tick-1)/20\n"
+        "if (tick-1)-i*20!=0 or i>7 then\nreturn\nendif\n"
+        "if mover!=null then\ncall RemoveUnit(mover)\nendif\n"
+        "if i==1 then\nset offset=16\nelseif i==2 then\nset offset=31\n"
+        "elseif i==3 then\nset offset=32\nelseif i==4 then\nset offset=60\n"
+        "elseif i==5 then\nset offset=63.9999\nelseif i==6 then\nset offset=64\n"
+        "elseif i==7 then\nset offset=96\nendif\n"
+        "set mover=CreateUnit(Player(0),'hSPN',-1936+offset,-976,0)\n"
+        "call IssuePointOrder(mover,\"move\",-1632,-976)\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set source=CreateUnit(Player(0),'hSPN',-1936,-976,90)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    edict_t *source=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) source=ent;
+    T_NOT_NULL(source); if (!source) return;
+    edict_t *previous=NULL; uint32_t born=UINT32_MAX,clock=0;
+    unsigned cases=0,steps[8]={0},saved_cases=0,saved_steps[8]={0};
+    uint32_t saved_born=0,saved_clock=0,previous_index=0;
+    cstring_t file="/tmp/openwarcraft3-public-spawn-phase.bin";
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(pass,2) {
+        if (pass) {
+            T_ASSERT(ReadGame(file)); cases=saved_cases; memcpy(steps,saved_steps,sizeof(steps));
+            born=saved_born; clock=saved_clock; previous=&g_edicts[previous_index];
+            T_EQ(level.time,10300u); T_EQ(G_TimerRemaining(&level.timers[0]),100u);
+        }
+        for (unsigned frame=pass ? 2060 : 0;frame<3000;frame++) {
+            level.time+=5; globals.RunFrame();
+            edict_t *unit=NULL;
+            FILTER_EDICTS(ent,ent->inuse && ent!=source && !G_IsDeferredFree(ent) && ent->class_id==custom.newUnitID) unit=ent;
+            if (!unit) continue;
+            if (unit!=previous || unit->spawn_time!=born) {
+                T_ASSERT(cases<8); if (cases>=8) break;
+                previous=unit; born=unit->spawn_time; clock=wc3_float_bits(unit->movement.pose_clock.time);
+                T_EQ(clock,spawn_motion_cases[cases][2]); cases++;
+            }
+            uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+            if (!pass && frame==2059) {
+                T_ASSERT(WriteGame(file)); saved_cases=cases; memcpy(saved_steps,steps,sizeof(steps));
+                saved_born=born; saved_clock=clock; previous_index=previous-g_edicts;
+            }
+            if (now==clock) continue;
+            clock=now; unsigned c=cases-1,i=steps[c]++;
+            T_ASSERT(i<spawn_motion_cases[c][1]); if (i>=spawn_motion_cases[c][1]) continue;
+            uint32_t const *expected=spawn_motion[spawn_motion_cases[c][0]+i];
+            T_EQ(now,expected[0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[1]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[2]);
+            T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),expected[3]);
+            T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[4]);
+            T_EQ(wc3_float_bits(unit->s.angle),expected[5]);
+        }
+        T_EQ(cases,8); FOR_LOOP(c,8) T_EQ(steps[c],spawn_motion_cases[c][1]);
+        if (jass_rterror_pending(level.vm)) fprintf(stderr,"WC3 periodic spawn regression: %s\n",jass_rterror_message(level.vm));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    remove(file); level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
 }
 
 /* Scene44's public spawn endpoints include the initial sentinel cancellation.

@@ -3872,3 +3872,53 @@ three-entry producer corpus,246-entry/92-fixture inventory, ability audit,
 in `runtime/spawn-motion-validation-261001.json`. This strengthens ROUTE-01.3 and
 NUM-02.3's partial evidence without declaring the initial clock producer or full
 dynamic crowd replacement complete.
+
+## Public timer admission reaches Move from zero
+
+Payoff35 removes the supplied per-actor clock/phase from the eight public
+spawn-to-Move journey checks. The engine starts at primary clock0/phase0 and
+uses ordinary JASS TimerStart(0.1,true), RemoveUnit, CreateUnit and IssuePointOrder.
+The existing scene44-derived WPM clip and stock-shaped31-radius/270-speed row
+remain explicit test controls. Every one of247 committed clock, native position,
+velocity and facing rows matches the original journey fixture.
+
+Two engine bugs were reproduced. G_RunTimers subtracted100ms on every drain,
+although RunFrame now drains before each5ms primary advance and at publication.
+It now consumes actual elapsed simulation time once through a retained cursor.
+Within a shared primary quantum, the engine also ran authored timers before the movement
+owner. The captured original heap runs the owner first: births420/1620/2820
+see70/270/470 completed owner updates. Running a fresh mover immediately at its
+birth timestamp advanced three journeys one owner update early; changing that
+relative order removes398 word/count failures in the complete regression.
+
+Both new owned150-second traces use the unchanged map/source hashes. They
+contain6000 completed primary advances,1000 owner callbacks,300 scenario samples,
+eight public births and247 movement commits. Primary digest remains
+`c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae`;
+movement digest remains
+`c9bdf0f74634db0555f2625776af7d97d8838997999efd5a6f8c37c6a593bf96`.
+The strict phase checker validates admission inside the primary source, both
+position writes, owner counts and the phase sequence2/0/4/2/0/4/2/0.
+
+Save72 serializes the timer cursor normally with the restored server clock.
+Elapsed-time, repeated-drain, Pause/Resume, restart, destroy and callback-restart
+tests cover the changed timer paths. A save during the fractional public journey
+also resumes the authored timer and the later public actor lifetimes, matching76
+additional original commits. Debug RoC/TFT each pass87,244 assertions in2295 tests. Ghidra
+persists registered TimerStart216c70 and ScriptTimer_Start249ca0 with explicit
+stack/register ABIs; the existing primary source and timer-drain comments retain
+the new observed relative order. Total477 roles,31 layouts/178 fields,201
+prototypes and45 globals.
+
+This closes the ordinary scene's public admission producer. TimerStart still
+converts scalar timeout to integer milliseconds: general scalar heap deadlines,
+periodic rearm/zero-period policy, epoch handling and other producer profiles
+remain required. The test's explicit remainder parentheses avoid the engine's
+currently right-associated chained subtraction; full compiled expression grammar
+and its pathfinding consumers remain separate work.
+
+Validation: optimized RoC/TFT also each pass87,244 assertions in2295 tests;
+forced debug/release production builds and the ordinary `make test` umbrella
+pass. All160 pathfinding Python checks,249-entry/93-fixture inventory and the
+three fresh strict phase corpus reports pass. Ghidra readback reports the
+program saved with the four relevant roles/prototypes intact.

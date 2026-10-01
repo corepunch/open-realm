@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 70, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 72, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -261,10 +261,14 @@ Do not "fix" this by re-basing individual subsystems at load (the older per-time
 `started = gi.GetTime(); timeout = remaining` rebase). Restoring the server tick covers every
 deadline; a per-subsystem rebase silently misses the edict and client-presentation deadlines.
 
-JASS timers deliberately hold **no** clock-absolute state. `gtimer_s` stores `duration` plus a
-`remaining` countdown that `G_RunTimers` decrements by `FRAMETIME` each frame, so a timer reloads
-with exactly the time it had left and needs no rebase at all. Prefer this shape for any new
-persisted deadline.
+JASS timers retain `duration`, a `remaining` countdown and its `updated` simulation-millisecond
+cursor. `G_RunTimers` consumes `level.time - updated` once; repeated drains at the same clock
+cannot age a positive-duration timer. Pause materializes elapsed time; Resume and Start publish
+a fresh cursor. GetRemaining reports unconsumed elapsed time without modifying the timer.
+Save72 writes the cursor through `timer_fields[]` alongside the saved server clock. Load restores
+both together, with no per-timer rebase or compatibility conversion. Older formats are rejected.
+The prior fixed100ms decrement was incorrect once RunFrame drained at each5ms primary quantum.
+See [normal timer admission](retail-pathfinding-engine.md#public-timer-admission-reaches-move-from-zero).
 
 Regression test: `wc3_save.load_restores_server_clock_onto_saved_time` in
 `games/warcraft-3/game/tests/t_game.c`.
@@ -721,3 +725,14 @@ already owns that representation, so no layout, callback or meaning changes.
 The [spawn regression](retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose)
 saves the fractional public getter result immediately and repeats640 scheduler
 continuation words through normal ReadGame/WriteGame.
+
+### Timer countdown cursor (version72)
+
+The new `gtimer_s.updated` field is ordinary authoritative timer state. It preserves
+elapsed time that has not yet been materialized into `remaining`, including a save
+between timer drains. Tests restore a callback-restarted timer with45ms unconsumed
+elapsed time, reject71 and all older listed versions, and resume public timer-driven
+Move through the fractional actor and subsequent RemoveUnit/CreateUnit lifetimes.
+The JASS snapshot remains7; no network fields or callback identities change.
+Original scalar heap deadlines, arbitrary short/zero periods and timer-clock epoch
+rebasing remain explicit numerical backlog work.

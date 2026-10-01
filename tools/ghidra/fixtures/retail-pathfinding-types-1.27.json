@@ -4863,6 +4863,64 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f216c70",
+      "name": "Jass_TimerStart",
+      "returns": "void",
+      "convention": "__cdecl",
+      "evidence": "TimerStart string registration207eae/207eb3 and decoded216c70 stack8/c/10/14; caller249ca0 RET0c.",
+      "parameters": [
+        {
+          "name": "timer_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "timeout",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "periodic",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "handler",
+          "type": "u32",
+          "storage": 16
+        }
+      ]
+    },
+    {
+      "address": "6f249ca0",
+      "name": "ScriptTimer_Start",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Decoded249ca0 ECX this, timeout stack4,periodic stack8,handler stackc,RET0c; scalar timeout forwarded0609b0.",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "ptr:u8",
+          "storage": "ECX"
+        },
+        {
+          "name": "timeout",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "periodic",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "handler",
+          "type": "u32",
+          "storage": 12
+        }
+      ]
     }
   ],
   "globals": [

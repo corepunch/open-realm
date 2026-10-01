@@ -35,6 +35,7 @@ from verify_wc3_wait_heading_trace import verify as verify_wait_heading
 from verify_wc3_retry_trace import verify as verify_retry
 from verify_wc3_spawn_trace import verify as verify_spawn, digest as spawn_digest
 from verify_wc3_spawn_motion_trace import verify as verify_spawn_motion, digest as spawn_motion_digest
+from verify_wc3_spawn_phase_trace import verify_births
 
 
 class PathingMathTests(unittest.TestCase):
@@ -62,6 +63,36 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_public_spawn_births_require_primary_dispatch_and_observed_owner_phase(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-spawn-phase-1.27.json').read_text())
+        trajectory=json.loads((ROOT/'tools/ghidra/fixtures/retail-primary-clock-trajectory-1.27.json').read_text())
+        rows=[];state=[0,0,bits(300)]; owners=0
+        for tick in range(3000):
+            rows.append(dict(event='clock-source-begin',source='direct',before=[state]))
+            if tick and tick%6==0:
+                rows.append(dict(event='clock-owner-end')); owners+=1
+            for birth in fixture['births']:
+                if tick==birth['primary_advances']:
+                    for _ in range(2):rows.append(dict(event='position-commit',case=birth['case'],clock=state))
+            state=trajectory['advances'][tick]
+            rows.append(dict(event='clock-advance-end',domain=20,after=state))
+            rows.append(dict(event='clock-source-end',source='direct',after=[state]))
+        result=verify_births(rows,fixture)
+        self.assertEqual(result['public_births'],8)
+        self.assertEqual(result['birth_phases'],[2,0,4,2,0,4,2,0])
+        for kind in ('case','clock','missing','outside','owner','advance','first_boundary'):
+            changed=copy.deepcopy(rows)
+            birth=next(r for r in changed if r['event']=='position-commit' and r['case']=='spawn_1')
+            i=changed.index(birth)
+            if kind=='case':birth['case']='spawn_2'
+            elif kind=='clock':birth['clock'][0]^=1
+            elif kind=='missing':changed.remove(birth)
+            elif kind=='outside':changed.insert(i,dict(event='clock-source-end',source='direct'))
+            elif kind=='owner':changed.insert(i,dict(event='clock-owner-end'))
+            elif kind=='advance':changed.insert(i,dict(event='clock-advance-end',domain=20,after=birth['clock']))
+            else:changed[i-1],changed[i]=changed[i],changed[i-1]
+            with self.subTest(kind=kind),self.assertRaises(ValueError):verify_births(changed,fixture)
 
     def test_public_spawn_motion_lifetimes_and_rejected_corruption(self):
         fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-spawn-motion-1.27.json').read_text())

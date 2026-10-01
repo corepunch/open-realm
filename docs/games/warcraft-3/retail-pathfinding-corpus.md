@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **246 entries**: **45** distinct original-code oracle
-scripts plus **50** declared variants, **116** archived JSONL audits and **35**
+The inventory now has **249 entries**: **45** distinct original-code oracle
+scripts plus **50** declared variants, **118** archived JSONL audits and **36**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -23,10 +23,10 @@ outside the accepted inventory unless given their own rejection contract.
 | 89 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 108 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 110 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Twenty-five public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Twenty-six public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -632,3 +632,20 @@ arrival inputs, source/map identities and a small derived ground WPM control.
 The engine's public-order table is checked against these original words.
 The original phase producer and broader terrain/profile/group composition remain
 separate requirements. See [the actual engine consumer](retail-pathfinding-engine.md#clear-public-routes-retain-native-waypoints).
+
+## Normal periodic timer admission
+
+Owned `spawn-phase-live-{first,repeat}-261001.jsonl` adds primary clock observers
+to the unchanged scene44 map/source. Presentation interleaving differs between
+captures; the6000 primary advances,1000 owner callbacks and247 movement commits
+retain their established exact digests. The strict checker composes the existing
+clock and spawn-motion contracts, then checks both position writes for each birth
+inside primary timer dispatch. Births occur after20+400*i advances; phases are
+2,0,4,2,0,4,2,0. At phase0 the due owner has already completed before public spawn.
+
+`retail-public-spawn-phase-1.27.json` freezes this compact timeline and the SHA256
+of the existing motion fixture. It duplicates no binary assets or large clock
+stream. The two archive audits and repeated live contract produce fresh reports
+in `spawn-phase-corpus-final-261001`. The [engine producer regression](retail-pathfinding-engine.md#public-timer-admission-reaches-move-from-zero)
+drives ordinary TimerStart from zero, with no per-actor clock/phase supplied.
+General timer scalar deadlines, short/zero periods and other actor profiles remain open.

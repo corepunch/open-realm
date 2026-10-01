@@ -32,6 +32,10 @@ through accepted steps, final point arrival and save/load. World publication
 preserves the original scalar rounding. Point Move now uses the measured
 [primary clock and old-velocity phase](retail-pathfinding-engine.md#primary-clock-reaches-move-and-predicted-positions),
 with predictions between30ms owner callbacks and saved clock/phase state.
+[Normal JASS timer admission](retail-pathfinding-engine.md#public-timer-admission-reaches-move-from-zero)
+now reproduces eight complete public spawn-to-Move journeys from clock zero.
+Timers consume elapsed simulation time once, and a movement owner due at the
+same timestamp runs before authored timer callbacks.
 
 Selection Move and Shift queues now use [retail ranked formation geometry](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders)
 for up to twelve members. Authored ranks, collision radii, tie assignments,

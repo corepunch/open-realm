@@ -1086,7 +1086,7 @@ struct gtrigger_s {
 
 struct gtimer_s {
     struct jass_function const *handler;
-    uint32_t duration, remaining;
+    uint32_t duration, remaining, updated;
     uint32_t generation;
     bool periodic, paused, running;
 };
