@@ -1148,6 +1148,12 @@ CLIENTCOMMAND(Button) {
         memcpy(&class_id, classname, sizeof(class_id));
         SP_TrainUnit(producer, class_id);
     }
+    if (!strcmp(argv[1], STR_CmdStop) || !strcmp(argv[1], STR_CmdHoldPos)) {
+        /* These immediate state commands change which command button is
+         * engaged. The button handler does not otherwise dirty or rebuild
+         * the command card, so publish the new state before returning. */
+        Get_Commands_f(clent);
+    }
 }
 
 CLIENTCOMMAND(Autocast) {
