@@ -248,16 +248,50 @@ does not gain a level from the research.
 Retail Sorceress training (`Rhst`) is an explicit stock relation that the SLKs
 do not encode as an effect/code pair: `hsor` lists `Rhst` in `UnitBalance` and
 `Aivs` / `Aply` are marked `checkDep`, while the `Rhst` UpgradeData row only
-contains stat effects. Invisibility (`Aivs`) requires training level 1;
-Polymorph (`Aply`) requires level 2. Priest training (`Rhpt`) has the same
-omission: `hmpr` lists it in `UnitBalance`, and Dispel Magic (`Adis`) and Inner
-Fire (`Ainf`) are dependency-checked spells, while the upgrade row only
-contains stat effects. Dispel Magic requires level 1; Inner Fire requires
-level 2. OpenRealm applies those per-ability thresholds to command-card and
-direct activation gates. A command is hidden if its required level exceeds the
-player's maximum allowed level; otherwise it remains visible but disabled
-until researched. Keep these links in the dependency gate because otherwise
-the spells appear ready before their authored training tier.
+contains stat effects. `Aivs`, `Aply`, `Adis`, and `Ainf` all have
+`AbilityData.reqLevel=0`; `checkDep=1` marks dependency checking but doesn't
+encode a training tier. Their `levels=1` is the ability rank count, not a
+training tier. `Rhst` and `Rhpt` have `maxlevel=2`, but their effect codes
+(`rmnx`, `rmnr`, `rhpx`, `ratd`) don't name the unlocked spell.
+
+`reqLevel` cannot safely supply this tier. Retail normal abilities such as Heal
+and Defend also have `reqLevel=0`; Hero skills such as Blizzard, Water
+Elemental, Flame Strike, Holy Light, and Channel have `reqLevel=1` and
+`levels=3`. For Hero skills, `reqLevel` works with `levelSkip` to specify the
+Hero level at which each skill rank can be learned. It is unrelated to caster
+training, and map ability edits can change it through `arlv` without changing
+the meaning.
+
+OpenRealm therefore uses one small stock compatibility table for the links
+that retail omits: Invisibility (`Aivs`) requires `Rhst` level 1, Polymorph
+(`Aply`) level 2, Dispel Magic (`Adis`) requires `Rhpt` level 1, and Inner Fire
+(`Ainf`) level 2. Other dependencies use the parsed `UpgradeData.effect` /
+`effectCode` pair when it contains `rlev`, or the existing gate-only
+`checkDep` plus comments relation when the upgrade has no effects. The generic
+`rlev` path doesn't recognize any of these stock spell rawcodes specially.
+
+`UnitBalance.upgrades` links a unit to the upgrade; `Upgrades Used` alone
+doesn't name which ability each caster-training level unlocks. Human05's
+Sorceress still lists `Rhst` as its training upgrade and `UnitAbilities` still
+contains `Aivs` and `Aply`. Its script sets Player 1's maximum allowed `Rhst`
+level to 1, so Invisibility is permitted while Polymorph is hidden.
+
+OpenRealm uses the resolved requirement for both command-card and direct
+activation checks. If the required level exceeds `GetPlayerTechMaxAllowed`,
+the command is hidden. If the level is allowed but not researched, the command
+stays visible and disabled. At or above the required researched level, it is
+usable. `SetPlayerAbilityAvailable` remains a separate per-player rawcode
+switch that can suppress an ability regardless of training. Unmapped owners do
+not use the fallback client returned by `G_GetPlayerClientByNumber`; their
+research state cannot be borrowed from a real player's slot.
+
+Map object overrides can edit a unit's `UnitBalance.upgrades` and map ability
+data is parsed from `war3map.w3a`. The ability override path applies fields
+such as `alev`, `arlv`, and DataA-I, but `arlv` retains its Hero-level meaning.
+OpenRealm does not currently merge `war3map.w3q` upgrade-object overrides, so
+custom maps cannot yet supply a new `rlev` upgrade-to-ability relation through
+that file. The stock caster table remains necessary until the retail link/tier
+is available as parsed runtime data.
 
 ### `rmnx` / `rmnr` — mana capacity and regeneration
 
