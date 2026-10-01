@@ -1521,14 +1521,13 @@ static int SCR_LayoutModalLayer(void) {
 
 bool SCR_LayoutModalActive(void) { return SCR_LayoutModalLayer() >= 0; }
 
-static void SCR_LayoutApplyImmediateOrderQueueModifier(char *command, size_t size) {
-    SDL_Keymod const mods = SDL_GetModState();
-    if (!(mods & (KMOD_LSHIFT | KMOD_RSHIFT))) return;
+static void SCR_LayoutApplyImmediateOrderQueueModifier(char *command, size_t size, bool shift_held) {
+    if (!shift_held) return;
     if (strcmp(command, "button CmdStop") && strcmp(command, "button CmdHoldPos")) return;
     strlcat(command, " queue", size);
 }
 
-bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
+bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param, bool shift_held) {
     vec2_t const point = SCR_ScreenToUI(x, y);
     uiFrame_t const *hovered_frame = NULL;
     int const modal_layer = SCR_LayoutModalLayer();
@@ -1630,7 +1629,7 @@ bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
             if (Rect_contains(SCR_LayoutRect(frame), &point)) {
                 char command[CMDARG_LEN * 2];
                 SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
-                SCR_LayoutApplyImmediateOrderQueueModifier(command, sizeof(command));
+                SCR_LayoutApplyImmediateOrderQueueModifier(command, sizeof(command), shift_held);
                 MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                 SZ_Printf(&cls.netchan.message, "%s", command);
                 return false;
@@ -1641,7 +1640,7 @@ bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
 }
 
 /* Dispatch a command-button hotkey the same way a mouse click on that */
-bool SCR_LayoutKeyEvent(int key) {
+bool SCR_LayoutKeyEvent(int key, bool shift_held) {
     int const upper = toupper(key);
     int const modal_layer = SCR_LayoutModalLayer();
 
@@ -1658,7 +1657,7 @@ bool SCR_LayoutKeyEvent(int key) {
             if (is_cancel || (frame->hotkey && toupper(frame->hotkey) == upper)) {
                 char command[CMDARG_LEN * 2];
                 SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
-                SCR_LayoutApplyImmediateOrderQueueModifier(command, sizeof(command));
+                SCR_LayoutApplyImmediateOrderQueueModifier(command, sizeof(command), shift_held);
                 MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                 SZ_Printf(&cls.netchan.message, "%s", command);
                 return true;

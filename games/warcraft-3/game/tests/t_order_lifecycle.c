@@ -312,6 +312,17 @@ TEST(wc3_order_lifecycle, stop_records_guard_position_and_returns_after_auto_com
     T_FEQ(unit->goalentity->s.origin2.y, 0, 0.001f);
 }
 
+TEST(wc3_order_lifecycle, internal_stop_cleanup_does_not_create_guard_position) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(96, 0);
+
+    order_stop_cleanup(unit);
+
+    T_ASSERT(!unit->movement.guard_position_valid);
+    T_ASSERT(!unit->movement.guard_combat);
+    T_ASSERT(!unit->movement.guard_returning);
+}
+
 TEST(wc3_order_lifecycle, guard_return_completion_restores_stopped_idle) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);

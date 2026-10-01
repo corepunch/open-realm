@@ -164,7 +164,7 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
         return ent && G_IsNight();
     case A_EXECUTE:
         if (!ent || !G_IsNight()) return false;
-        order_stop(ent);
+        order_stop_cleanup(ent);
         shadowmeld_set_hide_order(ent, true);
         if (!ent->shadowmeld.active) {
             ent->shadowmeld.fade_start = 0;

@@ -762,6 +762,8 @@ typedef enum {
     A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
     A_UNIT_INIT,        /* Spawn/type rebind: initialize behavior from the unit's authored data. */
     A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
+    A_AUTO_COMBAT_START, /* Generic AI acquired/retaliated against a target; persistent behaviors may mark a detour. */
+    A_AUTO_COMBAT_END,   /* Generic combat ended; persistent behaviors may resume or restore their order. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
@@ -3137,10 +3139,10 @@ void move_cancel_displacement(edict_t *);
 bool move_displacement_active(edict_t const *);
 bool move_displacement_reached(edict_t *);
 void order_stop(edict_t *);
+void order_stop_cleanup(edict_t *);
 void order_stop_queued(edict_t *);
 void G_SetUnitGuardPosition(edict_t *);
 void G_ClearUnitGuardPosition(edict_t *);
-bool G_StartUnitGuardReturn(edict_t *);
 void order_attackmove(edict_t *, edict_t *);
 void order_patrol(edict_t *, edict_t *);
 void order_patrol_resume(edict_t *);

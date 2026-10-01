@@ -1642,6 +1642,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
             ent->movement.holding_position = false;
             order_move(ent, waypoint);
             ent->movement.group_speed = group_speed;  /* after order_move, which resets it */
+            S_UnitAbilityOrderAccepted(ent, "move");
             issued = true;
         }
     }
