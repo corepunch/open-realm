@@ -1,0 +1,6 @@
+function main takes nothing returns nothing
+    if GetCreepCamp(0, 100, true) != null then
+        call MissingAIAction()
+    endif
+    call Sleep(10)
+endfunction

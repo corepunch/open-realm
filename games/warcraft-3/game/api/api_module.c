@@ -56,6 +56,7 @@ jassModule_t jass_funcs[] = {
     { "TownThreatened", TownThreatened },
     { "IsTowered", IsTowered },
     { "GetMegaTarget", GetMegaTarget },
+    { "GetCreepCamp", GetCreepCamp },
     { "UnitInvis", UnitInvis },
     { "SetCampaignAI", SetCampaignAI },
     { "SetMeleeAI", SetMeleeAI },

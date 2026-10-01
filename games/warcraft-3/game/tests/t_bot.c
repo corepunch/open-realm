@@ -1157,6 +1157,52 @@ TEST(wc3_bot, get_mega_target_native_is_registered_for_player_bound_ai) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
+TEST(wc3_bot, get_creep_camp_native_is_registered_for_player_bound_ai) {
+    bot_t *bot = level.bots + 2;
+
+    reset_entities();
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_get_creep_camp.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, get_creep_camp_filters_total_level_flyers_and_nearest_camp) {
+    static UnitBalance_t const level2 = { .maxHealth = 100, .level = 2 };
+    static UnitBalance_t const level3 = { .maxHealth = 100, .level = 3 };
+    static UnitData_t const ground_data = { .moveTypeName = "foot" };
+    static UnitData_t const fly_data = { .moveTypeName = "fly" };
+    player_t *player = &game.clients[2].ps;
+    edict_t *hall, *near_a, *near_b, *far_a, *far_b;
+
+    reset_entities();
+    InitUnitData();
+    hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    near_a = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1000, 0);
+    near_b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1300, 0);
+    far_a = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 3000, 0);
+    far_b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 3300, 0);
+    for (edict_t *u = near_a; u; u = u == near_a ? near_b : u == near_b ? far_a : u == far_a ? far_b : NULL) {
+        u->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+        u->svflags |= SVF_MONSTER;
+        u->health.value = u->health.max_value = 100;
+        u->data.UnitData = &ground_data;
+    }
+    near_a->data.UnitBalance = &level2;
+    near_b->data.UnitBalance = &level3; /* near camp power 5 */
+    far_a->data.UnitBalance = &level3;
+    far_b->data.UnitBalance = &level3;  /* far camp power 6 */
+
+    T_ASSERT(G_BotGetCreepCamp(player, 5, 6, false) == near_a);
+    T_ASSERT(G_BotGetCreepCamp(player, 6, 6, false) == far_a);
+    T_NULL(G_BotGetCreepCamp(player, 7, 9, false));
+
+    near_b->data.UnitData = &fly_data;
+    T_ASSERT(G_BotGetCreepCamp(player, 5, 6, false) == far_a);
+    T_ASSERT(G_BotGetCreepCamp(player, 5, 5, true) == near_a);
+    (void)hall;
+}
+
 TEST(wc3_bot, get_mega_target_requires_watch_and_vulnerable_hostile_main) {
     static UnitWeapons_t const enabled_attack = { .attacksEnabled = 1 };
     player_t *caller = &game.clients[2].ps;

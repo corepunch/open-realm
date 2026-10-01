@@ -185,6 +185,12 @@ uint32_t GetMegaTarget(jass_t *j) {
     return target ? jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
 }
 
+uint32_t GetCreepCamp(jass_t *j) {
+    edict_t *target = G_BotGetCreepCamp(jass_getcontext(j)->playerState,
+        jass_checkinteger(j, 1), jass_checkinteger(j, 2), jass_checkboolean(j, 3));
+    return target ? jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
+}
+
 uint32_t RemoveSiege(jass_t *j) {
     G_BotRemoveSiege(jass_getcontext(j)->playerState);
     return 0;
