@@ -276,12 +276,12 @@ static const char building_dependency_ability_slk[] =
     "C;X1;Y1;K\"alias\"\n"
     "C;X3;K\"checkDep\"\n"
     "C;X4;K\"comments\"\n"
-    "C;X1;Y2;K\"Amic\"\n"
+    "C;X1;Y2;K\"Acan\"\n"
     "C;X3;K1\n"
     "C;X4;K\"Cannibalize\"\n"
     "C;X1;Y3;K\"Axyz\"\n"
     "C;X3;K1\n"
-    "C;X4;K\"Canine\"\n"
+    "C;X4;K\"Cannibalize\"\n"
     "E\n";
 
 static slkTestData_t *building_install_upgrade_data(slkTestData_t **rows_out) {
@@ -1587,11 +1587,11 @@ TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
     gameClient_t *client;
     edict_t *unit;
     UnitBalance_t balance = { .upgrades = "Ruac" };
-    UnitAbilities_t abilities = { .abilList = "Amic" };
+    UnitAbilities_t abilities = { .abilList = "Acan" };
     gameCommandButton_t buttons[16];
     slkTestData_t *rows = NULL, *old, *ability_rows, *old_ability;
     uint32_t const cannibalize_research = MAKEFOURCC('R','u','a','c');
-    uint32_t const cannibalize = MAKEFOURCC('A','m','i','c');
+    uint32_t const cannibalize = MAKEFOURCC('A','c','a','n');
     uint8_t count;
     bool found;
 
@@ -1607,11 +1607,11 @@ TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
     memset(client->tech, 0, sizeof(client->tech));
 
     T_ASSERT(!G_UnitAbilityResearchAvailable(unit, cannibalize));
-    /* Similar prefixes in authored comments are not a dependency link. */
+    /* Shared comment words cannot create a relation for an unrelated rawcode. */
     T_ASSERT(G_UnitAbilityResearchAvailable(unit, MAKEFOURCC('A','x','y','z')));
     count = G_GetCommandButtons(unit, buttons, 16);
     found = false;
-    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Acan")) {
         found = true;
         T_ASSERT(buttons[i].disabled);
     }
@@ -1621,7 +1621,7 @@ TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
     T_ASSERT(G_UnitAbilityResearchAvailable(unit, cannibalize));
     count = G_GetCommandButtons(unit, buttons, 16);
     found = false;
-    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Acan")) {
         found = true;
         T_ASSERT(!buttons[i].disabled);
     }

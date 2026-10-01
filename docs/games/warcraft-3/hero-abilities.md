@@ -28,8 +28,9 @@ When an ability has `levelSkip == 0`, `Misc/HeroAbilityLevelSkip` is used. The W
 
 1. the rawcode is present in the unit's `heroAbilList`;
 2. the ability exists in `AbilityData.slk` and has another rank;
-3. the Hero has an unspent skill point;
-4. the Hero meets the next-rank level requirement.
+3. the player has not disabled the ability with `SetPlayerAbilityAvailable`;
+4. the Hero has an unspent skill point;
+5. the Hero meets the next-rank level requirement.
 
 `G_HeroLearnSkill()` performs that check, advances exactly one rank, and consumes exactly one point. Both the in-game `research` command and the JASS `SelectHeroSkill` native route through this function. Point mutation itself is centralized in `G_HeroModifySkillPoints()` so level-up grants, learned-skill consumption, and scripted point changes share the same non-negative storage and command-card invalidation.
 
