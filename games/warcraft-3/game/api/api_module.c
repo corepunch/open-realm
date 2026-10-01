@@ -71,6 +71,7 @@ jassModule_t jass_funcs[] = {
     { "SetReplacementCount", SetReplacementCount },
     { "GroupTimedLife", GroupTimedLife },
     { "RemoveInjuries", RemoveInjuries },
+    { "RemoveSiege", RemoveSiege },
     { "SetNewHeroes", SetNewHeroes },
     { "SetRandomPaths", SetRandomPaths },
     { "SetDefendPlayer", SetDefendPlayer },

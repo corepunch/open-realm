@@ -586,6 +586,32 @@ void G_BotRemoveInjuries(player_t *player) {
     ARRAY_COUNT(captain->units) = write;
 }
 
+static bool G_BotUnitSiege(edict_t const *unit) {
+    if (!unit) return false;
+    /* BZ_COMPAT_GUESS: common.ai exposes RemoveSiege but Blizzard does not document
+     * the native's internal classifier. Stock WC3 siege engines author their combat
+     * profile with the siege attack type, so use either active attack slot's authored
+     * ATK_SIEGE value rather than a hard-coded unit rawcode list. */
+    return unit->attack1.type == ATK_SIEGE || unit->attack2.type == ATK_SIEGE;
+}
+
+/* InitMeleeGroup calls RemoveSiege before building the next assault specification.
+ * Keep this native limited to attack-captain roster cleanup: siege units remain live,
+ * owned world entities and may be managed separately by the AI's artillery policy. */
+void G_BotRemoveSiege(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    uint32_t write = 0;
+    if (!bot) return;
+    captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    FOR_LOOP(read, ARRAY_COUNT(captain->units)) {
+        edict_t *unit = captain->units[read];
+        if (!G_BotUnitAlive(unit) || G_BotUnitSiege(unit)) continue;
+        captain->units[write++] = unit;
+    }
+    ARRAY_COUNT(captain->units) = write;
+}
+
 /* Blizzard scores heroes and ordinary units separately so one healthy category cannot hide the other's losses. */
 int32_t G_BotCaptainReadiness(player_t *player, bool mana) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;

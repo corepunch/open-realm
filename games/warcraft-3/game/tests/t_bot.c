@@ -961,6 +961,52 @@ TEST(wc3_bot, remove_injuries_native_runs_in_player_bound_ai_vm) {
     T_FEQ(injured->goalentity->s.origin2.x, hall->s.origin2.x, 0.001f);
 }
 
+TEST(wc3_bot, remove_siege_drops_siege_attack_members_without_ordering_them) {
+    bot_t *bot = level.bots + 2;
+    uint32_t type = MAKEFOURCC('h','f','o','o');
+    edict_t *siege1 = make_bot_harvest_unit(type, 256, 0, 2, NULL);
+    edict_t *siege2 = make_bot_harvest_unit(type, 288, 0, 2, NULL);
+    edict_t *normal = make_bot_harvest_unit(type, 320, 0, 2, NULL);
+    edict_t *dead = make_bot_harvest_unit(type, 352, 0, 2, NULL);
+
+    siege1->attack1.type = ATK_SIEGE;
+    siege2->attack2.type = ATK_SIEGE;
+    normal->attack1.type = ATK_NORMAL;
+    dead->health.value = 0;
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(4 * sizeof(edict_t *));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 4;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[0] = siege1;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[1] = normal;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[2] = dead;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[3] = siege2;
+
+    G_BotRemoveSiege(&game.clients[2].ps);
+
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[0], normal);
+    T_NULL(siege1->currentmove);
+    T_NULL(siege2->currentmove);
+    T_NULL(normal->currentmove);
+}
+
+TEST(wc3_bot, remove_siege_native_runs_in_player_bound_ai_vm) {
+    bot_t *bot = level.bots + 2;
+    edict_t *siege = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 256, 0, 2, NULL);
+
+    siege->attack1.type = ATK_SIEGE;
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(edict_t *));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 1;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[0] = siege;
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_remove_siege.ai", BOT_CAMPAIGN));
+
+    G_BotRunFrame();
+
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 0);
+    T_NULL(siege->currentmove);
+}
+
 TEST(wc3_bot, captain_readiness_uses_lower_hero_and_unit_aggregate) {
     static UnitBalance_t hero_balance = { .strength = 1 };
     static UnitBalance_t unit_balance = {0};

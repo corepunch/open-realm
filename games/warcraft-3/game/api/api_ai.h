@@ -172,6 +172,11 @@ uint32_t UnitAlive(jass_t *j) {
     return jass_pushboolean(j, G_BotUnitAlive(unit));
 }
 
+uint32_t RemoveSiege(jass_t *j) {
+    G_BotRemoveSiege(jass_getcontext(j)->playerState);
+    return 0;
+}
+
 /* common.ai separates intrinsic invisibility from player-relative detection. */
 uint32_t UnitInvis(jass_t *j) {
     edict_t *unit = jass_checkhandle(j, 1, "unit");
