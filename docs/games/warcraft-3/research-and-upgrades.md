@@ -249,12 +249,15 @@ Retail Sorceress training (`Rhst`) is an explicit stock relation that the SLKs
 do not encode as an effect/code pair: `hsor` lists `Rhst` in `UnitBalance` and
 `Aivs` / `Aply` are marked `checkDep`, while the `Rhst` UpgradeData row only
 contains stat effects. Invisibility (`Aivs`) requires training level 1;
-Polymorph (`Aply`) requires level 2. OpenRealm applies those per-ability
-thresholds to command-card and direct activation gates. A command is hidden if
-its required level exceeds the player's maximum allowed level; otherwise it
-remains visible but disabled until researched. Keep this relation in the
-dependency gate because otherwise the spells appear ready before their authored
-training tier.
+Polymorph (`Aply`) requires level 2. Priest training (`Rhpt`) has the same
+omission: `hmpr` lists it in `UnitBalance`, and Dispel Magic (`Adis`) and Inner
+Fire (`Ainf`) are dependency-checked spells, while the upgrade row only
+contains stat effects. Dispel Magic requires level 1; Inner Fire requires
+level 2. OpenRealm applies those per-ability thresholds to command-card and
+direct activation gates. A command is hidden if its required level exceeds the
+player's maximum allowed level; otherwise it remains visible but disabled
+until researched. Keep these links in the dependency gate because otherwise
+the spells appear ready before their authored training tier.
 
 ### `rmnx` / `rmnr` — mana capacity and regeneration
 
