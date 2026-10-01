@@ -54,9 +54,9 @@ void G_WeatherInitMap(void) {
 }
 
 /* Build the presentation tint for this recipient. Authoritative vertex colour
- * remains unit state; Shadow Meld multiplies only the recipient's alpha so
- * owner/shared-vision clients see the familiar ghosted model while hostile
- * detector viewers retain the normal authored tint. */
+ * remains unit state. Hero dissipation fades for every viewer; Shadow Meld and
+ * invisibility additionally multiply only owner/shared-vision presentation so
+ * hostile detector viewers retain the normal authored tint. */
 static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color32_t *out) {
     uint32_t player;
     color32_t color;
@@ -64,14 +64,15 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
 
     if (!unit || !unit->inuse || !out) return false;
     color = unit->vertex_color_set ? unit->vertex_color : COLOR32_WHITE;
+    presentation_alpha = G_UnitDissipatePresentationAlpha(unit);
 
     if (client_ent && client_ent->client) {
         player = client_ent->client->ps.number;
         if (unit->s.player != player && !G_FowPlayerCanSeeEntity(player, unit)) return false;
         if (unit->s.player == player || G_FowPlayersShareVision(player, unit->s.player)) {
-            presentation_alpha = S_ShadowMeldPresentationAlpha(unit);
-            if (S_UnitHasInvisibilityState(unit))
-                presentation_alpha = MIN(presentation_alpha, 0.35f);
+            float ghost_alpha = S_ShadowMeldPresentationAlpha(unit);
+            if (S_UnitHasInvisibilityState(unit)) ghost_alpha = MIN(ghost_alpha, 0.35f);
+            presentation_alpha *= ghost_alpha;
         }
     }
 

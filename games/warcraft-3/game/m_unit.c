@@ -76,6 +76,16 @@ static float unit_dissipate_duration(edict_t const *self) {
     return unit_decay_wait(game.constants.dissipateTime);
 }
 
+float G_UnitDissipatePresentationAlpha(edict_t const *self) {
+    float duration;
+
+    if (!self || !self->inuse || self->currentmove != &unit_move_dissipate ||
+        !G_UnitIsHero(self) || (self->aiflags & AI_ILLUSION)) return 1.0f;
+    duration = unit_dissipate_duration(self);
+    if (duration <= 0.0f) return 0.0f;
+    return MIN(1.0f, MAX(0.0f, self->wait / duration));
+}
+
 static void unit_set_decay_move(edict_t *self, umove_t *move) {
     unit_setmove(self, move);
     /* A missing exact secondary sequence may fall back to another sequence in

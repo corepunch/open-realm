@@ -1187,6 +1187,69 @@ TEST(wc3_unit, die_publishes_death_event) {
     T_ASSERT(found);
 }
 
+static bool unit_datagram_tint(edict_t *client_ent, uint32_t entity_number, color32_t *out) {
+    uint8_t data[1024];
+    uint32_t size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    uint32_t offset = 0;
+    uint16_t header, count;
+
+    if (!size || size < sizeof(header)) return false;
+    memcpy(&header, data, sizeof(header));
+    offset += sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
+        uint16_t lightning_count;
+        if (offset + sizeof(lightning_count) > size) return false;
+        memcpy(&lightning_count, data + offset, sizeof(lightning_count));
+        offset += sizeof(lightning_count) + lightning_count * sizeof(lightningEffect_t);
+    }
+    if (!(header & BZ_GAME_DATAGRAM_ENTITY_TINTS) || offset + sizeof(count) > size) return false;
+    memcpy(&count, data + offset, sizeof(count));
+    offset += sizeof(count);
+    FOR_LOOP(i, count) {
+        uint16_t number;
+        color32_t color;
+        if (offset + sizeof(number) + sizeof(color) > size) return false;
+        memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+        memcpy(&color, data + offset, sizeof(color)); offset += sizeof(color);
+        if (number != entity_number) continue;
+        if (out) *out = color;
+        return true;
+    }
+    return false;
+}
+
+TEST(wc3_unit, hero_dissipate_alpha_tracks_timer_without_mutating_vertex_color) {
+    edict_t *hero, *clent;
+    color32_t color;
+
+    reset_test_entities();
+    game.constants.dissipateTime = 1.0f;
+    hero = make_inventory_unit(0, 0);
+    hero->s.player = 0;
+    hero->health.value = 0.0f;
+    hero->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    hero->vertex_color = MAKE(color32_t, 210, 180, 150, 200);
+    hero->vertex_color_set = true;
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    clent->client->ps.number = 0;
+
+    unit_begin_decay(hero);
+    T_FEQ(G_UnitDissipatePresentationAlpha(hero), 1.0f, 0.001f);
+    hero->wait = 0.5f;
+    T_FEQ(G_UnitDissipatePresentationAlpha(hero), 0.5f, 0.001f);
+    T_ASSERT(unit_datagram_tint(clent, hero->s.number, &color));
+    T_EQ(color.r, 210); T_EQ(color.g, 180); T_EQ(color.b, 150);
+    T_EQ(color.a, 100);
+    T_EQ(hero->vertex_color.a, 200);
+
+    hero->wait = 0.0f;
+    T_FEQ(G_UnitDissipatePresentationAlpha(hero), 0.0f, 0.001f);
+    T_ASSERT(unit_datagram_tint(clent, hero->s.number, &color));
+    T_EQ(color.a, 0);
+    T_EQ(hero->vertex_color.a, 200);
+}
+
 TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
     reset_test_entities();
     edict_t *hero = make_inventory_unit(0, 0);

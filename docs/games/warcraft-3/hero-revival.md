@@ -15,8 +15,11 @@ special-cased.
 Heroes keep their authoritative edict after death. When the death animation
 finishes, `DissipateTime` is used for the Hero corpse/dissipation timer. At the
 end of that timer the Hero is hidden and marked `revival.awaiting` instead of
-being freed. `EVENT_PLAYER_HERO_REVIVABLE` and `EVENT_UNIT_HERO_REVIVABLE` are
-published at that transition.
+being freed. While the `Dissipate` presentation runs, its temporary render alpha
+falls linearly from fully opaque to transparent across `DissipateTime`. This
+multiplies the Hero's authored/JASS vertex alpha only in the client datagram; it
+does not mutate persistent `vertex_color` state. `EVENT_PLAYER_HERO_REVIVABLE`
+and `EVENT_UNIT_HERO_REVIVABLE` are published at the final transition.
 
 A dead Hero remains counted by `G_GetPlayerTechCountValue()`. This preserves
 Hero/techtree limits while the Hero is dead. The same edict is not interactable as a
