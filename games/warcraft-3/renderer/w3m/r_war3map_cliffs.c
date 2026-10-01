@@ -16,6 +16,7 @@ static uint32_t *cliff_vertex_sample_generation;
 static uint32_t cliff_vertex_sample_capacity, cliff_vertex_generation;
 static bool cliff_warn_sample_alloc;
 static bool cliff_warn_invalid_index;
+static bool cliff_warn_layer_alloc;
 
 vec3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y);
 
@@ -68,6 +69,7 @@ void R_ResetCliffCache(void) {
     cliff_vertex_sample_capacity = cliff_vertex_generation = 0;
     cliff_warn_sample_alloc = false;
     cliff_warn_invalid_index = false;
+    cliff_warn_layer_alloc = false;
 }
 
 // HELPERS
@@ -135,6 +137,11 @@ static model_t const *R_LoadCliffModel(cliffData_t const *data, char const *ccfg
             return it->model;
     }
     struct tCliff *cliff = ri.MemAlloc(sizeof(struct tCliff));
+    if (!cliff) {
+        if (!cliff_warn_layer_alloc) fprintf(stderr, "WC3 renderer: unable to allocate cliff model cache entry for %s; skipping model\n", zBuffer);
+        cliff_warn_layer_alloc = true;
+        return NULL;
+    }
     PATHSTR scoped;
     strcpy(cliff->name, zBuffer);
     cliff->model = NULL;
@@ -146,6 +153,7 @@ static model_t const *R_LoadCliffModel(cliffData_t const *data, char const *ccfg
 
 static texture_t const *R_LoadCliffTexture(uint32_t cliffID, char tileset, cliffData_t const *data) {
     PATHSTR buffer = { 0 };
+    struct tCliffTexture *entry;
 
     for (struct tCliffTexture *it = g_cliff_textures; it; it = it->next) {
         if (it->cliffid == cliffID && it->tileset == tileset) {
@@ -153,19 +161,23 @@ static texture_t const *R_LoadCliffTexture(uint32_t cliffID, char tileset, cliff
         }
     }
 
-    struct tCliffTexture *entry = ri.MemAlloc(sizeof(*entry));
-    entry->cliffid = cliffID;
-    entry->tileset = tileset;
-
     snprintf(buffer, sizeof(buffer), "%s\\%c_%s.blp", data->texDir, tileset, data->texFile);
     void *testbuf = NULL;
     if (ri.FS_ReadFile(buffer, &testbuf) >= 0) {
         ri.FS_FreeFile(testbuf);
-        entry->texture = R_LoadTexture(buffer);
     } else {
         snprintf(buffer, sizeof(buffer), "%s\\%s.blp", data->texDir, data->texFile);
-        entry->texture = R_LoadTexture(buffer);
     }
+
+    entry = ri.MemAlloc(sizeof(*entry));
+    if (!entry) {
+        if (!cliff_warn_layer_alloc) fprintf(stderr, "WC3 renderer: unable to allocate cliff texture cache entry for %s; using uncached texture\n", buffer);
+        cliff_warn_layer_alloc = true;
+        return R_LoadTexture(buffer);
+    }
+    entry->cliffid = cliffID;
+    entry->tileset = tileset;
+    entry->texture = R_LoadTexture(buffer);
 
     ADD_TO_LIST(entry, g_cliff_textures);
     return entry->texture;
@@ -361,7 +373,8 @@ static maplayer_t *R_BuildMapSegmentCliffsInternal(war3map_t const *map, uint32_
 
     maplayer_t *mapLayer = keep_layer ? ri.MemAlloc(sizeof(maplayer_t)) : NULL;
     if (keep_layer && !mapLayer) {
-        fprintf(stderr, "WC3 renderer: unable to allocate cliff layer for segment %u,%u; skipping cliff layer\n", sx, sy);
+        if (!cliff_warn_layer_alloc) fprintf(stderr, "WC3 renderer: unable to allocate cliff layer for segment %u,%u; skipping cliff layer\n", sx, sy);
+        cliff_warn_layer_alloc = true;
         return NULL;
     }
     w3CliffType_t const *row = R_CliffType(cliffID);
@@ -393,7 +406,8 @@ static maplayer_t *R_BuildMapSegmentCliffsInternal(war3map_t const *map, uint32_
     mapLayer->texture = R_LoadCliffTexture(cliffID, map->tileset, &data);
     cliffLayer_t *pending = ri.MemAlloc(sizeof(*pending));
     if (!pending) {
-        fprintf(stderr, "WC3 renderer: unable to allocate pending cliff layer for segment %u,%u; discarding layer\n", sx, sy);
+        if (!cliff_warn_layer_alloc) fprintf(stderr, "WC3 renderer: unable to allocate pending cliff layer for segment %u,%u; discarding layer\n", sx, sy);
+        cliff_warn_layer_alloc = true;
         ri.MemFree(mapLayer);
         return NULL;
     }
