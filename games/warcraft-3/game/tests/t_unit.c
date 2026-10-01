@@ -1223,11 +1223,13 @@ TEST(wc3_unit, hero_dissipate_alpha_tracks_timer_without_mutating_vertex_color) 
     color32_t color;
 
     reset_test_entities();
+    setup_test_world();
     game.constants.dissipateTime = 1.0f;
     hero = make_inventory_unit(0, 0);
     hero->s.player = 0;
     hero->health.value = 0.0f;
     hero->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    hero->think = monster_think;
     hero->vertex_color = MAKE(color32_t, 210, 180, 150, 200);
     hero->vertex_color_set = true;
     clent = &g_edicts[0];
@@ -1239,7 +1241,7 @@ TEST(wc3_unit, hero_dissipate_alpha_tracks_timer_without_mutating_vertex_color) 
     T_FEQ(G_UnitDissipatePresentationAlpha(hero), 1.0f, 0.001f);
     FOR_LOOP(i, 5) {
         level.time += FRAMETIME;
-        if (hero->currentmove && hero->currentmove->think) hero->currentmove->think(hero);
+        G_RunEntities();
     }
     T_FEQ(G_UnitDissipatePresentationAlpha(hero), 0.5f, 0.001f);
     T_ASSERT(unit_datagram_tint(clent, hero->s.number, &color));
@@ -1249,7 +1251,7 @@ TEST(wc3_unit, hero_dissipate_alpha_tracks_timer_without_mutating_vertex_color) 
 
     FOR_LOOP(i, 5) {
         level.time += FRAMETIME;
-        if (hero->currentmove && hero->currentmove->think) hero->currentmove->think(hero);
+        G_RunEntities();
     }
     T_FEQ(G_UnitDissipatePresentationAlpha(hero), 0.0f, 0.001f);
     T_ASSERT(unit_datagram_tint(clent, hero->s.number, &color));
