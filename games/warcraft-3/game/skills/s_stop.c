@@ -1,44 +1,43 @@
 #include "s_skills.h"
 
-#define GUARD_RETURN_EPSILON 1.0f
+#define GUARD_RETURN_EPSILON 1.0f // world units; avoids starting a return when the unit is already at its Stop anchor
 
+/* Record the point Stop must restore after its automatic-combat detour. */
 void G_SetUnitGuardPosition(edict_t *ent) {
     if (!ent) return;
     ent->movement.guard_position = ent->s.origin2;
-    ent->movement.guard_position_valid = true;
-    ent->movement.guard_combat = false;
-    ent->movement.guard_returning = false;
+    ent->movement.guard_state = GUARD_IDLE;
 }
 
+/* Remove the Stop anchor and any in-progress guard-return phase. */
 void G_ClearUnitGuardPosition(edict_t *ent) {
     if (!ent) return;
-    ent->movement.guard_position_valid = false;
-    ent->movement.guard_combat = false;
-    ent->movement.guard_returning = false;
+    ent->movement.guard_state = GUARD_NONE;
 }
 
+/* Resume ordinary Move toward the saved Stop point after idle combat ends. */
 static bool start_guard_return(edict_t *ent) {
     edict_t *waypoint;
 
-    if (!ent || !ent->movement.guard_position_valid || ent->movement.holding_position ||
+    if (!ent || ent->movement.guard_state == GUARD_NONE || ent->movement.holding_position ||
         (ent->aiflags & AI_IMMOBILE) || G_UnitQueuedOrderCount(ent)) {
         return false;
     }
-    ent->movement.guard_combat = false;
     if (Vector2_distance(&ent->s.origin2, &ent->movement.guard_position) <= GUARD_RETURN_EPSILON) {
-        ent->movement.guard_returning = false;
+        ent->movement.guard_state = GUARD_IDLE;
         return false;
     }
     waypoint = Waypoint_add(&ent->movement.guard_position);
     if (!waypoint) return false;
     order_move(ent, waypoint);
-    ent->movement.guard_returning = true;
+    ent->movement.guard_state = GUARD_RETURNING;
     return true;
 }
 
 // Disabled until stop owns a custom stand move; Linux -Wall warns on unused static hooks.
 // static umove_t stop_stand = { "stand", ai_stand, NULL, CAbilityStop};
 
+/* Apply Stop's shared cleanup, optionally preserving queued work and recording its guard point. */
 static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guard) {
     if (S_GoldMineWorkerIsInside(ent))
         return;
@@ -78,14 +77,13 @@ BZ_ABILITY_PROC(CAbilityStop) {
         return true;
     }
     if (msg == A_AUTO_COMBAT_START) {
-        if (ent) {
-            ent->movement.guard_combat = ent->movement.guard_position_valid && ent->currentmove &&
-                ent->currentmove->think == ai_stand;
-        }
+        if (ent && ent->movement.guard_state == GUARD_IDLE && ent->currentmove &&
+            ent->currentmove->think == ai_stand)
+            ent->movement.guard_state = GUARD_COMBAT;
     } else if (msg == A_AUTO_COMBAT_END) {
-        if (!ent || !ent->movement.guard_combat) return false;
+        if (!ent || ent->movement.guard_state != GUARD_COMBAT) return false;
         if (start_guard_return(ent)) return true;
-        ent->movement.guard_combat = false;
+        if (ent->movement.guard_state == GUARD_COMBAT) ent->movement.guard_state = GUARD_IDLE;
     } else if (msg == A_ORDER_ACCEPTED && ent && call && call->order && strcmp(call->order, "stop")) {
         G_ClearUnitGuardPosition(ent);
     }

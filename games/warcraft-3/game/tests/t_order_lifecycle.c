@@ -274,6 +274,16 @@ TEST(wc3_order_lifecycle, hold_position_interrupts_active_channel) {
     T_ASSERT(unit->movement.holding_position);
 }
 
+TEST(wc3_order_lifecycle, hold_position_owns_common_stand_transition) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+
+    T_ASSERT(S_HoldPosition(unit));
+    T_ASSERT(unit->currentmove == &holdpos_move_stand);
+    unit_stand(unit);
+    T_ASSERT(unit->currentmove == &holdpos_move_stand);
+}
+
 TEST(wc3_order_lifecycle, stop_and_hold_buttons_expose_engaged_state) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0);
@@ -355,20 +365,20 @@ TEST(wc3_order_lifecycle, stop_records_guard_position_and_returns_after_auto_com
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
 
     order_stop(unit);
-    T_ASSERT(unit->movement.guard_position_valid);
+    T_ASSERT(unit->movement.guard_state == GUARD_IDLE);
     T_FEQ(unit->movement.guard_position.x, 0, 0.001f);
     T_FEQ(unit->movement.guard_position.y, 0, 0.001f);
 
     level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
     unit->currentmove->think(unit);
     T_ASSERT(unit->goalentity == enemy);
-    T_ASSERT(unit->movement.guard_combat);
+    T_ASSERT(unit->movement.guard_state == GUARD_COMBAT);
 
     unit->s.origin2.x = unit->s.origin.x = 180;
     gi.LinkEntity(unit);
     T_Damage(enemy, unit, (int)enemy->health.value);
 
-    T_ASSERT(unit->movement.guard_returning);
+    T_ASSERT(unit->movement.guard_state == GUARD_RETURNING);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
     T_NOT_NULL(unit->goalentity);
     T_FEQ(unit->goalentity->s.origin2.x, 0, 0.001f);
@@ -381,9 +391,7 @@ TEST(wc3_order_lifecycle, internal_stop_cleanup_does_not_create_guard_position) 
 
     order_stop_cleanup(unit);
 
-    T_ASSERT(!unit->movement.guard_position_valid);
-    T_ASSERT(!unit->movement.guard_combat);
-    T_ASSERT(!unit->movement.guard_returning);
+    T_ASSERT(unit->movement.guard_state == GUARD_NONE);
 }
 
 TEST(wc3_order_lifecycle, guard_return_completion_restores_stopped_idle) {
@@ -396,7 +404,7 @@ TEST(wc3_order_lifecycle, guard_return_completion_restores_stopped_idle) {
     unit->s.origin2.x = unit->s.origin.x = 120;
     gi.LinkEntity(unit);
     T_Damage(enemy, unit, (int)enemy->health.value);
-    T_ASSERT(unit->movement.guard_returning);
+    T_ASSERT(unit->movement.guard_state == GUARD_RETURNING);
 
     unit->s.origin2 = unit->movement.guard_position;
     unit->s.origin.x = unit->s.origin2.x;
@@ -404,8 +412,7 @@ TEST(wc3_order_lifecycle, guard_return_completion_restores_stopped_idle) {
     gi.LinkEntity(unit);
     unit->currentmove->think(unit);
 
-    T_ASSERT(!unit->movement.guard_returning);
-    T_ASSERT(unit->movement.guard_position_valid);
+    T_ASSERT(unit->movement.guard_state == GUARD_IDLE);
     T_ASSERT(unit->currentmove->think == ai_stand);
 }
 
@@ -415,12 +422,11 @@ TEST(wc3_order_lifecycle, explicit_move_clears_old_stop_guard) {
     vec2_t point = {500, 0};
 
     order_stop(unit);
-    T_ASSERT(unit->movement.guard_position_valid);
+    T_ASSERT(unit->movement.guard_state == GUARD_IDLE);
     T_FEQ(unit->movement.guard_position.x, 40, 0.001f);
 
     T_ASSERT(unit_issueorder(unit, "move", &point));
-    T_ASSERT(!unit->movement.guard_position_valid);
-    T_ASSERT(!unit->movement.guard_returning);
+    T_ASSERT(unit->movement.guard_state == GUARD_NONE);
 }
 
 TEST(wc3_order_lifecycle, second_stop_refreshes_guard_position) {
@@ -434,7 +440,7 @@ TEST(wc3_order_lifecycle, second_stop_refreshes_guard_position) {
     gi.LinkEntity(unit);
     order_stop(unit);
 
-    T_ASSERT(unit->movement.guard_position_valid);
+    T_ASSERT(unit->movement.guard_state == GUARD_IDLE);
     T_FEQ(unit->movement.guard_position.x, 240, 0.001f);
 }
 
@@ -446,7 +452,7 @@ TEST(wc3_order_lifecycle, queued_player_order_outranks_guard_return) {
     order_stop(unit);
     level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
     unit->currentmove->think(unit);
-    T_ASSERT(unit->movement.guard_combat);
+    T_ASSERT(unit->movement.guard_state == GUARD_COMBAT);
     T_ASSERT(G_IssueUnitPointOrder(unit, "move", &point, true, 0, 0.0f));
     T_EQ(G_UnitQueuedOrderCount(unit), 1);
 
@@ -454,8 +460,7 @@ TEST(wc3_order_lifecycle, queued_player_order_outranks_guard_return) {
     gi.LinkEntity(unit);
     T_Damage(enemy, unit, (int)enemy->health.value);
 
-    T_ASSERT(!unit->movement.guard_returning);
-    T_ASSERT(!unit->movement.guard_position_valid);
+    T_ASSERT(unit->movement.guard_state == GUARD_NONE);
     T_EQ(G_UnitQueuedOrderCount(unit), 0);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
 }

@@ -30,14 +30,13 @@ The authoritative state lives on the unit movement state:
 
 ```text
 guard_position
-guard_position_valid
-guard_combat
-guard_returning
+guard_position
+guard_state: NONE, IDLE, COMBAT, or RETURNING
 ```
 
-`guard_combat` is set only when ordinary stopped/idle acquisition (or retaliation from that stopped idle state) starts an attack. Explicit Attack and persistent parent behaviors such as Patrol, Attack-Move, and Follow keep their existing completion/resume rules and do not use Stop guard return.
+`guard_state` is `NONE` without an anchor, `IDLE` while a stopped unit may acquire normally, `COMBAT` during an automatic combat detour, and `RETURNING` while the internal return Move is active. Explicit Attack and persistent parent behaviors such as Patrol, Attack-Move, and Follow keep their existing completion/resume rules and do not use Stop guard return.
 
-`guard_returning` marks the ordinary Move behavior as an internal guard return. The Move path clears it on arrival or its normal near-goal settle edge, then installs the ordinary stand state. While that Move is active, normal idle acquisition is not running.
+The Move path changes `RETURNING` back to `IDLE` on arrival or its normal near-goal settle edge, then installs the ordinary stand state. While that Move is active, normal idle acquisition is not running.
 
 ## Explicit-order replacement
 

@@ -16,6 +16,21 @@ static void ai_holdpos_stand(edict_t *self) {
 umove_t holdpos_move_stand = { "stand", ai_holdpos_stand, unit_stand };
 umove_t holdpos_move_stand_ready = { "stand ready", ai_holdpos_stand, unit_stand };
 
+/* Hold Position owns the persistent idle move while its no-chase policy is active. */
+static void AbilityHoldPosition_Command(edict_t *clent);
+
+BZ_ABILITY_PROC(CAbilityHoldPosition) {
+    if (msg == A_COMMAND) {
+        AbilityHoldPosition_Command(call && call->client ? call->client : ent);
+        return true;
+    }
+    if (msg == A_UNIT_STAND && ent && ent->movement.holding_position) {
+        unit_setmove(ent, unit_affectingcombat(ent) ? &holdpos_move_stand_ready : &holdpos_move_stand);
+        return true;
+    }
+    return false;
+}
+
 static bool hold_position_state(edict_t *unit, bool preserve_queue) {
     if (!unit || M_IsDead(unit) || S_GoldMineWorkerIsInside(unit))
         return false;
@@ -46,7 +61,8 @@ bool S_HoldPositionQueued(edict_t *unit) {
     return hold_position_state(unit, true);
 }
 
-BZ_COMMAND_PROC(AbilityHoldPosition) {
+/* Apply Hold Position to controllable selections, preserving Shift-queued FIFO work. */
+static void AbilityHoldPosition_Command(edict_t *clent) {
     gameClient_t *client = clent->client;
     FOR_CONTROLLABLE_SELECTED_UNITS(client, e) {
         if (client->menu.order_queued && G_UnitHasActiveOrder(e)) {
