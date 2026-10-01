@@ -259,8 +259,7 @@ cstring_t UI_FormatMessageText(cstring_t text) {
             p += 3;
             continue;
         }
-        strncat(temp, p, 1);
-        p++;
+        size_t len = strlen(temp); temp[len] = *p++; temp[len + 1] = '\0';
     }
 
     source = temp;
@@ -278,8 +277,7 @@ cstring_t UI_FormatMessageText(cstring_t text) {
             inserted_heading_break = true;
             continue;
         }
-        strncat(out, p, 1);
-        p++;
+        size_t len = strlen(out); out[len] = *p++; out[len + 1] = '\0';
     }
 
     return out;

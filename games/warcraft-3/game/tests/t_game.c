@@ -1741,6 +1741,29 @@ TEST(wc3_game, loading_layout_preserves_sprite_geometry_and_progress_binding) {
     T_EQ(wire.flags.type, FT_SPRITE); T_EQ(wire.tex.index, 18); T_STREQ(wire.text, "#!6");
 }
 
+/* Release compilation exposed X indexing into the adjacent Y array. Exercise all six authored anchors. */
+TEST(wc3_game, frame_serialization_preserves_both_axis_arrays) {
+    FRAMEDEF parent = { .Type = FT_FRAME }, frame = { .Type = FT_FRAME };
+    uiFrame_t wire; uint8_t data[128]; char text[128];
+    FOR_LOOP(axis, 2) {
+        framePoint_t *point = axis ? frame.Points.y : frame.Points.x;
+        FOR_LOOP(i, FPP_COUNT)
+            point[i] = (framePoint_t){ .used = true, .targetPos = i, .relativeTo = &parent,
+                                      .offset = (float)(axis * FPP_COUNT + i + 1) / 8 };
+    }
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&parent, &wire, data, sizeof(data), text, sizeof(text)));
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, data, sizeof(data), text, sizeof(text)));
+    FOR_LOOP(axis, 2) {
+        uiFramePoint_t const *point = axis ? wire.points.y : wire.points.x;
+        FOR_LOOP(i, FPP_COUNT) {
+            T_ASSERT(point[i].used); T_EQ(point[i].targetPos, i);
+            T_EQ(point[i].relativeTo, 1); T_EQ(point[i].offset, (axis * FPP_COUNT + i + 1) * 4096 - 1);
+        }
+    }
+    UI_ResetFrameWriteList();
+}
+
 TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
     FRAMEDEF frame = { 0 };
     UI_SetPortraitFrameModel(&frame, 42);

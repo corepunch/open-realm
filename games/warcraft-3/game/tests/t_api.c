@@ -7397,7 +7397,7 @@ static void substr(char const *source, int32_t start, int32_t end, char *out, in
     if (end > len) end = len;
     int32_t n = end - start;
     if (n <= 0 || n + 1 > outsz) { out[0] = '\0'; return; }
-    strncpy(out, source + start, (size_t)n);
+    memcpy(out, source + start, (size_t)n);
     out[n] = '\0';
 }
 
