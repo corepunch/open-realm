@@ -3091,3 +3091,54 @@ Validation for payoff23: forced release RoC/TFT suites each pass52,430 assertion
 in2,231 cases. The required release umbrella and production executable pass
 without C compiler warnings. All140 pathfinding tool tests, ability coverage,
 corpus hashes, backlog counts/IDs, document targets and diff checks pass.
+
+
+## Retained coarse progress refills the fine route
+
+Payoff24 preserves the original adaptive point buffer and current index instead
+of treating each fine endpoint as a new global route request. Original165f10
+measures approach in accelerator coordinates against.49 accelerator units. It
+runs before fine progression. A supplied source.48 accelerator units left of
+the selected waypoint therefore consumes the coarse point and invalidates/refills
+the fine route, although it remains.96 fine cells from the fine endpoint.
+
+The engine previously retained that endpoint under its separate.49-fine-cell
+threshold. All32 initial routes built correctly, but64 subsequent route-count
+and index assertions failed. The production owner now stores coarse points and
+index, applies the original coarse squared-distance predicate first, consumes
+167ae0's reverse-chain selection and refills the fine buffer from the retained
+coarse destination. Static revision, goal, radius and lane changes invalidate
+the coarse cache. Move frees both buffers on removal, load and shutdown.
+
+The controlled original replay advances the owner counter ten ticks and resets
+fine work at each supplied admitted boundary. It executes the complete original
+165ae0 chain; it does not simulate the full owner scheduler. Open/gapped maps,
+four classes and four lanes match all1,800 native fine words after consumption,
+with unchanged original coarse buffers. This matrix reaches coarse index zero;
+larger retained nonzero next indices and physical retail trajectories remain
+required. First experiments used a one-tick denied boundary or carried the
+previous fixture's counter into a new case; those are rejected admitted controls.
+The accepted reference is `tools/ghidra/fixtures/retail-adaptive-progress-1.27.json`,
+with a fresh repeat under `adaptive-progress-corpus-accepted-261001/`.
+
+Save68 serializes both curve buffers and indices. Serialized process pointers
+are ignored; count/index limits, finite points and truncated tails are checked.
+The coarse revision is runtime state. Reload reconstructs the saved terrain and
+obstacles, then binds restored curves to that world's new bake epoch. Before
+that correction the long Move save regression changed760 later motion words.
+Afterward the real RunFrame long Move repeats all180 saved continuation frames,
+retaining coarse count/index and reaching the original order goal. Semantic
+JASS snapshot7 and network contracts remain unchanged.
+
+The strict corpus now has217 entries,90 oracles and78 frozen fixtures. Ghidra
+retains the integrated165f10/167ce0 contracts. Dynamic blockers, yielding,
+denied admission timing, larger route index transitions, other clock producers
+and portal execution remain open under the existing backlog.
+
+Saved Ghidra readback: `runtime/adaptive-progress-ghidra-readback-261001.json`.
+Validation for payoff24: forced release RoC/TFT suites each pass54,459 assertions
+in2,232 cases. The required release umbrella and production executable pass
+without C compiler warnings. All141 pathfinding tool tests, ability coverage,
+corpus hashes, backlog counts/IDs, document targets and diff checks pass. Invalid
+fine/adaptive extent, index, nonfinite and truncated-tail tests reject all eight
+payloads and retain no serialized process pointers.

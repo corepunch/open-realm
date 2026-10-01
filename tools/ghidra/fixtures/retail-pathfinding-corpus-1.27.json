@@ -13049,6 +13049,56 @@
         "Retained multi-tick coarse progress",
         "Public map/group producers"
       ]
+    },
+    {
+      "id": "adaptive-progress-reference",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_refill.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--adaptive-progress-reference",
+        "tools/ghidra/fixtures/retail-adaptive-progress-1.27.json",
+        "--adaptive-progress-fixture",
+        "{report}.fixture.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-progress-reference.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "formation_destination_cases": {
+          "minimum": 1
+        },
+        "adaptive_progress_cases": {
+          "equal": 32
+        },
+        "adaptive_progress_steps": {
+          "equal": 32
+        },
+        "adaptive_progress_reference_sha256": {
+          "equal": "e6879e58f451619661f4f58feb30e5914cfb2c9b8d91284282f20a67e1e02587"
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original coarse approach consumes its persistent buffer and refills fine routes in32 admitted controlled-source transitions. Source .48 accelerator units left of current waypoint, counter advances ten ticks and fine work resets. Engine stored routes match all native fine words; separate actual RunFrame/save continuation validates engine persistence.",
+      "exclusions": [
+        "Complete owner scheduling and denied refill delays",
+        "Physical retail multi-tick motion",
+        "Dynamic blockers/yielding",
+        "Portal execution"
+      ]
     }
   ],
   "fixtures": [
@@ -13359,6 +13409,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-adaptive-handoff-1.27.json",
       "sha256": "649b9c1fe3ca4396c0f211bc65ed6aaec18090e87bb9ca224ea6205b1b3dcdfa"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-adaptive-progress-1.27.json",
+      "sha256": "e6879e58f451619661f4f58feb30e5914cfb2c9b8d91284282f20a67e1e02587"
     }
   ]
 }

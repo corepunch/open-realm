@@ -26,6 +26,11 @@ typedef struct {
     vec2_t *points;
     uint32_t count, index;
     uint8_t mask;
+    vec2_t *adaptive_points; /* Accelerator coordinates, twice the fine-cell size. */
+    uint32_t adaptive_count, adaptive_index;
+    vec2_t adaptive_goal;
+    float adaptive_radius;
+    uint32_t adaptive_revision;
 } moveFineRoute_t;
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
@@ -2655,6 +2660,7 @@ typedef struct {
     bool units;
     vec2_t const *fine; /* Published native32-unit pose; NULL for explicit world-only geometry. */
 } movePathQuery_t;
+void G_RebindSavedMoveRoutes(void);
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 void S_FreeMoveRoute(edict_t *self);
 vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);

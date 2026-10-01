@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 67, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 68, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -648,3 +648,16 @@ pointers, plus the level list head and alternating owner phase. An actual idle
 overlap save reproduces subsequent positions, vectors, cooldown and random
 state exactly after load. Formats65 and earlier are rejected; JSVM7 and the
 callback roster are unchanged. See [repulsion integration](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units).
+
+
+### Retained adaptive routes (version68)
+
+Move retains accelerator-space points, count/index, native goal and radius beside
+its fine curve. The edict tail writes fine points followed by adaptive points;
+readers rebuild both allocations and reject invalid count/index, nonfinite and
+truncated data. Process pointers and the world bake revision are runtime fields.
+After the saved terrain and obstacles are rebuilt, restored coarse routes bind
+to the new world's bake revision. Exact-version checks reject earlier layouts.
+The public long Move scheduler regression compares180 continuation frames after
+loading, with retained coarse count/index; JASS snapshot7 and wire data are
+unchanged. See [the engine integration](retail-pathfinding-engine.md#retained-coarse-progress-refills-the-fine-route).

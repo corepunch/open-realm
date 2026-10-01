@@ -242,6 +242,9 @@ TEST(wc3_movement, retail_adaptive_long_move_reaches_engine) {
     T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){272,304})>1);
     cstring_t file="/tmp/openwarcraft3-adaptive-move-save.bin";
     uint32_t continued[180][6];
+    T_NOT_NULL(unit->movement.fine_route.adaptive_points);
+    uint32_t coarse_count=unit->movement.fine_route.adaptive_count,coarse_index=unit->movement.fine_route.adaptive_index;
+    T_ASSERT(coarse_count>1);
     T_ASSERT(WriteGame(file));
     FOR_LOOP(i,180) {
         level.time+=100; globals.RunFrame();
@@ -254,6 +257,9 @@ TEST(wc3_movement, retail_adaptive_long_move_reaches_engine) {
     }
     T_EQ(unit->current_order_id,0); T_ASSERT(Vector2_distance(&unit->s.origin2,&target)<=32*wc3_float(0x3efae148));
     T_ASSERT(ReadGame(file));
+    T_NOT_NULL(unit->movement.fine_route.adaptive_points);
+    T_EQ(unit->movement.fine_route.adaptive_count,coarse_count);
+    T_EQ(unit->movement.fine_route.adaptive_index,coarse_index);
     FOR_LOOP(i,180) {
         level.time+=100; globals.RunFrame();
         T_EQ(wc3_float_bits(unit->s.origin2.x),continued[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y),continued[i][1]);
@@ -392,7 +398,7 @@ TEST(wc3_movement, retail_adaptive_handoff_route_words) {
             T_EQ(wc3_float_bits(route.points[i].x),handoff_words[cases[c][2]+2*i]);
             T_EQ(wc3_float_bits(route.points[i].y),handoff_words[cases[c][2]+2*i+1]);
         }
-        free(route.points);
+        free(route.points); free(route.adaptive_points);
     }
     reset_entities(); setup_test_world();
 }
@@ -420,6 +426,109 @@ TEST(wc3_movement, retail_adaptive_handoff_reaches_public_move) {
     T_EQ(wc3_float_bits(unit->movement.path.waypoint.y),wc3_float_bits(176));
     T_EQ(unit->goalentity->s.origin2.x,1896); T_EQ(unit->goalentity->s.origin2.y,1912);
     T_ASSERT(!jass_rterror_pending(level.vm));
+    reset_entities(); setup_test_world();
+}
+
+/* Original coarse approach threshold is measured before fine-route progression:
+ * .48 coarse units (.96 fine) already selects/refills the following local leg. */
+TEST(wc3_movement, retail_adaptive_progress_refills_before_fine_endpoint) {
+    static uint32_t const progress_words[]={
+        0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,0x42660000u,0x426a0000u,0x42620000u,0x42660000u,
+        0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,0x42560000u,
+        0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x42420000u,0x42460000u,
+        0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,
+        0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,
+        0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,
+        0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x42060000u,0x420a0000u,0x420228f6u,0x42060000u,
+        0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,0x42660000u,0x426a0000u,0x42620000u,0x42660000u,
+        0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,0x42560000u,
+        0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x42420000u,0x42460000u,
+        0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,
+        0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,
+        0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,
+        0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x42060000u,0x420a0000u,0x420228f6u,0x42060000u,
+        0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,0x42660000u,0x426a0000u,0x42620000u,0x42660000u,
+        0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,0x42560000u,
+        0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x42420000u,0x42460000u,
+        0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,
+        0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,
+        0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,
+        0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x420628f6u,0x420a0000u,0x426d0000u,0x426f0000u,
+        0x426a0000u,0x426a0000u,0x42660000u,0x426a0000u,0x42620000u,0x42660000u,0x425e0000u,0x42620000u,
+        0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,0x42560000u,0x424e0000u,0x42520000u,
+        0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x42420000u,0x42460000u,0x423e0000u,0x42420000u,
+        0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,0x422e0000u,0x42320000u,
+        0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,0x421e0000u,0x42220000u,
+        0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,0x420e0000u,0x42120000u,
+        0x420a0000u,0x420e0000u,0x420628f6u,0x420a0000u,0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,
+        0x426a0000u,0x42660000u,0x42660000u,0x42620000u,0x42620000u,0x425e0000u,0x425e0000u,0x425a0000u,
+        0x425a0000u,0x42560000u,0x42560000u,0x42520000u,0x42520000u,0x424e0000u,0x424e0000u,0x424a0000u,
+        0x424a0000u,0x42460000u,0x42460000u,0x42420000u,0x42420000u,0x423e0000u,0x423e0000u,0x423a0000u,
+        0x423a0000u,0x42360000u,0x42360000u,0x42320000u,0x42320000u,0x422e0000u,0x422e0000u,0x422a0000u,
+        0x422a0000u,0x42260000u,0x42260000u,0x42220000u,0x42220000u,0x421e0000u,0x421e0000u,0x421a0000u,
+        0x421a0000u,0x42160000u,0x42160000u,0x42120000u,0x42120000u,0x420e0000u,0x420e0000u,0x420a0000u,
+        0x420a0000u,0x42060000u,0x42060000u,0x42020000u,0x420228f6u,0x41fc0000u,0x426d0000u,0x426f0000u,
+        0x426a0000u,0x426a0000u,0x426a0000u,0x42660000u,0x42660000u,0x42620000u,0x42620000u,0x425e0000u,
+        0x425e0000u,0x425a0000u,0x425a0000u,0x42560000u,0x42560000u,0x42520000u,0x42520000u,0x424e0000u,
+        0x424e0000u,0x424a0000u,0x424a0000u,0x42460000u,0x42460000u,0x42420000u,0x42420000u,0x423e0000u,
+        0x423e0000u,0x423a0000u,0x423a0000u,0x42360000u,0x42360000u,0x42320000u,0x42320000u,0x422e0000u,
+        0x422e0000u,0x422a0000u,0x422a0000u,0x42260000u,0x42260000u,0x42220000u,0x42220000u,0x421e0000u,
+        0x421e0000u,0x421a0000u,0x421a0000u,0x42160000u,0x42160000u,0x42120000u,0x42120000u,0x420e0000u,
+        0x420e0000u,0x420a0000u,0x420a0000u,0x42060000u,0x42060000u,0x42020000u,0x420228f6u,0x41fc0000u,
+        0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,0x426a0000u,0x42660000u,0x42660000u,0x42620000u,
+        0x42620000u,0x425e0000u,0x425e0000u,0x425a0000u,0x425a0000u,0x42560000u,0x42560000u,0x42520000u,
+        0x42520000u,0x424e0000u,0x424e0000u,0x424a0000u,0x424a0000u,0x42460000u,0x42460000u,0x42420000u,
+        0x42420000u,0x423e0000u,0x423e0000u,0x423a0000u,0x423a0000u,0x42360000u,0x42360000u,0x42320000u,
+        0x42320000u,0x422e0000u,0x422e0000u,0x422a0000u,0x422a0000u,0x42260000u,0x42260000u,0x42220000u,
+        0x42220000u,0x421e0000u,0x421e0000u,0x421a0000u,0x421a0000u,0x42160000u,0x42160000u,0x42120000u,
+        0x42120000u,0x420e0000u,0x420e0000u,0x420a0000u,0x420a0000u,0x42060000u,0x420628f6u,0x42020000u,
+        0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,0x426a0000u,0x42660000u,0x426a0000u,0x42620000u,
+        0x42660000u,0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,
+        0x42560000u,0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x42420000u,
+        0x42460000u,0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,
+        0x42360000u,0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,
+        0x42260000u,0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,
+        0x42160000u,0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x42060000u,0x420a0000u,0x42060000u,
+        0x420628f6u,0x42020000u,
+    };
+    static uint32_t const cases[8][6]={
+        {0x00000000u,0x00000000u,0x00000000u,0x0000001cu,0x420228f6u,0x42060000u},
+        {0x00000000u,0x00000001u,0x00000038u,0x0000001cu,0x420228f6u,0x42060000u},
+        {0x00000000u,0x00000002u,0x00000070u,0x0000001bu,0x420628f6u,0x420a0000u},
+        {0x00000000u,0x00000003u,0x000000a6u,0x0000001bu,0x420628f6u,0x420a0000u},
+        {0x00000001u,0x00000000u,0x000000dcu,0x0000001du,0x420228f6u,0x41fc0000u},
+        {0x00000001u,0x00000001u,0x00000116u,0x0000001du,0x420228f6u,0x41fc0000u},
+        {0x00000001u,0x00000002u,0x00000150u,0x0000001cu,0x420628f6u,0x42020000u},
+        {0x00000001u,0x00000003u,0x00000188u,0x0000001du,0x420628f6u,0x42020000u},
+    };
+    static uint8_t const masks[]={2,4,0x40,0x80};
+    FOR_LOOP(c,8) FOR_LOOP(lane,4) {
+        edict_t *unit=make_moving_unit(136,152);
+        uint8_t cells[64*64]={0};
+        FOR_LOOP(y,64) if (cases[c][0] && (y<29 || y>34)) cells[y*64+32]=0xc6;
+        box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+        vec2_t goal={1896,1912},waypoint;
+        unit->collision=8+cases[c][1]*16;
+        movePathQuery_t query={{&unit->s.origin2,&goal,unit->collision,masks[lane]},unit,NULL,true};
+        moveFineRoute_t *route=&unit->movement.fine_route;
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,route,&waypoint));
+        T_EQ(route->adaptive_count,cases[c][0]?8:4);
+        T_EQ(route->adaptive_index,cases[c][0]?5:1);
+        /* Supply the same terminal fine index and published native source as the original caller. */
+        route->index=0;
+        vec2_t source={wc3_float(cases[c][4]),wc3_float(cases[c][5])};
+        unit->s.origin2=(vec2_t){wc3_mul(source.x,32),wc3_mul(source.y,32)};
+        query.fine=&source;
+        if (!G_AdvanceUnitMoveFineRoute(&query,route,&waypoint))
+            T_ASSERT(G_BuildUnitMoveFineRoute(&query,route,&waypoint));
+        T_EQ(route->adaptive_index,0);
+        T_EQ(route->count,cases[c][3]);
+        T_EQ(route->index,cases[c][3]-2);
+        if (route->count==cases[c][3]) FOR_LOOP(i,route->count) {
+            T_EQ(wc3_float_bits(route->points[i].x),progress_words[cases[c][2]+2*i]);
+            T_EQ(wc3_float_bits(route->points[i].y),progress_words[cases[c][2]+2*i+1]);
+        }
+    }
     reset_entities(); setup_test_world();
 }
 

@@ -862,6 +862,7 @@ static void unit_changeangle_towards_point_policy(edict_t *self, vec2_t const *p
 /* Raw curves are process-owned: actor removal, reload and shutdown release them before edict replacement. */
 void S_FreeMoveRoute(edict_t *self) {
     free(self->movement.fine_route.points);
+    free(self->movement.fine_route.adaptive_points);
     self->movement.fine_route = (moveFineRoute_t){0};
     self->movement.path.valid = false;
 }

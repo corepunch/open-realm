@@ -20,6 +20,8 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--adaptive-handoff-fixture',type=Path,help='export complete original coarse-selected fine routes on 64-cell maps')
     parser.add_argument('--adaptive-handoff-reference',type=Path,help='compare coarse-selected fine routes with frozen original words')
+    parser.add_argument('--adaptive-progress-fixture',type=Path,help='export admitted repeated original coarse/fine advances at controlled coarse waypoints')
+    parser.add_argument('--adaptive-progress-reference',type=Path,help='repeat controlled original coarse approach/refill transitions against frozen words')
     args = parser.parse_args()
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
@@ -308,6 +310,7 @@ def main():
     cells,bitmap,nodes,links,heap,route_data=0x10800000,0x10810000,0x10820000,0x10880000,0x10900000,0x10980000
     enabled=[]
     handoff_cases=[]
+    progress_cases=[]
     for map_size,name,cls,acc_budget,lane in itertools.product([24,64],['open','wall','gap'],range(4),[0,5,400],range(4)):
         width=height=map_size
         target=(map_size-4.75,map_size-4.25)
@@ -317,6 +320,7 @@ def main():
         budget=700
         def setup_enabled():
             setup()
+            write(owner+0x538,100)
             write(system+0xac+0xc,candidates)
             write(system+0xac+0x18,64,0)
             machine.mem_write(acc,bytes(0x400))
@@ -402,6 +406,29 @@ def main():
                 coarse_count=count,coarse_index=acc_index,coarse_words=list(struct.unpack('<'+'I'*(count*2),coarse_bytes)),
                 fine_goal_bits=list(struct.unpack('<2I',struct.pack('<2f',*fine_goal))),
                 fine_count=fine_count,fine_words=list(struct.unpack('<'+'I'*(fine_count*2),actual_fine))))
+        if (args.adaptive_progress_fixture or args.adaptive_progress_reference) and map_size==64 and acc_budget==400 and name!='wall':
+            steps=[]
+            prior_index=acc_index
+            for step in range(1,8):
+                if not prior_index:break
+                current_point=struct.unpack('<2f',coarse_bytes[prior_index*8:prior_index*8+8])
+                source_words=struct.unpack('<2I',struct.pack('<2f',current_point[0]*2-.96,current_point[1]*2))
+                write(source_ptr,*source_words)
+                write(owner+0x538,100+10*step)
+                write(bucket+8,0)
+                machine.mem_write(output,struct.pack('<2f',*target))
+                advanced=run(0x6f165ae0,path,source_ptr,output,mover)
+                next_index=read(path+0x78)[0]
+                n=read(path+0x50)[0]
+                steps.append(dict(source_bits=list(source_words),result=advanced,coarse_index=next_index,
+                    fine_count=n,fine_index=read(path+0x74)[0],fine_words=read(route_data,n*2),
+                    fine_work=read(bucket+8)[0],fine_timestamp=read(path+0x7c)[0],delay=read(path+0x94)[0]))
+                assert advanced==0 and next_index<prior_index,(name,cls,lane,step,steps[-1])
+                assert read(path+0x70)[0]==count and bytes(machine.mem_read(coarse,count*8))==coarse_bytes
+                prior_index=next_index
+            assert prior_index==0
+            progress_cases.append(dict(fixture=name,size_class=cls,lane=lane,initial_coarse_index=acc_index,
+                coarse_count=count,coarse_words=list(struct.unpack('<'+'I'*(count*2),coarse_bytes)),steps=steps))
         # Independently supply the selected intermediate/final destination to
         # the original fine request and compare full bytes, index and work.
         setup()
@@ -523,6 +550,17 @@ def main():
         if args.adaptive_handoff_fixture:
             args.adaptive_handoff_fixture.parent.mkdir(parents=True,exist_ok=True)
             args.adaptive_handoff_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
+    if args.adaptive_progress_fixture or args.adaptive_progress_reference:
+        payload=dict(version=1,binary_sha256=digest,source_entry='6f165ae0',cell_world=32,map_size=64,cases=progress_cases,
+            scope='Repeated complete original Path_Advance at supplied positions .48 accelerator units left of current coarse waypoints. Existing coarse buffer is unchanged; owner counter advances ten ticks and fine work budget resets are controlled admitted-boundary inputs, not a full owner scheduler. Open/gapped maps, four classes/four lanes. Physical motion, dynamic blockers, denied refills and clock cadence excluded.')
+        if args.adaptive_progress_reference:
+            assert payload==json.loads(args.adaptive_progress_reference.read_text())
+            report['adaptive_progress_reference_sha256']=hashlib.sha256(args.adaptive_progress_reference.read_bytes()).hexdigest()
+        if args.adaptive_progress_fixture:
+            args.adaptive_progress_fixture.parent.mkdir(parents=True,exist_ok=True)
+            args.adaptive_progress_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
+        report['adaptive_progress_cases']=len(progress_cases)
+        report['adaptive_progress_steps']=sum(len(c['steps']) for c in progress_cases)
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps({k:v for k,v in report.items() if k not in ['formation_destinations','cases','dynamic_cases','full_advance','enabled_advance','hierarchy_exclusion']},indent=2))
 
