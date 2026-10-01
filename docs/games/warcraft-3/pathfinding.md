@@ -378,3 +378,9 @@ first accepted cell centre, with the authored nearest-vertex terrain-level
 condition. [Original evidence and limits](retail-pathfinding-engine.md#blocked-placement-reaches-the-engine)
 include six exact public destinations; bridge overlays, map edges and the
 separate embedded Stop recovery remain open.
+
+The path owner now has a saved retail two-word random generator. Public JASS
+seeded random queries use its exact words, replacing libc range/modulo draws;
+its overlap-direction helper matches original scalar sine/cosine output.
+This prepares deterministic repulsion but does not yet implement crowd
+repulsion scheduling. See [engine payoff17](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).

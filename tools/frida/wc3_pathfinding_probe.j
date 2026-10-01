@@ -326,6 +326,12 @@ function PathProbeBlockedPosition takes nothing returns nothing
     endif
 endfunction
 
+function PathProbeRandom takes nothing returns nothing
+    local integer integerResult
+    local real realResult
+@RANDOM_CASES@
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
@@ -351,6 +357,9 @@ function PathProbeTick takes nothing returns nothing
         set numericX = GetUnitMoveSpeed(udg_PathProbeUnit)
         set numericY = GetUnitDefaultMoveSpeed(udg_PathProbeUnit)
         call Preload("PATHSPEED done=travel")
+    endif
+    if PATH_PROBE_SCENARIO == 40 and udg_PathProbeTick == 1 then
+        call PathProbeRandom()
     endif
     if PATH_PROBE_SCENARIO == 36 then
         call PathProbeAxisPosition()

@@ -1284,17 +1284,12 @@ uint32_t RestoreUnit(jass_t *j) {
     return unit ? jass_pushlighthandle(j, unit, "unit") : jass_pushnullhandle(j, "unit");
 }
 uint32_t GetRandomInt(jass_t *j) {
-    int32_t lowBound = jass_checkinteger(j, 1);
-    int32_t highBound = jass_checkinteger(j, 2);
-    if (lowBound >= highBound) return jass_pushinteger(j, lowBound);
-    return jass_pushinteger(j, lowBound + rand() % (highBound - lowBound + 1));
+    int32_t lo = jass_checkinteger(j, 1), hi = jass_checkinteger(j, 2);
+    return jass_pushinteger(j, wc3_random_int(&level.pathing_random, lo, hi));
 }
 uint32_t GetRandomReal(jass_t *j) {
-    float lowBound = jass_checknumber(j, 1);
-    float highBound = jass_checknumber(j, 2);
-    if (lowBound >= highBound) return jass_pushnumber(j, lowBound);
-    float t = (float)rand() / (float)RAND_MAX;
-    return jass_pushnumber(j, lowBound + t * (highBound - lowBound));
+    float lo = jass_checknumber(j, 1), hi = jass_checknumber(j, 2);
+    return jass_pushnumber(j, wc3_random_real(&level.pathing_random, lo, hi));
 }
 uint32_t CreateUnitPool(jass_t *j) {
     return jass_pushnullhandle(j, "unitpool");
@@ -1473,6 +1468,9 @@ uint32_t ChooseRandomItemEx(jass_t *j) {
 
 uint32_t SetRandomSeed(jass_t *j) {
     int32_t seed = jass_checkinteger(j, 1);
+    wc3_random_seed(&level.pathing_random, (uint32_t)seed);
+    wc3_random_next(&level.pathing_random); /* 214140 burns one draw before reseeding unit streams. */
+    /* TODO: 693710's separate per-unit streams remain unported; retain their legacy seed until replaced. */
     srand((unsigned int)seed);
     return 0;
 }

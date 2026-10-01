@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**91 done / 272 tasks; 181 remaining.** Counts describe this backlog,
+**93 done / 276 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -419,6 +419,11 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 
 - [ ] **NUM-04.1** Trace seed ownership, initialization and draws for overlap and retry consumers; publish a draw-order contract with wrap behavior.
 - [ ] **NUM-04.2** Interleave two entities' overlap/retry events under a fixed seed; repeat and assert identical draws, state and resulting movement.
+- [x] **NUM-04.3** Port the two-word owner generator and exact overlap-direction words.1,408 complete original/C calls and11 seed prefixes, saved Ghidra state/prototypes; [engine payoff17](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).
+- [x] **NUM-04.4** Port public seeded integer/real query consumers and save/load continuation. Actual compiled JASS550 original-word assertions plus saved next results; full-width crash and reversed/near-equal bounds covered; Save65.
+- [ ] **NUM-04.5** Recover map/default seed production and initialization order before the first pathfinding consumer; compare actual actor-startup state.
+- [ ] **NUM-04.6** Recover693710's45 separate unit streams and their TLS producer; replace remaining legacy seed side effects with owned saved states. Do not merge audio/ability streams into the path owner by assumption.
+
 
 ## ROUTE — Route progression and yielding
 

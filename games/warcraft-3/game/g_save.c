@@ -77,9 +77,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format64 adds mutable terrain bytes before Blight, retaining Move's clock.
- * Earlier streams lack this terrain section and are rejected. */
-static uint32_t const save_version = 64;
+/* Format65 saves the pathfinding owner RNG alongside Move's clock and mutable terrain.
+ * Earlier streams lack these persisted random words and are rejected. */
+static uint32_t const save_version = 65;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -445,6 +445,8 @@ static fieldRing_t const game_event_ring = {
 static field_t const level_fields[] = {
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
+    F(level_locals, pathing_random.sum, F_INT),
+    F(level_locals, pathing_random.index, F_INT),
     F(level_locals, pathing_clock.time, F_FLOAT),
     F(level_locals, pathing_clock.epoch, F_INT),
     F(level_locals, pathing_clock.span, F_FLOAT),
@@ -2092,8 +2094,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-61.bin",
         "/tmp/openwarcraft3-wc3-save-version-62.bin",
         "/tmp/openwarcraft3-wc3-save-version-63.bin",
+        "/tmp/openwarcraft3-wc3-save-version-64.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64 };
 
     reset_entities();
     setup_test_world();

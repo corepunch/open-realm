@@ -7528,38 +7528,158 @@ TEST(wc3_api, substring_single_char) {
  * Misc — GetRandomInt / GetRandomReal range
  * ========================================================================= */
 
+/* Original seeded public queries, with raw/direction draws represented by
+ * discarded public integer draws; both consume exactly one owner transition. */
+TEST(wc3_api, random_natives_match_original_owner_words) {
+    uint32_t const seeds[] = {0,1,47,53,59,61,7085,12345,0x7fffffff,0x80000000,0xffffffff};
+    uint32_t const expected[11][24] = {
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000007u,0x3f060b5au,
+            0xfffffffcu,0xc10f54c6u,0xfffffff9u,0x4125499au,0x0000001bu,0x419e42f7u,
+            0x80000000u,0x33d51d1cu,0x7fffffffu,0x00000000u,0x79f5ca6eu,0x3f268f5eu,
+            0x87b86f9bu,0xc3f888a8u,0x00000001u,0x3a94645au,0x7fffffffu,0x40435264u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000001u,0x3f21a828u,
+            0xfffffffcu,0xc103faaeu,0x0000000cu,0x411db9f6u,0x0000000eu,0x41a9a63fu,
+            0x80000000u,0x344d014eu,0x7fffffffu,0x00000000u,0x49c31ad0u,0x3e774a30u,
+            0xae988360u,0xc3d16bacu,0x00000000u,0x3abe8f51u,0x7ffffffeu,0x4084f6b5u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000005u,0x3f7e499eu,
+            0xfffffffcu,0xc0a2cfc3u,0x0000000au,0xc1040368u,0x00000014u,0x41909d6au,
+            0x80000000u,0x3410d0d8u,0x7fffffffu,0x00000000u,0x6261cee8u,0x3f51049eu,
+            0xe2764c75u,0x43ac1a58u,0x00000001u,0x3af5531eu,0x7ffffffeu,0x4070ce80u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000009u,0x3d9e2e90u,
+            0xfffffff9u,0xc091f376u,0x0000000bu,0x40cbbec4u,0x00000011u,0x4141141au,
+            0x80000000u,0x332de758u,0x7fffffffu,0x00000000u,0x097fedceu,0x3f3e36d4u,
+            0xc6be9908u,0xc3d90ba4u,0x00000001u,0x3ae4574eu,0x7fffffffu,0x40a2db46u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x0000000au,0x3f58be3eu,
+            0xfffffff9u,0xbfb395a0u,0xfffffff9u,0x40cacb38u,0x00000018u,0x4177f0c2u,
+            0x80000000u,0x33b45298u,0x7fffffffu,0x00000000u,0x7c1ce627u,0x3e34a1c0u,
+            0xd7b91224u,0xc2f565a0u,0x00000001u,0x3a9229edu,0x7ffffffeu,0x40945f0bu,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000001u,0x3c93ba40u,
+            0xfffffffau,0xc0af0eb0u,0x00000004u,0x4101161eu,0x0000000eu,0x41c692beu,
+            0x80000000u,0x33a57e8cu,0x7fffffffu,0x00000000u,0x75c365adu,0x3c997840u,
+            0xbf6c970eu,0x43f21ef0u,0x00000001u,0x3ad27d9du,0x7ffffffeu,0x4087dc57u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x0000000au,0x3f356de0u,
+            0xfffffff7u,0xc0f00cd3u,0xfffffff7u,0xc002b478u,0x00000012u,0x4196dcc3u,
+            0x80000000u,0x331ef738u,0x7fffffffu,0x00000000u,0x007c2d07u,0x3e0d9a88u,
+            0xa4310beau,0xc3f9a4a0u,0x00000000u,0x3a9ae2d9u,0x7fffffffu,0x400c0b92u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000006u,0x3e0048f0u,
+            0xfffffff8u,0xc0cc2ba8u,0x00000009u,0x40b66b70u,0x00000012u,0x419c7a77u,
+            0x80000000u,0x33ef320cu,0x7fffffffu,0x00000000u,0x3a37495bu,0x3ee6bab4u,
+            0xce167b57u,0x43dc3eccu,0x00000000u,0x3a9c5c3du,0x7fffffffu,0x40841349u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000003u,0x3e956398u,
+            0xfffffff7u,0xbff155e0u,0x00000003u,0xc0c44fe4u,0x00000018u,0x419b257au,
+            0x80000000u,0x3299fdd0u,0x7fffffffu,0x00000000u,0x143fcb8eu,0x3db41420u,
+            0xc483c403u,0x43f15644u,0x00000000u,0x3aaae953u,0x7ffffffeu,0x4071bfacu,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x0000000au,0x3d4c7160u,
+            0xfffffff7u,0xc0a3ca01u,0x0000000bu,0xc10575a9u,0x0000001cu,0x419fec43u,
+            0x80000000u,0x3371a598u,0x7fffffffu,0x00000000u,0x32025ab9u,0x3e805f58u,
+            0xf786c7beu,0x4362de88u,0x00000001u,0x3ad5fd35u,0x7fffffffu,0x4008da06u,
+        },
+        {
+            0x00000000u,0x00000000u,0x00000007u,0x40e00000u,0x00000004u,0x3f58797au,
+            0xfffffffcu,0xc0beef94u,0xfffffffeu,0x412290aau,0x0000000cu,0x41a7c0dfu,
+            0x80000000u,0x34614b92u,0x7fffffffu,0x00000000u,0x52601e41u,0x3f48a5c0u,
+            0x988aa757u,0xc35eda58u,0x00000001u,0x3ade211du,0x7fffffffu,0x403e22aau,
+        },
+    };
+    cstring_t const bounds[] = {
+        "0,0", "(I2R(0)/I2R(1)),(I2R(0)/I2R(1))",
+        "7,7", "(I2R(7)/I2R(1)),(I2R(7)/I2R(1))",
+        "1,10", "(I2R(0)/I2R(1)),(I2R(1)/I2R(1))",
+        "-10,-1", "(I2R(-10)/I2R(1)),(I2R(-1)/I2R(1))",
+        "-9,13", "(I2R(-9)/I2R(1)),(I2R(13)/I2R(1))",
+        "12,-4", "(I2R(12)/I2R(1)),(I2R(-4)/I2R(1))",
+        "-2147483648,2147483647", "(I2R(0)/I2R(1)),(I2R(1)/I2R(4194304))",
+        "2147483647,-2147483648", "(I2R(0)/I2R(1)),(I2R(1)/I2R(8388608))",
+        "0,2147483647", "(I2R(-1)/I2R(8)),(I2R(7)/I2R(8))",
+        "-2147483648,0", "(I2R(-512)/I2R(1)),(I2R(512)/I2R(1))",
+        "0,-1", "(I2R(1)/I2R(1024)),(I2R(1)/I2R(512))",
+        "2147483646,2147483647", "(I2R(2)/I2R(1)),(I2R(-2)/I2R(1))",
+    };
+    char script[16384];
+    FOR_LOOP(seed,11) {
+        reset_entities(); setup_test_world(); G_ClearHashtableRegistry();
+        int used=snprintf(script,sizeof(script),
+            "globals\nhashtable values\nendglobals\nfunction main takes nothing returns nothing\n"
+            "local integer discard\nset values=InitHashtable()\ncall SetRandomSeed(%d)\n",(int32_t)seeds[seed]);
+        FOR_LOOP(i,12) used+=snprintf(script+used,sizeof(script)-used,
+            "set discard=GetRandomInt(0,1)\n"
+            "call SaveInteger(values,0,%u,GetRandomInt(%s))\n"
+            "call SaveReal(values,0,%u,GetRandomReal(%s))\n"
+            "set discard=GetRandomInt(0,1)\n",i*2,bounds[i*2],i*2+1,bounds[i*2+1]);
+        snprintf(script+used,sizeof(script)-used,"endfunction\n");
+        T_ASSERT(run_test_jass(script));
+        hashtable_t const *table=&level.hashtables[0]; T_EQ(table->num_entries,24);
+        FOR_LOOP(i,24) {
+            T_EQ(table->entries[i].child,(int32_t)i);
+            uint32_t word; memcpy(&word,&table->entries[i].value,sizeof(word));
+        T_EQ(word,expected[seed][i]);
+        }
+    }
+    reset_entities(); setup_test_world(); G_ClearHashtableRegistry();
+}
+
+TEST(wc3_api, random_owner_continues_identically_after_save) {
+    cstring_t file="/tmp/openwarcraft3-random-owner-save.bin";
+    uint32_t expected[2];
+    reset_entities(); setup_test_world(); G_ClearHashtableRegistry();
+    T_ASSERT(run_test_jass(
+        "globals\nhashtable values\nendglobals\n"
+        "function next takes nothing returns nothing\n"
+        "call SaveInteger(values,0,0,GetRandomInt(1,2000000000))\n"
+        "call SaveReal(values,0,1,GetRandomReal(-9,13))\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set values=InitHashtable()\ncall SetRandomSeed(12345)\nendfunction\n"));
+    T_ASSERT(WriteGame(file)); jass_callbyname(level.vm,"next",false);
+    FOR_LOOP(i,2) memcpy(expected+i,&level.hashtables[0].entries[i].value,sizeof(uint32_t));
+    T_ASSERT(ReadGame(file)); jass_callbyname(level.vm,"next",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    FOR_LOOP(i,2) {
+        uint32_t actual; memcpy(&actual,&level.hashtables[0].entries[i].value,sizeof(actual));
+        T_EQ(actual,expected[i]);
+    }
+    remove(file); reset_entities(); setup_test_world(); G_ClearHashtableRegistry();
+}
+
+/* Exercise the natives through compiled JASS; libc range tests never reached the engine. */
 TEST(wc3_api, random_int_in_range) {
-    srand(42);
-    for (int i = 0; i < 50; i++) {
-        int32_t lo = 1, hi = 10;
-        int32_t r = lo + rand() % (hi - lo + 1);
-        T_ASSERT(r >= lo && r <= hi);
-    }
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local integer i=0\nlocal integer value\ncall SetRandomSeed(42)\nloop\nexitwhen i==50\n"
+        "set value=GetRandomInt(1,10)\ncall BJassAssert(value>=1 and value<=10, \"integer range\")\n"
+        "set i=i+1\nendloop\nendfunction\n"));
 }
-
 TEST(wc3_api, random_int_single_value) {
-    srand(1);
-    int32_t lo = 7, hi = 7;
-    int32_t r = lo + rand() % (hi - lo + 1);
-    T_EQ((int)r, 7);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "call BJassAssert(GetRandomInt(7,7)==7, \"equal bounds\")\nendfunction\n"));
 }
-
 TEST(wc3_api, random_real_in_range) {
-    srand(42);
-    for (int i = 0; i < 50; i++) {
-        float lo = 0.0f, hi = 1.0f;
-        float t = (float)rand() / (float)RAND_MAX;
-        float r = lo + t * (hi - lo);
-        T_ASSERT(r >= lo && r <= hi);
-    }
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local integer i=0\nlocal real value\ncall SetRandomSeed(42)\nloop\nexitwhen i==50\n"
+        "set value=GetRandomReal(0,1)\ncall BJassAssert(value>=0 and value<1, \"real range\")\n"
+        "set i=i+1\nendloop\nendfunction\n"));
 }
-
 TEST(wc3_api, random_seed_deterministic) {
-    srand(12345);
-    int a = rand();
-    srand(12345);
-    int b = rand();
-    T_EQ(a, b);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local integer value\ncall SetRandomSeed(12345)\nset value=GetRandomInt(1,100000)\n"
+        "call SetRandomSeed(12345)\ncall BJassAssert(GetRandomInt(1,100000)==value, \"reseed\")\nendfunction\n"));
 }
 
 /* =========================================================================

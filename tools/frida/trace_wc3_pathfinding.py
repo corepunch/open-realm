@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--map', default=r'Maps\Campaign\Human02Interlude.w3m')
     parser.add_argument('--seconds', type=float, default=60)
     parser.add_argument('--samples', type=int, default=200)
+    parser.add_argument('--random-events', action='store_true', help='observe public seed and owner random state before/after native queries')
     parser.add_argument('--numeric-events', action='store_true', help='capture bracketed public scalar native outputs and decimal parser words')
     parser.add_argument('--literal-events', action='store_true', help='observe compiled long-decimal token words without invoking the compiler')
     parser.add_argument('--integer-events', action='store_true', help='observe compiled long integer token words from original decimal/octal/hex lexer actions')
@@ -53,7 +54,7 @@ def main():
               'watchCell': args.watch_cell, 'blockers': args.blockers, 'taskEvents': args.task_events,
               'widgetEvents': args.widget_events, 'motionEvents': args.motion_events,
               'velocityEvents': args.velocity_events, 'clockEvents': args.clock_events, 'headingEvents': args.heading_events,
-              'profileEvents': args.profile_events, 'numericEvents': args.numeric_events,
+              'profileEvents': args.profile_events, 'numericEvents': args.numeric_events, 'randomEvents': args.random_events,
               'literalTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_literal_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.literal_events else [],
               'integerTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_integer_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.integer_events else [], 'byteEvents': args.byte_events}
     if args.byte_events:

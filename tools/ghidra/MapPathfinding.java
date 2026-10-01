@@ -8,6 +8,11 @@ import ghidra.program.model.symbol.SourceType;
 public class MapPathfinding extends GhidraScript {
     static final String HASH = "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236";
     static final String[][] ROWS = {
+        {"6f1cc4e0","PathRandom_Seed","ThiscallECX eight-byte state,stack4 unsignedseed,RET4. Sum seed and four packed prime-period byte offsets.11 originalpublicseedprefixes and C match; separate45 unitstreams/TLS693710 excluded."},
+        {"6f1b7130","PathRandom_Next","ECX eight-byte state,RETplain,EAXu32. Four byteoffsetcycles188/212/236/244,subtract4/12/24/28,lookup61words a92f10,rotate1/2/3/0 XORthenaddsum.1408 original/C mixedcalls word/stateexact."},
+        {"6f201e30","Jass_GetRandomInt","Cdeclstack4/8 signedbounds,RETplain,EAXi32. Equalbounds no draw. Unsigned inclusive absdifference wraps; multiplyhigh fullu32draw then add firstbound. Reversedbounds stayanchored at first; fullspan0 still draws."},
+        {"6f201e70","Jass_GetRandomReal","Cdeclstack4/8 scalarpointers,RETplain,EAXrawword. abssoftwaredifference<3456bf95 returnsfirst no draw; otherwiselow23drawbits formunitfraction, softwaremultiplypositive span then addfirst. Reversedbounds notsorted. Finite boundsverified."},
+        {"6f214140","Jass_SetRandomSeed","Cdeclstack4seed,RETvia tail693710. Seedownerd53a48 prefix then burnone ownerdraw, EAXdraw becomesECX secondaryseed. Originalprefix11seeds Cexact. Full693710 separate45 streams/TLS excluded."},
         {"6f205e90","Jass_IsTerrainPathable","Cdecl X/Y scalar pointers and pathingtype enum;RETplain,u32 blocked status.201630 lowbyte mask then04e090 highbyte-only point query. True on outside even enum mask0.3130 complete native calls,1040 original-engine cases."},
         {"6f201630","PathingType_TerrainMask","Cdecl enum,RETplain; only AL is returned.0=ff,1..7=1<<type, invalid/negative=0. This terrain-only mask is distinct from duplicated movement query masks."},
         {"6f04e090","PathWorld_TestTerrainPointMask","FastcallECX X scalar pointer,EDX Y scalar pointer; maskbyte stack4,excluded bridge stack8,RET8. Shift mask24,lowobject mask0,delegate04df50. Native queries ignore dynamic object records."},

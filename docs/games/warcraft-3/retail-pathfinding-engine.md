@@ -2728,3 +2728,57 @@ Validation: required `make test` and forced release RoC/TFT each pass45,561
 assertions in2,217 cases;134 pathfinding tool tests, fresh original-native
 corpus entry, production release build and engine/menu boundary audits pass.
 Native SDL2 is used as documented; production builds report no C warnings.
+
+## Deterministic owner random state reaches public natives
+
+Engine payoff17 replaces libc draws in actual `GetRandomInt`/`GetRandomReal`
+with `wc3_pathing_random.h`, the same two-word state and arithmetic used by
+retail overlap directions. `level.pathing_random` persists through Save65;
+loading older formats is rejected before reconstruction. `SetRandomSeed`
+seeds that owner then consumes one draw, matching214140's prefix. The full
+693710 tail reseeds45 separate unit streams; those streams remain unported.
+Its legacy `srand` side effect remains explicitly marked until those consumers
+are replaced. This does not claim a complete global gameplay draw order.
+
+`verify_wc3_pathing_random.py` executes1,408 complete original PRNG/public
+integer/real/direction calls across11 seeds and11 public seed prefixes,
+checking ABI, raw result words and both state words against production C.
+The original scalar-table initializers run; no platform/TLS import is stubbed.
+The frozen `retail-pathfinding-random-1.27.json` stores only derived words.
+`random-owner-corpus-accepted-261001` independently compiles the engine probe and runs
+this scope. `runtime/random-owner-ghidra-readback-261001.json` records saved
+function prototypes and the two-word state structure.
+
+Equal integer bounds and scalar differences below `3456bf95` consume no draw.
+Integer draws use unsigned inclusive span and multiply-high; full signed-range
+span wraps tozero but still consumes a draw. Both reversed-bound natives keep
+the first argument as the result anchor. Real fractions use the low23 bits
+with retail software scalar arithmetic. Exact overlap directions consume one
+owner draw and the existing retail sine/cosine table.
+
+The engine tests invoke compiled public JASS:550 assertions compare11 seeded
+native query sequences to original words, plus save/load continuation and
+range/reseed controls. The original engine crashed on full-width integer
+bounds and failed both saved continuation words. Clear the hashtable registry
+between seeded fixture programs: `reset_entities` does not retire old tables;
+reading slot0 without clearing it silently tests the previous seed's output.
+Default map seed production, separate per-unit reseeding and movement-wide
+consumer order remain NUM-04.1/5/6. Repulsion scheduling and actual overlap
+movement remain SEP-02.3; helper parity alone does not complete them.
+
+Scene40 `random_owner` observes complete public seeding and48 interleaved
+queries per seed:539 native returns, owner-before/after words and raw query
+results match the frozen original/C oracle in both completed captures.
+`runtime/random-owner-loaded-first-261001.jsonl` and its repeat are accepted;
+`verify_wc3_random_trace.py` rejects damaged words or missing scheduled
+completion. The full public seed tail returns without changing the verified
+owner words, although its separate unit streams are outside this assertion.
+The initial `random-owner-first-261001.jsonl` has no timer samples and is
+unaccepted: its10s loading key preceded initialization at21s. The controlled
+captures use35s/85s timing and both reach tick300. Observer/controller sources
+are frozen under `runtime/random-owner-sources-261001/`.
+
+Validation: `make test`, forced release RoC/TFT engine suites and the release
+binary build; original/C comparisons run twice atO0/O2. The full engine suites
+now contain46,022 assertions across2,219 cases per mode. Dedicated public
+random tests have560 assertions. Network/snapshot contracts are unchanged.

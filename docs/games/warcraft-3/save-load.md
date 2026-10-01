@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 64, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 65, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -626,3 +626,9 @@ byte count against the reloaded map, restores terrain and Blight, then bakes
 static footprints after entity reconstruction. The exact-version guard rejects
 63 and earlier. Edict, callback and JSVM7 layouts remain unchanged. See
 [terrain natives](retail-pathfinding-engine.md#terrain-pathing-natives-reach-the-engine).
+
+Version65 adds the two pathfinding-owner PRNG words to `level_fields`.
+Public `SetRandomSeed`/`GetRandomInt`/`GetRandomReal` use this state; saved
+continuation is tested through the compiled natives. Formats64 and earlier
+are rejected. Edict, callback and JSVM7 layouts remain unchanged. See
+[deterministic owner random state](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).

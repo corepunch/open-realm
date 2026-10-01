@@ -17,6 +17,7 @@
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 #include "games/warcraft-3/common/wc3_math.h"
+#include "games/warcraft-3/common/wc3_pathing_random.h"
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
@@ -2115,6 +2116,7 @@ struct level_locals {
     uint32_t framenum;
     uint32_t time;
     wc3Clock_t pathing_clock;
+    wc3Random_t pathing_random;
     uint32_t pathing_msec;
     uint32_t pathing_phase; /* six primary advances per owner update */
     bool pathing_due; /* owner request due at the next timer dispatch */

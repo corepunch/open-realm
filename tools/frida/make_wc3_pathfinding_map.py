@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 
 SCENARIOS = {'open': 0, 'wall': 1, 'insert': 2, 'remove': 3, 'remove_reorder': 4,
-             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29, 'numeric_bytes': 30, 'profiles': 31, 'speed_inputs': 32, 'speed_drop': 33, 'item_speed': 34, 'item_speed_publish': 35, 'axis_position': 36, 'clock_oblique': 37, 'forced_position': 38, 'blocked_position': 39}
+             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29, 'numeric_bytes': 30, 'profiles': 31, 'speed_inputs': 32, 'speed_drop': 33, 'item_speed': 34, 'item_speed_publish': 35, 'axis_position': 36, 'clock_oblique': 37, 'forced_position': 38, 'blocked_position': 39, 'random_owner': 40}
 
 
 def byte_unit_name(data):
@@ -124,6 +124,28 @@ def numeric_calls(filename="wc3_numeric_inputs.json"):
     return '\n'.join(lines)
 
 
+
+def random_calls():
+    """Drive real public native seed/draw contracts, including reversed and wrapped bounds."""
+    fixture=json.loads(Path('tools/ghidra/fixtures/retail-pathfinding-random-1.27.json').read_text())
+    lines=[]
+    for sequence in fixture['sequences']:
+        seed=sequence['seed']; signed=seed if seed<0x80000000 else seed-0x100000000
+        lines += [f'    call Preload("PATHRANDOM case=seed_{seed} native=SetRandomSeed")',f'    call SetRandomSeed({signed})']
+        for i,op in enumerate(sequence['operations'][:48]):
+            native='GetRandomReal' if op['kind']==2 else 'GetRandomInt'
+            if op['kind']==1:
+                args=','.join(str(v if v<0x80000000 else v-0x100000000) for v in op['input'])
+            elif op['kind']==2:
+                floats=struct.unpack('<ff',struct.pack('<II',*op['input']))
+                args=','.join(f'(I2R({v.as_integer_ratio()[0]})/I2R({v.as_integer_ratio()[1]}))' for v in floats)
+            else: args='0,1'
+            variable='realResult' if native=='GetRandomReal' else 'integerResult'
+            lines += [f'    call Preload("PATHRANDOM case=seed_{seed}_op_{i} native={native}")',f'    set {variable}={native}({args})']
+    lines.append('    call Preload("PATHRANDOM done=all")')
+    return '\n'.join(lines)
+
+
 def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit_y=-240.0):
     if not 11 <= remove_tick < 300:
         raise ValueError('removal tick must follow the order and precede completion')
@@ -139,6 +161,7 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
     if 'gg_rct_SorcAFight = Rect( -1856.0, -352.0, -1728.0, -224.0 )' not in script:
         raise ValueError('unexpected source map geometry')
     probe = probe.replace('@SCENARIO@', str(SCENARIOS[scenario])).replace('@NAME@', scenario)
+    probe = probe.replace('@RANDOM_CASES@', random_calls())
     probe = probe.replace('@NUMERIC_CASES@', numeric_calls())
     probe = probe.replace('@ANGLE_CASES@', numeric_calls('wc3_angle_inputs.json'))
     probe = probe.replace('@POWER_CASES@', numeric_calls('wc3_power_inputs.json'))

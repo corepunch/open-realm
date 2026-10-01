@@ -1163,6 +1163,24 @@
           "evidence": "744040 returns low4 bits; other flags remain unassigned"
         }
       ]
+    },
+    {
+      "name": "WC3PathRandomState",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "sum",
+          "type": "u32",
+          "evidence": "1cc4e0 seed/1b7130 next; complete original/C words"
+        },
+        {
+          "offset": 4,
+          "name": "index",
+          "type": "u32",
+          "evidence": "Four packed byte offsets with prime periods47/53/59/61"
+        }
+      ]
     }
   ],
   "methods": [
@@ -3921,6 +3939,104 @@
           "name": "bridge",
           "type": "ptr:WC3UnitMoverBridge",
           "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f1cc4e0",
+      "name": "PathRandom_Seed",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "state",
+          "type": "ptr:WC3PathRandomState",
+          "storage": "ECX"
+        },
+        {
+          "name": "seed",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1b7130",
+      "name": "PathRandom_Next",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "state",
+          "type": "ptr:WC3PathRandomState",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f201e30",
+      "name": "Jass_GetRandomInt",
+      "returns": "i32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "lo",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "hi",
+          "type": "i32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f201e70",
+      "name": "Jass_GetRandomReal",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "lo",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "hi",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f214140",
+      "name": "Jass_SetRandomSeed",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "seed",
+          "type": "i32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1d19e0",
+      "name": "PathRandom_UnitDirection",
+      "returns": "ptr:WC3PathVector2",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathVector2",
+          "storage": "ECX"
+        },
+        {
+          "name": "state",
+          "type": "ptr:WC3PathRandomState",
+          "storage": "EDX"
         }
       ]
     }

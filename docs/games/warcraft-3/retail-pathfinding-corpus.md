@@ -487,3 +487,15 @@ cases and3,130 original calls, exact production helper results and untouched
 neighbor/occupancy/mode guards. `terrain-natives-corpus-accepted-261001` is the
 fresh accepted report. The inventory now pins72 repository fixtures. See
 [engine terrain integration](retail-pathfinding-engine.md#terrain-pathing-natives-reach-the-engine).
+
+Owner RNG payoff17 adds `oracle-random-owner`:1,408 complete original/C next,
+public integer/real and overlap-direction calls with both state words checked,
+plus11 actual public seed prefixes. Secondary per-unit/TLS reseeding is excluded.
+`random-owner-corpus-accepted-261001` is the fresh composed/live report. Inventory:209 entries,
+82 oracles (43 scripts/39 variants),100 archived captures,27 live contracts;
+73 pinned repository fixtures. See [engine integration](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).
+
+Scene40's `live-random-owner-repeat` requires all539 public seed/query returns,
+raw inputs/results and owner-before/after words to match both the original
+oracle and the second completed capture. The10s loading-key attempt is kept
+outside accepted evidence because it did not reach scheduled samples.

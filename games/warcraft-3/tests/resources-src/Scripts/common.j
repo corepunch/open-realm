@@ -481,3 +481,8 @@ globals
     constant unittype UNIT_TYPE_GROUND = ConvertUnitType(4)
     constant effecttype EFFECT_TYPE_TARGET = ConvertEffectType(1)
 endglobals
+
+// Public natives sharing the retail pathfinding owner random state.
+native GetRandomInt takes integer lowBound, integer highBound returns integer
+native GetRandomReal takes real lowBound, real highBound returns real
+native SetRandomSeed takes integer seed returns nothing

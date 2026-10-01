@@ -2,6 +2,7 @@
 let installed = false, samples = 0, serial = 0, rebuildSamples = 0;
 let widgetScenario = false;
 let numericCase = null;
+let randomCase = null;
 let speedCase = null;
 let positionCase = null;
 let clockScenario = false, clockSerial = 0;
@@ -31,6 +32,18 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.randomEvents) {
+        const ownerWords = () => ints(base.add(0xd53a48).readPointer(),2).map(v => v >>> 0);
+        for (const [name,rva] of [['SetRandomSeed',0x214140],['GetRandomInt',0x201e30],['GetRandomReal',0x201e70]]) {
+            hook(rva,{onEnter(args) {
+                this.row = randomCase && randomCase.native === name ? {...randomCase,before:ownerWords()} : null;
+                if (this.row) this.row.input = name === 'SetRandomSeed' ? [args[0].toUInt32()] :
+                    [0,1].map(i => name === 'GetRandomReal' ? args[i].readU32() : args[i].toUInt32());
+            },onLeave(ret) {
+                if (this.row) emit('random-native',{...this.row,after:ownerWords(),output:ret.toUInt32()});
+            }});
+        }
+    }
     if (config.clockEvents) {
         const words = (p, n) => Array.from({length:n}, (_,i) => p.add(i*4).readU32());
         const clocks = owner => [0x14,0x68].map(offset => words(owner.add(offset+0x40),4));
@@ -1244,6 +1257,13 @@ function install(module) {
     hook(0x231df0, {onEnter(args) {
         if (args[0].isNull()) return;
         const value = args[0].readCString();
+        if (config.randomEvents && value.startsWith('PATHRANDOM ')) {
+            const match = /^PATHRANDOM case=([a-z0-9_]+) native=([A-Za-z0-9]+)$/.exec(value);
+            if (match) randomCase = {case:match[1],native:match[2]};
+            else if (value === 'PATHRANDOM done=all') randomCase = null;
+            else throw new Error('Malformed random marker: '+value);
+            emit('random-marker',{value});
+        }
         if (config.numericEvents && value.startsWith('PATHNUM ')) {
             const match = /^PATHNUM case=([a-z0-9_]+) native=([A-Za-z0-9]+)$/.exec(value);
             if (match) numericCase = {case:match[1], native:match[2]};

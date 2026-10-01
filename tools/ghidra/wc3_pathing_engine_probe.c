@@ -6,6 +6,7 @@
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
 #include "games/warcraft-3/common/wc3_pathing_formation.h"
 #include "games/warcraft-3/common/wc3_pathing_placement.h"
+#include "games/warcraft-3/common/wc3_pathing_random.h"
 
 /* Complete public terrain native inputs: XY/origin words, type, seed, passable. */
 void pathing_terrain_native(uint32_t const input[7], uint32_t output[4]) {
@@ -527,4 +528,25 @@ void pathing_fine_placement(uint32_t const *input, uint8_t const *cells, uint32_
         .integer_result = input[7] != 0};
     float point[2]; out[0] = wc3_fine_place(&request,point);
     out[1] = wc3_float_bits(point[0]); out[2] = wc3_float_bits(point[1]);
+}
+
+/* The same owner state consumed by the public JASS natives and overlap directions. */
+void pathing_random_seed(uint32_t seed, uint32_t output[2]) {
+    wc3Random_t state;
+    wc3_random_seed(&state, seed); wc3_random_next(&state);
+    output[0] = state.sum; output[1] = state.index;
+}
+void pathing_random_query(uint32_t const input[3], uint32_t words[2], uint32_t output[2]) {
+    wc3Random_t state = {.sum = words[0], .index = words[1]};
+    float dir[2];
+    switch (input[0]) {
+    case 0: output[0] = wc3_random_next(&state); break;
+    case 1: output[0] = (uint32_t)wc3_random_int(&state, (int32_t)input[1], (int32_t)input[2]); break;
+    case 2: output[0] = wc3_float_bits(wc3_random_real(&state, wc3_float(input[1]), wc3_float(input[2]))); break;
+    case 3:
+        wc3_random_direction(&state, dir);
+        for (unsigned i = 0; i < 2; i++) output[i] = wc3_float_bits(dir[i]);
+        break;
+    }
+    words[0] = state.sum; words[1] = state.index;
 }
