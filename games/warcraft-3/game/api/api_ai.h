@@ -180,6 +180,20 @@ uint32_t IsTowered(jass_t *j) {
     return jass_pushboolean(j, G_BotIsTowered(jass_getcontext(j)->playerState, jass_checkhandle(j, 1, "unit")));
 }
 
+uint32_t StartGetEnemyBase(jass_t *j) {
+    G_BotStartGetEnemyBase(jass_getcontext(j)->playerState);
+    return 0;
+}
+
+uint32_t WaitGetEnemyBase(jass_t *j) {
+    return jass_pushboolean(j, G_BotWaitGetEnemyBase(jass_getcontext(j)->playerState));
+}
+
+uint32_t GetEnemyBase(jass_t *j) {
+    edict_t *target = G_BotGetEnemyBase(jass_getcontext(j)->playerState);
+    return target ? jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
+}
+
 uint32_t GetEnemyExpansion(jass_t *j) {
     edict_t *target = G_BotGetEnemyExpansion(jass_getcontext(j)->playerState);
     return target ? jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");

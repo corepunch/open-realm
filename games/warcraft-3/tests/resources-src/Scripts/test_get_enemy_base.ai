@@ -1,0 +1,10 @@
+function main takes nothing returns nothing
+    call StartGetEnemyBase()
+    if WaitGetEnemyBase() then
+        call Sleep(10)
+    endif
+    if GetEnemyBase() != null then
+        call MissingAIAction()
+    endif
+    call Sleep(10)
+endfunction
