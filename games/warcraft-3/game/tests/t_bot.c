@@ -1137,6 +1137,47 @@ TEST(wc3_bot, town_threatened_native_is_registered_for_player_bound_ai) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
+TEST(wc3_bot, is_towered_native_is_registered_for_player_bound_ai) {
+    bot_t *bot = level.bots + 2;
+
+    reset_entities();
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_is_towered.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_building) {
+    static UnitWeapons_t const enabled_attack = { .attacksEnabled = 1 };
+    player_t *caller = &game.clients[2].ps;
+    edict_t *hall, *target, *tower;
+
+    reset_entities();
+    InitUnitData();
+    hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 1, &bot_hall_abilities);
+    target = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 128, 0, 1, NULL);
+    tower = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 256, 0, 1, NULL);
+    tower->data.UnitWeapons = &enabled_attack; tower->attack1.type = ATK_PIERCE; tower->attack1.range = 0;
+
+    T_ASSERT(G_BotIsTowered(caller, target));
+
+    /* Authored attack/acquisition ranges are not part of retail IsTowered classification. */
+    tower->attack1.range = 99999; tower->runtime.acquisition_range = 1;
+    T_ASSERT(G_BotIsTowered(caller, target));
+
+    tower->s.player = 3;
+    T_ASSERT(!G_BotIsTowered(caller, target));
+    tower->s.player = 1;
+
+    tower->attack1.type = ATK_NONE;
+    T_ASSERT(!G_BotIsTowered(caller, target));
+    tower->attack1.type = ATK_PIERCE;
+
+    target->s.origin2.x = 2048;
+    T_ASSERT(!G_BotIsTowered(caller, target));
+    (void)hall;
+}
+
 TEST(wc3_bot, town_threatened_tracks_active_hostile_attacks_on_any_owned_unit) {
     player_t *player = &game.clients[2].ps;
     edict_t *unit, *building, *enemy, *friendly;

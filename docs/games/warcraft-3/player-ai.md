@@ -363,8 +363,8 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Sixty-three of those names are registered in OpenRealm's JASS
-module; the following 9 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+functions, but their reachable native surface is the same. Sixty-four of those names are registered in OpenRealm's JASS
+module; the following 8 are still unresolved and will cause a native lookup/runtime failure when their call paths are
 reached:
 
 | Unregistered native | Reachable role in `common.ai` |
@@ -373,7 +373,6 @@ reached:
 | `GetCreepCamp` | Find a creep camp within a level range |
 | `GetEnemyBase`, `GetEnemyExpansion` | Locate enemy bases and expansion targets |
 | `GetMegaTarget` | Retrieve a high priority target |
-| `IsTowered` | Assess tower pressure |
 | `PurchaseZeppelin` | Request a transport for an assault |
 | `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
 
@@ -426,6 +425,20 @@ goal, and to be hostile under the ordinary WC3 alliance/targeting rules. Attack-
 spell/DoT damage, stale combat links, and an owned unit merely fighting an enemy do not make the town threatened unless
 an enemy is actively attacking an owned unit. This keeps `TownThreatened` a read-only AI query; it does not form the
 defense captain or issue any orders.
+
+### Towered Target Query
+
+`IsTowered(target)` reports whether a live target is defended by an attack-capable building owned by the target's
+player while the target is also in that player's base area. Stock melee AI uses this before attacking an enemy expansion:
+without siege support it avoids a hall that is tower-defended. Retail-facing AI documentation also records that custom
+attack-capable buildings may qualify and that the defending building's authored attack/acquisition ranges do not control
+the query. OpenRealm therefore classifies a defender from ordinary unit metadata (`G_UnitIsBuilding`, enabled attack slot,
+non-`ATK_NONE` attack) rather than hardcoded Guard Tower/Cannon Tower/etc. rawcodes.
+
+`BZ_COMPAT_GUESS`: Blizzard does not expose the internal base-proximity or tower-proximity radii. OpenRealm currently uses
+1024 world units for each test. Those constants live only in `g_bot.c`; direct retail/native capture can replace them without
+changing generic combat range, acquisition, building metadata, or the JASS API. The defending tower is required to share the
+target's owner; the invoking AI player's own towers do not make an enemy expansion "towered".
 
 `RemoveSiege()` compacts the attack-captain roster and removes live members classified as siege units before the next
 melee assault group is assembled. This matches stock `common.ai`, where `InitMeleeGroup()` calls `RemoveInjuries()` and
