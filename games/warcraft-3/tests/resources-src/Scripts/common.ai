@@ -32,6 +32,7 @@ native GetUpgradeWoodCost takes integer id returns integer
 native GetUpgradeLumberCost takes integer id returns integer
 native UnitAlive takes unit id returns boolean
 native IsTowered takes unit target returns boolean
+native GetMegaTarget takes nothing returns unit
 native TownThreatened takes nothing returns boolean
 native ConvertUnits takes integer qty, integer id returns boolean
 native SetCampaignAI takes nothing returns nothing

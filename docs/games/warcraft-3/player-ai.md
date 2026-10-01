@@ -363,8 +363,8 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Sixty-four of those names are registered in OpenRealm's JASS
-module; the following 8 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+functions, but their reachable native surface is the same. Sixty-five of those names are registered in OpenRealm's JASS
+module; the following 7 are still unresolved and will cause a native lookup/runtime failure when their call paths are
 reached:
 
 | Unregistered native | Reachable role in `common.ai` |
@@ -372,7 +372,6 @@ reached:
 | `CaptainRetreating` | Poll whether an attack captain is retreating; the state enum exists, but no runtime transition currently initiates or completes retreat |
 | `GetCreepCamp` | Find a creep camp within a level range |
 | `GetEnemyBase`, `GetEnemyExpansion` | Locate enemy bases and expansion targets |
-| `GetMegaTarget` | Retrieve a high priority target |
 | `PurchaseZeppelin` | Request a transport for an assault |
 | `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
 
@@ -439,6 +438,23 @@ non-`ATK_NONE` attack) rather than hardcoded Guard Tower/Cannon Tower/etc. rawco
 1024 world units for each test. Those constants live only in `g_bot.c`; direct retail/native capture can replace them without
 changing generic combat range, acquisition, building metadata, or the JASS API. The defending tower is required to share the
 target's owner; the invoking AI player's own towers do not make an enemy expansion "towered".
+
+### Mega Target Query
+
+`GetMegaTarget()` participates only when `SetWatchMegaTargets(true)` has enabled the bot's `BOT_WATCH_MEGA` policy. Stock
+melee AI gives this query priority over ordinary enemy-expansion/base discovery, and contemporary analysis describes the
+mega target as an enemy main base left vulnerable while its defending army is elsewhere. OpenRealm therefore considers
+only each hostile player's primary town hall (`G_BotTown(enemy, 0)`), never an arbitrary unit or expansion.
+
+A main hall is eligible only when it is live, hostile, not `IsTowered`, and has no nearby live non-worker combat unit owned
+by that player. Workers carrying the stock/custom `Ahar` harvest command do not by themselves disqualify a vulnerable main.
+The native is a read-only selector: it does not publish an alliance target, form a captain, issue orders, or ping the minimap.
+
+`BZ_COMPAT_GUESS`: Blizzard does not publish the internal mega-target defender radius, combat-unit weighting, or arbitration
+when several enemy mains are simultaneously vulnerable. OpenRealm currently uses a 1200-world-unit protection radius and,
+when the invoking AI has a primary town, selects the qualifying main nearest that town; otherwise stable player-slot order
+wins. Keep those choices local to `G_BotGetMegaTarget` so direct retail/native capture can replace them without changing
+ordinary enemy-base discovery or captain attack behavior.
 
 `RemoveSiege()` compacts the attack-captain roster and removes live members classified as siege units before the next
 melee assault group is assembled. This matches stock `common.ai`, where `InitMeleeGroup()` calls `RemoveInjuries()` and
