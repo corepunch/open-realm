@@ -1408,11 +1408,16 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
      * bars first instead of allowing a later-numbered fill to cover text. */
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type == FT_TEXTURE) SCR_LayoutDrawFrame(f);
+    }
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SIMPLESTATUSBAR) SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
-        if (f && f->flags.type != FT_SPRITE && f->flags.type != FT_SIMPLESTATUSBAR)
+        if (f && f->flags.type != FT_SPRITE && f->flags.type != FT_TEXTURE &&
+            f->flags.type != FT_SIMPLESTATUSBAR)
             SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
