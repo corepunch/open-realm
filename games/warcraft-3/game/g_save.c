@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include <stdint.h>
 #ifdef BZ_TESTS
 #include "shared/test.h"
 void reset_entities(void);
@@ -77,8 +78,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Version 59 replaces Stop guard booleans with one serialized phase enum. */
-static uint32_t const save_version = 59;
+/* Version 60 appends each client's disabled-ability rawcode list. */
+static uint32_t const save_version = 60;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -866,6 +867,8 @@ static field_t const client_fields[] = {
     F(client_s, quest_until, F_IGNORE, 0, FIELD_RUNTIME),
     /* The window class belongs to the connecting client, which re-reports it before begin. */
     F(client_s, canvas, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, jass.disabled_abilities, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, jass.disabled_ability_capacity, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, menu, F_STRUCT, 1, client_menu_fields),
     F(client_s, camera, F_STRUCT, 1, client_camera_fields),
     F(client_s, rally_indicator, F_IGNORE, 0, FIELD_RUNTIME),
@@ -890,6 +893,11 @@ static void ClearRuntimeFields(void *object, field_t const *fields, uint32_t fla
 
 static bool SaveBytes(FILE *f, void const *data, size_t size) { return fwrite(data, 1, size, f) == size; }
 static bool LoadBytes(FILE *f, void *data, size_t size) { return fread(data, 1, size, f) == size; }
+static bool DisabledAbilityBytes(uint32_t count, size_t *size) {
+    if (!size || (count && sizeof(uint32_t) > SIZE_MAX / (size_t)count)) return false;
+    *size = (size_t)count * sizeof(uint32_t);
+    return true;
+}
 static bool WriteJassBytes(void *context, void *data, uint32_t size) { return SaveBytes(context, data, size); }
 static bool ReadJassBytes(void *context, void *data, uint32_t size) { return LoadBytes(context, data, size); }
 static bool WriteMappedFields(FILE *f, field_t const *fields, uint8_t *base);
@@ -1737,16 +1745,49 @@ static bool WriteEdict(FILE *f, edict_t const *ent) {
 static bool WriteClient(FILE *f, gameClient_t const *client) {
     gameClient_t temp = *client;
     int target = client->camera.target_controller ? (int)(client->camera.target_controller - g_edicts) : -1;
+    uint32_t const disabled_count = client->jass.disabled_ability_count;
+    size_t disabled_bytes;
 
     /* Client pointers and callbacks are process-owned; text storage remains inline in GAMECLIENT. */
     ClearRuntimeFields(&temp, client_fields, FIELD_RUNTIME);
     if (target < -1 || target >= (int)globals.max_edicts) return false;
-    return SaveBytes(f, &temp, sizeof(temp)) && SaveBytes(f, &target, sizeof(target));
+    if (!DisabledAbilityBytes(disabled_count, &disabled_bytes) ||
+        (disabled_count && !client->jass.disabled_abilities)) {
+        fprintf(stderr, "WC3 SaveGame: invalid disabled ability count %u\n", (unsigned)disabled_count);
+        return false;
+    }
+    if (!SaveBytes(f, &temp, sizeof(temp)) || !SaveBytes(f, &target, sizeof(target)) ||
+        !SaveBytes(f, &disabled_count, sizeof(disabled_count))) return false;
+    return !disabled_count || SaveBytes(f, client->jass.disabled_abilities, disabled_bytes);
 }
 
 static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
-    if (!LoadBytes(f, client, sizeof(*client)) || !LoadBytes(f, target, sizeof(*target))) return false;
+    gameClient_t temp;
+    uint32_t *disabled_abilities = NULL;
+    uint32_t disabled_count = 0;
+    size_t disabled_bytes;
+
+    if (!LoadBytes(f, &temp, sizeof(temp)) || !LoadBytes(f, target, sizeof(*target)) ||
+        !LoadBytes(f, &disabled_count, sizeof(disabled_count))) return false;
     if (*target < -1 || *target >= (int)globals.max_edicts) return false;
+    if (!DisabledAbilityBytes(disabled_count, &disabled_bytes)) {
+        fprintf(stderr, "WC3 LoadGame: invalid disabled ability count %u\n", (unsigned)disabled_count);
+        return false;
+    }
+    if (disabled_count) {
+        disabled_abilities = malloc(disabled_bytes);
+        if (!disabled_abilities || !LoadBytes(f, disabled_abilities, disabled_bytes)) {
+            fprintf(stderr, "WC3 LoadGame: failed to read disabled ability list\n");
+            free(disabled_abilities);
+            return false;
+        }
+    }
+
+    G_ClearPlayerAbilityAvailability(client);
+    *client = temp;
+    client->jass.disabled_abilities = disabled_abilities;
+    client->jass.disabled_ability_count = disabled_count;
+    client->jass.disabled_ability_capacity = disabled_count;
     client->ps.name = client->jass.name;
     FOR_LOOP(i, PLAYERTEXT_COUNT) client->ps.texts[i] = client->playerTextCursor[i] ?
         client->playerTextStorage[i][client->playerTextCursor[i] & PLAYER_TEXT_MASK] : NULL;
@@ -2025,6 +2066,37 @@ TEST(wc3_save, spell_approach_callback_uses_current_roster_identity) {
         T_STREQ(save_cfunctions[index - 1].name, "S_SpellTargetApproachThink");
 }
 
+TEST(wc3_save, disabled_player_abilities_grow_and_round_trip) {
+    static char const digits[] = "0123456789";
+    cstring_t const filename = "/tmp/openwarcraft3-wc3-disabled-abilities-save.bin";
+    enum { ABILITY_COUNT = 96 };
+    gameClient_t *client;
+    uint32_t abilities[ABILITY_COUNT];
+
+    reset_entities();
+    setup_test_world();
+    client = &game.clients[0];
+    for (uint32_t i = 0; i < ABILITY_COUNT; i++) {
+        abilities[i] = MAKEFOURCC('A', '0', digits[i / 10], digits[i % 10]);
+        G_SetPlayerAbilityAvailable(client, abilities[i], false);
+    }
+    T_EQ(client->jass.disabled_ability_count, (uint32_t)ABILITY_COUNT);
+    T_ASSERT(WriteGame(filename));
+
+    G_SetPlayerAbilityAvailable(client, abilities[32], true);
+    G_SetPlayerAbilityAvailable(client, MAKEFOURCC('A', '0', '9', '9'), false);
+    T_ASSERT(ReadGame(filename));
+    client = &game.clients[0];
+    T_EQ(client->jass.disabled_ability_count, (uint32_t)ABILITY_COUNT);
+    FOR_LOOP(i, ABILITY_COUNT) T_ASSERT(!G_IsPlayerAbilityAvailable(client, abilities[i]));
+    T_ASSERT(G_IsPlayerAbilityAvailable(client, MAKEFOURCC('A', '0', '9', '9')));
+
+    G_SetPlayerAbilityAvailable(client, abilities[32], true);
+    T_ASSERT(G_IsPlayerAbilityAvailable(client, abilities[32]));
+    T_ASSERT(!G_IsPlayerAbilityAvailable(client, abilities[95]));
+    remove(filename);
+}
+
 static bool write_save_fixture_header(cstring_t source_path, cstring_t output_path, uint32_t version, uint32_t edict_size) {
     uint8_t buffer[4096];
     saveHeader_t header;
@@ -2110,8 +2182,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-56.bin",
         "/tmp/openwarcraft3-wc3-save-version-57.bin",
         "/tmp/openwarcraft3-wc3-save-version-58.bin",
+        "/tmp/openwarcraft3-wc3-save-version-59.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 };
 
     reset_entities();
     setup_test_world();

@@ -1342,6 +1342,32 @@ TEST(wc3_building, player_ability_availability_does_not_leak_to_unmapped_owner) 
     G_SetPlayerAbilityAvailable(fallback, FS_SLKKey("Aply"), true);
 }
 
+TEST(wc3_building, player_ability_availability_grows_past_initial_capacity) {
+    static char const digits[] = "0123456789";
+    enum { ABILITY_COUNT = 96 };
+    gameClient_t *client;
+    uint32_t abilities[ABILITY_COUNT];
+
+    setup_test_world();
+    client = &game.clients[0];
+    for (uint32_t i = 0; i < ABILITY_COUNT; i++) {
+        abilities[i] = MAKEFOURCC('A', '0', digits[i / 10], digits[i % 10]);
+        G_SetPlayerAbilityAvailable(client, abilities[i], false);
+        T_ASSERT(!G_IsPlayerAbilityAvailable(client, abilities[i]));
+    }
+    T_EQ(client->jass.disabled_ability_count, (uint32_t)ABILITY_COUNT);
+    T_ASSERT(client->jass.disabled_ability_capacity >= ABILITY_COUNT);
+
+    G_SetPlayerAbilityAvailable(client, abilities[32], false);
+    T_EQ(client->jass.disabled_ability_count, (uint32_t)ABILITY_COUNT);
+    G_SetPlayerAbilityAvailable(client, abilities[32], true);
+    T_ASSERT(G_IsPlayerAbilityAvailable(client, abilities[32]));
+    T_ASSERT(!G_IsPlayerAbilityAvailable(client, abilities[95]));
+
+    FOR_LOOP(i, ABILITY_COUNT) G_SetPlayerAbilityAvailable(client, abilities[i], true);
+    T_EQ(client->jass.disabled_ability_count, 0u);
+}
+
 TEST(wc3_building, caster_training_gates_sorceress_and_priest_spell_tiers) {
     buildingCasterRows_t caster_rows;
     gameClient_t *client;

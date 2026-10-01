@@ -152,6 +152,7 @@ static void reset_test_state(void) {
     globals.edicts = g_edicts;
     /* Restore player-slot client pointers so G_GetPlayerEntityByNumber works. */
     FOR_LOOP(i, game.max_clients) g_edicts[i].s.number = i;
+    FOR_LOOP(i, game.max_clients) G_ClearPlayerAbilityAvailability(game.clients + i);
     memset(game.clients, 0, game.max_clients * sizeof(*game.clients));
     game.constants.dawnTimeGameHours = 6.0f;
     game.constants.duskTimeGameHours = 18.0f;
