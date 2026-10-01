@@ -25,7 +25,6 @@ Outofstock=Out of stock.
 Calltoarms=No Peasants could be found.
 Backtowork=No Militia could be found.
 TestTrigstr=TRIGSTR_0
-
 [Acan]
 Art=TestUI\\CommandButtons\\BTN-Acan.blp
 

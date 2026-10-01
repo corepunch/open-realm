@@ -37,7 +37,7 @@ The completion path currently uses a one-second alert-ping lifetime. That is an 
 Automatic normal-weapon attack alerts are also produced by the WC3 game module. The resolved primary weapon-hit path calls `G_WC3_AttackAlert()` before applying the hit; direct spell, DoT, splash, and scripted `T_Damage()` callers do not automatically become attack alarms. A qualifying remote alert:
 
 - resolves `AttackNotifyDelay` and `AttackNotifyRange` from the active Misc data, with stock fallbacks of 30 seconds and 1250 world units;
-- resolves the stock `Units\\CommandStrings.txt` `[AdvisorStrings]` text (`Unitattack` / `Townattack`) through the same archive/`TRIGSTR` string path used elsewhere;
+- resolves the stock `Units\\CommandStrings.txt` advisor text (`Unitattack` / `Townattack`) through the same archive/`TRIGSTR` string path used elsewhere; retail comments out the `[AdvisorStrings]` header, so those keys are read from the active `[Errors]` section, with explicit `[AdvisorStrings]` overrides preferred;
 - resolves allied advisor text through `Allyunderattack` / `Allytownattack` and substitutes the attacked player's current name for the stock `%s` token;
 - presents advisor text through the ordinary transient gameplay-message layer, not the command-error HUD and not the persistent Message Log;
 - uses the recipient's race/map skin `UnderAttackSound` or `TownAttackSound`;
