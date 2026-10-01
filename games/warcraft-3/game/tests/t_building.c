@@ -4303,6 +4303,38 @@ TEST(wc3_building, repair_autocast_toggle_is_unit_state) {
     building_restore_repair_data(old_abilities, rows);
 }
 
+TEST(wc3_building, autocast_command_updates_only_focused_unit_type_subgroup) {
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    cstring_t command[] = { "autocast", "Aren" };
+    uint32_t const code = MAKEFOURCC('A','r','e','n');
+    slkTestData_t *rows, *old_abilities;
+    edict_t *first, *second, *other_type;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    other_type = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    edict_t *units[] = { first, second, other_type };
+    FOR_LOOP(i, ARRAY_COUNT(units)) {
+        units[i]->data.UnitAbilities = &abilities;
+        units[i]->s.player = 0;
+        units[i]->selected = 1;
+    }
+    T_ASSERT(G_FocusSelectedUnit(game.clients, first));
+
+    G_ClientCommand(g_edicts, 2, command);
+    T_ASSERT(G_UnitAutocastIsOn(first, code));
+    T_ASSERT(G_UnitAutocastIsOn(second, code));
+    T_ASSERT(!G_UnitAutocastIsOn(other_type, code));
+
+    G_ClientCommand(g_edicts, 2, command);
+    T_ASSERT(!G_UnitAutocastIsOn(first, code));
+    T_ASSERT(!G_UnitAutocastIsOn(second, code));
+    T_ASSERT(!G_UnitAutocastIsOn(other_type, code));
+    building_restore_repair_data(old_abilities, rows);
+}
+
 TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starting_repair) {
     edict_t *worker;
     UnitAbilities_t abilities = { .abilList = "Aren" };

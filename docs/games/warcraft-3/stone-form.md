@@ -8,9 +8,11 @@ The visible statue form also requires the model's `alternate` animation property
 
 The procedure validates that the current unit is one endpoint, transforms the same edict with `G_TransformUnitType`, then clears movement goals/progress and returns it to Stand. This preserves script and selection identity while the shared transform path rebinds authored unit data. Immediate orders reach the shared spell path, which checks ability ownership before execution.
 
+A command-card Stone Form click is a focused-subgroup command. If several Gargoyles of the active unit type are selected, the command is cast independently by every controllable member of that focused type subgroup. Other selected unit types are not transformed. The subgroup rawcode is captured before the first transform because `G_TransformUnitType` changes each Gargoyle's `class_id` in place.
+
 ## Verification
 
-`wc3_unit.stoneform_order_requires_authored_ability_ownership` checks an unowned request is rejected. `wc3_unit.stoneform_uses_authored_transform_endpoints_in_both_directions` supplies non-stock rawcodes in the Astn AbilityData fixture, checks both rebindings, verifies the stone form gains the runtime `alternate` presentation tag, and verifies the ordinary form restores its authored animation properties. Run them with:
+`wc3_unit.stoneform_order_requires_authored_ability_ownership` checks an unowned request is rejected. `wc3_unit.stoneform_uses_authored_transform_endpoints_in_both_directions` supplies non-stock rawcodes in the Astn AbilityData fixture, checks both rebindings, verifies the stone form gains the runtime `alternate` presentation tag, and verifies the ordinary form restores its authored animation properties. `wc3_unit.stoneform_command_applies_to_focused_unit_type_subgroup` checks command-card propagation reaches every selected member of the focused form without crossing into another selected type subgroup. Run them with:
 
 ```sh
 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_unit.stoneform_*'
