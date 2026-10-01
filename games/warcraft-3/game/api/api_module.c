@@ -25,6 +25,7 @@ jassModule_t jass_funcs[] = {
     { "DisplayTextII", DisplayTextII },
     { "DisplayTextIII", DisplayTextIII },
     { "GetAiPlayer", GetAiPlayer },
+    { "MeleeDifficulty", MeleeDifficulty },
     { "GetHeroId", GetHeroId },
     { "GetHeroLevelAI", GetHeroLevelAI },
     { "GetAIDifficulty", GetAIDifficulty },

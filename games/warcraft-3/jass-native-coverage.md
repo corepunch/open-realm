@@ -499,8 +499,10 @@ assertion. Both natives now consume `jass_checkhandle(..., "version")`.
 This correction preserves the existing RoC-only version-reporting policy (`VersionGet` returns 0); expansion-aware
 version reporting remains a separate conformance gap.
 
-After the handle correction, the bounded Twisted Meadows lobby reached gameplay. Its Orc AI then stopped with
-the existing `MeleeDifficulty` unimplemented-native diagnostic; that separate API gap does not abort the process.
+After the handle correction, the bounded Twisted Meadows lobby reached gameplay. `MeleeDifficulty` is now registered
+for the AI VM and returns `MELEE_NORMAL` (`2`), matching the current Normal-only lobby policy without confusing that
+integer scale with the `aidifficulty` handle payload used by `GetAIDifficulty`. Newbie/insane support remains gated on
+a per-slot lobby difficulty setting.
 
 ### Shared Galaxy Error Boundaries
 
