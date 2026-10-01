@@ -2,7 +2,7 @@
  * hud_unit.c — Server-side unit HUD data helpers.
  */
 
-#include "../g_local.h"
+#include "hud_local.h"
 #include "hud_utils.h"
 
 typedef struct {
@@ -241,7 +241,14 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     if (!research && ability && (ability->flags & AB_AUTOCAST)) {
         strlcpy(button->alternate, "autocast ", sizeof(button->alternate));
         strlcat(button->alternate, code, sizeof(button->alternate));
-        button->alternate_active = G_UnitAutocastIsOn(ent, FS_SLKKey(code)) ? 1 : 0;
+        gameClient_t *client = ui_current_client ? ui_current_client : G_GetPlayerClientByNumber(ent->s.player);
+        uint32_t const autocast_code = FS_SLKKey(code);
+        bool active = G_UnitAutocastIsOn(ent, autocast_code);
+
+        if (client && G_GetMainSelectedUnit(client) == ent) {
+            active = G_SelectedSubgroupAutocastAllOn(client, ent, autocast_code);
+        }
+        button->alternate_active = active ? 1 : 0;
     }
     hotkey = research ? G_StringForLevel(hotkey, level) : hotkey;
     button->hotkey = hotkey && *hotkey ? *hotkey : '\0';

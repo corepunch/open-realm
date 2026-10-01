@@ -1145,6 +1145,19 @@ CLIENTCOMMAND(Button) {
     }
 }
 
+bool G_SelectedSubgroupAutocastAllOn(gameClient_t *client, edict_t *main, uint32_t code) {
+    bool any = false;
+
+    if (!client || !main || !code) return false;
+    FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
+        if (ent->class_id != main->class_id) continue;
+        if (!G_ActorHasSkill(ent, GetClassName(code))) continue;
+        any = true;
+        if (!G_UnitAutocastIsOn(ent, code)) return false;
+    }
+    return any;
+}
+
 CLIENTCOMMAND(Autocast) {
     gameClient_t *client;
     edict_t *main;
@@ -1177,7 +1190,7 @@ CLIENTCOMMAND(Autocast) {
         return;
     }
 
-    enabled = !G_UnitAutocastIsOn(main, FS_SLKKey(classname));
+    enabled = !G_SelectedSubgroupAutocastAllOn(client, main, FS_SLKKey(classname));
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         /* Warcraft command-card autocast toggles belong to the focused unit-type
          * subgroup. Other selected types keep their own autocast state even if

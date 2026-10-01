@@ -2731,6 +2731,7 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
 
 // g_ai.c
 edict_t *G_GetMainSelectedUnit(gameClient_t *);
+bool G_SelectedSubgroupAutocastAllOn(gameClient_t *, edict_t *, uint32_t);
 void Get_Commands_f(edict_t *);
 void CMD_CancelCommand(edict_t *ent);
 bool G_ClearBuildPlacementMode(edict_t *clent);

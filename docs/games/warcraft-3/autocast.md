@@ -148,3 +148,17 @@ Focused coverage lives primarily in `games/warcraft-3/game/tests/t_building.c` a
 - Shift-queued Repair;
 - moving away while repairing without losing the replacement goal;
 - normal Repair cleanup still clearing a Repair-owned goal.
+
+## Mixed selected-subgroup state
+
+For a focused multiselection subgroup, the command card treats autocast as active only when every controllable selected unit of that unit type that owns the ability has autocast enabled. A mixed subgroup therefore presents the autocast button as off.
+
+Right-click uses that aggregate state as the requested destination rather than inverting each unit independently:
+
+```text
+off, off, off -> on, on, on
+on, off, on   -> on, on, on
+on, on, on    -> off, off, off
+```
+
+Units outside the focused type subgroup are unchanged, even when custom object data gives them the same autocast ability rawcode. This keeps the visual state and issued subgroup command consistent regardless of which member currently owns selection focus.
