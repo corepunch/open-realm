@@ -94,8 +94,7 @@ static void AbilityStop_Command(edict_t *clent) {
     gameClient_t *client = clent->client;
     FOR_CONTROLLABLE_SELECTED_UNITS(client, e) {
         if (client->menu.order_queued && G_UnitHasActiveOrder(e)) {
-            if (G_QueueUnitOrder(e, "stop", UNIT_ORDER_TARGET_NONE, NULL, NULL,
-                                 client->ps.number, 0.0f, 0)) {
+            if (G_QueueUnitOrder(e, "stop", UNIT_ORDER_TARGET_NONE, NULL, NULL, client->ps.number, 0.0f, 0)) {
                 G_PublishIssuedImmediateOrder(e, G_OrderId("stop"), client->ps.number, "stop");
             }
         } else {

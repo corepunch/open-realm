@@ -3734,52 +3734,49 @@ static void net_read_layout_command(cstring_t expected) {
     T_STREQ(command, expected);
 }
 
+static struct { cstring_t command; bool queueable; } const net_queueable_orders[] = {
+    { "button CmdStop", true }, { "button CmdHoldPos", true },
+    { "button TestQueue", true }, { "button CmdStop", false }, { "button Amov", false }
+};
+
 TEST(client_screen, shifted_stop_and_hold_mouse_clicks_queue_only_those_orders) {
-    static struct { cstring_t command; bool queueable; } const orders[] = {
-        { "button CmdStop", true }, { "button CmdHoldPos", true },
-        { "button TestQueue", true }, { "button CmdStop", false }, { "button Amov", false }
-    };
     uint8_t message_buf[256];
 
     test_client_stubs_init();
-    FOR_LOOP(i, sizeof(orders) / sizeof(*orders)) {
+    FOR_LOOP(i, sizeof(net_queueable_orders) / sizeof(*net_queueable_orders)) {
         FOR_LOOP(shift, 2) {
             FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
             SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
-            net_install_command_button(orders[i].command, 0, orders[i].queueable);
-            (void)SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, SDL_BUTTON_LEFT, shift != 0);
-            (void)SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, SDL_BUTTON_LEFT, shift != 0);
-            if (shift && orders[i].queueable) {
+            net_install_command_button(net_queueable_orders[i].command, 0, net_queueable_orders[i].queueable);
+            (void)SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_DOWN, 10, 10, SDL_BUTTON_LEFT, shift != 0 });
+            (void)SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_UP, 10, 10, SDL_BUTTON_LEFT, shift != 0 });
+            if (shift && net_queueable_orders[i].queueable) {
                 char expected[64];
-                snprintf(expected, sizeof(expected), "%s queue", orders[i].command);
+                snprintf(expected, sizeof(expected), "%s queue", net_queueable_orders[i].command);
                 net_read_layout_command(expected);
             } else {
-                net_read_layout_command(orders[i].command);
+                net_read_layout_command(net_queueable_orders[i].command);
             }
         }
     }
 }
 
 TEST(client_screen, shifted_stop_and_hold_hotkeys_queue_only_those_orders) {
-    static struct { cstring_t command; bool queueable; } const orders[] = {
-        { "button CmdStop", true }, { "button CmdHoldPos", true },
-        { "button TestQueue", true }, { "button CmdStop", false }, { "button Amov", false }
-    };
     uint8_t message_buf[256];
 
     test_client_stubs_init();
-    FOR_LOOP(i, sizeof(orders) / sizeof(*orders)) {
+    FOR_LOOP(i, sizeof(net_queueable_orders) / sizeof(*net_queueable_orders)) {
         FOR_LOOP(shift, 2) {
             FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
             SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
-            net_install_command_button(orders[i].command, 'S', orders[i].queueable);
+            net_install_command_button(net_queueable_orders[i].command, 'S', net_queueable_orders[i].queueable);
             T_ASSERT(SCR_LayoutKeyEvent('S', shift != 0));
-            if (shift && orders[i].queueable) {
+            if (shift && net_queueable_orders[i].queueable) {
                 char expected[64];
-                snprintf(expected, sizeof(expected), "%s queue", orders[i].command);
+                snprintf(expected, sizeof(expected), "%s queue", net_queueable_orders[i].command);
                 net_read_layout_command(expected);
             } else {
-                net_read_layout_command(orders[i].command);
+                net_read_layout_command(net_queueable_orders[i].command);
             }
         }
     }
@@ -3877,9 +3874,9 @@ TEST(client_screen, multiselect_left_click_is_consumed_and_sends_focus) {
     sb.readcount = 0;
     CL_ParseLayout(&sb);
 
-    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 1, false));
+    T_ASSERT(SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_DOWN, 10, 10, 1, false }));
     T_EQ(cls.netchan.message.cursize, 0);
-    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 1, false));
+    T_ASSERT(SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_UP, 10, 10, 1, false }));
     cls.netchan.message.readcount = 0;
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     MSG_ReadString(&cls.netchan.message, command_buf);
@@ -3916,9 +3913,9 @@ TEST(client_screen, command_button_right_click_sends_secondary_command) {
     sb.readcount = 0;
     CL_ParseLayout(&sb);
 
-    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 3, false));
+    T_ASSERT(SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_DOWN, 10, 10, 3, false }));
     T_EQ(cls.netchan.message.cursize, 0);
-    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 3, false));
+    T_ASSERT(SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_UP, 10, 10, 3, false }));
     cls.netchan.message.readcount = 0;
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     MSG_ReadString(&cls.netchan.message, command_buf);
@@ -3953,8 +3950,8 @@ TEST(client_screen, command_button_right_click_without_secondary_command_is_not_
     sb.readcount = 0;
     CL_ParseLayout(&sb);
 
-    T_ASSERT(!SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 3, false));
-    T_ASSERT(!SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 3, false));
+    T_ASSERT(!SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_DOWN, 10, 10, 3, false }));
+    T_ASSERT(!SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_UP, 10, 10, 3, false }));
     T_EQ(cls.netchan.message.cursize, 0);
 }
 

@@ -16,6 +16,13 @@
 /* Layout frame draw function pointer */
 typedef void (*layoutDrawFunc_t)(uiFrame_t const *frame, rect_t const *screen);
 
+typedef struct {
+    menuMouseEvent_t event;
+    int x, y;
+    int32_t param;
+    bool shift_held;
+} layoutMouseEvent_t;
+
 /* Layout system functions (implemented in cl_unit_layout.c) */
 void SCR_SetLayoutLayer(uint32_t layer, handle_t data);
 void SCR_ClearLayoutLayer(uint32_t layer);
@@ -38,7 +45,7 @@ bool SCR_LayoutModalActive(void);
 void SCR_LayoutClampSelectionRect(rect_t *rect);
 void SCR_DrawLayout(void);
 void SCR_DrawLoadingLayout(void);
-bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param, bool shift_held);
+bool SCR_LayoutMouseEvent(layoutMouseEvent_t const *event);
 bool SCR_LayoutScrollTextAreaAt(handle_t layout, vec2_t const *point, int wheel_y);
 float SCR_LayoutTextAreaMaxScroll(uiFrame_t const *frame);
 bool SCR_LayoutKeyEvent(int key, bool shift_held);
