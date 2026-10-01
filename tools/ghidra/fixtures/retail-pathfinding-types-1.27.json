@@ -5214,6 +5214,39 @@
         }
       ],
       "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+    },
+    {
+      "address": "6f16c6d0",
+      "name": "PathGroup_SelectRouteSourceMember",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "goal",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        }
+      ],
+      "evidence": "Decoded16c6d0 ECX group/stack goal/RET4/EAX index; scene47 complete repeated public pair source and native movement."
+    },
+    {
+      "address": "6f16d6a0",
+      "name": "PathGroup_ResetMemberRoutes",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Decoded16d6a0 MOV EAX,ECX group / no stack operands / plain RET;168740 member path reset and member28 flags store. Original648 composed regroup controls; engine ordinary shared route."
     }
   ],
   "globals": [

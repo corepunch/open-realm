@@ -75,6 +75,50 @@ static cstring_t const move_type_names[] = { "foot", "horse", "fly", "hover", "f
 typedef struct { edict_t *self; wc3RepulsePair_t pair; uint32_t category, rank; } moveRepulseQuery_t;
 static moveRepulseQuery_t *repulse_query;
 static edict_t *trymove_self = NULL;
+/* Registry identity survives callback-driven pool growth and save relocation. */
+static moveGroup_t *move_find_group(uint32_t id) {
+    if (!id) return NULL;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t *group=level.move_groups[i];
+        if (group->inuse && group->id==id) return group;
+    }
+    return NULL;
+}
+
+/* An edict address alone is insufficient after removal and slot reuse. */
+static moveGroupMember_t *move_find_member(edict_t const *unit) {
+    moveGroup_t *group=move_find_group(unit->movement.group_id);
+    if (!group) return NULL;
+    FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time)
+        return group->members+i;
+    return NULL;
+}
+
+/* Retire route allocations independently of the originating JASS collection. */
+static void move_release_group(moveGroup_t *group) {
+    free(group->route.points); free(group->route.adaptive_points); free(group->route.group_points);
+    memset(group,0,sizeof(*group));
+}
+
+void S_ClearMoveGroups(void) {
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) { move_release_group(level.move_groups[i]); free(level.move_groups[i]); }
+    free(level.move_groups); level.move_groups=NULL;
+    ARRAY_COUNT(level.move_groups)=level.move_group_capacity=0;
+}
+
+/* Swap removal preserves the original surviving-row order contract. */
+static void move_detach_group(edict_t *unit) {
+    moveGroup_t *group=move_find_group(unit->movement.group_id);
+    if (!group) return;
+    FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time) {
+        group->members[i]=group->members[--group->count];
+        if (!group->count && !group->ticking) move_release_group(group);
+        return;
+    }
+}
+
+static void move_run_group_updates(void);
+
 static edict_t *trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
 static edict_t *trymove_colliders[MAX_MOVE_COLLIDERS];
 
@@ -160,7 +204,7 @@ static float unit_current_speed(edict_t *self) {
      * Using raw speed here left individual walkers unaffected by slows/bonuses. */
     float speed = unit_effective_speed(self);
     if (unit_is_walking(self)) {
-        float cap = self->movement.group_id ? move_active_group_speed(self) : self->movement.group_speed;
+        float cap = move_find_member(self) ? 0 : self->movement.group_id ? move_active_group_speed(self) : self->movement.group_speed;
         if (cap > 0 && cap < speed) speed = cap;
     }
     return speed;
@@ -263,8 +307,9 @@ static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
         wc3_float_bits(self->movement.pose_world.x)==wc3_float_bits(self->s.origin2.x) &&
         wc3_float_bits(self->movement.pose_world.y)==wc3_float_bits(self->s.origin2.y) ?
         &self->movement.sampled_pose : NULL;
-    return (movePathQuery_t){ {&self->s.origin2, point.point, point.radius, M_UnitStaticPathingFlags(self)},
-                             self, self->goalentity, units, fine };
+    moveGroupMember_t const *member=move_find_member(self);
+    return (movePathQuery_t){ .geometry={&self->s.origin2,member ? &member->world_destination : point.point,point.radius,M_UnitStaticPathingFlags(self)},
+        .mover=self,.target=self->goalentity,.units=units,.fine=fine,.fine_target=member ? &member->destination : NULL };
 }
 
 static bool move_route_line(edict_t *self, moveRoutePoint_t point) {
@@ -1603,6 +1648,7 @@ void move_reset_progress(edict_t *self) {
     self->movement.wait_delay=0;
     self->movement.retry_count=0;
     self->movement.wait_blocker=NULL;
+    move_detach_group(self);
     self->movement.group_id = 0;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
     self->movement.turn_blocked = false;
@@ -2056,6 +2102,7 @@ static bool move_point_arrival(edict_t *ent) {
 }
 
 static void ai_move_walk(edict_t *ent) {
+    if (move_find_member(ent)) return; /* Shared owner stages all members before any commit. */
     float distance = M_DistanceToGoal(ent);
     float move_distance = unit_movedistance(ent);
     float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
@@ -2264,6 +2311,232 @@ void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
         self->current_order_id = order_id;
 }
 
+/* Individual owners keep stable addresses when callbacks grow the slot array. */
+static moveGroup_t *move_alloc_group(void) {
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if (!level.move_groups[i]->inuse) return level.move_groups[i];
+    if (ARRAY_COUNT(level.move_groups)==level.move_group_capacity) {
+        uint32_t capacity=level.move_group_capacity ? level.move_group_capacity*2 : 16;
+        moveGroup_t **groups=realloc(level.move_groups,capacity*sizeof(*groups));
+        if (!groups) gi.error("Move: cannot allocate %u group slots",capacity);
+        level.move_groups=groups; level.move_group_capacity=capacity;
+    }
+    moveGroup_t *group=calloc(1,sizeof(*group));
+    if (!group) gi.error("Move: cannot allocate a physical group");
+    level.move_groups[ARRAY_COUNT(level.move_groups)++]=group;
+    return group;
+}
+
+/* Move owns the shared request; generic order admission still handles each
+ * candidate's validation, Smart rally behavior and issued-order callbacks. */
+static bool move_group_point_order(groupPointOrder_t const *request) {
+    if (!request->count) return false;
+    moveGroup_t *group=move_alloc_group();
+    group->inuse=group->ticking=true; group->id=move_allocate_group_id();
+    group->goal=*request->point; group->age=UINT32_MAX;
+    bool any=false;
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=request->units[i].unit;
+        if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) continue;
+        if (!unit_issueorder(unit,request->order,request->point)) continue;
+        any=true;
+        if (unit->current_order_id!=request->order_id || unit->currentmove!=&move_move_walk) continue;
+        moveGroupMember_t *member=group->members+group->count++;
+        *member=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time};
+        unit->movement.group_id=group->id;
+        if (unit->collision>group->radius) group->radius=unit->collision;
+    }
+    group->ticking=false;
+    if (!group->count) move_release_group(group);
+    return any;
+}
+
+/* Original16c6d0 chooses the closest predicted member, with strict ties.
+ * TODO GROUP-04.6: preserve the path88.200000 preference and group200 bypass. */
+static edict_t *move_group_source(moveGroup_t const *group) {
+    box2_t bounds=CM_GetWorldBounds();
+    float goal[2]={wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)};
+    float best=FLT_MAX; edict_t *source=NULL;
+    FOR_LOOP(i,group->count) {
+        edict_t *unit=group->members[i].unit; wc3GridPose_t pose; unit_predicted_pose(unit,&pose);
+        float dx=wc3_sub(goal[0],pose.grid[0]),dy=wc3_sub(goal[1],pose.grid[1]);
+        float distance=wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy));
+        if (distance<best) { best=distance; source=unit; }
+    }
+    return source;
+}
+
+static bool move_group_route(moveGroup_t *group) {
+    edict_t *source=move_group_source(group); if (!source) return false;
+    wc3GridPose_t pose; unit_predicted_pose(source,&pose);
+    vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
+    movePathQuery_t query={.geometry={&from,&group->goal,group->radius,M_UnitStaticPathingFlags(source)},
+        .mover=source,.units=true,.fine=&fine};
+    if (!group->initialized) group->point=fine;
+    uint32_t revision=group->route.group_revision;
+    if (!G_UnitMoveGroupDestination(&query,&group->route,&point)) {
+        fprintf(stderr,"Move group %u: route unavailable at (%.9g,%.9g) to (%.9g,%.9g)\n",group->id,from.x,from.y,group->goal.x,group->goal.y);
+        return false;
+    }
+    if (group->initialized && point.x==group->point.x && point.y==group->point.y && revision==group->route.group_revision) return true;
+    float dx=wc3_sub(point.x,group->point.x),dy=wc3_sub(point.y,group->point.y);
+    if (dx!=0 || dy!=0) group->heading=wc3_vector_heading(dx,dy);
+    group->point=point; group->initialized=true; group->flags|=0x30000;
+    wc3FormationMember_t members[BZ_WC3_GROUP_ORDER_UNITS];
+    FOR_LOOP(i,group->count) {
+        edict_t *unit=group->members[i].unit; unit_predicted_pose(unit,&pose);
+        members[i]=(wc3FormationMember_t){.position={pose.grid[0],pose.grid[1]},
+            .radius=wc3_div(unit->collision,32),.rank=unit->data.UnitData->formationRank};
+    }
+    wc3Formation_t formation={members,group->count,group->heading};
+    if (!wc3_formation_layout(&formation)) gi.error("Move: invalid %u-member formation",group->count);
+    box2_t bounds=CM_GetWorldBounds();
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t *member=group->members+i;
+        member->offset=(vec2_t){members[i].offset[0],members[i].offset[1]};
+        member->destination=(vec2_t){wc3_add(point.x,member->offset.x),wc3_add(point.y,member->offset.y)};
+        member->world_destination=(vec2_t){wc3_add(bounds.min.x,wc3_mul(member->destination.x,32)),wc3_add(bounds.min.y,wc3_mul(member->destination.y,32))};
+        member->unit->movement.path.valid=false;
+    }
+    return true;
+}
+
+static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
+    edict_t *unit=member->unit;
+    wc3GridPose_t pose; unit_predicted_pose(unit,&pose);
+    wc3Arrival_t arrival={.source={pose.grid[0],pose.grid[1]},.target={member->destination.x,member->destination.y},
+        .heading=unit->s.angle,.range=wc3_float(0x3efae148),.flags=member->forced_arrival ? 0x10000 : 0};
+    if (unit->paused || unit->stunned) {
+        member->arrived=member->in_range=false; member->speed=0; member->heading=unit->s.angle;
+        return;
+    }
+    member->arrived=wc3_arrival_update(&arrival); member->in_range=arrival.in_range;
+    member->flags&=~0x200000u;
+    float old_angle=unit->s.angle;
+    if (member->arrived) {
+        member->flags|=0x10000; member->forced_arrival=false;
+        member->speed=0; member->heading=old_angle;
+        return;
+    }
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
+    bool denied=false;
+    if (route->partial && route->count && !route->index) {
+        float rx=wc3_sub(route->points[0].x,pose.grid[0]),ry=wc3_sub(route->points[0].y,pose.grid[1]);
+        float range=wc3_float(0x3efae148);
+        if (wc3_add(wc3_mul(rx,rx),wc3_mul(ry,ry))<=wc3_mul(range,range)) {
+            wc3RetryInput_t in={{pose.grid[0],pose.grid[1]},{member->destination.x,member->destination.y},group->count};
+            uint32_t result=wc3_retry_advance(&unit->movement.retry_count,&in,&level.pathing_random);
+            if (result==4) { member->forced_arrival=true; member->flags|=0x20000; }
+            else {
+                route->count=0; route->index=UINT32_MAX; unit->movement.path.valid=false;
+                vec2_t waypoint; movePathQuery_t query=move_route_query(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC});
+                if (G_BuildUnitMoveFineRoute(&query,route,&waypoint)) {
+                    unit->movement.path.waypoint=waypoint; unit->movement.path.target=group->goal;
+                    unit->movement.path.radius=unit->collision; unit->movement.path.valid=true;
+                }
+            }
+            denied=true;
+        }
+    }
+    if (arrival.in_range || denied) {
+        unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true;
+    } else {
+        vec2_t direction;
+        if (unit_accel_direction(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC},&direction))
+            unit_apply_heading(unit,&direction,MOVE_AVOID_GENERIC);
+        else { unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true; }
+    }
+    member->speed=unit->movement.turn_blocked ? 0 : unit_effective_speed(unit);
+    member->heading=unit->s.angle; unit->s.angle=old_angle;
+    if (member->speed>0) member->flags|=0x100000;
+}
+
+/* Original16b120/16c4f0 regroup ordinary members before advancing the shared
+ * coarse point. Arrived members retain their zero velocity during this wait. */
+static void move_group_regroup(moveGroup_t *group) {
+    uint32_t arrived=0,near=0;
+    float range=group->flags&0x100 ? 16 : 256;
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t const *member=group->members+i;
+        if (member->flags&0x10000) { arrived++; continue; }
+        wc3GridPose_t pose; unit_predicted_pose(member->unit,&pose);
+        float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
+        if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))<range) near++;
+    }
+    uint32_t status=arrived ? group->count-arrived-near : group->count;
+    if (arrived && (group->flags&4)) status=0;
+    uint32_t limit=group->flags&0x100 ? (group->flags&0x20000 ? 396 : 198) : 99;
+    if (!status || group->completion_counter>limit) {
+        if (G_AdvanceUnitMoveGroupDestination(&group->route)) {
+            FOR_LOOP(i,group->count) {
+                moveGroupMember_t *member=group->members+i; edict_t *unit=member->unit;
+                member->flags=0; member->forced_arrival=false;
+                moveFineRoute_t *route=&unit->movement.fine_route;
+                route->count=route->adaptive_count=0; route->index=route->adaptive_index=UINT32_MAX;
+                route->partial=false; unit->movement.path.valid=false;
+                unit->movement.wait_delay=unit->movement.retry_count=0; unit->movement.wait_blocker=NULL;
+            }
+            group->age=group->completion_counter=0;
+            move_group_route(group); group->flags&=~0x20000u;
+        }
+    } else if (arrived) group->completion_counter++;
+    /* TODO GROUP-04.6: original cooldown68 and moverD8.01000000 producers are
+     * not yet retained; public ordinary groups exercise the default branch. */
+}
+
+static void move_run_group_updates(void) {
+    FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t *group=level.move_groups[g]; if (!group->inuse) continue;
+        group->ticking=true;
+        for (uint32_t i=0;i<group->count;) {
+            moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
+            if (!unit->inuse || unit->spawn_time!=member->spawn || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+                unit->movement.group_id!=group->id || unit->currentmove!=&move_move_walk || !unit->goalentity) {
+                if (unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
+                    unit->movement.group_id=0;
+                group->members[i]=group->members[--group->count]; continue;
+            }
+            if (!S_UnitCanTranslate(unit)) { unit->stand(unit); continue; }
+            i++;
+        }
+        if (!group->count) { move_release_group(group); continue; }
+        group->age++;
+        if (!move_group_route(group)) { group->ticking=false; continue; }
+        FOR_LOOP(i,group->count) move_group_decide(group,group->members+i);
+        float cap=0; bool share=!(group->flags&8);
+        FOR_LOOP(i,group->count) {
+            moveGroupMember_t const *member=group->members+i;
+            if (member->flags&0x210000) share=false;
+            float speed=unit_effective_speed(member->unit);
+            if (!cap || speed<cap) cap=speed;
+        }
+        edict_t *finished[BZ_WC3_GROUP_ORDER_UNITS]; uint32_t count=0;
+        FOR_LOOP(i,group->count) {
+            moveGroupMember_t *member=group->members+i; edict_t *unit=member->unit;
+            if (unit->paused || unit->stunned) continue;
+            cstring_t animation=member->speed>0 ? "walk" : "stand";
+            if (!G_AnimationHasPrimary(unit->animation,animation)) unit_setanimation(unit,animation);
+            moveStep_t step={.velocity={.vel={unit->movement.velocity.x,unit->movement.velocity.y},
+                .speed=share ? MIN(member->speed,cap) : member->speed,.heading=member->heading,.limit=unit_effective_speed(unit)}};
+            unit_grid_pose(unit,&step.pose);
+            float old[2]={unit->movement.velocity.x,unit->movement.velocity.y};
+            wc3_grid_step(&step.pose,old,unit->movement.clock_valid ? wc3_elapsed(&level.pathing_clock,&unit->movement.pose_clock) : 0);
+            wc3_velocity_update_world(&step.velocity); unit_commit_motion(unit,&step);
+            if (member->arrived && !group->route.group_index) finished[count++]=unit;
+        }
+        group->flags&=~0x10000u;
+        if (!group->route.group_index) group->completion_counter++;
+        else move_group_regroup(group);
+        if (count) group->completion_counter=0;
+        while (count) {
+            edict_t *unit=finished[--count];
+            if (unit->movement.group_id==group->id) { move_detach_group(unit); unit->movement.group_id=0; unit->stand(unit); }
+        }
+        group->ticking=false;
+        if (!group->count) move_release_group(group);
+    }
+}
+
 /* Handle a right-click move command from the client.
  * Creates a shared waypoint at the clicked map position, issues move orders
  * to all currently selected units, and sends a move-confirmation effect back
@@ -2369,10 +2642,13 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 /* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
 BZ_ABILITY_PROC(CAbilityMove) {
     switch (msg) {
-    case A_OWNER_UPDATE: move_repulse_owner_update(); return true;
+    case A_GROUP_POINT_ORDER:
+        return move_group_point_order(call->group_order) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    case A_OWNER_UPDATE: move_run_group_updates(); move_repulse_owner_update(); return true;
     case A_UNIT_INIT:
     case A_UNIT_OWNER_CHANGED: move_repulse_init(ent); return true;
     case A_UNIT_REMOVE:
+        move_detach_group(ent);
         FILTER_EDICTS(other,other->inuse && other->movement.wait_blocker==ent)
             other->movement.wait_blocker=NULL;
         if (ent->movement.repulse.active) move_repulse_unlink(ent);

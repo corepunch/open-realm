@@ -990,6 +990,28 @@ bool unit_issueorder(edict_t *self, cstring_t order, vec2_t const *point) {
                                  self ? self->s.player : 0, 0.0f);
 }
 
+/* Give the registered order owner the retained batch before ordinary per-unit
+ * admission. Unhandled orders keep the same spell/build/point dispatch. */
+bool G_IssueGroupPointOrder(groupPointOrder_t const *request) {
+    if (!request || !request->point || request->count>BZ_WC3_GROUP_ORDER_UNITS) return false;
+    ability_t const *owner=FindAbilityByOrder(request->order);
+    if (owner) {
+        abilityitem_t item={.code=FS_SLKKey(owner->classname),.ability=owner};
+        abilityCall_t call={.item=&item,.group_order=request};
+        intptr_t result=S_AbilityMessage(NULL,A_GROUP_POINT_ORDER,&call);
+        if (result!=ABILITY_ORDER_UNHANDLED) return result==ABILITY_ORDER_ACCEPTED;
+    }
+    bool any=false;
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=request->units[i].unit;
+        if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) continue;
+        if (G_UnitIsBuilding(request->order_id)) {
+            if (G_IssueBuildOrder(unit,request->order_id,request->point)) any=true;
+        } else if (unit_issueorder(unit,request->order,request->point)) any=true;
+    }
+    return any;
+}
+
 /* Rebind an existing edict to another WC3 unit type while retaining its
  * authoritative identity and runtime ownership.  Transformation abilities
  * use this instead of CreateUnit/RemoveUnit so JASS handles, selection, and
@@ -1140,7 +1162,9 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     if (unit->stand) {
         unit->stand(unit);
     }
-    unit->s.angle = facing * M_PI / 180;
+    /* Public1fc930 multiplies by cd5444 with software truncation; host radians
+     * leave the first group-request heading one word apart from retail. */
+    unit->s.angle = wc3_mul(facing,wc3_float(0x3c8efa35));
     G_ActivateUnitFood(unit);
     return unit;
 }

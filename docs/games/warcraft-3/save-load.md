@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 73, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 74, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -744,7 +744,26 @@ adaptive/fine buffers. Points, count/index, final native destination and radius
 survive; the process-local bake revision is rebound after terrain/entity
 restoration. Two public oblique saves resume260 original movement commits,
 including a save immediately after intermediate arrival with both member
-buffers empty and the final public order still active. The current reader
-rejects version72 and every earlier format; there is no migration. Group tail
+buffers empty and the final public order still active. Version73 initially rejected version72 and earlier; the current version74
+reader also rejects version73; there is no migration. Group tail
 extent/index, finite coordinates and complete bytes are checked before use.
 See [retail group-destination payoff](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination).
+
+
+### Physical Move groups (version74)
+
+Move's physical owners are independent of JASS collection handles. Save74 retains
+active owner identity, public goal, selected native formation point/heading,
+route buffers and counted member rows through `move_group_fields`. Member unit
+pointers use `F_EDICT` indices and saved spawn generations. Pool pointers,
+capacity, ticking and bake revisions are process-owned; loading reconstructs
+owners after edicts, rejects invalid/duplicate owners and members, then rebinds
+route revisions after the world bake. Map replacement/shutdown releases owners.
+Partial records clear runtime addresses before error cleanup. The same bounded,
+finite three-buffer payload helpers serve edict and group routes.
+
+A public two-unit group resumes87 exact original commits from saves during
+travel and the final partial-route retry. Invalid group counts, owner identity,
+references, generation, duplicate members, nonfinite destinations/points,
+route extents/indices and truncated tails are covered in RoC/TFT. There is no
+compatibility path for version73. See [shared Move payoff](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner).

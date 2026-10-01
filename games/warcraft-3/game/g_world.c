@@ -651,10 +651,12 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     vec2_t source, target;
     if (!params || !params->from || !params->target || !out || !pathmap.width || !pathmap.height) return false;
     pathAccelParams_t dest = *params; dest.from = params->target;
-    if (!G_ClosestMovePathPoint(params, &source) || !G_ClosestMovePathPoint(&dest, &target)) return false;
+    if (!G_ClosestMovePathPoint(params, &source)) return false;
+    if (input->fine_target) target=*params->target;
+    else if (!G_ClosestMovePathPoint(&dest,&target)) return false;
     vec2_t a = source.x==params->from->x && source.y==params->from->y ?
         move_query_source(input) : move_grid_from_world(source.x,source.y);
-    vec2_t b = move_grid_from_world(target.x,target.y);
+    vec2_t b = input->fine_target ? *input->fine_target : move_grid_from_world(target.x,target.y);
     wc3FinePoint_t start = { (int)floorf(a.x), (int)floorf(a.y) };
     wc3FinePoint_t goal = { (int)floorf(b.x), (int)floorf(b.y) };
 
@@ -687,13 +689,14 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         complete ? (wc3FineVector_t){b.x, b.y}
                  : wc3_route_center(endpoint)};
     uint32_t count = wc3_fine_reconstruct(&route, move_fine_points, BZ_WC3_FINE_NODES);
-    if (count < 2) return false;
+    if (count < 2 && !input->fine_target) return false;
     if (curve) {
         vec2_t *points = realloc(curve->points,count*sizeof(*points));
         if (!points) gi.error("WC3 fine routing: cannot retain %u route points",count);
         /* Original166e90 starts at the destination if expansion observed no
          * obstruction; seeing a blocked cell selects the next parent point. */
-        curve->points = points; curve->count = count; curve->index = move_fine.observed_obstruction ? count-2 : 0;
+        curve->points = points; curve->count = count; curve->partial=!complete;
+        curve->index = move_fine.observed_obstruction && count>1 ? count-2 : 0;
         curve->mask = params->blocked_flags;
         FOR_LOOP(i,count) curve->points[i] = (vec2_t){move_fine_points[i].x,move_fine_points[i].y};
         *out = move_world_from_grid(curve->points[curve->index].x,curve->points[curve->index].y);
@@ -714,10 +717,13 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
     if (!input || !input->geometry.from || !input->geometry.target || !out || !pathmap.width || !pathmap.height) return false;
     vec2_t source,target;
     pathAccelParams_t dest=input->geometry; dest.from=dest.target;
-    if (!G_ClosestMovePathPoint(&input->geometry,&source) || !G_ClosestMovePathPoint(&dest,&target)) return false;
+    if (!G_ClosestMovePathPoint(&input->geometry,&source)) return false;
+    if (input->fine_target) target=*input->geometry.target;
+    else if (!G_ClosestMovePathPoint(&dest,&target)) return false;
     vec2_t a=source.x==input->geometry.from->x && source.y==input->geometry.from->y ?
         move_query_source(input) : move_grid_from_world(source.x,source.y);
-    vec2_t b=move_grid_from_world(target.x,target.y);
+    vec2_t b=input->fine_target && target.x==input->geometry.target->x && target.y==input->geometry.target->y ?
+        *input->fine_target : move_grid_from_world(target.x,target.y);
     if (route && route->adaptive_count && (route->adaptive_revision!=pathmap.revision ||
         route->mask!=input->geometry.blocked_flags || route->adaptive_radius!=input->geometry.radius ||
         route->adaptive_goal.x!=b.x || route->adaptive_goal.y!=b.y))
@@ -732,6 +738,11 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
 /* A loaded world has a new process-local bake epoch, with its saved terrain and
  * obstacles already restored. Retained routes belong to that rebuilt world. */
 void G_RebindSavedMoveRoutes(void) {
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+        moveFineRoute_t *route=&level.move_groups[i]->route;
+        if (route->adaptive_count) route->adaptive_revision=pathmap.revision;
+        if (route->group_count) route->group_revision=pathmap.revision;
+    }
     FILTER_EDICTS(ent,ent->inuse) {
         moveFineRoute_t *route=&ent->movement.fine_route;
         if (route->adaptive_count) route->adaptive_revision=pathmap.revision;
@@ -763,7 +774,7 @@ bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *input, moveFineRoute_t *r
     vec2_t source = move_query_source(input);
     if (route->adaptive_count) {
         if (!input->geometry.target) return false;
-        vec2_t goal=move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
+        vec2_t goal=input->fine_target ? *input->fine_target : move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
         if (!route->adaptive_points || route->adaptive_count>BZ_WC3_FINE_NODES || route->adaptive_index>=route->adaptive_count ||
             route->adaptive_revision!=pathmap.revision || route->adaptive_radius!=input->geometry.radius ||
             route->adaptive_goal.x!=goal.x || route->adaptive_goal.y!=goal.y) return false;

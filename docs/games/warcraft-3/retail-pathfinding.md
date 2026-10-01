@@ -8,7 +8,8 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **487 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **489 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+ordinary public shared pair movement matches115 commits and87 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
 comparisons and remaining velocity/clock/trajectory gaps.
@@ -40,7 +41,7 @@ composition closes a gap.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
   `MapPathfindingTypes.java` also persists32 partial layouts,186 verified
-  fields and211 instruction-established prototypes with explicit register/stack
+  fields and213 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -50,7 +51,8 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  487 function names/comments applied and saved. Latest group admission readbacks:
+  489 function names/comments applied and saved. Latest public pair readbacks:
+  `runtime/public-pair-ghidra-readback-261001.json` and `runtime/public-pair-ghidra-types-261001.json`. Prior group admission readbacks:
   `runtime/group-point-ghidra-readback-261001.json` and `runtime/group-point-ghidra-types-261001.json`. Prior spawn type readback:
   `runtime/spawn-admission-types-261001.json`. Prior retry readbacks:
   `runtime/peer-retry-ghidra-readback-final-261001.json` and

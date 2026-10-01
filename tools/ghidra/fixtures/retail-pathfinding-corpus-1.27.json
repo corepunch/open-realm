@@ -16648,6 +16648,182 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-public-pair-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_public_pair_trace.py",
+        "{archive}/runtime/public-pair-live-first-261001.jsonl",
+        "--repeat",
+        "{archive}/runtime/public-pair-live-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-pair-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/public-pair-live-first-261001.jsonl",
+        "sha256": "51fc6bbc192a33fcafa425f58c1509e9e1df33cc5ca4907e274041df3b25267c",
+        "bytes": 5773883,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "0adda4c412542c96b4df39c6c5617433b6172ab5bf4476b351ae2a624651e3c7",
+            "wc3_pathfinding_probe.j": "4860c9fdd717056ebbb103e9cbb6e1341094a8bf2fd993eca964699452fc7acd",
+            "make_wc3_pathfinding_map.py": "f54a91aa4f9dc56e631b25f36a3a925d3bc4590d7b1b64e43c16cef28dcd776d",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "13278c8f274ab8d736251b9570de13ee7c5e4337c3dfc155956255e9cd9a12fb"
+          },
+          "map": "Maps\\PathingRE-PublicPair-261001.w3m",
+          "seconds": 170.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "public-pair-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeated": {
+          "equal": true
+        },
+        "exact_decisions": {
+          "equal": 113
+        },
+        "exact_velocity_commits": {
+          "equal": 115
+        },
+        "exact_position_commits": {
+          "equal": 115
+        },
+        "exact_facing_commits": {
+          "equal": 115
+        },
+        "primary_advances": {
+          "equal": 6000
+        },
+        "owner_callbacks": {
+          "equal": 1000
+        },
+        "group_owner_passes": {
+          "equal": 60
+        },
+        "public_group_members": {
+          "equal": 2
+        },
+        "natural_arrivals": {
+          "equal": 2
+        },
+        "member_commits": {
+          "equal": [
+            60,
+            55
+          ]
+        },
+        "decision_sha256": {
+          "equal": "5046ac99841ddde005378479f7c48ec9f9ccafd6a6a4b96d2094c6f798311af6"
+        },
+        "velocity_sha256": {
+          "equal": "ac7c5d604ec81e9a3eddd2045ddaa81f79886eb1a287de37ec6857e357166bff"
+        },
+        "phase_sha256": {
+          "equal": "f1c52abbf5213a2b22d6d804da6d92478deed97f8fcd7b344ab7dc9e9f2ecb83"
+        },
+        "primary_sha256": {
+          "equal": "c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Original public two-member group:115 complete commits,60 all-member decision/commit passes and601 public markers. Engine normal RunFrame regression matches115 commits and87 saved suffix commits with supplied combined static geometry; wider producers and eligibility remain GROUP-04.6.",
+      "exclusions": [
+        "Combined observed terrain/static geometry is supplied; arbitrary scenery loading remains MAP.",
+        "Selected/AI group producers, broader flags, queued admission, callback mutation and complete crowd parity remain GROUP-04.6.",
+        "The overlapped startup-rejected capture is diagnostic only; the two accepted controllers completed sequentially."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/public-pair-live-repeat-261001.jsonl",
+            "sha256": "95773c6a84663eba5ca2364b52790d91551ffe2d0ec164ba8d0ed3cae68630f2",
+            "bytes": 5610149,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "0adda4c412542c96b4df39c6c5617433b6172ab5bf4476b351ae2a624651e3c7",
+                "wc3_pathfinding_probe.j": "4860c9fdd717056ebbb103e9cbb6e1341094a8bf2fd993eca964699452fc7acd",
+                "make_wc3_pathfinding_map.py": "f54a91aa4f9dc56e631b25f36a3a925d3bc4590d7b1b64e43c16cef28dcd776d",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "13278c8f274ab8d736251b9570de13ee7c5e4337c3dfc155956255e9cd9a12fb"
+              },
+              "map": "Maps\\PathingRE-PublicPair-261001.w3m",
+              "seconds": 170.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -16713,7 +16889,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "4beffa1126886f64dd0dbe566de408e221113aa5cdcc71db5937e02ded19072a"
+      "sha256": "9254612468af0981e4b3d30381fd609a2aa007fedcf64332fbd83f860e73d4ba"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -17030,6 +17206,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-group-point-admission-1.27.json",
       "sha256": "158ee8fe89b7aa2aa33b676d5825a6b112bd16667361b74e71322db7076c531a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-pair-1.27.json",
+      "sha256": "22c52c596e38ace78d380086c40e7c953212651a71a10ae8d1c6eb30f299df6c"
     }
   ]
 }

@@ -3125,6 +3125,168 @@ TEST(wc3_movement, periodic_public_oblique_three_lifetimes_match_retail) {
     level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
 }
 
+#include "retail_public_pair.h"
+
+/* Original public scene47: supplied observed static geometry, stock profile,
+ * two public creations and a timer-admitted group Move from clock/phase zero. */
+/* Exercise the shared coarse handoff and pause through ordinary owner frames;
+ * this is an engine lifecycle regression, not a new original trajectory claim. */
+TEST(wc3_movement, public_group_long_route_regroups_and_respects_pause) {
+    reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit a\nunit b\ngroup g\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hRTE',-6000.125,-1500.25,90)\n"
+        "set b=CreateUnit(Player(0),'hRTE',-5920.125,-1500.25,90)\n"
+        "call SetUnitMoveSpeed(a,100)\ncall SetUnitMoveSpeed(b,350)\n"
+        "set g=CreateGroup()\ncall GroupAddUnit(g,a)\ncall GroupAddUnit(g,b)\n"
+        "call BJassAssert(GroupPointOrder(g,\"move\",-5200.375,-832.5),\"long group Move accepted\")\n"
+        "call DestroyGroup(g)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    edict_t *units[2]={0}; unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) { if (count<2) units[count]=ent; count++; }
+    T_EQ(count,2); if (count!=2) return;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    bool intermediate=false,advanced=false;
+    while (level.time<30000) {
+        level.time+=5; globals.RunFrame();
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+            moveGroup_t *group=level.move_groups[i];
+            if (!group->inuse) continue;
+            if (group->route.group_index>0 && group->route.group_index!=UINT32_MAX) intermediate=true;
+            if (intermediate && !group->route.group_index) advanced=true;
+        }
+        if (level.time==1000) {
+            S_SetUnitPaused(units[0],true); vec2_t saved=units[0]->movement.fine_pose;
+            FOR_LOOP(i,20) { level.time+=5; globals.RunFrame(); }
+            T_EQ(wc3_float_bits(units[0]->movement.fine_pose.x),wc3_float_bits(saved.x));
+            T_EQ(wc3_float_bits(units[0]->movement.fine_pose.y),wc3_float_bits(saved.y));
+            T_EQ(units[0]->current_order_id,G_OrderId("move")); S_SetUnitPaused(units[0],false);
+        }
+    }
+    T_ASSERT(intermediate); T_ASSERT(advanced);
+    FOR_LOOP(i,2) {
+        T_EQ(units[i]->current_order_id,0);
+        T_ASSERT(Vector2_distance(&units[i]->s.origin2,&(vec2_t){-5200.375,-832.5})<128);
+    }
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started=false; reset_entities(); setup_test_world();
+}
+
+TEST(wc3_movement, periodic_public_shared_pair_matches_retail) {
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','P','P','R'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells));
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit array movers\ngroup cohort\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1936,-720)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set movers[0]=CreateUnit(Player(0),'hPPR',-1936,-976,90)\n"
+        "set movers[1]=CreateUnit(Player(0),'hPPR',-1856,-976,90)\n"
+        "call SetUnitMoveSpeed(movers[0],100)\ncall SetUnitMoveSpeed(movers[1],350)\n"
+        "set cohort=CreateGroup()\ncall GroupAddUnit(cohort,movers[0])\ncall GroupAddUnit(cohort,movers[1])\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    edict_t *units[2]={0}; unsigned count=0,steps=0; uint32_t clocks[2]={0};
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
+    T_EQ(count,2);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t saves[]={"/tmp/wc3-public-pair-moving.bin","/tmp/wc3-public-pair-retry.bin"};
+    unsigned suffixes=0;
+    FOR_LOOP(pass,3) {
+        if (pass) {
+            T_ASSERT(ReadGame(saves[pass-1]));
+            steps=pass==1 ? 30 : 113;
+            FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+            T_EQ(ARRAY_COUNT(level.move_groups),1);
+            T_EQ(level.move_groups[0]->count,pass==1 ? 2 : 1);
+            T_EQ(units[0]->current_order_id,G_OrderId("move"));
+            if (pass==2) { T_EQ(units[0]->movement.retry_count,1); T_ASSERT(units[0]->movement.fine_route.partial); }
+        }
+        while (level.time<30000 && count==2) {
+            bool committed=false;
+            level.time+=5; globals.RunFrame();
+            FOR_LOOP(i,2) {
+                edict_t *unit=units[i]; uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+                if (now==clocks[i]) continue;
+                clocks[i]=now;
+                if (now==0x3f7ffff0u) continue; /* Public admission materializes the idle pose. */
+                T_ASSERT(steps<115); if (steps>=115) continue;
+                committed=true;
+                uint32_t const *expected=public_pair_motion[steps++];
+                if (pass) suffixes++;
+                T_EQ(i,expected[0]); T_EQ(now,expected[1]);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[2]);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[3]);
+                T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),expected[4]);
+                T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[5]);
+                T_EQ(wc3_float_bits(unit->s.angle),expected[6]);
+                if (!pass && (steps==30 || steps==113)) {
+                    T_EQ(ARRAY_COUNT(level.move_groups),1);
+                    T_EQ(level.move_groups[0]->count,steps==30 ? 2 : 1);
+                    T_EQ(wc3_float_bits(level.move_groups[0]->goal.x),wc3_float_bits(-1936));
+                    T_EQ(wc3_float_bits(level.move_groups[0]->goal.y),wc3_float_bits(-720));
+                    T_ASSERT(WriteGame(saves[steps==30 ? 0 : 1]));
+                }
+            }
+            if (committed && ARRAY_COUNT(level.move_groups) && level.move_groups[0]->inuse) {
+                moveGroup_t const *group=level.move_groups[0]; uint32_t next=group->age+1;
+                T_ASSERT(next<60);
+                if (next<60) {
+                    uint32_t const *state=public_pair_group_before[next];
+                    T_EQ(group->flags,state[0]); T_EQ(next,state[1]);
+                    T_EQ(group->completion_counter,state[2]); T_EQ(group->count,state[3]);
+                    T_EQ(wc3_float_bits(group->point.x),state[4]); T_EQ(wc3_float_bits(group->point.y),state[5]);
+                    FOR_LOOP(i,group->count) {
+                        moveGroupMember_t const *member=group->members+i;
+                        unsigned index=member->unit==units[0] ? 0 : 1;
+                        uint32_t const *row=public_pair_members_before[next][index];
+                        T_EQ(wc3_float_bits(member->offset.x),row[0]); T_EQ(wc3_float_bits(member->offset.y),row[1]);
+                        T_EQ(wc3_float_bits(member->destination.x),row[2]); T_EQ(wc3_float_bits(member->destination.y),row[3]);
+                        T_EQ(wc3_float_bits(wc3_div(member->speed,32)),row[4]);
+                        T_EQ(wc3_float_bits(member->heading),row[5]); T_EQ(member->flags,row[6]);
+                        T_EQ(member->forced_arrival,row[7]);
+                    }
+                }
+            }
+        }
+        T_EQ(steps,115); FOR_LOOP(i,2) T_EQ(units[i]->current_order_id,0);
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
+    }
+    T_EQ(suffixes,87); remove(saves[0]); remove(saves[1]);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
 TEST(wc3_movement, periodic_public_oblique_move_matches_retail_from_zero_clock) {
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     /* Captured retail Misc clamps the public100 input to150, unlike the minimal fixture. */

@@ -244,32 +244,18 @@ uint32_t GroupImmediateOrderById(jass_t *j) {
     //int32_t order = jass_checkinteger(j, 2);
     return jass_pushboolean(j, 0);
 }
-/* CGroup23acd0 takes two retained snapshots, each limited to twelve entries.
- * This is the admission pass; callbacks must not change which later entries
- * receive this request. Removed/reused units fail the generation check.
- * TODO: GROUP-04.6 must retain the shared CMoveReq and physical group phases;
- * individual Move dispatch below does not reproduce shared movement yet. */
+/* CGroup23acd0 retains at most twelve insertion-ordered entries before
+ * admission callbacks. The owning ability decides whether the batch shares
+ * movement state; the JASS adapter has no individual order behavior. */
 static bool group_point_order(ggroup_t *group, cstring_t order, uint32_t order_id, vec2_t const *point) {
-    struct { edict_t *unit; uint32_t spawn; } units[BZ_WC3_GROUP_ORDER_UNITS];
-    uint32_t count;
-    bool any = false;
-
     if (!G_JassGroupValid(group) || !point) return false;
-    count = MIN(group->num_units, BZ_WC3_GROUP_ORDER_UNITS);
-    FOR_LOOP(i, count) {
-        units[i].unit = group->units[i];
-        units[i].spawn = units[i].unit->spawn_time;
+    groupPointOrder_t request={.count=MIN(group->num_units,BZ_WC3_GROUP_ORDER_UNITS),
+        .order_id=order_id,.order=order,.point=point};
+    FOR_LOOP(i,request.count) {
+        request.units[i].unit=group->units[i];
+        request.units[i].spawn=group->units[i]->spawn_time;
     }
-    FOR_LOOP(i, count) {
-        edict_t *unit = units[i].unit;
-        if (!unit->inuse || unit->spawn_time != units[i].spawn || G_IsDeferredFree(unit)) continue;
-        if (G_UnitIsBuilding(order_id)) {
-            if (G_IssueBuildOrder(unit, order_id, point)) any = true;
-        } else if (unit_issueorder(unit, order, point)) {
-            any = true;
-        }
-    }
-    return any;
+    return G_IssueGroupPointOrder(&request);
 }
 
 uint32_t GroupPointOrder(jass_t *j) {

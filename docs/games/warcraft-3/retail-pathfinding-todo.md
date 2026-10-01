@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**114 done / 300 tasks; 186 remaining.** Payoff37 explicitly splits public JASS group point admission from the larger selected/AI producer and persistent physical shared-group tasks. Counts describe this backlog,
+**115 done / 301 tasks; 186 remaining.** Payoff38 explicitly splits ordinary public two-member physical movement from the larger selected/AI, eligibility, queue and crowd integration in GROUP-04.6. Its engine port, repeated original evidence and final build validation are complete. Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -29,7 +29,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 3 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 13 | 6 |
+| GROUP — Shared movement groups | 14 | 6 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -122,10 +122,12 @@ state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
-(NUM-01.8). Ghidra mapping persists464
-names,31 layouts,177 fields,180 x86 prototypes and44 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has228
-declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
-storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
+(NUM-01.8). Ghidra mapping persists489
+names,32 layouts,186 fields,213 x86 prototypes and45 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has255
+declared outcomes, including repeated public order, scalar, angle and complete
+public shared-pair witnesses. Payoff38 ports ordinary public Move-owned physical
+groups with native slots, all-member decisions/commits and Save74; wider retail
+eligibility/shared parameters, producers and crowd integration remain GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
 ROUTE-02.3 now reproduces the complete controlled wall detour in the engine,
@@ -704,6 +706,8 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [x] **GROUP-04.8** Complete a member at the original region callback, destroy/reallocate its mover through original producers, then run the retained survivor through natural arrival and final cleanup. Cover both victim roles and callback positions on open/wall maps with repeated exact trajectories, old-generation rejection, path/mover/spatial accounting and Unit/Move/order ownership; Evidence: [completed-member reuse](retail-pathfinding-movement.md#completed-member-reuse-through-survivor-arrival), two frozen four-case matrices,178 exact production velocity commits and118/118 strict corpus outcomes. Retain04.5 for actual formation refresh/new destinations and BASE-03.1 for the gameplay RemoveUnit graph/replacement actor binding.
 
 - [x] **GROUP-04.9** Explicitly split ordinary singleton point-group routing from04.6: retain the group5000-work adaptive plan separately from the member400/700-work paths, consume the verified distance selector, keep the public final goal active across natural intermediate zero-velocity commits, refill on the next owner update and preserve both stages through Save/Load and replacement cleanup. Evidence: [payoff36](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination), repeated three public journeys with689 exact commits, including two intermediate stops; engine RED1533 word/count failures then exact normal-frame/260 saved continuation commits. Ghidra persists165e30 and group16ce10/1697a0/member16a790 destinations. Shared multi-member ownership, generations/flags/formation, all-member decision/commit phases, physical crowds and hierarchy invalidation remain04.6/TARGET/MAP.
+
+- [x] **GROUP-04.10** Explicitly split ordinary public shared-pair movement from04.6: allocate Move-owned generation-retaining group/member rows, keep the native formation slots and separate all-member decisions/commits, consume exact shared-speed and nearest-route retry/forced-arrival behavior, preserve intermediate owner state and save/load, then compare every clock/pose/velocity/facing commit through both natural arrivals. Evidence: [payoff38](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner), repeated scene47 phases,115 exact engine commits and87 saved continuation commits. Release/debug RoC/TFT, production builds, the normal repository suite and strict corpus validation pass; Save74 and Ghidra annotations are synchronized. Selected/AI producers, queued activation, all eligibility/shared override/cooldown bits, callback mutation, inter-group scheduling, general crowds and scene construction remain04.6/GROUP-01.1/MAP.
 
 ## FORM — Formation and regrouping
 

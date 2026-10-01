@@ -77,9 +77,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format72 retains each timer countdown cursor with the restored server clock.
- * Earlier streams lack this timer field/meaning and are rejected. */
-static uint32_t const save_version = 73;
+/* Format74 retains Move-owned physical groups and partial fine-route state.
+ * Earlier streams lack this ownership/layout contract and are rejected. */
+static uint32_t const save_version = 74;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -489,6 +489,9 @@ static field_t const level_fields[] = {
     F(level_locals, waypoints.cursor, F_INT),
     F(level_locals, waypoints.count, F_INT),
     F(level_locals, next_move_group_id, F_INT),
+    F(level_locals, move_groups, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, move_groups_count, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, move_group_capacity, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, next_weather_id, F_INT),
     F(level_locals, weather_effects, F_STRUCT, MAX_WEATHER_EFFECTS, weather_fields),
     F(level_locals, next_lightning_id, F_INT),
@@ -683,11 +686,65 @@ static field_t const repulse_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const move_route_fields[] = {
+    TF(moveFineRoute_t, points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, count, F_INT),
+    TF(moveFineRoute_t, index, F_INT),
+    TF(moveFineRoute_t, mask, F_INT),
+    TF(moveFineRoute_t, partial, F_INT),
+    TF(moveFineRoute_t, adaptive_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, adaptive_count, F_INT),
+    TF(moveFineRoute_t, adaptive_index, F_INT),
+    TF(moveFineRoute_t, adaptive_goal, F_VECTOR),
+    TF(moveFineRoute_t, adaptive_radius, F_FLOAT),
+    TF(moveFineRoute_t, adaptive_revision, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, group_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, group_count, F_INT),
+    TF(moveFineRoute_t, group_index, F_INT),
+    TF(moveFineRoute_t, group_goal, F_VECTOR),
+    TF(moveFineRoute_t, group_radius, F_FLOAT),
+    TF(moveFineRoute_t, group_revision, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const move_member_fields[] = {
+    TF(moveGroupMember_t, unit, F_EDICT, 0, FIELD_NONE),
+    TF(moveGroupMember_t, spawn, F_INT),
+    TF(moveGroupMember_t, flags, F_INT),
+    TF(moveGroupMember_t, offset, F_VECTOR),
+    TF(moveGroupMember_t, destination, F_VECTOR),
+    TF(moveGroupMember_t, world_destination, F_VECTOR),
+    TF(moveGroupMember_t, speed, F_FLOAT),
+    TF(moveGroupMember_t, heading, F_FLOAT),
+    TF(moveGroupMember_t, arrived, F_INT),
+    TF(moveGroupMember_t, in_range, F_INT),
+    TF(moveGroupMember_t, forced_arrival, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const move_group_fields[] = {
+    TF(moveGroup_t, id, F_INT),
+    TF(moveGroup_t, flags, F_INT),
+    TF(moveGroup_t, age, F_INT),
+    TF(moveGroup_t, completion_counter, F_INT),
+    TF(moveGroup_t, inuse, F_INT),
+    TF(moveGroup_t, initialized, F_INT),
+    TF(moveGroup_t, ticking, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveGroup_t, goal, F_VECTOR),
+    TF(moveGroup_t, point, F_VECTOR),
+    TF(moveGroup_t, heading, F_FLOAT),
+    TF(moveGroup_t, radius, F_FLOAT),
+    TF(moveGroup_t, route, F_STRUCT, 1, move_route_fields),
+    { "members", offsetof(moveGroup_t,members), F_STRUCT, sizeof(((moveGroup_t *)0)->members), BZ_WC3_GROUP_ORDER_UNITS, (uintptr_t)move_member_fields, offsetof(moveGroup_t,count) },
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const movement_fields[] = {
     TF(struct edictMovement_s, fine_route.points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.count, F_INT),
     TF(struct edictMovement_s, fine_route.index, F_INT),
     TF(struct edictMovement_s, fine_route.mask, F_INT),
+    TF(struct edictMovement_s, fine_route.partial, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.adaptive_count, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_index, F_INT),
@@ -1775,14 +1832,8 @@ static bool ReadHashtables(FILE *f) {
     return true;
 }
 
-static bool WriteEdict(FILE *f, edict_t const *ent) {
-    edict_t temp = *ent;
-    field_t const *field;
-
-    ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
-    for (field = edict_fields; field->name; field++)
-        if (!WriteField1(field, (uint8_t *)&temp)) return false;
-    moveFineRoute_t const *route = &ent->movement.fine_route;
+/* Route buffers use one bounded, finite-point payload contract for both Move owners. */
+static bool WriteMoveRouteBuffers(FILE *f, moveFineRoute_t const *route) {
     if (route->count > BZ_WC3_FINE_NODES || (route->count && (!route->points || route->index >= route->count))) {
         fprintf(stderr,"WC3 SaveGame: invalid fine route count=%u index=%u\n",route->count,route->index);
         return false;
@@ -1797,10 +1848,134 @@ static bool WriteEdict(FILE *f, edict_t const *ent) {
         fprintf(stderr,"WC3 SaveGame: invalid group route count=%u index=%u\n",route->group_count,route->group_index);
         return false;
     }
-    return SaveBytes(f, &temp, sizeof(temp)) &&
-        (!route->count || SaveBytes(f,route->points,route->count*sizeof(*route->points))) &&
+    return (!route->count || SaveBytes(f,route->points,route->count*sizeof(*route->points))) &&
         (!route->adaptive_count || SaveBytes(f,route->adaptive_points,route->adaptive_count*sizeof(*route->adaptive_points))) &&
         (!route->group_count || SaveBytes(f,route->group_points,route->group_count*sizeof(*route->group_points)));
+}
+
+static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
+    route->points = NULL; route->adaptive_points=NULL; route->group_points=NULL;
+    if (route->count > BZ_WC3_FINE_NODES || (route->count && route->index >= route->count)) return false;
+    if (route->count) {
+        route->points = malloc(route->count*sizeof(*route->points));
+        if (!route->points || !LoadBytes(f,route->points,route->count*sizeof(*route->points))) {
+            free(route->points); route->points = NULL; return false;
+        }
+        FOR_LOOP(i,route->count) if (!isfinite(route->points[i].x) || !isfinite(route->points[i].y)) {
+            free(route->points); route->points = NULL; return false;
+        }
+    }
+    if (route->adaptive_count) {
+        if (route->adaptive_count>BZ_WC3_FINE_NODES || route->adaptive_index>=route->adaptive_count ||
+            !isfinite(route->adaptive_goal.x) || !isfinite(route->adaptive_goal.y) || !isfinite(route->adaptive_radius)) {
+            free(route->points); route->points=NULL; return false;
+        }
+        route->adaptive_points=malloc(route->adaptive_count*sizeof(*route->adaptive_points));
+        if (!route->adaptive_points || !LoadBytes(f,route->adaptive_points,route->adaptive_count*sizeof(*route->adaptive_points))) {
+            free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
+        }
+        FOR_LOOP(i,route->adaptive_count) if (!isfinite(route->adaptive_points[i].x) || !isfinite(route->adaptive_points[i].y)) {
+            free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
+        }
+    }
+    if (route->group_count) {
+        if (route->group_count>BZ_WC3_FINE_NODES || route->group_index>=route->group_count ||
+            !isfinite(route->group_goal.x) || !isfinite(route->group_goal.y) || !isfinite(route->group_radius)) {
+            free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
+        }
+        route->group_points=malloc(route->group_count*sizeof(*route->group_points));
+        if (!route->group_points || !LoadBytes(f,route->group_points,route->group_count*sizeof(*route->group_points))) {
+            free(route->points); free(route->adaptive_points); free(route->group_points);
+            route->points=route->adaptive_points=route->group_points=NULL; return false;
+        }
+        FOR_LOOP(i,route->group_count) if (!isfinite(route->group_points[i].x) || !isfinite(route->group_points[i].y)) {
+            free(route->points); free(route->adaptive_points); free(route->group_points);
+            route->points=route->adaptive_points=route->group_points=NULL; return false;
+        }
+    }
+    return true;
+}
+
+/* A saved group must own live, generation-matched members exactly once. The
+ * JASS collection is independent: destroying it does not cancel this Move. */
+static bool ValidMoveGroup(moveGroup_t const *group) {
+    if (!group->id || !group->count || group->count>BZ_WC3_GROUP_ORDER_UNITS ||
+        *(uint8_t const *)&group->inuse!=1 || *(uint8_t const *)&group->initialized>1 || group->ticking ||
+        !isfinite(group->goal.x) || !isfinite(group->goal.y) || !isfinite(group->point.x) ||
+        !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)
+        return false;
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t const *member=group->members+i;
+        uintptr_t ptr=(uintptr_t)member->unit,base=(uintptr_t)g_edicts;
+        if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
+        edict_t const *unit=member->unit;
+        if (!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=member->spawn ||
+            unit->movement.group_id!=group->id || !unit->goalentity ||
+            !isfinite(member->offset.x) || !isfinite(member->offset.y) ||
+            !isfinite(member->destination.x) || !isfinite(member->destination.y) ||
+            !isfinite(member->world_destination.x) || !isfinite(member->world_destination.y) ||
+            !isfinite(member->speed) || member->speed<0 || !isfinite(member->heading) ||
+            *(uint8_t const *)&member->arrived>1 || *(uint8_t const *)&member->in_range>1 ||
+            *(uint8_t const *)&member->forced_arrival>1) return false;
+        FOR_LOOP(j,i) if (group->members[j].unit==unit) return false;
+    }
+    return true;
+}
+
+/* Store active owners after edicts so loading can validate restored generations. */
+static bool WriteMoveGroups(FILE *f) {
+    uint32_t count=0;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if (level.move_groups[i]->inuse) count++;
+    if (count>globals.num_edicts || !SaveBytes(f,&count,sizeof(count))) return false;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t const *group=level.move_groups[i];
+        if (!group->inuse) continue;
+        if (!ValidMoveGroup(group)) return false;
+        FOR_LOOP(j,i) if (level.move_groups[j]->inuse && level.move_groups[j]->id==group->id) return false;
+        moveGroup_t temp=*group;
+        ClearRuntimeFields(&temp,move_group_fields,FIELD_RUNTIME);
+        if (!WriteMappedFields(f,move_group_fields,(uint8_t *)&temp) || !WriteMoveRouteBuffers(f,&group->route)) return false;
+    }
+    return true;
+}
+
+/* Rebuild process-owned allocations; failed payloads release every partial owner. */
+static bool ReadMoveGroups(FILE *f) {
+    uint32_t count=0;
+    if (!LoadBytes(f,&count,sizeof(count)) || count>globals.num_edicts) return false;
+    if (!count) return true;
+    level.move_groups=calloc(count,sizeof(*level.move_groups));
+    if (!level.move_groups) return false;
+    level.move_group_capacity=count;
+    FOR_LOOP(i,count) {
+        moveGroup_t *group=calloc(1,sizeof(*group));
+        if (!group) goto failed;
+        level.move_groups[ARRAY_COUNT(level.move_groups)++]=group;
+        bool mapped=ReadMappedFields(f,move_group_fields,(uint8_t *)group);
+        /* Clear even a partial record before cleanup can touch curve addresses. */
+        ClearRuntimeFields(group,move_group_fields,FIELD_RUNTIME);
+        if (!mapped || !ValidMoveGroup(group) || !ReadMoveRouteBuffers(f,&group->route)) goto failed;
+        FOR_LOOP(j,i) {
+            moveGroup_t const *other=level.move_groups[j];
+            if (other->id==group->id) goto failed;
+            FOR_LOOP(m,group->count) FOR_LOOP(n,other->count)
+                if (group->members[m].unit==other->members[n].unit) goto failed;
+        }
+    }
+    return true;
+failed:
+    S_ClearMoveGroups();
+    return false;
+}
+
+static bool WriteEdict(FILE *f, edict_t const *ent) {
+    edict_t temp = *ent;
+    field_t const *field;
+
+    ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
+    for (field = edict_fields; field->name; field++)
+        if (!WriteField1(field, (uint8_t *)&temp)) return false;
+    return SaveBytes(f, &temp, sizeof(temp)) && WriteMoveRouteBuffers(f,&ent->movement.fine_route);
 }
 
 static bool WriteClient(FILE *f, gameClient_t const *client) {
@@ -1901,45 +2076,7 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
 
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
     moveFineRoute_t *route = &ent->movement.fine_route;
-    route->points = NULL; route->adaptive_points=NULL; route->group_points=NULL;
-    if (route->count > BZ_WC3_FINE_NODES || (route->count && route->index >= route->count)) return false;
-    if (route->count) {
-        route->points = malloc(route->count*sizeof(*route->points));
-        if (!route->points || !LoadBytes(f,route->points,route->count*sizeof(*route->points))) {
-            free(route->points); route->points = NULL; return false;
-        }
-        FOR_LOOP(i,route->count) if (!isfinite(route->points[i].x) || !isfinite(route->points[i].y)) {
-            free(route->points); route->points = NULL; return false;
-        }
-    }
-    if (route->adaptive_count) {
-        if (route->adaptive_count>BZ_WC3_FINE_NODES || route->adaptive_index>=route->adaptive_count ||
-            !isfinite(route->adaptive_goal.x) || !isfinite(route->adaptive_goal.y) || !isfinite(route->adaptive_radius)) {
-            free(route->points); route->points=NULL; return false;
-        }
-        route->adaptive_points=malloc(route->adaptive_count*sizeof(*route->adaptive_points));
-        if (!route->adaptive_points || !LoadBytes(f,route->adaptive_points,route->adaptive_count*sizeof(*route->adaptive_points))) {
-            free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
-        }
-        FOR_LOOP(i,route->adaptive_count) if (!isfinite(route->adaptive_points[i].x) || !isfinite(route->adaptive_points[i].y)) {
-            free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
-        }
-    }
-    if (route->group_count) {
-        if (route->group_count>BZ_WC3_FINE_NODES || route->group_index>=route->group_count ||
-            !isfinite(route->group_goal.x) || !isfinite(route->group_goal.y) || !isfinite(route->group_radius)) {
-            free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
-        }
-        route->group_points=malloc(route->group_count*sizeof(*route->group_points));
-        if (!route->group_points || !LoadBytes(f,route->group_points,route->group_count*sizeof(*route->group_points))) {
-            free(route->points); free(route->adaptive_points); free(route->group_points);
-            route->points=route->adaptive_points=route->group_points=NULL; return false;
-        }
-        FOR_LOOP(i,route->group_count) if (!isfinite(route->group_points[i].x) || !isfinite(route->group_points[i].y)) {
-            free(route->points); free(route->adaptive_points); free(route->group_points);
-            route->points=route->adaptive_points=route->group_points=NULL; return false;
-        }
-    }
+    if (!ReadMoveRouteBuffers(f,route)) return false;
     for (field = edict_fields; field->name; field++)
         if (!ReadField(field, (uint8_t *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
@@ -1988,6 +2125,7 @@ bool WriteGame(cstring_t filename) {
             fprintf(stderr, "WC3 SaveGame: failed at edict %d class=%08x\n", i, g_edicts[i].class_id); goto done;
         }
     }
+    if (!WriteMoveGroups(f)) { fprintf(stderr,"WC3 SaveGame: failed at physical Move groups\n"); goto done; }
     /* After edicts: nested HT_HANDLE unit/item slots call G_LoadJassHandle, which
      * requires restored inuse bits. SV_Map runs main() first, so a pre-edict
      * resolve would see baseline slots and drop script-created units. */
@@ -2052,6 +2190,7 @@ bool ReadGame(cstring_t filename) {
         current_nonregion_event_slots[i] = event->inuse &&
             event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION;
     }
+    S_ClearMoveGroups();
     if (!ReadMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
@@ -2104,6 +2243,7 @@ bool ReadGame(cstring_t filename) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
         }
     }
+    if (!ReadMoveGroups(f)) { fprintf(stderr,"WC3 LoadGame: failed at physical Move groups\n"); fclose(f); return false; }
     /* Nested hashtable unit/item handles resolve here, after edict inuse is restored. */
     if (!ReadHashtables(f)) { fprintf(stderr, "WC3 LoadGame: failed at hashtables\n"); fclose(f); return false; }
     /* Sound-handle presentation state is part of the VM-owned handle payload;
@@ -2235,6 +2375,58 @@ TEST(wc3_save, rejects_invalid_fine_route_payloads) {
     }
 }
 
+/* Current mapped group records reject bad ownership, generations and curve
+ * tails even when their outer container can be read successfully. */
+TEST(wc3_save, rejects_invalid_physical_group_payloads) {
+    reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','p','e','a'),256,128);
+    vec2_t point={512,512};
+    groupPointOrder_t request={.units={{first,first->spawn_time},{second,second->spawn_time}},
+        .count=2,.order="move",.order_id=G_OrderId("move"),.point=&point};
+    T_ASSERT(G_IssueGroupPointOrder(&request)); T_EQ(ARRAY_COUNT(level.move_groups),1);
+    moveGroup_t original=*level.move_groups[0];
+    S_ClearMoveGroups();
+    FOR_LOOP(i,14) {
+        FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
+        moveGroup_t raw=original; uint32_t count=i==0 ? globals.num_edicts+1 : i==13 ? 2 : 1;
+        raw.route.points=raw.route.adaptive_points=raw.route.group_points=(vec2_t *)(uintptr_t)1;
+        if (i==1) raw.count=0;
+        if (i==2) raw.members[0].spawn++;
+        if (i==3) raw.members[0].unit=NULL;
+        if (i==4) raw.members[1]=raw.members[0];
+        if (i==5) raw.id++;
+        if (i==6) raw.goal.x=NAN;
+        if (i>=7 && i<13) { raw.route.group_count=1; raw.route.group_index=0; }
+        if (i==7) raw.route.group_count=BZ_WC3_FINE_NODES+1;
+        if (i==8) raw.route.group_index=1;
+        T_ASSERT(SaveBytes(file,&count,sizeof(count)));
+        T_ASSERT(WriteMappedFields(file,move_group_fields,(uint8_t *)&raw));
+        if (i==9) T_ASSERT(SaveBytes(file,&(vec2_t){NAN,0},sizeof(vec2_t)));
+        if (i==11 || i==12) {
+            /* The counted member payload has one extent and stable indices. */
+            field_t prefix[sizeof(move_group_fields)/sizeof(*move_group_fields)];
+            memcpy(prefix,move_group_fields,sizeof(prefix));
+            FOR_LOOP(f,sizeof(prefix)/sizeof(*prefix)) if (prefix[f].name && !strcmp(prefix[f].name,"members")) {
+                prefix[f].name=NULL; break;
+            }
+            FILE *head=tmpfile(); T_NOT_NULL(head);
+            if (head) {
+                T_ASSERT(WriteMappedFields(head,prefix,(uint8_t *)&raw));
+                long offset=sizeof(count)+ftell(head)+(i==11 ? sizeof(raw.count) : 0);
+                fclose(head); T_EQ(fseek(file,offset,SEEK_SET),0);
+                int index=i==11 ? (int)globals.max_edicts : BZ_WC3_GROUP_ORDER_UNITS+1;
+                T_ASSERT(SaveBytes(file,&index,sizeof(index)));
+            }
+        }
+        if (i==13) T_ASSERT(WriteMappedFields(file,move_group_fields,(uint8_t *)&raw));
+        rewind(file); T_ASSERT(!ReadMoveGroups(file));
+        T_NULL(level.move_groups); T_EQ(ARRAY_COUNT(level.move_groups),0); T_EQ(level.move_group_capacity,0);
+        fclose(file);
+    }
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_save, rejects_previous_combat_cargo_format_before_restoring_world) {
     cstring_t filename = "/tmp/openwarcraft3-save-current-format.bin";
     cstring_t old_filename = "/tmp/openwarcraft3-save-previous-combat-cargo-format.bin";
@@ -2307,8 +2499,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-70.bin",
         "/tmp/openwarcraft3-wc3-save-version-71.bin",
         "/tmp/openwarcraft3-wc3-save-version-72.bin",
+        "/tmp/openwarcraft3-wc3-save-version-73.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73 };
 
     reset_entities();
     setup_test_world();

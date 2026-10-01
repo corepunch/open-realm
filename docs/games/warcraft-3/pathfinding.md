@@ -6,6 +6,12 @@ rebuilds static lane classifications after terrain edits, and resumes saved
 travel with exact position/heading/velocity words. Special edges, original route
 handoff timing and complete retail trajectories remain work in progress.
 
+Public JASS Move/Smart batches now have a [Move-owned shared physical group](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner):
+a separate group route, retained formation slots and all-member decisions before
+velocity commits. A complete public pair matches115 original commits and87 saved
+continuation commits through normal frames. Selected/AI/queued group producers,
+full eligibility flags and general crowd parity remain open.
+
 Authored repulsion now runs through Move after each owner movement pass, so
 eligible idle flyers separate as well as moving units. It uses saved retail
 random state, exact scalar pair/tail arithmetic and collision-sized endpoint

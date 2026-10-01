@@ -460,6 +460,20 @@ function PathProbeTick takes nothing returns nothing
         call PathProbePublicOblique()
     elseif PATH_PROBE_SCENARIO == 46 then
         call PathProbeGroupOrders()
+    elseif PATH_PROBE_SCENARIO == 47 then
+        if udg_PathProbeTick == 10 then
+            if GroupPointOrder(udg_PathProbeGroup, "move", -1936.0, -720.0) then
+                call Preload("PATHPAIR tick=10 accepted=1")
+            else
+                call Preload("PATHPAIR tick=10 accepted=0")
+            endif
+        endif
+        set crowdIndex = 0
+        loop
+            exitwhen crowdIndex == 2
+            call Preload("PATHPAIR tick=" + I2S(udg_PathProbeTick) + " member=" + I2S(crowdIndex) + " x=" + R2S(GetUnitX(udg_PathProbeCrowd[crowdIndex])) + " y=" + R2S(GetUnitY(udg_PathProbeCrowd[crowdIndex])) + " order=" + I2S(GetUnitCurrentOrder(udg_PathProbeCrowd[crowdIndex])))
+            set crowdIndex = crowdIndex + 1
+        endloop
     endif
     if PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 1 then
         call PathProbeSpeedInputs(udg_PathProbeUnit, "foot")
@@ -659,7 +673,7 @@ function PathProbeTick takes nothing returns nothing
         set udg_PathProbeBuilding = null
         call PathProbeRecord("after_widget_remove")
     endif
-    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 and PATH_PROBE_SCENARIO != 45 and PATH_PROBE_SCENARIO != 46 then
+    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 and PATH_PROBE_SCENARIO != 45 and PATH_PROBE_SCENARIO != 46 and PATH_PROBE_SCENARIO != 47 then
         call PathProbeRecord("before_order")
         if (PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) then
             if IssueTargetOrder(udg_PathProbeUnit, "smart", udg_PathProbeTarget) then
@@ -863,7 +877,21 @@ function PathProbeInit takes nothing returns nothing
         set gx = 0
         set gy = 0
     endif
+    if PATH_PROBE_SCENARIO == 47 then
+        call Preload("PATHPOSE case=pair_first")
+    endif
     set udg_PathProbeUnit = CreateUnit(Player(0), crowdType, -1936.0, -976.0, 90.0)
+    if PATH_PROBE_SCENARIO == 47 then
+        call Preload("PATHPOSE done=pair_first")
+        call Preload("PATHPOSE case=pair_second")
+        set udg_PathProbeCrowd[0] = udg_PathProbeUnit
+        set udg_PathProbeCrowd[1] = CreateUnit(Player(0), crowdType, -1856.0, -976.0, 90.0)
+        call SetUnitMoveSpeed(udg_PathProbeCrowd[1], 350.0)
+        call Preload("PATHPOSE done=pair_second")
+        set udg_PathProbeGroup = CreateGroup()
+        call GroupAddUnit(udg_PathProbeGroup, udg_PathProbeCrowd[0])
+        call GroupAddUnit(udg_PathProbeGroup, udg_PathProbeCrowd[1])
+    endif
     if PATH_PROBE_SCENARIO == 21 then
         call SetUnitFacing(udg_PathProbeUnit, 0.0)
         call Preload("PATHSTOCK tick=0 turn=" + R2S(GetUnitTurnSpeed(udg_PathProbeUnit)) + " window=" + R2S(GetUnitPropWindow(udg_PathProbeUnit)) + " defaultTurn=" + R2S(GetUnitDefaultTurnSpeed(udg_PathProbeUnit)) + " defaultWindow=" + R2S(GetUnitDefaultPropWindow(udg_PathProbeUnit)))

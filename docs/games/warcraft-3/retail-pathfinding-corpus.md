@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **254 entries**: **45** distinct original-code oracle
-scripts plus **50** declared variants, **121** archived JSONL audits and **38**
+The inventory now has **255 entries**: **45** distinct original-code oracle
+scripts plus **50** declared variants, **121** archived JSONL audits and **39**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -26,7 +26,7 @@ outside the accepted inventory unless given their own rejection contract.
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Twenty-eight public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Twenty-nine public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -678,3 +678,13 @@ members. The engine implements the bounded snapshot and numeric/Loc adapters;
 shared physical movement remains GROUP-04.6. The captures deliberately cap motion
 rows and grant no complete trajectory evidence. See [public group point
 admission](retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members).
+
+
+Payoff38 adds `live-public-pair-repeat-261001`: two complete public point-group
+lifetimes repeat60 all-member decision/commit visits,115 commits,113 scalar
+decisions and601 public samples. Frozen member/pose/phase words preserve the
+blocked left slot, nearest fine endpoint, survivor offset and retry/forced-arrival
+chain. Production arithmetic replays every commit; a separate normal-frame
+engine regression matches115 commits and87 saved suffix commits. The supplied
+scene geometry and wider GROUP-04.6 gaps remain explicit. See [public pair
+movement](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner).

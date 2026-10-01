@@ -5,6 +5,7 @@ let numericCase = null;
 let randomCase = null;
 let speedCase = null;
 let positionCase = null;
+let pairScenario = false;
 let clockScenario = false, clockSerial = 0;
 const counts = {}, active = new Map();
 const headingActive = new Map();
@@ -1191,6 +1192,20 @@ function install(module) {
                     .filter(p => p.compare(base) >= 0 && p.compare(base.add(config.imageSize)) < 0)
                     .map(p => p.sub(base).toString())});
     }});
+    const snapshotPairGroup = group => {
+        const count = group.add(0x38).readU32(), data = group.add(0x28).readPointer();
+        if (count > 12) throw new Error('Public pair observer found an oversized group');
+        return {group:group.toString(),identity:ints(group.add(0x14),2).map(v => v>>>0),
+            flags:group.add(0x80).readU32(),age:group.add(0x5c).readU32(),
+            completion:group.add(0x60).readU32(),formation:ints(group.add(0x54),2).map(v => v>>>0),
+            members:Array.from({length:count},(_,i) => {const p=data.add(i*0x2c), mover=p.add(0x14).readPointer();
+                return {mover:mover.toString(),row:ints(p,11).map(v => v>>>0),pose:ints(mover.add(0x70),8).map(v => v>>>0),
+                    moverFlags:mover.add(0xd8).readU32()};})};
+    };
+    for (const [phase,rva] of [['decide',0x16c250],['commit',0x16c570]]) hook(rva,{onEnter() {
+        this.group = pairScenario ? this.context.ecx : null;
+        if (this.group) emit('pair-group-phase-begin',{phase,...snapshotPairGroup(this.group)});
+    },onLeave() {if (this.group) emit('pair-group-phase-end',{phase,...snapshotPairGroup(this.group)});}});
     const completionStates = new Map();
     hook(0x16c390, {onEnter() {
         bump('group-completion-test');
@@ -1473,6 +1488,7 @@ function install(module) {
             else throw new Error('Malformed numeric marker: ' + value);
             emit('numeric-marker', {value});
         }
+        if (value.startsWith('PATHPAIR ')) emit('pair-marker',{value});
         if (value.startsWith('PATHGROUP ')) emit('group-order-marker',{value});
         if (value.startsWith('PATHCROWD ')) emit('crowd-marker', {value});
         if (value.startsWith('PATHTARGET ')) emit('target-marker', {value});
@@ -1499,6 +1515,8 @@ function install(module) {
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
+            if (value.includes('label=start_group_pair ')) pairScenario = true;
+            if (value.includes('label=complete ')) pairScenario = false;
             emit('marker', {value});
             if (!value.includes('label=sample ')) snapshotCells(value);
         }

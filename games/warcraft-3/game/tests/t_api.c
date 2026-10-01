@@ -7417,6 +7417,37 @@ TEST(wc3_api, group_point_order_forms_admit_twelve_members) {
     currentplayer = NULL;
 }
 
+/* Group dispatch resolves registered Move ownership, while Patrol and Attack
+ * retain their normal point-order path. A JASS collection does not own Move. */
+TEST(wc3_api, group_point_order_ability_ownership) {
+    reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
+    currentplayer=&game.clients[0].ps;
+    cstring_t script="globals\nunit a\nunit b\ngroup g\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hpea',128,128,90)\n"
+        "set b=CreateUnit(Player(0),'hpea',256,128,90)\n"
+        "set g=CreateGroup()\ncall GroupAddUnit(g,a)\ncall GroupAddUnit(g,b)\n"
+        "call BJassAssert(GroupPointOrder(g,\"smart\",512,512),\"Smart batch accepted\")\n"
+        "call DestroyGroup(g)\n"
+        "call BJassAssert(GetUnitCurrentOrder(a)==OrderId(\"smart\"),\"collection destruction retains Move\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(b)==OrderId(\"smart\"),\"both Move members remain active\")\n"
+        "set g=CreateGroup()\ncall GroupAddUnit(g,a)\ncall GroupAddUnit(g,b)\n"
+        "call BJassAssert(GroupPointOrder(g,\"patrol\",640,512),\"Patrol batch accepted\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(a)==OrderId(\"patrol\"),\"Patrol owner retained\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(b)==OrderId(\"patrol\"),\"second Patrol owner retained\")\n"
+        "call BJassAssert(GroupPointOrder(g,\"attack\",640,512),\"Attack batch accepted\")\n"
+        "call DestroyGroup(g)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
+    unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','p','e','a')) {
+        count++; T_NOT_NULL(ent->movement.attackmove_waypoint); T_NOT_NULL(ent->currentmove);
+        if (ent->currentmove) T_ASSERT(ent->currentmove->proc==CAbilityAttack);
+    }
+    T_EQ(count,2);
+    currentplayer=NULL; reset_entities(); setup_test_world();
+}
+
 TEST(wc3_api, destroy_group_clears_members) {
     reset_entities();
     currentplayer = &game.clients[0].ps;

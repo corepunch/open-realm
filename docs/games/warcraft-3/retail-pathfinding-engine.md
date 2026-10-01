@@ -3952,7 +3952,7 @@ and700-work fine paths. A single public order therefore contains these stages:
 | --- | --- | --- | --- |
 | Baseline |4 points, selected index0|final174/91.5|commit205|
 | Near zero |9 points, selected index1|233.5/113.5, then238.99609375/122.0078125|commits159/232|
-| Large coordinates |6 points, selected index1|49.5/65.5, then61.48828125/69.984375|commits158/249|
+| Large coordinates |6 points, selected index1|49.5/65.5, then61.48928125/69.984375|commits158/249|
 
 Move now retains that group chain separately from the member's adaptive/fine
 buffers. Intermediate arrival integrates the previous velocity, publishes
@@ -4009,7 +4009,7 @@ numeric forms always returned false. The new common dispatch snapshots at most
 ordinary order path. Numeric IDs resolve through the same order table; numeric
 building rawcodes use the existing construction dispatch. Null groups/locations
 and unrecognized orders return false. This changes no persistent layout or
-serialized state; Save73 remains current.
+serialized state; payoff37 preserved the then-current Save73. Payoff38 below advances it to74.
 
 The scene46 map creates fourteen stock Footmen with mixed public speeds. At
 periodic ticks10/80/150/220 it calls name/ById/Loc/ByIdLoc respectively and
@@ -4041,9 +4041,7 @@ Ghidra now retains487 named roles,211 explicit prototypes,32 partial layouts,
 186 fields and45 globals. New names cover the four public wrappers, CGroup
 point producer, retained snapshot enumeration and its attach/admit callbacks.
 The44-byte point context describes only proven fields; unresolved bytes remain
-undefined. Engine group movement still uses individual dispatch at this
-boundary: the shared CMoveReq, generation/eligibility state, group path and
-all-member decisions before commits remain GROUP-04.6. These captures hit the
+undefined. [Payoff38](#public-pair-movement-uses-a-shared-move-owner) subsequently integrates ordinary public shared movement; wider producer/eligibility/queue state remains GROUP-04.6. These captures hit the
 intentional10000 motion-row cap; only admission is certified, and the final
 30-second scene still has an active order. This is not arrival/trajectory
 parity evidence.
@@ -4052,3 +4050,114 @@ Validation: release and forced debug RoC/TFT each pass104,228 assertions in
 2,298 tests. Both production builds,165 Python pathfinding tests, ability
 registration coverage,254-entry/95-fixture inventory and the fresh strict
 admission corpus and ordinary release umbrella pass.
+
+
+## Public pair movement uses a shared Move owner
+
+Payoff38 splits GROUP-04.10 from the larger04.6 task. A public point batch now
+reaches the registered order ability through `A_GROUP_POINT_ORDER` and a typed,
+generation-retaining request. `Amov` owns the Move/Smart order names. The JASS
+adapter snapshots twelve insertion-order entries; it contains no hardcoded
+movement IDs or movement-specific dispatch. Other point orders retain ordinary
+per-unit admission, including building rawcodes, spells, Patrol and Attack.
+Move/Smart still use that admission for validation, Smart rally behavior and
+issued-order events before accepted walkers join the physical owner.
+
+Move retains each group's separate5000-work route, public final goal, selected
+native point/heading and member rows. Members retain generation, native offsets
+and destinations, requested speed/heading, arrival flags and forced-arrival
+state. The owner stages every decision before publishing any velocity. Each
+decision uses its own speed; eligible commits use the group's minimum speed.
+Replacement/removal detaches members by generation with swap removal. Destroying
+the JASS collection does not cancel physical movement. Final completion removes
+members after commits; an intermediate shared point uses verified regrouping,
+resets member paths and refreshes formation before the next owner visit.
+Paused/stunned members retain their existing pause semantics; Walk/Stand clips
+follow the actual movement request.
+
+Scene47 creates two stock Footmen at `(-1936,-976)` and `(-1856,-976)`, facing
+north, sets public speeds100/350 (retail clamps100 to150), and issues one
+`GroupPointOrder("move",-1936,-720)` at periodic tick10. Two sequential owned
+captures contain60 complete group visits,113 decisions,115 commits (60/55),
+240 phase snapshots,6000 primary advances and601 public markers. Both units
+arrive naturally with order0; the slow member ends at its retained left slot,
+not the public group centre. The captures end normally without capped motion.
+
+The initial formation heading is selected group point minus previous group
+point, rather than the member mean. Initial native offsets are
+`[-2.937499761581421,1.367880031466484e-9]` and its inverse. The left assigned
+native destination `[160.5625,73.5]` is blocked; its fine search retains the
+nearest endpoint `[161.5,73.5]`. After the fast member finishes, the survivor
+keeps its original slot. Its final failed leg exercises retry2→1→4, a one-point
+nearest chain, zero speed while turning toward the exact assigned destination,
+and forced arrival on the following visit. These are runtime branch results,
+not hardcoded tick positions or expected-output shortcuts in production.
+
+The normal-frame engine regression starts clock/phase zero and uses public
+creation, speed setters, the timer and group order. RED had1537 word/count/order
+failures; the port matches all115 clock/position/velocity/facing commits.
+The compared retained ordinary group/member words (flags, age/counter, selected point,
+slots, destinations, requested speeds/headings and forced-arrival state) also
+agree before the next owner visit. That stronger comparison exposed a one-bit
+initial requested heading error hidden by velocity canonicalization: public
+creation used host degree conversion. `unit_create` now consumes the observed
+software multiplier `cd5444=3c8efa35`. Saves after commit30 and113 replay87
+further original commits exactly. Format74
+retains the physical registry through stable edict indices, generations and
+bounded finite route tails; earlier versions are rejected. Corrupt owner,
+member/reference/generation/duplicate and curve payloads fail visibly and free
+partial allocations, even when a mapped record contains serialized addresses.
+Network state and wire layouts are unchanged.
+
+The fixture supplies the already observed scene45 combined terrain/static
+geometry; the scene45 remote clear control does not intersect this route.
+Arbitrary scenery construction, selected/AI producers, queued group activation,
+all eligibility/shared-override bits, cooldown/target-speed policy, callback
+mutation during complete physical motion and general crowds remain04.6/MAP.
+Inter-group owner traversal and reused pool-slot ordering also remain unverified;
+the bounded pair owns only one physical group. The current cap accumulator
+uses zero as an unset sentinel; test whether a movement-disabled retained member
+can reach this path before certifying that admission domain. Public speed0 by
+itself is clamped to the configured minimum and does not prove a zero cap.
+Existing-actor
+`unit_createorfind` facing conversion is a separate producer and remains
+unverified. Ordinary Attack point dispatch still has a pre-existing stale
+`GetUnitCurrentOrder` result after Patrol; the ability-ownership regression checks
+the actual Attack procedure and waypoint, without granting that query parity.
+The long shared-route/pause engine regression checks lifecycle without granting
+an additional original trajectory claim.
+
+Artifacts under the standard report root:
+
+- `runtime/public-pair-live-first-261001.jsonl` and `public-pair-live-repeat-261001.jsonl`;
+- `runtime/public-pair-repeat-final-261001.json`;
+- `runtime/public-pair-source-261001/` retains the exact capture sources;
+- `runtime/public-pair-ghidra-{types,readback}-261001.json`;
+- `public-pair-corpus-261001/corpus-results.json`.
+
+`runtime/public-pair-repeat-startup-rejected-261001.jsonl` records an accidental
+controller overlap at startup. It is diagnostic only; both accepted captures
+ran to completion sequentially. The strict checker pins actual source/map and
+capture metadata, all sampled words, every normalized phase/member/pose word,
+all-member-before-commit order and natural final orders. It composes production
+scalar/velocity/clock arithmetic. The separate engine test proves routing and
+normal-frame integration; raw helper replay alone does not prove that.
+
+Frozen [pair words](../../../tools/ghidra/fixtures/retail-public-pair-1.27.json)
+and [engine trajectory](../../../games/warcraft-3/game/tests/retail_public_pair.h)
+are synchronized by Python checks. Ghidra retains489 roles,213 explicit
+prototypes,32 partial layouts/186 fields and45 globals. The newly typed
+`16c6d0` chooses a predicted native source member with strict ties; preferred
+path88.200000 and group200 bypass extensions remain explicitly unimplemented.
+Nine saved role/prototype/comment readbacks retain this payoff's evidence.
+
+
+Final payoff38 validation: forced release and forced debug with
+`WC3_DEBUG_BUILD=1` RoC/TFT each pass108,320 assertions in2,302 tests. The public
+pair regression passes3,957 assertions, including87 saved continuation commits;
+the separate long-route/pause lifecycle and fourteen malformed physical-group
+payload cases pass. Both production builds, the normal release repository suite,
+168 Python pathfinding tests, ability registration audit and255-entry/96-fixture
+inventory pass. Fresh strict pair replay and nine saved Ghidra readbacks pass.
+The validation index is `runtime/public-pair-validation-261001.json`.
+GROUP-04.10 closes; next runnable work remains GROUP-04.6's wider physical groups.

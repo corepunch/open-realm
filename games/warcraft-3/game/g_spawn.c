@@ -745,6 +745,7 @@ void G_SpawnEntities(void) {
     G_ClearHashtableRegistry();
     G_FowShutdown();
     G_BlightShutdown();
+    S_ClearMoveGroups();
     memset(&level, 0, sizeof(level));
     G_ResetSelectionSoundState();
     G_CommandErrorReset();

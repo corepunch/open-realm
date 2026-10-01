@@ -368,9 +368,12 @@ The boolean result reports whether the group order was accepted according to
 the native contract; it is not an unconditional success value.
 
 The four `GroupPointOrder*` forms now use the verified twelve-member insertion-order
-snapshot and numeric/Loc adapters. They report aggregate acceptance; persistent
-shared physical Move state remains an explicit gap. `GroupImmediateOrderById` and
-`GroupTargetOrderById` still need their adapters. See [retail point admission](../../docs/games/warcraft-3/retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members).
+snapshot and numeric/Loc adapters. They report aggregate acceptance and dispatch
+typed batches through the registered order ability. Move/Smart now retain a
+physical shared owner, separate decisions/commits and saved native formation
+state; a repeated public pair matches115 original commits. Wider eligibility,
+queued activation, other producers and crowd behavior remain explicit gaps. `GroupImmediateOrderById` and
+`GroupTargetOrderById` still need their adapters. See [retail point admission](../../docs/games/warcraft-3/retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members) and [shared pair movement](../../docs/games/warcraft-3/retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner).
 
 A `REGION` is the union of its cells and rectangles. Add/clear operations mutate
 that set, while `IsPointInRegion`, `IsLocationInRegion`, and `IsUnitInRegion`

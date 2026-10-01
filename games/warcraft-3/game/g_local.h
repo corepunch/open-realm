@@ -27,6 +27,7 @@ typedef struct {
     vec2_t *points;
     uint32_t count, index;
     uint8_t mask;
+    bool partial; /* Fine search retained the nearest chain rather than the requested endpoint. */
     vec2_t *adaptive_points; /* Accelerator coordinates, twice the fine-cell size. */
     uint32_t adaptive_count, adaptive_index;
     vec2_t adaptive_goal;
@@ -39,6 +40,24 @@ typedef struct {
     float group_radius;
     uint32_t group_revision;
 } moveFineRoute_t;
+
+typedef struct {
+    edict_t *unit;
+    uint32_t spawn, flags;
+    vec2_t offset, destination, world_destination;
+    float speed, heading;
+    bool arrived, in_range, forced_arrival;
+} moveGroupMember_t;
+
+/* Move owns retained physical groups independently of JASS collection handles. */
+typedef struct {
+    uint32_t id, count, flags, age, completion_counter;
+    bool inuse, initialized, ticking;
+    vec2_t goal, point;
+    float heading, radius;
+    moveFineRoute_t route;
+    moveGroupMember_t members[BZ_WC3_GROUP_ORDER_UNITS];
+} moveGroup_t;
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
@@ -750,6 +769,14 @@ typedef enum {
     WC3_EFFECT_LIGHTNING = 6,
 } wc3EffectType_t;
 
+/* The producer retains insertion order and generations before any order callbacks. */
+typedef struct {
+    struct { edict_t *unit; uint32_t spawn; } units[BZ_WC3_GROUP_ORDER_UNITS];
+    uint32_t count, order_id;
+    cstring_t order;
+    vec2_t const *point;
+} groupPointOrder_t;
+
 typedef struct ability_s ability_t;
 typedef struct ability_call_s abilityCall_t;
 typedef struct heroabilitystatus_s heroabilitystatus_t;
@@ -781,6 +808,7 @@ typedef enum {
     A_LEVEL,            /* Level refresh: return ent's current behavior-specific ability level. */
     A_LEVEL_CHANGED,    /* Level refresh: apply the new call->level to behavior-owned state. */
     A_ORDER,            /* Immediate-order dispatch: handle call->order; return whether it was accepted. */
+    A_GROUP_POINT_ORDER, /* Batch producer: call->group_order; return abilityOrderResult_t. */
     A_TARGET_ORDER,     /* Target-owned interaction: handle call->target_order for an order aimed at this unit. */
     A_ORDER_ACCEPTED,   /* Accepted non-queued order that may not install a new move; call->order identifies it. */
     A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
@@ -836,6 +864,7 @@ struct ability_call_s {
         edict_t *projectile;
         edict_t *removed_target; /* A_TARGET_REMOVED; valid throughout the notification. */
         cstring_t order;
+        groupPointOrder_t const *group_order; /* A_GROUP_POINT_ORDER: retained public point request. */
         abilityProc_t next_move_proc; /* A_MOVE_LEAVE: move procedure replacing the current move. */
         struct { edict_t *issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
         struct { edict_t *target; cstring_t order; } issued_target_order; /* A_ISSUED_TARGET_ORDER */
@@ -2147,6 +2176,8 @@ struct level_locals {
     struct {
         uint32_t base, cursor, count;
     } waypoints;
+    ARRAY(moveGroup_t *, move_groups);
+    uint32_t move_group_capacity;
     uint32_t next_move_group_id; /* Zero is ungrouped; allocation excludes every live unit identity. */
     quest_t quests[MAX_QUESTS];
     uint16_t alliances[MAX_PLAYERS][MAX_PLAYERS];
@@ -2683,10 +2714,13 @@ typedef struct {
     edict_t const *mover, *target;
     bool units;
     vec2_t const *fine; /* Published native32-unit pose; NULL for explicit world-only geometry. */
+    vec2_t const *fine_target; /* Exact member destination; world projection can lose these bits. */
 } movePathQuery_t;
 void G_RebindSavedMoveRoutes(void);
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 void S_FreeMoveRoute(edict_t *self);
+void S_ClearMoveGroups(void);
+bool G_IssueGroupPointOrder(groupPointOrder_t const *request);
 vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);
 uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *query, float const fine_goal[2], edict_t **out);
 wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count);

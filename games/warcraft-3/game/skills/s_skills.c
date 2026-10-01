@@ -12,6 +12,7 @@ int G_AutocastDebugLevel(void) {
 cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
 cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
+static cstring_t const move_orders[] = { "move", "smart", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
 static cstring_t const entangle_orders[] = {
@@ -103,7 +104,7 @@ static ability_t abilitylist[] = {
     { "Afir", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire */
     { "Afiu", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire (Undead) */
     { "Aloc", CAbilityPassive, AB_PASSIVE },  /* Locust */
-    { "Amov", CAbilityMove, AB_COMMAND | AB_INNATE | AB_OWNER_UPDATE },  /* Move */
+    { "Amov", CAbilityMove, AB_COMMAND | AB_INNATE | AB_OWNER_UPDATE, SPELL_TARGET_NONE, move_orders },  /* Move */
     { "Atdp", CAbilityCargoDrop, AB_COMMAND },  /* Drop Pilot */
     { "Atlp", CAbilityCargoLoad, AB_COMMAND },  /* Load Pilot */
     { "Attu", CAbilityPassive, AB_PASSIVE },  /* Turret */
