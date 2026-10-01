@@ -423,7 +423,7 @@ static slkField_t const abil_schema[] = {
     { "comment(s)",   offsetof(UnitAbilities_t, comments),     STB_SLK_STR  },
     { "abilList",     offsetof(UnitAbilities_t, abilList),     STB_SLK_STR  },
     { "heroAbilList", offsetof(UnitAbilities_t, heroAbilList), STB_SLK_STR  },
-    { "auto",         offsetof(UnitAbilities_t, auto_),        STB_SLK_BOOL },
+    { "auto",         offsetof(UnitAbilities_t, defaultActiveAbility), STB_SLK_FOURCC },
     { "InBeta",       offsetof(UnitAbilities_t, InBeta),       STB_SLK_BOOL },
     { NULL, 0, 0 }
 };
@@ -1094,7 +1094,7 @@ unitMeta_t const UnitsMetaData[] = {
     M("utub",UnitProfile,uberTip,BZ_FIELD_CSTR),
     M("uupt",UnitProfile,upgrade,BZ_FIELD_CSTR),
     M("uabi",UnitAbilities,abilList,BZ_FIELD_CSTR),
-    M("udaa",UnitAbilities,auto_,BZ_FIELD_BOOL),
+    M("udaa",UnitAbilities,defaultActiveAbility,BZ_FIELD_FOURCC),
     M("uhab",UnitAbilities,heroAbilList,BZ_FIELD_CSTR),
     M("uagi",UnitBalance,agility,BZ_FIELD_U32),
     M("uagp",UnitBalance,agilityPerLevel,BZ_FIELD_FLOAT),

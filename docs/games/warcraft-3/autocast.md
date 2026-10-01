@@ -30,6 +30,24 @@ runtime-added abilities and does not require a static UnitAbilities entry.
 `call->target`. See [ability verification](ability-verification-review.md) for
 alias, switching, removal and crash regression coverage.
 
+## Default active ability
+
+`UnitAbilities.slk:auto` and unit object field `udaa` are Warcraft's Default
+Active Ability. The value is an ability rawcode, not a boolean. After ordinary
+unit initialization, spawn passes a nonzero authored value through
+`G_SetUnitAutocast(unit, rawcode, true)`. This keeps `edict.autocast_code`,
+ability-owned policy state, `AI_AUTOCAST_ACTIVE`, and the command-card active
+glow synchronized.
+
+There is no worker-specific hidden Auto Repair state. If the unit's authored
+default-active rawcode names a supported Repair ability, Repair starts enabled
+and idle acquisition may use it. Otherwise Repair starts disabled and idle
+workers cannot acquire a Repair target until the player or script enables it.
+Missing, placeholder, unsupported, or non-autocast rawcodes are rejected by the
+normal autocast setter. Map-object `UnitAbilities` overrides do not yet have a
+per-map typed-row merge, so custom-unit `uabi` / `uhab` / `udaa` edits remain a
+separate object-data coverage gap.
+
 ## Command-card toggle
 
 A command button can expose an optional secondary command through `gameCommandButton_t.alternate`. The WC3 HUD serializes it in the command frame's `text` field; `alternate_active` maps to `UIFLAG_ALTERNATE_ACTIVE` for the active glow.
@@ -111,6 +129,8 @@ Typical level-2 candidate output distinguishes reasons such as full health, wron
 
 Focused coverage lives primarily in `games/warcraft-3/game/tests/t_building.c` and `tests/test_net.c` and covers:
 
+- typed `UnitAbilities:auto` / `udaa` default-active rawcode decoding;
+- spawn-time default autocast initialization and command-card active state;
 - Repair toggle state and `repairon` / `repairoff`;
 - command-card secondary command serialization and active state;
 - client right-click dispatch/consumption;

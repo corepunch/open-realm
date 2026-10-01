@@ -573,6 +573,31 @@ TEST(wc3_slk, profile_ddx_and_fourcc_metadata_share_typed_row) {
     G_SetProfileRows(old);
 }
 
+TEST(wc3_slk, unitabilities_default_active_ability_is_fourcc) {
+    static char const slk[] =
+        "ID;PWXL;N;E\n"
+        "B;X4;Y2;D0\n"
+        "C;X1;Y1;K\"unitAbilID\"\n"
+        "C;X2;K\"abilList\"\n"
+        "C;X3;K\"heroAbilList\"\n"
+        "C;X4;K\"auto\"\n"
+        "C;X1;Y2;K\"uA01\"\n"
+        "C;X2;K\"Aren\"\n"
+        "C;X4;K\"Aren\"\n"
+        "E\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old = G_SetSLKRows("UnitAbilities", rows);
+    uint32_t const unit_id = MAKEFOURCC('u','A','0','1');
+    edict_t unit = { .class_id = unit_id };
+
+    G_BindEntityData(&unit);
+    T_EQ(G_UnitAbil(unit_id)->defaultActiveAbility, MAKEFOURCC('A','r','e','n'));
+    T_EQ(UnitMetaInteger(&unit, MAKEFOURCC('u','d','a','a')), MAKEFOURCC('A','r','e','n'));
+
+    G_SetSLKRows("UnitAbilities", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_slk, map_unit_name_resolves_wts_override) {
     static const char profile_slk[] =
         "C;Y1;X1;K\"id\"\n"
