@@ -223,6 +223,18 @@ TEST(wc3_bot, peons_repair_policy_enables_existing_repair_autocast_path) {
     T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
 }
 
+TEST(wc3_bot, peons_repair_policy_applies_to_jass_created_units) {
+    edict_t *worker;
+
+    reset_entities();
+    T_ASSERT(G_BotStart(&game.clients[4].ps, "test_ai_settings_inverse.ai", BOT_CAMPAIGN));
+    G_BotRunFrame(); /* script enables the repair policy */
+    G_BotRunFrame(); /* initial owned-unit reconciliation completes */
+    worker = unit_create(4, BZ_WC3_UNIT_PEASANT, &(vec2_t){512, 512}, 0);
+    T_NOT_NULL(worker);
+    if (worker) T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
+}
+
 TEST(wc3_bot, hero_levels_callback_uses_ai_hero_context_and_normal_learning) {
     edict_t *hero;
 
@@ -240,6 +252,21 @@ TEST(wc3_bot, hero_levels_callback_uses_ai_hero_context_and_normal_learning) {
     T_EQ(hero->hero.skillpoints, 0);
     T_EQ(level.bots[2].hero_id, 0);
     T_EQ(level.bots[2].hero_level, 0);
+}
+
+TEST(wc3_bot, hero_levels_callback_runs_for_jass_created_hero) {
+    edict_t *hero;
+
+    reset_entities();
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_hero_levels.ai", BOT_MELEE));
+    G_BotRunFrame();
+    hero = unit_create(2, MAKEFOURCC('H','p','a','l'), &(vec2_t){512, 512}, 0);
+    T_NOT_NULL(hero);
+    if (hero) {
+        T_EQ(hero->hero.level, 1);
+        T_EQ(G_UnitAbilityLevel(hero, MAKEFOURCC('A','H','h','b')), 1);
+        T_EQ(hero->hero.skillpoints, 0);
+    }
 }
 
 TEST(wc3_bot, set_upgrade_uses_normal_research_queue_and_rejects_duplicate_request) {

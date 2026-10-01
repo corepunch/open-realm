@@ -1,5 +1,5 @@
 function hero_levels takes nothing returns integer
-    if GetHeroId() == 'Hpal' and GetHeroLevelAI() == 2 then
+    if GetHeroId() == 'Hpal' and (GetHeroLevelAI() == 1 or GetHeroLevelAI() == 2) then
         return 'AHhb'
     endif
     return 0
