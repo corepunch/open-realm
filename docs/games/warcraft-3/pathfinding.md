@@ -347,3 +347,11 @@ native/item contribution. The current getter reflects inventory changes;
 physical stepping retains the bonus last published by a setter or accepted
 Move order, as observed in retail. That retained state survives save/load. See
 [flat bonus publication evidence](retail-pathfinding-engine.md#flat-bonuses-retain-their-publication-state).
+
+
+Move now retains native fine position between accepted steps and across save/load.
+Public `SetUnitX/Y` also reprojects both fine axes through the retail delta
+operation, preserving velocity, facing and the active order. Even a setter
+that writes the same visible coordinate can change the next movement words.
+See [axis-position evidence](retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step).
+Original clock cadence and prediction between engine frames remain open.

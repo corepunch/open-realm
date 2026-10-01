@@ -431,3 +431,21 @@ native pose fixture is hash pinned, and repeated O0/O2 checks compare every
 fine/world word. These controlled elapsed0.1 intervals leave the public owner
 clock and velocity phase as explicit engine work; see
 [retained fine pose](retail-pathfinding-engine.md#retained-fine-pose-reaches-move).
+
+
+## Public axis-position writes and following Move
+
+The two motion entries now require576 complete original writes and576
+following Move commits; the engine entry additionally requires each C result.
+The two axis-position archives and strict repeated public contract add three
+entries. Inventory:192 entries,77 oracles (39 scripts/38 variants),92 archive
+audits and23 live contracts;65 fixtures are hash-pinned.
+
+`live-axis-position-repeat` requires40 native calls,40 queries, eight writes,
+unchanged velocity/facing,167 motion/velocity commits and exact repeat.
+The frozen original matrix and actual captures are replayed at O0/O2 with
+negative mutation controls. Fresh accepted results live in
+`axis-position-corpus-final-261001/corpus-results.json`.
+Engine geometry now consumes this result through public SetUnitX/Y; owner
+clock cadence, between-frame prediction and other forced setters remain open.
+See [the engine payoff and limits](retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step).

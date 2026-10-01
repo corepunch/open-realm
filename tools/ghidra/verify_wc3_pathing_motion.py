@@ -57,6 +57,7 @@ def main():
     parser.add_argument('--facing-fixture', type=Path, help='export original committed facing inputs/results')
     parser.add_argument('--formation-fixture', type=Path, help='export complete original formation inputs/offset words')
     parser.add_argument('--native-pose-fixture', type=Path, help='export retained fine-pose sequences and original world inverse')
+    parser.add_argument('--position-fixture', type=Path, help='export original world-position bridge writes')
     parser.add_argument('--heading-fixture', type=Path, help='export raw original vector-heading errors for asset-free C replay')
     args = parser.parse_args()
     if args.world_velocity_fixture and not args.engine_library:parser.error('--world-velocity-fixture requires --engine-library for exact guard comparisons')
@@ -2946,6 +2947,67 @@ def main():
                                           pattern=pattern,steps=steps))
     assert len(native_pose_sequences)==18 and sum(len(s['steps']) for s in native_pose_sequences)==288
     assert sum(r['direct_world']!=r['output'][2:] for s in native_pose_sequences for r in s['steps'])==139
+    # Complete world-position bridge writer with supplied clocks and retained
+    # fine bits. Notification flag1 is real; unit virtual callbacks stay disabled.
+    axis_bridge,axis_registry,axis_slots,axis_config,axis_point,axis_out=[system+n for n in (0x2400,0x2600,0x2700,0x2800,0x2900,0x2910)]
+    write(0x6fd68610,axis_registry)
+    write(axis_registry+0xc,axis_slots);write(axis_registry+0x1c,1)
+    write(axis_registry+0x2c,axis_slots);write(axis_registry+0x3c,1)
+    write(axis_slots,-2,mover);write(0x6fd3c82c,axis_config)
+    position_cases=[]
+    for seq,axis,mode,phase in itertools.product(native_pose_sequences,range(2),range(4),range(4)):
+        source=seq['steps'][seq['pattern']]
+        domain=0x80000000 if phase==3 else 0
+        write(mover+0x14,domain,100);write(axis_bridge+8,domain,100)
+        write(mover+0x78,*source['output'][:2])
+        fine_velocity=[original_scalar(0x6f06f9c0,v,float_bits(1/32)) for v in source['velocity']]
+        write(mover+0x80,*fine_velocity)
+        write(mover+0x8c,source['facing'])
+        write(axis_config+0x6c,*seq['origin'])
+        axis_clock=owner+(0x68 if domain else 0x14)
+        old_time,current_time,old_epoch,current_epoch=(7.875,0,0,1) if phase==2 else (0,0 if phase==0 else .125,0,0)
+        floats(axis_clock+0x40,current_time);write(axis_clock+0x44,current_epoch);floats(axis_clock+0x48,8)
+        floats(mover+0x70,old_time);write(mover+0x74,old_epoch)
+        run(0x6f058900,axis_bridge,axis_out)
+        queried=read(axis_out,3);requested=queried[:2]
+        if mode==1:requested[axis]=original_scalar(0x6f06fbb0,requested[axis],float_bits(.125))
+        elif mode in (2,3):requested[axis]+=(1 if not requested[axis]&0x80000000 else -1)*(1 if mode==2 else -1)
+        inputs=read(mover+0x78,2)+source['velocity']+seq['origin']+requested+[float_bits(0 if phase==0 else .125)]
+        prior=read(mover+0x80,4)
+        write(axis_point,*requested,0)
+        run(0x6f05c200,axis_bridge,axis_point,1)
+        assert read(mover+0x80,4)==prior and read(mover+0x70,2)==[float_bits(current_time),current_epoch]
+        outputs=read(mover+0x78,2)
+        run(0x6f058900,axis_bridge,axis_out)
+        outputs+=read(axis_out,2)
+        if engine:
+            actual=(ctypes.c_uint32*4)();supplied=(ctypes.c_uint32*9)(*inputs)
+            engine.pathing_pose_write(supplied,actual)
+            assert list(actual)==outputs,(seq['origin'],axis,mode,phase,list(actual),outputs)
+            assert list(supplied)==inputs
+        # Next supplied-.1 interval retains the setter's fine pose. Reset only
+        # clock origins together, publish .6 heading, then integrate normally.
+        floats(axis_clock+0x40,0);floats(mover+0x70,0);write(mover+0x74,current_epoch)
+        floats(speed_ptr,100/32);floats(heading_ptr,.6)
+        run(0x6f16fe20,mover,speed_ptr,heading_ptr)
+        next_velocity=[original_scalar(0x6f06f9c0,v,float_bits(32)) for v in read(mover+0x80,2)]
+        floats(axis_clock+0x40,.1);floats(displacement,0,0)
+        run(0x6f1603d0,mover,displacement)
+        next_output=read(mover+0x78,2)+original_world(read(mover+0x78,2),[struct.unpack('<f',struct.pack('<I',v))[0] for v in seq['origin']])
+        if engine:
+            velocity_words=(ctypes.c_uint32*6)(*source['velocity'],float_bits(100),float_bits(.6),float_bits(100),source['facing'])
+            engine.pathing_velocity_world_commit(velocity_words)
+            assert list(velocity_words)[:2]==next_velocity and velocity_words[5]==read(mover+0x8c)[0]
+            next_input=outputs[:2]+next_velocity+seq['origin']+[float_bits(.1)]
+            next_actual=(ctypes.c_uint32*4)()
+            engine.pathing_native_pose((ctypes.c_uint32*7)(*next_input),next_actual)
+            assert list(next_actual)==next_output
+        position_cases.append(dict(input=inputs,output=outputs,queried=queried[:2],axis=axis,mode=mode,phase=phase,
+                                   facing=source['facing'],next=next_output+next_velocity+read(mover+0x8c)))
+    assert len(position_cases)==576
+    if args.position_fixture:
+        args.position_fixture.write_text(json.dumps(dict(binary_sha256=digest,cases=position_cases,
+            scope='Complete original05c200/058900 with supplied clocks, retained spatial records and notification flag1. Unit virtual callbacks disabled by original mover flags; public producers and clock owner cadence covered separately.'),separators=(',',':'))+'\n')
     if args.native_pose_fixture:
         args.native_pose_fixture.write_text(json.dumps(dict(binary_sha256=digest,sequences=native_pose_sequences,
             scope='Retained native pose/spatial records with supplied constant elapsed; zero-elapsed velocity then integration and scalar world inverse. Original owner/public-clock producer excluded.'),separators=(',',':'))+'\n')
@@ -2966,6 +3028,9 @@ def main():
                             'full owner singleton executes scheduler and visual-facing updates with empty shared/separation lists; two controlled post-arrival repulsors also execute alternating separation; active singleton plus eligible repulsor also composes; crowded active groups and mixed profiles remain open',
                             'accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed',
                             'elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open'])
+    report.update(position_write_cases=len(position_cases),position_next_move_cases=len(position_cases),
+                  engine_position_write_cases=len(position_cases) if engine else 0,
+                  engine_position_next_move_cases=len(position_cases) if engine else 0)
     report.update(native_pose_sequences=len(native_pose_sequences),native_pose_commits=sum(len(s['steps']) for s in native_pose_sequences),
                   native_pose_world_differences=sum(r['direct_world']!=r['output'][2:] for s in native_pose_sequences for r in s['steps']),
                   engine_native_pose_commits=288 if engine else 0)

@@ -3075,6 +3075,168 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f204100",
+      "name": "Jass_GetUnitX",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f204140",
+      "name": "Jass_GetUnitY",
+      "returns": "WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f215900",
+      "name": "Jass_SetUnitX",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "value",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f215960",
+      "name": "Jass_SetUnitY",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "value",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f058900",
+      "name": "UnitMover_QueryWorldPosition",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "output_xyz",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f058810",
+      "name": "UnitMover_SetWorldPosition",
+      "returns": "ptr:WC3UnitMoverBridge",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "point_xyz",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f05a970",
+      "name": "UnitMover_PredictWorldPosition",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "output_xyz",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f05c200",
+      "name": "UnitMover_WriteWorldPosition",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "point_xyz",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "notify",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f05bdd0",
+      "name": "Mover_PredictFinePosition",
+      "returns": "ptr:WC3PathVector2",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output_xy",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "elapsed",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [

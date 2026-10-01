@@ -25,6 +25,7 @@ from verify_wc3_arrival_trace import verify as verify_arrival, configure as conf
 from verify_wc3_speed_inputs import verify as verify_speed_inputs, digest as speed_digest
 from verify_wc3_speed_drop import verify as verify_speed_drop, digest as speed_drop_digest
 from verify_wc3_item_speed import verify as verify_item_speed, digest as item_speed_digest
+from verify_wc3_axis_position import verify as verify_axis_position, digest as axis_position_digest
 
 
 class PathingMathTests(unittest.TestCase):
@@ -52,6 +53,62 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_public_axis_write_matches_original_and_next_move_commit(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-axis-position-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']), 576)
+        self.assertEqual({r['phase'] for r in fixture['cases']}, {0, 1, 2, 3})
+        for engine in self.engines:
+            engine.pathing_pose_write.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            engine.pathing_native_pose.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            for _ in range(2):
+                for row in fixture['cases']:
+                    inputs = (ctypes.c_uint32 * 9)(*row['input'])
+                    output = (ctypes.c_uint32 * 4)()
+                    engine.pathing_pose_write(inputs, output)
+                    self.assertEqual(list(output), row['output'])
+                    self.assertEqual(list(inputs), row['input'])
+                    velocity = (ctypes.c_uint32 * 6)(*row['input'][2:4], bits(100), bits(.6), bits(100), row['facing'])
+                    engine.pathing_velocity_world_commit(velocity)
+                    self.assertEqual(list(velocity)[:2], row['next'][4:6])
+                    self.assertEqual(velocity[5], row['next'][6])
+                    point = (ctypes.c_uint32 * 7)(*row['output'][:2], *velocity[:2], *row['input'][4:6], bits(.1))
+                    engine.pathing_native_pose(point, output)
+                    self.assertEqual(list(output), row['next'][:4])
+
+    def test_public_axis_observer_requires_exact_queries_writes_and_repeat(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-public-axis-position-1.27.json').read_text())
+        for engine in self.engines:
+            configure_arrival(engine)
+            results = [verify_axis_position(rows, engine, fixture) for rows in fixture['captures']]
+            for key in ('position_sha256', 'decision_sha256', 'velocity_sha256'):
+                self.assertEqual(results[0][key], results[1][key])
+            self.assertEqual(results[0]['position_commits'], 8)
+            self.assertEqual(results[0]['position_query_cases'], 40)
+            self.assertEqual(results[0]['exact_velocity_commits'], 167)
+            rows = fixture['captures'][0]
+            for event, field, index in [('position-query', 'output', 0), ('position-commit', 'after', 2),
+                                       ('position-commit', 'after', 4), ('position-native', 'output', None)]:
+                changed = copy.deepcopy(rows)
+                row = next(r for r in changed if r.get('event') == event)
+                if index is None: row[field] ^= 1
+                else: row[field][index] ^= 1
+                adjusted = dict(fixture, position_sha256=axis_position_digest(changed))
+                with self.assertRaises(ValueError): verify_axis_position(changed, engine, adjusted)
+            for event in ('position-commit', 'position-query', 'position-native'):
+                changed = copy.deepcopy(rows)
+                changed.remove(next(r for r in changed if r.get('event') == event))
+                with self.assertRaises(ValueError): verify_axis_position(changed, engine, fixture)
+            for mutate in ('actor', 'notify', 'stop', 'sample', 'options', 'case_order'):
+                changed = copy.deepcopy(rows)
+                if mutate == 'actor': next(r for r in changed if r.get('event') == 'position-native')['unit'] = '0x123'
+                elif mutate == 'notify': next(r for r in changed if r.get('event') == 'position-commit')['notify'] = 0
+                elif mutate == 'stop': changed.remove(next(r for r in changed if r.get('event') == 'marker' and 'axis_stop_accepted' in r.get('value', '')))
+                elif mutate == 'sample': changed.remove(next(r for r in changed if r.get('event') == 'marker' and 'tick=50 label=sample' in r.get('value', '')))
+                elif mutate == 'options': changed[0]['owned'] = False
+                else: next(r for r in changed if r.get('event') == 'position-marker')['value'] = 'PATHPOSE case=idle_x_same'
+                adjusted = dict(fixture, position_sha256=axis_position_digest(changed))
+                with self.assertRaises(ValueError): verify_axis_position(changed, engine, adjusted)
 
     def test_native_pose_retains_original_words_and_world_publication_rounding(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-native-pose-1.27.json').read_text())

@@ -225,6 +225,80 @@ TEST(wc3_movement, native_fine_pose_survives_save_and_reposition) {
     remove(file); reset_entities(); setup_test_world();
 }
 
+/* Public X/Y wrappers write both native fine axes, even when the requested world word is unchanged. */
+TEST(wc3_movement, public_axis_position_retains_original_write_and_next_step_words) {
+    uint32_t const expected[4][4] = {
+        {0x3fb7b000u, 0x3fe4fca0u, 0xc4fa4280u, 0x440e4fcau},
+        {0x3fb7b000u, 0x3fe4fca0u, 0xc4fa4280u, 0x440e4fcau},
+        {0x3fb83000u, 0x3fe4fca0u, 0xc4fa3e80u, 0x440e4fcau},
+        {0x3fb7b000u, 0x3fe57ca0u, 0xc4fa4280u, 0x440e57cau}
+    };
+    uint32_t const next[4][7] = {
+        {0x3fd8b373u, 0x3ffb9289u, 0xc4f93a65u, 0x440fb928u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x3fd8b373u, 0x3ffb9289u, 0xc4f93a65u, 0x440fb928u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x3fd93373u, 0x3ffb9289u, 0xc4f93665u, 0x440fb928u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x3fd8b373u, 0x3ffc1289u, 0xc4f93a65u, 0x440fc128u, 0x42a51143u, 0x4261db20u, 0x3f19994fu}
+    };
+    cstring_t const calls[4] = {"same_x", "same_y", "shift_x", "shift_y"};
+    uint8_t cells[16 * 16] = {0};
+    box2_t bounds = {{-2048, 512}, {-1536, 1024}};
+    cstring_t file = "/tmp/openwarcraft3-public-axis-pose-save.bin";
+    FOR_LOOP(i, 4) {
+        reset_entities(); setup_test_world();
+        memset(&level.waypoints, 0, sizeof(level.waypoints));
+        CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16, 16, cells);
+        T_ASSERT(run_test_jass(
+            "globals\n unit axisUnit = null\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            " set axisUnit = CreateUnit(Player(0), 'hfoo', -2012.0, 568.0, 0.0)\nendfunction\n"
+            "function same_x takes nothing returns nothing\n"
+            " call SetUnitX(axisUnit, GetUnitX(axisUnit))\nendfunction\n"
+            "function same_y takes nothing returns nothing\n"
+            " call SetUnitY(axisUnit, GetUnitY(axisUnit))\nendfunction\n"
+            "function shift_x takes nothing returns nothing\n"
+            " call SetUnitX(axisUnit, GetUnitX(axisUnit) + 0.125)\nendfunction\n"
+            "function shift_y takes nothing returns nothing\n"
+            " call SetUnitY(axisUnit, GetUnitY(axisUnit) + 0.125)\nendfunction\n"));
+        edict_t *unit = NULL;
+        FOR_LOOP(n, globals.num_edicts)
+            if (g_edicts[n].inuse && g_edicts[n].class_id == MAKEFOURCC('h','f','o','o')) unit = &g_edicts[n];
+        T_NOT_NULL(unit);
+        if (!unit) continue;
+        unit->collision = 0; unit->movetype = MOVETYPE_STEP; unit->stand = unit_stand; unit_stand(unit);
+        unit->unitinfo.MoveSpeed = 100;
+        vec2_t target = {-1800, 600}; T_ASSERT(unit_issueorder(unit, "move", &target));
+        unit->s.angle = .125f; unit->movement.flow_direct = true; unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x), 0x3fb7b01au);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y), 0x3fe4fca7u);
+        vec2_t velocity = unit->movement.velocity; float facing = unit->s.angle;
+        edict_t *goal = unit->goalentity;
+        unit->movement.worker_avoid_blocked_frames = 3;
+        jass_callbyname(level.vm, calls[i], false);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x), expected[i][0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][3]);
+        T_EQ(unit->movement.velocity.x, velocity.x); T_EQ(unit->movement.velocity.y, velocity.y);
+        T_EQ(unit->s.angle, facing); T_EQ(unit->current_order_id, G_OrderId("move"));
+        T_ASSERT(unit->goalentity == goal); T_ASSERT(unit->movement.pose_valid);
+        T_EQ(unit->movement.worker_avoid_blocked_frames, 3);
+        T_ASSERT(WriteGame(file));
+        FOR_LOOP(round, 2) {
+            if (round) T_ASSERT(ReadGame(file));
+            unit->s.angle = .6f; unit_moveindirection(unit);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x), next[i][0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y), next[i][1]);
+            T_EQ(wc3_float_bits(unit->s.origin2.x), next[i][2]);
+            T_EQ(wc3_float_bits(unit->s.origin2.y), next[i][3]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x), next[i][4]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.y), next[i][5]);
+            T_EQ(wc3_float_bits(unit->s.angle), next[i][6]);
+        }
+        remove(file);
+    }
+    reset_entities(); setup_test_world();
+}
+
 /* Natural point completion must integrate the same retained fine pose before publishing zero velocity. */
 TEST(wc3_movement, native_fine_pose_reaches_final_point_commit) {
     edict_t *unit = make_moving_unit(-2012, 568);

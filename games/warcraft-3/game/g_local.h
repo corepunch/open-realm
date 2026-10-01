@@ -2507,6 +2507,7 @@ float unit_movedistance(edict_t *);
 float S_UnitMoveSpeed(edict_t *);
 float S_UnitDefaultMoveSpeed(edict_t const *);
 void S_SetUnitMoveSpeed(edict_t *, float);
+void S_SetUnitAxisPosition(edict_t *, uint32_t, float);
 uint32_t M_RefreshHeatmap(edict_t *, float);
 uint32_t M_RefreshHeatmapForMover(edict_t const *, edict_t *, float);
 uint8_t M_UnitStaticPathingFlags(edict_t const *);

@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**85 done / 265 tasks; 180 remaining.** Counts describe this backlog,
+**86 done / 266 tasks; 180 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -18,7 +18,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 
 | Area | Done | Remaining |
 | --- | ---: | ---: |
-| BASE — Baseline and reproducibility | 12 | 10 |
+| BASE — Baseline and reproducibility | 13 | 10 |
 | MAP — Map construction and lifetime | 6 | 15 |
 | FOOT — Footprints and query policy | 3 | 8 |
 | FINE — Fine search | 5 | 6 |
@@ -188,6 +188,7 @@ Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks,
 - [ ] **BASE-01.2** Trace one JASS point order and one AI point order to their movement entry; publish whether they share the player path.
 - [ ] **BASE-01.3** Trace one target order and one ability approach; record the differences in range, target identity and routing flags.
 - [ ] **BASE-01.4** List forced-position, teleport and pathing-bypass entry points with callers; assign a separate follow-up ID to each uncovered path.
+- [x] **BASE-01.5** Split public SetUnitX/Y geometry from01.4: recover predicted world query, both-axis fine reprojection and unchanged velocity/facing/order; port committed-pose writes through Move and prove the next step/save resumes. Evidence: [axis-position writes](retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step),576 complete original writes plus576 following Move commits, repeated40 native calls/40 queries/eight writes with actual clocks,32 reproduced engine word failures followed by128 passing native/Move/save checks. Public between-frame clock prediction remains NUM-02.3; SetUnitPosition Stop/placement and other forced writers remain01.4.
 
 BASE-02.4 explicitly splits the stock movement-mask table and engine port from
 BASE-02.1's remaining full authored producer/lane/support-surface inventory.

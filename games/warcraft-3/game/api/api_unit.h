@@ -35,14 +35,12 @@ uint32_t GetUnit##NAME(jass_t *j) {  \
 
 #define UNITINFO_ACCESS(FIELD) UNIT_ACCESS(FIELD, unitinfo.FIELD)
 
-#define UNIT_POSITION_ACCESS(NAME, FIELD) \
+#define UNIT_POSITION_ACCESS(NAME, FIELD, AXIS) \
 uint32_t SetUnit##NAME(jass_t *j) { \
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit"); \
     if (whichUnit) { \
         vec2_t old_position = whichUnit->s.origin2; \
-        whichUnit->FIELD = jass_checknumber(j, 2); \
-        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty(); \
-        gi.LinkEntity(whichUnit); \
+        S_SetUnitAxisPosition(whichUnit, AXIS, jass_checknumber(j, 2)); \
         G_UnitPositionChanged(whichUnit, &old_position); \
     } \
     return 0; \
@@ -52,8 +50,8 @@ uint32_t GetUnit##NAME(jass_t *j) { \
     return jass_pushnumber(j, whichUnit ? whichUnit->FIELD : 0); \
 }
 
-UNIT_POSITION_ACCESS(X, s.origin.x);
-UNIT_POSITION_ACCESS(Y, s.origin.y);
+UNIT_POSITION_ACCESS(X, s.origin.x, 0);
+UNIT_POSITION_ACCESS(Y, s.origin.y, 1);
 #undef UNIT_POSITION_ACCESS
 
 uint32_t SetUnitPositionLoc(jass_t *j) {

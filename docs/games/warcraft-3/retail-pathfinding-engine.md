@@ -2312,8 +2312,8 @@ fine words, while one-unit synthetic routing maps keep their authored scale.
 This is a numerical integration payoff with supplied elapsed time. The engine
 still uses its existing frame cadence and new-velocity update phase;
 NUM-02.3 owns original public clock production and old-velocity phase parity.
-Complete public forced-position/native setter behavior remains BASE-01.4,
-including same-world-word writes that deliberately reproject native pose.
+Public axis-setter geometry is now independently covered by BASE-01.5 below;
+other forced-position producers remain BASE-01.4.
 Ghidra's saved integration annotation records these boundaries.
 
 Fresh `native-pose-corpus-final-261001` motion/original-C entries both pass.
@@ -2324,3 +2324,64 @@ recorded beside the primary report. The production release build passes.
 A separate warning cleanup corrects an existing six-anchor HUD array copy and
 bounded string copies; its serializer regression preserves both axis arrays
 and frame references.
+
+
+## Public axis-position writes retain the next Move step
+
+Retail `SetUnitX/Y` obtains the predicted world pair, replaces the requested
+axis, then writes a delta through the native fine pose. Both fine axes are
+reprojected, even when the public coordinate word is unchanged. A direct
+world-axis assignment preserves hidden bits that retail deliberately changes;
+the next Move step can then differ in fine and world coordinates.
+
+The registered cdecl natives are `204100/204140` getters and `215900/215960`
+setters. Unit virtual slotb8 returns the mover bridge. `058900` delegates the
+read-only predicted query to `05a970`, using `161040` elapsed and `05bdd0`
+fine prediction, then software multiply32/add map origin. `058810` calls
+`05c200` with notification1. The writer subtracts origin/divides32, subtracts
+the predicted fine pose, then `15f7b0` integrates old velocity plus that delta.
+The setter leaves velocity, published cap, facing and the current Move intact.
+`SetUnitPosition` at `2155c0` has a distinct Stop/placement path and is excluded.
+
+The complete original-code matrix executes576 writes over18 retained-pose
+sources, two axes, four input modes and four clock cases: zero/nonzero elapsed,
+primary wrap and secondary domain. Every write is followed by an actual
+original Move publication/integration, retaining its spatial and fine state.
+All576 writes and576 next-step results match production C. The frozen
+`retail-axis-position-1.27.json` checks every word twice at O0/O2.
+Primary report: `axis-position-original-engine-next-261001.json`.
+
+Owned scene36 repeats eight public same-word/fractional setters during Move
+and after Stop:40 native calls,40 predicted queries and eight writes per
+capture. Queries leave mover state unchanged; all writes preserve the velocity,
+cap and facing words. C also matches the captured original elapsed time and
+all167 movement decisions/velocity commits. Strict verification checks public
+getter results, actor identity, case order, notification, completion, source
+hashes and all300 samples; damaged/absent inputs are rejected. Captures
+`runtime/axis-position-first-261001.jsonl` and `axis-position-repeat-261001.jsonl`
+have identical normalized producer digest
+`4686d7cec6b781cadc351bb39fa965e6215d172a520cfcd08e2554dee74ad5c6`.
+The accepted report is `runtime/axis-position-original-C-repeat-261001.json`.
+
+OpenRealm routes public axis setters through Move's `S_SetUnitAxisPosition`,
+using the currently committed pose and the verified delta/reprojection.
+Position linking, fog invalidation and position-change events remain in their
+normal order; worker avoidance state, current order and goal are preserved.
+The actual JASS/Move regression first failed32 coordinate assertions, then
+passes128 checks including the next oblique step before/after save/load.
+Save62 already owns the fine pose; no new saved or network fields are needed.
+
+This closes geometry at the engine's committed-pose boundary. Public getters
+still expose that pose; original prediction between frames and clock cadence
+remain NUM-02.3. The retail captures show accumulated clock spans and varying
+elapsed intervals; they do not justify substituting a guessed fixed32Hz step.
+Ghidra saves397 names,133 explicit prototypes and the existing25 layouts/149
+fields, including each native/bridge ABI and these limits.
+
+Fresh strict outcomes are in `axis-position-corpus-final-261001`: both motion
+oracles, both capture audits and the repeated public contract.
+
+Validation: debug and forced optimized RoC/TFT suites each pass42,727
+assertions in2207 cases;127 pathfinding tool tests pass. All five fresh
+strict corpus entries pass, and Ghidra readback reports the nine new explicit
+prototypes with no unsaved changes.

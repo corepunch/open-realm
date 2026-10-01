@@ -362,6 +362,17 @@ static void unit_commit_pose(edict_t *self, wc3GridPose_t const *pose) {
     self->movement.pose_valid = true;
 }
 
+/* Retail axis setters reproject both coordinates through the predicted fine pose.
+ * TODO: NUM-02.3 owns prediction between engine frames; here the pose is committed. */
+void S_SetUnitAxisPosition(edict_t *self, uint32_t axis, float value) {
+    wc3GridPose_t pose;
+    float point[2] = {self->s.origin2.x, self->s.origin2.y};
+    uint32_t blocked = self->movement.worker_avoid_blocked_frames;
+    unit_grid_pose(self, &pose); point[axis] = value;
+    wc3_grid_place(&pose, point); unit_commit_pose(self, &pose);
+    self->movement.worker_avoid_blocked_frames = blocked;
+}
+
 /* Preview in the retained native fine pose before collision admission.
  * TODO: NUM-02.3 owns original clock cadence and integrate-old-velocity phase. */
 static vec2_t unit_step_heading(edict_t *self, float angle, moveStep_t *step) {

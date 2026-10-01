@@ -382,13 +382,19 @@
         },
         "native_pose_world_differences": {
           "equal": 139
+        },
+        "position_write_cases": {
+          "equal": 576
+        },
+        "position_next_move_cases": {
+          "equal": 576
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Original mover speed/heading update with exact binary-fraction inputs.\n\nNo stubs or retail bytes. Tests speed/heading update, angle-error composition and parameter setters;\nposition integration, group decisions/formations/completion, deferred release, and full\narrival dispatch with actual terrain support refresh, task completion, next-task acceptance/rejection,\nfresh fine/adaptive searches, elapsed obstacle detours, owner scheduling/visual settling,\nand controlled two-mover separation with an active-order eligibility composition.\nSee report counts/exclusions.\n Retained fine-pose sequences compare288 supplied-.1 commits and separate world inverse;139 commits differ from direct world integration. Original public-clock/cadence phase remains excluded.",
+      "scope": "Original mover speed/heading update with exact binary-fraction inputs.\n\nNo stubs or retail bytes. Tests speed/heading update, angle-error composition and parameter setters;\nposition integration, group decisions/formations/completion, deferred release, and full\narrival dispatch with actual terrain support refresh, task completion, next-task acceptance/rejection,\nfresh fine/adaptive searches, elapsed obstacle detours, owner scheduling/visual settling,\nand controlled two-mover separation with an active-order eligibility composition.\nSee report counts/exclusions.\n Retained fine-pose sequences compare288 supplied-.1 commits and separate world inverse;139 commits differ from direct world integration. Original public-clock/cadence phase remains excluded. Complete05c200/058900 writes with primary, secondary and wrap clocks:576 writes and576 following Move commits. Public producer/cadence separately scoped.",
       "exclusions": [
         "non-binary-fraction rounding",
         "angle-error bit parity",
@@ -1811,13 +1817,25 @@
         },
         "engine_native_pose_commits": {
           "equal": 288
+        },
+        "position_write_cases": {
+          "equal": 576
+        },
+        "position_next_move_cases": {
+          "equal": 576
+        },
+        "engine_position_write_cases": {
+          "equal": 576
+        },
+        "engine_position_next_move_cases": {
+          "equal": 576
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Original mover speed/heading update with exact binary-fraction inputs.\n\nNo stubs or retail bytes. Tests speed/heading update, angle-error composition and parameter setters;\nposition integration, group decisions/formations/completion, deferred release, and full\narrival dispatch with actual terrain support refresh, task completion, next-task acceptance/rejection,\nfresh fine/adaptive searches, elapsed obstacle detours, owner scheduling/visual settling,\nand controlled two-mover separation with an active-order eligibility composition.\nSee report counts/exclusions.\n Also compare production C words with executed original kernels. Retained fine-pose sequences compare288 supplied-.1 commits and separate world inverse;139 commits differ from direct world integration. Original public-clock/cadence phase remains excluded.",
+      "scope": "Original mover speed/heading update with exact binary-fraction inputs.\n\nNo stubs or retail bytes. Tests speed/heading update, angle-error composition and parameter setters;\nposition integration, group decisions/formations/completion, deferred release, and full\narrival dispatch with actual terrain support refresh, task completion, next-task acceptance/rejection,\nfresh fine/adaptive searches, elapsed obstacle detours, owner scheduling/visual settling,\nand controlled two-mover separation with an active-order eligibility composition.\nSee report counts/exclusions.\n Also compare production C words with executed original kernels. Retained fine-pose sequences compare288 supplied-.1 commits and separate world inverse;139 commits differ from direct world integration. Original public-clock/cadence phase remains excluded. Complete05c200/058900 writes with primary, secondary and wrap clocks:576 writes and576 following Move commits. Public producer/cadence separately scoped.",
       "exclusions": [
         "non-binary-fraction rounding",
         "angle-error bit parity",
@@ -10951,6 +10969,285 @@
       "exclusions": [
         "Original public coordinate/metadata producers, full domain rejection and fine/proximity/adaptive padding remain MAP-01.2/3."
       ]
+    },
+    {
+      "id": "capture-axis-position-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/axis-position-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/axis-position-first-261001.jsonl",
+        "sha256": "65bc77c6b9afa2fcc417284982d98de80de55f0da9704699bf94918505f6d985",
+        "bytes": 292214,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "227ec13408d3a467e8ed26abab2b7ea2eb4fb2a8cc11d18a659d58b1fe92b754",
+            "wc3_pathfinding_probe.j": "d2cde7138f253e44350fafcce4ea572248eea18de382c638ea8ff919844ccb42",
+            "make_wc3_pathfinding_map.py": "6d5aab227191500e0a490d106b479af1cead0c6cd170dc6f0f53e73fd785b960",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "2527106183ed2a4c60333c0cbe1eafe8a432472786c261ffaab3a50eac08c697"
+          },
+          "map": "Maps\\PathingRE-AxisPosition-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/axis-position-first-261001-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen owned public axis-position capture with pinned observer/map source and completion. Strict native/query/write comparison belongs live-axis-position-repeat.",
+      "exclusions": [
+        "Whole engine cadence and trajectory fidelity."
+      ]
+    },
+    {
+      "id": "capture-axis-position-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/axis-position-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/axis-position-repeat-261001.jsonl",
+        "sha256": "eb9a8f431d6792495ad7bda884fd832b98a3417c853bc5d6e6330815a2701810",
+        "bytes": 292215,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "227ec13408d3a467e8ed26abab2b7ea2eb4fb2a8cc11d18a659d58b1fe92b754",
+            "wc3_pathfinding_probe.j": "d2cde7138f253e44350fafcce4ea572248eea18de382c638ea8ff919844ccb42",
+            "make_wc3_pathfinding_map.py": "6d5aab227191500e0a490d106b479af1cead0c6cd170dc6f0f53e73fd785b960",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "2527106183ed2a4c60333c0cbe1eafe8a432472786c261ffaab3a50eac08c697"
+          },
+          "map": "Maps\\PathingRE-AxisPosition-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/axis-position-repeat-261001-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Frozen owned public axis-position capture with pinned observer/map source and completion. Strict native/query/write comparison belongs live-axis-position-repeat.",
+      "exclusions": [
+        "Whole engine cadence and trajectory fidelity."
+      ]
+    },
+    {
+      "id": "live-axis-position-repeat",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_axis_position.py",
+        "{archive}/runtime/axis-position-first-261001.jsonl",
+        "--compare",
+        "{archive}/runtime/axis-position-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-axis-position-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/axis-position-first-261001.jsonl",
+        "sha256": "65bc77c6b9afa2fcc417284982d98de80de55f0da9704699bf94918505f6d985",
+        "bytes": 292214,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+            "wc3_pathfinding.js": "227ec13408d3a467e8ed26abab2b7ea2eb4fb2a8cc11d18a659d58b1fe92b754",
+            "wc3_pathfinding_probe.j": "d2cde7138f253e44350fafcce4ea572248eea18de382c638ea8ff919844ccb42",
+            "make_wc3_pathfinding_map.py": "6d5aab227191500e0a490d106b479af1cead0c6cd170dc6f0f53e73fd785b960",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "2527106183ed2a4c60333c0cbe1eafe8a432472786c261ffaab3a50eac08c697"
+          },
+          "map": "Maps\\PathingRE-AxisPosition-261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/axis-position-repeat-261001.jsonl",
+            "sha256": "eb9a8f431d6792495ad7bda884fd832b98a3417c853bc5d6e6330815a2701810",
+            "bytes": 292215,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+                "wc3_pathfinding.js": "227ec13408d3a467e8ed26abab2b7ea2eb4fb2a8cc11d18a659d58b1fe92b754",
+                "wc3_pathfinding_probe.j": "d2cde7138f253e44350fafcce4ea572248eea18de382c638ea8ff919844ccb42",
+                "make_wc3_pathfinding_map.py": "6d5aab227191500e0a490d106b479af1cead0c6cd170dc6f0f53e73fd785b960",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "2527106183ed2a4c60333c0cbe1eafe8a432472786c261ffaab3a50eac08c697"
+              },
+              "map": "Maps\\PathingRE-AxisPosition-261001.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 4000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-axis-position-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "public_position_calls": {
+          "equal": 40
+        },
+        "position_query_cases": {
+          "equal": 40
+        },
+        "position_commits": {
+          "equal": 8
+        },
+        "kept_velocity_facing": {
+          "equal": 8
+        },
+        "exact_decisions": {
+          "equal": 167
+        },
+        "exact_velocity_commits": {
+          "equal": 167
+        },
+        "repeated": {
+          "equal": true
+        },
+        "position_sha256": {
+          "equal": "4686d7cec6b781cadc351bb39fa965e6215d172a520cfcd08e2554dee74ad5c6"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Repeated public Get/SetUnitX/Y during Move and after Stop. Forty queries/eight writes compose captured clock elapsed and preserve velocity/cap/facing. Engine setter ports committed-pose geometry; owner cadence remains NUM-02.3.",
+      "exclusions": [
+        "Whole engine clock cadence and between-frame getter prediction."
+      ]
     }
   ],
   "fixtures": [
@@ -11016,7 +11313,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "e946a88566e035b48d9cc0e04a66870f4a8fafb2b16f972d352b99e99c6480b9"
+      "sha256": "c4ecde38372f6b564579ea45f66ca0949121e2a40b296546e872ea9e51c0f185"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -11205,6 +11502,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-native-pose-1.27.json",
       "sha256": "65ba45d7b7c2711057d094bfa3852ddb840286f880e92b81d9678de5cd585cfe"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-axis-position-1.27.json",
+      "sha256": "5ac90581f6c8631a80ddb2c89f342a22da7fa315e475d4ffa165463629a9fd7d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-axis-position-1.27.json",
+      "sha256": "02af835e08d374c8cf149f1e67825b2c1bfbfc40cbdac90d294b9b0248ef45a8"
     }
   ]
 }

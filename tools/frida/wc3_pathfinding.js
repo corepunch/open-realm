@@ -3,6 +3,7 @@ let installed = false, samples = 0, serial = 0, rebuildSamples = 0;
 let widgetScenario = false;
 let numericCase = null;
 let speedCase = null;
+let positionCase = null;
 const counts = {}, active = new Map();
 const headingActive = new Map();
 const emit = (event, data = {}) => send({event, ms: Date.now(), ...data});
@@ -251,6 +252,77 @@ function install(module) {
                 }
             }
         });
+    }
+    if (config.motionEvents) {
+        const positionNatives = new Map();
+        const words = (p, n) => Array.from({length:n}, (_,i) => p.add(i*4).readU32());
+        // Read the bridge's canonical identity without calling target code.
+        const positionMover = bridge => {
+            const id = bridge.add(8).readU32(), epoch = bridge.add(12).readU32();
+            if (id === 0xffffffff) throw new Error('Position bridge has no mover');
+            const registry = base.add(0xd68610).readPointer(), alternate = (id & 0x80000000) !== 0;
+            const index = id & 0x7fffffff, limit = registry.add(alternate ? 0x3c : 0x1c).readU32();
+            if (index >= limit) throw new Error('Position bridge identity outside registry');
+            const mover = registry.add(alternate ? 0x2c : 0xc).readPointer().add(index*8+4).readPointer();
+            if (mover.isNull() || mover.add(0x14).readU32() !== id || mover.add(0x18).readU32() !== epoch)
+                throw new Error('Position bridge stale mover identity');
+            return mover;
+        };
+        for (const [name, rva] of [['GetUnitX',0x204100], ['GetUnitY',0x204140],
+                                  ['SetUnitX',0x215900], ['SetUnitY',0x215960]]) {
+            hook(rva, {
+                onEnter(args) {
+                    this.previous = positionNatives.get(this.threadId);
+                    this.row = positionCase ? {case:positionCase, name, handle:args[0].toUInt32()} : null;
+                    if (this.row && name.startsWith('Set')) this.row.input = args[1].readU32();
+                    positionNatives.set(this.threadId, this.row);
+                },
+                onLeave(result) {
+                    if (this.row) {
+                        bump('position-native');
+                        if (counts['position-native'] <= config.samples)
+                            emit('position-native', {...this.row, output:this.row.name.startsWith('Set') ? null : result.toUInt32()});
+                    }
+                    if (this.previous) positionNatives.set(this.threadId, this.previous);
+                    else positionNatives.delete(this.threadId);
+                }
+            });
+        }
+        hook(0x1eef90, {
+            onEnter() {
+                const row = positionNatives.get(this.threadId);
+                this.row = row && row.handle === this.context.ecx.toUInt32() ? row : null;
+            },
+            onLeave(result) {
+                if (this.row) {
+                    this.row.unit = result.toString();
+                    this.row.rawcode = result.isNull() ? null : result.add(0x30).readU32();
+                }
+            }
+        });
+        for (const [kind, rva] of [['query',0x058900], ['commit',0x05c200]]) {
+            hook(rva, {
+                onEnter(args) {
+                    const native = positionNatives.get(this.threadId);
+                    if (!native) return;
+                    this.kind = kind; this.mover = positionMover(this.context.ecx);
+                    const owner = base.add(0xd53a48).readPointer();
+                    const clock = owner.add(this.mover.add(0x14).readU32() & 0x80000000 ? 0x68 : 0x14);
+                    this.point = args[0];
+                    this.row = {case:positionCase, native:native.name, unit:native.unit,
+                        mover:this.mover.toString(), before:words(this.mover.add(0x70),8),
+                        clock:words(clock.add(0x40),3), origin:words(base.add(0xd3c82c).readPointer().add(0x6c),2)};
+                    if (kind === 'commit') Object.assign(this.row, {input:words(this.point,3), notify:args[1].toUInt32()});
+                },
+                onLeave() {
+                    if (!this.row) return;
+                    bump('position-' + this.kind);
+                    if (counts['position-' + this.kind] <= config.samples)
+                        emit('position-' + this.kind, {...this.row, after:words(this.mover.add(0x70),8),
+                            output:this.kind === 'query' ? words(this.point,3) : null});
+                }
+            });
+        }
     }
     if (config.motionEvents) {
         // 15ff40 thiscall(cap*), RET4. Lower caps integrate old velocity before clamping it.
@@ -1070,6 +1142,13 @@ function install(module) {
         if (value.startsWith('PATHTARGET ')) emit('target-marker', {value});
         if (value.startsWith('PATHWIDGET ')) emit('widget-marker', {value});
         if (value.startsWith('PATHSTOCK ')) emit('stock-marker', {value});
+        if (config.motionEvents && value.startsWith('PATHPOSE ')) {
+            const match = /^PATHPOSE case=([a-z0-9_]+)$/.exec(value);
+            if (match) positionCase = match[1];
+            else if (/^PATHPOSE done=/.test(value)) positionCase = null;
+            else throw new Error('Malformed position marker: ' + value);
+            emit('position-marker', {value});
+        }
         if (config.motionEvents && value.startsWith('PATHSPEED ')) {
             const match = /^PATHSPEED case=([a-z0-9_]+)$/.exec(value);
             if (match) speedCase = match[1];

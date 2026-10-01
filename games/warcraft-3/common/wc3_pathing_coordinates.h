@@ -27,4 +27,14 @@ static inline void wc3_grid_step(wc3GridPose_t *pose, float const velocity[2], f
     for (unsigned k = 0; k < 2; k++) pose->world[k] = wc3_world_coordinate(pose->grid[k], pose->origin[k], 32);
 }
 
+/* Original05c200 writes a delta from predicted fine pose, then integrates it.
+ * Preserve that cancellation and reproject both axes, even for an axis setter. */
+static inline void wc3_grid_place(wc3GridPose_t *pose, float const point[2]) {
+    for (unsigned k = 0; k < 2; k++) {
+        float target = wc3_grid_coordinate(point[k], pose->origin[k], 32);
+        pose->grid[k] = wc3_add(pose->grid[k], wc3_sub(target, pose->grid[k]));
+        pose->world[k] = wc3_world_coordinate(pose->grid[k], pose->origin[k], 32);
+    }
+}
+
 #endif

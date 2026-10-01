@@ -438,3 +438,33 @@ void pathing_native_pose(uint32_t const *input, uint32_t *out) {
         out[k] = wc3_float_bits(pose.grid[k]); out[k+2] = wc3_float_bits(pose.world[k]);
     }
 }
+
+/* input: fine pose2, world velocity2, map origin2, requested world2, elapsed. */
+void pathing_pose_write(uint32_t const *input, uint32_t *out) {
+    wc3GridPose_t pose = { .grid = {wc3_float(input[0]), wc3_float(input[1])},
+        .origin = {wc3_float(input[4]), wc3_float(input[5])} };
+    float velocity[2] = {wc3_float(input[2]), wc3_float(input[3])};
+    float point[2] = {wc3_float(input[6]), wc3_float(input[7])};
+    wc3_grid_step(&pose, velocity, wc3_float(input[8]));
+    wc3_grid_place(&pose, point);
+    for (unsigned k = 0; k < 2; k++) { out[k] = wc3_float_bits(pose.grid[k]); out[k + 2] = wc3_float_bits(pose.world[k]); }
+}
+
+/* Live bridge input: mover time/epoch/pose/velocity/cap/facing8, clock3, origin2, point2.
+ * Output: committed mover8, published world2, queried predicted world2. */
+void pathing_position_bridge(uint32_t const *input, uint32_t *out) {
+    wc3Clock_t old = { .time = wc3_float(input[0]), .epoch = input[1] };
+    wc3Clock_t cur = { .time = wc3_float(input[8]), .epoch = input[9], .span = wc3_float(input[10]) };
+    wc3GridPose_t pose = { .grid = {wc3_float(input[2]), wc3_float(input[3])},
+        .origin = {wc3_float(input[11]), wc3_float(input[12])} };
+    float velocity[2], point[2] = {wc3_float(input[13]), wc3_float(input[14])};
+    for (unsigned k = 0; k < 2; k++) velocity[k] = wc3_mul(wc3_float(input[4 + k]), 32);
+    wc3_grid_step(&pose, velocity, wc3_elapsed(&cur, &old));
+    for (unsigned k = 0; k < 2; k++) out[10 + k] = wc3_float_bits(pose.world[k]);
+    wc3_grid_place(&pose, point);
+    for (unsigned k = 0; k < 8; k++) out[k] = input[k];
+    out[0] = input[8]; out[1] = input[9];
+    for (unsigned k = 0; k < 2; k++) {
+        out[2 + k] = wc3_float_bits(pose.grid[k]); out[8 + k] = wc3_float_bits(pose.world[k]);
+    }
+}

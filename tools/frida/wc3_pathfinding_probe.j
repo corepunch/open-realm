@@ -194,6 +194,54 @@ function PathProbeSpeedInputs takes unit u, string label returns nothing
     call Preload("PATHSPEED done=" + label)
 endfunction
 
+// Same-word and fractional axis setters during travel and after Stop.
+function PathProbeAxisPosition takes nothing returns nothing
+    local string label = ""
+    local real x = 0.0
+    local real y = 0.0
+    if udg_PathProbeTick == 20 then
+        set label = "moving_x_same"
+    elseif udg_PathProbeTick == 25 then
+        set label = "moving_y_same"
+    elseif udg_PathProbeTick == 30 then
+        set label = "moving_x_shift"
+    elseif udg_PathProbeTick == 35 then
+        set label = "moving_y_shift"
+    elseif udg_PathProbeTick == 70 then
+        set label = "idle_x_same"
+    elseif udg_PathProbeTick == 75 then
+        set label = "idle_y_same"
+    elseif udg_PathProbeTick == 80 then
+        set label = "idle_x_shift"
+    elseif udg_PathProbeTick == 85 then
+        set label = "idle_y_shift"
+    endif
+    if label != "" then
+        call Preload("PATHPOSE case=" + label)
+        set x = GetUnitX(udg_PathProbeUnit)
+        set y = GetUnitY(udg_PathProbeUnit)
+        if udg_PathProbeTick == 20 or udg_PathProbeTick == 70 then
+            call SetUnitX(udg_PathProbeUnit, x)
+        elseif udg_PathProbeTick == 25 or udg_PathProbeTick == 75 then
+            call SetUnitY(udg_PathProbeUnit, y)
+        elseif udg_PathProbeTick == 30 or udg_PathProbeTick == 80 then
+            call SetUnitX(udg_PathProbeUnit, x + 0.125)
+        else
+            call SetUnitY(udg_PathProbeUnit, y - 0.125)
+        endif
+        set x = GetUnitX(udg_PathProbeUnit)
+        set y = GetUnitY(udg_PathProbeUnit)
+        call Preload("PATHPOSE done=" + label)
+    endif
+    if udg_PathProbeTick == 60 then
+        if IssueImmediateOrder(udg_PathProbeUnit, "stop") then
+            call PathProbeRecord("axis_stop_accepted")
+        else
+            call PathProbeRecord("axis_stop_rejected")
+        endif
+    endif
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
@@ -219,6 +267,9 @@ function PathProbeTick takes nothing returns nothing
         set numericX = GetUnitMoveSpeed(udg_PathProbeUnit)
         set numericY = GetUnitDefaultMoveSpeed(udg_PathProbeUnit)
         call Preload("PATHSPEED done=travel")
+    endif
+    if PATH_PROBE_SCENARIO == 36 then
+        call PathProbeAxisPosition()
     endif
     if (PATH_PROBE_SCENARIO == 34 or PATH_PROBE_SCENARIO == 35) then
         if udg_PathProbeTick == 1 then
@@ -354,6 +405,12 @@ function PathProbeTick takes nothing returns nothing
             endif
             call Preload("PATHNUM done=move_y value=" + R2S(numericY))
             if IssuePointOrder(udg_PathProbeUnit, "move", numericX, numericY) then
+                call PathProbeRecord("order_accepted")
+            else
+                call PathProbeRecord("order_rejected")
+            endif
+        elseif PATH_PROBE_SCENARIO == 36 then
+            if IssuePointOrder(udg_PathProbeUnit, "move", -1600.0, -144.0) then
                 call PathProbeRecord("order_accepted")
             else
                 call PathProbeRecord("order_rejected")
