@@ -1973,6 +1973,8 @@ typedef struct {
     uint32_t class_id;
     vec2_t origin;
     edict_t *unit;
+    int32_t replacements_used;
+    bool replacement_pending;
 } botGuardPost_t;
 
 typedef enum {
@@ -2009,6 +2011,9 @@ typedef struct {
     botMode_t mode, pending_mode;
     uint32_t flags;
     int32_t replacement_count;
+    uint32_t hero_id;
+    uint32_t hero_level;
+    bool repair_policy_dirty;
     bool paused, stop_requested, restart_requested;
     char script[MAX_PATHLEN], pending_script[MAX_PATHLEN];
 } bot_t;
@@ -2237,6 +2242,7 @@ int32_t G_BotTownWithMine(player_t *);
 uint32_t G_BotMinesOwned(player_t *);
 uint32_t G_BotGoldOwned(player_t *);
 bool G_BotProduce(player_t *, int32_t, uint32_t, int32_t);
+bool G_BotUpgrade(player_t *, uint32_t);
 void G_BotStopGathering(player_t *);
 void G_BotClearHarvest(player_t *);
 void G_BotHarvest(player_t *, int32_t, int32_t, bool);
@@ -2252,6 +2258,8 @@ bool G_BotAddDefenders(player_t *, int32_t, uint32_t);
 void G_BotAddGuardPost(player_t *, uint32_t, float, float);
 void G_BotFillGuardPosts(player_t *);
 void G_BotReturnGuardPosts(player_t *);
+void G_BotHeroLevelUp(edict_t *);
+void G_BotUnitReady(edict_t *);
 bool G_BotPushCommand(player_t *, int32_t, int32_t);
 uint32_t G_BotCommandsWaiting(player_t *);
 int32_t G_BotLastCommand(player_t *);

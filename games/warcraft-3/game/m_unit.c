@@ -1914,6 +1914,7 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
             G_HeroModifySkillPoints(ent, 1);
             G_PublishEvent(ent, EVENT_PLAYER_HERO_LEVEL);
             G_PublishEvent(ent, EVENT_UNIT_HERO_LEVEL);
+            G_BotHeroLevelUp(ent);
         }
     }
 }

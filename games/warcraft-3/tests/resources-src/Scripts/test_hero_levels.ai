@@ -1,0 +1,11 @@
+function hero_levels takes nothing returns integer
+    if GetHeroId() == 'Hpal' and GetHeroLevelAI() == 2 then
+        return 'AHhb'
+    endif
+    return 0
+endfunction
+
+function main takes nothing returns nothing
+    call SetHeroLevels(function hero_levels)
+    call Sleep(1000.0)
+endfunction

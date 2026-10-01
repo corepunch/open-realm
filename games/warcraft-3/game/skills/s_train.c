@@ -445,6 +445,7 @@ void ai_train_build(edict_t *ent) {
             G_QueueReadySound(completed);
             G_SendOwnerMinimapAlert(completed);
             G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
+            G_BotUnitReady(completed);
             G_ApplyRallyOrder(ent, completed);
 #ifdef WC3_DEBUG_AI
             fprintf(stderr, "WC3_DEBUG_AI training complete producer=%ld unit=%ld id=%.4s player=%u\n",

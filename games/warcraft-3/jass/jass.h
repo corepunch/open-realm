@@ -136,6 +136,7 @@ void jass_pop(jass_t *j, uint32_t count);
 bool jass_evaluatetrigger(jass_t *j, trigger_t *trigger, edict_t *unit);
 bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit);
 bool jass_evaluateplayerexpr(jass_t *j, jassFunc_t const *expr, player_t *player);
+bool jass_evaluateplayerinteger(jass_t *j, jassFunc_t const *expr, player_t *player, int32_t *result);
 void jass_executetrigger(jass_t *j, trigger_t *trigger, edict_t *unit);
 
 /* -------------------------------------------------------------------------

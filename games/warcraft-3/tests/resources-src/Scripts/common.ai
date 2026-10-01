@@ -4,6 +4,8 @@ native DisplayTextI takes integer p, string str, integer val returns nothing
 native DisplayTextII takes integer p, string str, integer v1, integer v2 returns nothing
 native DisplayTextIII takes integer p, string str, integer v1, integer v2, integer v3 returns nothing
 native GetAiPlayer takes nothing returns integer
+native GetHeroId takes nothing returns integer
+native GetHeroLevelAI takes nothing returns integer
 native GetUnitCount takes integer unitid returns integer
 native GetPlayerUnitTypeCount takes player p, integer unitid returns integer
 native GetUnitCountDone takes integer unitid returns integer
@@ -13,6 +15,7 @@ native TownWithMine takes nothing returns integer
 native TownHasMine takes integer townid returns boolean
 native TownHasHall takes integer townid returns boolean
 native SetProduce takes integer qty, integer id, integer town returns boolean
+native SetUpgrade takes integer id returns boolean
 native GetUnitGoldCost takes integer unitid returns integer
 native GetUnitWoodCost takes integer unitid returns integer
 native GetUnitBuildTime takes integer unitid returns integer
