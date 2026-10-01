@@ -2019,6 +2019,7 @@ typedef struct {
     vec2_t town_spot; /* ShiftTownSpot override for AI construction search; no world entity is moved */
     bool town_spot_valid;
     botExpansion_t expansion;
+    edict_t *alliance_target; /* common.ai shared assault target; publication never issues orders */
     ARRAY(botCommand_t, commands);
     ARRAY(edict_t *, harvesters);
     ARRAY(botGuardPost_t, guards);
@@ -2250,6 +2251,8 @@ void G_BotShutdown(void);
 void G_BotPause(uint32_t, bool);
 void G_BotRunFrame(void);
 bool G_BotUnitAlive(edict_t *);
+void G_BotSetAllianceTarget(player_t *, edict_t *);
+edict_t *G_BotGetAllianceTarget(player_t *);
 edict_t *G_BotTown(player_t *, int32_t);
 int32_t G_BotTownUnitCount(player_t *, uint32_t, int32_t, bool);
 edict_t *G_BotTownMine(player_t *, int32_t);

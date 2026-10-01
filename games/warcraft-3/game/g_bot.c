@@ -26,6 +26,35 @@ bool G_BotUnitAlive(edict_t *unit) {
     return unit && unit->inuse && unit->health.value > 0 && !(unit->svflags & SVF_DEADMONSTER);
 }
 
+/* common.ai uses this as a shared assault rendezvous, not as an order primitive.
+ * Publish the same target into each mutually-passive ally's bot slot so a later
+ * GetAllianceTarget observes the common value. Publishing NULL clears that shared
+ * value for the current alliance, matching the stock join-ally-force consume path. */
+void G_BotSetAllianceTarget(player_t *player, edict_t *target) {
+    uint32_t owner;
+    if (!player) return;
+    owner = PLAYER_NUM(player);
+    if (owner >= MAX_PLAYERS) return;
+
+    FOR_LOOP(i, MAX_PLAYERS) {
+        player_t *other = &game.clients[i].ps;
+        if (i != owner && (!G_GetPlayerAlliance(player, other, ALLIANCE_PASSIVE) ||
+                           !G_GetPlayerAlliance(other, player, ALLIANCE_PASSIVE))) continue;
+        level.bots[i].alliance_target = target;
+    }
+}
+
+edict_t *G_BotGetAllianceTarget(player_t *player) {
+    bot_t *bot;
+    if (!player || PLAYER_NUM(player) >= MAX_PLAYERS) return NULL;
+    bot = G_BotState(PLAYER_NUM(player));
+    if (!bot || !G_BotUnitAlive(bot->alliance_target)) {
+        if (bot) bot->alliance_target = NULL;
+        return NULL;
+    }
+    return bot->alliance_target;
+}
+
 /* Stop only active gather orders; carried resources remain available for an explicit return order. */
 void G_BotStopGathering(player_t *player) {
     if (!player) return;
