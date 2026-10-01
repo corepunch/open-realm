@@ -81,7 +81,7 @@ static uint32_t _hero_menu_command_button_count;
 static void hero_menu_capture_write(pfWriteType_t type, void const *value) {
     uiFrame_t const *frame;
 
-    if (type != PF_UIFRAME || !value || _hero_menu_click_count >= ARRAY_COUNT(_hero_menu_clicks)) return;
+    if (type != PF_UIFRAME || !value || _hero_menu_click_count >= sizeof(_hero_menu_clicks) / sizeof(_hero_menu_clicks[0])) return;
     frame = value;
     if (frame->flags.type != FT_COMMANDBUTTON) return;
     _hero_menu_command_button_count++;
@@ -1677,7 +1677,6 @@ TEST(wc3_combat, player_disabled_hero_skill_is_omitted_from_select_skill_menu) {
     edict_t *clent, *hero;
     gameClient_t *old_clent_client;
     uint32_t const holy = MAKEFOURCC('A','H','h','b');
-    uint32_t const thunder = MAKEFOURCC('A','H','t','b');
     slkTestData_t *rows = parse_slk_string(slk_hero_skill_progression);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     bool old_connected, old_clent_inuse, old_holy_available;
@@ -1718,7 +1717,7 @@ TEST(wc3_combat, player_disabled_hero_skill_is_omitted_from_select_skill_menu) {
     }
     T_ASSERT(!holy_visible);
     T_ASSERT(thunder_visible);
-    /* Two learnable skills plus Cancel; the disabled skill contributes no frame. */
+    /* Thunderbolt and level-locked Divine Shield remain listed; disabled Holy Light is omitted. */
     T_EQ((int)_hero_menu_command_button_count, 3);
 
     G_DeselectEntity(client, hero);

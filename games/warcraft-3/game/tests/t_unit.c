@@ -1696,20 +1696,28 @@ TEST(wc3_unit, stoneform_command_applies_to_focused_unit_type_subgroup) {
     uint32_t const astn = MAKEFOURCC('A','s','t','n');
     edict_t *first, *second, *other_form;
 
-    reset_test_entities(); setup_test_world();
+    reset_entities(); setup_test_world();
+    g_edicts[0].client = &game.clients[0];
+    game.clients[0].ps.number = 0;
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 64.0f);
     other_form = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 64.0f);
     edict_t *units[] = { first, second, other_form };
-    FOR_LOOP(i, ARRAY_COUNT(units)) {
+    FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
         units[i]->s.player = 0;
         units[i]->svflags |= SVF_MONSTER;
-        units[i]->selected = 1;
+        G_SelectEntity(game.clients, units[i]);
         units[i]->abilities.added[0] = astn;
         units[i]->abilities.added_count = 1;
     }
+    T_ASSERT(G_IsEntitySelected(game.clients, first));
     T_ASSERT(G_FocusSelectedUnit(game.clients, first));
+    T_ASSERT(G_IsEntitySelected(game.clients, first));
+    T_ASSERT(G_GetMainSelectedUnit(game.clients) == first);
+    T_ASSERT(G_UnitCanControl(game.clients, first));
+    T_ASSERT(G_ActorHasSkill(first, "Astn"));
+    T_ASSERT(G_ActorHasSkill(second, "Astn"));
 
     G_ClientCommand(g_edicts, 2, command);
 

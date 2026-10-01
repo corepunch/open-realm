@@ -1197,12 +1197,19 @@ TEST(wc3_building, researched_hit_points_effect_preserves_health_ratio) {
 }
 
 TEST(wc3_building, researched_spell_level_effect_gates_and_levels_unit_ability) {
+    static const char ability_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y3;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;X1;Y2;K\"Adef\"\nC;X2;K\"Adef\"\n"
+        "C;X1;Y3;K\"Amic\"\nC;X2;K\"Amic\"\nE\n";
     gameClient_t *client = &game.clients[0];
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     UnitBalance_t balance = { .upgrades = "Rhde" };
     UnitAbilities_t abilities = { .abilList = "Adef", .heroAbilList = "" };
     slkTestData_t *rows = NULL;
     slkTestData_t *old = building_install_upgrade_data(&rows);
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", ability_rows);
     uint32_t const defend_research = MAKEFOURCC('R','h','d','e');
     uint32_t const defend = MAKEFOURCC('A','d','e','f');
 
@@ -1222,6 +1229,8 @@ TEST(wc3_building, researched_spell_level_effect_gates_and_levels_unit_ability) 
     T_ASSERT(!G_UnitAbilityResearchAvailable(unit, defend));
     T_EQ(G_UnitAbilityLevel(unit, defend), 1);
 
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(ability_rows);
     building_restore_upgrade_data(old, rows);
 }
 
@@ -4394,7 +4403,7 @@ TEST(wc3_building, autocast_command_updates_only_focused_unit_type_subgroup) {
     second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
     other_type = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
     edict_t *units[] = { first, second, other_type };
-    FOR_LOOP(i, ARRAY_COUNT(units)) {
+    FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
         units[i]->data.UnitAbilities = &abilities;
         units[i]->s.player = 0;
         units[i]->selected = 1;
@@ -4426,7 +4435,7 @@ TEST(wc3_building, autocast_mixed_focused_subgroup_displays_off_and_normalizes_o
     first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
     edict_t *units[] = { first, second };
-    FOR_LOOP(i, ARRAY_COUNT(units)) {
+    FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
         units[i]->data.UnitAbilities = &abilities;
         units[i]->s.player = 0;
         units[i]->selected = 1;
