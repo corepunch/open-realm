@@ -1623,6 +1623,41 @@ TEST(wc3_movement, forced_position_matches_original_native_pose_words) {
 
 /* Original public scene39 ring endpoints, with its terrain edits and31-unit
  * Footman footprint. Use the actual JASS native rather than the ring helper. */
+/* Public placement consumes the current query mask, independently of occupancy. */
+TEST(wc3_movement, public_pathing_toggle_controls_blocked_placement) {
+    static uint8_t cells[256*128];
+    reset_entities(); setup_test_world(); memset(cells,0,sizeof(cells));
+    for (int x=161;x<=164;x++) cells[78*256+x]=2;
+    box2_t bounds={{-7168,-3072},{1024,1024}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hfoo',-1936,-976,0)\nendfunction\n"
+        "function enabled takes nothing returns nothing\ncall SetUnitPathing(mover,true)\n"
+        "call SetUnitPosition(mover,-1936,-560)\nendfunction\n"
+        "function disabled takes nothing returns nothing\ncall SetUnitPathing(mover,false)\n"
+        "call SetUnitPosition(mover,-1936,-560)\nendfunction\n"
+        "function fractional takes nothing returns nothing\ncall SetUnitPathing(mover,false)\n"
+        "call SetUnitPositionLoc(mover,Location(-1935.875,-560.125))\nendfunction\n"
+        "function restored takes nothing returns nothing\ncall SetUnitPathing(mover,true)\n"
+        "call SetUnitPosition(mover,-1935.875,-560.125)\nendfunction\n"));
+    edict_t *unit=NULL; FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->collision=31; unit->stand=unit_stand; unit_stand(unit);
+    static cstring_t const names[]={"enabled","disabled","enabled","fractional","restored"};
+    static vec2_t const expected[]={{-1936,-592},{-1936,-560},{-1936,-592},{-1935.875,-560.125},{-1936,-592}};
+    for (unsigned pass=0;pass<2;pass++) {
+        if (pass) { T_ASSERT(ReadGame("/tmp/openwarcraft3-disabled-placement-save.bin")); T_ASSERT(unit->no_pathing); }
+        FOR_LOOP(i,5) {
+            jass_callbyname(level.vm,names[i],false); T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(expected[i].x));
+            T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(expected[i].y));
+            T_EQ(unit->current_order_id,0); T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+            if (!pass && i==3) T_ASSERT(WriteGame("/tmp/openwarcraft3-disabled-placement-save.bin"));
+        }
+    }
+    remove("/tmp/openwarcraft3-disabled-placement-save.bin"); reset_entities(); setup_test_world();
+}
+
 TEST(wc3_movement, blocked_position_matches_original_ring_endpoints) {
     static uint8_t cells[256 * 128];
     box2_t bounds = {{-7168,-3072},{1024,1024}};

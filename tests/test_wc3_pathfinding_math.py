@@ -219,6 +219,26 @@ class PathingMathTests(unittest.TestCase):
                 with self.subTest(mutation=mutation,opt=engine._name), self.assertRaises(ValueError):
                     verify_forced_position(changed,engine,adjusted)
 
+    def test_public_pathing_placement_replays_zero_masks_and_rejects_changes(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-pathing-position-1.27.json').read_text())
+        rows=fixture['rows']
+        for engine in self.engines:
+            configure_arrival(engine)
+            result=verify_placement(rows,engine,fixture,True)
+            self.assertEqual([result[k] for k in ('placement_searches','public_position_calls','position_queries','position_commits')],[7,25,65,5])
+            for mutation in ('truncated','receiver','category','zero-mask','endpoint','velocity','source'):
+                changed=copy.deepcopy(rows)
+                if mutation=='truncated': changed.pop()
+                elif mutation=='receiver': next(r for r in changed if r.get('event')=='pathing-toggle')['handle']+=1
+                elif mutation=='category': next(r for r in changed if r.get('event')=='movement-mask-publication' and r['queryMask']==0)['objectCategory']=0
+                elif mutation=='zero-mask': next(r for r in changed if r.get('event')=='placement-search-end' and r['mask']==0)['mask']=0x02000002
+                elif mutation=='endpoint': next(r for r in changed if r.get('event')=='placement-search-end' and r['mask']==0)['after'][0]^=1
+                elif mutation=='velocity': next(r for r in changed if r.get('event')=='forced-position-stop-end')['after']['pose'][4]=1
+                elif mutation=='source': changed[0]['source_sha256']['wc3_pathfinding.js']='0'*64
+                adjusted=dict(fixture,placement_sha256=placement_digest(changed,True))
+                with self.subTest(mutation=mutation,opt=engine._name),self.assertRaises(ValueError):
+                    verify_placement(changed,engine,adjusted,True)
+
     def test_public_blocked_placement_replays_candidates_and_rejects_changes(self):
         fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-placement-1.27.json').read_text())
         rows=fixture['observations']

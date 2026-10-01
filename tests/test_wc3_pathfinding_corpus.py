@@ -24,9 +24,9 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),90)
-        self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),102)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),28)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),91)
+        self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),104)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),29)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))
@@ -39,6 +39,17 @@ class CorpusTests(unittest.TestCase):
             self.assertEqual(entry['expected_exit'],1)
             check_report(dict(binary_sha256=self.target['game_sha256'],differences=[{}]*4,
                               stored_size=2,promotion_disabled=False,forced_east_boundary=False,engine_exact_cases=356,cases=356),entry,self.target)
+
+    def test_zero_query_placement_retains_bounds_against_authored_blockage(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-zero-query-placement-1.27.json').read_text())
+        self.assertEqual(len(frozen['cases']),288); self.assertEqual(frozen['original_calls'],576)
+        self.assertEqual({r['input'][5] for r in frozen['cases']},set(range(4)))
+        self.assertTrue(all(r['input'][6]==0 and r['terrain_mask']==2 for r in frozen['cases']))
+        sealed=[r for r in frozen['cases'] if r['terrain']=='sealed' and r['input'][2:4]==[0x41440000,0x414c0000]]
+        self.assertEqual(len(sealed),24)
+        self.assertTrue(all(r['output']==[1,*r['input'][2:4]] and r['visits']==1 for r in sealed))
+        outside=[r for r in frozen['cases'] if r['input'][2]==0xbe000000 and r['input'][4]==1]
+        self.assertTrue(outside); self.assertTrue(all(r['output'][0]==0 for r in outside))
 
     def test_fine_trajectory_matches_engine_word_reference(self):
         frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-fine-route-trajectory-1.27.json').read_text())

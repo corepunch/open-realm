@@ -358,6 +358,22 @@ function PathProbeTick takes nothing returns nothing
         set numericY = GetUnitDefaultMoveSpeed(udg_PathProbeUnit)
         call Preload("PATHSPEED done=travel")
     endif
+    if PATH_PROBE_SCENARIO == 42 and (udg_PathProbeTick == 20 or udg_PathProbeTick == 30 or udg_PathProbeTick == 40 or udg_PathProbeTick == 50 or udg_PathProbeTick == 60) then
+        if udg_PathProbeTick == 30 or udg_PathProbeTick == 50 then
+            call SetUnitPathing(udg_PathProbeUnit, false)
+        else
+            call SetUnitPathing(udg_PathProbeUnit, true)
+        endif
+        call Preload("PATHPOSE case=pathing_position_" + I2S(udg_PathProbeTick))
+        call PathProbeRecord("pathing_position_before")
+        if udg_PathProbeTick >= 50 then
+            call SetUnitPosition(udg_PathProbeUnit, -1935.875, -560.125)
+        else
+            call SetUnitPosition(udg_PathProbeUnit, -1936.0, -560.0)
+        endif
+        call PathProbeRecord("pathing_position_after")
+        call Preload("PATHPOSE done=pathing_position_" + I2S(udg_PathProbeTick))
+    endif
     if PATH_PROBE_SCENARIO == 41 then
         if udg_PathProbeTick == 10 or udg_PathProbeTick == 30 then
             call PathProbeRecord("pathing_disable_before")
@@ -766,7 +782,7 @@ function PathProbeInit takes nothing returns nothing
             call PathProbeRecord("gate_inactive")
         endif
     endif
-    if PATH_PROBE_SCENARIO == 1 or PATH_PROBE_SCENARIO == 3 or PATH_PROBE_SCENARIO == 4 or PATH_PROBE_SCENARIO == 41 then
+    if PATH_PROBE_SCENARIO == 1 or PATH_PROBE_SCENARIO == 3 or PATH_PROBE_SCENARIO == 4 or PATH_PROBE_SCENARIO == 41 or PATH_PROBE_SCENARIO == 42 then
         call PathProbeWall(false)
     endif
     if PATH_PROBE_SCENARIO == 16 then

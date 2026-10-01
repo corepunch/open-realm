@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**104 done / 287 tasks; 183 remaining.** Counts describe this backlog,
+**105 done / 288 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -20,7 +20,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 15 | 10 |
 | MAP — Map construction and lifetime | 7 | 15 |
-| FOOT — Footprints and query policy | 4 | 9 |
+| FOOT — Footprints and query policy | 5 | 9 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 21 | 14 |
@@ -318,6 +318,8 @@ Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers,
 ## FINE — Fine search
 
 Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
+
+- [x] **FOOT-04.5** Explicitly split ordinary in-map SetUnitPathing/SetUnitPosition queryzero from04.2. Recover current-query getter05ac30/685ef0 and radius getter6742f0; false accepts blocked requested coordinates while preserving footprint bounds and level callback. Two complete five-placement repeats match65 public queries, five commits and seven placement searches;576 original zero-mask calls across288 inputs match C against nonzero authored terrain. Reproduce six engine raw destination failures, then pass65 public-native/Loc/save assertions with all five observed destinations. Evidence: [engine payoff26](retail-pathfinding-engine.md#disabled-query-reaches-public-placement). Other actor forms, outside clipping, rejected-level/bridge controls and full live clock parity remain04.2/BASE-02/E2E.
 
 ### FINE-01 — Full searches with objects
 

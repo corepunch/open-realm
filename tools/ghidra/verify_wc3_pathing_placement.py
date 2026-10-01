@@ -7,7 +7,7 @@ from pathlib import Path
 def main():
     from unicorn import Uc,UC_ARCH_X86,UC_MODE_32,UC_HOOK_CODE
     from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EAX
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--binary',type=Path,required=True);parser.add_argument('--report',type=Path,required=True);parser.add_argument('--fixture',type=Path);parser.add_argument('--engine-library',type=Path);args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--binary',type=Path,required=True);parser.add_argument('--report',type=Path,required=True);parser.add_argument('--fixture',type=Path);parser.add_argument('--engine-library',type=Path);parser.add_argument('--reference',type=Path);parser.add_argument('--zero-mask-only',action='store_true',help='exercise real queryzero against nonzero terrain flags');args=parser.parse_args()
     binary=args.binary.read_bytes();digest=hashlib.sha256(binary).hexdigest()
     if digest!='d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':parser.error('unsupported game.dll')
     pe=struct.unpack_from('<I',binary,60)[0];opt=pe+24;base,size=(struct.unpack_from('<I',binary,opt+o)[0] for o in (28,56));u=Uc(UC_ARCH_X86,UC_MODE_32);u.mem_map(base,(size+4095)&~4095)
@@ -32,10 +32,10 @@ def main():
     engine=ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     records=[]
     for terrain,cls,lane,source,limit,integer in itertools.product(
-            ('open','one','square','sealed'),range(4),(0x02000002,0x04000004,0x40000040,0x80000080),
+            ('open','one','square','sealed'),range(4),(0,) if args.zero_mask_only else (0x02000002,0x04000004,0x40000040,0x80000080),
             ((12.25,12.75),(12.125,11.875),(-.125,.25)),(1,5,32),(0,1)):
         blocked={(12,12)} if terrain=='one' else {(x,y) for y in range(10,15) for x in range(10,15)} if terrain=='square' else {(x,y) for y in range(height) for x in range(width)} if terrain=='sealed' else set()
-        data=bytes((lane>>24) if (x,y) in blocked else 0 for y in range(height) for x in range(width))
+        data=bytes((2 if lane==0 else lane>>24) if (x,y) in blocked else 0 for y in range(height) for x in range(width))
         u.mem_write(cells,b''.join(struct.pack('<I',(v<<24)|0xffffff) for v in data))
         outputs=[];chains=[]
         for mode in (0,7):
@@ -45,12 +45,15 @@ def main():
             outputs.append([u.reg_read(UC_X86_REG_EAX),*read(point,2)]);chains.append(list(visits))
         if outputs[0]!=outputs[1] or chains[0]!=chains[1]:raise RuntimeError('placement repeat differs')
         inp=[width,height,*struct.unpack('<II',struct.pack('<ff',*source)),limit,cls,lane,integer]
-        record=dict(terrain=terrain,input=inp,output=outputs[0],visits=len(chains[0]),visit_sha256=hashlib.sha256(json.dumps(chains[0],separators=(',',':')).encode()).hexdigest());records.append(record)
+        record=dict(terrain=terrain,input=inp,output=outputs[0],visits=len(chains[0]),visit_sha256=hashlib.sha256(json.dumps(chains[0],separators=(',',':')).encode()).hexdigest())
+        if args.zero_mask_only:record['terrain_mask']=2
+        records.append(record)
         if engine:
             actual=(ctypes.c_uint32*3)();engine.pathing_fine_placement((ctypes.c_uint32*8)(*inp),(ctypes.c_uint8*len(data)).from_buffer_copy(data),actual)
             if list(actual)!=outputs[0]:raise RuntimeError(str(record|{'engine':list(actual)}))
     result=dict(passed=True,binary_sha256=digest,cases=len(records),original_calls=2*len(records),stack_abi_verified=True,mode_seh_restoration=True,
-                scope='Complete original14a1e0 policy2 degenerate-point admission, four classes/masks, integer/centre output and bounded budgets; callback null. Public callback/bridge/bounds admission remains separate.')
+                scope=('Complete original14a1e0 policy2 real zero-mask queries against authored walk blockage across four classes, integer/centre output and bounded budgets; callback null.' if args.zero_mask_only else 'Complete original14a1e0 policy2 degenerate-point admission, four classes/masks, integer/centre output and bounded budgets; callback null. Public callback/bridge/bounds admission remains separate.'))
+    if args.reference and json.loads(args.reference.read_text())!=result|{'cases':records}:raise RuntimeError('frozen original placement reference differs')
     if args.fixture:args.fixture.write_text(json.dumps(result|{'cases':records},indent=2)+'\n')
     args.report.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result,indent=2))
 

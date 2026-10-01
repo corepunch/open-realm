@@ -3204,3 +3204,70 @@ Validation: forced release RoC/TFT suites each pass54,720 assertions in2,233
 cases;142 pathfinding tool tests pass. Full `make BUILD=release test` and
 production `openwarcraft3` builds pass without C compiler warnings. Ability
 coverage, backlog counts/IDs/areas, local links and `git diff --check` pass.
+
+
+## Disabled query reaches public placement
+
+Engine payoff26 continues the public toggle through its placement consumer.
+`SetUnitPosition` → `698050` → `653510` → `67f490` → `6515f0` obtains its query
+from actual CUnit vtable `158`, `685ef0` → `05ac30`. This getter resolves the
+bridge identity, reads the owned query path at canonical+a8 and returns its
+`+9c & 00ffffff`; an absent path returns zero. It is distinct from the authored
+getter `678b50`. Vtable `168` (`6742f0`) obtains the cached authored collision
+radius through `674280` with ECX=output/EDX=rawcode. Query zero changes neither
+the footprint nor the `654060` same-terrain-level acceptance callback.
+
+Two fresh owned `pathing_position` maps toggle true/false/true/false/true before
+five `SetUnitPosition` calls at ticks20/30/40/50/60. Enabled requests for
+(-1936,-560) and(-1935.875,-560.125) land at(-1936,-592); disabled requests retain
+the exact requested coordinates, despite the same four blocked wall cells.
+All native/profile brackets retain categoryca and object010000ca. The two
+captures contain65 exact public getter/bridge queries, five exact world
+position commits and seven complete placement searches. Two additional
+five-attempt queries belong to Stop's embedded recovery after restoring pathing
+inside a blocked footprint; the public point admission still uses32 attempts.
+All searches, candidates, masks, radius, level callback, result and output words
+match production C and repeat. The preceding33 motion decisions and33
+velocity/position/facing commits also match C exactly and repeat.
+
+The engine public-native regression reproduces six raw destination failures.
+`G_FindUnitPlacementPosition` now passes the current zero mask when
+`no_pathing` is set, and its cell callback preserves valid footprint bounds
+without applying the generic geometry API's legacy zero-as-walk default. The
+same-level callback and authored footprint remain active. Normal routing
+continues to normalize its generic masks before constructing the graph. The
+regression passes65 assertions through public SetUnitPosition/Loc, both toggle
+directions, all five observed destinations and a disabled save/load continuation.
+Save68, JASS snapshot7 and the wire layout remain unchanged.
+
+`verify_wc3_pathing_placement.py --zero-mask-only --reference` independently
+executes576 complete original calls at288 inputs: four classes, two output
+forms, three budgets, repeated modes0/7, three source positions and four terrain
+maps. **Terrain is still authored02 when the query is zero**; the sealed-map
+controls do not erase obstacles to manufacture passability. Outside fine-source
+controls retain bounds rejection. C reproduces the complete original outputs,
+and a damaged frozen reference is rejected. This isolated matrix has a null
+callback; the repeated public capture separately proves the supplied level6
+acceptance callback, not arbitrary bridge overlays or outside-map clipping.
+
+Frozen fixtures are `retail-zero-query-placement-1.27.json` and
+`retail-public-pathing-position-1.27.json`. Accepted strict replay:
+`pathing-position-corpus-accepted-b261001/corpus-results.json`; raw witnesses:
+`runtime/pathing-position-{first,repeat}-261001.jsonl`. The public verifier's
+new mode rejects substituted toggle receivers/categories, zero-mask changes,
+missing brackets, endpoints, Stop velocity and source provenance changes. Its
+pre-existing six-placement mode retains its original frozen contract.
+
+Ghidra retains463 descriptive names and178 explicit prototypes, with31 layouts
+and177 fields. Saved readbacks:
+`runtime/pathing-position-ghidra-types-261001.json` and
+`runtime/pathing-position-ghidra-readback-261001.json`. The strict inventory now
+has224 entries:91 original-code oracles,104 archive audits and29 live contracts,
+with80 hash-checked repository fixtures. Broader actor forms, outside-map public
+clipping, bridge/terrain-level rejection, full engine clock parity and separation
+are not closed by this ordinary ground placement result.
+
+Validation: forced release RoC/TFT suites each pass54,785 assertions in2,234
+cases; full release umbrella and production builds pass without C compiler
+warnings, as do144 pathfinding tool tests, ability coverage, backlog counts/IDs/
+areas, local links and `git diff --check`.

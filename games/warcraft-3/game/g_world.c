@@ -234,7 +234,10 @@ static box2_t move_segment_bounds(wc3FineSegment_t const *query) {
  * never hide an idle object occupying the same cells. */
 static bool move_cell_ok(void const *data, wc3FinePoint_t pos) {
     moveFineGraph_t const *graph = data;
-    if (!is_pathable_node_original_flags(pos.x, pos.y, graph->flags)) return false;
+    /* Public placement can carry a real zero query after SetUnitPathing(false).
+     * Generic routing normalizes its legacy zero before constructing this graph. */
+    if (!is_valid_point(pos.x,pos.y) ||
+        (graph->flags && !is_pathable_node_original_flags(pos.x,pos.y,graph->flags))) return false;
     uint32_t lo = 0, hi = graph->objects;
     while (lo < hi) {
         uint32_t mid = lo + (hi - lo) / 2;
@@ -342,7 +345,7 @@ bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t 
         return false;
     }
     vec2_t point = move_grid_from_world(requested->x,requested->y);
-    uint8_t flags = M_UnitStaticPathingFlags(unit);
+    uint8_t flags = unit->no_pathing ? 0 : M_UnitStaticPathingFlags(unit);
     moveFineGraph_t graph = {.flags = flags, .endpoint = true};
     float fine[2] = {point.x,point.y}; graph.level = placement_terrain_level(fine);
     movePathQuery_t objects = {.mover = unit, .units = true};

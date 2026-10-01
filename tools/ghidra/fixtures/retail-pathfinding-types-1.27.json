@@ -4290,6 +4290,53 @@
           "storage": "ECX"
         }
       ]
+    },
+    {
+      "address": "6f05ac30",
+      "name": "UnitMoverBridge_GetCurrentQueryMask",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Actual CUnit vtable158/168, full instruction/RET readback and repeated public placement query arguments (payoff26).",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f685ef0",
+      "name": "CUnit_GetCurrentPathingQueryMask",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Actual CUnit vtable158/168, full instruction/RET readback and repeated public placement query arguments (payoff26).",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f6742f0",
+      "name": "CUnit_GetCollisionRadius",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "evidence": "Actual CUnit vtable158/168, full instruction/RET readback and repeated public placement query arguments (payoff26).",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [
