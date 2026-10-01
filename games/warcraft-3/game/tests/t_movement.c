@@ -294,6 +294,158 @@ TEST(wc3_movement, retail_adaptive_lanes_sizes_and_terrain_edits) {
     reset_entities(); setup_test_world();
 }
 
+/* Full original16c150/165ae0 starts with fine index count-2; lookahead occurs after .49-cell approach. */
+TEST(wc3_movement, retail_fine_route_first_point_is_not_skipped) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[16*16]={0};
+    for (int y=2;y<=6;y++) cells[y*16+6]=2;
+    box2_t bounds={{0,0},{512,512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',128,128,0)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",256,128)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    T_EQ(unit->collision,8); T_EQ(unit_current_speed(unit),256);
+    T_EQ(unit->data.UnitData->turnRate,0.6f); T_EQ(unit->data.UnitData->propWin,60);
+    unit_stand(unit); jass_callbyname(level.vm,"go",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement.path.valid);
+    T_EQ(wc3_float_bits(unit->movement.path.waypoint.x),wc3_float_bits(176));
+    T_EQ(wc3_float_bits(unit->movement.path.waypoint.y),wc3_float_bits(112));
+    reset_entities(); setup_test_world();
+}
+
+
+/* Complete original controlled singleton wall trajectory; clock is advanced by the same1/32 producer input. */
+TEST(wc3_movement, retail_fine_route_wall_trajectory_words) {
+    static uint32_t const expected[34][6]={
+        {0x408796e7u,0x407af0bau,0x40f2dc43u,0xc021ec63u,0x40bec3dcu,0x00000007u},
+        {0x408f2dc9u,0x4075e156u,0x40f2dbe3u,0xc021eea1u,0x40bec3b6u,0x00000007u},
+        {0x4096c4a8u,0x4070d1e0u,0x40f2dd02u,0xc021e7e6u,0x40bec428u,0x00000007u},
+        {0x409e5b90u,0x406bc2a0u,0x40f2dca3u,0xc021ea24u,0x40bec402u,0x00000007u},
+        {0x40a5f275u,0x4066b34eu,0x00000000u,0x00000000u,0x40aec402u,0x00000005u},
+        {0x40a5f275u,0x4066b34eu,0x00000000u,0x00000000u,0x409ec402u,0x00000005u},
+        {0x40a5f275u,0x4066b34eu,0x3f972a78u,0xc0fd31f3u,0x409b89a8u,0x00000005u},
+        {0x40a720c9u,0x4056e02eu,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40a84f21u,0x40470d0fu,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40a97d79u,0x403739f0u,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40aaabd1u,0x402766d1u,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40abda29u,0x401793b2u,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40ad0881u,0x4007c093u,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40ae36d9u,0x3fefdae9u,0x00000000u,0x00000000u,0x40ab89b4u,0x00000003u},
+        {0x40ae36d9u,0x3fefdae9u,0x00000000u,0x00000000u,0x40bb89b4u,0x00000003u},
+        {0x40ae36d9u,0x3fefdae9u,0x40fbddbdu,0xbfb746e0u,0x40c34de0u,0x00000003u},
+        {0x40b615c6u,0x3fea20b2u,0x40fbde4du,0xbfb73a76u,0x40c34e45u,0x00000003u},
+        {0x40bdf4b8u,0x3fe466deu,0x40fbde4du,0xbfb73a76u,0x40c34e45u,0x00000003u},
+        {0x40c5d3aau,0x3fdead0au,0x40fbdebau,0xbfb73127u,0x40c34e91u,0x00000003u},
+        {0x40cdb29fu,0x3fd8f380u,0x40fbde72u,0xbfb7375cu,0x40c34e5fu,0x00000003u},
+        {0x40d59192u,0x3fd339c5u,0x40fbdde1u,0xbfb743c5u,0x40c34df9u,0x00000003u},
+        {0x40dd7081u,0x3fcd7fa6u,0x40fbde72u,0xbfb7375cu,0x40c34e5fu,0x00000003u},
+        {0x40e54f74u,0x3fc7c5ebu,0x00000000u,0x00000000u,0x3ea3e863u,0x00000002u},
+        {0x40e54f74u,0x3fc7c5ebu,0x00000000u,0x00000000u,0x3f51f431u,0x00000002u},
+        {0x40e54f74u,0x3fc7c5ebu,0x402b90a8u,0x40f13323u,0x3f9d5310u,0x00000002u},
+        {0x40e7fdb6u,0x3fe5ec4fu,0x402b8feau,0x40f13345u,0x3f9d5343u,0x00000002u},
+        {0x40eaabf5u,0x4002095bu,0x402b90a8u,0x40f13323u,0x3f9d5310u,0x00000002u},
+        {0x40ed5a37u,0x40111c8du,0x3f092a94u,0x40ff6cd4u,0x3fc07b8cu,0x00000001u},
+        {0x40ede361u,0x4021135au,0x3f09276eu,0x40ff6cdbu,0x3fc07bbeu,0x00000001u},
+        {0x40ee6c88u,0x40310a27u,0x3f09276eu,0x40ff6cdbu,0x3fc07bbeu,0x00000001u},
+        {0x40eef5afu,0x404100f4u,0x40739ec0u,0x40e129abu,0x3f89964cu,0x00000000u},
+        {0x40f2c42au,0x404f138eu,0x40739ec0u,0x40e129abu,0x3f89964cu,0x00000000u},
+        {0x40f692a5u,0x405d2628u,0x40739f72u,0x40e1297bu,0x3f899619u,0x00000000u},
+        {0x40fa6122u,0x406b38bfu,0x00000000u,0x00000000u,0x3f899619u,0xffffffffu}
+    };
+    reset_entities(); setup_test_world();
+    uint8_t cells[16*16]={0};
+    for (int y=2;y<=6;y++) cells[y*16+6]=2;
+    box2_t bounds={{0,0},{512,512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',128,128,0)\ncall SetUnitTurnSpeed(mover,0.5)\ncall SetUnitPropWindow(mover,0.5)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",256,128)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit_stand(unit); jass_callbyname(level.vm,"go",false);
+    level.scheduled_think=true; level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=0;
+    unit->currentmove->think(unit);
+    cstring_t file="/tmp/openwarcraft3-retail-fine-route-save.bin";
+    FOR_LOOP(i,34) {
+        level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
+        S_PublishMovement(unit); unit->currentmove->think(unit);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[i][0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[i][1]);
+        T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),expected[i][2]);
+        T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),expected[i][3]);
+        T_EQ(wc3_float_bits(unit->s.angle),expected[i][4]);
+        if (i<33) T_EQ(unit->movement.fine_route.index,expected[i][5]);
+        if (i==11) T_ASSERT(WriteGame(file));
+    }
+    T_EQ(unit->current_order_id,0);
+    T_ASSERT(ReadGame(file));
+    /* Save clears this transient dispatch flag; a real owner callback installs it again. */
+    level.scheduled_think=true;
+    T_NOT_NULL(unit->movement.fine_route.points);
+    for (int i=12;i<34;i++) {
+        level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
+        S_PublishMovement(unit); unit->currentmove->think(unit);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[i][0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[i][1]);
+        T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),expected[i][2]);
+        T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),expected[i][3]);
+        T_EQ(wc3_float_bits(unit->s.angle),expected[i][4]);
+        if (i<33) T_EQ(unit->movement.fine_route.index,expected[i][5]);
+    }
+    T_EQ(unit->current_order_id,0); remove(file);
+    level.scheduled_think=false; reset_entities(); setup_test_world();
+}
+
+/* Use the real order owner and scheduler to check retained curves through pause,
+ * Stop, replacement and deferred public removal; inactive storage is not an order. */
+TEST(wc3_movement, retained_fine_route_public_lifecycle) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[16*16]={0};
+    for (int y=2;y<=6;y++) cells[y*16+6]=2;
+    box2_t bounds={{0,0},{512,512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',128,128,0)\ncall IssuePointOrder(mover,\"move\",256,128)\nendfunction\n"
+        "function freeze takes nothing returns nothing\ncall PauseUnit(mover,true)\nendfunction\n"
+        "function resume takes nothing returns nothing\ncall PauseUnit(mover,false)\nendfunction\n"
+        "function stop takes nothing returns nothing\ncall IssueImmediateOrder(mover,\"stop\")\nendfunction\n"
+        "function replace takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",128,384)\nendfunction\n"
+        "function remove takes nothing returns nothing\ncall RemoveUnit(mover)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->stand=unit_stand; unit->think=monster_think;
+    unit->svflags|=SVF_MONSTER; unit->movetype=MOVETYPE_STEP;
+    unit_stand(unit); T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){256,128}));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,3) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_ASSERT(unit->movement.path.valid); T_NOT_NULL(unit->movement.fine_route.points);
+    vec2_t frozen=unit->s.origin2; uint32_t index=unit->movement.fine_route.index;
+    jass_callbyname(level.vm,"freeze",false);
+    FOR_LOOP(i,4) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_EQ(unit->s.origin2.x,frozen.x); T_EQ(unit->s.origin2.y,frozen.y);
+    T_EQ(unit->movement.fine_route.index,index);
+    jass_callbyname(level.vm,"resume",false);
+    FOR_LOOP(i,3) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_ASSERT(Vector2_distance(&frozen,&unit->s.origin2)>0);
+    jass_callbyname(level.vm,"stop",false); frozen=unit->s.origin2;
+    T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+    T_EQ(unit->current_order_id,0);
+    FOR_LOOP(i,3) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_EQ(unit->s.origin2.x,frozen.x); T_EQ(unit->s.origin2.y,frozen.y);
+    jass_callbyname(level.vm,"replace",false);
+    FOR_LOOP(i,3) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_NOT_NULL(unit->goalentity);
+    T_EQ(unit->goalentity->s.origin2.y,384); T_ASSERT(unit->current_order_id!=0);
+    jass_callbyname(level.vm,"remove",false);
+    level.time+=FRAMETIME; globals.RunFrame();
+    T_ASSERT(!unit->inuse); T_ASSERT(!unit->movement.fine_route.points);
+    T_EQ(unit->movement.fine_route.count,0); T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started=false; reset_entities(); setup_test_world();
+}
+
 TEST(wc3_movement, retail_oblique_velocity_and_step_words) {
     edict_t *unit = make_moving_unit(320, 320);
     /* Original fixture starts in fine cell10 with a zero world origin. */

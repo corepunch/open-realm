@@ -77,9 +77,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format66 retains authored repulsion membership, vectors, cooldown and owner-list parity.
+/* Format67 retains complete fine-route points and progression alongside the owner repulsion state.
  * Earlier streams lack the new edict/list layout and are rejected. */
-static uint32_t const save_version = 66;
+static uint32_t const save_version = 67;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -672,6 +672,10 @@ static field_t const repulse_fields[] = {
 };
 
 static field_t const movement_fields[] = {
+    TF(struct edictMovement_s, fine_route.points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.count, F_INT),
+    TF(struct edictMovement_s, fine_route.index, F_INT),
+    TF(struct edictMovement_s, fine_route.mask, F_INT),
     TF(struct edictMovement_s, repulse, F_STRUCT, 1, repulse_fields),
     TF(edictMovement_s, fine_pose, F_VECTOR),
     TF(edictMovement_s, pose_valid, F_INT),
@@ -1738,7 +1742,13 @@ static bool WriteEdict(FILE *f, edict_t const *ent) {
     ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
     for (field = edict_fields; field->name; field++)
         if (!WriteField1(field, (uint8_t *)&temp)) return false;
-    return SaveBytes(f, &temp, sizeof(temp));
+    moveFineRoute_t const *route = &ent->movement.fine_route;
+    if (route->count > BZ_WC3_FINE_NODES || (route->count && (!route->points || route->index >= route->count))) {
+        fprintf(stderr,"WC3 SaveGame: invalid fine route count=%u index=%u\n",route->count,route->index);
+        return false;
+    }
+    return SaveBytes(f, &temp, sizeof(temp)) &&
+        (!route->count || SaveBytes(f,route->points,route->count*sizeof(*route->points)));
 }
 
 static bool WriteClient(FILE *f, gameClient_t const *client) {
@@ -1838,6 +1848,18 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
     field_t const *field;
 
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
+    moveFineRoute_t *route = &ent->movement.fine_route;
+    route->points = NULL;
+    if (route->count > BZ_WC3_FINE_NODES || (route->count && route->index >= route->count)) return false;
+    if (route->count) {
+        route->points = malloc(route->count*sizeof(*route->points));
+        if (!route->points || !LoadBytes(f,route->points,route->count*sizeof(*route->points))) {
+            free(route->points); route->points = NULL; return false;
+        }
+        FOR_LOOP(i,route->count) if (!isfinite(route->points[i].x) || !isfinite(route->points[i].y)) {
+            free(route->points); route->points = NULL; return false;
+        }
+    }
     for (field = edict_fields; field->name; field++)
         if (!ReadField(field, (uint8_t *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
@@ -1984,6 +2006,8 @@ bool ReadGame(cstring_t filename) {
      * spatial tree before raw records overwrite their area links, then rebuild
      * one authoritative set below; retaining both creates cyclic area lists. */
     gi.ClearWorld();
+    /* Release process-owned curve allocations before raw edict records replace their addresses. */
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = header.num_edicts;
     FOR_LOOP(i, header.num_edicts) {
@@ -2077,6 +2101,25 @@ fail:
     return false;
 }
 
+/* The raw curve tail is untrusted even after the outer checksum succeeds.
+ * Reject impossible extents/indices, nonfinite points and truncated payloads
+ * without retaining serialized process addresses or failed allocations. */
+TEST(wc3_save, rejects_invalid_fine_route_payloads) {
+    FOR_LOOP(i,4) {
+        FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
+        edict_t raw={0}, restored={0};
+        raw.movement.fine_route=(moveFineRoute_t){(vec2_t *)(uintptr_t)1,1,0,2};
+        if (i==0) raw.movement.fine_route.count=BZ_WC3_FINE_NODES+1;
+        if (i==1) raw.movement.fine_route.index=1;
+        T_ASSERT(SaveBytes(file,&raw,sizeof(raw)));
+        if (i==2) T_ASSERT(SaveBytes(file,&(vec2_t){NAN,0},sizeof(vec2_t)));
+        rewind(file);
+        T_ASSERT(!ReadEdict(file,&restored));
+        T_ASSERT(!restored.movement.fine_route.points);
+        fclose(file);
+    }
+}
+
 TEST(wc3_save, rejects_prior_save_versions) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-prior-format.bin";
     cstring_t old_paths[] = {
@@ -2107,8 +2150,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-63.bin",
         "/tmp/openwarcraft3-wc3-save-version-64.bin",
         "/tmp/openwarcraft3-wc3-save-version-65.bin",
+        "/tmp/openwarcraft3-wc3-save-version-66.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66 };
 
     reset_entities();
     setup_test_world();

@@ -552,6 +552,7 @@ static void G_ShutdownGame(void) {
     G_FowShutdown();
     G_BlightShutdown();
     G_FreeModels();
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;

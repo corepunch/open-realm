@@ -6,13 +6,13 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 66, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 67, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
 - the quest and quest-item graph's strings and status flags;
 - the fixed point-order waypoint edict ring and its circular allocation cursor;
-- one used flag per entity slot and a raw `edict_t` block for used slots;
+- one used flag per entity slot, a raw `edict_t` block for used slots, and its retained native fine-route points;
 - basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
@@ -37,6 +37,15 @@ cap and subsequent position/velocity words. The primitive edict record owns
 this field; no callback or pointer relocation is added. The exact-version guard
 rejects60 and earlier layouts. JSVM remains7. See
 [flat bonus publication](retail-pathfinding-engine.md#flat-bonuses-retain-their-publication-state).
+
+Version67 persists the complete Move-owned fine route: count, current index,
+lane mask and native coordinate words. The process-owned pointer is excluded
+from the raw persistent record and reallocated from the explicit point payload;
+invalid counts, indices and nonfinite coordinates are rejected. Reload releases
+old curves before replacing edicts. The complete controlled wall detour resumes
+with the same remaining22 retail position/velocity/heading steps. Formats66 and
+earlier are incompatible; JASS snapshot7 and wire messages are unchanged. See
+[retained fine routes](retail-pathfinding-engine.md#retained-fine-routes-reproduce-a-complete-retail-detour).
 
 ### Version 40 compatibility concern and possible solution
 

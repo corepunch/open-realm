@@ -353,6 +353,30 @@
           "evidence": "166c30/167d70 route oracles"
         },
         {
+          "offset": 64,
+          "name": "fine_data",
+          "type": "ptr:WC3PathVector2",
+          "evidence": "Complete16c150 wall compositions:162cb0/148100 original route construction and167ce0 cached reads; route buffers at34/54 use data+c/count+1c"
+        },
+        {
+          "offset": 80,
+          "name": "fine_count",
+          "type": "u32",
+          "evidence": "Complete16c150 wall compositions:162cb0/148100 original route construction and167ce0 cached reads; route buffers at34/54 use data+c/count+1c"
+        },
+        {
+          "offset": 96,
+          "name": "adaptive_data",
+          "type": "ptr:WC3PathVector2",
+          "evidence": "Complete16c150 wall compositions:162cb0/148100 original route construction and167ce0 cached reads; route buffers at34/54 use data+c/count+1c"
+        },
+        {
+          "offset": 112,
+          "name": "adaptive_count",
+          "type": "u32",
+          "evidence": "Complete16c150 wall compositions:162cb0/148100 original route construction and167ce0 cached reads; route buffers at34/54 use data+c/count+1c"
+        },
+        {
           "offset": 116,
           "name": "fine_index",
           "type": "i32",

@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**98 done / 281 tasks; 183 remaining.** Counts describe this backlog,
+**99 done / 282 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -24,7 +24,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 20 | 14 |
-| ROUTE — Route progression and yielding | 2 | 9 |
+| ROUTE — Route progression and yielding | 3 | 9 |
 | TARGET — Pursuit and arrival policy | 2 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
@@ -123,6 +123,11 @@ names,23 layouts,142 fields,119 x86 prototypes and35 scalar globals. The sibling
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
+
+ROUTE-02.3 now reproduces the complete controlled wall detour in the engine,
+including turn-stop stepping and saved fine-curve progress. Next runnable work:
+NUM-02.3, extend that whole-motion comparison to nonzero map origins and the
+actual original primary-owner timeline; follow with adaptive-to-fine refill.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
@@ -446,6 +451,8 @@ eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope
 
 - [x] **ROUTE-02.1** Sweep static segment direction/length across four classes and ground/flight masks, including exact corner endpoints and length1 boundaries. All43,244 original sampler results/cell sequences match C at O0/O2;8,064 short segments query no cells. Original software normalizer words and123 supplied-chain waypoint selection/commit calls match. Engine direct/step/retention checks and fine waypoint selection consume the port; four first-sample strip misses are reproduced/fixed and actual wall-gap steering retains original choices. Endpoint admission and dynamic eligibility remain FOOT-04/FINE-01.2/03 and02.2. Evidence: [engine sampler and waypoints](retail-pathfinding-engine.md#retail-segment-sampling-and-waypoint-selection).
 - [ ] **ROUTE-02.2** Hit blocker candidate capacity with ordered objects, then change one obstruction between samples; assert cap/order and the resulting waypoint choice.
+
+- [x] **ROUTE-02.3** Explicitly split ordinary fine-curve initial/progress consumption from the remaining route mode, buffer and yielding tasks. Port count-2 initialization,0.49-cell retention and visible-successor progress into Move; match a complete controlled original34-tick wall detour's position/velocity/heading/index words and22 saved continuation ticks. Evidence: [engine payoff20](retail-pathfinding-engine.md#retained-fine-routes-reproduce-a-complete-retail-detour), frozen trajectory and two fresh original replays. Nonzero origin, real original owner cadence, adaptive refill, dynamic yielding and pooled cleanup remain NUM-02.3/ROUTE-01.2/03..05.
 
 ### ROUTE-03 — Dynamic route composition
 

@@ -70,7 +70,10 @@ void reset_entities(void) {
      * test shrinks max_edicts to num_edicts+1 (26 in the full suite); walking 16000
      * edicts first would G_FreeActorSkills stale high slots. */
     if (cap > MAX_ENTITIES) cap = MAX_ENTITIES;
-    FOR_LOOP(i, cap) G_FreeActorSkills(g_edicts + i);
+    FOR_LOOP(i, cap) {
+        S_FreeMoveRoute(g_edicts+i);
+        G_FreeActorSkills(g_edicts+i);
+    }
     memset(g_edicts, 0, sizeof(edict_t) * cap);
     globals.max_edicts = MAX_ENTITIES;
     globals.num_edicts = game.max_clients;
@@ -143,6 +146,7 @@ static void reset_test_state(void) {
     G_FowShutdown();
     G_BlightShutdown();
     globals.max_edicts = MAX_ENTITIES;
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;

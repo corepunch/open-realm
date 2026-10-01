@@ -3,6 +3,7 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -23,7 +24,7 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),85)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),86)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),100)
         self.assertEqual(sum(e['id'].startswith('live-') for e in entries),27)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
@@ -38,6 +39,18 @@ class CorpusTests(unittest.TestCase):
             self.assertEqual(entry['expected_exit'],1)
             check_report(dict(binary_sha256=self.target['game_sha256'],differences=[{}]*4,
                               stored_size=2,promotion_disabled=False,forced_east_boundary=False,engine_exact_cases=356,cases=356),entry,self.target)
+
+    def test_fine_trajectory_matches_engine_word_reference(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-fine-route-trajectory-1.27.json').read_text())
+        case=frozen['cases'][0]
+        source=(ROOT/'games/warcraft-3/game/tests/t_movement.c').read_text()
+        table=source.split('expected[34][6]={',1)[1].split('};',1)[0]
+        actual=[int(word,16) for word in re.findall(r'0x([0-9a-f]+)u',table)]
+        expected=[]
+        for row in case['steps']:
+            expected.extend(row['position_bits']+row['velocity_bits']+[row['heading_bits'],row['waypoint']])
+        self.assertEqual(case['ticks'],34)
+        self.assertEqual(actual,expected)
 
     def test_inventory_rejects_missing_scripts_changed_fixtures_and_hidden_differences(self):
         with tempfile.TemporaryDirectory() as directory:

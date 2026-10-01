@@ -442,7 +442,11 @@ TEST(wc3_pathfinding, authored_water_and_amphibious_masks_reach_move_queries) {
         unit_changeangle(unit);
         T_ASSERT(!unit->movement.flow_direct);
         T_ASSERT(unit->movement.path.valid);
-        T_ASSERT(fabsf(unit->movement.path.waypoint.y - 4.5f) > 0.01f);
+        /* The raw first successor can be straight; the retained chain owns the detour. */
+        bool detour = false;
+        FOR_LOOP(k,unit->movement.fine_route.count)
+            detour |= fabsf(unit->movement.fine_route.points[k].y - 4.5f) > 0.01f;
+        T_ASSERT(detour);
         unit->data.UnitData = original;
     }
     reset_entities();
@@ -738,14 +742,16 @@ TEST(wc3_pathfinding, mover_detours_follow_retail_fine_routes) {
             continue;
         }
         T_ASSERT(unit->movement.path.valid);
-        T_FEQ(unit->movement.path.waypoint.x, expected.x, 0.001f);
-        T_FEQ(unit->movement.path.waypoint.y, expected.y, 0.001f);
-        /* A ready generic field must not replace the retained retail turn. */
+        T_FEQ(unit->movement.path.waypoint.x, 5.5f, 0.001f);
+        T_FEQ(unit->movement.path.waypoint.y, 5.5f, 0.001f);
+        /* Original168870 starts at count-2, before167bf0 lookahead. A ready
+         * generic field must not replace that first point before .49-cell progress. */
+        T_EQ(unit->movement.fine_route.index,unit->movement.fine_route.count-2);
         unit->s.origin.x += 0.1f;
         unit_changeangle(unit);
         T_ASSERT(unit->movement.path.valid);
-        T_FEQ(unit->movement.path.waypoint.x, expected.x, 0.001f);
-        T_FEQ(unit->movement.path.waypoint.y, expected.y, 0.001f);
+        T_FEQ(unit->movement.path.waypoint.x, 5.5f, 0.001f);
+        T_FEQ(unit->movement.path.waypoint.y, 5.5f, 0.001f);
     }
     reset_entities();
     setup_test_world();
@@ -910,7 +916,10 @@ TEST(wc3_pathfinding, nearby_move_routes_around_idle_unit_footprint) {
     T_ASSERT(!unit->movement.flow_direct);
     T_ASSERT(unit->movement.path.valid);
     T_ASSERT(unit->movement.path.waypoint.x > unit->s.origin2.x);
-    T_ASSERT(fabsf(unit->movement.path.waypoint.y - 4.5f) > 0.01f);
+    bool detour = false;
+    FOR_LOOP(k,unit->movement.fine_route.count)
+        detour |= fabsf(unit->movement.fine_route.points[k].y - 4.5f) > 0.01f;
+    T_ASSERT(detour);
     reset_entities();
     setup_test_world();
 }
@@ -1010,8 +1019,13 @@ TEST(wc3_pathfinding, nearby_move_replans_when_idle_object_enters_retained_segme
     T_ASSERT(unit_issueorder(unit, "move", &target));
     unit_changeangle(unit);
     T_ASSERT(unit->movement.path.valid);
+    /* Progress to the initial raw successor so retail lookahead supplies a
+     * retained segment with interior samples; adjacent endpoints have none. */
+    unit->s.origin2 = unit->movement.path.waypoint;
+    gi.LinkEntity(unit);
+    unit_changeangle(unit);
     vec2_t old = unit->movement.path.waypoint;
-    edict_t *other = make_unit_at((unit->s.origin2.x + old.x) * 0.5f, (unit->s.origin2.y + old.y) * 0.5f);
+    edict_t *other = make_unit_at((unit->s.origin2.x+old.x)*0.5f,(unit->s.origin2.y+old.y)*0.5f);
     other->collision = 0.5f;
     gi.LinkEntity(other);
     movePathQuery_t query = { {&unit->s.origin2, &old, 0.5f, CM_PATHING_UNWALKABLE}, unit, unit->goalentity, true };
@@ -1047,7 +1061,9 @@ TEST(wc3_pathfinding, nearby_move_retains_partial_approach_to_idle_object_wall) 
     unit_changeangle(unit);
     T_ASSERT(unit->movement.path.valid);
     T_ASSERT(!unit->movement.flow_direct);
-    T_FEQ(unit->movement.path.waypoint.x, 10.5f, 0.00001f);
+    T_FEQ(unit->movement.fine_route.points[0].x, 10.5f, 0.00001f);
+    T_FEQ(unit->movement.fine_route.points[0].y, 4.5f, 0.00001f);
+    T_FEQ(unit->movement.path.waypoint.x, 5.5f, 0.00001f);
     T_FEQ(unit->movement.path.waypoint.y, 4.5f, 0.00001f);
     T_FEQ(unit->goalentity->s.origin2.x, target.x, 0.00001f);
     for (int tick = 0; tick < 10; tick++) {

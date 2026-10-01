@@ -605,6 +605,11 @@ static void unit_commit_motion(edict_t *self, moveStep_t const *step) {
 static void unit_moveindirection_policy(edict_t *self,
                                         moveCollisionPolicy_t collision_policy) {
     if ((self->aiflags & AI_IMMOBILE) || self->movement.turn_blocked) {
+        /* Original1603d0 integrates the previous velocity before publishing a turn-induced stop. */
+        if (level.scheduled_think && self->movement.turn_blocked && !(self->aiflags & AI_IMMOBILE)) {
+            unit_commit_current_pose(self);
+            self->s.angle = wc3_facing_angle(self->s.angle);
+        }
         self->movement.velocity = (vec2_t){0};
         return;
     }
@@ -848,13 +853,33 @@ static void unit_changeangle_towards_point_policy(edict_t *self, vec2_t const *p
     unit_apply_heading(self, &dir, policy);
 }
 
+/* Raw curves are process-owned: actor removal, reload and shutdown release them before edict replacement. */
+void S_FreeMoveRoute(edict_t *self) {
+    free(self->movement.fine_route.points);
+    self->movement.fine_route = (moveFineRoute_t){0};
+    self->movement.path.valid = false;
+}
+
 /* Keep the bounded point-route turn until it is reached; retail likewise owns
  * route progress on each mover instead of rebuilding from its current point. */
 static bool unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *dir) {
     if (!self || !point.point || !dir) return false;
     movePathQuery_t query = move_route_query(self, point);
     routePath_t *path = &self->movement.path;
+    moveFineRoute_t *curve = &self->movement.fine_route;
     moveRoutePoint_t turn = { &path->waypoint, point.radius, point.policy };
+    if (query.units) {
+        if (path->valid && (Vector2_distance(&path->target,point.point) >= 1.f ||
+            fabsf(path->radius-point.radius) >= .01f || !move_route_line(self,turn) ||
+            !G_AdvanceUnitMoveFineRoute(&query,curve,&path->waypoint))) path->valid = false;
+        if (!path->valid) {
+            if (!G_BuildUnitMoveFineRoute(&query,curve,&path->waypoint)) return false;
+            path->target = *point.point; path->radius = point.radius; path->valid = true;
+        }
+        *dir = Vector2_sub(&path->waypoint,query.geometry.from);
+        return true;
+    }
+    curve->count = curve->index = 0;
     if (path->valid && (Vector2_distance(&path->target, point.point) >= 1.0f ||
         fabsf(path->radius - point.radius) >= 0.01f ||
         Vector2_distance(query.geometry.from, &path->waypoint) <= CM_PathCellWorldSize() ||
@@ -929,7 +954,8 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
      * Move orders own radius-valid reserved destinations, so their route must
      * use the same footprint as move-time collision; point routing previously
      * sent units into narrow gaps and touching obstacle corners. */
-    if (move_route_line(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy})) {
+    if (move_route_line(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}) &&
+        !(unit_routes_to_location(self) && self->movement.path.valid && self->movement.fine_route.count)) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
@@ -2147,6 +2173,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_UNIT_OWNER_CHANGED: move_repulse_init(ent); return true;
     case A_UNIT_REMOVE:
         if (ent->movement.repulse.active) move_repulse_unlink(ent);
+        S_FreeMoveRoute(ent);
         return true;
     case A_COMMAND: {
         edict_t *clent = call && call->client ? call->client : ent;

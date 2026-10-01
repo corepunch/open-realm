@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **212 entries**: **44** distinct original-code oracle
-scripts plus **41** declared variants, **100** archived JSONL audits and **27**
+The inventory now has **213 entries**: **44** distinct original-code oracle
+scripts plus **42** declared variants, **100** archived JSONL audits and **27**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 79 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 80 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 92 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -523,3 +523,18 @@ This makes212 entries:44 scripts plus41 variants,100 archive audits and27 live
 contracts. Supplied classifications and preallocated storage remain explicit;
 these comparisons do not certify map producers, special edges, capacity limits
 or full gameplay trajectories.
+
+
+## Complete fine-route trajectory reference
+
+`fine-route-trajectory-reference` freezes and repeats the controlled original
+34-tick wall detour twice, comparing position, velocity, heading and route-index
+words to `retail-fine-route-trajectory-1.27.json`. The68 steps agree. The actual
+engine callback independently reproduces that complete trace and its22 saved
+continuation ticks; see [engine payoff20](retail-pathfinding-engine.md#retained-fine-routes-reproduce-a-complete-retail-detour).
+Fresh acceptance: `fine-route-trajectory-corpus-accepted-261001/corpus-results.json`.
+The initial tuple/list export comparison was rejected and retained as diagnostic;
+JSON canonicalization corrected that structural mismatch without changing words.
+The current inventory has213 entries (44 scripts,42 variants,100 archive audits,
+27 live contracts) and75 checksummed fixtures. Controlled radius/profile and
+elapsed inputs exclude stock producer and real primary-owner cadence claims.

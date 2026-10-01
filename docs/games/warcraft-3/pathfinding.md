@@ -397,3 +397,11 @@ seeded random queries use its exact words, replacing libc range/modulo draws;
 its overlap-direction helper matches original scalar sine/cosine output.
 Authored repulsion now consumes this owner state through Move; original
 proximity cell order and multi-neighbor draw chronology remain open. See [engine payoff17](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).
+
+
+Ordinary location detours now retain the complete native fine curve, first raw
+successor and0.49-cell progress threshold. The actual Move callback matches a
+controlled original wall detour's34 position/velocity/heading steps exactly,
+including turn stops and natural arrival; save/load retains the same remaining
+motion. See [complete fine-route detour](retail-pathfinding-engine.md#retained-fine-routes-reproduce-a-complete-retail-detour)
+for the fixture and remaining world-origin/scheduler/adaptive/yield limits.

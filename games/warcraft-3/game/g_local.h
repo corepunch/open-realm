@@ -19,6 +19,14 @@
 #include "games/warcraft-3/common/wc3_math.h"
 #include "games/warcraft-3/common/wc3_pathing_random.h"
 #include "games/warcraft-3/common/wc3_pathing_repulsion.h"
+#include "games/warcraft-3/common/wc3_pathing_limits.h"
+
+/* Move owns the fine-coordinate chain; allocation follows route length, not the edict pool size. */
+typedef struct {
+    vec2_t *points;
+    uint32_t count, index;
+    uint8_t mask;
+} moveFineRoute_t;
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
@@ -1662,6 +1670,7 @@ struct edict_s {
         edict_t *flow_fallback_goal;
         moveFallbackState_t flow_fallback_state;
         routePath_t path; /* mover-owned waypoint cache; geometry contract shared with other server games */
+        moveFineRoute_t fine_route;
         uint32_t group_id; /* Move-owned active selection identity; independent of waypoint ring reuse. */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float flat_speed_bonus; /* AIms maximum last published by a speed setter/order, independent of live inventory. */
@@ -2646,6 +2655,9 @@ typedef struct {
     bool units;
 } movePathQuery_t;
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
+void S_FreeMoveRoute(edict_t *self);
+bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
+bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 void G_FreeMovePathCache(void);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
 bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *query, float const fine[2]);

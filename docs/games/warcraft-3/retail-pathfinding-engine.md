@@ -651,7 +651,7 @@ LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test-wc3-engine WC3_PATTERN='wc3_ap
 The strict corpus entry is `owner-current-order-query`.
 This is bounded **O/C plus engine regression** evidence. It does not establish
 full retail engine clock/route parity. The remaining command owners are
-indexed by [ORDER-01.6](retail-pathfinding-todo.md#order-01--arrival-and-failure),
+indexed by [ORDER-01.6](retail-pathfinding-todo.md#order-01--arrival-and-failure-dispatch),
 with completed Follow/Hold slices and explicit remaining leaves below:
 Patrol/Attack, economy commands and ability/channel/metadata owners do not yet
 maintain this field consistently. Their queries can return zero or retain the
@@ -2890,3 +2890,68 @@ both RoC and TFT; the production release executable builds without C warnings.
 All137 pathfinding tool tests, ability coverage audit, backlog ID/count checks,
 document links and `git diff --check` pass. The initial broader run caught the
 old winding-corridor expectation; it is now updated to the new legal route.
+
+
+## Retained fine routes reproduce a complete retail detour
+
+Engine payoff20 fixes a concrete route-to-motion mismatch. Original168870
+initializes a new destination-first fine curve at count-2;167ce0 exposes that
+raw successor. Original167070 keeps it until the predicted native position is
+within0.49 fine cells, then165e60/167bf0 select progressively farther visible
+successors. The engine previously smoothed immediately and reconsidered the
+turn every whole cell. Ordinary location detours now retain the full fine chain,
+initial index and subsequent progress through the Move ability. A retained
+curve continues when the final goal becomes visible; it is not replaced by the
+generic flow field or by a fresh direct-goal shortcut.
+
+The versioned `retail-fine-route-trajectory-1.27.json` freezes all34 ticks of a
+controlled original singleton wall detour: fine positions, velocities, heading
+words and route indices. The new corpus entry `fine-route-trajectory-reference`
+replays the original twice and compares all68 steps to that reference. The
+actual engine test creates authored `hRTE` through compiled JASS, issues the
+public Move order and executes the real Move callback with the same1/32 elapsed
+input. All34 position/velocity/heading steps agree exactly, including the
+turn-induced stops and natural final arrival. Active curve indices agree;
+the final inactive storage lifetime is deliberately not equated with retail's
+pooled release. Saving at tick12 and restoring reproduces the remaining22 ticks.
+
+That whole-motion regression exposed two additional production errors: a
+turn-induced stop discarded the old-velocity step, and its stored heading could
+remain above2pi. Scheduled Move now commits that previous step before publishing
+zero velocity and wraps the stopped facing through the verified scalar helper.
+The first-point regression and complete word trajectory both failed before
+these corrections. The broader routing regressions retain their lane, blocker,
+partial-route and generic-field checks while expecting the raw first successor;
+a dynamic blocker is inserted after progress produces a segment with interior
+samples, because the original length<=1 sampler has none.
+
+Save67 serializes native curve points, count, index and mask. Its process pointer
+is runtime-only and rebuilt by the reader; bounds and finite-point checks reject
+invalid payloads. Earlier formats are rejected by the exact-version guard.
+Move owns curve cleanup on public actor removal, reload, test reset and module
+shutdown. Wire messages, JASS snapshot7 and the callback roster are unchanged.
+The scheduler lifecycle regression exercises pause/resume, Stop, replacement
+and deferred public removal. Stock radius producers, fresh open-line steering,
+nonzero-origin whole-route words, actual original primary-owner cadence, dynamic
+yield/retry, adaptive refill and original buffer growth remain required. This
+controlled motion match does not close those broader gates.
+
+Accepted original artifact under the local analysis root:
+`fine-route-trajectory-corpus-accepted-261001/corpus-results.json`.
+Ghidra retains456 names,31 layouts,177 verified fields and170 explicit prototypes.
+The four new fields type the fine/adaptive point-buffer pointers and counts in
+`WC3PathPrefix`. Saved readback:
+`runtime/route-progress-ghidra-types-261001.json` and its repeat. The schema
+preflight now permits canonical pointers to separately checked refined layouts;
+incompatible offsets, field identities and byte extents still refuse mutation.
+
+Validation for payoff20: the required umbrella and production release build pass.
+Forced release suites pass47,805 assertions in2,228 cases for both RoC and TFT;
+all138 pathfinding tool tests pass, including the frozen-to-engine word-table
+check. Ability coverage, backlog counts/IDs, new document links and diff checks
+pass. The first release attempt exposed an unused search-definition warning
+from including its implementation in the common game declaration header; it
+was stopped, the existing bounds were extracted into `wc3_pathing_limits.h`,
+and the complete final release checks passed without C compiler warnings.
+The first lifecycle fixture's misplaced SLK row was corrected and its authored
+turn/window values are now asserted. Failed attempts grant no accepted evidence.

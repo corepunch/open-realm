@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "44 executable original-code oracle scripts,41 selected exact/frozen variants,27 explicit live/profile/repeat contracts and100 archived capture audits.",
+  "scope": "44 executable original-code oracle scripts,42 selected exact/frozen variants,27 explicit live/profile/repeat contracts and100 archived capture audits.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -12754,6 +12754,108 @@
         "Allocation/growth/stamp-wrap lifetime",
         "Full retail adaptive-to-fine handoff and movement trajectory"
       ]
+    },
+    {
+      "id": "fine-route-trajectory-reference",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_motion.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}",
+        "--route-trajectory-reference",
+        "tools/ghidra/fixtures/retail-fine-route-trajectory-1.27.json",
+        "--route-trajectory-fixture",
+        "{report}.fixture.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-route-trajectory-reference.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "move_owner_active_separation_cases": {
+          "minimum": 1
+        },
+        "engine_exact_world_velocity_cases": {
+          "equal": 1040
+        },
+        "engine_exact_heading_error_cases": {
+          "minimum": 1
+        },
+        "exact_formation_cases": {
+          "equal": 865
+        },
+        "mixed_formation_cases": {
+          "equal": 720
+        },
+        "engine_formation_cases": {
+          "equal": 865
+        },
+        "native_pose_sequences": {
+          "equal": 18
+        },
+        "native_pose_commits": {
+          "equal": 288
+        },
+        "native_pose_world_differences": {
+          "equal": 139
+        },
+        "engine_native_pose_commits": {
+          "equal": 288
+        },
+        "position_write_cases": {
+          "equal": 576
+        },
+        "position_next_move_cases": {
+          "equal": 576
+        },
+        "engine_position_write_cases": {
+          "equal": 576
+        },
+        "engine_position_next_move_cases": {
+          "equal": 576
+        },
+        "primary_clock_advances": {
+          "equal": 6000
+        },
+        "primary_clock_motion_commits": {
+          "equal": 1000
+        },
+        "primary_clock_controls": {
+          "equal": 1944
+        },
+        "engine_primary_clock_advances": {
+          "equal": 6000
+        },
+        "engine_primary_clock_controls": {
+          "equal": 1944
+        },
+        "route_trajectory_exact_replays": {
+          "equal": 2
+        },
+        "route_trajectory_steps": {
+          "equal": 68
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Two repeated complete original controlled wall trajectories freeze positions, velocities, headings and cached route indices through natural arrival. Engine gameplay regression compares the same34-tick words and saved continuation separately.",
+      "exclusions": [
+        "Stock movement radius/profile",
+        "Primary owner cadence",
+        "Broader maps, targets and crowds"
+      ]
     }
   ],
   "fixtures": [
@@ -12819,7 +12921,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "09f75d4189d4508186f23d935ae93aa639dd9de90610c5d8e4471c652e6867de"
+      "sha256": "3f64f1061fa039d746bcf4c2057561fcfb4c0fa614f8f5d61555a286f8f2fadb"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -13052,6 +13154,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-repulsion-1.27.json",
       "sha256": "ae10ed982d48798c845596f7e527db6a6ee5e208cee1947b171ce1b11b006da0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-route-trajectory-1.27.json",
+      "sha256": "b329d82dd2ca44e4078563e9a3149c04bd7e3005d1ccf895ff9fd2ec72cde0fa"
     }
   ]
 }

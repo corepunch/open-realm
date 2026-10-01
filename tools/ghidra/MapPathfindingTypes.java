@@ -26,6 +26,20 @@ public class MapPathfindingTypes extends GhidraScript {
 
     // A larger body of evidence may name previously undefined bytes. Preserve
     // every existing field, type, offset and comment before allowing refinement.
+    private boolean preservesType(DataType existing, DataType desired) {
+        if (existing.isEquivalent(desired)) return true;
+        if (existing.getLength() != desired.getLength()) return false;
+        if (existing instanceof Pointer && desired instanceof Pointer) {
+            DataType old = ((Pointer)existing).getDataType(), next = ((Pointer)desired).getDataType();
+            // The referenced canonical layout is preflighted separately. Refining its
+            // undefined bytes must not invalidate every unchanged pointer to that layout.
+            return old != null && next != null && old.getPathName().equals(next.getPathName()) &&
+                old.getCategoryPath().equals(CATEGORY) && types.containsKey(old.getName());
+        }
+        return existing instanceof Structure && desired instanceof Structure &&
+            existing.getPathName().equals(desired.getPathName()) && preservesFields(existing,desired);
+    }
+
     private boolean preservesFields(DataType existing, DataType desired) {
         if (!(existing instanceof Structure) || !(desired instanceof Structure) ||
             existing.getLength() != desired.getLength()) return false;
@@ -34,7 +48,7 @@ public class MapPathfindingTypes extends GhidraScript {
             if (Undefined.isUndefined(field.getDataType())) continue;
             DataTypeComponent replacement = next.getComponentAt(field.getOffset());
             if (replacement == null || replacement.getOffset() != field.getOffset() ||
-                !field.getDataType().isEquivalent(replacement.getDataType()) ||
+                !preservesType(field.getDataType(),replacement.getDataType()) ||
                 !java.util.Objects.equals(field.getFieldName(), replacement.getFieldName()) ||
                 !java.util.Objects.equals(field.getComment(), replacement.getComment())) return false;
         }

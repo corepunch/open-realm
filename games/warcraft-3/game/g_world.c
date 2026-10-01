@@ -24,7 +24,8 @@ static void *move_acc_storage;
 static uint32_t move_acc_revision, move_acc_width, move_acc_height;
 static uint8_t *move_acc_classes[4][4];
 static uint8_t const move_acc_masks[4] = {2,4,0x40,0x80};
-typedef struct { movePathQuery_t const *input; wc3FineVector_t source, target; } moveAdaptiveQuery_t;
+typedef struct { movePathQuery_t const *input; wc3FineVector_t source, target; moveFineRoute_t *route; } moveAdaptiveQuery_t;
+static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *out);
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
 static bool entity_is_live_walkable_surface(edict_t const *ent) {
@@ -478,13 +479,13 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
     vec2_t local = move_world_from_grid(point.x,point.y);
     movePathQuery_t nearby = *input; nearby.geometry.target = &local;
     /* Coarse representatives lie within the next8-base-cell region; refine that local leg with live units. */
-    if (!G_FindUnitMovePathWaypoint(&nearby,out)) return false;
+    if (!move_find_route(&nearby,query->route,out)) return false;
     return true;
 }
 
 /* Reconstruct destination-first points, then use the original next-point /
  * progressively farther selection policy. Move retains the selected turn. */
-bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
+static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *curve, vec2_t *out) {
     if (!input) return false;
     pathAccelParams_t const *params = &input->geometry;
     vec2_t source, target;
@@ -495,7 +496,7 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
     wc3FinePoint_t start = { (int)floorf(a.x), (int)floorf(a.y) };
     wc3FinePoint_t goal = { (int)floorf(b.x), (int)floorf(b.y) };
     if (abs(start.x - goal.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - goal.y) > PATH_ACCEL_MAX_DISTANCE)
-        return move_adaptive_waypoint(&(moveAdaptiveQuery_t){input,{a.x,a.y},{b.x,b.y}},out);
+        return move_adaptive_waypoint(&(moveAdaptiveQuery_t){input,{a.x,a.y},{b.x,b.y},curve},out);
     moveFineGraph_t graph = move_foot_shape(params);
     move_query_objects(&graph, input, NULL);
     bool target_hit = false;
@@ -525,6 +526,15 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
                  : wc3_route_center(endpoint)};
     uint32_t count = wc3_fine_reconstruct(&route, move_fine_points, BZ_WC3_FINE_NODES);
     if (count < 2) return false;
+    if (curve) {
+        vec2_t *points = realloc(curve->points,count*sizeof(*points));
+        if (!points) gi.error("WC3 fine routing: cannot retain %u route points",count);
+        curve->points = points; curve->count = count; curve->index = count-2;
+        curve->mask = params->blocked_flags;
+        FOR_LOOP(i,count) curve->points[i] = (vec2_t){move_fine_points[i].x,move_fine_points[i].y};
+        *out = move_world_from_grid(curve->points[curve->index].x,curve->points[curve->index].y);
+        return true;
+    }
     wc3FineSegment_t query = { .start = {a.x, a.y},
         .cls = (unsigned)graph.size - 1, .cell = move_cell_ok, .data = &graph };
     uint32_t chosen = wc3_segment_waypoint(&query, (wc3FineRoute_t){move_fine_points, count - 1});
@@ -532,6 +542,35 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
     /* Preserve admitted world words when the selected point is the exact goal. */
     *out = complete && endpoint.x == goal.x && endpoint.y == goal.y && chosen == 0
         ? target : move_world_from_grid(point.x, point.y);
+    return true;
+}
+
+bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
+    return move_find_route(input,NULL,out);
+}
+
+bool G_BuildUnitMoveFineRoute(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *out) {
+    return route && move_find_route(input,route,out);
+}
+
+/* Original167070 retains the current point until .49 cells, then165e60 skips visible successors. */
+bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *out) {
+    if (!input || !input->geometry.from || !out || !route || !route->points || route->count < 2 ||
+        route->count > BZ_WC3_FINE_NODES || route->index >= route->count || route->mask != input->geometry.blocked_flags)
+        return false;
+    vec2_t source = move_grid_from_world(input->geometry.from->x,input->geometry.from->y);
+    vec2_t point = route->points[route->index];
+    float dx = wc3_sub(point.x,source.x), dy = wc3_sub(point.y,source.y), range = wc3_float(0x3efae148);
+
+    if (wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy)) <= wc3_mul(range,range)) {
+        if (!route->index) return false;
+        FOR_LOOP(i,route->count) move_fine_points[i] = (wc3FineVector_t){route->points[i].x,route->points[i].y};
+        moveFineGraph_t graph = move_foot_shape(&input->geometry); move_query_objects(&graph,input,NULL);
+        wc3FineSegment_t segment = {.start={source.x,source.y},.cls=(unsigned)graph.size-1,.cell=move_cell_ok,.data=&graph};
+        route->index = wc3_segment_waypoint(&segment,(wc3FineRoute_t){move_fine_points,route->index});
+        point = route->points[route->index];
+    }
+    *out = move_world_from_grid(point.x,point.y);
     return true;
 }
 

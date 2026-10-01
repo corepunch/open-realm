@@ -60,6 +60,8 @@ def main():
     parser.add_argument('--clock-trajectory-fixture', type=Path, help='export original primary-clock and old-velocity trajectory')
     parser.add_argument('--position-fixture', type=Path, help='export original world-position bridge writes')
     parser.add_argument('--heading-fixture', type=Path, help='export raw original vector-heading errors for asset-free C replay')
+    parser.add_argument('--route-trajectory-fixture', type=Path, help='export complete controlled wall-route decisions and original mover parameters')
+    parser.add_argument('--route-trajectory-reference', type=Path, help='check complete controlled wall-route words against the frozen fixture')
     args = parser.parse_args()
     if args.world_velocity_fixture and not args.engine_library:parser.error('--world-velocity-fixture requires --engine-library for exact guard comparisons')
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
@@ -2586,6 +2588,7 @@ def main():
                             snapshot=dict(snap),events=list(active_events),attempted=bool(attempts),accepted=results==[1],
                             candidates=query_count,model_error=model_error,positions=[read(m+0x78,2) for m in [support_mover,second_mover]],
                             vectors=[read(q+0x18,3) for q in sep_nodes]))
+                initial_motion={hex(offset):read(support_mover+offset)[0] for offset in (0x88,0x8c,0x90,0xb0,0xb4,0xb8,0xbc,0xc0,0xc4)}
                 for elapsed_tick in range(1,129):
                     machine.reg_write(UC_X86_REG_EDX,arrival_release_clock)
                     run(0x6f054190,elapsed_ptr)
@@ -2626,7 +2629,7 @@ def main():
                         assert (math.floor(actual_position[0]),math.floor(actual_position[1])) not in blocked
                         assert all(read(cells[1]+(y*16+x)*4)[0]&0x02000000 for x,y in blocked)
                         obstacle_steps.append(dict(tick=elapsed_tick,start_bits=[float_bits(v) for v in old_position],position_bits=read(support_mover+0x78,2),
-                            velocity_bits=read(support_mover+0x80,2),waypoint=read(tick_path+0x74)[0],clearance=clearance,nearest=witness))
+                            velocity_bits=read(support_mover+0x80,2),heading_bits=read(support_mover+0x8c)[0],waypoint=read(tick_path+0x74)[0],clearance=clearance,nearest=witness))
                     if read(support_unit+0x174)[0]==0xffffffff:break
                 else:raise AssertionError('real elapsed trajectory did not arrive')
                 if adaptive:
@@ -2875,7 +2878,7 @@ def main():
                             boundaries='Post-arrival two-mover separation; first mover retains real completed ability/task history, second mover has controlled path/occupancy with no ability/task or unit payload. Recycled CPoSeparate pool, preallocated query storage. Native endpoint validator retains fine collision flags; proximity descriptor high exclusion byte clear. Original region callback executes with no region payloads. No simultaneous active group/visual passes, exact-overlap random branch or populated shared groups'))
                     else:adaptive_arrival_cases.append(adaptive_row)
                 elif obstacle:
-                    obstacle_arrival_cases.append(dict(blocked=sorted(blocked),start=position,goal=target,route=initial_route,
+                    obstacle_arrival_cases.append(dict(blocked=sorted(blocked),start=position,goal=target,route=initial_route,initial_motion=initial_motion,
                         route_cost=route_cost,expanded_nodes=37,ticks=elapsed_tick,steps=obstacle_steps,
                         minimum_swept_clearance=min(row['clearance'] for row in obstacle_steps),
                         radius=0.25,radius_bits=float_bits(0.25),radius_world=8,
@@ -3114,6 +3117,23 @@ def main():
                       engine_exact_velocity_heading_cases=len(facing_cases) if engine else 0,
                       engine_exact_facing_angle_cases=len(facing_angles) if engine else 0,
                       engine_exact_heading_error_cases=angle_cases+heading_boundary_cases+deadzone_cases)
+    if args.route_trajectory_fixture or args.route_trajectory_reference:
+        route_cases=[{**{key:row[key] for key in ('blocked','start','goal','route','ticks','initial_motion','radius_bits','radius_world')},
+            'steps':[{key:step[key] for key in ('tick','start_bits','position_bits','velocity_bits','heading_bits','waypoint')} for step in row['steps']]} for row in obstacle_arrival_cases]
+        # Compare the persisted representation: synthetic coordinates are tuples before JSON serialization.
+        route_cases=json.loads(json.dumps(route_cases))
+        payload=dict(version=1,binary_sha256=digest,source_entry='6f16c150',elapsed_bits=float_bits(1/32),world_origin=[0,0],cell_world=32,
+            cases=route_cases,scope='Complete controlled original group/member route setup, fine search, progression, steering, commits and natural arrival. Supplied radius.25/mask02000000; stock hfoo movement profile and primary owner cadence excluded.')
+        if args.route_trajectory_reference:
+            frozen=json.loads(args.route_trajectory_reference.read_text())
+            assert all(payload[key]==frozen[key] for key in ('version','binary_sha256','source_entry','elapsed_bits','world_origin','cell_world'))
+            assert len(frozen['cases'])==1 and all(row==frozen['cases'][0] for row in route_cases)
+            report['route_trajectory_exact_replays']=len(route_cases)
+            report['route_trajectory_steps']=sum(row['ticks'] for row in route_cases)
+            report['route_trajectory_reference_sha256']=hashlib.sha256(args.route_trajectory_reference.read_bytes()).hexdigest()
+    if args.route_trajectory_fixture:
+        args.route_trajectory_fixture.parent.mkdir(parents=True,exist_ok=True)
+        args.route_trajectory_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
 
