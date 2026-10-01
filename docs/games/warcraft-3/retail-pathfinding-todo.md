@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**90 done / 271 tasks; 181 remaining.** Counts describe this backlog,
+**91 done / 272 tasks; 181 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -253,6 +253,8 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 - [ ] **MAP-03.5** Exercise a resource depletion/removal lifecycle; assert footprint and hierarchy changes before the next request.
 - [ ] **MAP-03.6** Exercise destructible destruction and cache invalidation through the final free; assert the next route no longer sees the dead blocker.
 - [x] **MAP-03.7** Explicitly add inside-footprint engine escape integration: retain static terrain/object masks, reproduce idle(0,-64) inside9×9 active construction, verify failure and interruption/Stop cleanup through normal frames. Evidence: [solid recovery](retail-pathfinding-search.md#solid-widget-cant-path-recovery), frozen original stock-mask solid9×9 variant completes after seven stationary1/32 group ticks and restores queues/group/path/task/order/wrapper pools; fresh134/134 corpus. [Engine integration](retail-pathfinding-engine.md#solid-footprint-escape-failure-and-cleanup) reproduces three stuck-lifecycle failures, then uses existing progress budget for statically blocked displacement and normal stand/queue completion. Margin escape, replacement Move, Stop, terrain and unrelated-building blocking pass. Exact engine retry/task cadence remains NUM-02.3; no static collision bypass or whole-trajectory claim.
+
+- [x] **MAP-03.8** Port public terrain pathing queries/writes into the engine, preserve independent bits/cells, compose blocked placement, and retain the mutable terrain through save/load. Evidence: [terrain natives reach the engine](retail-pathfinding-engine.md#terrain-pathing-natives-reach-the-engine), 1,040 complete original public query/write cases (3,130 native calls), exact production scalar/flag helpers at O0/O2 twice, real JASS queries/edits and six frozen public placement endpoints, Save64 terrain/Blight round-trip. Legacy field-cache invalidation is explicit; original adaptive update timing and the broader invalidation producers remain03.3.
 
 ### MAP-04 — Temporary exclusions
 

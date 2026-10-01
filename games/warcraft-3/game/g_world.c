@@ -186,6 +186,67 @@ static bool move_cell_ok(void const *data, wc3FinePoint_t pos) {
     return true;
 }
 
+/* Native terrain words use the original direct software world/fine transform.
+ * Static entity footprints are composed separately from this mutable WPM byte. */
+static bool terrain_pathing_cell(vec2_t const *point, uint32_t *index) {
+    if (!point || !pathmap.terrain || !pathmap.width || !pathmap.height) return false;
+    vec2_t fine = move_grid_from_world(point->x,point->y);
+    uint32_t x = wc3_int_bits(wc3_floor_bits(wc3_float_bits(fine.x)));
+    uint32_t y = wc3_int_bits(wc3_floor_bits(wc3_float_bits(fine.y)));
+    if (x >= pathmap.width || y >= pathmap.height) return false;
+    *index = y * pathmap.width + x;
+    return true;
+}
+
+bool G_GetTerrainPathingFlags(vec2_t const *point, uint8_t *flags) {
+    uint32_t index;
+    if (!terrain_pathing_cell(point,&index)) return false;
+    *flags = *(uint8_t const *)(pathmap.terrain+index);
+    return true;
+}
+
+/* Blight owns its cell/dirty-row lifecycle; the pathing byte is its world
+ * consumer. Updating this bit does not alter movement obstacle masks. */
+void G_SetTerrainBlightCell(uint32_t x, uint32_t y, bool add) {
+    if (x >= pathmap.width || y >= pathmap.height || !pathmap.terrain) return;
+    uint32_t index = y * pathmap.width + x;
+    pathMapCell_t *grids[] = {pathmap.terrain,pathmap.original,pathmap.data};
+    FOR_LOOP(i,3) if (grids[i]) {
+        uint8_t *flags = (uint8_t *)(grids[i]+index);
+        *flags = add ? *flags | WC3_PATH_BLIGHTED : *flags & (uint8_t)~WC3_PATH_BLIGHTED;
+    }
+}
+
+bool G_SetTerrainPathingFlags(terrainPathingEdit_t const *edit) {
+    uint32_t index;
+    if (!terrain_pathing_cell(&edit->point,&index)) return false;
+    uint8_t *flags = (uint8_t *)(pathmap.terrain+index), before = *flags;
+    *flags = wc3_terrain_pathing_edit(*flags,edit->mask,edit->blocked);
+    if (*flags == before) return true;
+    if (edit->mask & WC3_PATH_BLIGHTED)
+        G_SetBlightPathCell(index%pathmap.width,index/pathmap.width,(*flags & WC3_PATH_BLIGHTED)!=0);
+    /* The legacy field cache consumes baked masks. Invalidate it when the
+     * mutable terrain changes; retail adaptive classification remains separate. */
+    CM_BakeStaticObstacles();
+    return true;
+}
+
+uint32_t G_GetTerrainPathingStateSize(void) { return pathmap.terrain ? pathmap.width * pathmap.height : 0; }
+
+bool G_GetTerrainPathingState(uint8_t *data, uint32_t size) {
+    if (size != G_GetTerrainPathingStateSize() || (size && !data)) return false;
+    if (size) memcpy(data,pathmap.terrain,size);
+    return true;
+}
+
+/* Save restores terrain before Blight and before the entity obstacle bake.
+ * Snapshot the mutable WPM bytes, never transient dynamic occupancy. */
+bool G_SetTerrainPathingState(uint8_t const *data, uint32_t size) {
+    if (size != G_GetTerrainPathingStateSize() || (size && !data)) return false;
+    if (size) memcpy(pathmap.terrain,data,size);
+    return true;
+}
+
 /* Original744040/750100 select the nearest W3E vertex from the fine cell.
  * TODO FOOT-04:78bc90 also overlays bridge levels; recover that producer before
  * claiming forced placement across a bridge or a layered support surface. */

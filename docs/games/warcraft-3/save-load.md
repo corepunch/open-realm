@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 63, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 64, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -618,3 +618,11 @@ Public `SetUnitPosition/Loc` clear active Move/Patrol, queued orders and group
 state before placement. A save immediately afterward retains the exact fine
 pose and remains stationary after load; no additional fields or format change
 are needed. See [forced-position restoration](retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine).
+
+Version64 adds a counted byte stream of mutable terrain pathing immediately
+before Blight. It preserves native `SetTerrainPathable` changes separately from
+static entity footprints and transient dynamic occupancy. Load validates the
+byte count against the reloaded map, restores terrain and Blight, then bakes
+static footprints after entity reconstruction. The exact-version guard rejects
+63 and earlier. Edict, callback and JSVM7 layouts remain unchanged. See
+[terrain natives](retail-pathfinding-engine.md#terrain-pathing-natives-reach-the-engine).

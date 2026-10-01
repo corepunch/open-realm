@@ -863,11 +863,19 @@ TEST(wc3_movement, blocked_position_matches_original_ring_endpoints) {
                                     {-1936,-560},{-1872,-400},{-2000,-592}};
     static cstring_t const functions[] = {"centre","fractional","west","east","north","centre"};
     reset_entities(); setup_test_world(); memset(cells,0,sizeof(cells));
-    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells);
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells); G_BlightInit();
     memset(level.regions,0,sizeof(level.regions)); level.num_regions = 0;
     memset(level.triggers,0,sizeof(level.triggers)); level.num_triggers = 0;
     memset(&level.events,0,sizeof(level.events));
     T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function patch takes integer radius returns nothing\n"
+        "local integer y = 80-radius\nlocal integer x\n"
+        "loop\nexitwhen y>80+radius\nset x=163-radius\n"
+        "loop\nexitwhen x>163+radius\n"
+        "call SetTerrainPathable(-7168+x*32+16,-3072+y*32+16,ConvertPathingType(1),false)\n"
+        "set x=x+1\nendloop\nset y=y+1\nendloop\nendfunction\n"
+        "function small takes nothing returns nothing\ncall patch(1)\nendfunction\n"
+        "function large takes nothing returns nothing\ncall patch(2)\nendfunction\n"
         "function main takes nothing returns nothing\n"
         "set mover = CreateUnit(Player(0),'hfoo',-1936,-976,0)\nendfunction\n"
         "function centre takes nothing returns nothing\ncall SetUnitPosition(mover,-1936,-512)\nendfunction\n"
@@ -880,16 +888,52 @@ TEST(wc3_movement, blocked_position_matches_original_ring_endpoints) {
     T_NOT_NULL(unit); if (!unit) return;
     unit->collision = 31; unit->stand = unit_stand; unit_stand(unit);
     for (unsigned i=0;i<6;i++) {
-        unsigned radius = i==5 ? 2 : 1;
-        for (unsigned y=80-radius;y<=80+radius;y++)
-            for (unsigned x=163-radius;x<=163+radius;x++) cells[y*256+x] = WC3_PATH_UNWALKABLE;
-        CM_SetupTestPathmap(256,128,cells);
+        jass_callbyname(level.vm,i==5 ? "large" : "small",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
         jass_callbyname(level.vm,functions[i],false);
         T_ASSERT(!jass_rterror_pending(level.vm));
         T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(expected[i].x));
         T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(expected[i].y));
         T_EQ(unit->current_order_id,0);
     }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_movement, terrain_native_edits_redirect_active_move_and_invalidate_cached_route) {
+    edict_t *unit = make_moving_unit(80,176);
+    uint8_t cells[16*16] = {0};
+    vec2_t target = {400,176};
+    unit->svflags |= SVF_MONSTER; unit->unitinfo.MoveSpeed = 256;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});
+    CM_SetupTestPathmap(16,16,cells); G_BlightInit(); gi.LinkEntity(unit);
+    T_ASSERT(unit_issueorder(unit,"move",&target));
+    uint32_t generation = CM_BuildHeatmap(unit->goalentity);
+    CM_ProcessPathJobs(4096);
+    T_ASSERT(CM_ActivateCachedFlow(generation));
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->movement.flow_direct);
+    T_ASSERT(run_test_jass(
+        "function wall takes boolean passable returns nothing\nlocal integer y=0\n"
+        "loop\nexitwhen y>12\n"
+        "call SetTerrainPathable(272,y*32+16,ConvertPathingType(1),passable)\n"
+        "set y=y+1\nendloop\nendfunction\n"
+        "function clear takes nothing returns nothing\ncall wall(true)\nendfunction\n"
+        "function main takes nothing returns nothing\ncall wall(false)\nendfunction\n"));
+    T_ASSERT(!CM_ActivateCachedFlow(generation));
+    for (unsigned frame=0;frame<15;frame++) {
+        level.time += FRAMETIME; unit->currentmove->think(unit); CM_ProcessPathJobs(4096);
+        T_ASSERT(CM_PointIsPathableForRadius(&unit->s.origin2,0));
+    }
+    T_ASSERT(fabsf(unit->s.origin2.y-176)>2);
+    T_ASSERT(!unit->movement.flow_direct);
+    jass_callbyname(level.vm,"clear",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    for (unsigned frame=0;frame<160 && unit->current_order_id;frame++) {
+        level.time += FRAMETIME; unit->currentmove->think(unit); CM_ProcessPathJobs(4096);
+    }
+    T_EQ(unit->current_order_id,0);
+    /* Ordinary zero-range Move finishes inside the recovered0.49 fine-cell gate. */
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&target)<=wc3_mul(wc3_float(0x3efae148),32));
     reset_entities(); setup_test_world();
 }
 
@@ -5017,7 +5061,7 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
         units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -640, (int)i * 200 - 200);
         rows[i] = *units[i]->data.UnitData; rows[i].formationRank = i == 2 ? 1 : 0;
         units[i]->data.UnitData = rows + i;
-        units[i]->collision = 16; units[i]->selected = 1;
+        units[i]->collision = 16; units[i]->selected = 1; units[i]->svflags |= SVF_MONSTER;
         units[i]->stand = unit_stand; units[i]->movetype = MOVETYPE_STEP;
         unit_stand(units[i]); gi.LinkEntity(units[i]);
     }

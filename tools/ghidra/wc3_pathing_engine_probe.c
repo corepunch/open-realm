@@ -7,6 +7,21 @@
 #include "games/warcraft-3/common/wc3_pathing_formation.h"
 #include "games/warcraft-3/common/wc3_pathing_placement.h"
 
+/* Complete public terrain native inputs: XY/origin words, type, seed, passable. */
+void pathing_terrain_native(uint32_t const input[7], uint32_t output[4]) {
+    uint32_t x = wc3_int_bits(wc3_floor_bits(wc3_float_bits(
+        wc3_grid_coordinate(wc3_float(input[0]),wc3_float(input[2]),32))));
+    uint32_t y = wc3_int_bits(wc3_floor_bits(wc3_float_bits(
+        wc3_grid_coordinate(wc3_float(input[1]),wc3_float(input[3]),32))));
+    uint8_t mask = wc3_pathingtype_mask(input[4]), flags = input[5];
+    bool outside = x >= 16 || y >= 16;
+    output[0] = mask;
+    output[1] = outside || (flags & mask) != 0;
+    if (!outside) flags = wc3_terrain_pathing_edit(flags,mask,!input[6]);
+    output[2] = outside || (flags & mask) != 0;
+    output[3] = flags;
+}
+
 /* Existing mover image70..8c, current clock, new cap and fine flags. */
 void pathing_speed_cap(uint32_t const input[13], uint32_t output[10]) {
     for (unsigned i = 0; i < 8; i++) output[i] = input[i];

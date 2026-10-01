@@ -12249,6 +12249,53 @@
       "exclusions": [
         "Nondegenerate rectangles, other scan policies, caller clipping and nonnull callbacks."
       ]
+    },
+    {
+      "id": "oracle-terrain-natives",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_terrain_natives.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "oracle-terrain-natives.json",
+      "expected_exit": 0,
+      "expected_status": "original-engine-exact",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 1040
+        },
+        "original_calls": {
+          "equal": 3130
+        },
+        "stack_abi_verified": {
+          "equal": true
+        },
+        "mode_seh_restoration": {
+          "equal": true
+        },
+        "unrelated_cells_preserved": {
+          "equal": true
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Complete public terrain query/write chains: ten enums, thirteen seeded bytes, both booleans and four source points; exact scalar/flag helper comparison.",
+      "exclusions": [
+        "Adaptive rebuild and dynamic object occupancy are separate producers."
+      ]
     }
   ],
   "fixtures": [
@@ -12314,7 +12361,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "e0c9b9f0ede1af8e9215d5943c70612e481efd3a5fcdbeee581f523a7f51b6ab"
+      "sha256": "0cdccfa38c0dd04b65451c79fce5c770b56fb50ee8112e1ad1d3b61aff0b7924"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -12535,6 +12582,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-placement-1.27.json",
       "sha256": "6e9bcfad764275e396d858234daad70b6ddb8c2bd38422c9f7c0101aa0122fbc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-terrain-natives-1.27.json",
+      "sha256": "f717d882d6f0f87c9310a2ebe6963e303dffb28a4973231cf792219ee59ddaed"
     }
   ]
 }

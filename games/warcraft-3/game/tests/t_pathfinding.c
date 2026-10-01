@@ -248,7 +248,7 @@ TEST(wc3_pathfinding, point_move_arrival_replays_saved_velocity_and_queued_succe
     reset_entities();
     setup_test_world();
     edict_t *unit = make_unit_at(128.f, 128.f);
-    unit->unitinfo.MoveSpeed = 100.f;
+    unit->unitinfo.MoveSpeed = 100.f; unit->svflags |= SVF_MONSTER;
     gi.LinkEntity(unit);
     T_ASSERT(unit_issueorder(unit, "move", &target));
     unit->currentmove->think(unit);

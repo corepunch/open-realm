@@ -1,5 +1,6 @@
 #include "games/warcraft-3/common/minimap.h"
 #include "games/warcraft-3/common/wc3_math.h"
+#include "games/warcraft-3/common/wc3_pathing_masks.h"
 
 extern player_t *currentplayer;
 
@@ -975,12 +976,19 @@ uint32_t IsPointBlighted(jass_t *j) {
     return jass_pushboolean(j, G_IsPointBlighted(&point));
 }
 uint32_t IsTerrainPathable(jass_t *j) {
-    (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checkhandle(j, 3, "pathingtype");
-    return jass_pushboolean(j, true);
+    vec2_t point = {jass_checknumber(j,1),jass_checknumber(j,2)};
+    uint32_t const *type = jass_checkhandle(j,3,"pathingtype");
+    uint8_t flags = 0, mask = wc3_pathingtype_mask(type ? *type : 0);
+    bool valid = G_GetTerrainPathingFlags(&point,&flags);
+    /* Retail returns blocked status, despite the native's name. */
+    return jass_pushboolean(j,!valid || (flags & mask)!=0);
 }
 uint32_t SetTerrainPathable(jass_t *j) {
-    (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checkhandle(j, 3, "pathingtype");
-    (void)jass_checkboolean(j, 4);
+    terrainPathingEdit_t edit = {.point = {jass_checknumber(j,1),jass_checknumber(j,2)}};
+    uint32_t const *type = jass_checkhandle(j,3,"pathingtype");
+    edit.mask = wc3_pathingtype_mask(type ? *type : 0);
+    edit.blocked = !jass_checkboolean(j,4);
+    G_SetTerrainPathingFlags(&edit);
     return 0;
 }
 static uint32_t TerrainDeformEmit(jass_t *j, terrainDeform_t *deformation) {

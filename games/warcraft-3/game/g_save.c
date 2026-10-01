@@ -77,9 +77,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format63 retains Move's primary clock, callback phase and prediction origin.
- * Earlier edict layouts are rejected. */
-static uint32_t const save_version = 63;
+/* Format64 adds mutable terrain bytes before Blight, retaining Move's clock.
+ * Earlier streams lack this terrain section and are rejected. */
+static uint32_t const save_version = 64;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -1761,6 +1761,36 @@ static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
     return true;
 }
 
+static bool WriteTerrainPathing(FILE *f) {
+    uint32_t const size = G_GetTerrainPathingStateSize();
+    uint8_t *data = NULL;
+    bool ok;
+
+    if (!SaveBytes(f, &size, sizeof(size))) return false;
+    if (!size) return true;
+    data = gi.MemAlloc(size);
+    if (!data) return false;
+    ok = G_GetTerrainPathingState(data, size) && SaveBytes(f, data, size);
+    gi.MemFree(data);
+    return ok;
+}
+
+static bool ReadTerrainPathing(FILE *f) {
+    uint32_t size, expected;
+    uint8_t *data = NULL;
+    bool ok;
+
+    if (!LoadBytes(f, &size, sizeof(size))) return false;
+    expected = G_GetTerrainPathingStateSize();
+    if (size != expected) return false;
+    if (!size) return true;
+    data = gi.MemAlloc(size);
+    if (!data) return false;
+    ok = LoadBytes(f, data, size) && G_SetTerrainPathingState(data, size);
+    gi.MemFree(data);
+    return ok;
+}
+
 static bool WriteBlight(FILE *f) {
     uint32_t const size = G_GetBlightStateSize();
     uint8_t *data = NULL;
@@ -1829,6 +1859,7 @@ bool WriteGame(cstring_t filename) {
     if (!WriteMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
     }
+    if (!WriteTerrainPathing(f)) { fprintf(stderr, "WC3 SaveGame: failed at terrain pathing state\n"); goto done; }
     if (!WriteBlight(f)) { fprintf(stderr, "WC3 SaveGame: failed at blight state\n"); goto done; }
     if (!WriteGroups(f)) goto done;
     FOR_LOOP(i, game.max_clients) {
@@ -1927,6 +1958,7 @@ bool ReadGame(cstring_t filename) {
         fprintf(stderr, "WC3 LoadGame: invalid event handle generation at slot %u\n", (unsigned)i);
         fclose(f); return false;
     }
+    if (!ReadTerrainPathing(f)) { fprintf(stderr, "WC3 LoadGame: failed at terrain pathing state\n"); fclose(f); return false; }
     if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
     G_ResetJassGroupDebug();
     if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
@@ -1966,6 +1998,7 @@ bool ReadGame(cstring_t filename) {
             ent->owner->client->rally_indicator = ent;
     }
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
+    CM_BakeStaticObstacles();
     fclose(f);
     /* Cinefilters are transient client presentation, not part of the save
      * contract. Map reload can leave its baseline black filter displayed;
@@ -2058,8 +2091,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-60.bin",
         "/tmp/openwarcraft3-wc3-save-version-61.bin",
         "/tmp/openwarcraft3-wc3-save-version-62.bin",
+        "/tmp/openwarcraft3-wc3-save-version-63.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63 };
 
     reset_entities();
     setup_test_world();

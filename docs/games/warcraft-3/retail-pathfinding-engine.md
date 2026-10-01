@@ -2655,9 +2655,9 @@ exact destinations. Existing public SetUnitPosition/Loc blocked-cell tests now
 expect the retail cell centre272,240. CreateUnit and item drops retain their
 separate placement producer, whose native parity remains open.
 
-The engine regression installs the synthetic edited pathmap directly. The
-engine `SetTerrainPathable` native remains unimplemented; the complete retail
-scene is not yet runnable unchanged in the engine. Bridge support-level
+The initial regression installed the synthetic edited pathmap directly; the
+[next integration](#terrain-pathing-natives-reach-the-engine) now drives these
+same endpoints through actual JASS terrain edits. Bridge support-level
 overlays, outside-map clipping, callback rejection controls and broader object
 categories also remain open. The base authored terrain-level condition is
 ported; no bridge-level approximation is claimed. Save63 and wire layouts are
@@ -2672,3 +2672,59 @@ Validation: required `make test` and forced release RoC/TFT each pass45,325
 assertions in2,213 cases;133 pathfinding tool tests, production release build,
 engine/menu boundary audits and all four strict corpus entries pass. Native
 SDL2 is used as documented; production builds report no C warnings.
+
+## Terrain pathing natives reach the engine
+
+The engine previously discarded `SetTerrainPathable` and returned true for every
+`IsTerrainPathable` query. These now read and edit the mutable fine terrain byte.
+Despite its name, the retail query returns **blocked**, including outside-map
+coordinates even when the enum selects an empty mask. `SetTerrainPathable`
+inverts the passable boolean and changes only the selected bits of one32-unit
+cell; it never re-derives the amphibious bit from no-walk/no-float edits.
+
+Recovered public contracts are cdecl `205e90` (X/Y scalar pointers, pathingtype)
+and `2148f0` (same plus passable). Cdecl `201630` returns only AL: enum0 selects
+ff, enums1..7 select02/04/08/10/20/40/80, and other values select0. Query wrapper
+`04e090` shifts this byte into the high word and delegates `04df50`, with the
+low object-category mask zero. Thus public terrain queries ignore dynamic
+objects and baked scenery footprints. Point conversion uses the established
+software world-origin subtraction and direct32 scaling; mode and SEH restore
+on both admitted and outside exits.
+
+`verify_wc3_pathing_terrain_natives.py` executes complete public native chains,
+without replacing imports: ten enums, thirteen seed bytes, both booleans and
+four admitted/fractional/outside sources. All1,040 cases and3,130 original calls
+retain unrelated cells, low occupancy words and endpoint mode. Frozen
+`retail-terrain-natives-1.27.json` matches production scalar/flag helpers at O0
+and O2 twice. Fresh `terrain-natives-corpus-accepted-261001` passes its strict
+entry. Existing retail scene39 independently supplies34 actual terrain edits
+and six resulting public placement endpoints.
+
+Actual JASS engine tests reproduced61 failures across180 assertions before
+the native port. The placement regression now builds its blocked patches
+through JASS rather than replacing routing storage and retains all six exact
+retail coordinate pairs. Further tests prove outside/empty-mask handling,
+independent amphibious state, and terrain queries versus baked object blockers.
+A live Move regression inserts a wall after the direct route is admitted,
+proves the cached field is invalidated, follows15 legal detour steps, removes
+the wall through the native and completes inside the recovered0.49-cell
+arrival gate. Blight edits update the shared cell/dirty-row owner and terrain20 consistently.
+Save64 stores mutable terrain before Blight and rebuilds static obstacles after
+restoring entities. Its regression failed two assertions before persistence was
+added; unrelated cells and all native bits now survive. Two movement save
+fixtures now set the real spawned actor classification flag so rebuilding
+static footprints cannot misclassify them as scenery.
+
+Terrain mutation rebuilds the engine's existing baked obstacle map and
+invalidates its legacy field cache. This is an explicit engine integration
+policy; retail adaptive classification stays stale until its separate update
+producer, whose exact scheduling remains MAP-03.3. No hierarchy or full edited
+movement trajectory parity is claimed. Bridge levels and outside placement
+clipping remain FOOT-04. Ghidra saves427 descriptive names,161 explicit
+prototypes,29 partial layouts/164 fields and44 globals; readback is
+`runtime/terrain-native-ghidra-readback-261001.json`.
+
+Validation: required `make test` and forced release RoC/TFT each pass45,561
+assertions in2,217 cases;134 pathfinding tool tests, fresh original-native
+corpus entry, production release build and engine/menu boundary audits pass.
+Native SDL2 is used as documented; production builds report no C warnings.

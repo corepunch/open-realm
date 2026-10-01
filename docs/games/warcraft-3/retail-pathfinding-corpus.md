@@ -10,7 +10,7 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **204 entries**: **41** distinct original-code oracle
+The inventory now has **205 entries**: **42** distinct original-code oracle
 scripts plus **39** declared variants, **98** archived JSONL audits and **26**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 75 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 76 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 90 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -481,3 +481,9 @@ exact C endpoints; seven actual candidate searches and six scalar writes repeat.
 Fresh acceptance is `blocked-position-corpus-final-accepted-261001`; the inventory
 now contains71 pinned fixtures. [Scope and engine evidence](retail-pathfinding-engine.md#blocked-placement-reaches-the-engine)
 keep the five-ring embedded Stop producer and bridge/outside-map admission open.
+
+MAP-03.8 adds one complete public terrain-native oracle, with1,040 query/write
+cases and3,130 original calls, exact production helper results and untouched
+neighbor/occupancy/mode guards. `terrain-natives-corpus-accepted-261001` is the
+fresh accepted report. The inventory now pins72 repository fixtures. See
+[engine terrain integration](retail-pathfinding-engine.md#terrain-pathing-natives-reach-the-engine).

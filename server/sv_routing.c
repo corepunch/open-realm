@@ -47,7 +47,7 @@ typedef struct {
 struct {
     uint32_t width;
     uint32_t height;
-    pathMapCell_t *terrain;  /* immutable WPM terrain before entity footprints */
+    pathMapCell_t *terrain;  /* authored/mutable terrain before entity footprints */
     pathMapCell_t *original;
     pathMapCell_t *data;
     routeNode_t *heatmap;
@@ -592,7 +592,7 @@ static void routing_debug_pathtex(edict_t const *ent, point2_t p, pathTexTransfo
 }
 #endif
 
-/* Rebuild current static obstacles from the immutable terrain baseline.  This
+/* Rebuild current static obstacles from the mutable terrain baseline.  This
  * is normally called once after map spawning, and again only when a static
  * footprint changes (building creation or destructable death). */
 void CM_BakeStaticObstacles(void) {

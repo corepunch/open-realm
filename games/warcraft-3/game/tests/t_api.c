@@ -3389,6 +3389,98 @@ static void setup_set_unit_position_pathmap(void) {
         .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
 }
 
+/* Public terrain natives must mutate just the selected fine-cell bits and
+ * report blocked status. Native type201630 is distinct from movement masks. */
+TEST(wc3_api, terrain_pathing_natives_preserve_other_bits_and_cells) {
+    uint8_t const masks[] = {255,2,4,8,16,32,64,128,0};
+    box2_t bounds = {{-1024,-2048},{1024,0}};
+    static uint8_t cells[64*64];
+    char script[2048];
+    for (unsigned type=0;type<9;type++) {
+        unsigned rawtype = type==8 ? 42 : type;
+        for (unsigned seed=0;seed<4;seed++) {
+            uint8_t flags=(uint8_t[]){0,1,0x55,0xaa}[seed], after=flags|masks[type];
+            memset(cells,0,sizeof(cells)); cells[5*64+4]=flags; cells[5*64+5]=0x91;
+            reset_entities(); setup_test_world();
+            CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells); G_BlightInit();
+            snprintf(script,sizeof(script),
+                "function main takes nothing returns nothing\n"
+                "local pathingtype p=ConvertPathingType(%u)\n"
+                "call BJassAssert(IsTerrainPathable(-895.875,-1887.75,p)==%s,\"terrain query before\")\n"
+                "call SetTerrainPathable(-895.875,-1887.75,p,false)\n"
+                "call BJassAssert(IsTerrainPathable(-895.875,-1887.75,p)==%s,\"terrain query blocked\")\n"
+                "call SetTerrainPathable(-895.875,-1887.75,p,true)\n"
+                "call BJassAssert(not IsTerrainPathable(-895.875,-1887.75,p),\"terrain query cleared\")\n"
+                "call SetTerrainPathable(-895.875,-1887.75,p,false)\n"
+                "endfunction\n",rawtype,flags&masks[type]?"true":"false",masks[type]?"true":"false");
+            T_ASSERT(run_test_jass(script));
+            uint8_t actual=0;
+            T_ASSERT(CM_GetPathingFlagsAt(&(vec2_t){-895.875,-1887.75},&actual));
+            T_EQ(actual,after);
+            T_ASSERT(CM_GetPathingFlagsAt(&(vec2_t){-863.875,-1887.75},&actual));
+            T_EQ(actual,0x91);
+        }
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_api, terrain_pathing_natives_survive_save_and_restore_blight) {
+    cstring_t filename = "/tmp/openwarcraft3-terrain-pathing-save.bin";
+    uint8_t cells[16*16] = {0}, flags = 0;
+    vec2_t point = {144,176}, neighbor = {176,176};
+    reset_entities(); setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});
+    CM_SetupTestPathmap(16,16,cells); G_BlightInit();
+    T_ASSERT(run_test_jass(
+        "function block takes nothing returns nothing\n"
+        "call SetTerrainPathable(144,176,ConvertPathingType(0),false)\nendfunction\n"
+        "function clear takes nothing returns nothing\n"
+        "call SetTerrainPathable(144,176,ConvertPathingType(0),true)\nendfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "call BJassAssert(IsTerrainPathable(144,176,ConvertPathingType(1)),\"saved walking bit\")\n"
+        "call BJassAssert(IsTerrainPathable(144,176,ConvertPathingType(5)),\"saved blight bit\")\n"
+        "endfunction\nfunction main takes nothing returns nothing\ncall block()\nendfunction\n"));
+    T_ASSERT(G_IsPointBlighted(&point)); T_ASSERT(!G_IsPointBlighted(&neighbor));
+    T_ASSERT(WriteGame(filename));
+    jass_callbyname(level.vm,"clear",false);
+    T_ASSERT(!G_IsPointBlighted(&point));
+    T_ASSERT(G_GetTerrainPathingFlags(&point,&flags)); T_EQ(flags,0);
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm,"verify",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_GetTerrainPathingFlags(&point,&flags)); T_EQ(flags,255);
+    T_ASSERT(G_IsPointBlighted(&point)); T_ASSERT(!G_IsPointBlighted(&neighbor));
+    T_ASSERT(G_GetTerrainPathingFlags(&neighbor,&flags)); T_EQ(flags,0);
+    remove(filename); reset_entities(); setup_test_world();
+}
+
+TEST(wc3_api, terrain_pathing_query_ignores_objects_and_preserves_native_amphibious_bit) {
+    uint8_t cells[16*16] = {0}, flags = 0;
+    vec2_t point = {144,176};
+    reset_entities(); setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});
+    CM_SetupTestPathmap(16,16,cells); G_BlightInit();
+    edict_t *object = alloc_test_unit(0,point.x,point.y);
+    object->collision = 16; object->svflags = 0; gi.LinkEntity(object);
+    CM_BakeStaticObstacles();
+    T_ASSERT(CM_GetPathingFlagsAt(&point,&flags)); T_ASSERT(flags & 2);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call BJassAssert(not IsTerrainPathable(144,176,ConvertPathingType(1)),\"objects are not terrain\")\n"
+        "call BJassAssert(IsTerrainPathable(-0.125,176,ConvertPathingType(42)),\"outside with empty mask\")\n"
+        "call BJassAssert(IsTerrainPathable(512,176,ConvertPathingType(1)),\"max edge is outside\")\n"
+        "call SetTerrainPathable(-0.125,176,ConvertPathingType(0),false)\n"
+        "call SetTerrainPathable(144,176,ConvertPathingType(1),false)\n"
+        "call SetTerrainPathable(144,176,ConvertPathingType(6),false)\n"
+        "call BJassAssert(not IsTerrainPathable(144,176,ConvertPathingType(7)),\"native writes do not derive amphibious bit\")\n"
+        "call SetTerrainPathable(144,176,ConvertPathingType(1),true)\n"
+        "call BJassAssert(not IsTerrainPathable(144,176,ConvertPathingType(1)),\"terrain clears under object\")\n"
+        "endfunction\n"));
+    T_ASSERT(G_GetTerrainPathingFlags(&point,&flags)); T_EQ(flags,64);
+    T_ASSERT(CM_GetPathingFlagsAt(&point,&flags)); T_ASSERT(flags & 2);
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_api, set_unit_position_unstucks_from_blocked_pathing) {
     edict_t *moved;
 

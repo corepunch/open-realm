@@ -3803,6 +3803,126 @@
           "storage": "EDX"
         }
       ]
+    },
+    {
+      "address": "6f2148f0",
+      "name": "Jass_SetTerrainPathable",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "type",
+          "type": "i32",
+          "storage": 12
+        },
+        {
+          "name": "passable",
+          "type": "u32",
+          "storage": 16
+        }
+      ]
+    },
+    {
+      "address": "6f205e90",
+      "name": "Jass_IsTerrainPathable",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "type",
+          "type": "i32",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f201630",
+      "name": "PathingType_TerrainMask",
+      "returns": "u8",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "type",
+          "type": "i32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f04e090",
+      "name": "PathWorld_TestTerrainPointMask",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        },
+        {
+          "name": "mask",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f04df50",
+      "name": "PathWorld_TestPointQuery",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        },
+        {
+          "name": "mask",
+          "type": "ptr:u32",
+          "storage": 4
+        },
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [

@@ -246,6 +246,19 @@ class PathingMathTests(unittest.TestCase):
                 with self.subTest(mutation=mutation,opt=engine._name),self.assertRaises(ValueError):
                     verify_placement(changed,engine,adjusted)
 
+    def test_terrain_natives_match_complete_original_queries_and_writes(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-terrain-natives-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']),1040)
+        self.assertEqual(fixture['original_calls'],3130)
+        self.assertTrue(fixture['unrelated_cells_preserved'])
+        for engine in self.engines:
+            engine.pathing_terrain_native.argtypes=[ctypes.POINTER(ctypes.c_uint32)]*2
+            for repeat in range(2):
+                for case in fixture['cases']:
+                    output=(ctypes.c_uint32*4)()
+                    engine.pathing_terrain_native((ctypes.c_uint32*7)(*case['input']),output)
+                    self.assertEqual(list(output),case['output'],(case['input'],engine._name,repeat))
+
     def test_point_placement_matches_original_ring_endpoints(self):
         fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-point-placement-1.27.json').read_text())
         self.assertEqual(len(fixture['cases']),1152)
