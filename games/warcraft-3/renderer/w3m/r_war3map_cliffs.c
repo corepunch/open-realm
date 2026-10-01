@@ -252,7 +252,7 @@ static bool R_GrowCliffVertexSamples(uint32_t count) {
         if (capacity > UINT32_MAX / 2) { capacity = count; break; }
         capacity *= 2;
     }
-    if (capacity > SIZE_MAX / sizeof(*samples) || capacity > SIZE_MAX / sizeof(*generation))
+    if ((size_t)capacity > SIZE_MAX / sizeof(*samples) || (size_t)capacity > SIZE_MAX / sizeof(*generation))
         return false;
     samples = ri.MemAlloc((size_t)capacity * sizeof(*samples));
     generation = ri.MemAlloc((size_t)capacity * sizeof(*generation));
