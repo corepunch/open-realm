@@ -427,3 +427,14 @@ void pathing_world_grid(uint32_t const *input, uint32_t *out) {
         out[k+4] = wc3_float_bits(wc3_world_coordinate(grid, wc3_float(input[k+2]), wc3_float(input[k+4])));
     }
 }
+
+/* Native fine XY, world velocity XY, world origin XY, elapsed. */
+void pathing_native_pose(uint32_t const *input, uint32_t *out) {
+    wc3GridPose_t pose = { .grid = {wc3_float(input[0]), wc3_float(input[1])},
+        .origin = {wc3_float(input[4]), wc3_float(input[5])} };
+    float velocity[2] = {wc3_float(input[2]), wc3_float(input[3])};
+    wc3_grid_step(&pose, velocity, wc3_float(input[6]));
+    for (unsigned k = 0; k < 2; k++) {
+        out[k] = wc3_float_bits(pose.grid[k]); out[k+2] = wc3_float_bits(pose.world[k]);
+    }
+}

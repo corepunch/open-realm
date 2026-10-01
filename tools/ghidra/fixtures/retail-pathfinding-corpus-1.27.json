@@ -373,13 +373,22 @@
         },
         "mixed_formation_cases": {
           "equal": 720
+        },
+        "native_pose_sequences": {
+          "equal": 18
+        },
+        "native_pose_commits": {
+          "equal": 288
+        },
+        "native_pose_world_differences": {
+          "equal": 139
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Original mover speed/heading update with exact binary-fraction inputs.\n\nNo stubs or retail bytes. Tests speed/heading update, angle-error composition and parameter setters;\nposition integration, group decisions/formations/completion, deferred release, and full\narrival dispatch with actual terrain support refresh, task completion, next-task acceptance/rejection,\nfresh fine/adaptive searches, elapsed obstacle detours, owner scheduling/visual settling,\nand controlled two-mover separation with an active-order eligibility composition.\nSee report counts/exclusions.\n",
+      "scope": "Original mover speed/heading update with exact binary-fraction inputs.\n\nNo stubs or retail bytes. Tests speed/heading update, angle-error composition and parameter setters;\nposition integration, group decisions/formations/completion, deferred release, and full\narrival dispatch with actual terrain support refresh, task completion, next-task acceptance/rejection,\nfresh fine/adaptive searches, elapsed obstacle detours, owner scheduling/visual settling,\nand controlled two-mover separation with an active-order eligibility composition.\nSee report counts/exclusions.\n Retained fine-pose sequences compare288 supplied-.1 commits and separate world inverse;139 commits differ from direct world integration. Original public-clock/cadence phase remains excluded.",
       "exclusions": [
         "non-binary-fraction rounding",
         "angle-error bit parity",
@@ -1790,13 +1799,25 @@
         },
         "engine_formation_cases": {
           "equal": 865
+        },
+        "native_pose_sequences": {
+          "equal": 18
+        },
+        "native_pose_commits": {
+          "equal": 288
+        },
+        "native_pose_world_differences": {
+          "equal": 139
+        },
+        "engine_native_pose_commits": {
+          "equal": 288
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Original mover speed/heading update with exact binary-fraction inputs.\n\nNo stubs or retail bytes. Tests speed/heading update, angle-error composition and parameter setters;\nposition integration, group decisions/formations/completion, deferred release, and full\narrival dispatch with actual terrain support refresh, task completion, next-task acceptance/rejection,\nfresh fine/adaptive searches, elapsed obstacle detours, owner scheduling/visual settling,\nand controlled two-mover separation with an active-order eligibility composition.\nSee report counts/exclusions.\n Also compare production C words with executed original kernels.",
+      "scope": "Original mover speed/heading update with exact binary-fraction inputs.\n\nNo stubs or retail bytes. Tests speed/heading update, angle-error composition and parameter setters;\nposition integration, group decisions/formations/completion, deferred release, and full\narrival dispatch with actual terrain support refresh, task completion, next-task acceptance/rejection,\nfresh fine/adaptive searches, elapsed obstacle detours, owner scheduling/visual settling,\nand controlled two-mover separation with an active-order eligibility composition.\nSee report counts/exclusions.\n Also compare production C words with executed original kernels. Retained fine-pose sequences compare288 supplied-.1 commits and separate world inverse;139 commits differ from direct world integration. Original public-clock/cadence phase remains excluded.",
       "exclusions": [
         "non-binary-fraction rounding",
         "angle-error bit parity",
@@ -11180,6 +11201,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-world-grid-boundaries-1.27.json",
       "sha256": "f571a489959b991ec6e223cf4f15d8588f0c706a6a8634415bd79459480aa8d5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-native-pose-1.27.json",
+      "sha256": "65ba45d7b7c2711057d094bfa3852ddb840286f880e92b81d9678de5cd585cfe"
     }
   ]
 }

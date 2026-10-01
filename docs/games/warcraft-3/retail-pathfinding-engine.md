@@ -2274,3 +2274,53 @@ was updated before accepting the final run. Boundary/link audits are clean.
 Forced debug and optimized release routing runs each pass588 assertions in78
 cases per schema. The production build succeeds with the same game-owned
 conversion; no debug traces remain in the implementation.
+
+## Retained fine pose reaches Move
+
+`1603d0` updates native fine position at mover`78/7c`, using the velocity and
+elapsed scalar before updating both spatial rectangles. Publishing world
+coordinates multiplies by32 and adds the map origin with separate software
+operations. Integrating directly in world coordinates changes the committed
+words on nonzero origins. Reprojecting published coordinates each frame can
+also discard fine-pose bits.
+
+`verify_wc3_pathing_motion.py` now executes18 retained-pose sequences with16
+commits each: three initial positions, origins `(0,0)`, `(-256,-256)` and
+`(-2048,512)`, and constant/alternating oblique headings. Every interval uses a
+controlled zero-elapsed `16fe20` velocity publication followed by complete
+`1603d0` integration with supplied elapsed0.1. Spatial records and pose remain
+live between steps. Original `06f9c0` and `06fbb0` compose the world inverse.
+All288 fine/world results match production C;139 world results differ from the
+old direct-world integration. The frozen
+`tools/ghidra/fixtures/retail-native-pose-1.27.json` is compared twice at O0/O2.
+The primary report is `native-pose-original-engine-first-261001.json`.
+
+Move retains `movement.fine_pose`, previews candidate integration without
+mutating it, and commits it only after collision admission. Explicit world
+commits invalidate it. A changed published world axis is reprojected on the
+next preview while an unchanged axis retains its fine bits. Save format62
+persists the fine position and validity; no network struct changes are needed.
+The actual16-step Move regression failed all32 world position assertions
+before the port, while velocity/facing already matched. A positive-origin
+case covers fine/world/velocity/facing words, eight-step save/reload, blocked
+candidate preservation, changed-world repositioning and explicit snap
+invalidation. Natural point arrival also consumes the retained pose before
+publishing zero velocity; its previous forecast failed four of ten assertions.
+Arrival geometry uses the map cell size: stock WPM32 retains the original
+fine words, while one-unit synthetic routing maps keep their authored scale.
+
+This is a numerical integration payoff with supplied elapsed time. The engine
+still uses its existing frame cadence and new-velocity update phase;
+NUM-02.3 owns original public clock production and old-velocity phase parity.
+Complete public forced-position/native setter behavior remains BASE-01.4,
+including same-world-word writes that deliberately reproject native pose.
+Ghidra's saved integration annotation records these boundaries.
+
+Fresh `native-pose-corpus-final-261001` motion/original-C entries both pass.
+
+Validation: complete RoC and TFT suites each pass42,599 assertions in2206
+cases, plus125 pathfinding tool tests; forced release/native comparisons are
+recorded beside the primary report. The production release build passes.
+A separate warning cleanup corrects an existing six-anchor HUD array copy and
+bounded string copies; its serializer regression preserves both axis arrays
+and frame references.

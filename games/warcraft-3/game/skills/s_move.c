@@ -37,6 +37,11 @@ typedef struct {
     float radius;
 } moveSlot_t;
 
+typedef struct {
+    wc3Velocity_t velocity;
+    wc3GridPose_t pose;
+} moveStep_t;
+
 #define MOVE_SLIDE_STEP BZ_ROUTE_SLIDE_STEP
 #define MOVE_SLIDE_RINGS BZ_ROUTE_SLIDE_RINGS
 #define MOVE_SLIDE_RINGS_YIELD 2                               /* +/- 30 deg: faster unit holds its line */
@@ -330,32 +335,54 @@ bool M_MoveIsValid(edict_t *self, vec2_t const *pos) {
 static void unit_commit_step(edict_t *self, vec2_t const *cand) {
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     self->s.origin2 = *cand;
+    self->movement.pose_valid = false;
     self->movement.worker_avoid_blocked_frames = 0;
     self->s.origin.x = cand->x;
     self->s.origin.y = cand->y;
     gi.LinkEntity(self);
 }
 
-/* Keep the verified velocity arithmetic in Move while preserving the engine's current frame cadence.
- * TODO: move integration to the retail grid/clock owner once its public producer chain is recovered. */
-static vec2_t unit_step_heading(edict_t *self, float angle, wc3Velocity_t *v) {
+/* Preserve native low bits on unchanged axes; world position writers reproject changed axes. */
+static void unit_grid_pose(edict_t const *self, wc3GridPose_t *pose) {
+    box2_t const bounds = CM_GetWorldBounds();
+    *pose = (wc3GridPose_t){ .grid = {self->movement.fine_pose.x, self->movement.fine_pose.y},
+        .origin = {bounds.min.x, bounds.min.y}, .world = {self->s.origin2.x, self->s.origin2.y} };
+    FOR_LOOP(k, 2) {
+        float old = wc3_world_coordinate(pose->grid[k], pose->origin[k], 32);
+        if (!self->movement.pose_valid || wc3_float_bits(old) != wc3_float_bits(pose->world[k]))
+            pose->grid[k] = wc3_grid_coordinate(pose->world[k], pose->origin[k], 32);
+    }
+}
+
+/* Retain accepted native pose after the common explicit-world commit invalidates its old value. */
+static void unit_commit_pose(edict_t *self, wc3GridPose_t const *pose) {
+    vec2_t cand = {pose->world[0], pose->world[1]};
+    unit_commit_step(self, &cand);
+    self->movement.fine_pose = (vec2_t){pose->grid[0], pose->grid[1]};
+    self->movement.pose_valid = true;
+}
+
+/* Preview in the retained native fine pose before collision admission.
+ * TODO: NUM-02.3 owns original clock cadence and integrate-old-velocity phase. */
+static vec2_t unit_step_heading(edict_t *self, float angle, moveStep_t *step) {
     float speed = unit_current_speed(self);
+    wc3Velocity_t *v = &step->velocity;
     *v = (wc3Velocity_t){ .vel = {self->movement.velocity.x, self->movement.velocity.y},
         .speed = speed, .heading = angle, .limit = speed };
     wc3_velocity_update_world(v);
-    float pos[2] = {self->s.origin2.x, self->s.origin2.y};
-    wc3_integrate(pos, v->vel, 10.0f / FRAMETIME);
-    return (vec2_t){pos[0], pos[1]};
+    unit_grid_pose(self, &step->pose);
+    wc3_grid_step(&step->pose, v->vel, 10.0f / FRAMETIME);
+    return (vec2_t){step->pose.world[0], step->pose.world[1]};
 }
 
-/* Retail160060 commits facing from the resulting velocity; stopped16fe20 uses the requested heading. */
-static void unit_commit_motion(edict_t *self, vec2_t const *cand, wc3Velocity_t const *v) {
+/* Retail160060 commits facing from velocity. Only accepted candidates retain the previewed fine pose. */
+static void unit_commit_motion(edict_t *self, moveStep_t const *step) {
+    wc3Velocity_t const *v = &step->velocity;
     self->movement.velocity = (vec2_t){v->vel[0], v->vel[1]};
-    /* Original mover velocity is in32-world-unit fine cells; its tiny-speed guard uses that scale. */
     float grid_x = wc3_mul(v->vel[0], wc3_float(0x3d000000));
     float grid_y = wc3_mul(v->vel[1], wc3_float(0x3d000000));
     self->s.angle = v->speed > 0 ? wc3_velocity_heading(grid_x, grid_y, self->s.angle) : wc3_facing_angle(v->heading);
-    unit_commit_step(self, cand);
+    unit_commit_pose(self, &step->pose);
 }
 
 /* Advance the unit one tick.  Avoidance is decided ONCE per tick in
@@ -389,7 +416,7 @@ static void unit_moveindirection_policy(edict_t *self,
         return;
     }
 
-    wc3Velocity_t motion;
+    moveStep_t motion;
     vec2_t facing_dir, heading_dir;
     wc3_sincos(self->s.angle, &facing_dir.y, &facing_dir.x);
     wc3_sincos(self->movement.heading, &heading_dir.y, &heading_dir.x);
@@ -407,12 +434,12 @@ static void unit_moveindirection_policy(edict_t *self,
     if ((!unit_routes_to_location(self) ||
          (Vector2_dot(&facing_dir, &heading_dir) >= 0.0f && facing_progress)) &&
         move_is_valid_policy(self, &by_facing, collision_policy)) {
-        unit_commit_motion(self, &by_facing, &motion);
+        unit_commit_motion(self, &motion);
         return;
     }
     vec2_t const by_heading = unit_step_heading(self, self->movement.heading, &motion);
     if (move_is_valid_policy(self, &by_heading, collision_policy)) {
-        unit_commit_motion(self, &by_heading, &motion);
+        unit_commit_motion(self, &motion);
         return;
     }
     self->movement.velocity = (vec2_t){0};
@@ -1576,17 +1603,22 @@ static void move_hold(edict_t *ent) {
 
 /* Actual zero-range point Move publishes .49 fine cells. Target approaches
  * and other ability owners retain their own arrival contract (TARGET-01.2/3).
- * TODO: NUM-02.3 replaces the current world/frame geometry and integration
- * with the original fine-grid clock owner; this ports the arrival decision. */
+ * TODO: NUM-02.3 supplies the original clock cadence; fine-pose integration
+ * and arrival geometry already retain the original scalar words. */
 static bool move_point_arrival(edict_t *ent) {
-    float cell = CM_PathCellWorldSize();
-    float pos[2] = {ent->s.origin2.x, ent->s.origin2.y};
+    wc3GridPose_t pose; unit_grid_pose(ent, &pose);
     float velocity[2] = {ent->movement.velocity.x, ent->movement.velocity.y};
-    wc3_integrate(pos, velocity, 10.0f / FRAMETIME);
-    vec2_t forecast = {pos[0], pos[1]};
-    wc3Arrival_t a = { .source = {pos[0] / cell, pos[1] / cell},
-        .target = {ent->goalentity->s.origin2.x / cell, ent->goalentity->s.origin2.y / cell},
-        .heading = ent->s.angle, .range = wc3_float(0x3efae148) };
+    wc3_grid_step(&pose, velocity, 10.0f / FRAMETIME);
+    vec2_t forecast = {pose.world[0], pose.world[1]};
+    float cell = CM_PathCellWorldSize();
+    float target[2] = {ent->goalentity->s.origin2.x, ent->goalentity->s.origin2.y};
+    wc3Arrival_t a = { .heading = ent->s.angle, .range = wc3_float(0x3efae148) };
+    /* Stock WPM cells are32. Preserve authoritative cell geometry for synthetic maps,
+     * while the native retained pose remains in32-unit scalar coordinates. */
+    FOR_LOOP(k, 2) {
+        a.source[k] = wc3_div(wc3_mul(pose.grid[k], 32), cell);
+        a.target[k] = wc3_grid_coordinate(target[k], pose.origin[k], cell);
+    }
     bool reached = wc3_arrival_update(&a);
     if (!a.in_range || !M_MoveIsValid(ent, &forecast)) return false;
     /* Original range acceptance stops translation even while the separate
@@ -1597,7 +1629,7 @@ static bool move_point_arrival(edict_t *ent) {
                                                 wc3_sub(a.target[1], a.source[1])));
     ent->s.angle = wc3_facing_angle(ent->s.angle);
     ent->movement.velocity = (vec2_t){0};
-    unit_commit_step(ent, &forecast);
+    unit_commit_pose(ent, &pose);
     if (reached) {
         if (!S_UnitAbilityMoveArrive(ent)) ent->stand(ent);
     }

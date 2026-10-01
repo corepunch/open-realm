@@ -14,6 +14,10 @@ Game-owned Move queries now use [direct software world/fine conversion](retail-p
 This preserves boundary cells and exact corrected/route point words on maps
 whose dimensions are not powers of two.
 
+Move now [retains native fine-grid position](retail-pathfinding-engine.md#retained-fine-pose-reaches-move)
+through accepted steps, final point arrival and save/load. World publication
+preserves the original scalar rounding; owner-clock cadence remains open.
+
 Selection Move and Shift queues now use [retail ranked formation geometry](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders)
 for up to twelve members. Authored ranks, collision radii, tie assignments,
 row dimensions and offset arithmetic reach the assigned destinations; the

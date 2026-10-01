@@ -53,6 +53,26 @@ class PathingMathTests(unittest.TestCase):
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
 
+    def test_native_pose_retains_original_words_and_world_publication_rounding(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-native-pose-1.27.json').read_text())
+        self.assertEqual(len(fixture['sequences']), 18)
+        self.assertEqual(sum(len(s['steps']) for s in fixture['sequences']), 288)
+        self.assertEqual(sum(r['direct_world'] != r['output'][2:]
+                             for s in fixture['sequences'] for r in s['steps']), 139)
+        for engine in self.engines:
+            engine.pathing_native_pose.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            for _ in range(2):
+                for seq in fixture['sequences']:
+                    prior = seq['position']
+                    for row in seq['steps']:
+                        self.assertEqual(row['input'][:2], prior)
+                        inputs = (ctypes.c_uint32 * 7)(*row['input'])
+                        output = (ctypes.c_uint32 * 4)()
+                        engine.pathing_native_pose(inputs, output)
+                        self.assertEqual(list(output), row['output'], row['input'])
+                        self.assertEqual(list(inputs), row['input'])
+                        prior = row['output'][:2]
+
     def test_world_grid_boundaries_match_complete_original_edits_and_scalar_inverse(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-world-grid-boundaries-1.27.json').read_text())
         self.assertEqual(len(fixture['cases']), 576)

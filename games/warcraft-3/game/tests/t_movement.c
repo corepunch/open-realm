@@ -98,6 +98,8 @@ TEST(wc3_movement, retail_vector_heading_words) {
 
 TEST(wc3_movement, retail_oblique_velocity_and_step_words) {
     edict_t *unit = make_moving_unit(320, 320);
+    /* Original fixture starts in fine cell10 with a zero world origin. */
+    box2_t bounds = {{0, 0}, {4096, 4096}}; CM_SetupTestWorldBounds(&bounds);
     unit->unitinfo.MoveSpeed = 100;
     unit->s.angle = 0.125f;
     unit->movement.flow_direct = true;
@@ -110,6 +112,142 @@ TEST(wc3_movement, retail_oblique_velocity_and_step_words) {
     T_EQ(wc3_float_bits(unit->s.angle), 0x3dfffadcu);
     move_reset_progress(unit);
     T_EQ(unit->movement.velocity.x, 0); T_EQ(unit->movement.velocity.y, 0);
+}
+
+/* Complete original16fe20/1603d0 commits from retail-native-pose-1.27.json.
+ * A nonzero map origin exposes world-space rounding through the real Move entry. */
+TEST(wc3_movement, native_fine_pose_retains_original_commits) {
+    uint32_t const expected[16][5] = {
+        {0x412ec060u, 0x404fca00u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41996710u, 0x410e4a20u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x41e8c740u, 0x41223ca0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42156710u, 0x417c9440u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x423d1728u, 0x41884360u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x425e1a98u, 0x41b56f30u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x4282e558u, 0x41bf6870u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42936710u, 0x41ec9440u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x42a73f1cu, 0x41f68d80u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b7c0d4u, 0x4211dca8u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x42cb98e0u, 0x4216d948u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42dc1a98u, 0x422d6f30u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x42eff2a4u, 0x42326bd0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x43003a2eu, 0x424901b8u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x430a2634u, 0x424dfe58u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x43126710u, 0x42649440u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+    };
+    edict_t *unit = make_moving_unit(1, 2);
+    uint8_t cells[16 * 16] = {0};
+    box2_t bounds = {{-256, -256}, {256, 256}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16, 16, cells);
+    unit->unitinfo.MoveSpeed = 100; unit->movement.flow_direct = true;
+    FOR_LOOP(i, 16) {
+        unit->s.angle = (i & 1) ? 0.6f : 0.125f;
+        unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
+        T_EQ(wc3_float_bits(unit->s.angle), expected[i][4]);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Positive world origins discard native pose bits; persist the fine words rather than reprojecting a save. */
+TEST(wc3_movement, native_fine_pose_survives_save_and_reposition) {
+    uint32_t const expected[16][7] = {
+        {0x3fb7b01au, 0x3fe4fca7u, 0xc4fa4280u, 0x440e4fcau, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x3fd8b38du, 0x3ffb9290u, 0xc4f93a64u, 0x440fb929u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x400031d3u, 0x4000479bu, 0xc4f7fce3u, 0x441008f3u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4010b38cu, 0x400b928fu, 0xc4f6f4c8u, 0x44117251u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x40248b99u, 0x400e10e2u, 0xc4f5b747u, 0x4411c21cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40350d52u, 0x40195bd6u, 0xc4f4af2bu, 0x44132b7au, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x4048e55fu, 0x401bda29u, 0xc4f371abu, 0x44137b45u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40596718u, 0x4027251du, 0xc4f2698fu, 0x4414e4a3u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x406d3f25u, 0x4029a370u, 0xc4f12c0eu, 0x4415346eu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x407dc0deu, 0x4034ee64u, 0xc4f023f3u, 0x44169dccu, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x4088cc75u, 0x40376cb7u, 0xc4eee672u, 0x4416ed96u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40910d51u, 0x4042b7abu, 0xc4edde56u, 0x441856f5u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x409af957u, 0x404535feu, 0xc4eca0d6u, 0x4418a6bfu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40a33a33u, 0x405080f2u, 0xc4eb98bau, 0x441a101eu, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x40ad2639u, 0x4052ff45u, 0xc4ea5b39u, 0x441a5fe8u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40b56715u, 0x405e4a39u, 0xc4e9531eu, 0x441bc947u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+    };
+    edict_t *unit = make_moving_unit(-2012, 568);
+    uint8_t cells[16 * 16] = {0};
+    box2_t bounds = {{-2048, 512}, {-1536, 1024}};
+    cstring_t file = "/tmp/openwarcraft3-native-fine-pose-save.bin";
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16, 16, cells);
+    unit->unitinfo.MoveSpeed = 100; unit->movement.flow_direct = true;
+    FOR_LOOP(i, 16) {
+        unit->s.angle = (i & 1) ? 0.6f : 0.125f;
+        unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x), expected[i][0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][3]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][4]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][5]);
+        T_EQ(wc3_float_bits(unit->s.angle), expected[i][6]);
+        T_ASSERT(unit->movement.pose_valid);
+        if (i == 7) T_ASSERT(WriteGame(file));
+    }
+    T_ASSERT(ReadGame(file));
+    T_ASSERT(unit->movement.pose_valid);
+    FOR_LOOP(k, 8) {
+        unsigned i = k + 8;
+        unit->s.angle = (i & 1) ? 0.6f : 0.125f;
+        unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x), expected[i][0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][3]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][4]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][5]);
+        T_EQ(wc3_float_bits(unit->s.angle), expected[i][6]);
+    }
+    vec2_t fine = unit->movement.fine_pose, world = unit->s.origin2;
+    memset(cells, 2, sizeof(cells)); CM_SetupTestPathmap(16, 16, cells);
+    unit->s.angle = 0.125f; unit_moveindirection(unit);
+    T_ASSERT(unit->movement.pose_valid);
+    T_EQ(unit->movement.fine_pose.x, fine.x); T_EQ(unit->movement.fine_pose.y, fine.y);
+    T_EQ(unit->s.origin2.x, world.x); T_EQ(unit->s.origin2.y, world.y);
+    memset(cells, 0, sizeof(cells)); CM_SetupTestPathmap(16, 16, cells);
+    /* External world repositioning must discard stale axes on the next accepted preview. */
+    unit->s.origin2 = (vec2_t){-2012, 568}; gi.LinkEntity(unit);
+    unit->s.angle = 0.125f; unit_moveindirection(unit);
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.x), expected[0][0]);
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.y), expected[0][1]);
+    T_EQ(wc3_float_bits(unit->s.origin2.x), expected[0][2]);
+    T_EQ(wc3_float_bits(unit->s.origin2.y), expected[0][3]);
+    world = unit->s.origin2; world.x += 1;
+    T_ASSERT(unit_snap_to_point_ignore_units(unit, &world));
+    T_ASSERT(!unit->movement.pose_valid);
+    remove(file); reset_entities(); setup_test_world();
+}
+
+/* Natural point completion must integrate the same retained fine pose before publishing zero velocity. */
+TEST(wc3_movement, native_fine_pose_reaches_final_point_commit) {
+    edict_t *unit = make_moving_unit(-2012, 568);
+    uint8_t cells[16 * 16] = {0};
+    box2_t bounds = {{-2048, 512}, {-1536, 1024}};
+    vec2_t target = {-1800, 600};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16, 16, cells);
+    unit->unitinfo.MoveSpeed = 100;
+    T_ASSERT(unit_issueorder(unit, "move", &target));
+    unit->movement.flow_direct = true;
+    FOR_LOOP(i, 2) { unit->s.angle = .125f; unit_moveindirection(unit); }
+    /* Third constant-heading commit in retail-native-pose-1.27.json, with a nearby accepted goal. */
+    target = (vec2_t){wc3_float(0xc4f7c77e) + 5, wc3_float(0x440eef5f)};
+    unit->goalentity->s.origin2 = target;
+    unit->currentmove->think(unit);
+    T_EQ(wc3_float_bits(unit->s.origin2.x), 0xc4f7c77eu);
+    T_EQ(wc3_float_bits(unit->s.origin2.y), 0x440eef5fu);
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.x), 0x40038827u);
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.y), 0x3feef5f5u);
+    T_ASSERT(unit->movement.pose_valid);
+    T_EQ(unit->movement.velocity.x, 0); T_EQ(unit->movement.velocity.y, 0);
+    T_EQ(unit->current_order_id, 0); T_STREQ(unit->currentmove->animation, "stand");
+    reset_entities(); setup_test_world();
 }
 
 /* Original160060 measures squared velocity in fine-grid units, with32 world units per cell. */

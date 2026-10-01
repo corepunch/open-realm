@@ -424,3 +424,10 @@ contracts. Fresh accepted outcomes are
 The matrix covers original world/fine conversion and scalar inverse composition;
 it does not certify the complete public coordinate/metadata producers or
 proximity/adaptive padding. Existing live archives are unchanged.
+
+The motion oracle and engine comparison also require18 retained-native-pose
+sequences,288 commits and139 world-space integration differences. The frozen
+native pose fixture is hash pinned, and repeated O0/O2 checks compare every
+fine/world word. These controlled elapsed0.1 intervals leave the public owner
+clock and velocity phase as explicit engine work; see
+[retained fine pose](retail-pathfinding-engine.md#retained-fine-pose-reaches-move).

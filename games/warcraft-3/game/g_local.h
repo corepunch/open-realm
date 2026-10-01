@@ -1656,6 +1656,8 @@ struct edict_s {
         float flat_speed_bonus; /* AIms maximum last published by a speed setter/order, independent of live inventory. */
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
         vec2_t velocity;    /* committed Move velocity in world units/second; software scalar cancellation retains its bits */
+        vec2_t fine_pose; /* native fine position; world publication can lose these low bits */
+        bool pose_valid; /* initialized by accepted Move integration; explicit world commits invalidate it */
         bool turn_blocked;  /* translation decision from the heading error before this tick's turn */
         vec2_t worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */

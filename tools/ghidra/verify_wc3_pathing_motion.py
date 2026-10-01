@@ -56,6 +56,7 @@ def main():
     parser.add_argument('--world-velocity-fixture', type=Path, help='export world-adapted original velocity/facing words including small-speed cutoffs')
     parser.add_argument('--facing-fixture', type=Path, help='export original committed facing inputs/results')
     parser.add_argument('--formation-fixture', type=Path, help='export complete original formation inputs/offset words')
+    parser.add_argument('--native-pose-fixture', type=Path, help='export retained fine-pose sequences and original world inverse')
     parser.add_argument('--heading-fixture', type=Path, help='export raw original vector-heading errors for asset-free C replay')
     args = parser.parse_args()
     if args.world_velocity_fixture and not args.engine_library:parser.error('--world-velocity-fixture requires --engine-library for exact guard comparisons')
@@ -2888,6 +2889,66 @@ def main():
             arrival_dispatch_cases+=1
     for hook in support_hooks: machine.hook_del(hook)
     all_elapsed_cases=elapsed_arrival_cases+stock_ui_arrival_cases+slope_arrival_cases+obstacle_arrival_cases+adaptive_arrival_cases+owner_arrival_cases+active_pair_cases
+    # Independent retained-pose sequences: supplied constant .1 elapsed, not
+    # a claim about owner-clock cadence. Each zero-elapsed velocity publication
+    # is followed by complete original integration and scalar world projection.
+    native_pose_sequences=[]
+    scratch_a,scratch_b,scratch_out=system+0x2200,system+0x2210,system+0x2220
+    def original_scalar(entry,left,right):
+        write(scratch_a,left);write(scratch_b,right)
+        machine.reg_write(UC_X86_REG_EDX,scratch_a)
+        run(entry,scratch_out,scratch_b)
+        return read(scratch_out)[0]
+    def original_world(grid,origin):
+        return [original_scalar(0x6f06fbb0,original_scalar(0x6f06f9c0,g,float_bits(32)),float_bits(o))
+                for g,o in zip(grid,origin)]
+    for position,origin,pattern in itertools.product([(1.125,1.75),(4.25,5.5),(8.03125,8.0625)],
+                                                     [(0,0),(-256,-256),(-2048,512)],range(2)):
+        machine.mem_write(owner,bytes(0x100));machine.mem_write(mover,bytes(0x1d0))
+        write(mover,0x6fa9129c,owner+0x200,0)
+        write(mover+0x14,0)
+        clock=owner+0x14;write(clock+0x44,0);floats(clock+0x48,8)
+        floats(mover+0x78,*position,0,0,100/32,.125)
+        floats(mover+0x90,.25);write(mover+0x94,*objects)
+        for obj,grid,data,records,bitmap in zip(objects,maps,cells,links,bitmaps):
+            machine.mem_write(obj,bytes(0x80));write(obj+0x2c,grid);write(obj+0x34,0x01000001)
+            machine.mem_write(grid,bytes(0x100));write(grid+0x28,data);write(grid+0x3c,16,16)
+            write(grid+0x54,0,0,16,16);floats(grid+0x68,1);write(grid+0x78,records)
+            write(grid+0x84,1024,0);write(grid+0x98,bitmap);write(grid+0xac,0xffffff)
+            machine.mem_write(bitmap,bytes(32));write(data,*([0xffffff]*256))
+        initial=read(mover+0x78,2)
+        initial_world=original_world(initial,origin)
+        steps=[]
+        for tick in range(16):
+            heading=.6 if pattern and tick&1 else .125
+            # Reset both supplied clock words together before this independent
+            # interval. Retained pose/velocity/spatial records are not reset.
+            floats(clock+0x40,.1);floats(mover+0x70,.1);write(mover+0x74,0)
+            floats(speed_ptr,100/32);floats(heading_ptr,heading)
+            run(0x6f16fe20,mover,speed_ptr,heading_ptr)
+            velocity=[original_scalar(0x6f06f9c0,w,float_bits(32)) for w in read(mover+0x80,2)]
+            inputs=read(mover+0x78,2)+velocity+[float_bits(o) for o in origin]+[float_bits(.1)]
+            before_world=original_world(inputs[:2],origin)
+            direct_world=[original_scalar(0x6f06fbb0,w,original_scalar(0x6f06f9c0,v,float_bits(.1)))
+                          for w,v in zip(before_world,velocity)]
+            floats(clock+0x40,.2);floats(displacement,0,0)
+            run(0x6f1603d0,mover,displacement)
+            outputs=read(mover+0x78,2)
+            outputs+=original_world(outputs,origin)
+            if engine:
+                actual=(ctypes.c_uint32*4)();supplied=(ctypes.c_uint32*7)(*inputs)
+                engine.pathing_native_pose(supplied,actual)
+                assert list(actual)==outputs,(position,origin,pattern,tick,list(actual),outputs)
+                assert list(supplied)==inputs
+            steps.append(dict(input=inputs,output=outputs,heading=float_bits(heading),
+                              velocity=velocity,facing=read(mover+0x8c)[0],direct_world=direct_world))
+        native_pose_sequences.append(dict(position=initial,world=initial_world,origin=[float_bits(o) for o in origin],
+                                          pattern=pattern,steps=steps))
+    assert len(native_pose_sequences)==18 and sum(len(s['steps']) for s in native_pose_sequences)==288
+    assert sum(r['direct_world']!=r['output'][2:] for s in native_pose_sequences for r in s['steps'])==139
+    if args.native_pose_fixture:
+        args.native_pose_fixture.write_text(json.dumps(dict(binary_sha256=digest,sequences=native_pose_sequences,
+            scope='Retained native pose/spatial records with supplied constant elapsed; zero-elapsed velocity then integration and scalar world inverse. Original owner/public-clock producer excluded.'),separators=(',',':'))+'\n')
     report=dict(binary_sha256=digest,callback_mutation_scope="Controlled external requests at original slot54 entry; complete gameplay callback graph and handle reclaim/reuse excluded",group_callback_mutation_cases=len(callback_mutations),group_callback_mutations=normalized_mutations,group_callback_mutation_digest=mutation_digest,move_owner_active_separation_cases=len(active_pair_cases),move_owner_active_separation_trajectories=active_pair_cases,move_owner_separation_cases=owner_separation_cases,move_owner_arrival_cases=len(owner_arrival_cases),move_owner_trajectories=owner_arrival_cases,move_adaptive_arrival_cases=len(adaptive_arrival_cases),move_adaptive_trajectories=adaptive_arrival_cases,move_obstacle_arrival_cases=len(obstacle_arrival_cases),move_obstacle_exact_repeat=obstacle_arrival_cases[0]==obstacle_arrival_cases[1],move_obstacle_trajectories=obstacle_arrival_cases,
                 move_all_elapsed_cases=len(all_elapsed_cases),move_all_elapsed_integration_ticks=sum(row['ticks'] for row in all_elapsed_cases),
                 move_all_elapsed_task_reclamations=2*len(all_elapsed_cases),move_all_elapsed_group_path_releases=len(all_elapsed_cases),
@@ -2905,6 +2966,9 @@ def main():
                             'full owner singleton executes scheduler and visual-facing updates with empty shared/separation lists; two controlled post-arrival repulsors also execute alternating separation; active singleton plus eligible repulsor also composes; crowded active groups and mixed profiles remain open',
                             'accepted next task uses recycled CPrCluster/member buffer; first-ever Storm allocation not executed',
                             'elapsed arrivals cover controlled zero UI limits, stock hfoo UI on flat terrain and one slope1/8 plane; one static wall detour also composed; bridge geometry, water, limit clamping, crowds and unreachable outcomes remain open'])
+    report.update(native_pose_sequences=len(native_pose_sequences),native_pose_commits=sum(len(s['steps']) for s in native_pose_sequences),
+                  native_pose_world_differences=sum(r['direct_world']!=r['output'][2:] for s in native_pose_sequences for r in s['steps']),
+                  engine_native_pose_commits=288 if engine else 0)
     assert len(formation_raw_cases) == 865 and mixed_formation_cases == 720
     report.update(exact_formation_cases=len(formation_raw_cases), mixed_formation_cases=mixed_formation_cases,
                   engine_formation_cases=len(formation_raw_cases) if engine else 0)

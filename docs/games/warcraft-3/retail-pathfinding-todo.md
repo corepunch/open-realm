@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**84 done / 264 tasks; 180 remaining.** Counts describe this backlog,
+**85 done / 265 tasks; 180 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -397,6 +397,7 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 - [x] **NUM-02.2** Original 80 velocity commits and 2,384 position integrations now compare exact C output words; fresh live turn capture compares all 192 velocity/position commits, including stopping. Evidence: [exact velocity integration](retail-pathfinding-engine.md#velocity-and-position-integration), reports `velocity-integration-engine-exact.json` and `runtime/velocity-turn-exact.json`. Extension: `world-velocity-engine-exact.json` and `retail-world-velocity-1.27.json` freeze1,040 complete original/world-adapted commits and3,344 integrations, including adjacent tiny-speed guards. Move converts velocity inputs to fine-grid units before its cutoff. Committed facing is closed separately by NUM-02.4; whole-engine cadence remains excluded.
 - [ ] **NUM-02.3** Extend that exact case to a fixed long oblique trajectory at small/large valid values; compare every committed position and cell crossing.
 - [x] **NUM-02.4** Verify committed facing from resulting velocity, its tiny-speed guard/equality and stopped-heading remainder normalization; compare original/C/live words. Evidence: [committed facing](retail-pathfinding-engine.md#committed-facing-and-remainder-arithmetic), reports `fraction-modulo-engine-exact.json`, `facing-chain-engine-exact.json`, `facing-stock-turn-fresh-exact.json`;810 heading guards,44 angle boundaries,140 full commits and184 fresh live commits. Accepted-step engine regressions cover oblique facing and fine-grid scale; original full owner cadence/steering state remains open.
+- [x] **NUM-02.5** Explicitly split retained native fine pose from the large02.3 clock/trajectory task: integrate and preserve fine words between accepted Move commits, publish through the original scalar world inverse, and retain those words across save/load. Evidence: [retained fine pose](retail-pathfinding-engine.md#retained-fine-pose-reaches-move),288 complete original supplied-.1 commits over18 sequences,139 differ from direct world integration; repeated O0/O2 comparisons and actual16-step Move/save/rejection/reposition/arrival regressions. Original public clock cadence, old-velocity phase and forced-position producers remain02.3/BASE-01.4.
 
 ### NUM-03 — Exceptional numeric inputs
 
