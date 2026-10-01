@@ -25,3 +25,32 @@ Outofstock=Out of stock.
 Calltoarms=No Peasants could be found.
 Backtowork=No Militia could be found.
 TestTrigstr=TRIGSTR_0
+
+[Acan]
+Art=TestUI\\CommandButtons\\BTN-Acan.blp
+
+[Aivs]
+Art=TestUI\\CommandButtons\\BTN-Aivs.blp
+
+[Aply]
+Art=TestUI\\CommandButtons\\BTN-Aply.blp
+
+[Adis]
+Art=TestUI\\CommandButtons\\BTN-Adis.blp
+
+[Ainf]
+Art=TestUI\\CommandButtons\\BTN-Ainf.blp
+
+[Aren]
+Art=TestUI\\CommandButtons\\BTN-Aren.blp
+
+[AHds]
+Art=TestUI\\CommandButtons\\BTN-AHds.blp
+ResearchArt=TestUI\\CommandButtons\\BTN-AHds.blp
+
+[AHtb]
+Art=TestUI\\CommandButtons\\BTN-AHtb.blp
+ResearchArt=TestUI\\CommandButtons\\BTN-AHtb.blp
+
+[CmdCancel]
+Art=TestUI\\CommandButtons\\BTN-Cancel.blp
