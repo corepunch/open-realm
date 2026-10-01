@@ -22,7 +22,7 @@ static inline bool R_CliffBakeGrow(rCliffBakeList_t *list, uint32_t add) {
     uint32_t capacity;
 
     if (add > UINT32_MAX - list->num_vertices) {
-        if (!r_cliff_warn_bake_failure) fprintf(stderr, "WC3 renderer: cliff bake vertex count overflow; skipping cliff geometry\n");
+        if (!r_cliff_warn_bake_failure) fprintf(stderr, "renderer: cliff bake vertex count overflow; skipping cliff geometry\n");
         r_cliff_warn_bake_failure = true;
         return false;
     }
@@ -31,7 +31,7 @@ static inline bool R_CliffBakeGrow(rCliffBakeList_t *list, uint32_t add) {
     capacity = MAX(1024, list->capacity);
     while (list->num_vertices + add > capacity) {
         if (capacity > UINT32_MAX / 2) {
-            if (!r_cliff_warn_bake_failure) fprintf(stderr, "WC3 renderer: cliff bake capacity overflow; skipping cliff geometry\n");
+            if (!r_cliff_warn_bake_failure) fprintf(stderr, "renderer: cliff bake capacity overflow; skipping cliff geometry\n");
             r_cliff_warn_bake_failure = true;
             return false;
         }
@@ -39,7 +39,7 @@ static inline bool R_CliffBakeGrow(rCliffBakeList_t *list, uint32_t add) {
     }
     if ((size_t)capacity > SIZE_MAX / sizeof(*vertices) ||
         (size_t)capacity > SIZE_MAX / sizeof(*groups)) {
-        if (!r_cliff_warn_bake_failure) fprintf(stderr, "WC3 renderer: cliff bake allocation size overflow; skipping cliff geometry\n");
+        if (!r_cliff_warn_bake_failure) fprintf(stderr, "renderer: cliff bake allocation size overflow; skipping cliff geometry\n");
         r_cliff_warn_bake_failure = true;
         return false;
     }
@@ -48,7 +48,7 @@ static inline bool R_CliffBakeGrow(rCliffBakeList_t *list, uint32_t add) {
     if (!vertices || !groups) {
         if (vertices) ri.MemFree(vertices);
         if (groups) ri.MemFree(groups);
-        if (!r_cliff_warn_bake_failure) fprintf(stderr, "WC3 renderer: unable to grow cliff bake buffers; skipping cliff geometry\n");
+        if (!r_cliff_warn_bake_failure) fprintf(stderr, "renderer: unable to grow cliff bake buffers; skipping cliff geometry\n");
         r_cliff_warn_bake_failure = true;
         return false;
     }
@@ -98,7 +98,7 @@ static inline void R_CliffWeldNormals(rCliffBakeList_t *list, float snap) {
     if (!keys || !normals) {
         if (keys) ri.MemFree(keys);
         if (normals) ri.MemFree(normals);
-        if (!r_cliff_warn_weld_failure) fprintf(stderr, "WC3 renderer: unable to allocate cliff normal weld scratch; retaining unwelded normals\n");
+        if (!r_cliff_warn_weld_failure) fprintf(stderr, "renderer: unable to allocate cliff normal weld scratch; retaining unwelded normals\n");
         r_cliff_warn_weld_failure = true;
         return;
     }
