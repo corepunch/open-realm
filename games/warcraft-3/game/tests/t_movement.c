@@ -515,6 +515,26 @@ static edict_t *add_gold_worker(float x, float y) {
     return worker;
 }
 
+TEST(wc3_movement, explicit_gold_harvest_retires_stop_guard_position) {
+    edict_t *worker, *mine;
+    slkTestData_t *rows, *old_abilities;
+
+    setup_test_world();
+    worker = add_gold_worker(0, 0);
+    mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320, 0);
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    worker->data.UnitAbilities = &harvest_abilities;
+    order_stop(worker);
+    T_ASSERT(worker->movement.guard_position_valid);
+
+    old_abilities = install_goldmine_test_data(&rows);
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "harvest", mine, false, 0));
+    T_ASSERT(!worker->movement.guard_position_valid);
+    T_ASSERT(!worker->movement.guard_combat);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 static bool tree_died;
 static uint32_t tree_pained;
 static void test_tree_die(edict_t *tree, edict_t *attacker) { (void)tree; (void)attacker; tree_died = true; }

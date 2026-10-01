@@ -9,7 +9,7 @@ OpenRealm distinguishes the player's Stop guard point from Hold Position.
 - When that automatic combat ends, and no explicit Shift-queued order is waiting, the unit returns to the remembered guard position through the ordinary point-Move path.
 - Arrival uses the existing Move completion/tolerance rules; guard return does not introduce another pathfinder or magic arrival radius.
 - After the return Move completes, the unit resumes ordinary stopped/idle behavior and can acquire again.
-- A newer explicit Move/Attack/Smart-style order clears the old player Stop guard point. It therefore cannot reassert after the newer order later completes.
+- A newer explicit behavior order clears the old player Stop guard point, including Move, Attack, Smart, and Harvest. It therefore cannot reassert after the newer order later completes.
 - A queued player order outranks guard return. Combat completion advances the FIFO instead of starting the internal return.
 - A second Stop captures the unit's then-current position as the new guard point.
 - Hold Position is separate: it suppresses automatic translation and does not use a return-to-anchor journey.

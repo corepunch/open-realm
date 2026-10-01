@@ -3704,6 +3704,80 @@ static void net_install_single_layout_frame(uint32_t layer, FRAMETYPE type,
     CL_ParseLayout(&sb);
 }
 
+static void net_install_command_button(cstring_t command, int hotkey) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = { .number = 1, .flags = { .type = FT_COMMANDBUTTON },
+                                  .onclick = command, .hotkey = hotkey };
+
+    frame.size.width = 0.20f;
+    frame.size.height = 0.20f;
+    frame.points.x[FPP_MIN].used = 1;
+    frame.points.x[FPP_MIN].targetPos = FPP_MIN;
+    frame.points.y[FPP_MIN].used = 1;
+    frame.points.y[FPP_MIN].targetPos = FPP_MIN;
+    MSG_WriteByte(&sb, LAYER_COMMANDBAR);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+    CL_ParseLayout(&sb);
+}
+
+static void net_read_layout_command(cstring_t expected) {
+    char command[128];
+    cls.netchan.message.readcount = 0;
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    MSG_ReadString(&cls.netchan.message, command);
+    T_STREQ(command, expected);
+}
+
+TEST(client_screen, shifted_stop_and_hold_mouse_clicks_queue_only_those_orders) {
+    static cstring_t const orders[] = { "button CmdStop", "button CmdHoldPos", "button Amov" };
+    uint8_t message_buf[256];
+
+    test_client_stubs_init();
+    FOR_LOOP(i, sizeof(orders) / sizeof(*orders)) {
+        FOR_LOOP(shift, 2) {
+            FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+            SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
+            net_install_command_button(orders[i], 0);
+            (void)SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, SDL_BUTTON_LEFT, shift != 0);
+            (void)SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, SDL_BUTTON_LEFT, shift != 0);
+            if (shift && i < 2) {
+                char expected[64];
+                snprintf(expected, sizeof(expected), "%s queue", orders[i]);
+                net_read_layout_command(expected);
+            } else {
+                net_read_layout_command(orders[i]);
+            }
+        }
+    }
+}
+
+TEST(client_screen, shifted_stop_and_hold_hotkeys_queue_only_those_orders) {
+    static cstring_t const orders[] = { "button CmdStop", "button CmdHoldPos", "button Amov" };
+    uint8_t message_buf[256];
+
+    test_client_stubs_init();
+    FOR_LOOP(i, sizeof(orders) / sizeof(*orders)) {
+        FOR_LOOP(shift, 2) {
+            FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+            SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
+            net_install_command_button(orders[i], 'S');
+            T_ASSERT(SCR_LayoutKeyEvent('S', shift != 0));
+            if (shift && i < 2) {
+                char expected[64];
+                snprintf(expected, sizeof(expected), "%s queue", orders[i]);
+                net_read_layout_command(expected);
+            } else {
+                net_read_layout_command(orders[i]);
+            }
+        }
+    }
+}
+
 /* WC3's info/status panel rises above the flat world-scissor bottom.  A drag
  * crossing that authored panel must stop at the panel's top rather than draw
  * the marquee through the transparent portions of the HUD art. */
