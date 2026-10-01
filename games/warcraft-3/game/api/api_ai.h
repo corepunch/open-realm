@@ -51,6 +51,11 @@ uint32_t GetAiPlayer(jass_t *j) {
     return jass_pushinteger(j, player ? (int32_t)PLAYER_NUM(player) : -1);
 }
 
+uint32_t MeleeDifficulty(jass_t *j) {
+    /* common.ai uses MELEE_NEWBIE/NORMAL/INSANE = 1/2/3, distinct from aidifficulty handles = 0/1/2. */
+    return jass_pushinteger(j, 2); /* Lobby slots currently expose WC3's normal AI difficulty only. */
+}
+
 uint32_t GetAIDifficulty(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
     uint32_t *difficulty = jass_newhandle(j, sizeof(*difficulty), "aidifficulty");

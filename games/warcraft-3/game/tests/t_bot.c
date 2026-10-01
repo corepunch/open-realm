@@ -377,6 +377,17 @@ TEST(wc3_bot, campaign_settings_persist_for_authoritative_consumers) {
     T_ASSERT(!(ai->flags & BOT_HEROES_BUY_ITEMS));
 }
 
+TEST(wc3_bot, melee_difficulty_uses_common_ai_integer_scale) {
+    bot_t *ai;
+
+    T_ASSERT(G_BotStart(&game.clients[4].ps, "test_melee_difficulty.ai", BOT_MELEE));
+    G_BotRunFrame();
+    ai = level.bots + 4;
+    T_NOT_NULL(ai->vm);
+    T_EQ(ai->mode, BOT_MELEE);
+    T_EQ(ai->replacement_count, 2); /* MELEE_NORMAL, not AI_DIFFICULTY_NORMAL's handle payload 1. */
+}
+
 TEST(wc3_bot, melee_settings_cover_inverse_flags_and_clamp_replacements) {
     bot_t *ai;
     uint32_t enabled = BOT_PEONS_REPAIR | BOT_WATCH_MEGA | BOT_HEROES_TAKE_ITEM |

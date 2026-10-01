@@ -4,6 +4,7 @@ native DisplayTextI takes integer p, string str, integer val returns nothing
 native DisplayTextII takes integer p, string str, integer v1, integer v2 returns nothing
 native DisplayTextIII takes integer p, string str, integer v1, integer v2, integer v3 returns nothing
 native GetAiPlayer takes nothing returns integer
+native MeleeDifficulty takes nothing returns integer
 native GetHeroId takes nothing returns integer
 native GetHeroLevelAI takes nothing returns integer
 native GetUnitCount takes integer unitid returns integer
