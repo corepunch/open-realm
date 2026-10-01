@@ -265,6 +265,40 @@ void G_BotPurchaseZeppelin(player_t *player) {
     if (best_shop) G_ShopPurchaseUnit(clent, best_shop, zeppelin);
 }
 
+/* Retail common.ai asks GetEnemyExpansion before asynchronous enemy-main
+ * discovery. Map "enemy expansion base" to hostile town IDs after the primary
+ * town (1+), using the existing AI town model. BZ_COMPAT_GUESS: when several
+ * hostile expansions exist, prefer the one nearest the caller's primary town;
+ * without a caller town, stable player/town enumeration wins. */
+edict_t *G_BotGetEnemyExpansion(player_t *player) {
+    edict_t *home, *best = NULL;
+    float best_dist = 0.0f;
+    uint32_t caller;
+
+    if (!player || (caller = PLAYER_NUM(player)) >= MAX_PLAYERS) return NULL;
+    home = G_BotTown(player, 0);
+
+    FOR_LOOP(i, MAX_PLAYERS) {
+        player_t *enemy;
+        edict_t *hall;
+
+        if (i == caller) continue;
+        enemy = &game.clients[i].ps;
+        for (int32_t town_id = 1; (hall = G_BotTown(enemy, town_id)); town_id++) {
+            float dist;
+            if (!G_BotUnitAlive(hall) || !G_BotIsHostile(player, hall)) continue;
+            if (!home) return hall;
+            dist = Vector2_distance(&home->s.origin2, &hall->s.origin2);
+            if (!best || dist < best_dist ||
+                (dist == best_dist && hall->s.number < best->s.number)) {
+                best = hall;
+                best_dist = dist;
+            }
+        }
+    }
+    return best;
+}
+
 /* common.ai uses this as a shared assault rendezvous, not as an order primitive.
  * Publish the same target into each mutually-passive ally's bot slot so a later
  * GetAllianceTarget observes the common value. Publishing NULL clears that shared

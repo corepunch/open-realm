@@ -2254,6 +2254,7 @@ bool G_BotUnitAlive(edict_t *);
 bool G_BotTownThreatened(player_t *);
 bool G_BotIsTowered(player_t *, edict_t *);
 edict_t *G_BotGetMegaTarget(player_t *);
+edict_t *G_BotGetEnemyExpansion(player_t *);
 edict_t *G_BotGetCreepCamp(player_t *, int32_t, int32_t, bool);
 void G_BotPurchaseZeppelin(player_t *);
 void G_BotSetAllianceTarget(player_t *, edict_t *);

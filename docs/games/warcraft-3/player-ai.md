@@ -363,14 +363,14 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Sixty-seven of those names are registered in OpenRealm's JASS
-module; the following 5 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+functions, but their reachable native surface is the same. Sixty-eight of those names are registered in OpenRealm's JASS
+module; the following 4 are still unresolved and will cause a native lookup/runtime failure when their call paths are
 reached:
 
 | Unregistered native | Reachable role in `common.ai` |
 |---|---|
 | `CaptainRetreating` | Poll whether an attack captain is retreating; the state enum exists, but no runtime transition currently initiates or completes retreat |
-| `GetEnemyBase`, `GetEnemyExpansion` | Locate enemy bases and expansion targets |
+| `GetEnemyBase` | Locate enemy bases |
 | `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
 
 ### Alliance Assault Target
@@ -462,6 +462,20 @@ the qualifying component nearest the invoking AI's primary town. If no town exis
 the search origin. The returned representative is the camp member nearest that origin. Keep this geometry confined to
 `G_BotGetCreepCamp` so direct retail/native capture can replace it without changing creep ownership, unit level data, or
 assault behavior.
+
+### Enemy Expansion Query
+
+`GetEnemyExpansion()` returns a live hostile expansion hall using OpenRealm's existing AI town model. Retail
+`common.ai` describes it as the enemy expansion base and calls it before asynchronous
+`StartGetEnemyBase` / `WaitGetEnemyBase` / `GetEnemyBase` discovery. OpenRealm treats hostile town IDs after the primary
+town (`1+`) as expansions. The query does not publish an alliance target, form a captain, issue an attack, or modify
+enemy-base discovery state.
+
+`BZ_COMPAT_GUESS`: Blizzard does not publish how this native chooses among several valid enemy expansions. OpenRealm
+selects the hostile expansion nearest the invoking AI's primary town, with entity order as a stable tie-break. If the
+caller has no primary town, stable player/town enumeration wins. Because town IDs currently enumerate live owned gold
+drop-offs in spawn order, destroying an enemy primary hall can cause a former expansion to become town `0` and no longer
+be classified as an expansion. Stable historical town identity remains separate AI-town parity work.
 
 ### Mega Target Query
 
