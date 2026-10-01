@@ -1211,7 +1211,77 @@ TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
     }
     T_ASSERT(found);
 
+    G_SetPlayerAbilityAvailable(client, FS_SLKKey("Amic"), false);
+    count = G_GetCommandButtons(unit, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) found = true;
+    T_ASSERT(!found);
+
+    G_SetPlayerAbilityAvailable(client, FS_SLKKey("Amic"), true);
+    count = G_GetCommandButtons(unit, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
     building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, setplayerabilityavailable_hides_human05_polymorph_command) {
+    gameClient_t *client;
+    edict_t *sorceress;
+    UnitAbilities_t abilities = { .abilList = "Aply" };
+    gameCommandButton_t buttons[16];
+    uint8_t count;
+    bool found;
+
+    setup_test_world();
+    client = &game.clients[0];
+    client->ps.number = 0;
+    sorceress = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+    sorceress->s.player = client->ps.number;
+    sorceress->data.UnitAbilities = &abilities;
+
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(found);
+
+    G_SetPlayerAbilityAvailable(client, FS_SLKKey("Aply"), false);
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(!found);
+
+    G_SetPlayerAbilityAvailable(client, FS_SLKKey("Aply"), true);
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(found);
+}
+
+TEST(wc3_building, player_ability_availability_does_not_leak_to_unmapped_owner) {
+    gameClient_t *fallback;
+    edict_t *unit;
+    UnitAbilities_t abilities = { .abilList = "Aply" };
+    gameCommandButton_t buttons[16];
+    uint8_t count;
+    bool found;
+
+    setup_test_world();
+    fallback = &game.clients[MAX_PLAYERS - 1];
+    unit = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+    unit->s.player = MAX_PLAYERS; /* intentionally not mapped to a real client */
+    unit->data.UnitAbilities = &abilities;
+
+    G_SetPlayerAbilityAvailable(fallback, FS_SLKKey("Aply"), false);
+    count = G_GetCommandButtons(unit, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(found);
+    G_SetPlayerAbilityAvailable(fallback, FS_SLKKey("Aply"), true);
 }
 
 TEST(wc3_building, town_hall_and_tree_of_life_show_train_and_upgrade_buttons) {

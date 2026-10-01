@@ -80,7 +80,7 @@ Runtime ordinary-ability membership from `UnitAddAbility` / `UnitRemoveAbility` 
 
 Map/campaign object modifications are only partially merged into typed runtime rows. `war3map.w3u` now applies registered `UnitBalance`/`UnitProfile`/`UnitUI` fields such as `usst`, `uani`, and `umdl`, but a map-specific `heroAbilList`, Data/Weapons/Abilities unit fields, and `war3map.w3a`/campaign overrides for `levels`, `reqLevel`, `levelSkip`, or Research UI fields still require the broader object-data merge layer.
 
-`SetPlayerAbilityAvailable` also remains separate work; player-wide ability disable state needs explicit ownership and runtime/UI gating rather than a Hero-menu-only special case.
+`SetPlayerAbilityAvailable` now has player-wide rawcode state plus shared runtime activation and learned-command-card gating, so disabling a learned Hero spell hides it and rejects direct activation. The Select Skill submenu is still driven by Hero learnability rather than the player-wide availability flag, and passive/on-tick lifecycle removal remains separate work.
 
 `SetHeroLevel` still does not lower a Hero. Requests at or below the current level are ignored; implementing level loss needs explicit XP/stat/event semantics rather than reversing the raise path opportunistically.
 

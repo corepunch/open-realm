@@ -23,6 +23,12 @@ The current typed AbilityData loader exposes the first rawcode from each `Ply2`-
 
 Movement-class selection uses `UnitData.moveTypeName`: `fly` selects `Ply3`, `amph` selects `Ply4`, `float` selects `Ply5`, and ordinary ground/hover movement selects `Ply2`.
 
+## Campaign availability
+
+Campaign maps may keep `Aply` on the Sorceress unit type while suppressing the command for a player with `SetPlayerAbilityAvailable(player, 'Aply', false)`. Human05 relies on this player-wide availability state rather than removing Polymorph from the Sorceress object data. OpenRealm therefore hides an unavailable authored `Aply` command and rejects direct command/order/validation/execute/autocast activation until the map enables the rawcode again.
+
+This player-level gate only applies when the unit owner resolves to the same real player client. Neutral or otherwise unmapped owners must not inherit the fallback client returned by `G_GetPlayerClientByNumber()`.
+
 ## Runtime behavior
 
 A successful cast keeps the target's `class_id`, owner, health, attacks, references, and other simulation identity intact. `edict_t.polymorph` snapshots the model handle, model scale, and base movement speed needed for restoration. The configured morph unit contributes its model/scale and authored movement speed while the Polymorph buff is live.

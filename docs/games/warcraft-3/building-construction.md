@@ -389,7 +389,7 @@ Construction and Repair now share the behavior described above. The following cl
   unit-type structure upgrading through `uupt` is a separate in-place lifecycle
   documented above. W3I upgrade-availability records are still parsed but are
   not yet applied to the player research state;
-- `SetPlayerAbilityAvailable` remains separate from unit/building technology availability and is not yet backed by per-player disabled-ability state;
+- `SetPlayerAbilityAvailable` now stores per-player disabled rawcodes, hides disabled authored command-card abilities, and rejects their command/order/validation/execute/autocast activation paths. It remains separate from unit/building technology availability; passive/on-tick ability lifecycles still need ability-specific handling where disabling must remove an already-running effect;
 - hero training applies the authored `Requirescount`/`Requires1`... tier selected by the owner's completed hero count; custom map unit-object overrides for those fields remain incomplete until all typed `war3map.w3u` rows merge into the normalized profile;
 - training still uses the legacy `player_pay()` gold/lumber payment path, while food reservation is owned by the active queue edict; queued unit icons can now cancel/refund their exact hidden queue edict, and producer death/removal cancels/refunds all queued unit entries;
 - the client does not yet draw a per-cell green/red pathing splat or mirror live-unit obstruction into that splat;
