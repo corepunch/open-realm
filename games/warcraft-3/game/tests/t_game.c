@@ -4010,6 +4010,40 @@ TEST(wc3_save, field_channel_origin_round_trip) {
     remove(filename);
 }
 
+TEST(wc3_save, movement_guard_state_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-movement-guard.bin";
+    field_t const *position = find_save_field("movement.guard_position");
+    field_t const *valid = find_save_field("movement.guard_position_valid");
+    field_t const *combat = find_save_field("movement.guard_combat");
+    field_t const *returning = find_save_field("movement.guard_returning");
+    field_t const *holding = find_save_field("movement.holding_position");
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+
+    T_NOT_NULL(position); if (position) T_EQ(position->type, F_VECTOR);
+    T_NOT_NULL(valid); if (valid) T_EQ(valid->type, F_INT);
+    T_NOT_NULL(combat); if (combat) T_EQ(combat->type, F_INT);
+    T_NOT_NULL(returning); if (returning) T_EQ(returning->type, F_INT);
+    T_NOT_NULL(holding); if (holding) T_EQ(holding->type, F_INT);
+
+    unit->movement.guard_position = (vec2_t){ 123.5f, 456.5f };
+    unit->movement.guard_position_valid = true;
+    unit->movement.guard_combat = true;
+    unit->movement.guard_returning = true;
+    unit->movement.holding_position = true;
+    T_ASSERT(WriteGame(filename));
+    memset(&unit->movement, 0, sizeof(unit->movement));
+    T_ASSERT(ReadGame(filename));
+
+    T_FEQ(unit->movement.guard_position.x, 123.5f, 0.001f);
+    T_FEQ(unit->movement.guard_position.y, 456.5f, 0.001f);
+    T_ASSERT(unit->movement.guard_position_valid);
+    T_ASSERT(unit->movement.guard_combat);
+    T_ASSERT(unit->movement.guard_returning);
+    T_ASSERT(unit->movement.holding_position);
+    remove(filename);
+}
+
 TEST(wc3_save, field_vertex_tint_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-field-vertex-tint.bin";
     edict_t *unit;

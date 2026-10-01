@@ -27,6 +27,7 @@ static bool hold_position_state(edict_t *unit, bool preserve_queue) {
     unit->movement.patrol_b = NULL;
     unit->movement.patrol_target = NULL;
     unit->movement.follow_target = NULL;
+    G_ClearUnitGuardPosition(unit);
     unit->movement.holding_position = true;
     unit_leavecombat(unit);
     if (preserve_queue) unit_stand_no_queue(unit);

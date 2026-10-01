@@ -287,4 +287,103 @@ TEST(wc3_order_lifecycle, stop_and_hold_buttons_expose_engaged_state) {
     T_EQ(stop.engaged, 1);
     T_EQ(hold.engaged, 0);
 }
+TEST(wc3_order_lifecycle, stop_records_guard_position_and_returns_after_auto_combat) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
+
+    order_stop(unit);
+    T_ASSERT(unit->movement.guard_position_valid);
+    T_FEQ(unit->movement.guard_position.x, 0, 0.001f);
+    T_FEQ(unit->movement.guard_position.y, 0, 0.001f);
+
+    level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->goalentity == enemy);
+    T_ASSERT(unit->movement.guard_combat);
+
+    unit->s.origin2.x = unit->s.origin.x = 180;
+    gi.LinkEntity(unit);
+    T_Damage(enemy, unit, (int)enemy->health.value);
+
+    T_ASSERT(unit->movement.guard_returning);
+    T_ASSERT(unit->currentmove->proc == CAbilityMove);
+    T_NOT_NULL(unit->goalentity);
+    T_FEQ(unit->goalentity->s.origin2.x, 0, 0.001f);
+    T_FEQ(unit->goalentity->s.origin2.y, 0, 0.001f);
+}
+
+TEST(wc3_order_lifecycle, guard_return_completion_restores_stopped_idle) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
+
+    order_stop(unit);
+    level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
+    unit->currentmove->think(unit);
+    unit->s.origin2.x = unit->s.origin.x = 120;
+    gi.LinkEntity(unit);
+    T_Damage(enemy, unit, (int)enemy->health.value);
+    T_ASSERT(unit->movement.guard_returning);
+
+    unit->s.origin2 = unit->movement.guard_position;
+    unit->s.origin.x = unit->s.origin2.x;
+    unit->s.origin.y = unit->s.origin2.y;
+    gi.LinkEntity(unit);
+    unit->currentmove->think(unit);
+
+    T_ASSERT(!unit->movement.guard_returning);
+    T_ASSERT(unit->movement.guard_position_valid);
+    T_ASSERT(unit->currentmove->think == ai_stand);
+}
+
+TEST(wc3_order_lifecycle, explicit_move_clears_old_stop_guard) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(40, 0);
+    vec2_t point = {500, 0};
+
+    order_stop(unit);
+    T_ASSERT(unit->movement.guard_position_valid);
+    T_FEQ(unit->movement.guard_position.x, 40, 0.001f);
+
+    T_ASSERT(unit_issueorder(unit, "move", &point));
+    T_ASSERT(!unit->movement.guard_position_valid);
+    T_ASSERT(!unit->movement.guard_returning);
+}
+
+TEST(wc3_order_lifecycle, second_stop_refreshes_guard_position) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(20, 0);
+
+    order_stop(unit);
+    T_FEQ(unit->movement.guard_position.x, 20, 0.001f);
+
+    unit->s.origin2.x = unit->s.origin.x = 240;
+    gi.LinkEntity(unit);
+    order_stop(unit);
+
+    T_ASSERT(unit->movement.guard_position_valid);
+    T_FEQ(unit->movement.guard_position.x, 240, 0.001f);
+}
+
+TEST(wc3_order_lifecycle, queued_player_order_outranks_guard_return) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
+    vec2_t point = {700, 0};
+
+    order_stop(unit);
+    level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->movement.guard_combat);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &point, true, 0, 0.0f));
+    T_EQ(G_UnitQueuedOrderCount(unit), 1);
+
+    unit->s.origin2.x = unit->s.origin.x = 160;
+    gi.LinkEntity(unit);
+    T_Damage(enemy, unit, (int)enemy->health.value);
+
+    T_ASSERT(!unit->movement.guard_returning);
+    T_ASSERT(!unit->movement.guard_position_valid);
+    T_EQ(G_UnitQueuedOrderCount(unit), 0);
+    T_ASSERT(unit->currentmove->proc == CAbilityMove);
+}
+
 #endif

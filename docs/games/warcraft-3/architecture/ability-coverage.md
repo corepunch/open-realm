@@ -79,7 +79,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 
 | Code | Local file | Status |
 |---|---|---|
-| `CmdStop` | `s_stop.c` | Implemented immediate Stop command; clears retained movement/combat goals, interrupts channels, returns to ordinary idle acquisition/chase, supports Shift-queued no-target replay, and exposes the ordinary stopped/idle command-card engaged state. |
+| `CmdStop` | `s_stop.c` | Implemented immediate Stop command; clears retained movement/combat goals, interrupts channels, captures the current Stop guard point, permits ordinary idle acquisition/chase and returns there after automatic combat when no explicit queued work supersedes it, supports Shift-queued no-target replay, and exposes the ordinary stopped/idle command-card engaged state. |
 | `CmdMove` | `s_move.c` | Implemented ground move command. |
 | `CmdAttack` | `s_attack.c` | Implemented basic melee/ranged attack and projectiles. Explicit Attack may target friendly units and buildings; Smart/right-click attack selection remains unchanged. Building attack range is measured to authored pathing footprints so large blocked structures do not cause attackers to orbit their centres. |
 | `CmdBuild` | `s_build.c` | Implemented build menu and placement flow. |
