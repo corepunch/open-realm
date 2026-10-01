@@ -94,6 +94,10 @@ uint32_t SetProduce(jass_t *j) {
                                             jass_checkinteger(j, 2), jass_checkinteger(j, 3)));
 }
 
+uint32_t SetUpgrade(jass_t *j) {
+    return jass_pushboolean(j, G_BotUpgrade(jass_getcontext(j)->playerState, (uint32_t)jass_checkinteger(j, 1)));
+}
+
 uint32_t GetUnitGoldCost(jass_t *j) {
     return jass_pushinteger(j, MAX(0, G_UnitBalance(jass_checkinteger(j, 1))->goldCost));
 }
@@ -121,10 +125,17 @@ static bot_t *BotState(jass_t *j) {
     return player ? level.bots + PLAYER_NUM(player) : NULL;
 }
 
+uint32_t GetHeroId(jass_t *j) { bot_t *bot = BotState(j); return jass_pushinteger(j, bot ? (int32_t)bot->hero_id : 0); }
+uint32_t GetHeroLevelAI(jass_t *j) { bot_t *bot = BotState(j); return jass_pushinteger(j, bot ? (int32_t)bot->hero_level : 0); }
+
 static uint32_t BotSetFlag(jass_t *j, botFlag_t flag) {
     bot_t *bot = BotState(j);
     bool set = jass_checkboolean(j, 1);
-    if (bot) bot->flags = set ? bot->flags | flag : bot->flags & ~flag;
+    if (bot) {
+        bool changed = ((bot->flags & flag) != 0) != set;
+        bot->flags = set ? bot->flags | flag : bot->flags & ~flag;
+        if (changed && flag == BOT_PEONS_REPAIR) bot->repair_policy_dirty = true;
+    }
     return 0;
 }
 

@@ -12,6 +12,7 @@ void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void setup_test_world(void);
 
 static UnitAbilities_t const bot_harvester_abilities = { .abilList = "Ahar" };
+static UnitAbilities_t const bot_repair_abilities = { .abilList = "Arep" };
 static UnitAbilities_t const bot_hall_abilities = { .abilList = "Argl" };
 /* Natural ngol fixtures use the finite Agld ability; Abgm denotes a racial
  * overlay and is intentionally excluded from ordinary worker harvesting. */
@@ -171,6 +172,103 @@ TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
     T_NOT_NULL(producer->build); T_EQ(producer->build->class_id, MAKEFOURCC('h','f','o','o'));
     T_NOT_NULL(producer->build->build); T_EQ(producer->build->build->class_id, MAKEFOURCC('h','f','o','o'));
     T_ASSERT(!G_BotProduce(player, 1, MAKEFOURCC('u','n','k','n'), -1));
+}
+
+TEST(wc3_bot, guard_post_replacement_trains_once_and_consumes_post_budget) {
+    player_t *player = &game.clients[2].ps;
+    bot_t *bot = level.bots + 2;
+    UnitProfile_t profile = { .trains = "hfoo" };
+    edict_t *producer;
+
+    reset_entities();
+    producer = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 0, 0, 2, NULL);
+    producer->data.UnitProfile = &profile;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    bot->replacement_count = 1;
+
+    G_BotAddGuardPost(player, MAKEFOURCC('h','f','o','o'), 256, 0);
+    T_EQ(bot->guards[0].replacements_used, 0);
+    G_BotFillGuardPosts(player);
+    T_NOT_NULL(producer->build);
+    T_ASSERT(bot->guards[0].replacement_pending);
+    T_EQ(bot->guards[0].replacements_used, 1);
+    T_NULL(producer->build->build);
+
+    G_BotFillGuardPosts(player);
+    T_NULL(producer->build->build); /* repeated FillGuardPosts must not queue the same replacement again */
+
+    producer->build->training = false;
+    producer->build->health.value = producer->build->health.max_value = 100;
+    G_BotFillGuardPosts(player);
+    T_EQ(bot->guards[0].unit, producer->build);
+    T_ASSERT(!bot->guards[0].replacement_pending);
+
+    bot->guards[0].unit->health.value = 0;
+    G_BotFillGuardPosts(player);
+    T_NULL(bot->guards[0].unit);
+    T_NULL(producer->build->build); /* replacement quota was exhausted */
+}
+
+TEST(wc3_bot, peons_repair_policy_enables_existing_repair_autocast_path) {
+    edict_t *worker;
+
+    reset_entities();
+    worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 0, 0, 4, &bot_repair_abilities);
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+    T_ASSERT(G_BotStart(&game.clients[4].ps, "test_ai_settings_inverse.ai", BOT_CAMPAIGN));
+    G_BotRunFrame(); /* script sets BOT_PEONS_REPAIR */
+    G_BotRunFrame(); /* policy reconciliation applies the normal Repair autocast */
+    T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
+}
+
+TEST(wc3_bot, hero_levels_callback_uses_ai_hero_context_and_normal_learning) {
+    edict_t *hero;
+
+    reset_entities();
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_hero_levels.ai", BOT_MELEE));
+    G_BotRunFrame();
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->s.player = 2;
+    hero->hero.level = 1;
+    hero->hero.skillpoints = 0;
+    hero->hero.xp = 0;
+    G_HeroSetXP(hero, G_HeroXPForLevel(2));
+    T_EQ(hero->hero.level, 2);
+    T_EQ(G_UnitAbilityLevel(hero, MAKEFOURCC('A','H','h','b')), 1);
+    T_EQ(hero->hero.skillpoints, 0);
+    T_EQ(level.bots[2].hero_id, 0);
+    T_EQ(level.bots[2].hero_level, 0);
+}
+
+TEST(wc3_bot, set_upgrade_uses_normal_research_queue_and_rejects_duplicate_request) {
+    gameClient_t *client = &game.clients[2];
+    player_t *player = &client->ps;
+    UnitProfile_t profile = { .researches = "Rhme" };
+    edict_t *producer;
+
+    reset_entities();
+    memset(client->tech, 0, sizeof(client->tech));
+    producer = make_bot_harvest_unit(MAKEFOURCC('h','b','l','a'), 0, 0, 2, NULL);
+    producer->data.UnitProfile = &profile;
+    producer->s.flags |= EF_BUILDING;
+    producer->runtime.flags |= UNIT_BALANCE_BUILDING;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+
+    T_ASSERT(G_BotStart(player, "test_upgrade.ai", BOT_MELEE));
+    G_BotRunFrame();
+    T_NOT_NULL(level.bots[2].vm);
+    if (level.bots[2].vm) T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
+    T_NOT_NULL(producer->build);
+    if (producer->build) {
+        T_EQ(producer->build->research.upgrade, MAKEFOURCC('R','h','m','e'));
+        T_EQ(producer->build->research.level, 1);
+    }
+    T_EQ(G_GetPlayerTechInProgress(client, MAKEFOURCC('R','h','m','e')), 1);
+    T_EQ(player->stats[PLAYERSTATE_RESOURCE_GOLD], 900);
+    T_EQ(player->stats[PLAYERSTATE_RESOURCE_LUMBER], 950);
 }
 
 TEST(wc3_bot, shift_town_spot_redirects_subsequent_build_search) {

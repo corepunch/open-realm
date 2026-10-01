@@ -1094,6 +1094,29 @@ bool jass_evaluateplayerexpr(jass_t *j, jassFunc_t const *expr, player_t *player
     return result_count == 1 && jass_popboolean(&tmp_state);
 }
 
+/* AI hero-level callbacks are ordinary zero-argument code functions that return
+ * an ability rawcode. Evaluate them in an isolated scratch state so their
+ * player context does not disturb a sleeping common.ai coroutine. */
+bool jass_evaluateplayerinteger(jass_t *j, jassFunc_t const *expr, player_t *player, int32_t *result) {
+    jass_t tmp_state;
+    uint32_t result_count;
+    if (result) *result = 0;
+    if (!j || !expr) return false;
+    memcpy(&tmp_state, j, sizeof(struct jass_s));
+    memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
+    tmp_state.num_stack = 0;
+    tmp_state.context.playerState = player;
+    jass_pushfunction(&tmp_state, expr);
+    result_count = jass_call(&tmp_state, 0);
+    if (result_count != 1 || jass_gettype(&tmp_state, -1) != jasstype_integer) {
+        if (result_count) jass_pop(&tmp_state, result_count);
+        return false;
+    }
+    if (result) *result = jass_checkinteger(&tmp_state, -1);
+    jass_pop(&tmp_state, 1);
+    return true;
+}
+
 static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t const *params, bool immediate) {
     jasscoroutine_t *first = NULL, *last = NULL;
     FOR_EACH_LIST(gTriggerAction_t, action, params->trigger->actions) {

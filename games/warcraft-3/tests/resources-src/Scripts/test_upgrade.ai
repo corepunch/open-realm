@@ -1,0 +1,9 @@
+function main takes nothing returns nothing
+    if not SetUpgrade('Rhme') then
+        call MissingAIAction()
+    endif
+    if SetUpgrade('Rhme') then
+        call MissingAIAction()
+    endif
+    call Sleep(10)
+endfunction

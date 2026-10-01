@@ -2,9 +2,10 @@
 #include "jass/jass.h"
 #include "skills/s_skills.h"
 
-#define BOT_GUARD_RETURN_RANGE 64.0f // world units; avoid resetting movement for guards already standing near their post
+#define BOT_GUARD_RETURN_RANGE 82.006f // world units; avoid resetting movement for guards already standing near their post
 #define BOT_BUILD_GRID 32.0f // world units; WC3 structures snap to this placement-cell interval
 #define BOT_BUILD_SEARCH_RINGS 32 // 32-unit grid rings; searches 1024 world units around a town for legal placement
+#define BOT_DEFAULT_REPLACEMENT_COUNT 3
 
 static bot_t *G_BotState(uint32_t player) {
     return player < MAX_PLAYERS ? &level.bots[player] : NULL;
@@ -187,6 +188,18 @@ bool G_BotProduce(player_t *player, int32_t qty, uint32_t class_id, int32_t town
     return made > 0;
 }
 
+/* SetUpgrade is a one-shot AI request. common.ai handles resource planning and retries;
+ * the engine selects any completed owned producer whose ordinary research command is available. */
+bool G_BotUpgrade(player_t *player, uint32_t upgrade_id) {
+    gameClient_t *client;
+    if (!player || !upgrade_id || !(client = PLAYER_CLIENT(player))) return false;
+    FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
+        !ent->construction.active && !ent->training &&
+        G_GetResearchCommandState(client, ent, upgrade_id, NULL, NULL, 0) == BUILD_COMMAND_AVAILABLE)
+        if (G_QueueResearch(ent, upgrade_id)) return true;
+    return false;
+}
+
 static bool G_BotHarvesting(edict_t *unit, returnResource_t resource) {
     abilityProc_t proc = resource == RETURN_RESOURCE_GOLD ? CAbilityGoldMine : CAbilityHarvest;
     return unit->currentmove && unit->currentmove->proc == proc;
@@ -354,7 +367,8 @@ void G_BotAddGuardPost(player_t *player, uint32_t class_id, float x, float y) {
     if (count) memcpy(guards, bot->guards, count * sizeof(*guards));
     if (bot->guards) gi.MemFree(bot->guards);
     bot->guards = guards; ARRAY_COUNT(bot->guards) = count + 1;
-    bot->guards[count] = MAKE(botGuardPost_t, class_id, MAKE(vec2_t, x, y), NULL);
+    bot->guards[count] = MAKE(botGuardPost_t, .class_id = class_id, .origin = MAKE(vec2_t, x, y),
+                                   .replacements_used = 0);
 }
 
 static bool G_BotGuardHasUnit(bot_t *bot, edict_t *unit) {
@@ -362,7 +376,16 @@ static bool G_BotGuardHasUnit(bot_t *bot, edict_t *unit) {
     return false;
 }
 
-/* Guard posts reserve ordinary completed units independently from the two captain rosters. */
+static bool G_BotGuardReplacementTraining(player_t *player, uint32_t class_id) {
+    if (!player || !class_id) return false;
+    FILTER_EDICTS(unit, unit->inuse && unit->s.player == PLAYER_NUM(player) &&
+        unit->class_id == class_id && unit->training) return true;
+    return false;
+}
+
+/* Guard posts reserve ordinary completed units independently from the two captain rosters.
+ * If a vacant post has exhausted the spare pool, FillGuardPosts requests one ordinary trained
+ * replacement at a time and consumes the per-post replacement budget only after queue acceptance. */
 void G_BotFillGuardPosts(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
@@ -372,6 +395,15 @@ void G_BotFillGuardPosts(player_t *player) {
         FILTER_EDICTS(unit, !post->unit && G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
             unit->class_id == post->class_id && !unit->construction.active && !unit->training &&
             !G_BotCaptainHasUnit(bot, unit) && !G_BotGuardHasUnit(bot, unit)) post->unit = unit;
+        if (post->unit) { post->replacement_pending = false; continue; }
+        if (post->replacement_pending) {
+            if (G_BotGuardReplacementTraining(player, post->class_id)) continue;
+            post->replacement_pending = false;
+        }
+        if (post->replacements_used < bot->replacement_count && G_BotProduce(player, 1, post->class_id, -1)) {
+            post->replacement_pending = true;
+            post->replacements_used++;
+        }
     }
 }
 
@@ -381,6 +413,8 @@ void G_BotReturnGuardPosts(player_t *player) {
     if (!bot) return;
     FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) {
         if (!G_BotUnitAlive(post->unit)) { post->unit = NULL; continue; }
+        /* Retail trains Hero guard replacements but does not send Heroes back to the authored guard point. */
+        if (G_UnitIsHero(post->unit)) continue;
         if (!unit_affectingcombat(post->unit) && Vector2_distance(&post->unit->s.origin2, &post->origin) > BOT_GUARD_RETURN_RANGE)
             order_move(post->unit, Waypoint_add(&post->origin));
     }
@@ -525,6 +559,44 @@ void G_BotPopCommand(player_t *player) {
     if (bot && ARRAY_COUNT(bot->commands)) ARRAY_COUNT(bot->commands)--;
 }
 
+static void G_BotApplyRepairToUnit(bot_t *bot, edict_t *unit) {
+    bool enabled, active;
+    if (!bot || !bot->player || !unit || !G_BotUnitAlive(unit) || unit->s.player != PLAYER_NUM(bot->player)) return;
+    enabled = (bot->flags & BOT_PEONS_REPAIR) != 0;
+    active = (unit->aiflags & AI_AUTOCAST_REPAIR) != 0;
+    if (active != enabled && (enabled || active)) (void)S_SetRepairAutocast(unit, enabled);
+}
+
+static void G_BotApplyRepairPolicy(bot_t *bot) {
+    if (!bot || !bot->player || !bot->repair_policy_dirty) return;
+    FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(bot->player))
+        G_BotApplyRepairToUnit(bot, unit);
+    bot->repair_policy_dirty = false;
+}
+
+static void G_BotHeroChooseSkill(bot_t *bot, edict_t *hero) {
+    int32_t skill = 0;
+    if (!bot || !bot->vm || !bot->hero_levels || !hero || !G_BotUnitAlive(hero) ||
+        hero->s.player != PLAYER_NUM(bot->player) || !G_UnitIsHero(hero) || !hero->hero.skillpoints) return;
+    bot->hero_id = hero->class_id;
+    bot->hero_level = hero->hero.level;
+    if (jass_evaluateplayerinteger(bot->vm, bot->hero_levels, bot->player, &skill) && skill > 0)
+        (void)G_HeroLearnSkill(hero, (uint32_t)skill);
+    bot->hero_id = 0;
+    bot->hero_level = 0;
+}
+
+void G_BotHeroLevelUp(edict_t *hero) {
+    bot_t *bot = hero && hero->s.player < MAX_PLAYERS ? G_BotState(hero->s.player) : NULL;
+    G_BotHeroChooseSkill(bot, hero);
+}
+
+void G_BotUnitReady(edict_t *unit) {
+    bot_t *bot = unit && unit->s.player < MAX_PLAYERS ? G_BotState(unit->s.player) : NULL;
+    G_BotApplyRepairToUnit(bot, unit);
+    if (G_UnitIsHero(unit)) G_BotHeroChooseSkill(bot, unit);
+}
+
 /* AI script paths are normally basenames; preserve an explicit archive path when a map supplies one. */
 static bool G_BotScriptPath(cstring_t script, string_t path, size_t size) {
     int len;
@@ -585,6 +657,7 @@ bool G_BotStart(player_t *player, cstring_t script, botMode_t mode) {
     bot->vm = jass_newstate();
     bot->player = player;
     bot->mode = mode;
+    bot->replacement_count = BOT_DEFAULT_REPLACEMENT_COUNT;
     strlcpy(bot->script, path, sizeof(bot->script));
     if (!jass_dofile(bot->vm, "Scripts\\common.j")) {
         fprintf(stderr, "WC3 AI: player %u could not load Scripts\\common.j\n", playernum);
@@ -621,6 +694,7 @@ void G_BotRunFrame(void) {
         if (!bot->vm) continue;
         if (bot->stop_requested) { G_BotStop(player); continue; }
         if (bot->paused) continue;
+        G_BotApplyRepairPolicy(bot);
         jass_runevents(bot->vm);
         if (bot->stop_requested) { G_BotStop(player); continue; }
         if (bot->restart_requested) {
