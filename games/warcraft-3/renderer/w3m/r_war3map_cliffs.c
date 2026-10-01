@@ -11,6 +11,10 @@ typedef struct cliffLayer_s {
     struct cliffLayer_s *next;
 } cliffLayer_t;
 static cliffLayer_t *cliff_layers;
+static vertex_t *cliff_vertex_samples;
+static uint32_t *cliff_vertex_sample_generation;
+static uint32_t cliff_vertex_sample_capacity, cliff_vertex_generation;
+static bool cliff_warn_sample_alloc;
 
 vec3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y);
 
@@ -41,6 +45,11 @@ struct tCliffTexture {
 
 static struct tCliffTexture *g_cliff_textures = NULL; /* Per-map resolved cliff texture choices; renderer texture storage remains cache-owned. */
 
+/* Test-only work counts let renderer tests assert that indexed MDX vertices are sampled once. */
+#ifdef WC3_CLIFF_TESTS
+static uint32_t cliff_vertex_sample_count, cliff_vertex_cache_hit_count;
+#endif
+
 void R_ResetCliffCache(void) {
     while (g_cliffs) {
         struct tCliff *next = g_cliffs->next;
@@ -53,6 +62,10 @@ void R_ResetCliffCache(void) {
         ri.MemFree(g_cliff_textures);
         g_cliff_textures = next;
     }
+    SAFE_DELETE(cliff_vertex_samples, ri.MemFree);
+    SAFE_DELETE(cliff_vertex_sample_generation, ri.MemFree);
+    cliff_vertex_sample_capacity = cliff_vertex_generation = 0;
+    cliff_warn_sample_alloc = false;
 }
 
 // HELPERS
@@ -177,6 +190,69 @@ static bool R_CliffGroundJoin(war3map_t const *map, vec3_t *pos) {
     return false;
 }
 
+static bool R_GrowCliffVertexSamples(uint32_t count) {
+    vertex_t *samples;
+    uint32_t *generation;
+    uint32_t capacity;
+    if (count <= cliff_vertex_sample_capacity) return true;
+    capacity = MAX(64u, cliff_vertex_sample_capacity);
+    while (capacity < count) {
+        if (capacity > UINT32_MAX / 2) { capacity = count; break; }
+        capacity *= 2;
+    }
+    if (capacity > SIZE_MAX / sizeof(*samples) || capacity > SIZE_MAX / sizeof(*generation))
+        return false;
+    samples = ri.MemAlloc((size_t)capacity * sizeof(*samples));
+    generation = ri.MemAlloc((size_t)capacity * sizeof(*generation));
+    if (!samples || !generation) {
+        if (samples) ri.MemFree(samples);
+        if (generation) ri.MemFree(generation);
+        if (!cliff_warn_sample_alloc) {
+            fprintf(stderr, "WC3 renderer: unable to allocate cliff vertex sample cache; baking without cache\n");
+            cliff_warn_sample_alloc = true;
+        }
+        return false;
+    }
+    memset(generation, 0, (size_t)capacity * sizeof(*generation));
+    SAFE_DELETE(cliff_vertex_samples, ri.MemFree);
+    SAFE_DELETE(cliff_vertex_sample_generation, ri.MemFree);
+    cliff_vertex_samples = samples;
+    cliff_vertex_sample_generation = generation;
+    cliff_vertex_sample_capacity = capacity;
+    return true;
+}
+
+static uint32_t R_NextCliffVertexGeneration(void) {
+    if (++cliff_vertex_generation == 0) {
+        memset(cliff_vertex_sample_generation, 0,
+            (size_t)cliff_vertex_sample_capacity * sizeof(*cliff_vertex_sample_generation));
+        cliff_vertex_generation = 1;
+    }
+    return cliff_vertex_generation;
+}
+
+static vertex_t R_BakeCliffVertex(war3map_t const *map, mdxGeoset_t const *geoset,
+                                  vec2_t const *offset, int baselevel, uint32_t index) {
+    vec3_t pos = Matrix4_multiply_vector3(&r_cliff_axes, &geoset->vertices[index]);
+    float const fx = pos.x + offset->x, fy = pos.y + offset->y;
+    float const fh = GetAccurateHeightAtPoint(fx, fy);
+    float const fw = GetAccurateWaterLevelAtPoint(fx, fy);
+    float const fz = geoset->vertices[index].z + baselevel * TILE_SIZE + fh - HEIGHT_COR;
+    float const dp = GetTileDepth(fw, fz);
+    vec3_t fn = Matrix4_multiply_vector3(&r_cliff_axes, &geoset->normals[index]);
+    vec3_t an = GetAccurateNormalAtPoint(fx, fy);
+    vertex_t vertex = { 0 };
+    vertex.color = MakeColor(dp, LerpNumber(dp, 1, 0.25), LerpNumber(dp, 1, 0.5), 1);
+    vertex.position.x = map->center.x + fx;
+    vertex.position.y = map->center.y + fy;
+    vertex.position.z = fz;
+    bool join = R_CliffGroundJoin(map, &vertex.position);
+    vertex.texcoord = geoset->texcoord[index];
+    vertex.normal = join && fn.z > 0 ? an : Vector3_mad(&(vec3_t){fn.x,fn.y,0}, fn.z, &an);
+    Vector3_normalize(&vertex.normal);
+    return vertex;
+}
+
 static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_t const *data) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
@@ -235,36 +311,38 @@ static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_
     }
 
     cliff_bake.current_group++;
+    bool cache_samples = R_GrowCliffVertexSamples((uint32_t)pGeoset->num_vertices);
+    uint32_t cache_generation = cache_samples ? R_NextCliffVertexGeneration() : 0;
     FOR_LOOP(t, pGeoset->num_triangles) {
         const int i = pGeoset->triangles[t];
-        vec3_t pos = Matrix4_multiply_vector3(&r_cliff_axes, &pGeoset->vertices[i]);
-        const float fx = pos.x + offset.x;
-        const float fy = pos.y + offset.y;
-        const float fh = GetAccurateHeightAtPoint(fx, fy);
-        const float fw = GetAccurateWaterLevelAtPoint(fx, fy);
-        const float fz = pGeoset->vertices[i].z + baselevel * TILE_SIZE + fh - HEIGHT_COR;
-        const float dp = GetTileDepth(fw, fz);
-        struct vertex *v = R_CliffBakeVertex(&cliff_bake);
-        vec3_t fn = Matrix4_multiply_vector3(&r_cliff_axes, &pGeoset->normals[i]);
-        vec3_t an = GetAccurateNormalAtPoint(fx, fy);
-        v->color = MakeColor(dp, LerpNumber(dp, 1, 0.25), LerpNumber(dp, 1, 0.5), 1);
-        v->position.x = map->center.x + fx;
-        v->position.y = map->center.y + fy;
-        v->position.z = fz;
-        bool join = R_CliffGroundJoin(map, &v->position);
-        v->texcoord = pGeoset->texcoord[i];
-        v->normal = join && fn.z > 0 ? an : Vector3_mad(&(vec3_t){fn.x,fn.y,0}, fn.z, &an);
-        Vector3_normalize(&v->normal);
+        vertex_t sample;
+        if (cache_samples && cliff_vertex_sample_generation[i] == cache_generation) {
+            sample = cliff_vertex_samples[i];
+#ifdef WC3_CLIFF_TESTS
+            cliff_vertex_cache_hit_count++;
+#endif
+        } else {
+            sample = R_BakeCliffVertex(map, pGeoset, &offset, baselevel, (uint32_t)i);
+            if (cache_samples) {
+                cliff_vertex_samples[i] = sample;
+                cliff_vertex_sample_generation[i] = cache_generation;
+            }
+#ifdef WC3_CLIFF_TESTS
+            cliff_vertex_sample_count++;
+#endif
+        }
+        *R_CliffBakeVertex(&cliff_bake) = sample;
     }
 }
 
-maplayer_t *R_BuildMapSegmentCliffs(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t cliff) {
+static maplayer_t *R_BuildMapSegmentCliffsInternal(war3map_t const *map, uint32_t sx, uint32_t sy,
+                                                    uint32_t cliff, bool keep_layer) {
     uint32_t cliffID = map->cliffs[cliff];
     if (cliffID == NO_CLIFF) {
         return NULL;
     }
 
-    maplayer_t *mapLayer = ri.MemAlloc(sizeof(maplayer_t));
+    maplayer_t *mapLayer = keep_layer ? ri.MemAlloc(sizeof(maplayer_t)) : NULL;
     w3CliffType_t const *row = R_CliffType(cliffID);
     cliffData_t data = {
         .cliff = cliff,
@@ -275,13 +353,17 @@ maplayer_t *R_BuildMapSegmentCliffs(war3map_t const *map, uint32_t sx, uint32_t 
         .rampModelDir = row->rampModelDir,
         .cliffModelDir = row->cliffModelDir,
     };
-    mapLayer->type = MAPLAYERTYPE_CLIFF;
     uint32_t first = cliff_bake.num_vertices;
     for (uint32_t x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
         for (uint32_t y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
             R_MakeCliff(map, x, y, &data);
         }
     }
+    if (!keep_layer || cliff_bake.num_vertices == first) {
+        if (mapLayer) ri.MemFree(mapLayer);
+        return NULL;
+    }
+    mapLayer->type = MAPLAYERTYPE_CLIFF;
     mapLayer->num_vertices = cliff_bake.num_vertices - first;
     if (!mapLayer->num_vertices) {
         ri.MemFree(mapLayer);
@@ -292,6 +374,15 @@ maplayer_t *R_BuildMapSegmentCliffs(war3map_t const *map, uint32_t sx, uint32_t 
     *pending = (cliffLayer_t){ .layer = mapLayer, .first = first };
     ADD_TO_LIST(pending, cliff_layers);
     return mapLayer;
+}
+
+maplayer_t *R_BuildMapSegmentCliffs(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t cliff) {
+    return R_BuildMapSegmentCliffsInternal(map, sx, sy, cliff, true);
+}
+
+/* Emit neighboring cliff vertices for normal welding without creating a layer or GPU buffer. */
+void R_BakeMapSegmentCliffsForWeld(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t cliff) {
+    R_BuildMapSegmentCliffsInternal(map, sx, sy, cliff, false);
 }
 
 /* Weld before uploading any segment/material batch so their boundaries cannot retain lighting seams. */
