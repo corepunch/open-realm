@@ -4665,6 +4665,30 @@
           "storage": 8
         }
       ]
+    },
+    {
+      "address": "6f165c60",
+      "name": "Path_AdvanceFineRoute",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Original disassembly RET8; ECX path, stack4 native source, stack8 destination IO. Complete original165c60 obstruction calls and16fbd0 wait call: new wait retains fine waypoint, nonzero subsequent94 gate preserves caller destination.",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "destination",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [

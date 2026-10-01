@@ -446,7 +446,7 @@ static void move_repulse_init(edict_t *self) {
 }
 
 /* Predict from the committed fine pose without consuming its clock or velocity. */
-static void move_repulse_pose(edict_t const *self, wc3GridPose_t *pose) {
+static void unit_predicted_pose(edict_t const *self, wc3GridPose_t *pose) {
     unit_grid_pose(self,pose);
     if (self->movement.clock_valid) {
         float velocity[2] = {self->movement.velocity.x,self->movement.velocity.y};
@@ -461,7 +461,7 @@ static bool move_repulse_candidate(edict_t const *other) {
     if (other == query->self || !other->movement.repulse.active || !G_UnitIsWorldActive(other) ||
         IS_HOLLOW(other) || other->collision <= 0 || other->paused || other->stunned || other->no_pathing ||
         ((word >> 20) & 255) != query->category || (word >> 28) < query->rank) return false;
-    wc3GridPose_t pose; move_repulse_pose(other,&pose);
+    wc3GridPose_t pose; unit_predicted_pose(other,&pose);
     for (unsigned i = 0; i < 2; i++) query->pair.other[i] = pose.grid[i];
     wc3_repulse_pair(&query->self->movement.repulse.state,&query->pair);
     return false;
@@ -474,7 +474,7 @@ static void move_repulse_update(edict_t *self) {
     if (self->paused || self->stunned) {
         state->vector[0] = state->vector[1] = 0; state->packed = (state->packed & 0xffff0000u) | 7; return;
     }
-    wc3GridPose_t pose; move_repulse_pose(self,&pose);
+    wc3GridPose_t pose; unit_predicted_pose(self,&pose);
     wc3GridPose_t next = pose;
     for (unsigned i = 0; i < 2; i++) next.grid[i] = wc3_add(next.grid[i],state->vector[i]);
     for (unsigned i = 0; i < 2; i++) next.world[i] = wc3_world_coordinate(next.grid[i],next.origin[i],32);
@@ -1003,10 +1003,13 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         return;
     if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
         wc3_yield_advance(&self->movement.wait_delay,false)) {
-        /* TODO ROUTE-03/05: verify oblique held-waypoint heading composition;
-         * the ordinary engine wait currently turns toward its order goal. */
-        vec2_t direction=Vector2_sub(&self->goalentity->s.origin2,&self->s.origin2);
-        float heading=wc3_vector_heading(direction.x,direction.y);
+        /* Original165ae0's countdown leaves the caller destination unchanged.
+         * 16fbd0 subtracts it from the predicted native source, before world
+         * projection; acquisition-time waits separately retain the waypoint. */
+        wc3GridPose_t pose; unit_predicted_pose(self,&pose);
+        float x=wc3_grid_coordinate(self->goalentity->s.origin2.x,pose.origin[0],32);
+        float y=wc3_grid_coordinate(self->goalentity->s.origin2.y,pose.origin[1],32);
+        float heading=wc3_vector_heading(wc3_sub(x,pose.grid[0]),wc3_sub(y,pose.grid[1]));
         self->movement.heading=heading; unit_turn_toward(self,heading);
         self->movement.turn_blocked=true;
         return;

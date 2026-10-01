@@ -40,7 +40,7 @@ composition closes a gap.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
   `MapPathfindingTypes.java` also persists31 partial layouts,177 verified
-  fields and191 instruction-established prototypes with explicit register/stack
+  fields and192 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -50,9 +50,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  470 function names/comments applied and saved. Latest ordered-wait readbacks:
-  `runtime/moving-yield-ghidra-readback-261001.json` and
-  `runtime/moving-yield-types-261001.json`. Names are recovered roles, not original debug symbols;
+  470 function names/comments applied and saved. Latest waiting-caller readbacks:
+  `runtime/wait-heading-ghidra-readback-261001.json` and
+  `runtime/wait-heading-types-261001.json`. Names are recovered roles, not original debug symbols;
   RTTI names are original. No inferred prototypes installed.
 - `MapPathfindingCRT.java` separately saves the exact sibling CRT byte/locale map:
   three partial types, eight function roles, seven global labels and the verified

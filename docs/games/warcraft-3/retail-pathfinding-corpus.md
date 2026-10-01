@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **233 entries**: **44** distinct original-code oracle
-scripts plus **50** declared variants, **108** archived JSONL audits and **31**
+The inventory now has **237 entries**: **45** distinct original-code oracle
+scripts plus **50** declared variants, **110** archived JSONL audits and **32**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,13 +20,13 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 88 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 89 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 100 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 102 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Twenty-one public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Twenty-two public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -574,3 +574,14 @@ the independent repeat has identical normalized digest. The two added frozen
 fixtures bring the pinned inventory to86. Accepted strict run:
 `moving-yield-corpus-accepted-v2-261001/corpus-results.json`.
 See [ordinary Move integration and exclusions](retail-pathfinding-engine.md#ordered-moving-waits-reach-ordinary-move).
+
+Payoff31 adds `oracle-wait-heading`, two owned raw caller archives and
+`live-wait-heading-repeat-261001`. Complete original16fbd0 consumes1,008
+controlled native waits; two live runs match all424 actual countdown callers
+against C, including the nested gate's untouched final goal/source and stop/turn
+outputs. The strict verifier rejects incomplete operands, changed words/gates,
+mispaired counters, provenance loss and truncated/incomplete captures. Two
+additional frozen fixtures bring the pinned inventory to88. Accepted fresh run:
+`wait-heading-corpus-accepted-v2-261001/corpus-results.json`. See
+[engine payoff31](retail-pathfinding-engine.md#waiting-headings-preserve-the-native-caller)
+for the reproduced world-coordinate failures and public saved continuation.

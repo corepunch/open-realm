@@ -424,9 +424,17 @@ repeats600 saved continuation frames exactly. See
 Ordinary Move now collects next-step moving blockers and applies the original
 committed-velocity yield policy: requester waits at least4 eligible advances,
 or the slower same-player peer waits at least20. Candidate order and earlier
-peer side effects are retained. Save69 preserves live waits and blocker
+peer side effects are retained. Save70 preserves live waits and blocker
 references; removal clears references without cancelling the remaining delay.
 The public Move/save/removal regression and two exact retail decision repeats
 are recorded in [ordered moving waits](retail-pathfinding-engine.md#ordered-moving-waits-reach-ordinary-move).
 Original overlapping cell-link order, group-bit8 producers, caller retry
 composition and full crowd trajectory parity remain open.
+
+During countdown, Move turns toward the final caller goal using its retained
+predicted native source. It no longer reconstructs that direction from rounded
+world coordinates. Four stopped oblique ticks match retail and survive public
+save/load exactly before movement resumes. See
+[native waiting headings](retail-pathfinding-engine.md#waiting-headings-preserve-the-native-caller)
+for complete original callers and two live repeats; acquisition-time waypoint
+selection and peer retry remain separate work.

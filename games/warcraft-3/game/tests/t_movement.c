@@ -1739,6 +1739,92 @@ TEST(wc3_movement, moving_blocker_yield_uses_original_velocity_policy) {
     reset_entities(); setup_test_world();
 }
 
+/* Complete original16fbd0 waiting calls retain their native source. The world
+ * subtraction differs even at origin0 and differs by ten float units
+ * at positive origins. Countdown1 still turns while stopping translation. */
+TEST(wc3_movement, waiting_heading_preserves_native_source) {
+    uint32_t const cases[4][4] = {
+        {0x45816f60u,0x4581c9f9u,0x458c0000u,0x45880000u},
+        {0xc4fa4280u,0x440e4fcau,0xc4d00000u,0x44400000u},
+        {0x47c366f6u,0x47c36c9fu,0x47c41000u,0x47c3d000u},
+        {0x4237b01au,0x4264fca7u,0x43c00000u,0x43800000u},
+    };
+    vec2_t const origins[]={{4096,4096},{-2048,512},{100000,100000},{0,0}};
+    FOR_LOOP(i,4) {
+        edict_t *unit=make_moving_unit(wc3_float(cases[i][0]),wc3_float(cases[i][1]));
+        uint8_t cells[64*64]={0};
+        box2_t bounds={origins[i],{origins[i].x+2048,origins[i].y+2048}};
+        CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+        vec2_t goal={wc3_float(cases[i][2]),wc3_float(cases[i][3])};
+        T_ASSERT(unit_issueorder(unit,"move",&goal));
+        unit->movement.fine_pose=unit->movement.sampled_pose=(vec2_t){wc3_float(0x3fb7b01a),wc3_float(0x3fe4fca7)};
+        unit->movement.pose_world=unit->s.origin2; unit->movement.pose_valid=true;
+        unit->movement.clock_valid=false; unit->movement.wait_delay=1;
+        unit->unitinfo.TurnSpeed=0.5f; unit->unitinfo.PropWindow=0.25f;
+        unit->unitinfo.move_flags|=BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->s.angle=0.25f;
+        unit_changeangle(unit); unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->movement.heading),0x3f08101bu);
+        T_EQ(wc3_float_bits(unit->s.angle),0x3f08101bu);
+        T_EQ(unit->movement.wait_delay,0); T_ASSERT(unit->movement.turn_blocked);
+        T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+        T_EQ(wc3_float_bits(unit->s.origin2.x),cases[i][0]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y),cases[i][1]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),0x3fb7b01au);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),0x3fe4fca7u);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Seed the verified retained fine pose as a prior movement commit, then use
+ * public Move, the real owner scheduler and the normal save serializer. */
+TEST(wc3_movement, public_waiting_heading_save_continuation) {
+    reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=level.pathing_msec=0;
+    level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[64*64]={0}; box2_t bounds={{4096,4096},{6144,6144}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',4144,4160,0)\n"
+        "call SetUnitTurnSpeed(mover,0.5)\ncall SetUnitPropWindow(mover,0.25)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",4480,4352)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit_stand(unit); jass_callbyname(level.vm,"go",false);
+    unit->s.origin2=(vec2_t){wc3_float(0x45816f60),wc3_float(0x4581c9f9)};
+    unit->s.origin.x=unit->s.origin2.x; unit->s.origin.y=unit->s.origin2.y; gi.LinkEntity(unit);
+    unit->movement.fine_pose=unit->movement.sampled_pose=(vec2_t){wc3_float(0x3fb7b01a),wc3_float(0x3fe4fca7)};
+    unit->movement.pose_world=unit->s.origin2; unit->movement.pose_valid=true;
+    unit->movement.clock_valid=false; unit->movement.velocity=(vec2_t){0};
+    unit->movement.wait_delay=4; unit->s.angle=0.25f;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file="/tmp/openwarcraft3-wait-heading-save.bin"; T_ASSERT(WriteGame(file));
+    uint32_t words[12][10]; bool moved=false;
+    FOR_LOOP(pass,2) {
+        if (pass) { T_ASSERT(ReadGame(file)); T_EQ(unit->movement.wait_delay,4); }
+        FOR_LOOP(i,12) {
+            level.time+=30; globals.RunFrame();
+            uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
+                wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
+                wc3_float_bits(unit->s.angle),wc3_float_bits(unit->movement.heading),
+                unit->movement.wait_delay,unit->current_order_id};
+            if (pass) FOR_LOOP(j,10) T_EQ(row[j],words[i][j]); else memcpy(words[i],row,sizeof(row));
+            if (i<4) {
+                T_EQ(row[0],0x45816f60u); T_EQ(row[1],0x4581c9f9u);
+                T_EQ(row[2],0x3fb7b01au); T_EQ(row[3],0x3fe4fca7u);
+                T_EQ(row[4],0); T_EQ(row[5],0);
+                T_EQ(row[6],0x3f08101bu); T_EQ(row[7],0x3f08101bu); T_EQ(row[8],3-i);
+            } else moved|=row[0]!=0x45816f60u || row[1]!=0x4581c9f9u;
+            T_ASSERT(unit->current_order_id!=0);
+        }
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    T_ASSERT(moved); remove(file); level.started=false; reset_entities(); setup_test_world();
+}
+
 /* An ordinary public Move collects a moving blocker; its owned wait survives
  * save/load and removal without losing the remaining eligible advances. */
 TEST(wc3_movement, public_move_yield_wait_and_save) {

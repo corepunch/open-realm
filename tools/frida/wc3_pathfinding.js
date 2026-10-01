@@ -983,7 +983,38 @@ function install(module) {
             if (row && ret.toInt32()) row.matched = this.cell;
         }
     });
+    const waitingSteps = new Map();
     if (config.yieldEvents) {
+        let waitSerial = 0;
+        const raw = (p,n) => Array.from({length:n},(_,i)=>p.add(i*4).readU32());
+        hook(0x16fbd0, {
+            onEnter(args) {
+                this.row = null;
+                const mover = this.context.ecx, path = mover.add(0xa8).readPointer();
+                if (path.isNull() || !path.add(0x94).readU32()) return;
+                this.source=args[0]; this.destination=args[1]; this.speed=args[2]; this.heading=args[3];
+                this.arrived=args[4]; this.held=args[5]; this.changed=args[6];
+                this.row = {sequence:++waitSerial, mover:mover.toString(), path:path.toString(),
+                    source:raw(this.source,2), destination:raw(this.destination,2),
+                    speed:this.speed.readU32(), heading:this.heading.readU32(),
+                    parameters:raw(mover.add(0xb0),4), before:path.add(0x94).readU32(), gate:null,
+                    query:args[7].toUInt32(), refresh:args[8].toUInt32(),
+                    counter:base.add(0xd53a48).readPointer().add(0x538).readU32()};
+                if (waitingSteps.has(this.threadId)) throw new Error('Nested waiting Mover_StepRoute');
+                waitingSteps.set(this.threadId,this.row);
+            },
+            onLeave() {
+                if (!this.row) return;
+                waitingSteps.delete(this.threadId);
+                const row=this.row;
+                row.after=ptr(row.path).add(0x94).readU32();
+                row.nextSpeed=this.speed.readU32(); row.nextHeading=this.heading.readU32();
+                row.arrived=this.arrived.readU32(); row.held=this.held.readU32(); row.changed=this.changed.readU32();
+                row.sourceAfter=raw(this.source,2); row.destinationAfter=raw(this.destination,2);
+                bump('waiting-step');
+                if (counts['waiting-step']<=config.samples) emit('waiting-step',row);
+            }
+        });
         const decisions = new Map();
         const words = (p,n) => Array.from({length:n},(_,i)=>p.add(i*4).readU32());
         const snapshot = mover => {
@@ -1047,8 +1078,21 @@ function install(module) {
     });
     const advances = new Map();
     hook(0x165ae0, {
-        onEnter() { this.path = this.context.ecx; this.delay = this.path.add(0x94).readU32(); this.disabled = !!(this.path.add(0x88).readU32() & 0x100000); },
+        onEnter(args) {
+            this.path = this.context.ecx; this.delay = this.path.add(0x94).readU32();
+            this.disabled = !!(this.path.add(0x88).readU32() & 0x100000);
+            this.waiting=waitingSteps.get(this.threadId);
+            this.waitSource=args[0]; this.waitDestination=args[1];
+            if (this.waiting) this.gate={source:ints(args[0],2).map(v=>v>>>0),
+                destination:ints(args[1],2).map(v=>v>>>0),before:this.delay,disabled:this.disabled};
+        },
         onLeave(ret) {
+            if (this.waiting) {
+                if (this.waiting.path!==this.path.toString()) throw new Error('Waiting caller path changed');
+                this.waiting.gate={...this.gate,after:this.path.add(0x94).readU32(),result:ret.toUInt32(),
+                    sourceAfter:ints(this.waitSource,2).map(v=>v>>>0),
+                    destinationAfter:ints(this.waitDestination,2).map(v=>v>>>0)};
+            }
             if (this.delay) {
                 bump('path-delay');
                 if (counts['path-delay'] <= config.samples) emit('path-delay', {path: this.path.toString(), before: this.delay, after: this.path.add(0x94).readU32(), disabled: this.disabled, result: ret.toInt32(), counter: base.add(0xd53a48).readPointer().add(0x538).readU32()});

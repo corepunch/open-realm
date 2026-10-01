@@ -697,3 +697,9 @@ is introduced. Movement retains software scalar normalization, explicit zero
 window flags and the original pre-turn propulsion decision. Upstream's animation
 policy uses that existing decision to retain Stand while blocked and resume Walk
 when admitted, avoiding a second host-float/post-turn gate.
+
+Payoff31's countdown heading consumes the existing retained native prediction;
+it changes no field meaning or layout. Save70 remains current. The public
+oblique-wait regression saves before four held ticks and repeats120 exact
+position/native pose/velocity/facing/heading/wait/order words after load, then
+proves that ordinary Move resumes.

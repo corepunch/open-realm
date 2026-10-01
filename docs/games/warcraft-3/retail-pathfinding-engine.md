@@ -3551,3 +3551,62 @@ The152 Python pathfinding checks,233-entry corpus admission and engine/menu
 boundary audits pass. Merge validation artifacts are
 `/tmp/wc3-upstream-{engine-full,umbrella,production,warning-fixed,debug-accepted}.log`.
 The merge closes no additional research leaf:109 done/291 tasks,182 remaining.
+
+### Waiting headings preserve the native caller
+
+Payoff31 strengthens ROUTE-05.3's existing wait consumer. Complete original
+`Mover_StepRoute`16fbd0 initializes its local destination from the final caller
+goal. A nonzero165ae0 countdown leaves that vector untouched and returns1;
+16fd3b then subtracts the predicted native fine source before selecting heading
+and stopping speed. This differs from acquisition-time165c60, which retains
+the current fine waypoint when it assigns a requester wait. Saved Ghidra
+comments and source/destination operand storage now record both branches.
+
+Two original replays cover1,008 full waiting callers across four native sources,
+seven destinations, six facings, two turn rates and1/4/20 delays, without
+replacing any routine. Every original speed/heading/countdown word matches
+production C. Digest:
+`c96d159d6bc411d7a66d44655df2041f455a27c846fe33a0db7c5d1e76d376ff`.
+The frozen fixture is `retail-wait-heading-1.27.json`.
+
+The engine's world subtraction reproduced eight failures at four map origins.
+The native heading is3f08101b; rounded-world alternatives include3f081011 and
+3f081019. Move now shares its retained prediction helper with repulsion and
+forms the final-goal delta before world projection. The44-assertion regression
+matches heading, stopped velocity, countdown1→0 and untouched native/world
+pose. A224-assertion public JASS Move/save regression drives actual owner
+frames, preserves four stopped oblique headings and resumes movement; all120
+recorded state words repeat after load. Save70's existing native pose and wait
+fields cover the change; neither serialized meaning nor the network changes.
+
+Two fresh owned Frida crowd runs record424 complete16fbd0 countdown calls,
+their nested165ae0 operands, actual parameters and outputs. Every call uses
+the same final destination and native source before/after the gate, stops
+speed and matches C heading exactly; normalized digest:
+`033f2e18400b9ff2bb849d94961744acbeaee40f606f388c9a0fbfc840b3535c`.
+The strict verifier rejects missing operands/provenance/completion, altered
+inputs/outputs/gates/counters, truncation and observer errors. Asset-free tests
+replay both original fixtures atO0 andO2. Sources and the owned crowd map remain
+hash-pinned in `retail-public-wait-heading-1.27.json`.
+
+Evidence under the report root:
+
+- `runtime/wait-heading-{first,repeat}-261001.json`.
+- `runtime/wait-heading-live-{first,repeat}-261001.jsonl` and `runtime/wait-heading-live-strict-261001.json`.
+- `runtime/wait-heading-ghidra-readback-261001.json` and `runtime/wait-heading-types-261001.json`.
+- `wait-heading-corpus-accepted-v2-261001/corpus-results.json`.
+
+Ghidra retains470 named roles,31 layouts,177 fields,192 verified prototypes and44
+globals. The corpus now contains237 entries:95 original contracts,110 archive
+audits and32 live contracts, with88 pinned fixtures. This strengthens an
+already completed leaf without inflating the backlog:109 done/291 tasks,
+182 remaining. Original acquisition-time waypoint composition, overlapping
+cell-link ordering, group-bit8/membership producers, peer retry, denied
+admission and complete crowd/cycle trajectories remain open.
+
+Final payoff31 validation: forced release RoC/TFT and forced debug with
+`WC3_DEBUG_BUILD=1` each pass80,927 assertions in2,287 cases. The release
+umbrella suite passes, including154 pathfinding Python checks. Forced release
+and debug `openwarcraft3` builds pass without compiler warnings. The ability
+audit,237-entry corpus inventory, exact four-entry fresh replay, backlog IDs/
+counts/area totals and243 local documentation links pass.

@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "44 executable original-code oracle scripts,43 selected exact/frozen variants,30 explicit live/profile/repeat contracts and106 archived capture audits.",
+  "scope": "95 executable original oracle contracts and 142 archive/live contracts; 237 total entries. Archive audits and stronger live contracts are distinct evidence levels.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -14492,6 +14492,329 @@
         "Peer-wait caller retry restoration",
         "Full engine stock crowd trajectory"
       ]
+    },
+    {
+      "id": "capture-wait-heading-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/wait-heading-live-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/wait-heading-live-first-261001.jsonl",
+        "sha256": "c8a2406aa4545f2685aac2b6064f79bb74515ecceec459a5f43368fa5699b99b",
+        "bytes": 5661343,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "e6e65c5edc5b84c0a047a18d9f350a4f5490ed6411a399ed17bee7e7c5b26455",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+          },
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "wait-heading-first-capture-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Owned crowd capture with complete raw native waiting callers and nested countdown events.",
+      "exclusions": [
+        "Original movement producer and stock crowd trajectory composition remain open."
+      ]
+    },
+    {
+      "id": "capture-wait-heading-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/wait-heading-live-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/wait-heading-live-repeat-261001.jsonl",
+        "sha256": "76dff0290a4e2b3d4431eb72e7dc9e71784dc72e952ae8df4b76f6f07cb80a7a",
+        "bytes": 5661344,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "e6e65c5edc5b84c0a047a18d9f350a4f5490ed6411a399ed17bee7e7c5b26455",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+          },
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "wait-heading-repeat-capture-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Owned crowd capture with complete raw native waiting callers and nested countdown events.",
+      "exclusions": [
+        "Original movement producer and stock crowd trajectory composition remain open."
+      ]
+    },
+    {
+      "id": "live-wait-heading-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_wait_heading_trace.py",
+        "--capture",
+        "{archive}/runtime/wait-heading-live-first-261001.jsonl",
+        "--compare",
+        "{archive}/runtime/wait-heading-live-repeat-261001.jsonl",
+        "--engine",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/wait-heading-live-first-261001.jsonl",
+        "sha256": "c8a2406aa4545f2685aac2b6064f79bb74515ecceec459a5f43368fa5699b99b",
+        "bytes": 5661343,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "e6e65c5edc5b84c0a047a18d9f350a4f5490ed6411a399ed17bee7e7c5b26455",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+          },
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/wait-heading-live-repeat-261001.jsonl",
+            "sha256": "76dff0290a4e2b3d4431eb72e7dc9e71784dc72e952ae8df4b76f6f07cb80a7a",
+            "bytes": 5661344,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "e6e65c5edc5b84c0a047a18d9f350a4f5490ed6411a399ed17bee7e7c5b26455",
+                "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+                "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+              },
+              "map": "Maps\\PathingRE-Crowd.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 4000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-wait-heading-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 424
+        },
+        "digest": {
+          "equal": "033f2e18400b9ff2bb849d94961744acbeaee40f606f388c9a0fbfc840b3535c"
+        },
+        "repeat_exact": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "424 complete original countdown callers: native final-goal operands, retained source, stop/turn outputs, each actual gate and two exact source/map-pinned repeats. Engine ordinary Move uses retained prediction and preserves it through save.",
+      "exclusions": [
+        "Acquisition-time waypoint producer",
+        "Original group-bit8/membership producer",
+        "Peer retry and denied scheduler requests",
+        "Full stock crowd trajectories"
+      ]
+    },
+    {
+      "id": "oracle-wait-heading",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_wait_heading.py",
+        "--binary",
+        "{binary}",
+        "--engine",
+        "{engine}",
+        "--report",
+        "{report}",
+        "--fixture",
+        "{report}.fixture.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "wait-heading-original.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 1008
+        },
+        "engine_exact_cases": {
+          "equal": 1008
+        },
+        "word_sequence_sha256": {
+          "equal": "c96d159d6bc411d7a66d44655df2041f455a27c846fe33a0db7c5d1e76d376ff"
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "1008 complete original16fbd0 native waiting caller inputs and outputs compared with C; no replaced routines.",
+      "exclusions": [
+        "Full live producer/scheduler/crowd composition"
+      ]
     }
   ],
   "fixtures": [
@@ -14557,7 +14880,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "8dcf681cf9c00a9c9409889381609cf4352ad74418dc56cf4353392885c2d321"
+      "sha256": "fb8f2b52bd2e01a52cb6732c313c4ffbb8b931c70a1f38e8327924d79462cf58"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -14838,6 +15161,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-moving-yield-1.27.json",
       "sha256": "e9a9b9ddbefea001b1ceaedfb76cee70db8f43151b47635c760d9783f0147e1c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-wait-heading-1.27.json",
+      "sha256": "3858a8760b9d0030587e99432ef5896be7c79edae2f17d4b409d1da6230af7d6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-wait-heading-1.27.json",
+      "sha256": "faa327da33733b7cc65a080340cb8d84b07ea4f1d398f7221d074d39db6b77d6"
     }
   ]
 }

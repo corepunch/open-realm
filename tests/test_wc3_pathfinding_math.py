@@ -31,6 +31,7 @@ from verify_wc3_placement_trace import verify as verify_placement, digest as pla
 from verify_wc3_stop_recovery_trace import verify as verify_stop_recovery, digest as stop_recovery_digest
 from verify_wc3_primary_clock import verify_primary, digest as primary_digest
 from verify_wc3_yield_trace import verify as verify_yield
+from verify_wc3_wait_heading_trace import verify as verify_wait_heading
 
 
 class PathingMathTests(unittest.TestCase):
@@ -58,6 +59,45 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_live_waiting_caller_words_and_rejected_incomplete_captures(self):
+        rows=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-wait-heading-1.27.json').read_text())['rows']
+        for engine in self.engines:
+            result=verify_wait_heading(rows,engine)
+            self.assertEqual(result['cases'],424)
+            self.assertEqual(result['digest'],'033f2e18400b9ff2bb849d94961744acbeaee40f606f388c9a0fbfc840b3535c')
+            for kind in ('source','input','output','gate','advance','missing','counter','truncation','completion','error'):
+                changed=copy.deepcopy(rows)
+                step=next(r for r in changed if r['event']=='waiting-step')
+                if kind=='source':changed[0]['source_sha256']['map']='z'*64
+                elif kind=='input':step['source'][0]^=0x00800000
+                elif kind=='output':step['nextHeading']^=1
+                elif kind=='gate':step['gate']=None
+                elif kind=='advance':next(r for r in changed if r['event']=='path-delay')['result']=2
+                elif kind=='missing':del step['parameters']
+                elif kind=='counter':step['counter']+=1
+                elif kind=='truncation':changed.remove(step)
+                elif kind=='completion':changed=[r for r in changed if r['event']!='marker']
+                else:changed.append(dict(event='error'))
+                with self.subTest(optimization=engine._name,case=kind),self.assertRaises(ValueError):
+                    verify_wait_heading(changed,engine)
+
+    def test_waiting_caller_matches_complete_original_heading_words(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-wait-heading-1.27.json').read_text())
+        self.assertEqual(len(frozen['rows']),1008)
+        for engine in self.engines:
+            gate=engine.pathing_yield_advance
+            gate.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.c_uint32]
+            gate.restype=ctypes.c_uint32
+            for row in frozen['rows']:
+                x,y,tx,ty,speed,heading,turn,window,delay=row['input']
+                error=engine.pathing_heading_error(engine.pathing_subtract(tx,x),
+                                                  engine.pathing_subtract(ty,y),heading)
+                motion=(ctypes.c_uint32*7)(speed,heading,error,0,turn,window,1)
+                engine.pathing_motion(motion)
+                countdown=ctypes.c_uint32(delay)
+                self.assertEqual(gate(ctypes.byref(countdown),0),1)
+                self.assertEqual([motion[0],motion[1],countdown.value],row['output'])
 
     def test_moving_yield_matches_original_velocity_and_countdown_words(self):
         frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-moving-yield-1.27.json').read_text())
