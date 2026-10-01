@@ -25,6 +25,14 @@ does not incorporate owner/shared vision or detector coverage. Stock `common.ai`
 `api_unit.h`; their player-relative meanings must not be folded into `UnitInvis`. See
 [Warcraft III Invisibility](../../docs/games/warcraft-3/invisibility.md#ai-and-jass-queries).
 
+The expansion native family shares one per-AI-player candidate selected by `GetNextExpansion()`. It chooses a viable,
+unclaimed harvestable gold mine and returns `0`, or `-1` when none is available. `GetExpansionX/Y`, `GetExpansionFoe`,
+and `GetExpansionPeon` all query that selected mine. `SetExpansion(peon, hallId)` validates the supplied worker and
+hall rawcode, then routes placement through `G_IssueBuildOrder`; ordinary placement, resources, race-specific builder
+behavior, and town discovery remain owned by the construction and town systems. The candidate remains selected after
+a failed request for retries. Candidate ranking, blocker radius/priority, worker preference, and hall placement offset
+are `BZ_COMPAT_GUESS` policies documented in [Player AI](../../docs/games/warcraft-3/player-ai.md).
+
 ## Baseline
 
 The registry currently contains 919 callbacks. The last conservative source

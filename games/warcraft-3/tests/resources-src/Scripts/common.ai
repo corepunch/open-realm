@@ -15,6 +15,12 @@ native GetGoldOwned takes nothing returns integer
 native TownWithMine takes nothing returns integer
 native TownHasMine takes integer townid returns boolean
 native TownHasHall takes integer townid returns boolean
+native GetNextExpansion takes nothing returns integer
+native GetExpansionFoe takes nothing returns unit
+native GetExpansionPeon takes nothing returns unit
+native GetExpansionX takes nothing returns real
+native GetExpansionY takes nothing returns real
+native SetExpansion takes unit peon, integer id returns boolean
 native SetProduce takes integer qty, integer id, integer town returns boolean
 native SetUpgrade takes integer id returns boolean
 native GetUnitGoldCost takes integer unitid returns integer

@@ -1,6 +1,8 @@
 #ifndef api_ai_h
 #define api_ai_h
 
+#include "../skills/s_skills.h"
+
 /* Blizzard AI traces use %d substitution, but the script string must never become a C format string. */
 static void BotDisplayFormat(string_t dst, size_t size, cstring_t format, int32_t const *values, uint32_t count) {
     uint32_t value = 0;
@@ -97,6 +99,36 @@ uint32_t TownHasMine(jass_t *j) {
 }
 uint32_t TownHasHall(jass_t *j) {
     return jass_pushboolean(j, G_BotUnitAlive(G_BotTown(jass_getcontext(j)->playerState, jass_checkinteger(j, 1))));
+}
+
+uint32_t GetNextExpansion(jass_t *j) {
+    return jass_pushinteger(j, G_BotNextExpansion(jass_getcontext(j)->playerState));
+}
+
+uint32_t GetExpansionFoe(jass_t *j) {
+    edict_t *unit = G_BotExpansionFoe(jass_getcontext(j)->playerState);
+    return unit ? jass_pushlighthandle(j, unit, "unit") : jass_pushnullhandle(j, "unit");
+}
+
+uint32_t GetExpansionPeon(jass_t *j) {
+    edict_t *unit = G_BotExpansionPeon(jass_getcontext(j)->playerState);
+    return unit ? jass_pushlighthandle(j, unit, "unit") : jass_pushnullhandle(j, "unit");
+}
+
+uint32_t GetExpansionX(jass_t *j) {
+    vec2_t position = G_BotExpansionPosition(jass_getcontext(j)->playerState);
+    return jass_pushnumber(j, position.x);
+}
+
+uint32_t GetExpansionY(jass_t *j) {
+    vec2_t position = G_BotExpansionPosition(jass_getcontext(j)->playerState);
+    return jass_pushnumber(j, position.y);
+}
+
+uint32_t SetExpansion(jass_t *j) {
+    edict_t *worker = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, G_BotSetExpansion(jass_getcontext(j)->playerState, worker,
+                                                  (uint32_t)jass_checkinteger(j, 2)));
 }
 
 uint32_t SetProduce(jass_t *j) {

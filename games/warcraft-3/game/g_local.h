@@ -1981,6 +1981,15 @@ typedef struct {
     bool replacement_pending;
 } botGuardPost_t;
 
+typedef struct {
+    uint32_t entity_number;
+    uint32_t spawn_time;
+    uint32_t hall_id;
+    vec2_t position;
+    bool valid;
+    bool build_accepted;
+} botExpansion_t;
+
 typedef enum {
     BOT_TARGET_HEROES    = 1 << 0,
     BOT_PEONS_REPAIR     = 1 << 1,
@@ -2009,6 +2018,7 @@ typedef struct {
     bool stage_valid;
     vec2_t town_spot; /* ShiftTownSpot override for AI construction search; no world entity is moved */
     bool town_spot_valid;
+    botExpansion_t expansion;
     ARRAY(botCommand_t, commands);
     ARRAY(edict_t *, harvesters);
     ARRAY(botGuardPost_t, guards);
@@ -2244,6 +2254,12 @@ edict_t *G_BotTown(player_t *, int32_t);
 int32_t G_BotTownUnitCount(player_t *, uint32_t, int32_t, bool);
 edict_t *G_BotTownMine(player_t *, int32_t);
 int32_t G_BotTownWithMine(player_t *);
+int32_t G_BotNextExpansion(player_t *);
+edict_t *G_BotExpansionMine(player_t *);
+edict_t *G_BotExpansionFoe(player_t *);
+edict_t *G_BotExpansionPeon(player_t *);
+bool G_BotSetExpansion(player_t *, edict_t *, uint32_t);
+vec2_t G_BotExpansionPosition(player_t *);
 uint32_t G_BotMinesOwned(player_t *);
 uint32_t G_BotGoldOwned(player_t *);
 bool G_BotProduce(player_t *, int32_t, uint32_t, int32_t);

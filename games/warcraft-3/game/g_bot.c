@@ -11,6 +11,9 @@ static bot_t *G_BotState(uint32_t player) {
     return player < MAX_PLAYERS ? &level.bots[player] : NULL;
 }
 
+static bool G_BotBuildSiteReachable(edict_t *, vec2_t const *);
+static bool G_BotIsHostile(player_t *, edict_t *);
+
 static void G_BotClearCaptains(bot_t *bot) {
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
         if (bot->captains[i].units) gi.MemFree(bot->captains[i].units);
@@ -114,6 +117,149 @@ int32_t G_BotTownWithMine(player_t *player) {
     for (int32_t town = 0; G_BotTown(player, town); town++)
         if (G_BotTownMine(player, town)) return town;
     return -1;
+}
+
+edict_t *G_BotExpansionMine(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botExpansion_t *expansion = bot ? &bot->expansion : NULL;
+    edict_t *mine;
+    if (!expansion || !expansion->valid || expansion->entity_number >= globals.num_edicts) return NULL;
+    mine = globals.edicts + expansion->entity_number;
+    if (!mine->inuse || mine->spawn_time != expansion->spawn_time || !S_GoldMineCanHarvest(mine)) {
+        expansion->valid = false;
+        return NULL;
+    }
+    return mine;
+}
+
+static edict_t *G_BotNearestTownToMine(edict_t *mine) {
+    edict_t *best = NULL;
+    float best_dist = 0;
+    if (!mine) return NULL;
+    FILTER_EDICTS(town, G_BotUnitAlive(town) && S_UnitTypeReturnsGold(town->class_id) &&
+                        !town->construction.active) {
+        float dist = Vector2_distance(&town->s.origin2, &mine->s.origin2);
+        if (!best || dist < best_dist || (dist == best_dist && town->s.number < best->s.number)) {
+            best = town; best_dist = dist;
+        }
+    }
+    return best;
+}
+
+static bool G_BotMineAlreadyTowned(player_t *player, edict_t *mine) {
+    edict_t *town;
+    if (!player || !mine) return true;
+    town = G_BotNearestTownToMine(mine);
+    return town && town->s.player == PLAYER_NUM(player);
+}
+
+static bool G_BotMineClaimedByOther(edict_t *mine, player_t *player) {
+    edict_t *town = G_BotNearestTownToMine(mine);
+    return town && town->s.player != PLAYER_NUM(player);
+}
+
+int32_t G_BotNextExpansion(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    edict_t *main_town = G_BotTown(player, 0), *best = NULL;
+    float best_dist = 0;
+    if (!bot || !main_town) { if (bot) bot->expansion.valid = false; return -1; }
+    if (G_BotExpansionMine(player)) {
+        edict_t *builder = NULL;
+        if (!bot->expansion.build_accepted) return 0;
+        FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
+                            unit->build_project == bot->expansion.hall_id) { builder = unit; break; }
+        if (builder) return 0;
+        bot->expansion.valid = false;
+        bot->expansion.build_accepted = false;
+        bot->expansion.hall_id = 0;
+    }
+    /* BZ_COMPAT_GUESS: rank viable unclaimed mines by distance to the first owned town hall. */
+    FILTER_EDICTS(mine, S_GoldMineCanHarvest(mine) && !G_BotMineAlreadyTowned(player, mine) &&
+                        !G_BotMineClaimedByOther(mine, player)) {
+        float dist = Vector2_distance(&main_town->s.origin2, &mine->s.origin2);
+        if (!best || dist < best_dist || (dist == best_dist && mine->s.number < best->s.number)) {
+            best = mine; best_dist = dist;
+        }
+    }
+    if (!best) { bot->expansion.valid = false; return -1; }
+    bot->expansion.entity_number = best->s.number;
+    bot->expansion.spawn_time = best->spawn_time;
+    bot->expansion.position = best->s.origin2;
+    bot->expansion.hall_id = 0;
+    bot->expansion.valid = true;
+    bot->expansion.build_accepted = false;
+    return 0;
+}
+
+vec2_t G_BotExpansionPosition(player_t *player) {
+    edict_t *mine = G_BotExpansionMine(player);
+    return mine ? mine->s.origin2 : MAKE(vec2_t, 0, 0);
+}
+
+edict_t *G_BotExpansionFoe(player_t *player) {
+    edict_t *mine = G_BotExpansionMine(player), *best = NULL;
+    float best_dist = 0;
+    if (!mine || !player) return NULL;
+    /* BZ_COMPAT_GUESS: a 1200-unit site radius and nearest hostile live unit/building identify a contested expansion. */
+    FILTER_EDICTS(ent, ent != mine && ent->inuse && ent->health.value > 0 &&
+        !(ent->svflags & (SVF_DEADMONSTER | SVF_NOCLIENT)) &&
+        ((ent->svflags & SVF_MONSTER) || G_UnitIsStructure(ent)) && G_BotIsHostile(player, ent)) {
+        float dist = Vector2_distance(&mine->s.origin2, &ent->s.origin2);
+        if (dist > 1200.0f) continue;
+        if (!best || dist < best_dist || (dist == best_dist && ent->s.number < best->s.number)) {
+            best = ent; best_dist = dist;
+        }
+    }
+    return best;
+}
+
+edict_t *G_BotExpansionPeon(player_t *player) {
+    edict_t *mine = G_BotExpansionMine(player), *best = NULL;
+    float best_dist = 0;
+    if (!mine || !player) return NULL;
+    FILTER_EDICTS(worker, G_BotUnitAlive(worker) && worker->s.player == PLAYER_NUM(player) &&
+        !worker->construction.active && !worker->training && !worker->build_project &&
+        !S_GoldMineWorkerIsInside(worker) && !G_BuildingUpgradeActive(worker) &&
+        G_ActorHasSkill(worker, "Ahar") && worker->data.UnitProfile && worker->data.UnitProfile->builds) {
+        float dist = Vector2_distance(&mine->s.origin2, &worker->s.origin2);
+        if (!best || dist < best_dist || (dist == best_dist && worker->s.number < best->s.number)) {
+            best = worker; best_dist = dist;
+        }
+    }
+    return best;
+}
+
+bool G_BotSetExpansion(player_t *player, edict_t *worker, uint32_t hall_id) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    edict_t *mine = G_BotExpansionMine(player);
+    UnitBalance_t const *balance = hall_id ? G_UnitBalance(hall_id) : NULL;
+    UnitProfile_t const *profile = hall_id ? G_UnitProfile(hall_id) : NULL;
+    vec2_t center;
+    if (!bot || !mine || !worker || !G_BotUnitAlive(worker) || worker->s.player != PLAYER_NUM(player) ||
+        !balance || !profile || !G_UnitIsBuilding(hall_id) || !G_WorkerCanBuild(worker, hall_id) ||
+        !worker->data.UnitProfile || !G_ActorHasSkill(worker, "Ahar") ||
+        worker->construction.active || worker->training || worker->build_project ||
+        S_GoldMineWorkerIsInside(worker) || G_BuildingUpgradeActive(worker) ||
+        player->stats[PLAYERSTATE_RESOURCE_GOLD] < balance->goldCost ||
+        player->stats[PLAYERSTATE_RESOURCE_LUMBER] < balance->lumberCost) return false;
+    center = bot->expansion.position;
+    /* Respect the normal placement rule that keeps resource-return buildings at least 512 units from a mine.
+     * BZ_COMPAT_GUESS: search concentric 32-unit cells starting one cell beyond that authored runtime threshold. */
+    for (int32_t ring = (int32_t)(WC3_GOLD_MINE_MIN_DISTANCE / BOT_BUILD_GRID) + 1; ring <= 24; ring++) {
+        for (int32_t x = -ring; x <= ring; x++) for (int32_t y = -ring; y <= ring; y++) {
+            vec2_t point;
+            if (abs(x) != ring && abs(y) != ring) continue;
+            point = MAKE(vec2_t, center.x + x * BOT_BUILD_GRID, center.y + y * BOT_BUILD_GRID);
+            if (!G_BotBuildSiteReachable(worker, &point)) continue;
+            if (G_IssueBuildOrder(worker, hall_id, &point)) {
+                bot->town_spot_valid = false;
+                bot->expansion.hall_id = hall_id;
+                bot->expansion.build_accepted = true;
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 uint32_t G_BotMinesOwned(player_t *player) {
@@ -462,6 +608,7 @@ void G_BotShiftTownSpot(player_t *player, float x, float y) {
 static bool G_BotIsHostile(player_t *player, edict_t *ent) {
     player_t *owner;
     if (!player || !ent) return false;
+    if (ent->s.player == PLAYER_NUM(player)) return false;
     owner = G_GetPlayerByNumber(ent->s.player);
     return !G_GetPlayerAlliance(player, owner, ALLIANCE_PASSIVE);
 }
