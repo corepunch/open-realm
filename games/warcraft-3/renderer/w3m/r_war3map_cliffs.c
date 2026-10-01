@@ -16,7 +16,6 @@ static uint32_t *cliff_vertex_sample_generation;
 static uint32_t cliff_vertex_sample_capacity, cliff_vertex_generation;
 static bool cliff_warn_sample_alloc, cliff_warn_model_cache_alloc;
 static bool cliff_warn_texture_cache_alloc, cliff_warn_layer_alloc, cliff_warn_pending_alloc;
-static bool cliff_warn_invalid_index;
 
 vec3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y);
 
@@ -72,7 +71,6 @@ void R_ResetCliffCache(void) {
     cliff_warn_sample_alloc = false;
     cliff_warn_model_cache_alloc = cliff_warn_texture_cache_alloc = false;
     cliff_warn_layer_alloc = cliff_warn_pending_alloc = false;
-    cliff_warn_invalid_index = false;
 }
 
 // HELPERS
@@ -170,18 +168,24 @@ static model_t const *R_LoadCliffModel(cliffData_t const *data, char const *ccfg
     return cliff->model;
 }
 
-static void R_WarnCliffModelGeometry(cliffData_t const *data, char const *ccfg, bool ramp, char const *reason) {
+static struct tCliff *R_FindCliffModel(cliffData_t const *data, char const *ccfg, bool ramp) {
     PATHSTR name;
     cstring_t dir = ramp ? data->rampModelDir : data->cliffModelDir;
     snprintf(name, sizeof(name), "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
     for (struct tCliff *it = g_cliffs; it; it = it->next) {
-        if (strcmp(it->name, name) || it->warned) continue;
+        if (!strcmp(it->name, name)) return it;
+    }
+    return NULL;
+}
+
+static void R_WarnCliffModelGeometry(cliffData_t const *data, char const *ccfg, bool ramp, char const *reason) {
+    struct tCliff *it = R_FindCliffModel(data, ccfg, ramp);
+    if (it && !it->warned) {
         fprintf(stderr, "WC3 renderer: cliff model %s %s\n", it->name, reason);
 #ifdef WC3_CLIFF_TESTS
         cliff_model_warning_count++;
 #endif
         it->warned = true;
-        return;
     }
 }
 
@@ -366,10 +370,14 @@ static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_
         const int i = pGeoset->triangles[t];
         vertex_t sample;
         if (i < 0 || i >= pGeoset->num_vertices) {
-            if (!cliff_warn_invalid_index) {
-                fprintf(stderr, "WC3 renderer: cliff config %.4s has triangle index %d outside %d vertices; skipping malformed piece\n",
-                        (cstring_t)&cliffcfg, i, pGeoset->num_vertices);
-                cliff_warn_invalid_index = true;
+            struct tCliff *cliff = R_FindCliffModel(data, (cstring_t)&cliffcfg, is_ramp);
+            if (cliff && !cliff->warned) {
+                fprintf(stderr, "WC3 renderer: cliff model %s has triangle index %d outside %d vertices; skipping malformed piece\n",
+                        cliff->name, i, pGeoset->num_vertices);
+#ifdef WC3_CLIFF_TESTS
+                cliff_model_warning_count++;
+#endif
+                cliff->warned = true;
             }
             cliff_bake.num_vertices = piece_first;
             return;
