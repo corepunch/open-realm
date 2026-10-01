@@ -1910,6 +1910,11 @@ static void RestoreV56CombatDefaults(void) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = g_edicts + i;
         if (!ent->inuse) continue;
+        /* Before propulsion gating, stock spawns left this field unused at zero.
+         * Only extensionless saves need the authored default; new saves retain
+         * an intentional SetUnitPropWindow(0). */
+        if (ent->unitinfo.PropWindow == 0.0f && ent->data.UnitData)
+            ent->unitinfo.PropWindow = DEG2RAD(ent->data.UnitData->propWin);
         if (ent->data.UnitWeapons) {
             ent->attack1.backswingPoint = ent->data.UnitWeapons->attack1.backswingPoint;
             ent->attack1.rangeBuffer = ent->data.UnitWeapons->attack1.rangeBuffer;
@@ -2339,6 +2344,7 @@ TEST(wc3_save, version_56_payload_without_extension_still_loads) {
     attacker->attack1.range = 100.0f;
     target->targtype = TARG_GROUND;
     order_attack(attacker, target);
+    attacker->unitinfo.PropWindow = 0.0f; /* Old spawns left this unused field zero. */
     attacker_index = (int)(attacker - g_edicts);
     target_index = (int)(target - g_edicts);
 
@@ -2350,6 +2356,8 @@ TEST(wc3_save, version_56_payload_without_extension_still_loads) {
     T_ASSERT(attacker->inuse && target->inuse);
     T_ASSERT(attacker->goalentity == target);
     T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
+    T_ASSERT(attacker->data.UnitData != NULL);
+    T_FEQ(attacker->unitinfo.PropWindow, DEG2RAD(attacker->data.UnitData->propWin), 0.001f);
     remove(filename);
     remove(legacy_filename);
 }
