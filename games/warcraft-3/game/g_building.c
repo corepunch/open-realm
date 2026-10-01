@@ -217,8 +217,8 @@ typedef struct {
     int32_t required_level;
 } stockAbilityUpgradeRequirement_t;
 
-/* HACK: Retail omits structured links for caster training and gate-only
- * Cannibalize research. Keep those stock associations centralized here. */
+/* HACK: retail SLKs omit these stock spell-to-training links and tiers. Keep
+ * the compatibility facts explicit; do not infer them from comments. */
 static stockAbilityUpgradeRequirement_t const stock_ability_requirements[] = {
     { MAKEFOURCC('R', 'h', 's', 't'), MAKEFOURCC('A', 'i', 'v', 's'), 1 },
     { MAKEFOURCC('R', 'h', 's', 't'), MAKEFOURCC('A', 'p', 'l', 'y'), 2 },

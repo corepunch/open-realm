@@ -162,3 +162,15 @@ on, on, on    -> off, off, off
 ```
 
 Units outside the focused type subgroup are unchanged, even when custom object data gives them the same autocast ability rawcode. This keeps the visual state and issued subgroup command consistent regardless of which member currently owns selection focus.
+
+`SetPlayerAbilityAvailable(player, rawcode, false)` is checked by shared command,
+order, validation, execution, and autocast dispatch. It does not simulate a
+per-unit `A_DISABLE` event, because availability belongs to the player while
+the ability lifecycle belongs to each unit. Ability effects that persist or
+update over time must check availability in their owning update/damage path or
+define a specific inverse when disabled. Current examples include Blight
+Growth (`Abli`) pausing its growth tick, Mana Flare (`Amfl`) stripping its
+channel status through `A_DISABLE`, and Moon Well effects releasing their
+presentation when the ability is explicitly removed. This player-wide native
+does not currently walk every owned unit to reverse an already active effect;
+new persistent effects must specify and test that policy.
