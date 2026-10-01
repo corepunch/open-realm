@@ -19,12 +19,12 @@ static cstring_t const entangle_orders[] = {
 };
 
 static ability_t abilitylist[] = {
-    { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS },  // Stop — engine command and unit-order policy
+    { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Stop — engine command and unit-order policy
     { STR_CmdMove, CAbilityMove, AB_COMMAND },  // Move — engine command
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND },  // Attack — engine command
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
-    { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND },  // Hold Position — engine command
+    { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND | AB_QUEUEABLE },  // Hold Position — engine command
     { STR_CmdPatrol, CAbilityPatrol, AB_COMMAND },  // Patrol — engine command
     { STR_CmdRally, CAbilityRally, AB_COMMAND },  // Rally — engine command
     { STR_CmdCancel, CAbilityCancel, AB_COMMAND },  // Cancel — engine command

@@ -251,8 +251,7 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     button->level = level;
     button->active = (uint8_t)GetAbilityIndex(ability ? ability->proc : NULL);
     button->engaged = !research && toggle_on ? 1 : 0;
-    button->queueable = !research && ability &&
-        (ability->proc == CAbilityStop || ability->proc == CAbilityHoldPosition);
+    button->queueable = !research && ability && (ability->flags & AB_QUEUEABLE);
     /* Stop represents the ordinary idle/default state. Hold owns the engaged
      * state while its persistent no-chase policy is active, including after
      * combat returns the unit to idle. */

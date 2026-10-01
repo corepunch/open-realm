@@ -688,6 +688,7 @@ typedef struct {
 #define AB_COOLDOWN_ON_STATUS_REMOVE (1u << 10) // bit 10; defer spell cooldown until its owned status ends
 #define AB_STATUS_EVENTS (1u << 11) // bit 11; active statuses from this ability accept generic status policy events
 #define AB_ENGINE_EVENTS (1u << 12) // bit 12; engine-wide lifecycle/order notifications reach this ability
+#define AB_QUEUEABLE    (1u << 13) // bit 13; the command button accepts the generic Shift queue modifier
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
