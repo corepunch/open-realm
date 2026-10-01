@@ -1183,6 +1183,7 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     }
     unit->s.angle = facing * M_PI / 180;
     G_ActivateUnitFood(unit);
+    G_BotUnitReady(unit);
     return unit;
 }
 
