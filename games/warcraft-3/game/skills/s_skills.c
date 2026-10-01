@@ -1039,8 +1039,13 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
     ability_t const *ability = call && call->item ? call->item->ability : NULL;
     bool activating = msg == A_COMMAND || msg == A_ORDER || msg == A_VALIDATE || msg == A_EXECUTE ||
                       msg == A_AUTOCAST_ACQUIRE || (msg == A_AUTOCAST_SET && call && call->enabled);
-    if (activating && ability && (ability->flags & (AB_COMMAND | AB_SPELL | AB_AUTOCAST)) &&
-        !S_AncientAbilityAvailable(ent, ability)) return false;
+    if (activating && ability && (ability->flags & (AB_COMMAND | AB_SPELL | AB_AUTOCAST))) {
+        gameClient_t const *owner = ent ? G_GetPlayerClientByNumber(ent->s.player) : NULL;
+        uint32_t const code = call && call->item ? call->item->code : 0;
+        if ((code && owner && owner->ps.number == ent->s.player &&
+             !G_IsPlayerAbilityAvailable(owner, code)) ||
+            !S_AncientAbilityAvailable(ent, ability)) return false;
+    }
     return ability && ability->proc ? ability->proc(ent, msg, call) : false;
 }
 

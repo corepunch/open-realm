@@ -867,6 +867,7 @@ void G_SetPlayerAbilityAvailable(gameClient_t *client, uint32_t abilid, bool ava
             if (client->jass.disabled_abilities[i] != abilid) continue;
             client->jass.disabled_abilities[i] =
                 client->jass.disabled_abilities[--client->jass.disabled_ability_count];
+            G_InvalidateCommands(client);
             return;
         }
         return;
@@ -877,6 +878,7 @@ void G_SetPlayerAbilityAvailable(gameClient_t *client, uint32_t abilid, bool ava
         sizeof(client->jass.disabled_abilities) / sizeof(client->jass.disabled_abilities[0]))
         return;
     client->jass.disabled_abilities[client->jass.disabled_ability_count++] = abilid;
+    G_InvalidateCommands(client);
 }
 
 bool G_IsPlayerAbilityAvailable(gameClient_t const *client, uint32_t abilid) {

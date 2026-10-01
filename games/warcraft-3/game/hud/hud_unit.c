@@ -298,6 +298,11 @@ static bool G_AncientAbilityVisible(edict_t const *unit, ability_t const *abilit
     return S_AncientAbilityAvailable(unit, ability);
 }
 
+static bool G_PlayerAbilityVisible(edict_t const *unit, uint32_t code) {
+    gameClient_t const *client = unit ? G_GetPlayerClientByNumber(unit->s.player) : NULL;
+    return !client || client->ps.number != unit->s.player || G_IsPlayerAbilityAvailable(client, code);
+}
+
 bool G_UnitHasBuildMenu(edict_t const *unit) {
     UnitProfile_t const *profile = unit ? G_UnitProfile(unit->class_id) : NULL;
     gameClient_t *client = unit ? G_GetPlayerClientByNumber(unit->s.player) : NULL;
@@ -336,6 +341,7 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
     if (!S_AbilityHasCommand(ability) || !G_AncientAbilityVisible(ent, ability) ||
         strlen(code) != 4 || *count >= max_buttons) return;
     memcpy(&rawcode, code, sizeof(rawcode));
+    if (!G_PlayerAbilityVisible(ent, rawcode)) return;
     /* Entangle Gold Mine becomes hidden/permanent per unit while the resulting
      * mine exists. Keep the authored command unavailable for that overlay lifetime. */
     if (ability->proc == CAbilityEntangle && S_EntangleCommandHidden(ent, rawcode)) return;
@@ -519,7 +525,8 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities + i;
-        if (ha->level > 0 && G_UnitAbilityResearchAvailable(ent, ha->code)) {
+        if (ha->level > 0 && G_PlayerAbilityVisible(ent, ha->code) &&
+            G_UnitAbilityResearchAvailable(ent, ha->code)) {
             uint8_t const idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
             if (count > idx) {

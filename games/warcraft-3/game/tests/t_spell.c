@@ -3658,10 +3658,14 @@ TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_sta
     T_NOT_NULL(rows); T_NOT_NULL(ability); T_NOT_NULL(ability ? ability->proc : NULL);
     old = G_SetSLKRows("AbilityData", rows);
     caster->data.UnitAbilities = &abilities; caster->s.player = 0;
+    game.clients[0].ps.number = 0;
     target->data.UnitData = &ground; target->data.UnitBalance = &creep;
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE; target->svflags |= SVF_MONSTER;
     memset(level.alliances, 0, sizeof(level.alliances));
 
+    G_SetPlayerAbilityAvailable(&game.clients[0], FS_SLKKey("Aply"), false);
+    T_ASSERT(!test_ability_message(caster, A_VALIDATE, &ability_item, &st));
+    G_SetPlayerAbilityAvailable(&game.clients[0], FS_SLKKey("Aply"), true);
     T_ASSERT(test_ability_message(caster, A_VALIDATE, &ability_item, &st));
     creep.level = 6; T_ASSERT(!test_ability_message(caster, A_VALIDATE, &ability_item, &st));
     creep.level = 5; target->summon_ability = MAKEFOURCC('A','O','s','f');
