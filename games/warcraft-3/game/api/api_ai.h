@@ -251,6 +251,11 @@ uint32_t CaptainInCombat(jass_t *j) {
     return jass_pushboolean(j, G_BotCaptainInCombat(jass_getcontext(j)->playerState, jass_checkboolean(j, 1)));
 }
 
+uint32_t AttackMoveKill(jass_t *j) {
+    G_BotAttackMoveKill(jass_getcontext(j)->playerState, jass_checkhandle(j, 1, "unit"));
+    return 0;
+}
+
 uint32_t InitAssault(jass_t *j) { G_BotInitAssault(jass_getcontext(j)->playerState); return 0; }
 uint32_t AddAssault(jass_t *j) {
     return jass_pushboolean(j, G_BotAddAssault(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checkinteger(j, 2)));

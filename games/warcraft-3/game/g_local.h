@@ -2274,6 +2274,7 @@ void G_BotCreateCaptains(player_t *);
 void G_BotInitAssault(player_t *);
 uint32_t G_BotIgnoredUnits(player_t *, uint32_t);
 bool G_BotCaptainInCombat(player_t *, bool);
+void G_BotAttackMoveKill(player_t *, edict_t *);
 bool G_BotAddAssault(player_t *, int32_t, uint32_t);
 uint32_t G_BotCaptainGroupSize(player_t *);
 bool G_BotCaptainIsFull(player_t *);

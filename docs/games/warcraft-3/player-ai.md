@@ -447,6 +447,19 @@ With these rules, a bounded Human ROC Rivercross run repeatedly returns gold and
 Barracks, and a Farm without a JASS runtime error. Use `WC3_DEBUG_AI` builds for requested/accepted/completed production
 and captain milestones; detailed traces remain disabled in normal builds.
 
+### Assault Captain Target Orders
+
+`AttackMoveKill(unit)` now activates the attack captain and issues ordinary WC3 attack-move orders to every live assault
+member toward the target's current position. This follows stock `common.ai`: `AttackMoveKillA` calls the native once, then
+`CommonSleepUntilTargetDead` calls it again after each three-second `SuicideSleep`, so a moving target is refreshed by the
+script rather than by a second C-side pursuit scheduler. Null/dead targets and empty assault rosters are no-ops. The native
+does not form the captain; `InitAssault`/`AddAssault`/`FormGroup` remain responsible for roster formation.
+
+Retail-facing documentation also describes an attack-location minimap signal and the surviving group returning after the
+target dies. Those presentation/retreat details are not implemented here: OpenRealm currently has no captain retreat
+transition consuming `home`, and the exact native-specific signal policy has not been recovered. Do not emulate either by
+changing generic attack-move behavior; add them when the captain/presentation contracts are established.
+
 #### Multiplayer Test Map
 
 Use [Rivercross by Bernard](https://www.epicwar.com/maps/192650/) as the standard manually downloaded ROC multiplayer

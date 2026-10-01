@@ -716,6 +716,54 @@ TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
+TEST(wc3_bot, attack_move_kill_native_is_registered_for_player_bound_ai) {
+    bot_t *bot = level.bots + 2;
+
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_attack_move_kill.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, attack_move_kill_orders_live_assault_members_toward_current_target_position) {
+    bot_t *bot = level.bots + 2;
+    edict_t *first = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);
+    edict_t *second = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 32, 0, 2, NULL);
+    edict_t *dead = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 0, 2, NULL);
+    edict_t *target = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 512, 256, 1, NULL);
+    edict_t *waypoint;
+
+    dead->health.value = 0;
+    bot->player = &game.clients[2].ps;
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(3 * sizeof(edict_t *));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 3;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[0] = first;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[1] = second;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[2] = dead;
+
+    G_BotAttackMoveKill(&game.clients[2].ps, target);
+
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.x, 512, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.y, 256, 0.001f);
+    waypoint = first->goalentity;
+    T_NOT_NULL(waypoint);
+    T_EQ(second->goalentity, waypoint);
+    T_NULL(dead->goalentity);
+    T_FEQ(waypoint->s.origin2.x, 512, 0.001f);
+    T_FEQ(waypoint->s.origin2.y, 256, 0.001f);
+
+    target->s.origin2 = MAKE(vec2_t, 768, -64);
+    G_BotAttackMoveKill(&game.clients[2].ps, target);
+    T_FEQ(first->goalentity->s.origin2.x, 768, 0.001f);
+    T_FEQ(first->goalentity->s.origin2.y, -64, 0.001f);
+
+    target->health.value = 0;
+    waypoint = first->goalentity;
+    G_BotAttackMoveKill(&game.clients[2].ps, target);
+    T_EQ(first->goalentity, waypoint);
+}
+
 TEST(wc3_bot, captain_in_combat_selects_roster_and_clears_stale_targets) {
     bot_t *bot = level.bots + 2;
     edict_t *attack = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
