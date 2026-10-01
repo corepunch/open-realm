@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 56, canonical map path, the version-56 edict wire size, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 57, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -22,11 +22,13 @@ Quest objects and items are restored in place so the running JASS VM's light han
 
 The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines.
 
-### Version 40 compatibility concern and possible solution
+### Save compatibility policy
 
-Version 40 added the region registry to the level stream, region IDs to saved event registrations, and region context to the JASS snapshot (snapshot format 6). The exact-version guard rejects version 39 saves; the existing regression test confirms this. This remains a compatibility break for existing saves, even though the added data is limited to region-backed trigger state.
+Save compatibility is deliberately unsupported. Load only the current format version and serialized layout, and reject older or otherwise mismatched saves with a diagnostic. Bump the format version when the serialized layout, callback identity, or meaning changes, including changes that leave `sizeof(edict_t)` unchanged. Do not retain legacy layouts, migration defaults, compatibility aliases, or optional extension records.
 
-One possible compatibility design is to retain the version 39 header and base payload byte-for-byte, then put version-40-only region state in a tagged, length-delimited extension after the JASS snapshot and before the existing checksum footer. The new reader would parse the optional extension; a version-39 reader could continue parsing the known base payload and ignore the remaining bytes after its snapshot. The extension would need its own schema/version and strict bounds, while the existing footer checksum would cover it. Before adopting this design, verify the trailing-byte behavior with an actual version-39 reader and move every version-40-only field—including region handle and coroutine context data—out of the base payload. This is a proposal only; implementing it requires a separate save-format change and compatibility tests.
+The server's map-selection read checks both the format version and entity size before reloading a map. The state reader applies the same guards, validates the existing checksum and reference domains, and requires the current payload to end at the commit footer.
+
+Version 40 added the region registry and region/event context. Its rejection of version 39 saves was intentional; later versions follow the same exact-match policy.
 
 Version 41 persists region and region-event handle generations and exhaustion state. This keeps each recycled handle's `GetHandleId` unique during a session and stable across save/load. The exact-version guard rejects version 40 saves as well as earlier versions.
 
@@ -144,7 +146,7 @@ common path memcpy-shaped while making pointer exceptions declarative rather tha
 - Use `TFC(type, field, kind, capacity, count_field)` for a bounded typedef-backed array. The descriptor writes and restores `count_field` itself, then processes that many elements; do not map the count separately.
 - Persistent movement defaults are part of that rule: Attack-Move/Patrol waypoints and `movement.follow_target` must be encoded as entity indexes rather than raw pointers.
 - Do not add process-owned pointers such as path textures, metadata rows, or animations. `WriteEdict()` clears `FIELD_RUNTIME` pointers and `ReadEdict()` rebinds class metadata; spatial links are rebuilt with `gi.LinkEntity`.
-- Edict C callbacks (`think`, `stand`, `birth`, `prethink`, `die`, `idle`, `move`, `run`, `attack`, `pain`) use `F_CFUNCTION`, not `F_IGNORE`. Add every production assignment to the append-only `save_cfunctions[]` roster in `g_save.c`; an unrostered pointer fails the save instead of writing an address.
+- Edict C callbacks (`think`, `stand`, `birth`, `prethink`, `die`, `idle`, `move`, `run`, `attack`, `pain`) use `F_CFUNCTION`, not `F_IGNORE`. Add every production assignment to the versioned `save_cfunctions[]` roster in `g_save.c`; an unrostered pointer fails the save instead of writing an address.
 - JASS `F_FUNCTION` remains name-string identity for timers and triggers. Do not overload it with C symbols.
 - Add remaining process-owned edict or client pointers to the corresponding runtime-field table so the fixed record copy cannot write an address into the save file.
 - When adding a new pointer or changing an existing edict field, update the table and the round-trip test together. A raw pointer omitted from the table can write an address into the save file.
@@ -319,9 +321,7 @@ from that index after the hash matches. NULL stays 0/0. An unrostered pointer fa
 `C callback %p is not in the save roster`; a bad index or hash fails the load instead of installing
 a wild pointer.
 
-The roster is append-only because the index is in the file. The callback name is hashed into the same
-record, so keep that serialized name stable when an implementation symbol is renamed; point the old
-name at the current function instead of changing the on-disk identity. Production assignments retained
+The roster indexes and callback names are part of the format. Bump the save version if their identity changes; keep the roster's names aligned with the current implementation instead of retaining old-name aliases. Production assignments retained
 by version 10:
 `monster_think`, `blight_mine_think`, `G_FreeEdict`, `G_EffectThink`, `G_EffectValidateTarget`,
 `blizzard_think`, `flame_strike_tick`, `siphon_mana_think`, `unit_stand`/`unit_birth`/`unit_die`,
@@ -552,12 +552,12 @@ on load (version 52 client layout). They never serialize an active input overlay
 
 Version 53 persists each unit's explicit `UnitShareVision` recipient mask.
 
-The save header remains at format version 56. The writer projects each current edict onto the frozen version-56 wire layout, so adding runtime fields does not change the legacy entity image size. New combat state (weapon cooldown deadlines, target incarnation, backswing deadlines, and per-weapon range-motion buffers) is stored in an optional checksummed, length-delimited `W3EX` extension after the JASS payload and before the footer. Older version-56 saves without that extension remain loadable; missing transient combat values are initialized from loaded unit data and active order state. Version-56 readers that predate the extension can still validate the footer because it covers the complete file, and can ignore the trailing extension after the JASS payload.
+### Current combat and cargo state
+
+Format 57 writes the current entity struct directly through the normal Quake II field serializer. Attack target incarnation, cooldown/backswing deadlines, per-weapon backswing points and range buffers, and pending Cargo Drop state live in that record. The cargo goal uses the ordinary `F_EDICT` fixup; its initiating rawcode and goal spawn identity remain scalar state. Invalid external pointers on write or unallocated goal indexes on load are rejected.
+
+All format-56 variants, including the former combat/cargo extensions and extensionless files, are rejected. There is no frozen entity projection, optional extension reader, or legacy propulsion-window migration. Explicit zero propulsion windows round-trip as authored runtime state.
 
 Attack cooldown begins at swing start, independently of animation `wait`; it continues elapsing when another order or rooted state pauses the attack callback. A target escaping before damage point cancels the pending hit but does not erase the cooldown. A committed melee hit or projectile launch starts backswing recovery, and a save/load during recovery preserves only the remaining backswing time.
 
-Extensionless format-56 saves also restore the authored `UnitData.propWin` when the old unused runtime propulsion window is zero. The extension distinguishes new saves, whose explicit `SetUnitPropWindow(0)` must remain zero. This migration prevents existing units from freezing when propulsion gating becomes active.
-
-The format-56 entity projection also excludes pending Cargo Drop movement state, including fields occupying prior movement tail padding. `W3EX` version 2 appends the pending flag, concrete ability rawcode, goal entity index, and goal spawn time to each version-1 combat record. The reader accepts both record versions: version 1 initializes cargo arrival state to empty, while version 2 validates and relocates the goal index. Extensionless saves remain supported. Invalid external pointers on write or out-of-range saved goal indexes on load are rejected.
-
-On the supported 64-bit ABI, the frozen format-56 entity image is 4,992 bytes. `wc3_save.frozen_version_56_entity_image_size` pins that size independently of the current runtime struct; cargo fields may fill former movement padding and must be cleared before projection and after expansion. The save regressions cover version-1 combat records, extensionless records, intentional zero propulsion windows, and invalid cargo goal references; the movement suite saves a Zeppelin en route and completes its unload after restoration.
+Regression coverage includes prior/future version rejection, map-selection layout rejection, current combat/cargo round-trips, invalid cargo goal references, and payloads with unexpected trailing records. The movement suite saves a Zeppelin en route and completes its unload after restoration. Run `make test-wc3-engine WC3_PATTERN='wc3_save.*'` for both ROC and TFT.
