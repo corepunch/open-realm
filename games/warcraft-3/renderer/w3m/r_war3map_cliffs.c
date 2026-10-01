@@ -15,6 +15,7 @@ static vertex_t *cliff_vertex_samples;
 static uint32_t *cliff_vertex_sample_generation;
 static uint32_t cliff_vertex_sample_capacity, cliff_vertex_generation;
 static bool cliff_warn_sample_alloc;
+static bool cliff_warn_invalid_index;
 
 vec3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y);
 
@@ -66,6 +67,7 @@ void R_ResetCliffCache(void) {
     SAFE_DELETE(cliff_vertex_sample_generation, ri.MemFree);
     cliff_vertex_sample_capacity = cliff_vertex_generation = 0;
     cliff_warn_sample_alloc = false;
+    cliff_warn_invalid_index = false;
 }
 
 // HELPERS
@@ -311,11 +313,21 @@ static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_
     }
 
     cliff_bake.current_group++;
+    uint32_t const piece_first = cliff_bake.num_vertices;
     bool cache_samples = R_GrowCliffVertexSamples((uint32_t)pGeoset->num_vertices);
     uint32_t cache_generation = cache_samples ? R_NextCliffVertexGeneration() : 0;
     FOR_LOOP(t, pGeoset->num_triangles) {
         const int i = pGeoset->triangles[t];
         vertex_t sample;
+        if (i < 0 || i >= pGeoset->num_vertices) {
+            if (!cliff_warn_invalid_index) {
+                fprintf(stderr, "WC3 renderer: cliff config %.4s has triangle index %d outside %d vertices; skipping malformed piece\n",
+                        (cstring_t)&cliffcfg, i, pGeoset->num_vertices);
+                cliff_warn_invalid_index = true;
+            }
+            cliff_bake.num_vertices = piece_first;
+            return;
+        }
         if (cache_samples && cliff_vertex_sample_generation[i] == cache_generation) {
             sample = cliff_vertex_samples[i];
 #ifdef WC3_CLIFF_TESTS
@@ -331,7 +343,12 @@ static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_
             cliff_vertex_sample_count++;
 #endif
         }
-        *R_CliffBakeVertex(&cliff_bake) = sample;
+        vertex_t *output = R_CliffBakeVertex(&cliff_bake);
+        if (!output) {
+            cliff_bake.num_vertices = piece_first;
+            return;
+        }
+        *output = sample;
     }
 }
 
@@ -343,6 +360,10 @@ static maplayer_t *R_BuildMapSegmentCliffsInternal(war3map_t const *map, uint32_
     }
 
     maplayer_t *mapLayer = keep_layer ? ri.MemAlloc(sizeof(maplayer_t)) : NULL;
+    if (keep_layer && !mapLayer) {
+        fprintf(stderr, "WC3 renderer: unable to allocate cliff layer for segment %u,%u; skipping cliff layer\n", sx, sy);
+        return NULL;
+    }
     w3CliffType_t const *row = R_CliffType(cliffID);
     cliffData_t data = {
         .cliff = cliff,
@@ -371,6 +392,11 @@ static maplayer_t *R_BuildMapSegmentCliffsInternal(war3map_t const *map, uint32_
     }
     mapLayer->texture = R_LoadCliffTexture(cliffID, map->tileset, &data);
     cliffLayer_t *pending = ri.MemAlloc(sizeof(*pending));
+    if (!pending) {
+        fprintf(stderr, "WC3 renderer: unable to allocate pending cliff layer for segment %u,%u; discarding layer\n", sx, sy);
+        ri.MemFree(mapLayer);
+        return NULL;
+    }
     *pending = (cliffLayer_t){ .layer = mapLayer, .first = first };
     ADD_TO_LIST(pending, cliff_layers);
     return mapLayer;
