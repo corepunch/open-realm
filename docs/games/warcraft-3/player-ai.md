@@ -363,8 +363,8 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Fifty-two of those names are registered in OpenRealm's JASS
-module; the following 20 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+functions, but their reachable native surface is the same. Fifty-eight of those names are registered in OpenRealm's JASS
+module; the following 14 are still unresolved and will cause a native lookup/runtime failure when their call paths are
 reached:
 
 | Unregistered native | Reachable role in `common.ai` |
@@ -374,13 +374,14 @@ reached:
 | `ConvertUnits` | Convert eligible units into a requested type |
 | `GetAllianceTarget`, `SetAllianceTarget` | Read/write the melee assault target |
 | `GetCreepCamp` | Find a creep camp within a level range |
-| `GetEnemyBase`, `GetExpansionFoe`, `GetEnemyExpansion`, `GetNextExpansion`, `GetExpansionPeon` | Locate enemies, expansion targets, and an expansion worker |
+| `GetEnemyBase`, `GetEnemyExpansion` | Locate enemy bases and expansion targets |
 | `GetMegaTarget` | Retrieve a high priority target |
 | `IsTowered`, `TownThreatened` | Assess tower pressure and town danger |
 | `PurchaseZeppelin` | Request a transport for an assault |
 | `RemoveInjuries`, `RemoveSiege` | Reconcile the assault roster before formation |
-| `SetExpansion` | Order an expansion worker to establish a hall |
 | `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
+
+Expansion support follows Blizzard's `common.ai` sequence: `GetNextExpansion` selects and caches a viable unclaimed gold mine; `GetExpansionX/Y`, `GetExpansionFoe`, and `GetExpansionPeon` query that same selected site; `SetExpansion(peon, hallId)` validates the worker and requested building then submits a normal build order near the selected mine. Accepted construction is paid and placed by the regular WC3 build path, and the resulting completed hall enters the existing town enumeration automatically. No hall is spawned directly. `GetNextExpansion` preserves a selected site while valid and retains it while an accepted hall build project is active; a completed or failed request allows selection to resume. `BZ_COMPAT_GUESS`: candidate ranking uses distance from the first owned town hall; hostile blockers use a 1200-unit radius and nearest-unit priority; hall placement searches deterministic 32-unit cells around the mine, starting just beyond the normal 512-unit resource-dropoff clearance; worker choice is the nearest available construction-capable harvesting worker.
 
 `GetTownUnitCount` is now implemented using the existing stable town IDs and nearest-town ownership rule. It counts
 live owned units of the requested rawcode at that town; `dn == false` includes queued training, active construction, and
@@ -400,7 +401,8 @@ The remaining reachable natives are registered: `AddAssault`, `CaptainInCombat`,
 `SetGroupsFlee`, `SetHeroLevels`, `SetHeroesBuyItems`, `SetHeroesFlee`, `SetHeroesTakeItems`, `SetIgnoreInjured`,
 `SetMeleeAI`, `SetPeonsRepair`, `SetProduce`, `SetSmartArtillery`, `SetTargetHeroes`, `SetUnitsFlee`, `SetUpgrade`,
 `SetWatchMegaTargets`, `Sleep`, `StartThread`, `StopGathering`, `TownHasHall`, `TownHasMine`, `TownWithMine`,
-`UnitAlive`, `GetTownUnitCount`, and `UnitInvis`.
+`UnitAlive`, `GetTownUnitCount`, `UnitInvis`, `GetNextExpansion`, `GetExpansionFoe`, `GetExpansionPeon`,
+`GetExpansionX`, `GetExpansionY`, and `SetExpansion`.
 
 Registration and behavior are separate questions. For example, several melee policy setters and `SetHeroLevels` store
 per-bot policy without a proven consumer; see the policy caveats above. `StartMeleeAI`, `StartCampaignAI`, and

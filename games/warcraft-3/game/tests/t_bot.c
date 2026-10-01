@@ -180,6 +180,81 @@ TEST(wc3_bot, mines_belong_to_the_nearest_owned_town) {
     T_EQ(G_BotGoldOwned(player), 2000);
 }
 
+TEST(wc3_bot, expansion_natives_keep_one_viable_mine_and_order_hall_normally) {
+	enum { CELLS = 64 };
+	static uint8_t pathmap[CELLS * CELLS];
+    player_t *player = &game.clients[2].ps;
+    uint32_t const hall_id = MAKEFOURCC('h','h','o','u');
+    UnitProfile_t worker_profile = { .builds = "hhou" };
+    UnitAbilities_t mine_abilities = { .abilList = "Agld" };
+    edict_t *main_hall, *mine, *worker, *foe;
+    vec2_t requested;
+    vec2_t position;
+
+    reset_entities(); setup_test_world(); setup_test_pathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-512.0f, -512.0f}, .max = {1536.0f, 1536.0f}));
+    main_hall = make_bot_harvest_unit(hall_id, 0, 0, 2, &bot_hall_abilities);
+    mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 700, 0, PLAYER_NEUTRAL_AGGRESSIVE, &mine_abilities);
+    mine->resources = 1000;
+    T_ASSERT(S_UnitAbilityEvent(mine, A_UNIT_INIT));
+    worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 128, 0, 2, &bot_harvester_abilities);
+    worker->data.UnitProfile = &worker_profile;
+    foe = make_bot_harvest_unit(MAKEFOURCC('o','f','o','o'), 700, 256, 3, NULL);
+    foe->svflags |= SVF_MONSTER;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    G_SetPlayerAlliance(player, &game.clients[3].ps, ALLIANCE_PASSIVE, false);
+    T_ASSERT(!G_GetPlayerAlliance(player, &game.clients[3].ps, ALLIANCE_PASSIVE));
+
+    T_EQ(G_BotNextExpansion(player), 0);
+    position = G_BotExpansionPosition(player);
+    T_FEQ(position.x, mine->s.origin2.x, 0.001f); T_FEQ(position.y, mine->s.origin2.y, 0.001f);
+    T_EQ(G_BotExpansionMine(player), mine);
+    T_EQ(G_BotExpansionFoe(player), foe);
+    T_EQ(G_BotExpansionPeon(player), worker);
+    requested = MAKE(vec2_t, 700.0f - WC3_GOLD_MINE_MIN_DISTANCE - 32.0f, 0.0f);
+    T_EQ(G_GetBuildCommandState(PLAYER_CLIENT(player), worker, hall_id, NULL, 0), BUILD_COMMAND_AVAILABLE);
+    T_EQ(G_EvaluateBuildPlacement(worker, hall_id, &requested, NULL), PLACE_OK);
+    T_ASSERT(!G_BotSetExpansion(player, worker, MAKEFOURCC('x','x','x','x')));
+    G_FreeEdict(foe);
+    T_NULL(G_BotExpansionFoe(player));
+    T_ASSERT(G_BotSetExpansion(player, worker, hall_id));
+    T_EQ(worker->build_project, hall_id);
+    T_NOT_NULL(worker->goalentity);
+    T_EQ(G_BotTown(player, 0), main_hall);
+    T_EQ(G_BotExpansionMine(player), mine);
+}
+
+TEST(wc3_bot, expansion_native_sequence_runs_from_common_ai_context) {
+	enum { CELLS = 64 };
+	static uint8_t pathmap[CELLS * CELLS];
+    player_t *player = &game.clients[2].ps;
+    UnitProfile_t worker_profile = { .builds = "hhou" };
+    UnitAbilities_t mine_abilities = { .abilList = "Agld" };
+    edict_t *hall, *mine, *worker;
+
+    reset_entities(); setup_test_world(); setup_test_pathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-512.0f, -512.0f}, .max = {1536.0f, 1536.0f}));
+    hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 700, 0, PLAYER_NEUTRAL_AGGRESSIVE, &mine_abilities);
+    mine->resources = 1000;
+    T_ASSERT(S_UnitAbilityEvent(mine, A_UNIT_INIT));
+    worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 128, 0, 2, &bot_harvester_abilities);
+    worker->data.UnitProfile = &worker_profile;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    T_NOT_NULL(hall); T_NOT_NULL(worker);
+
+    T_ASSERT(G_BotStart(player, "test_expansion.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(level.bots[2].vm);
+    if (level.bots[2].vm) T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
+    T_EQ(worker->build_project, MAKEFOURCC('h','h','o','u'));
+    T_NOT_NULL(worker->goalentity);
+}
+
 TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
     player_t *player = &game.clients[2].ps;
     edict_t *producer;
