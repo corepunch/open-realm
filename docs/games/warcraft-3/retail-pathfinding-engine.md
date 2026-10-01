@@ -2832,3 +2832,61 @@ tool tests pass. Original/C pair/tail words match atO0 andO2 twice. The first
 umbrella attempt rejected a stale types-fixture checksum after annotation;
 that metadata was corrected before the accepted rerun. The release game build
 and repository checks are recorded with the engine change.
+
+
+## Adaptive search reaches long-distance Move
+
+Engine payoff19 replaces the long-location routing gap with ordinary retail
+adaptive search in `wc3_pathing_adaptive.h`. Requests beyond the fine48-cell
+range now use the2x-fine base and three clear/mixed parent levels. The port
+retains first-lookup node representatives, side subdivision order, cardinal/
+corner gates, both stored sizes, the asymmetric size2 predicates, integer
+Newton distance, heap ties, nearest partial endpoints and reconstruction words.
+The next coarse leg is refined with the existing fine search and live occupancy;
+Move retains that local turn through its ordinary ability lifecycle.
+
+`verify_wc3_pathing_adaptive.py --engine-library` compares every route coordinate
+word, result/point count, charged pop and created-node count against full original
+`162cb0` requests. All356 size1 and356 size2 cases agree atO0/O2 and repeated
+execution. The four known size2 original/reference reachability differences
+remain visible; this port preserves them. A separate budget8 comparison has356
+exact original/C results at each optimization level, including partial routes;
+its268 reachability disagreements concern a graph reference with unlimited work,
+not a production-C mismatch.
+
+The real engine regression issues public JASS Move on a64x64 fine map with an
+off-axis wall gap, confirms a retained adaptive turn, checks every sampled point
+and reaches the existing retail arrival range without snapping to the target.
+A Save66 round-trip reproduces180 subsequent ticks' position, heading, velocity
+and order words exactly. A second regression alternates all four lanes and both
+sizes, edits terrain through public JASS, changes the walk route while retaining
+the untouched fly route, and checks legal fine handoffs. The prior winding
+corridor regression now expects the new adaptive turn and verifies its legality.
+The two added lifecycle cases pass1,310 assertions in each WC3 fixture variant.
+
+The four static classifications are derived cache state, keyed by the shared
+routing bake epoch; module shutdown releases their allocation. Save66 and the
+wire contract are unchanged. Engine search retains the existing2,048 charged-pop
+bound. Original5,000-budget request producers, special/warp edges, dynamic
+classification/exclusion, original allocation/stamp lifetime, exact hierarchy-to-
+fine route progression and whole retail movement trajectories remain open.
+Static-only interaction/resource queries still use their existing routing path.
+
+Accepted original/C artifacts under the analysis root:
+`adaptive-engine-corpus-final-261001/`,
+`adaptive-size1-engine-o0-repeat-261001.json`,
+`adaptive-size2-engine-o0-repeat-261001.json`,
+`adaptive-budget8-engine-o0-261001.json` and
+`adaptive-budget8-engine-o2-261001.json`.
+Ghidra now retains456 descriptive function names; the added predicates and
+integer-distance comments are saved and read back in
+`runtime/adaptive-engine-ghidra-readback-261001.json`. The31 layouts,173 verified
+fields and170 explicit prototypes are unchanged.
+
+
+Validation for payoff19: the required umbrella passes with coherent release
+artifacts. Forced release WC3 suites pass47,408 assertions in2,224 cases for
+both RoC and TFT; the production release executable builds without C warnings.
+All137 pathfinding tool tests, ability coverage audit, backlog ID/count checks,
+document links and `git diff --check` pass. The initial broader run caught the
+old winding-corridor expectation; it is now updated to the new legal route.

@@ -9,6 +9,7 @@ these changes are marked in reports and are not normal retail execution.
 """
 import argparse
 import collections
+import ctypes
 import hashlib
 import json
 import random
@@ -31,7 +32,12 @@ def main():
     parser.add_argument('--map-json', type=Path, help='custom map object with a blocked coordinate list; dimensions/endpoints stay fixed')
     parser.add_argument('--lane', type=int, choices=(0, 2, 4, 6), help='run just this lane')
     parser.add_argument('--disable-promotion', action='store_true', help='controlled intervention: mark all parents mixed')
+    parser.add_argument('--engine-library', type=Path, help='compare production adaptive search and reconstructed route words')
+    parser.add_argument('--budget', type=int, default=100000, help='charged-pop request budget (default100000)')
     args = parser.parse_args()
+    if not 0 <= args.budget <= 0xffffffff:
+        parser.error('--budget must fit an unsigned32-bit word')
+    engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if args.force_east_boundary and args.east_boundary is None:
         parser.error('--force-east-boundary requires --east-boundary X Y')
     binary = args.binary.read_bytes()
@@ -172,7 +178,7 @@ def main():
             boundary_checks.clear()
             graph_edges.clear()
             graph_expansions.clear()
-            result = run(0x6f162cb0, system, lane, route, source_ptr, target_ptr, 100000, args.size_input, 0)
+            result = run(0x6f162cb0, system, lane, route, source_ptr, target_ptr, args.budget, args.size_input, 0)
             # Size 2's base footprint is anchored toward positive X/Y. The
             # fine graph helper represents its 2x2 square with the opposite
             # node convention, so translate reference endpoints by (1,1).
@@ -185,6 +191,17 @@ def main():
             if not 1 <= count <= 4096 or node_count > 4096:
                 raise RuntimeError('invalid adaptive result dimensions')
             points = [struct.unpack('<ff', machine.mem_read(route_data + i * 8, 8)) for i in range(count)]
+            if engine:
+                params=[width,width,args.size_input,args.budget]+list(struct.unpack('<4I',struct.pack('<4f',*source,*request_target)))
+                classes=[(read(storage+(y*side+x)*8+4)[0]>>(30-lane))&3
+                    for storage,side in zip(data,(width>>level for level in range(4)))
+                    for y in range(side) for x in range(side)]
+                expected_words=[result,read(system+0x9c)[0],node_count,count]
+                expected_words+=list(struct.unpack('<'+'I'*(count*2),machine.mem_read(route_data,count*8)))
+                output=(ctypes.c_uint32*32772)()
+                engine.pathing_adaptive_route((ctypes.c_uint32*8)(*params),(ctypes.c_uint8*len(classes))(*classes),output)
+                if list(output[:len(expected_words)])!=expected_words:
+                    raise RuntimeError(('production adaptive route differs',name,lane,expected_words,list(output[:len(expected_words)])))
             levels = collections.Counter(machine.mem_read(nodes + i * 36 + 0x22, 1)[0] for i in range(node_count))
             row = dict(fixture=name, lane=lane, setup_shortcut=shortcut, result=result, reference_reached=expected is not None,
                        pops=read(system + 0x9c)[0], nodes=node_count, levels=dict(levels), points=points,
@@ -279,6 +296,10 @@ def main():
                   size_selection=size_samples, lane_selection_cases=lane_cases, east_boundary_predicate_cases=predicate_cases,
                   scope='complete original adaptive requests, selected size, all lanes with other lanes blocked, no warp; original parent reducer; supplied base classifications; compare ordinary reachability against point/positive-anchored-2x2 base graph; separately verify setup shortcuts',
                   searches=records)
+    report['budget']=args.budget
+    if engine:
+        report['engine_exact_cases']=len(records)
+        report['engine_library_sha256']=hashlib.sha256(args.engine_library.read_bytes()).hexdigest()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(f'{len(records)} adaptive requests; {len(failures)} reference differences')

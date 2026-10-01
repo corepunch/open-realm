@@ -537,6 +537,7 @@ static void G_InitGame(void) {
 }
 
 static void G_ShutdownGame(void) {
+    G_FreeMovePathCache();
     if (g_edicts == NULL) {
         return;
     }

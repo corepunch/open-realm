@@ -1,5 +1,11 @@
 # WC3 Pathfinding And Harvest Reachability
 
+Ordinary long-distance Move now uses [retail adaptive search](retail-pathfinding-engine.md#adaptive-search-reaches-long-distance-move)
+to supply local fine-search turns. The engine traverses long obstructed maps,
+rebuilds static lane classifications after terrain edits, and resumes saved
+travel with exact position/heading/velocity words. Special edges, original route
+handoff timing and complete retail trajectories remain work in progress.
+
 Authored repulsion now runs through Move after each owner movement pass, so
 eligible idle flyers separate as well as moving units. It uses saved retail
 random state, exact scalar pair/tail arithmetic and collision-sized endpoint
@@ -389,5 +395,5 @@ separate embedded Stop recovery remain open.
 The path owner now has a saved retail two-word random generator. Public JASS
 seeded random queries use its exact words, replacing libc range/modulo draws;
 its overlap-direction helper matches original scalar sine/cosine output.
-This prepares deterministic repulsion but does not yet implement crowd
-repulsion scheduling. See [engine payoff17](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).
+Authored repulsion now consumes this owner state through Move; original
+proximity cell order and multi-neighbor draw chronology remain open. See [engine payoff17](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).

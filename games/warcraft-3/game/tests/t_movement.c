@@ -218,6 +218,82 @@ TEST(wc3_movement, repulsion_uses_authored_nonstock_policy) {
     reset_entities(); setup_test_world();
 }
 
+/* A long location order must retain a retail adaptive turn rather than discard it for a flow field. */
+TEST(wc3_movement, retail_adaptive_long_move_reaches_engine) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,64) FOR_LOOP(x,2) if (y<44 || y>=52) cells[y*64+32+x]=2;
+    box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hfoo',272,304,0)\n"
+        "call SetUnitMoveSpeed(mover,200)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",1936,1776)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit_stand(unit); jass_callbyname(level.vm,"go",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    vec2_t target={1936,1776}, waypoint;
+    movePathQuery_t query={{&unit->s.origin2,&target,unit->collision,M_UnitStaticPathingFlags(unit)},unit,NULL,true};
+    T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
+    T_ASSERT(unit->movement.path.valid);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){272,304})>1);
+    cstring_t file="/tmp/openwarcraft3-adaptive-move-save.bin";
+    uint32_t continued[180][6];
+    T_ASSERT(WriteGame(file));
+    FOR_LOOP(i,180) {
+        level.time+=100; globals.RunFrame();
+        movePathQuery_t legal={{&unit->s.origin2,NULL,unit->collision,M_UnitStaticPathingFlags(unit)},unit,NULL,true};
+        float fine[2]={unit->s.origin2.x/32,unit->s.origin2.y/32};
+        T_ASSERT(G_UnitMovePathFinePointIsPathable(&legal,fine));
+        continued[i][0]=wc3_float_bits(unit->s.origin2.x); continued[i][1]=wc3_float_bits(unit->s.origin2.y);
+        continued[i][2]=wc3_float_bits(unit->s.angle); continued[i][3]=wc3_float_bits(unit->movement.velocity.x);
+        continued[i][4]=wc3_float_bits(unit->movement.velocity.y); continued[i][5]=unit->current_order_id;
+    }
+    T_EQ(unit->current_order_id,0); T_ASSERT(Vector2_distance(&unit->s.origin2,&target)<=32*wc3_float(0x3efae148));
+    T_ASSERT(ReadGame(file));
+    FOR_LOOP(i,180) {
+        level.time+=100; globals.RunFrame();
+        T_EQ(wc3_float_bits(unit->s.origin2.x),continued[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y),continued[i][1]);
+        T_EQ(wc3_float_bits(unit->s.angle),continued[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.x),continued[i][3]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y),continued[i][4]); T_EQ(unit->current_order_id,continued[i][5]);
+    }
+    remove(file);
+    reset_entities(); setup_test_world();
+}
+
+/* Cache identity must include the map bake epoch, lane and size selected by each mover. */
+TEST(wc3_movement, retail_adaptive_lanes_sizes_and_terrain_edits) {
+    edict_t *unit=make_moving_unit(272,304);
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,64) FOR_LOOP(x,2) if (y<44 || y>=52) cells[y*64+32+x]=0xc6;
+    box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    vec2_t target={1936,1776}, waypoint, before;
+    uint8_t masks[4]={2,4,0x40,0x80};
+    FOR_LOOP(round,2) FOR_LOOP(lane,4) FOR_LOOP(size,2) {
+        movePathQuery_t query={{&unit->s.origin2,&target,size?32:31,masks[lane]},unit,NULL,true};
+        T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
+        movePathQuery_t leg=query; leg.geometry.target=&waypoint;
+        T_ASSERT(G_UnitMovePathLineIsPathable(&leg));
+    }
+    movePathQuery_t query={{&unit->s.origin2,&target,31,2},unit,NULL,true};
+    T_ASSERT(G_FindUnitMovePathWaypoint(&query,&before));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nlocal integer y=0\n"
+        "loop\nexitwhen y==64\ncall SetTerrainPathable(1040,y*32+16,ConvertPathingType(1),y>=12 and y<20)\n"
+        "call SetTerrainPathable(1072,y*32+16,ConvertPathingType(1),y>=12 and y<20)\nset y=y+1\nendloop\nendfunction\n"));
+    T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
+    T_ASSERT(waypoint.y<before.y);
+    movePathQuery_t leg=query; leg.geometry.target=&waypoint;
+    T_ASSERT(G_UnitMovePathLineIsPathable(&leg));
+    query.geometry.blocked_flags=4;
+    T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
+    T_EQ(wc3_float_bits(waypoint.x),wc3_float_bits(before.x));
+    T_EQ(wc3_float_bits(waypoint.y),wc3_float_bits(before.y));
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_movement, retail_oblique_velocity_and_step_words) {
     edict_t *unit = make_moving_unit(320, 320);
     /* Original fixture starts in fine cell10 with a zero world origin. */

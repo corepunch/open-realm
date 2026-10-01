@@ -47,6 +47,7 @@ typedef struct {
 struct {
     uint32_t width;
     uint32_t height;
+    uint32_t revision; /* Static routing-cache epoch; derived game grids follow the same invalidation. */
     pathMapCell_t *terrain;  /* authored/mutable terrain before entity footprints */
     pathMapCell_t *original;
     pathMapCell_t *data;
@@ -153,6 +154,7 @@ routePerfStats_t CM_GetTestPathPerfStats(void) {
 #endif
 
 static void heatmap_cache_invalidate(void) {
+    pathmap.revision++;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         heatmap_cache[i].target    = (point2_t){ -1, -1 };
         heatmap_cache[i].query = (pathGridQuery_t){0};

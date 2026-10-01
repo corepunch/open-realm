@@ -1150,7 +1150,10 @@ TEST(wc3_pathfinding, class_sized_long_field_reaches_winding_corridor_and_invali
              cells[y * WIDTH + x - 1] | cells[y * WIDTH + x], 0);
     }
     T_ASSERT(unit->s.origin.x > 6.f);
-    T_ASSERT(!unit->movement.path.valid); /* still beyond the fine envelope */
+    T_ASSERT(unit->movement.path.valid); /* adaptive routing now supplies the long Move's local turn */
+    movePathQuery_t leg = {{&unit->s.origin2,&unit->movement.path.waypoint,
+        unit->collision,CM_PATHING_UNWALKABLE},unit,NULL,true};
+    T_ASSERT(G_UnitMovePathLineIsPathable(&leg));
 
     /* Pinch the passage to one cell. The class1 field must become unreachable
      * while a class0 field with the same ceil radius still crosses the gap. */

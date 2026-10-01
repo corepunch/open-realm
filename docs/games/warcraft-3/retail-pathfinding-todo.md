@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**96 done / 279 tasks; 183 remaining.** Counts describe this backlog,
+**98 done / 281 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -19,11 +19,11 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | Area | Done | Remaining |
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 14 | 10 |
-| MAP — Map construction and lifetime | 6 | 15 |
+| MAP — Map construction and lifetime | 7 | 15 |
 | FOOT — Footprints and query policy | 4 | 9 |
 | FINE — Fine search | 6 | 6 |
-| ACC — Adaptive search | 1 | 10 |
-| NUM — Numbers and random state | 17 | 12 |
+| ACC — Adaptive search | 3 | 10 |
+| NUM — Numbers and random state | 20 | 14 |
 | ROUTE — Route progression and yielding | 2 | 9 |
 | TARGET — Pursuit and arrival policy | 2 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
@@ -31,7 +31,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | ORDER — Orders and reclamation | 12 | 24 |
 | GROUP — Shared movement groups | 11 | 6 |
 | FORM — Formation and regrouping | 4 | 9 |
-| SEP — Repulsion and spatial records | 2 | 10 |
+| SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
 | E2E — Combined scenarios and handoff | 1 | 18 |
 | READY — Start the faithful replacement | 0 | 4 |
@@ -342,6 +342,8 @@ Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fix
 - [ ] **ACC-01.1** Enumerate side/corner and level-transition branches from the adaptive expander; record exact input preconditions for each branch.
 - [ ] **ACC-01.2** Build one witness per enumerated branch across lanes/classes and special-marker cells; assert promotion/subdivision and neighbor ordering.
 
+- [x] **ACC-01.3** Split ordinary adaptive reimplementation from01.1/02: port setup, clear-parent promotion, mixed-side subdivision, base/coarse neighbor order, both stored sizes, integer distance, nearest partial route and reconstruction into engine long Move. Evidence: [adaptive long Move](retail-pathfinding-engine.md#adaptive-search-reaches-long-distance-move),712 complete original/C requests across four lanes, exact route words/counts/charged pops/created nodes; actual long detour reaches legal arrival. Branch inventory, special-marker witnesses and producer reachability remain01.1/02 and02.1/02.
+
 ### ACC-02 — Classification reachability
 
 - [ ] **ACC-02.1** Map classification/flag combinations used by adaptive fixtures back to map producers; classify each as reachable, rejected or unresolved.
@@ -362,6 +364,8 @@ Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fix
 
 - [ ] **ACC-05.1** Cross adaptive node/heap/index capacity and growth boundaries; assert failure/partial state and its public consumer result.
 - [ ] **ACC-05.2** Reuse storage across stamp wrap and lane/class changes; assert no stale node, route or flag survives into the next request.
+
+- [x] **ACC-05.3** Split the engine derived-hierarchy lifetime from retail storage requirements05.1/02: cache four static lanes by bake epoch, refine adaptive legs with live fine occupancy, free on module shutdown and reproduce saved long-Move continuation. Evidence: [adaptive long Move](retail-pathfinding-engine.md#adaptive-search-reaches-long-distance-move),public terrain-edit lane isolation, repeated lane/size requests,180 saved continuation ticks with exact positions/heading/velocity/order; existing winding-field regression now retains a legal adaptive turn. Retail capacity/growth/stamp-wrap remain05.1/02.
 
 ## NUM — Numbers and random state
 

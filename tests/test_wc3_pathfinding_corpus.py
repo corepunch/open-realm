@@ -23,7 +23,7 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),83)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),85)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),100)
         self.assertEqual(sum(e['id'].startswith('live-') for e in entries),27)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
@@ -33,11 +33,11 @@ class CorpusTests(unittest.TestCase):
         self.assertEqual([e['id'] for e in completed_rejections],['capture-arrival-point-first'])
         self.assertTrue(completed_rejections[0]['capture_failures'])
         native=[e for e in entries if e['expected_status']=='known-reference-difference']
-        self.assertEqual(len(native),2)
+        self.assertEqual(len(native),3)
         for entry in native:
             self.assertEqual(entry['expected_exit'],1)
             check_report(dict(binary_sha256=self.target['game_sha256'],differences=[{}]*4,
-                              stored_size=2,promotion_disabled=False,forced_east_boundary=False),entry,self.target)
+                              stored_size=2,promotion_disabled=False,forced_east_boundary=False,engine_exact_cases=356,cases=356),entry,self.target)
 
     def test_inventory_rejects_missing_scripts_changed_fixtures_and_hidden_differences(self):
         with tempfile.TemporaryDirectory() as directory:

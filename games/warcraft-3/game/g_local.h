@@ -2646,6 +2646,7 @@ typedef struct {
     bool units;
 } movePathQuery_t;
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
+void G_FreeMovePathCache(void);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
 bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *query, float const fine[2]);
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params);

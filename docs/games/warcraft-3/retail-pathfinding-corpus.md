@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **210 entries**: **44** distinct original-code oracle
-scripts plus **39** declared variants, **100** archived JSONL audits and **27**
+The inventory now has **212 entries**: **44** distinct original-code oracle
+scripts plus **41** declared variants, **100** archived JSONL audits and **27**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,8 +20,8 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 78 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
-| Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
+| 79 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 92 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
@@ -508,3 +508,18 @@ whole crowd trajectory. The versioned fixture also records the first seeded
 overlap used by the actual engine scheduler regression. Accepted fresh result:
 `repulsion-kernels-corpus-final-261001/corpus-results.json` under the analysis
 root. The repository inventory contains74 checksummed fixtures.
+
+
+## Ordinary adaptive engine comparison
+
+`adaptive-engine-size1` and `adaptive-engine-size2` add712 full original requests
+against the production adaptive header. Every result, route coordinate word,
+point count, charged pop and created-node count agrees. Size2 intentionally
+retains the original's four known unlimited graph-reference differences and
+exit1. Fresh acceptance is `adaptive-engine-corpus-final-261001/corpus-results.json`;
+reports record the executed production library hash. O0 repeat and bounded-work
+reports are documented with the [engine port](retail-pathfinding-engine.md#adaptive-search-reaches-long-distance-move).
+This makes212 entries:44 scripts plus41 variants,100 archive audits and27 live
+contracts. Supplied classifications and preallocated storage remain explicit;
+these comparisons do not certify map producers, special edges, capacity limits
+or full gameplay trajectories.

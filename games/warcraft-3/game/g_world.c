@@ -2,6 +2,7 @@
 #include "../common/wc3_pathing_route.h"
 #include "../common/wc3_pathing_coordinates.h"
 #include "../common/wc3_pathing_placement.h"
+#include "../common/wc3_pathing_adaptive.h"
 
 typedef struct {
     int size;
@@ -17,6 +18,13 @@ typedef struct { moveFineGraph_t *graph; movePathQuery_t const *query; } moveObj
 static moveObjectScan_t *move_scan;
 static wc3FineSearch_t move_fine;
 static wc3FineVector_t move_fine_points[BZ_WC3_FINE_NODES];
+static wc3AccSearch_t move_acc;
+static wc3FineVector_t move_acc_points[BZ_WC3_FINE_NODES];
+static void *move_acc_storage;
+static uint32_t move_acc_revision, move_acc_width, move_acc_height;
+static uint8_t *move_acc_classes[4][4];
+static uint8_t const move_acc_masks[4] = {2,4,0x40,0x80};
+typedef struct { movePathQuery_t const *input; wc3FineVector_t source, target; } moveAdaptiveQuery_t;
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
 static bool entity_is_live_walkable_surface(edict_t const *ent) {
@@ -95,6 +103,55 @@ static vec2_t move_world_from_grid(float x, float y) {
     float const cx = (bounds.max.x - bounds.min.x) / pathmap.width;
     float const cy = (bounds.max.y - bounds.min.y) / pathmap.height;
     return (vec2_t){wc3_world_coordinate(x, bounds.min.x, cx), wc3_world_coordinate(y, bounds.min.y, cy)};
+}
+
+/* Classification is derived map state; release it when the game module shuts down. */
+void G_FreeMovePathCache(void) {
+    free(move_acc_storage); move_acc_storage = NULL;
+    move_acc_width = move_acc_height = move_acc_revision = 0;
+}
+
+/* Four ordinary static lanes share node-index scratch; cache the retail 2x fine base and three parents. */
+static void move_acc_prepare(void) {
+    uint32_t width = ((pathmap.width+1)/2+7)&~7u, height = ((pathmap.height+1)/2+7)&~7u;
+    if (move_acc_storage && move_acc_width == width && move_acc_height == height &&
+        move_acc_revision == pathmap.revision) return;
+    if (move_acc_width != width || move_acc_height != height || !move_acc_storage) {
+        G_FreeMovePathCache();
+        uint32_t cells = 0;
+        FOR_LOOP(level,4) cells += (width>>level)*(height>>level);
+        move_acc_storage = malloc((size_t)cells*(sizeof(int)+4));
+        if (!move_acc_storage) gi.error("WC3 adaptive routing: cannot allocate %u hierarchy cells",cells);
+        int *indices = move_acc_storage;
+        uint8_t *classes = (uint8_t *)(indices+cells);
+        FOR_LOOP(level,4) {
+            uint32_t w = width>>level, h = height>>level;
+            move_acc.maps[level] = (wc3AccMap_t){.width=w,.height=h,.indices=indices}; indices += w*h;
+            FOR_LOOP(lane,4) { move_acc_classes[lane][level] = classes; classes += w*h; }
+        }
+        move_acc_width = width; move_acc_height = height;
+    }
+    FOR_LOOP(lane,4) FOR_LOOP(level,4) {
+        wc3AccMap_t const *map = move_acc.maps+level;
+        uint8_t *classes = move_acc_classes[lane][level];
+        FOR_LOOP(y,map->height) FOR_LOOP(x,map->width) {
+            unsigned blocked = 0;
+            if (!level) {
+                FOR_LOOP(dy,2) FOR_LOOP(dx,2)
+                    blocked += !is_pathable_node_original_flags(x*2+dx,y*2+dy,move_acc_masks[lane]);
+                classes[y*map->width+x] = blocked == 4 ? 1 : blocked ? 2 : 0;
+            } else {
+                uint32_t w = move_acc.maps[level-1].width;
+                uint8_t const *child = move_acc_classes[lane][level-1];
+                uint8_t first = child[y*2*w+x*2]; bool same = true;
+                FOR_LOOP(dy,2) FOR_LOOP(dx,2) same &= child[(y*2+dy)*w+x*2+dx] == first;
+                classes[y*map->width+x] = same && first < 2 ? first : 2;
+            }
+        }
+    }
+    /* TODO MAP/ACC: special bytes, dynamic classification/exclusion and stale retail terrain-edit
+     * invalidation producers remain separate. This cache follows the engine's static bake epoch. */
+    move_acc_revision = pathmap.revision;
 }
 
 /* Original 16ee80 checks a class-sized square, biased left/up for even sizes.
@@ -391,6 +448,40 @@ static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
     return wc3_fine_cell_edges(&query, pos);
 }
 
+/* Long ordinary location orders retain adaptive turns; fine routing still owns the local handoff. */
+static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out) {
+    movePathQuery_t const *input = query->input;
+    wc3FineVector_t source = query->source, target = query->target;
+    if (!input->units || !input->mover) return false;
+    unsigned lane = 0;
+    while (lane < 4 && move_acc_masks[lane] != input->geometry.blocked_flags) lane++;
+    if (lane == 4) {
+        fprintf(stderr,"WC3 adaptive routing: unsupported movement mask %02x\n",input->geometry.blocked_flags);
+        return false;
+    }
+    move_acc_prepare();
+    FOR_LOOP(level,4) move_acc.maps[level].classes = move_acc_classes[lane][level];
+    wc3AccRequest_t req = {{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
+        {wc3_mul(target.x,.5f),wc3_mul(target.y,.5f)},
+        input->geometry.radius >= pathmap_cell_world_size() ? 2 : 1,BZ_WC3_FINE_WORK};
+    uint32_t result = wc3_acc_route(&move_acc,&req,move_acc_points), count = result&0x7fffffffu;
+    if (count < 2) return false;
+    FOR_LOOP(i,count) { move_acc_points[i].x = wc3_mul(move_acc_points[i].x,2); move_acc_points[i].y = wc3_mul(move_acc_points[i].y,2); }
+    moveFineGraph_t graph = move_foot_shape(&input->geometry); move_query_objects(&graph,input,NULL);
+    wc3FineSegment_t segment = {.start={source.x,source.y},.cls=(unsigned)graph.size-1,.cell=move_cell_ok,.data=&graph};
+    uint32_t chosen = wc3_segment_waypoint(&segment,(wc3FineRoute_t){move_acc_points,count-1});
+    /* Keep the handoff within the fine request's range even when visible coarse points were skipped. */
+    while (chosen < count-2 &&
+        (fabsf(move_acc_points[chosen].x-source.x) > PATH_ACCEL_MAX_DISTANCE ||
+         fabsf(move_acc_points[chosen].y-source.y) > PATH_ACCEL_MAX_DISTANCE)) chosen++;
+    wc3FineVector_t point = move_acc_points[chosen];
+    vec2_t local = move_world_from_grid(point.x,point.y);
+    movePathQuery_t nearby = *input; nearby.geometry.target = &local;
+    /* Coarse representatives lie within the next8-base-cell region; refine that local leg with live units. */
+    if (!G_FindUnitMovePathWaypoint(&nearby,out)) return false;
+    return true;
+}
+
 /* Reconstruct destination-first points, then use the original next-point /
  * progressively farther selection policy. Move retains the selected turn. */
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
@@ -403,7 +494,8 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
     vec2_t a = move_grid_from_world(source.x, source.y), b = move_grid_from_world(target.x, target.y);
     wc3FinePoint_t start = { (int)floorf(a.x), (int)floorf(a.y) };
     wc3FinePoint_t goal = { (int)floorf(b.x), (int)floorf(b.y) };
-    if (abs(start.x - goal.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - goal.y) > PATH_ACCEL_MAX_DISTANCE) return false;
+    if (abs(start.x - goal.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - goal.y) > PATH_ACCEL_MAX_DISTANCE)
+        return move_adaptive_waypoint(&(moveAdaptiveQuery_t){input,{a.x,a.y},{b.x,b.y}},out);
     moveFineGraph_t graph = move_foot_shape(params);
     move_query_objects(&graph, input, NULL);
     bool target_hit = false;

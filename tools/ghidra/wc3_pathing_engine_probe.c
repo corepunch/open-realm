@@ -8,6 +8,26 @@
 #include "games/warcraft-3/common/wc3_pathing_placement.h"
 #include "games/warcraft-3/common/wc3_pathing_random.h"
 #include "games/warcraft-3/common/wc3_pathing_repulsion.h"
+#include "games/warcraft-3/common/wc3_pathing_adaptive.h"
+
+/* Four supplied hierarchy levels, exact source/goal words and ordinary size1/2 route policy. */
+void pathing_adaptive_route(uint32_t const input[8], uint8_t const *classes, uint32_t *output) {
+    static wc3AccSearch_t search;
+    static wc3FineVector_t points[BZ_WC3_FINE_NODES];
+    uint32_t offset=0;
+    for (unsigned level=0; level<4; level++) {
+        uint32_t width=input[0]>>level, height=input[1]>>level;
+        search.maps[level]=(wc3AccMap_t){width,height,classes+offset,malloc(width*height*sizeof(int))};
+        assert(search.maps[level].indices); offset+=width*height;
+    }
+    wc3AccRequest_t req={{wc3_float(input[4]),wc3_float(input[5])},{wc3_float(input[6]),wc3_float(input[7])},1u<<input[2],input[3]};
+    uint32_t result=wc3_acc_route(&search,&req,points), count=result&0x7fffffffu;
+    output[0]=!(result&0x80000000u); output[1]=search.work.pops; output[2]=search.work.count; output[3]=count;
+    for (uint32_t i=0; i<count; i++) {
+        output[4+i*2]=wc3_float_bits(points[i].x); output[5+i*2]=wc3_float_bits(points[i].y);
+    }
+    for (unsigned level=0; level<4; level++) free(search.maps[level].indices);
+}
 
 /* Complete public terrain native inputs: XY/origin words, type, seed, passable. */
 void pathing_terrain_native(uint32_t const input[7], uint32_t output[4]) {

@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "44 executable original-code oracle scripts,39 selected exact/frozen variants,27 explicit live/profile/repeat contracts and100 archived capture audits.",
+  "scope": "44 executable original-code oracle scripts,41 selected exact/frozen variants,27 explicit live/profile/repeat contracts and100 archived capture audits.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -12659,6 +12659,100 @@
       "exclusions": [
         "Complete proximity/application/scheduler chain",
         "Special category override semantic producer"
+      ]
+    },
+    {
+      "id": "adaptive-engine-size1",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_adaptive.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-engine-size1.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "differences": {
+          "length": 0
+        },
+        "cases": {
+          "equal": 356
+        },
+        "engine_exact_cases": {
+          "equal": 356
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Production ordinary adaptive setup/search/reconstruction agrees with every original route word, point count, created-node count and charged pop count in356 supplied classifications over four lanes; stored size 1.",
+      "exclusions": [
+        "Map/request producers and special/warp edges",
+        "Allocation/growth/stamp-wrap lifetime",
+        "Full retail adaptive-to-fine handoff and movement trajectory"
+      ]
+    },
+    {
+      "id": "adaptive-engine-size2",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_adaptive.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--size-input",
+        "1",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-engine-size2.json",
+      "expected_exit": 1,
+      "expected_status": "known-reference-difference",
+      "checks": {
+        "differences": {
+          "length": 4
+        },
+        "stored_size": {
+          "equal": 2
+        },
+        "promotion_disabled": {
+          "equal": false
+        },
+        "forced_east_boundary": {
+          "equal": false
+        },
+        "engine_exact_cases": {
+          "equal": 356
+        },
+        "cases": {
+          "equal": 356
+        }
+      },
+      "intervention": null,
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Production ordinary adaptive setup/search/reconstruction agrees with every original route word, point count, created-node count and charged pop count in356 supplied classifications over four lanes; stored size 2.",
+      "exclusions": [
+        "Map/request producers and special/warp edges",
+        "Allocation/growth/stamp-wrap lifetime",
+        "Full retail adaptive-to-fine handoff and movement trajectory"
       ]
     }
   ],
