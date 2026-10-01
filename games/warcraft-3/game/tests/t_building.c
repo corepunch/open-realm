@@ -284,6 +284,52 @@ static const char building_dependency_ability_slk[] =
     "C;X4;K\"Cannibalize\"\n"
     "E\n";
 
+/* These stock caster abilities and upgrades are absent from the compact test
+ * archive. Install rows so the research gate tests exercise parsed game data. */
+static const char building_caster_ability_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X4;Y5;D0\n"
+    "C;X1;Y1;K\"alias\"\n"
+    "C;X2;K\"code\"\n"
+    "C;X3;K\"checkDep\"\n"
+    "C;X4;K\"comments\"\n"
+    "C;X1;Y2;K\"Aivs\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K\"Invisibility\"\n"
+    "C;X1;Y3;K\"Aply\"\nC;X2;K\"Aply\"\nC;X3;K1\nC;X4;K\"Polymorph\"\n"
+    "C;X1;Y4;K\"Adis\"\nC;X2;K\"Adis\"\nC;X3;K1\nC;X4;K\"Dispel Magic\"\n"
+    "C;X1;Y5;K\"Ainf\"\nC;X2;K\"Ainf\"\nC;X3;K1\nC;X4;K\"Inner Fire\"\n"
+    "E\n";
+
+static const char building_caster_upgrade_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X3;Y3;D0\n"
+    "C;X1;Y1;K\"upgradeid\"\nC;X3;K\"maxlevel\"\n"
+    "C;X1;Y2;K\"Rhst\"\nC;X3;K2\n"
+    "C;X1;Y3;K\"Rhpt\"\nC;X3;K2\n"
+    "E\n";
+
+typedef struct {
+    slkTestData_t *old_abilities;
+    slkTestData_t *old_upgrades;
+    slkTestData_t *abilities;
+    slkTestData_t *upgrades;
+} buildingCasterRows_t;
+
+static buildingCasterRows_t building_install_caster_data(void) {
+    buildingCasterRows_t rows = {0};
+    rows.abilities = parse_slk_string(building_caster_ability_slk);
+    rows.upgrades = parse_slk_string(building_caster_upgrade_slk);
+    rows.old_abilities = G_SetSLKRows("AbilityData", rows.abilities);
+    rows.old_upgrades = G_SetSLKRows("UpgradeData", rows.upgrades);
+    return rows;
+}
+
+static void building_restore_caster_data(buildingCasterRows_t rows) {
+    G_SetSLKRows("UpgradeData", rows.old_upgrades);
+    G_SetSLKRows("AbilityData", rows.old_abilities);
+    free_slk_rows(rows.upgrades);
+    free_slk_rows(rows.abilities);
+}
+
 static slkTestData_t *building_install_upgrade_data(slkTestData_t **rows_out) {
     slkTestData_t *rows = parse_slk_string(building_upgrade_slk);
     slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
@@ -1297,6 +1343,7 @@ TEST(wc3_building, player_ability_availability_does_not_leak_to_unmapped_owner) 
 }
 
 TEST(wc3_building, caster_training_gates_sorceress_and_priest_spell_tiers) {
+    buildingCasterRows_t caster_rows;
     gameClient_t *client;
     edict_t *sorceress, *priest;
     UnitBalance_t sorceress_balance = { .upgrades = "Rhst" };
@@ -1314,6 +1361,7 @@ TEST(wc3_building, caster_training_gates_sorceress_and_priest_spell_tiers) {
     bool found;
 
     setup_test_world();
+    caster_rows = building_install_caster_data();
     client = &game.clients[0];
     client->ps.number = 0;
     memset(client->tech, 0, sizeof(client->tech));
@@ -1431,6 +1479,7 @@ TEST(wc3_building, caster_training_gates_sorceress_and_priest_spell_tiers) {
     G_SetPlayerTechResearched(client, priest_training, 0);
     G_SetPlayerTechMaxAllowed(client, sorceress_training, -1);
     G_SetPlayerTechMaxAllowed(client, priest_training, -1);
+    building_restore_caster_data(caster_rows);
 }
 
 TEST(wc3_building, rlev_dependency_uses_custom_upgrade_and_ability_rawcodes) {
@@ -1469,6 +1518,7 @@ TEST(wc3_building, rlev_dependency_uses_custom_upgrade_and_ability_rawcodes) {
 }
 
 TEST(wc3_building, training_research_state_does_not_leak_to_unmapped_owner) {
+    buildingCasterRows_t caster_rows;
     gameClient_t *fallback;
     edict_t *unit;
     UnitBalance_t balance = { .upgrades = "Rhst" };
@@ -1476,6 +1526,7 @@ TEST(wc3_building, training_research_state_does_not_leak_to_unmapped_owner) {
     uint32_t const training = MAKEFOURCC('R','h','s','t');
 
     setup_test_world();
+    caster_rows = building_install_caster_data();
     fallback = &game.clients[MAX_PLAYERS - 1];
     unit = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
     unit->s.player = MAX_PLAYERS;
@@ -1483,6 +1534,7 @@ TEST(wc3_building, training_research_state_does_not_leak_to_unmapped_owner) {
     G_SetPlayerTechResearched(fallback, training, 1);
     T_ASSERT(!G_UnitAbilityResearchAvailable(unit, invisibility));
     G_SetPlayerTechResearched(fallback, training, 0);
+    building_restore_caster_data(caster_rows);
 }
 
 TEST(wc3_building, town_hall_and_tree_of_life_show_train_and_upgrade_buttons) {

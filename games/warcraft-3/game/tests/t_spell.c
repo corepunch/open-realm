@@ -3220,6 +3220,36 @@ TEST(wc3_spell, holy_light_flag_dispatch_validates_and_heals) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, unavailable_spell_button_does_not_arm_targeting) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AHhb\"\nC;Y2;X2;K\"AHhb\"\nC;Y2;X3;K\"air,ground,friend,self\"\n"
+        "C;Y2;X4;K\"65\"\nC;Y2;X5;K\"5\"\nC;Y2;X6;K\"600\"\nC;Y2;X7;K\"200\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AHhb" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *clent = &g_edicts[0];
+    gameClient_t *client = &game.clients[0];
+    cstring_t button[] = { "button", "AHhb" };
+
+    old = G_SetSLKRows("AbilityData", rows);
+    clent->client = client;
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = client->ps.number;
+    G_SelectEntity(client, caster);
+    G_SetPlayerAbilityAvailable(client, MAKEFOURCC('A','H','h','b'), false);
+
+    G_ClientCommand(clent, 2, button);
+    T_NULL(client->menu.on_entity_selected);
+    T_NULL(client->menu.on_location_selected);
+
+    G_SetPlayerAbilityAvailable(client, MAKEFOURCC('A','H','h','b'), true);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 
 /* The retained multiselect panel sends `focus <entity>` for portrait clicks.
  * While a unit-target spell is armed, Focus must feed that selected unit into
