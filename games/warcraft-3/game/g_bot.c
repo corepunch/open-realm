@@ -5,6 +5,7 @@
 #define BOT_GUARD_RETURN_RANGE 82.006f // world units; avoid resetting movement for guards already standing near their post
 #define BOT_BUILD_GRID 32.0f // world units; WC3 structures snap to this placement-cell interval
 #define BOT_BUILD_SEARCH_RINGS 32 // 32-unit grid rings; searches 1024 world units around a town for legal placement
+#define BOT_INJURED_HEALTH_FRACTION 0.5f // retail AI Editor: units below 50% life are treated as injured
 #define BOT_DEFAULT_REPLACEMENT_COUNT 3
 
 static bot_t *G_BotState(uint32_t player) {
@@ -550,6 +551,39 @@ uint32_t G_BotCaptainGroupSize(player_t *player) {
 bool G_BotCaptainIsFull(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     return bot && G_BotCaptainGroupSize(player) >= bot->captains[BOT_CAPTAIN_ATTACK].desired;
+}
+
+static bool G_BotUnitInjured(edict_t const *unit) {
+    return unit && unit->health.max_value > 0.0f &&
+        unit->health.value < unit->health.max_value * BOT_INJURED_HEALTH_FRACTION;
+}
+
+/* RemoveInjuries operates on the assault captain before a new melee wave is formed.
+ * Retail AI Editor documentation defines injured as below 50% life and describes
+ * these units as being sent home (or to a healing fountain). OpenRealm does not yet
+ * have a recovered healing-site chooser, so use the player's primary gold-dropoff
+ * as the deterministic retreat point and keep that destination policy isolated here. */
+void G_BotRemoveInjuries(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    edict_t *town;
+    uint32_t write = 0;
+    if (!bot) return;
+    captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    town = G_BotTown(player, 0);
+    FOR_LOOP(read, ARRAY_COUNT(captain->units)) {
+        edict_t *unit = captain->units[read];
+        if (!G_BotUnitAlive(unit)) continue;
+        if (G_BotUnitInjured(unit)) {
+            /* BZ_COMPAT_GUESS: retail may prefer a nearby Fountain of Health or a
+             * captain-home point. Until that selector exists, returning to the main
+             * town preserves the documented "send injured units back to base" rule. */
+            if (town) order_move(unit, Waypoint_add(&town->s.origin2));
+            continue;
+        }
+        captain->units[write++] = unit;
+    }
+    ARRAY_COUNT(captain->units) = write;
 }
 
 /* Blizzard scores heroes and ordinary units separately so one healthy category cannot hide the other's losses. */

@@ -906,6 +906,61 @@ TEST(wc3_bot, captain_size_empty_and_full_count_only_live_assault_members) {
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 2);
 }
 
+TEST(wc3_bot, remove_injuries_drops_sub_half_health_assault_members_and_sends_them_home) {
+    bot_t *bot = level.bots + 2;
+    uint32_t type = MAKEFOURCC('h','f','o','o');
+    edict_t *hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    edict_t *injured = make_bot_harvest_unit(type, 256, 0, 2, NULL);
+    edict_t *half = make_bot_harvest_unit(type, 288, 0, 2, NULL);
+    edict_t *healthy = make_bot_harvest_unit(type, 320, 0, 2, NULL);
+    edict_t *dead = make_bot_harvest_unit(type, 352, 0, 2, NULL);
+
+    injured->health.value = 499;
+    half->health.value = 500;
+    healthy->health.value = 900;
+    dead->health.value = 0;
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(4 * sizeof(edict_t *));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 4;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[0] = injured;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[1] = half;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[2] = dead;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[3] = healthy;
+
+    G_BotRemoveInjuries(&game.clients[2].ps);
+
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 2);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[0], half);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[1], healthy);
+    T_NOT_NULL(injured->currentmove);
+    T_EQ(injured->currentmove->proc, CAbilityMove);
+    T_NOT_NULL(injured->goalentity);
+    T_FEQ(injured->goalentity->s.origin2.x, hall->s.origin2.x, 0.001f);
+    T_FEQ(injured->goalentity->s.origin2.y, hall->s.origin2.y, 0.001f);
+    T_NULL(half->currentmove);
+    T_NULL(healthy->currentmove);
+}
+
+TEST(wc3_bot, remove_injuries_native_runs_in_player_bound_ai_vm) {
+    bot_t *bot = level.bots + 2;
+    uint32_t type = MAKEFOURCC('h','f','o','o');
+    edict_t *hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    edict_t *injured = make_bot_harvest_unit(type, 256, 0, 2, NULL);
+
+    injured->health.value = 250;
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(edict_t *));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 1;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[0] = injured;
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_remove_injuries.ai", BOT_CAMPAIGN));
+
+    G_BotRunFrame();
+
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 0);
+    T_NOT_NULL(injured->goalentity);
+    T_FEQ(injured->goalentity->s.origin2.x, hall->s.origin2.x, 0.001f);
+}
+
 TEST(wc3_bot, captain_readiness_uses_lower_hero_and_unit_aggregate) {
     static UnitBalance_t hero_balance = { .strength = 1 };
     static UnitBalance_t unit_balance = {0};

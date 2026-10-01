@@ -369,7 +369,6 @@ reached:
 
 | Unregistered native | Reachable role in `common.ai` |
 |---|---|
-| `AttackMoveKill` | Attack a target and continue attacking nearby units |
 | `CaptainRetreating` | Poll whether an attack captain is retreating; the state enum exists, but no runtime transition currently initiates or completes retreat |
 | `ConvertUnits` | Convert eligible units into a requested type |
 | `GetCreepCamp` | Find a creep camp within a level range |
@@ -377,7 +376,7 @@ reached:
 | `GetMegaTarget` | Retrieve a high priority target |
 | `IsTowered`, `TownThreatened` | Assess tower pressure and town danger |
 | `PurchaseZeppelin` | Request a transport for an assault |
-| `RemoveInjuries`, `RemoveSiege` | Reconcile the assault roster before formation |
+| `RemoveSiege` | Reconcile the assault roster before formation |
 | `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
 
 ### Alliance Assault Target
@@ -389,6 +388,12 @@ natives only share target state: Blizzard scripts explicitly form groups and iss
 
 OpenRealm implements this coordination contract without minimap signaling or automatic group/order behavior. Other
 alliance arbitration and expiration policies remain separate compatibility work.
+
+`RemoveInjuries()` removes dead entries and live attack-captain members below 50% health from that roster, then orders
+injured units toward the invoking player's primary gold-dropoff when one exists. The AI Editor documents below 50% as
+the injured threshold and describes returning injured assault units home or to a healing location. `BZ_COMPAT_GUESS`:
+the exact preference between a captain home, town, and nearby Fountain of Health is unresolved; OpenRealm uses the main
+gold-dropoff and keeps that destination choice inside this behavior.
 
 Expansion support follows Blizzard's `common.ai` sequence: `GetNextExpansion` selects and caches a viable unclaimed gold mine; `GetExpansionX/Y`, `GetExpansionFoe`, and `GetExpansionPeon` query that same selected site; `SetExpansion(peon, hallId)` validates the worker and requested building then submits a normal build order near the selected mine. Accepted construction is paid and placed by the regular WC3 build path, and the resulting completed hall enters the existing town enumeration automatically. No hall is spawned directly. `GetNextExpansion` preserves a selected site while valid and retains it while an accepted hall build project is active; a completed or failed request allows selection to resume. `BZ_COMPAT_GUESS`: candidate ranking uses distance from the first owned town hall; hostile blockers use a 1200-unit radius and nearest-unit priority; hall placement searches deterministic 32-unit cells around the mine, starting just beyond the normal 512-unit resource-dropoff clearance; worker choice is the nearest available construction-capable harvesting worker.
 

@@ -2278,6 +2278,7 @@ void G_BotAttackMoveKill(player_t *, edict_t *);
 bool G_BotAddAssault(player_t *, int32_t, uint32_t);
 uint32_t G_BotCaptainGroupSize(player_t *);
 bool G_BotCaptainIsFull(player_t *);
+void G_BotRemoveInjuries(player_t *);
 int32_t G_BotCaptainReadiness(player_t *, bool);
 bool G_BotAddDefenders(player_t *, int32_t, uint32_t);
 void G_BotAddGuardPost(player_t *, uint32_t, float, float);

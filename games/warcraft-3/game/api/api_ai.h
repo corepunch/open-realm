@@ -223,6 +223,11 @@ uint32_t SetReplacementCount(jass_t *j) {
     return 0;
 }
 
+uint32_t RemoveInjuries(jass_t *j) {
+    G_BotRemoveInjuries(jass_getcontext(j)->playerState);
+    return 0;
+}
+
 uint32_t StopGathering(jass_t *j) {
     G_BotStopGathering(jass_getcontext(j)->playerState);
     return 0;
