@@ -228,10 +228,7 @@ void ai_stand(edict_t *self) {
 
     edict_t *best = G_FindNearestEnemy(self, G_AcquisitionRange(self));
     if (best) {
-        /* Ordinary idle acquisition is a temporary detour from the most recent
-         * Stop guard point. Explicit Attack/Attack-Move paths clear or own their
-         * own persistent movement state instead. */
-        self->movement.guard_combat = self->movement.guard_position_valid;
+        S_UnitAbilityEvent(self, A_AUTO_COMBAT_START);
         order_attack(self, best);
     }
 }

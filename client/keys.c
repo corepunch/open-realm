@@ -149,11 +149,11 @@ void Key_Event(keyCode_t key, uint32_t mods, bool down, uint32_t time) {
 
     kb = Key_FindBinding(key, mods);
     if (!kb || !*kb) {
-        if (down) SCR_LayoutKeyEvent(key);
+        if (down) SCR_LayoutKeyEvent(key, (mods & KEY_MOD_SHIFT) != 0);
         return;
     }
 
-    if (key == K_ESCAPE && down && SCR_LayoutKeyEvent(key)) {
+    if (key == K_ESCAPE && down && SCR_LayoutKeyEvent(key, (mods & KEY_MOD_SHIFT) != 0)) {
         return;
     }
 

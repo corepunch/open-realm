@@ -3796,9 +3796,9 @@ TEST(client_screen, multiselect_left_click_is_consumed_and_sends_focus) {
     sb.readcount = 0;
     CL_ParseLayout(&sb);
 
-    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 1));
+    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 1, false));
     T_EQ(cls.netchan.message.cursize, 0);
-    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 1));
+    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 1, false));
     cls.netchan.message.readcount = 0;
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     MSG_ReadString(&cls.netchan.message, command_buf);
@@ -3835,9 +3835,9 @@ TEST(client_screen, command_button_right_click_sends_secondary_command) {
     sb.readcount = 0;
     CL_ParseLayout(&sb);
 
-    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 3));
+    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 3, false));
     T_EQ(cls.netchan.message.cursize, 0);
-    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 3));
+    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 3, false));
     cls.netchan.message.readcount = 0;
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     MSG_ReadString(&cls.netchan.message, command_buf);
@@ -3872,8 +3872,8 @@ TEST(client_screen, command_button_right_click_without_secondary_command_is_not_
     sb.readcount = 0;
     CL_ParseLayout(&sb);
 
-    T_ASSERT(!SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 3));
-    T_ASSERT(!SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 3));
+    T_ASSERT(!SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 3, false));
+    T_ASSERT(!SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 3, false));
     T_EQ(cls.netchan.message.cursize, 0);
 }
 

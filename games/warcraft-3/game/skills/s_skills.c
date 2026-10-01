@@ -19,7 +19,7 @@ static cstring_t const entangle_orders[] = {
 };
 
 static ability_t abilitylist[] = {
-    { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command
+    { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command and unit-order policy
     { STR_CmdMove, CAbilityMove, AB_COMMAND },  // Move — engine command
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND },  // Attack — engine command
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
@@ -878,6 +878,12 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     bool handled = false;
 
     if (!ent) return false;
+    /* Stop is an engine order policy rather than authored unit data. */
+    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END) {
+        abilityitem_t stop_item = MAKE(abilityitem_t, .ability = FindAbilityByClassname(STR_CmdStop));
+        abilityCall_t stop_call = MAKE(abilityCall_t, .item = &stop_item);
+        handled |= S_AbilityMessage(ent, msg, &stop_call) != 0;
+    }
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
@@ -916,7 +922,12 @@ abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *issuer, cstring_t order, e
  * their own state without putting ability names in m_unit.c. */
 bool S_UnitAbilityOrderAccepted(edict_t *ent, cstring_t order) {
     bool handled = false;
+    abilityitem_t stop_item;
+    abilityCall_t stop_call;
     if (!ent || !order) return false;
+    stop_item = MAKE(abilityitem_t, .ability = FindAbilityByClassname(STR_CmdStop));
+    stop_call = MAKE(abilityCall_t, .item = &stop_item, .order = order);
+    handled |= S_AbilityMessage(ent, A_ORDER_ACCEPTED, &stop_call) != 0;
     FOR_LOOP(i, num_innate) {
         abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i, .order = order);
         handled |= S_AbilityMessage(ent, A_ORDER_ACCEPTED, &call) != 0;

@@ -55,6 +55,7 @@ static bool patrol_selectlocation(edict_t *clent, vec2_t const *location) {
         vec2_t target = *location;
         CM_ClosestPathablePointForRadiusFlags(location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
         order_patrol(ent, Waypoint_add(&target));
+        S_UnitAbilityOrderAccepted(ent, "patrol");
         any = true;
     }
     if (any) G_SendPointConfirmation(clent, location, false);
