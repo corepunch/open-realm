@@ -172,6 +172,10 @@ uint32_t UnitAlive(jass_t *j) {
     return jass_pushboolean(j, G_BotUnitAlive(unit));
 }
 
+uint32_t TownThreatened(jass_t *j) {
+    return jass_pushboolean(j, G_BotTownThreatened(jass_getcontext(j)->playerState));
+}
+
 uint32_t RemoveSiege(jass_t *j) {
     G_BotRemoveSiege(jass_getcontext(j)->playerState);
     return 0;
