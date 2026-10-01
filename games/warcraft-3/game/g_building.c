@@ -243,14 +243,16 @@ static bool G_ResearchCommentsMatch(cstring_t ability_comments, cstring_t upgrad
 static bool G_UpgradeResearchesAbility(UpgradeData_t const *upgrade, uint32_t ability_id) {
     AbilityData_t const *ability = G_AbilityData(ability_id);
 
-    /* Retail's Sorceress training row has stat effects and does not identify
-     * its unlocked spells in UpgradeData. AbilityData marks the two advanced
-     * Sorceress spells as dependency checked, and hsor lists Rhst in its
-     * Upgrades Used field. Preserve that stock relation where the source
-     * tables omit an explicit effect-code link. */
-    if (upgrade && upgrade->id == MAKEFOURCC('R', 'h', 's', 't') &&
-        (ability_id == MAKEFOURCC('A', 'i', 'v', 's') ||
-         ability_id == MAKEFOURCC('A', 'p', 'l', 'y'))) return true;
+    /* Retail caster training rows have stat effects and do not identify their
+     * unlocked spells in UpgradeData. Preserve these stock dependency links
+     * where the source tables omit an explicit effect-code link. */
+    if (upgrade &&
+        ((upgrade->id == MAKEFOURCC('R', 'h', 's', 't') &&
+          (ability_id == MAKEFOURCC('A', 'i', 'v', 's') ||
+           ability_id == MAKEFOURCC('A', 'p', 'l', 'y'))) ||
+         (upgrade->id == MAKEFOURCC('R', 'h', 'p', 't') &&
+          (ability_id == MAKEFOURCC('A', 'd', 'i', 's') ||
+           ability_id == MAKEFOURCC('A', 'i', 'n', 'f'))))) return true;
 
     return upgrade && ability && ability->id == ability_id && ability->checkDep &&
            G_UpgradeHasNoEffect(upgrade) &&
@@ -258,10 +260,11 @@ static bool G_UpgradeResearchesAbility(UpgradeData_t const *upgrade, uint32_t ab
 }
 
 static int32_t G_UpgradeAbilityRequiredLevel(uint32_t upgrade_id, uint32_t ability_id) {
-    /* Sorceress Adept Training (Rhst 1) unlocks Invisibility; Polymorph is a
-     * Master Training spell and requires Rhst 2. */
-    if (upgrade_id == MAKEFOURCC('R', 'h', 's', 't') &&
-        ability_id == MAKEFOURCC('A', 'p', 'l', 'y')) return 2;
+    /* Sorceress and Priest training level 1 is Adept; level 2 is Master. */
+    if ((upgrade_id == MAKEFOURCC('R', 'h', 's', 't') &&
+         ability_id == MAKEFOURCC('A', 'p', 'l', 'y')) ||
+        (upgrade_id == MAKEFOURCC('R', 'h', 'p', 't') &&
+         ability_id == MAKEFOURCC('A', 'i', 'n', 'f'))) return 2;
     return 1;
 }
 
