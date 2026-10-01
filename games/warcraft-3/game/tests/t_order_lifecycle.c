@@ -277,6 +277,8 @@ TEST(wc3_order_lifecycle, stop_and_hold_buttons_expose_engaged_state) {
 
     T_ASSERT(G_BuildCommandButton(unit, STR_CmdStop, false, 0, &stop));
     T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
+    T_ASSERT(stop.queueable);
+    T_ASSERT(hold.queueable);
     T_EQ(stop.engaged, 1);
     T_EQ(hold.engaged, 0);
 

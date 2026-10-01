@@ -1025,6 +1025,7 @@ typedef enum {
 #define UIFLAG_SIZE_TO_CONTENT   (1 << 10) // flag bit; uiNameTag_t measured size; ignored on a fully min+max-anchored axis
 #define UIFLAG_ALTERNATE_ACTIVE (1 << 11) // flag bit; secondary command state is active (for example an autocast toggle)
 #define UIFLAG_ABILITY_ENGAGED (1 << 17) // FT_COMMANDBUTTON: primary ability state is engaged and should glow
+#define UIFLAG_ORDER_QUEUEABLE (1 << 18) // FT_COMMANDBUTTON: Shift may append the generic queue modifier to this command
 #define UIFLAG_SPRITE_STAT_SEQUENCE (1 << 12) // FT_SPRITE: frame.value names a stats[] slot selecting an explicit #N sequence
 #define UIFLAG_EXTEND_WIDESCREEN_X (1 << 13) // flag bit; client expands this frame horizontally across the full UI canvas
 #define UIFLAG_SPRITE_OVERLAY (1 << 16) // flag bit; draws an authored sprite after the containing layout artwork

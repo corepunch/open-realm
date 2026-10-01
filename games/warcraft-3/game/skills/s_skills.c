@@ -19,7 +19,7 @@ static cstring_t const entangle_orders[] = {
 };
 
 static ability_t abilitylist[] = {
-    { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command and unit-order policy
+    { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS },  // Stop — engine command and unit-order policy
     { STR_CmdMove, CAbilityMove, AB_COMMAND },  // Move — engine command
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND },  // Attack — engine command
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
@@ -872,18 +872,31 @@ static intptr_t unit_dispatch_authored_abilities(edict_t *ent, abilityMsg_t msg,
     return handled;
 }
 
+/* Engine-owned policies opt into generic lifecycle/order notifications on their registry row. */
+static bool unit_dispatch_engine_event_abilities(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
+    bool handled = false;
+    FOR_LOOP(i, game.num_abilities) {
+        ability_t const *ability = abilitylist + i;
+        abilityitem_t item;
+        abilityCall_t event_call;
+        if (!(ability->flags & AB_ENGINE_EVENTS)) continue;
+        item = MAKE(abilityitem_t, .ability = ability);
+        event_call = MAKE(abilityCall_t, .item = &item);
+        if (call) event_call = *call;
+        event_call.item = &item;
+        handled |= S_AbilityMessage(ent, msg, &event_call) != 0;
+    }
+    return handled;
+}
+
 /* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;
  * idle, acquisition, and ability queries stop when an owner consumes the decision. */
 bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     bool handled = false;
 
     if (!ent) return false;
-    /* Stop is an engine order policy rather than authored unit data. */
-    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END) {
-        abilityitem_t stop_item = MAKE(abilityitem_t, .ability = FindAbilityByClassname(STR_CmdStop));
-        abilityCall_t stop_call = MAKE(abilityCall_t, .item = &stop_item);
-        handled |= S_AbilityMessage(ent, msg, &stop_call) != 0;
-    }
+    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END)
+        handled |= unit_dispatch_engine_event_abilities(ent, msg, NULL);
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
@@ -918,16 +931,12 @@ abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *issuer, cstring_t order, e
 }
 
 /* Accepted instant/spell orders can leave the current movement object untouched.
- * Give innate behavior owners one generic post-accept hook so they can retire
- * their own state without putting ability names in m_unit.c. */
+ * Give registered policies and innate behavior owners a generic post-accept hook. */
 bool S_UnitAbilityOrderAccepted(edict_t *ent, cstring_t order) {
     bool handled = false;
-    abilityitem_t stop_item;
-    abilityCall_t stop_call;
+    abilityCall_t call = MAKE(abilityCall_t, .order = order);
     if (!ent || !order) return false;
-    stop_item = MAKE(abilityitem_t, .ability = FindAbilityByClassname(STR_CmdStop));
-    stop_call = MAKE(abilityCall_t, .item = &stop_item, .order = order);
-    handled |= S_AbilityMessage(ent, A_ORDER_ACCEPTED, &stop_call) != 0;
+    handled |= unit_dispatch_engine_event_abilities(ent, A_ORDER_ACCEPTED, &call);
     FOR_LOOP(i, num_innate) {
         abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i, .order = order);
         handled |= S_AbilityMessage(ent, A_ORDER_ACCEPTED, &call) != 0;

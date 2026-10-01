@@ -184,6 +184,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     frame.hotkey = button->disabled ? 0 : (uint8_t)button->hotkey;
     if (button->alternate_active) frame.flagsvalue |= UIFLAG_ALTERNATE_ACTIVE;
     if (button->engaged) frame.flagsvalue |= UIFLAG_ABILITY_ENGAGED;
+    if (button->queueable) frame.flagsvalue |= UIFLAG_ORDER_QUEUEABLE;
     UI_FormatCommandTooltip(button, tooltip, sizeof(tooltip));
     frame.tooltip = tooltip;
     snprintf(onclick, sizeof(onclick), "%s %s",
