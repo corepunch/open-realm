@@ -1259,6 +1259,60 @@
           "evidence": "Full original004790 initializer16 rows/default shipped CRT;600 pair105 tail slices"
         }
       ]
+    },
+    {
+      "name": "WC3GroupPointContext",
+      "length": 44,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "order_id",
+          "type": "u32",
+          "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+        },
+        {
+          "offset": 4,
+          "name": "order_flags",
+          "type": "u32",
+          "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+        },
+        {
+          "offset": 12,
+          "name": "move_request",
+          "type": "ptr:u8",
+          "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+        },
+        {
+          "offset": 16,
+          "name": "aux_request",
+          "type": "ptr:u8",
+          "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+        },
+        {
+          "offset": 28,
+          "name": "caller_flags",
+          "type": "u32",
+          "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+        },
+        {
+          "offset": 32,
+          "name": "point_x",
+          "type": "WC3PathScalar",
+          "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+        },
+        {
+          "offset": 36,
+          "name": "point_y",
+          "type": "WC3PathScalar",
+          "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+        },
+        {
+          "offset": 40,
+          "name": "any_accepted",
+          "type": "u32",
+          "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+        }
+      ]
     }
   ],
   "methods": [
@@ -4934,6 +4988,232 @@
         }
       ],
       "evidence": "Instruction-checked165e30 ECX retained inESI; calls167ae0 and writes78; plainRET. Scene45 original group1697a0 plus member handoffs."
+    },
+    {
+      "address": "6f2047d0",
+      "name": "Jass_GroupPointOrder",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "group_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "order_string",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        }
+      ],
+      "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+    },
+    {
+      "address": "6f2047f0",
+      "name": "Jass_GroupPointOrderById",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "group_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "order_id",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        }
+      ],
+      "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+    },
+    {
+      "address": "6f204860",
+      "name": "Jass_GroupPointOrderLoc",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "group_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "order_string",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "location_handle",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+    },
+    {
+      "address": "6f204820",
+      "name": "Jass_GroupPointOrderByIdLoc",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "group_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "order_id",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "location_handle",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+    },
+    {
+      "address": "6f23acd0",
+      "name": "Group_IssuePointRequest",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:u8",
+          "storage": "ECX"
+        },
+        {
+          "name": "order_id",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "flags",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        }
+      ],
+      "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+    },
+    {
+      "address": "6f22ed70",
+      "name": "Group_ForRetainedUnitSnapshot",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:u8",
+          "storage": "ECX"
+        },
+        {
+          "name": "callback",
+          "type": "ptr:u8",
+          "storage": 4
+        },
+        {
+          "name": "limit",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "context",
+          "type": "ptr:u8",
+          "storage": 12
+        }
+      ],
+      "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+    },
+    {
+      "address": "6f233da0",
+      "name": "GroupPoint_AttachCandidate",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:u8",
+          "storage": 4
+        },
+        {
+          "name": "context",
+          "type": "ptr:WC3GroupPointContext",
+          "storage": 8
+        }
+      ],
+      "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+    },
+    {
+      "address": "6f234160",
+      "name": "GroupPoint_AdmitCandidate",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:u8",
+          "storage": 4
+        },
+        {
+          "name": "context",
+          "type": "ptr:WC3GroupPointContext",
+          "storage": 8
+        }
+      ],
+      "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+    },
+    {
+      "address": "6f2939f0",
+      "name": "AgentList_SnapshotUnits",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "list",
+          "type": "ptr:u8",
+          "storage": "ECX"
+        },
+        {
+          "name": "snapshot",
+          "type": "ptr:u8",
+          "storage": 4
+        }
+      ],
+      "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
     }
   ],
   "globals": [

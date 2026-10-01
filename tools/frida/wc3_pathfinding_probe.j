@@ -2,6 +2,7 @@
 globals
     unit udg_PathProbeUnit = null
     unit udg_PathProbeGate = null
+    group udg_PathProbeGroup = null
     unit array udg_PathProbeCrowd
     unit udg_PathProbeTarget = null
     unit udg_PathProbeBuilding = null
@@ -411,6 +412,42 @@ function PathProbePublicOblique takes nothing returns nothing
     call Preload("PATHPOSE done=" + label)
 endfunction
 
+function PathProbeGroupOrders takes nothing returns nothing
+    local integer i = 0
+    local string form = ""
+    local boolean accepted = false
+    local location point = null
+    if udg_PathProbeTick == 10 then
+        set form = "name"
+        set accepted = GroupPointOrder(udg_PathProbeGroup, "move", -1600.0, -144.0)
+    elseif udg_PathProbeTick == 80 then
+        set form = "id"
+        set accepted = GroupPointOrderById(udg_PathProbeGroup, 851986, -1936.0, -976.0)
+    elseif udg_PathProbeTick == 150 then
+        set form = "loc"
+        set point = Location(-1600.0, -144.0)
+        set accepted = GroupPointOrderLoc(udg_PathProbeGroup, "move", point)
+        call RemoveLocation(point)
+    elseif udg_PathProbeTick == 220 then
+        set form = "idloc"
+        set point = Location(-1936.0, -976.0)
+        set accepted = GroupPointOrderByIdLoc(udg_PathProbeGroup, 851986, point)
+        call RemoveLocation(point)
+    else
+        return
+    endif
+    if accepted then
+        call Preload("PATHGROUP tick=" + I2S(udg_PathProbeTick) + " form=" + form + " accepted=1")
+    else
+        call Preload("PATHGROUP tick=" + I2S(udg_PathProbeTick) + " form=" + form + " accepted=0")
+    endif
+    loop
+        exitwhen i == 14
+        call Preload("PATHGROUP tick=" + I2S(udg_PathProbeTick) + " member=" + I2S(i) + " handle=" + I2S(GetHandleId(udg_PathProbeCrowd[i])) + " order=" + I2S(GetUnitCurrentOrder(udg_PathProbeCrowd[i])) + " x=" + R2S(GetUnitX(udg_PathProbeCrowd[i])) + " y=" + R2S(GetUnitY(udg_PathProbeCrowd[i])))
+        set i = i + 1
+    endloop
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
@@ -421,6 +458,8 @@ function PathProbeTick takes nothing returns nothing
         call PathProbeSpawnAdmission()
     elseif PATH_PROBE_SCENARIO == 45 then
         call PathProbePublicOblique()
+    elseif PATH_PROBE_SCENARIO == 46 then
+        call PathProbeGroupOrders()
     endif
     if PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 1 then
         call PathProbeSpeedInputs(udg_PathProbeUnit, "foot")
@@ -620,7 +659,7 @@ function PathProbeTick takes nothing returns nothing
         set udg_PathProbeBuilding = null
         call PathProbeRecord("after_widget_remove")
     endif
-    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 and PATH_PROBE_SCENARIO != 45 then
+    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 and PATH_PROBE_SCENARIO != 45 and PATH_PROBE_SCENARIO != 46 then
         call PathProbeRecord("before_order")
         if (PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) then
             if IssueTargetOrder(udg_PathProbeUnit, "smart", udg_PathProbeTarget) then
@@ -864,6 +903,22 @@ function PathProbeInit takes nothing returns nothing
             call SetUnitMoveSpeed(udg_PathProbeCrowd[gx], 100.0)
             set gx = gx + 1
         endloop
+    endif
+    if PATH_PROBE_SCENARIO == 46 then
+        set udg_PathProbeGroup = CreateGroup()
+        set gx = 0
+        loop
+            exitwhen gx == 14
+            if gx == 0 then
+                set udg_PathProbeCrowd[gx] = udg_PathProbeUnit
+            else
+                set udg_PathProbeCrowd[gx] = CreateUnit(Player(0), 'hfoo', -2016.0 + I2R(ModuloInteger(gx, 4))*80.0, -1136.0 + I2R(gx / 4)*80.0, 90.0)
+            endif
+            call SetUnitMoveSpeed(udg_PathProbeCrowd[gx], 150.0 + I2R(ModuloInteger(gx, 3))*100.0)
+            call GroupAddUnit(udg_PathProbeGroup, udg_PathProbeCrowd[gx])
+            set gx = gx + 1
+        endloop
+        set gx = 0
     endif
     if PATH_PROBE_SCENARIO == 31 then
         set udg_PathProbeCrowd[0] = CreateUnit(Player(0), 'hkni', -2304.0, -1216.0, 90.0)

@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "95 executable original oracle contracts,121 archive audits and37 strict live contracts;253 total entries. Archive audits and stronger live contracts are distinct evidence levels.",
+  "scope": "95 executable original oracle contracts,121 archive audits and38 strict live contracts;254 total entries. Archive audits and stronger live contracts are distinct evidence levels.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -16502,6 +16502,152 @@
       "exclusions": [
         "Outside-map, layered terrain/bridge and other actor forms; full engine trajectory parity."
       ]
+    },
+    {
+      "id": "live-group-point-admission-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_group_point_trace.py",
+        "{archive}/runtime/group-orders-live-first-261001.jsonl",
+        "--repeat",
+        "{archive}/runtime/group-orders-live-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-group-point-admission-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/group-orders-live-first-261001.jsonl",
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "f90a9d6d896129b9169744ae25d47818e2a150943a0944011e2246f053f70b1d",
+            "wc3_pathfinding_probe.j": "afb50387ce2c4a1fe46ba9c2a8d7871084203e8c1bb47b215eee09687828919c",
+            "make_wc3_pathfinding_map.py": "db685765519706916196151effc5f57991784f5abba4514854c49a801d7eb433",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "a21ff25fc16f04c303f4d6eceddb18ca32edd991d2dbeac1ba73ec9d100f8680"
+          },
+          "map": "Maps\\PathingRE-GroupOrders-261001.w3m",
+          "seconds": 170.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        },
+        "sha256": "f24bbab9ddd58d3acce66749c305c16216567695e38be0b6b73b591b9be61a6f",
+        "bytes": 16844134
+      },
+      "report": "group-point-admission-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeated": {
+          "equal": true
+        },
+        "public_forms": {
+          "equal": 4
+        },
+        "admitted_members": {
+          "equal": 48
+        },
+        "excluded_members": {
+          "equal": 8
+        },
+        "shared_requests": {
+          "equal": 4
+        },
+        "all_attach_before_admit": {
+          "equal": true
+        },
+        "admission_sha256": {
+          "equal": "348c40f6e3e16f36b6601ad3bfbf89cc1e3dc5513a7f6ca596e876447aba7a81"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Four public CGroup point forms;12 retained insertion-order units and two excluded members. Shared CMoveReq observed, physical engine group motion remains GROUP-04.6.",
+      "exclusions": [
+        "Complete physical shared-group motion and all-member decision/commit phases remain GROUP-04.6.",
+        "Motion/velocity rows hit the deliberate10000 observer cap and are not certified as complete trajectories."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/group-orders-live-repeat-261001.jsonl",
+            "sha256": "3b1088f5a28639260be450ed111e3a0a9d3066c5505d5d739cf3e48ad24e3d29",
+            "bytes": 16848532,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "f90a9d6d896129b9169744ae25d47818e2a150943a0944011e2246f053f70b1d",
+                "wc3_pathfinding_probe.j": "afb50387ce2c4a1fe46ba9c2a8d7871084203e8c1bb47b215eee09687828919c",
+                "make_wc3_pathfinding_map.py": "db685765519706916196151effc5f57991784f5abba4514854c49a801d7eb433",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "a21ff25fc16f04c303f4d6eceddb18ca32edd991d2dbeac1ba73ec9d100f8680"
+              },
+              "map": "Maps\\PathingRE-GroupOrders-261001.w3m",
+              "seconds": 170.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -16567,7 +16713,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "a2170113c833dab689e389160e7322b3fcf9cac9dac45f009854d0fac485c99a"
+      "sha256": "4beffa1126886f64dd0dbe566de408e221113aa5cdcc71db5937e02ded19072a"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -16880,6 +17026,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-oblique-1.27.json",
       "sha256": "acc86e9bc8498dd3705fea4c3d202409ce0377a76ded93a56c1c623ff1314bdb"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group-point-admission-1.27.json",
+      "sha256": "158ee8fe89b7aa2aa33b676d5825a6b112bd16667361b74e71322db7076c531a"
     }
   ]
 }

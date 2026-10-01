@@ -32,6 +32,21 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.motionEvents) {
+        hook(0x2047f0, {onEnter(args) {
+            this.row = {handle:args[0].toUInt32(), order:args[1].toUInt32(), point:[args[2].readU32(),args[3].readU32()]};
+            emit('group-point-native-begin',this.row);
+        },onLeave(ret) { emit('group-point-native-end',{...this.row,accepted:ret.toUInt32()}); }});
+        hook(0x23acd0, {onEnter(args) {
+            this.row = {group:this.context.ecx.toString(),order:args[0].toUInt32(),flags:args[1].toUInt32(),point:[args[2].readU32(),args[3].readU32()]};
+            emit('group-point-request-begin',this.row);
+        },onLeave(ret) {emit('group-point-request-end',{...this.row,accepted:ret.toUInt32()});}});
+        for (const [name,rva] of [['attach',0x233da0],['admit',0x234160]]) hook(rva,{onEnter(args) {
+            this.ctx = args[1];
+            this.row = {phase:name,unit:args[0].toString(),context:this.ctx.toString(),order:this.ctx.readU32(),flags:this.ctx.add(4).readU32(),request:this.ctx.add(12).readPointer().toString(),point:[this.ctx.add(32).readU32(),this.ctx.add(36).readU32()],acceptedBefore:this.ctx.add(40).readU32()};
+            emit('group-point-member-begin',this.row);
+        },onLeave(ret) {emit('group-point-member-end',{...this.row,acceptedAfter:this.ctx.add(40).readU32(),output:ret.toUInt32()});}});
+    }
     if (config.randomEvents) {
         const ownerWords = () => ints(base.add(0xd53a48).readPointer(),2).map(v => v >>> 0);
         for (const [name,rva] of [['SetRandomSeed',0x214140],['GetRandomInt',0x201e30],['GetRandomReal',0x201e70]]) {
@@ -1458,6 +1473,7 @@ function install(module) {
             else throw new Error('Malformed numeric marker: ' + value);
             emit('numeric-marker', {value});
         }
+        if (value.startsWith('PATHGROUP ')) emit('group-order-marker',{value});
         if (value.startsWith('PATHCROWD ')) emit('crowd-marker', {value});
         if (value.startsWith('PATHTARGET ')) emit('target-marker', {value});
         if (value.startsWith('PATHWIDGET ')) emit('widget-marker', {value});

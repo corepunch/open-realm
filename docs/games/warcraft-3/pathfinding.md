@@ -456,3 +456,11 @@ state. The public-order regression resumes through actual frames and repeats
 1440 state words after load. Source-footprint admission is still required before
 porting every idle/terrain/ineligible retry: circle-valid sources can overlap
 quantized fine footprints. See [the verified peer retry and remaining scope](retail-pathfinding-engine.md#payoff32-blocked-fine-leg-retry-and-retained-coarse-plan).
+
+
+Public JASS group point orders now share a bounded twelve-member snapshot
+dispatch across string, numeric ID, Loc and numeric ID Loc forms. Numeric forms
+previously returned false; string forms exceeded retail's twelve-member limit.
+The original shared CMoveReq is captured, but persistent shared physical group
+movement and separate decision/commit phases remain open. See [retail group
+admission](retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members).

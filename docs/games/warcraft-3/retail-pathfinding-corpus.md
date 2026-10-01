@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **253 entries**: **45** distinct original-code oracle
-scripts plus **50** declared variants, **121** archived JSONL audits and **37**
+The inventory now has **254 entries**: **45** distinct original-code oracle
+scripts plus **50** declared variants, **121** archived JSONL audits and **38**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -26,7 +26,7 @@ outside the accepted inventory unless given their own rejection contract.
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Twenty-seven public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Twenty-eight public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -668,3 +668,13 @@ scene/scenery construction and hierarchy invalidation remain separate.
 The [engine integration](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination)
 uses ordinary timers/frames from zero and includes260 original saved
 continuation commits. Generic archive audits alone do not certify that parity.
+
+
+Payoff37 adds `live-group-point-admission-repeat-261001`: four public point-order
+forms admit the first twelve of fourteen insertion-order units in two complete
+owned repeats. Its strict checker verifies all-candidate attach before admission
+and one shared original CMoveReq per call,48 admitted members and eight excluded
+members. The engine implements the bounded snapshot and numeric/Loc adapters;
+shared physical movement remains GROUP-04.6. The captures deliberately cap motion
+rows and grant no complete trajectory evidence. See [public group point
+admission](retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members).

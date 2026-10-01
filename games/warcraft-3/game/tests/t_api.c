@@ -7360,6 +7360,63 @@ TEST(wc3_api, repeated_create_destroy_group_does_not_exhaust_registry) {
     currentplayer = NULL;
 }
 
+/* Original scene46 admits the first twelve retained group members for every
+ * public point-order form. The engine must execute the ordinary Move dispatch
+ * and preserve the two units beyond the native admission limit. */
+static cstring_t group_point_admission_script =
+    "globals\n"
+    "group requestGroup = null\n"
+    "unit array requestUnits\n"
+    "endglobals\n"
+    "function verifyGroupPoint takes boolean accepted returns nothing\n"
+    "local integer i = 0\n"
+    "call BJassAssert(accepted, \"group point request must accept Move\")\n"
+    "loop\n"
+    "exitwhen i == 14\n"
+    "if i < 12 then\n"
+    "call BJassAssert(GetUnitCurrentOrder(requestUnits[i]) == 851986, \"retained member must receive Move\")\n"
+    "else\n"
+    "call BJassAssert(GetUnitCurrentOrder(requestUnits[i]) == 0, \"group request must retain the twelve-unit limit\")\n"
+    "endif\n"
+    "call IssueImmediateOrder(requestUnits[i], \"stop\")\n"
+    "set i = i + 1\n"
+    "endloop\n"
+    "endfunction\n"
+    "function main takes nothing returns nothing\n"
+    "local integer i = 0\n"
+    "local location goal = Location(128.0, 512.0)\n"
+    "set requestGroup = CreateGroup()\n"
+    "loop\n"
+    "exitwhen i == 14\n"
+    "set requestUnits[i] = CreateUnit(Player(0), 'hpea', I2R(i)*96.0, 0.0, 90.0)\n"
+    "call GroupAddUnit(requestGroup, requestUnits[i])\n"
+    "set i = i + 1\n"
+    "endloop\n"
+    "call verifyGroupPoint(GroupPointOrder(requestGroup, \"move\", 128.0, 512.0))\n"
+    "call verifyGroupPoint(GroupPointOrderById(requestGroup, 851986, 128.0, 512.0))\n"
+    "call verifyGroupPoint(GroupPointOrderLoc(requestGroup, \"move\", goal))\n"
+    "call verifyGroupPoint(GroupPointOrderByIdLoc(requestGroup, 851986, goal))\n"
+    "call BJassAssert(not GroupPointOrder(null, \"move\", 0.0, 0.0), \"null group must reject\")\n"
+    "call BJassAssert(not GroupPointOrderById(requestGroup, 0, 0.0, 0.0), \"unknown order must reject\")\n"
+    "call BJassAssert(not GroupPointOrderLoc(requestGroup, \"move\", null), \"null location must reject\")\n"
+    "call BJassAssert(not GroupPointOrderByIdLoc(requestGroup, 851986, null), \"numeric null location must reject\")\n"
+    "call RemoveLocation(goal)\n"
+    "call DestroyGroup(requestGroup)\n"
+    "endfunction";
+
+TEST(wc3_api, group_point_order_forms_admit_twelve_members) {
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    setup_test_world();
+    uint8_t cells[64*64] = {0};
+    box2_t bounds = {{-512,-512},{1536,1536}};
+    CM_SetupTestPathmap(64, 64, cells);
+    CM_SetupTestWorldBounds(&bounds);
+    T_ASSERT(run_test_jass(group_point_admission_script));
+    CM_SetupTestPathmap(0, 0, NULL);
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, destroy_group_clears_members) {
     reset_entities();
     currentplayer = &game.clients[0].ps;

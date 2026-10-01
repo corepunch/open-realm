@@ -367,6 +367,11 @@ order table used by the string variant, then call the existing unit order path.
 The boolean result reports whether the group order was accepted according to
 the native contract; it is not an unconditional success value.
 
+The four `GroupPointOrder*` forms now use the verified twelve-member insertion-order
+snapshot and numeric/Loc adapters. They report aggregate acceptance; persistent
+shared physical Move state remains an explicit gap. `GroupImmediateOrderById` and
+`GroupTargetOrderById` still need their adapters. See [retail point admission](../../docs/games/warcraft-3/retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members).
+
 A `REGION` is the union of its cells and rectangles. Add/clear operations mutate
 that set, while `IsPointInRegion`, `IsLocationInRegion`, and `IsUnitInRegion`
 query it. Enter/leave events require per-unit previous membership so crossing an

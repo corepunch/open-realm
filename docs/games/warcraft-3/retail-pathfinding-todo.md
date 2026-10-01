@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**113 done / 299 tasks; 186 remaining.** Payoff36 explicitly splits three public oblique lifetimes and singleton group-destination handoffs from the broader numerical/shared-group work. Counts describe this backlog,
+**114 done / 300 tasks; 186 remaining.** Payoff37 explicitly splits public JASS group point admission from the larger selected/AI producer and persistent physical shared-group tasks. Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -29,7 +29,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 3 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 12 | 6 |
+| GROUP — Shared movement groups | 13 | 6 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -676,6 +676,8 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 
 - [ ] **GROUP-01.1** Issue a multi-selection player order, independent JASS orders and an AI order; record group identity sharing, creation limits and producer flags.
 - [ ] **GROUP-01.2** Trigger join/leave/merge/split through those producers; assert membership and route ownership after each transition.
+
+- [x] **GROUP-01.3** Explicitly split public JASS point-order admission from01.1: map name/ById/Loc/ByIdLoc to one native leaf, verify twelve-member insertion-order admission and all-candidate attach before order validation, and implement the bounded snapshot plus missing numeric/Loc engine dispatch. Evidence: [payoff37](retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members), two complete scene46 admission captures, four shared original requests per capture/48 admitted/eight excluded members; engine regression reproduces the over-limit failure then passes allfour forms and invalid adapters. Ghidra retains nine producer/callback/snapshot roles and the44-byte request context. Persistent physical shared groups and complete trajectories remain04.6; selected/independent JASS/AI distinctions and flags remain01.1. Motion observer cap is explicit and certifies no whole trajectory.
 
 ### GROUP-02 — Fresh group movement
 

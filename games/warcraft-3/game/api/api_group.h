@@ -1,3 +1,5 @@
+#include "common/wc3_pathing_limits.h"
+
 #define IS_UNIT(ent) (ent->svflags & SVF_MONSTER)
 
 bool group_add_entity(ggroup_t *group, edict_t *ent) {
@@ -242,40 +244,61 @@ uint32_t GroupImmediateOrderById(jass_t *j) {
     //int32_t order = jass_checkinteger(j, 2);
     return jass_pushboolean(j, 0);
 }
-uint32_t GroupPointOrder(jass_t *j) {
-    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    cstring_t order = jass_checkstring(j, 2);
-    vec2_t dest = MAKE(vec2_t, jass_checknumber(j, 3), jass_checknumber(j, 4));
-    if (!G_JassGroupValid(whichGroup)) return jass_pushboolean(j, 0);
+/* CGroup23acd0 takes two retained snapshots, each limited to twelve entries.
+ * This is the admission pass; callbacks must not change which later entries
+ * receive this request. Removed/reused units fail the generation check.
+ * TODO: GROUP-04.6 must retain the shared CMoveReq and physical group phases;
+ * individual Move dispatch below does not reproduce shared movement yet. */
+static bool group_point_order(ggroup_t *group, cstring_t order, uint32_t order_id, vec2_t const *point) {
+    struct { edict_t *unit; uint32_t spawn; } units[BZ_WC3_GROUP_ORDER_UNITS];
+    uint32_t count;
     bool any = false;
-    FOR_LOOP(i, whichGroup->num_units) {
-        if (unit_issueorder(whichGroup->units[i], order, &dest)) any = true;
+
+    if (!G_JassGroupValid(group) || !point) return false;
+    count = MIN(group->num_units, BZ_WC3_GROUP_ORDER_UNITS);
+    FOR_LOOP(i, count) {
+        units[i].unit = group->units[i];
+        units[i].spawn = units[i].unit->spawn_time;
     }
-    return jass_pushboolean(j, any);
+    FOR_LOOP(i, count) {
+        edict_t *unit = units[i].unit;
+        if (!unit->inuse || unit->spawn_time != units[i].spawn || G_IsDeferredFree(unit)) continue;
+        if (G_UnitIsBuilding(order_id)) {
+            if (G_IssueBuildOrder(unit, order_id, point)) any = true;
+        } else if (unit_issueorder(unit, order, point)) {
+            any = true;
+        }
+    }
+    return any;
+}
+
+uint32_t GroupPointOrder(jass_t *j) {
+    ggroup_t *group = jass_checkhandle(j, 1, "group");
+    cstring_t order = jass_checkstring(j, 2);
+    vec2_t point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+
+    return jass_pushboolean(j, group_point_order(group, order, G_OrderId(order), &point));
 }
 uint32_t GroupPointOrderLoc(jass_t *j) {
-    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    ggroup_t *group = jass_checkhandle(j, 1, "group");
     cstring_t order = jass_checkstring(j, 2);
-    vec2_t const *dest = jass_checkhandle(j, 3, "location");
-    if (!G_JassGroupValid(whichGroup) || !dest) return jass_pushboolean(j, 0);
-    bool any = false;
-    FOR_LOOP(i, whichGroup->num_units) {
-        if (unit_issueorder(whichGroup->units[i], order, dest)) any = true;
-    }
-    return jass_pushboolean(j, any);
+    vec2_t const *point = jass_checkhandle(j, 3, "location");
+
+    return jass_pushboolean(j, group_point_order(group, order, G_OrderId(order), point));
 }
 uint32_t GroupPointOrderById(jass_t *j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //int32_t order = jass_checkinteger(j, 2);
-    //float x = jass_checknumber(j, 3);
-    //float y = jass_checknumber(j, 4);
-    return jass_pushboolean(j, 0);
+    ggroup_t *group = jass_checkhandle(j, 1, "group");
+    uint32_t order = (uint32_t)jass_checkinteger(j, 2);
+    vec2_t point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+
+    return jass_pushboolean(j, group_point_order(group, G_OrderId2String(order), order, &point));
 }
 uint32_t GroupPointOrderByIdLoc(jass_t *j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //int32_t order = jass_checkinteger(j, 2);
-    //handle_t whichLocation = jass_checkhandle(j, 3, "location");
-    return jass_pushboolean(j, 0);
+    ggroup_t *group = jass_checkhandle(j, 1, "group");
+    uint32_t order = (uint32_t)jass_checkinteger(j, 2);
+    vec2_t const *point = jass_checkhandle(j, 3, "location");
+
+    return jass_pushboolean(j, group_point_order(group, G_OrderId2String(order), order, point));
 }
 uint32_t GroupTargetOrder(jass_t *j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");

@@ -3998,3 +3998,57 @@ pathfinding Python checks and the253-entry/94-fixture inventory pass. Fresh
 `public-oblique-corpus-final-261001` passes all four requested entries,
 including the third geometry observer. Persistent Ghidra names/prototypes and
 saved program are read back in the paired runtime reports.
+
+
+## Public group point orders admit twelve members
+
+Payoff37 closes GROUP-01.3's public admission boundary. OpenRealm's name and
+Loc group point orders previously walked the entire mutable JASS group; the
+numeric forms always returned false. The new common dispatch snapshots at most
+12 insertion-order entries, rejects removed/reused identities and executes the
+ordinary order path. Numeric IDs resolve through the same order table; numeric
+building rawcodes use the existing construction dispatch. Null groups/locations
+and unrecognized orders return false. This changes no persistent layout or
+serialized state; Save73 remains current.
+
+The scene46 map creates fourteen stock Footmen with mixed public speeds. At
+periodic ticks10/80/150/220 it calls name/ById/Loc/ByIdLoc respectively and
+queries every member's current order. Both complete owned captures show twelve
+Move orders and two untouched idle units on every call:48 admissions and eight
+exclusions. The callbacks first attach all twelve units to one nonnull CMoveReq,
+then validate/admit those twelve in the same order. Captured callerflags0 and
+resolved orderflags6 are retained; no numerical inference substitutes for the
+original native wrappers. The admission digest is
+`348c40f6e3e16f36b6601ad3bfbf89cc1e3dc5513a7f6ca596e876447aba7a81`.
+
+Reports under the standard report root:
+
+- `runtime/group-orders-live-first-261001.jsonl` and `group-orders-live-repeat-261001.jsonl`;
+- `runtime/group-point-admission-repeat-261001.json`;
+- `runtime/group-point-ghidra-types-261001.json`;
+- `group-point-corpus-261001/corpus-results.json`.
+
+`verify_wc3_group_point_trace.py` checks actual metadata/source/map hashes,
+complete scene markers, every normalized request/callback phase/scalar word,
+one shared request per call and every public member-order query. The frozen
+`retail-group-point-admission-1.27.json` is independently pinned by the corpus.
+Negative checks reject changed words, missing callbacks, different snapshot
+order, independent requests, provenance changes and over-limit admission.
+The engine test `group_point_order_forms_admit_twelve_members` reproduces the
+original over-limit bug before the fix and passes all four forms afterward.
+
+Ghidra now retains487 named roles,211 explicit prototypes,32 partial layouts,
+186 fields and45 globals. New names cover the four public wrappers, CGroup
+point producer, retained snapshot enumeration and its attach/admit callbacks.
+The44-byte point context describes only proven fields; unresolved bytes remain
+undefined. Engine group movement still uses individual dispatch at this
+boundary: the shared CMoveReq, generation/eligibility state, group path and
+all-member decisions before commits remain GROUP-04.6. These captures hit the
+intentional10000 motion-row cap; only admission is certified, and the final
+30-second scene still has an active order. This is not arrival/trajectory
+parity evidence.
+
+Validation: release and forced debug RoC/TFT each pass104,228 assertions in
+2,298 tests. Both production builds,165 Python pathfinding tests, ability
+registration coverage,254-entry/95-fixture inventory and the fresh strict
+admission corpus and ordinary release umbrella pass.
