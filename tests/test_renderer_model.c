@@ -152,6 +152,7 @@ static uint32_t upload_count;
 static void const *upload_data;
 static cstring_t test_version = "3.1", test_extension = "";
 static uint32_t alloc_count, free_count, ext_count;
+static int test_alloc_fail_after = -1;
 static bool cache_minimap_textures;
 static bool minimap_test_saw_streamed_override;
 static uint32_t next_minimap_texture_id;
@@ -248,7 +249,12 @@ static void test_delete_ids(GLsizei count, GLuint const *ids) { (void)count; (vo
 #undef glDrawArrays
 #undef glDrawArraysInstanced
 
-static handle_t test_alloc(long size) { alloc_count++; return calloc(1, (size_t)size); }
+static handle_t test_alloc(long size) {
+    alloc_count++;
+    if (test_alloc_fail_after == 0) { test_alloc_fail_after = -1; return NULL; }
+    if (test_alloc_fail_after > 0) test_alloc_fail_after--;
+    return calloc(1, (size_t)size);
+}
 static void test_free(handle_t memory) { free_count++; free(memory); }
 static void test_error(cstring_t format, ...) { (void)format; T_ASSERT(false); }
 static void test_spawn(void *context) { (*(uint32_t *)context)++; }
@@ -2129,6 +2135,120 @@ TEST(renderer_terrain, cliff_baker_rejects_out_of_range_triangle_indices) {
     T_EQ(cliff_bake.num_vertices, 0);
     cliff_model = NULL; tr.world = NULL;
     R_ResetCliffCache(); R_FinishCliffs();
+}
+
+TEST(renderer_terrain, cliff_allocation_failures_leave_caches_and_weld_recoverable) {
+    war3mapVertex_t verts[25] = {0};
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts };
+    vec3_t pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}};
+    vec3_t norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
+    vec2_t uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
+    short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3,
+        .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo };
+    cliffData_t data = { .cliff = 1, .rampModelDir = "CityCliffTrans", .cliffModelDir = "CityCliffs" };
+    rCliffBakeList_t list = {0};
+    vertex_t weld_vertices[2] = {0};
+    uint32_t weld_groups[] = {1, 2};
+    int (*read_file)(cstring_t, void **) = ri.FS_ReadFile;
+    texture_t *saved_texture = texture_load_result;
+    texture_t texture = {0};
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    reset_registry(); R_SetMapAssetScope(NULL);
+    tr.world = &map; cliff_model = &mdx;
+    cliff_vertex_sample_capacity = cliff_vertex_generation = 0;
+    SAFE_DELETE(cliff_vertex_samples, ri.MemFree);
+    SAFE_DELETE(cliff_vertex_sample_generation, ri.MemFree);
+    test_alloc_fail_after = 0;
+    T_ASSERT(!R_GrowCliffVertexSamples(3));
+    T_ASSERT(R_GrowCliffVertexSamples(3));
+    R_ResetCliffCache();
+
+    test_alloc_fail_after = 0;
+    T_NULL(R_CliffBakeVertex(&list));
+    T_EQ(list.num_vertices, 0);
+    T_EQ(list.capacity, 0);
+    T_NOT_NULL(R_CliffBakeVertex(&list));
+    T_EQ(list.num_vertices, 1);
+    ri.MemFree(list.vertices); ri.MemFree(list.groups);
+
+    weld_vertices[0].normal = (vec3_t){1,0,0};
+    weld_vertices[1].normal = (vec3_t){1,0,0};
+    list = (rCliffBakeList_t){ .vertices = weld_vertices, .groups = weld_groups, .num_vertices = 2 };
+    test_alloc_fail_after = 0;
+    R_CliffWeldNormals(&list, 0.01f);
+    T_FEQ(weld_vertices[0].normal.x, 1, 0.0f);
+    R_CliffWeldNormals(&list, 0.01f);
+    T_FEQ(weld_vertices[1].normal.x, 1, 0.0f);
+
+    data.cliffModelDir = "CityCliffs";
+    test_alloc_fail_after = 0;
+    T_NULL(R_LoadCliffModel(&data, "AABB", false));
+    T_NOT_NULL(R_LoadCliffModel(&data, "AABB", false));
+
+    ri.FS_ReadFile = test_texture_read;
+    texture_file = "";
+    texture_load_result = &texture;
+    data.texDir = "ReplaceableTextures\\Cliff";
+    data.texFile = "Cliff";
+    test_alloc_fail_after = 0;
+    T_ASSERT(R_LoadCliffTexture(1, 'L', &data) == &texture);
+    T_ASSERT(R_LoadCliffTexture(1, 'L', &data) == &texture);
+    ri.FS_ReadFile = read_file;
+    texture_load_result = saved_texture;
+    cliff_model = NULL; tr.world = NULL;
+    R_ResetCliffCache();
+}
+
+TEST(renderer_terrain, cliff_segment_allocation_failures_recover_without_stale_uploads) {
+    enum { span = SEGMENT_SIZE + 1 };
+    war3mapVertex_t verts[span * span];
+    uint32_t cliffs[] = { MAKEFOURCC('C','L','g','r') };
+    war3map_t map = { .tileset = 'L', .width = span, .height = span,
+        .vertices = verts, .cliffs = cliffs, .num_cliffs = 1 };
+    vec3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}};
+    vec3_t norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vec2_t uv[3] = {0}; short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3,
+        .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo,
+        .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
+    texture_t texture = {0}; texture_t *saved_texture = texture_load_result;
+    int (*read_file)(cstring_t, void **) = ri.FS_ReadFile;
+    maplayer_t *layer;
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    reset_registry(); R_SetMapAssetScope(NULL);
+    FOR_LOOP(y, span) FOR_LOOP(x, span)
+        verts[x + y * span] = (war3mapVertex_t){ .level = y >= 2 ? 5 : 4, .cliff = 0, .accurate_height = 8192 };
+    tr.world = &map; cliff_model = &mdx; cliff_buffer_upload_count = 0;
+    ri.FS_ReadFile = test_texture_read; texture_file = ""; texture_load_result = &texture;
+
+    test_alloc_fail_after = 0; /* Segment layer descriptor. */
+    T_NULL(R_BuildMapSegmentCliffs(&map, 0, 0, 0));
+    layer = R_BuildMapSegmentCliffs(&map, 0, 0, 0);
+    T_NOT_NULL(layer);
+    R_FinishCliffs();
+    T_EQ(cliff_buffer_upload_count, 1);
+    test_free((buffer_t *)layer->buffer); test_free(layer);
+
+    /* Warm model/sample/texture caches above. The next four allocations are layer, bake
+     * vertices, bake groups, then pending-layer node; fail only the last one. */
+    test_alloc_fail_after = 3;
+    T_NULL(R_BuildMapSegmentCliffs(&map, 0, 0, 0));
+    R_FinishCliffs();
+    T_EQ(cliff_buffer_upload_count, 1);
+
+    layer = R_BuildMapSegmentCliffs(&map, 0, 0, 0);
+    T_NOT_NULL(layer);
+    R_FinishCliffs();
+    T_EQ(cliff_buffer_upload_count, 2);
+    test_free((buffer_t *)layer->buffer); test_free(layer);
+
+    ri.FS_ReadFile = read_file; texture_load_result = saved_texture;
+    cliff_model = NULL; tr.world = NULL; R_ResetCliffCache();
 }
 
 TEST(renderer_terrain, cliff_weld_context_does_not_upload_discarded_layers) {
