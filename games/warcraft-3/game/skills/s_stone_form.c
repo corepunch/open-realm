@@ -21,6 +21,11 @@ static bool stone_form_order(edict_t *unit, cstring_t order, uint32_t code) {
         target = stone;
     } else return false;
     if (!G_TransformUnitType(unit, target)) return false;
+    /* Gargoyle Stone Form keeps the Gargoyle model and selects its authored
+     * Alternate animation set for the statue presentation.  The alternate
+     * unit type supplies gameplay stats; the model tag supplies the visible
+     * stone form, matching Warcraft's Required Animation Names behavior. */
+    G_AddUnitAnimationProperties(unit, "alternate", target == stone);
     unit->goalentity = NULL;
     unit->secondarygoal = NULL;
     move_reset_progress(unit);
