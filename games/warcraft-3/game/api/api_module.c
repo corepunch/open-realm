@@ -44,6 +44,8 @@ jassModule_t jass_funcs[] = {
     { "GetExpansionX", GetExpansionX },
     { "GetExpansionY", GetExpansionY },
     { "SetExpansion", SetExpansion },
+    { "SetAllianceTarget", SetAllianceTarget },
+    { "GetAllianceTarget", GetAllianceTarget },
     { "SetProduce", SetProduce },
     { "SetUpgrade", SetUpgrade },
     { "GetUnitGoldCost", GetUnitGoldCost },

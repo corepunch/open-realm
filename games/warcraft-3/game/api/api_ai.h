@@ -101,6 +101,16 @@ uint32_t TownHasHall(jass_t *j) {
     return jass_pushboolean(j, G_BotUnitAlive(G_BotTown(jass_getcontext(j)->playerState, jass_checkinteger(j, 1))));
 }
 
+uint32_t SetAllianceTarget(jass_t *j) {
+    G_BotSetAllianceTarget(jass_getcontext(j)->playerState, jass_checkhandle(j, 1, "unit"));
+    return 0;
+}
+
+uint32_t GetAllianceTarget(jass_t *j) {
+    edict_t *target = G_BotGetAllianceTarget(jass_getcontext(j)->playerState);
+    return target ? jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
+}
+
 uint32_t GetNextExpansion(jass_t *j) {
     return jass_pushinteger(j, G_BotNextExpansion(jass_getcontext(j)->playerState));
 }

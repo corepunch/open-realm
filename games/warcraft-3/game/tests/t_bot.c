@@ -451,6 +451,49 @@ TEST(wc3_bot, unit_alive_rejects_null_dead_and_removed_handles) {
     T_ASSERT(!G_BotUnitAlive(NULL));
 }
 
+TEST(wc3_bot, alliance_target_is_shared_consumable_state_without_orders) {
+    player_t *publisher = &game.clients[1].ps;
+    player_t *ally = &game.clients[2].ps;
+    player_t *outsider = &game.clients[3].ps;
+    edict_t *target;
+
+    reset_entities();
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 64);
+    target->s.player = 0; target->health.value = 100; target->svflags |= SVF_MONSTER;
+    memset(level.bots + 1, 0, sizeof(level.bots[1]) * 3);
+    G_SetPlayerAlliance(publisher, ally, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(ally, publisher, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(publisher, outsider, ALLIANCE_PASSIVE, false);
+    G_SetPlayerAlliance(outsider, publisher, ALLIANCE_PASSIVE, false);
+
+    G_BotSetAllianceTarget(publisher, target);
+    T_EQ(G_BotGetAllianceTarget(publisher), target);
+    T_EQ(G_BotGetAllianceTarget(ally), target);
+    T_NULL(G_BotGetAllianceTarget(outsider));
+    T_NULL(target->currentmove); /* publishing coordinates AI state; it does not issue an attack */
+
+    G_BotSetAllianceTarget(ally, NULL);
+    T_NULL(G_BotGetAllianceTarget(publisher));
+    T_NULL(G_BotGetAllianceTarget(ally));
+}
+
+TEST(wc3_bot, alliance_target_drops_a_dead_shared_target) {
+    player_t *publisher = &game.clients[1].ps;
+    player_t *ally = &game.clients[2].ps;
+    edict_t *target;
+
+    reset_entities();
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 64);
+    target->s.player = 0; target->health.value = 100; target->svflags |= SVF_MONSTER;
+    memset(level.bots + 1, 0, sizeof(level.bots[1]) * 2);
+    G_SetPlayerAlliance(publisher, ally, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(ally, publisher, ALLIANCE_PASSIVE, true);
+    G_BotSetAllianceTarget(publisher, target);
+
+    target->health.value = 0;
+    T_NULL(G_BotGetAllianceTarget(ally));
+}
+
 TEST(wc3_bot, campaign_settings_persist_for_authoritative_consumers) {
     bot_t *ai;
     uint32_t enabled = BOT_TARGET_HEROES | BOT_HEROES_FLEE | BOT_IGNORE_INJURED |
