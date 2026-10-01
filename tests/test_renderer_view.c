@@ -164,6 +164,7 @@ TEST(renderer_view, entity_camera_particle_scenes_follow_instance_lifecycle) {
     R_RenderFrame(&view);
     entity.instance_id = 202;
     R_RenderFrame(&view);
+    captured_particle_scenes[1]->active = (cparticle_t *)(uintptr_t)123;
     entity.instance_id = 101;
     R_RenderFrame(&view);
     T_NE(captured_particle_scenes[0], captured_particle_scenes[1]);
@@ -182,6 +183,8 @@ TEST(renderer_view, entity_camera_particle_scenes_follow_instance_lifecycle) {
     T_EQ(particle_scene_clears, clears_before_rebind + 3);
     R_RenderFrame(&view);
     T_NE(captured_particle_scenes[0], captured_particle_scenes[5]);
+    T_NULL(captured_particle_scenes[5]->active);
+    T_EQ(entity_camera_particle_states[0].particles.active, (cparticle_t *)(uintptr_t)123);
     R_ReleaseEntityCameraEvents(101);
     R_ReleaseEntityCameraEvents(202);
     R_ClearEntityCameraParticleScenes();

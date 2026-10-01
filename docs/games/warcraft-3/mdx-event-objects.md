@@ -21,6 +21,13 @@ SPNxSomeSpawn
 frustum culling, but only for client-visible entities and only in the color
 pass.  The shadow-map pass must not play sounds or create duplicate children.
 Entity-camera scenes keep their event clocks separately from game edict numbers
+and initialize reused table slots completely. Releasing a middle instance compacts
+the table by copying its last entry; the next allocation must zero that old tail
+before assigning the new identity, or cameras share particles and inherit an old
+event clock. Regression coverage lives in `renderer_view.entity_camera_particle_scenes_follow_instance_lifecycle`
+and `renderer_game.reused_camera_event_slot_starts_with_fresh_clock`.
+
+Entity-camera scenes keep their event clocks separately from game edict numbers
 and draw retained `SPN` children in the source model's camera view. Each live
 camera entity supplies a stable, unique `renderEntity_t.instance_id`; that key
 is independent of both the model and the synthetic entity number, so two

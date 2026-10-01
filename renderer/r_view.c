@@ -55,9 +55,8 @@ static particleScene_t *R_EntityCameraParticleScene(renderEntity_t const *entity
         entity_camera_particle_capacity = capacity;
     }
     entityCameraParticleState_t *state = entity_camera_particle_states + entity_camera_particle_count++;
-    state->instance_id = instance_id;
-    state->model = entity->model;
-    state->generation = entity->generation;
+    /* A release may leave a duplicate of the compacted tail in this slot. */
+    *state = (entityCameraParticleState_t){ .instance_id = instance_id, .model = entity->model, .generation = entity->generation };
     return &state->particles;
 }
 

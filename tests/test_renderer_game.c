@@ -153,6 +153,25 @@ TEST(renderer_game, entity_camera_event_state_invalidates_when_model_has_no_even
 static handle_t test_renderer_alloc(long size) { return calloc(1, (size_t)size); }
 static void test_renderer_free(handle_t ptr) { free(ptr); }
 
+/* Removing a middle entry compacts the table; its old tail must not seed a new camera. */
+TEST(renderer_game, reused_camera_event_slot_starts_with_fresh_clock) {
+    refImport_t saved = ri;
+    model_t model = {0};
+    renderEntity_t entity = { .instance_id = 101, .model = &model };
+    ri.MemAlloc = test_renderer_alloc; ri.MemFree = test_renderer_free;
+    R_W3ClearCameraEventStates();
+    T_NOT_NULL(R_W3CameraEventState(&entity));
+    entity.instance_id = 202;
+    wc3EventState_t *state = R_W3CameraEventState(&entity);
+    state->valid = true; state->frame = 60; state->render_time = 100;
+    R_ReleaseGameEntityCameraEvents(101);
+    entity.instance_id = 303;
+    state = R_W3CameraEventState(&entity);
+    T_ASSERT(!state->valid); T_EQ(state->frame, 0); T_EQ(state->render_time, 0);
+    T_ASSERT(camera_event_states[0].state.valid); T_EQ(camera_event_states[0].state.frame, 60);
+    R_W3ClearCameraEventStates(); ri = saved;
+}
+
 static int test_renderer_read(cstring_t path, void **buffer) {
     handle_t file = NULL;
     uint32_t size, read = 0;

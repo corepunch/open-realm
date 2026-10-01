@@ -38,23 +38,29 @@ __attribute__((unused))
 static void R_EmitParticles(float rate, float *accum, uint32_t delta_ms,
                             void (*spawn)(void *), void *ctx) {
 	uint32_t emitted = 0;
+	static bool warned_invalid, warned_budget;
+	double pending;
 	if (rate <= 0.0f || delta_ms == 0 || !accum || !spawn) return;
 	if (!isfinite(rate) || !isfinite(*accum) || *accum < 0.0f) {
-		fprintf(stderr, "Renderer: invalid particle emission rate/accumulator (%g, %g)\n", rate, *accum);
+		if (!warned_invalid) fprintf(stderr, "Renderer: invalid particle emission rate/accumulator (%g, %g)\n", rate, *accum);
+		warned_invalid = true;
 		*accum = 0.0f;
 		return;
 	}
-	*accum += rate * (float)MIN(delta_ms, 100u) / 1000.0f;
-	while (*accum >= 1.0f && emitted < R_EMIT_PARTICLE_BUDGET) {
-		*accum -= 1.0f;
+	/* Finite authored floats can overflow rate * milliseconds in float arithmetic. */
+	pending = *accum + (double)rate * MIN(delta_ms, 100u) / 1000.0;
+	while (pending >= 1.0 && emitted < R_EMIT_PARTICLE_BUDGET) {
+		pending -= 1.0;
 		spawn(ctx);
 		emitted++;
 	}
-	if (*accum >= 1.0f) {
-		fprintf(stderr, "Renderer: particle emission exceeded per-call budget (%u); dropping excess whole emissions\n",
+	if (pending >= 1.0) {
+		if (!warned_budget) fprintf(stderr, "Renderer: particle emission exceeded per-call budget (%u); dropping excess whole emissions\n",
 		        R_EMIT_PARTICLE_BUDGET);
-		*accum = fmodf(*accum, 1.0f);
+		warned_budget = true;
+		pending = fmod(pending, 1.0);
 	}
+	*accum = (float)pending;
 }
 
 /* File-mapped effects have no runtime accumulator; derive emissions from the shared render clock. */
