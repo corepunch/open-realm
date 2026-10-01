@@ -6071,6 +6071,32 @@ TEST(wc3_api, unit_ability_mutation_has_set_semantics) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, unit_invis_reports_intrinsic_active_state) {
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "if UnitInvis(null) or UnitInvis(u) then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "call ShowUnit(u, false)\n"
+        "if UnitInvis(u) then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 4)\n"
+        "endif\n"
+        "call ShowUnit(u, true)\n"
+        "if not UnitAddAbility(u, 'Agho') or not UnitInvis(u) then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 2)\n"
+        "endif\n"
+        "call KillUnit(u)\n"
+        "if UnitInvis(u) then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 3)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, unit_ability_mutation_rejects_invalid_inputs) {
     reset_entities();
     currentplayer = &game.clients[0].ps;

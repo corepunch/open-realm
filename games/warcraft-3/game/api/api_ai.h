@@ -130,6 +130,12 @@ uint32_t UnitAlive(jass_t *j) {
     return jass_pushboolean(j, G_BotUnitAlive(unit));
 }
 
+/* common.ai separates intrinsic invisibility from player-relative detection. */
+uint32_t UnitInvis(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, unit && unit->inuse && !M_IsDead(unit) && S_UnitHasInvisibilityState(unit));
+}
+
 static bot_t *BotState(jass_t *j) {
     player_t *player = jass_getcontext(j)->playerState;
     return player ? level.bots + PLAYER_NUM(player) : NULL;

@@ -19,6 +19,12 @@ calling strict `jass_checkcode()`; non-null handlers still require the exact
 fast-forward or ESC skip. HiveWorkshop's timer reset examples confirm the same
 native behavior, commonly followed by `PauseTimer` when resetting getter state.
 
+The AI-only `UnitInvis(unit)` native reports intrinsic active invisibility through `S_UnitHasInvisibilityState()`; it
+does not incorporate owner/shared vision or detector coverage. Stock `common.ai` calls it separately from
+`IsUnitDetected(target, ai_player)`. The latter and `IsUnitInvisible(unit, player)` remain placeholders in
+`api_unit.h`; their player-relative meanings must not be folded into `UnitInvis`. See
+[Warcraft III Invisibility](../../docs/games/warcraft-3/invisibility.md#ai-and-jass-queries).
+
 ## Baseline
 
 The registry currently contains 919 callbacks. The last conservative source

@@ -465,14 +465,17 @@ TEST(wc3_spell, ghost_lifecycle_uses_player_relative_invisibility) {
     T_EQ(item.ability->proc, CAbilityGhost);
     T_ASSERT(S_AbilityMessage(fix.enemy, A_UNIT_INIT, &call));
     T_ASSERT(S_GhostActive(fix.enemy));
+    T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
     T_ASSERT(S_UnitIsInvisibleToPlayer(fix.enemy, 0));
     T_ASSERT(!S_UnitIsInvisibleToPlayer(fix.enemy, fix.enemy->s.player));
     T_ASSERT(S_AbilityMessage(fix.enemy, A_DISABLE, &call));
     T_ASSERT(!S_GhostActive(fix.enemy));
     T_ASSERT(S_AbilityMessage(fix.enemy, A_ENABLE, &call));
     T_ASSERT(S_GhostActive(fix.enemy));
+    T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
     T_ASSERT(S_AbilityMessage(fix.enemy, A_UNIT_REMOVE, &call));
     T_ASSERT(!S_GhostActive(fix.enemy));
+    T_ASSERT(!S_UnitHasInvisibilityState(fix.enemy));
     ward_done(&fix);
 }
 
@@ -610,11 +613,13 @@ TEST(wc3_spell, permanent_invisibility_blocks_hostile_acquisition_and_spell_targ
 	level.time = 3000;
 	gi.LinkEntity(fix.caster); gi.LinkEntity(fix.enemy);
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
+	T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
 	T_ASSERT(S_UnitIsInvisibleToPlayer(fix.enemy, 0));
 	T_NULL(G_FindNearestEnemy(fix.caster, 128.0f));
 	T_ASSERT(!S_SpellAllowsTarget(BZ_AEYE, fix.caster, fix.enemy));
 
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AEYE, &point));
+	T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
 	T_ASSERT(!S_UnitIsInvisibleToPlayer(fix.enemy, 0));
 	T_ASSERT(G_FindNearestEnemy(fix.caster, 128.0f) == fix.enemy);
 	T_ASSERT(S_SpellAllowsTarget(BZ_AEYE, fix.caster, fix.enemy));
@@ -629,11 +634,14 @@ TEST(wc3_spell, permanent_invisibility_uses_authored_transition_after_spawn_and_
 	S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
 	T_EQ(fix.enemy->permanent_invisibility_reveal_until, 3000);
 	T_ASSERT(!S_PermanentInvisibilityActive(fix.enemy));
+	T_ASSERT(!S_UnitHasInvisibilityState(fix.enemy));
 	level.time = 3000;
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
+	T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
 	S_PermanentInvisibilityReveal(fix.enemy);
 	T_EQ(fix.enemy->permanent_invisibility_reveal_until, 5000);
 	T_ASSERT(!S_PermanentInvisibilityActive(fix.enemy));
+	T_ASSERT(!S_UnitHasInvisibilityState(fix.enemy));
 	level.time = 5000;
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
 	ward_done(&fix);
