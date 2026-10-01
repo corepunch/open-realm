@@ -2108,6 +2108,29 @@ TEST(renderer_terrain, cliff_baker_samples_each_indexed_vertex_once_per_piece) {
     R_ResetCliffCache(); R_FinishCliffs();
 }
 
+TEST(renderer_terrain, cliff_baker_rejects_out_of_range_triangle_indices) {
+    war3mapVertex_t verts[25] = {0};
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts };
+    vec3_t pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}};
+    vec3_t norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
+    vec2_t uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
+    short tris[] = {0,1,-1};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3,
+        .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo };
+    cliffData_t data = { .cliff = 1, .rampModelDir = "CityCliffTrans", .cliffModelDir = "CityCliffs" };
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    reset_registry(); R_SetMapAssetScope(NULL);
+    FOR_LOOP(i, 25) verts[i] = (war3mapVertex_t){ .level = 5, .cliff = 1, .accurate_height = 8192 };
+    verts[6].level = verts[11].level = 6;
+    tr.world = &map; cliff_model = &mdx;
+    cliff_bake.num_vertices = 0;
+    R_MakeCliff(&map, 1, 1, &data);
+    T_EQ(cliff_bake.num_vertices, 0);
+    cliff_model = NULL; tr.world = NULL;
+    R_ResetCliffCache(); R_FinishCliffs();
+}
+
 TEST(renderer_terrain, cliff_weld_context_does_not_upload_discarded_layers) {
     enum { span = SEGMENT_SIZE + 1 };
     war3mapVertex_t verts[span * span];

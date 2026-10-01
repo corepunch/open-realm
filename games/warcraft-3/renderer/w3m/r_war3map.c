@@ -579,7 +579,9 @@ static mapsegment_t *R_BuildMapSegment(war3map_t const *map, uint32_t sx, uint32
 static void R_BuildGroundLayers(war3map_t const *map) {
     for (uint32_t layer = map->num_grounds; layer > 0; layer--) {
         maplayer_t *mapLayer = R_BuildGroundLayerGlobal(map, layer - 1);
-        if (mapLayer) ADD_TO_LIST(mapLayer, g_groundLayers);
+        if (mapLayer) {
+            ADD_TO_LIST(mapLayer, g_groundLayers);
+        }
     }
 }
 
