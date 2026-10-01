@@ -118,6 +118,62 @@ TEST(wc3_rally, default_self_target_does_not_issue_order_to_trained_unit) {
     T_NULL(trained->build);
 }
 
+TEST(wc3_rally, explicit_smart_order_stops_at_building_footprint) {
+    enum { W = 8, H = 8 };
+    float const old_structure = game.constants.structureFollowRange;
+    size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(color32_t);
+    pathTex_t *pathtex;
+    edict_t *producer, *trained;
+    vec2_t exit;
+    float angle;
+
+    reset_entities();
+    setup_test_world();
+    producer = rally_unit(MAKEFOURCC('o','b','a','r'), 0.0f, 0.0f);
+    trained = rally_unit(MAKEFOURCC('o','g','r','u'), 0.0f, 0.0f);
+    producer->data.UnitProfile = &rally_train_profile;
+    producer->s.player = trained->s.player = 0;
+    producer->s.flags |= EF_BUILDING;
+    producer->movetype = MOVETYPE_NONE;
+    producer->collision = 128.0f;
+    trained->collision = 16.0f;
+    trained->stand = unit_stand;
+    game.constants.structureFollowRange = 100.0f;
+
+    pathtex = gi.MemAlloc(pathtex_size);
+    T_NOT_NULL(pathtex);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = W;
+    pathtex->height = H;
+    FOR_LOOP(i, W * H) pathtex->map[i].b = 0xff;
+    producer->pathtex = pathtex;
+    CM_BakeStaticObstacles();
+
+    T_ASSERT(SP_FindUnitExitPosition(producer, trained, &exit, &angle));
+    trained->s.origin2 = exit;
+    trained->s.origin.x = exit.x;
+    trained->s.origin.y = exit.y;
+    T_ASSERT(CM_PointIsPathableForRadius(&exit, trained->collision));
+    T_ASSERT(CM_DistanceToPathingFootprint(producer, &exit) <
+             game.constants.structureFollowRange);
+    T_ASSERT(Vector2_distance(&producer->s.origin2, &exit) >
+             G_FollowStopRange(trained, producer));
+
+    /* Exercise the independent Smart-follow path without relying on default rally. */
+    T_ASSERT(unit_issuetargetorder(trained, "smart", producer));
+    T_ASSERT(trained->movement.follow_target == producer);
+    T_ASSERT(trained->goalentity == producer);
+    trained->animation = &(animation_t){ .name = "stand", .interval = { 0, 300 } };
+    trained->currentmove->think(trained);
+    T_ASSERT(trained->movement.follow_target == producer);
+    T_ASSERT(G_AnimationHasPrimary(trained->animation, "stand"));
+
+    producer->pathtex = NULL;
+    gi.MemFree(pathtex);
+    CM_BakeStaticObstacles();
+    game.constants.structureFollowRange = old_structure;
+}
+
 TEST(wc3_rally, setrally_and_smart_store_point_and_widget_targets) {
     edict_t *producer;
     edict_t *target;
