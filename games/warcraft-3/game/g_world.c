@@ -580,7 +580,9 @@ static bool move_find_fine_route(movePathQuery_t const *input, moveFineRoute_t *
     if (curve) {
         vec2_t *points = realloc(curve->points,count*sizeof(*points));
         if (!points) gi.error("WC3 fine routing: cannot retain %u route points",count);
-        curve->points = points; curve->count = count; curve->index = count-2;
+        /* Original166e90 starts at the destination if expansion observed no
+         * obstruction; seeing a blocked cell selects the next parent point. */
+        curve->points = points; curve->count = count; curve->index = move_fine.observed_obstruction ? count-2 : 0;
         curve->mask = params->blocked_flags;
         FOR_LOOP(i,count) curve->points[i] = (vec2_t){move_fine_points[i].x,move_fine_points[i].y};
         *out = move_world_from_grid(curve->points[curve->index].x,curve->points[curve->index].y);

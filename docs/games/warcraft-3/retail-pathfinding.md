@@ -50,8 +50,8 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  464 function names/comments applied and saved. Latest Stop recovery readback:
-  `runtime/stop-recovery-ghidra-readback-261001.json`. Names are recovered roles, not original debug symbols;
+  464 function names/comments applied and saved. Latest long-refill readback:
+  `runtime/adaptive-long-ghidra-readback-261001.json`. Names are recovered roles, not original debug symbols;
   RTTI names are original. No inferred prototypes installed.
 - `MapPathfindingCRT.java` separately saves the exact sibling CRT byte/locale map:
   three partial types, eight function roles, seven global labels and the verified

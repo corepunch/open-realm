@@ -3327,3 +3327,51 @@ cases;145 pathfinding tool tests, full release umbrella and production builds,
 ability coverage, backlog counts/IDs/areas, local links and `git diff --check`
 pass without C compiler warnings. Full retail owner phases, all Stop callers and dynamic
 multi-mover recovery remain separate from this bounded public result.
+
+
+## Successive long refills select the original fine index
+
+Engine payoff28 addresses ROUTE-03.3's remaining nonzero following-index case,
+explicitly split into ROUTE-03.4. Thirty-two complete original165ae0 requests on
+128-cell open/gapped maps retain their entire coarse buffers through five
+admitted fine refills each. Open chains consume5→4→3→2→1→0; gapped chains
+consume9→8→7→2→1→0. All initial/refill fine buffers, indices and selected outputs
+match the engine across four classes and four lanes. Source positions remain
+controlled at .48 accelerator units from the current point, with supplied ten
+owner ticks and reset fine work between requests. This verifies repeated route
+composition, not full physical retail owner motion or denied-request timing.
+
+The larger fixture reproduces160 engine index failures. Original1489a0 latches
+fine+d0 (`observed_obstruction`) whenever a queried perimeter cell rejects.
+Original14ad50 clears it before the request;166e90 uses index0 when the flag
+remains clear, otherwise initializes the next parent index. **A blocked cell
+anywhere in expansion matters**, even when the reconstructed route is clear.
+The union of each class's neighbor masks covers its complete perimeter, so the
+C search latches the same flag when any expansion edge rejects.480 complete
+original/C requests match that flag;192 frozen initial/refill flags also match
+atO0/O2 with search reuse. The initial fine-index producer is now implemented,
+replacing the previously unconditional count-2 engine policy. Earlier64-cell
+handoff and refill buffers retain their original words; their previously assumed
+indices now use the independently recorded original outputs.
+
+The32-case engine regression passes13,384 exact assertions after the fix. An
+actual public long Move across an offset wall gap reaches the legal goal through
+multiple coarse transitions. It preserves a nonzero coarse index across save/load
+and repeats260 frames with exact world/native fine pose, velocity, heading,
+current order and both route indices:3,027 assertions pass. All198 movement
+cases pass. The change adds only process-local search scratch; Save68, JASS
+snapshot7 and the wire contract retain their existing representation.
+
+Frozen witness: `retail-adaptive-long-progress-1.27.json`. Accepted strict replay:
+`adaptive-long-corpus-accepted-261001/corpus-results.json`, including the existing
+handoff/progress references. The inventory has228 entries:92 original oracles,
+106 archives and30 live contracts, with82 pinned fixtures. Four Ghidra comments
+are saved and read back in `runtime/adaptive-long-ghidra-readback-261001.json`;
+the existing31 layouts/177 fields already identify the fine obstruction flag.
+
+Validation: forced release RoC/TFT suites each pass71,225 assertions in2,237
+cases; full release umbrella and production builds,147 pathfinding tool tests,
+ability coverage, backlog counts/IDs/areas, local links and `git diff --check`
+pass without C compiler warnings. Dynamic
+blockers/yielding, denied refills, complete physical retail long motion and portals
+remain explicit separate tasks.

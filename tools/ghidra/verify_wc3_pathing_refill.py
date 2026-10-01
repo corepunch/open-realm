@@ -10,6 +10,7 @@ import json
 import struct
 from pathlib import Path
 import itertools
+import ctypes
 
 
 def main():
@@ -18,11 +19,21 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine',type=Path,help='compare the production search obstruction latch with original requests')
     parser.add_argument('--adaptive-handoff-fixture',type=Path,help='export complete original coarse-selected fine routes on 64-cell maps')
     parser.add_argument('--adaptive-handoff-reference',type=Path,help='compare coarse-selected fine routes with frozen original words')
     parser.add_argument('--adaptive-progress-fixture',type=Path,help='export admitted repeated original coarse/fine advances at controlled coarse waypoints')
     parser.add_argument('--adaptive-progress-reference',type=Path,help='repeat controlled original coarse approach/refill transitions against frozen words')
+    parser.add_argument('--adaptive-long-fixture',type=Path,help='export repeated nonzero coarse indices and fine refills on 128-cell maps')
+    parser.add_argument('--adaptive-long-reference',type=Path,help='compare complete long-route refills against frozen original words')
     args = parser.parse_args()
+    engine=ctypes.CDLL(str(args.engine.resolve())) if args.engine else None
+    class FineInput(ctypes.Structure):
+        _fields_=[('cells',ctypes.POINTER(ctypes.c_uint8)),('objects',ctypes.POINTER(ctypes.c_uint32))]
+    if engine:
+        engine.pathing_fine_obstruction.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.POINTER(FineInput)]
+        engine.pathing_fine_obstruction.restype=ctypes.c_uint32
+    engine_obstruction_cases=0
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -56,6 +67,16 @@ def main():
 
     def read(address, count=1):
         return list(struct.unpack('<' + 'I' * count, machine.mem_read(address, count * 4)))
+
+    def check_obstruction(source_value,target_value):
+        nonlocal engine_obstruction_cases
+        if not engine:return
+        grid=(ctypes.c_uint8*(width*height))(*(2 if (x,y) in blocked else 0 for y in range(height) for x in range(width)))
+        q=(ctypes.c_uint32*11)(width,height,int(source_value[0]),int(source_value[1]),
+            int(target_value[0]),int(target_value[1]),700,cls,0x02000000,0,0)
+        actual=engine.pathing_fine_obstruction(q,ctypes.byref(FineInput(grid,None)))
+        assert actual==read(system+0xd0)[0],(width,name,cls,source_value,target_value,'obstruction',actual,read(system+0xd0)[0])
+        engine_obstruction_cases+=1
 
     def run(entry, self, *arguments):
         write(stack, stop, *arguments)
@@ -311,12 +332,14 @@ def main():
     enabled=[]
     handoff_cases=[]
     progress_cases=[]
-    for map_size,name,cls,acc_budget,lane in itertools.product([24,64],['open','wall','gap'],range(4),[0,5,400],range(4)):
+    long_cases=[]
+    long_inputs=list(itertools.product([128],['open','gap'],range(4),[400],range(4))) if args.adaptive_long_fixture or args.adaptive_long_reference else []
+    for map_size,name,cls,acc_budget,lane in long_inputs+list(itertools.product([24,64],['open','wall','gap'],range(4),[0,5,400],range(4))):
         width=height=map_size
         target=(map_size-4.75,map_size-4.25)
         blocked=set() if name=='open' else {(width//2,y) for y in range(height)
                   if name=='wall' or not height//2-3<=y<=height//2+2}
-        acc_side=16 if map_size==24 else 32
+        acc_side=16 if map_size==24 else map_size//2
         budget=700
         def setup_enabled():
             setup()
@@ -380,7 +403,9 @@ def main():
         actual_index=read(path+0x74)[0]
         actual_output=bytes(machine.mem_read(output,8))
         actual_pops=read(system+0x6c)[0]
+        actual_obstruction=read(system+0xd0)[0]
         fine_goal=target if acc_index==0 else tuple(v*2 for v in struct.unpack('<2f',coarse_bytes[acc_index*8:acc_index*8+8]))
+        check_obstruction(source,fine_goal)
         if map_size==24:
             assert acc_index==0
             fine_bytes,fine_index,fine_pops=static_routes[name,cls,700]
@@ -406,7 +431,7 @@ def main():
                 coarse_count=count,coarse_index=acc_index,coarse_words=list(struct.unpack('<'+'I'*(count*2),coarse_bytes)),
                 fine_goal_bits=list(struct.unpack('<2I',struct.pack('<2f',*fine_goal))),
                 fine_count=fine_count,fine_words=list(struct.unpack('<'+'I'*(fine_count*2),actual_fine))))
-        if (args.adaptive_progress_fixture or args.adaptive_progress_reference) and map_size==64 and acc_budget==400 and name!='wall':
+        if (map_size==128 or ((args.adaptive_progress_fixture or args.adaptive_progress_reference) and map_size==64)) and acc_budget==400 and name!='wall':
             steps=[]
             prior_index=acc_index
             for step in range(1,8):
@@ -420,15 +445,26 @@ def main():
                 advanced=run(0x6f165ae0,path,source_ptr,output,mover)
                 next_index=read(path+0x78)[0]
                 n=read(path+0x50)[0]
+                next_goal=target if next_index==0 else tuple(v*2 for v in struct.unpack('<2f',coarse_bytes[next_index*8:next_index*8+8]))
+                check_obstruction(struct.unpack('<2f',struct.pack('<2I',*source_words)),next_goal)
                 steps.append(dict(source_bits=list(source_words),result=advanced,coarse_index=next_index,
                     fine_count=n,fine_index=read(path+0x74)[0],fine_words=read(route_data,n*2),
                     fine_work=read(bucket+8)[0],fine_timestamp=read(path+0x7c)[0],delay=read(path+0x94)[0]))
+                if map_size==128:steps[-1]['observed_obstruction']=read(system+0xd0)[0]
                 assert advanced==0 and next_index<prior_index,(name,cls,lane,step,steps[-1])
                 assert read(path+0x70)[0]==count and bytes(machine.mem_read(coarse,count*8))==coarse_bytes
                 prior_index=next_index
             assert prior_index==0
-            progress_cases.append(dict(fixture=name,size_class=cls,lane=lane,initial_coarse_index=acc_index,
-                coarse_count=count,coarse_words=list(struct.unpack('<'+'I'*(count*2),coarse_bytes)),steps=steps))
+            record=dict(fixture=name,size_class=cls,lane=lane,initial_coarse_index=acc_index,
+                coarse_count=count,coarse_words=list(struct.unpack('<'+'I'*(count*2),coarse_bytes)),steps=steps)
+            if map_size==128:
+                record.update(source_bits=list(struct.unpack('<2I',struct.pack('<2f',*source))),
+                    goal_bits=list(struct.unpack('<2I',struct.pack('<2f',*target))),
+                    fine_count=fine_count,fine_index=actual_index,observed_obstruction=actual_obstruction,
+                    fine_words=list(struct.unpack('<'+'I'*(fine_count*2),actual_fine)))
+                long_cases.append(record)
+            else:
+                progress_cases.append(record)
         # Independently supply the selected intermediate/final destination to
         # the original fine request and compare full bytes, index and work.
         setup()
@@ -536,7 +572,7 @@ def main():
         assert actual==wanted,(name,cls,lane,offset,query,query_point,actual,wanted)
         assert read(formation_member+0x28)[0]==(0xfff8ffff|(0x40000 if query>20 else 0))
         formation.append(dict(fixture=name,size_class=cls,lane=lane,offset=offset,query_result=query,destination=actual))
-    intermediate_cases=sum(row['acc_index']>0 for row in enabled)
+    intermediate_cases=sum(row['acc_index']>0 for row in enabled if row['map_size']!=128)
     assert intermediate_cases==96
     report=dict(binary_sha256=digest,scope=__doc__,passed=True,formation_destination_cases=len(formation),formation_destinations=formation,refill_cases=len(records),denied_refill_cases=denied_cases,cached_waypoint_cases=cached_cases,dynamic_refill_cases=len(dynamic),terrain_equivalence_cases=terrain_equivalence,hierarchy_exclusion_cases=len(exclusion),hierarchy_exclusion=exclusion,enabled_advance_cases=len(enabled),intermediate_waypoint_cases=intermediate_cases,enabled_advance=enabled,full_advance_cases=len(full_advance),full_advance=full_advance,dynamic_cases=dynamic,cases=records)
     if args.adaptive_handoff_fixture or args.adaptive_handoff_reference:
@@ -561,6 +597,18 @@ def main():
             args.adaptive_progress_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
         report['adaptive_progress_cases']=len(progress_cases)
         report['adaptive_progress_steps']=sum(len(c['steps']) for c in progress_cases)
+    if args.adaptive_long_fixture or args.adaptive_long_reference:
+        payload=dict(version=1,binary_sha256=digest,source_entry='6f165ae0',cell_world=32,map_size=128,cases=long_cases,
+            scope='Complete original initial and repeated coarse/fine requests on 128-cell static maps. Controlled native sources at .48 accelerator units from each retained waypoint; ten owner ticks between admitted requests. Four classes/four lanes, open/gapped wall. Physical motion, dynamic blockers and denied scheduling excluded.')
+        if args.adaptive_long_reference:
+            assert payload==json.loads(args.adaptive_long_reference.read_text())
+            report['adaptive_long_reference_sha256']=hashlib.sha256(args.adaptive_long_reference.read_bytes()).hexdigest()
+        if args.adaptive_long_fixture:
+            args.adaptive_long_fixture.parent.mkdir(parents=True,exist_ok=True)
+            args.adaptive_long_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
+        report['adaptive_long_cases']=len(long_cases)
+        report['adaptive_long_steps']=sum(len(c['steps']) for c in long_cases)
+    if engine:report['engine_exact_obstruction_cases']=engine_obstruction_cases
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps({k:v for k,v in report.items() if k not in ['formation_destinations','cases','dynamic_cases','full_advance','enabled_advance','hierarchy_exclusion']},indent=2))
 

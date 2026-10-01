@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**106 done / 288 tasks; 182 remaining.** Counts describe this backlog,
+**107 done / 289 tasks; 182 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -24,7 +24,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 21 | 14 |
-| ROUTE — Route progression and yielding | 5 | 9 |
+| ROUTE — Route progression and yielding | 6 | 9 |
 | TARGET — Pursuit and arrival policy | 2 | 9 |
 | SCHED — Scheduling and owner updates | 3 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
@@ -118,8 +118,8 @@ state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
-(NUM-01.8). Ghidra mapping persists456
-names,31 layouts,177 fields,171 x86 prototypes and44 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has217
+(NUM-01.8). Ghidra mapping persists464
+names,31 layouts,177 fields,180 x86 prototypes and44 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has228
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
@@ -130,7 +130,10 @@ trajectory exact at four world origins. SCHED-02.5 now verifies the complete
 primary-clock detour through actual engine RunFrame and saved continuation.
 ROUTE-02.4 now corrects initial adaptive-to-fine destination selection in the
 engine. ROUTE-03.3 now retains coarse buffers, consumes their own approach
-threshold before fine progression and preserves saved engine motion. Next
+threshold before fine progression and preserves saved engine motion. ROUTE-03.4
+now verifies five successive refills through nonzero coarse indices and fixes
+the observed-obstruction producer of the initial fine index. Clear legs steer
+at their destination; blocked expansions retain the next parent point. Next
 runnable work: compose a dynamic blocker during that refill (ROUTE-03.1),
 then removal/retry timing (03.2); public admission phase and other clocks remain
 NUM-02.3.
@@ -474,6 +477,8 @@ eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope
 - [ ] **ROUTE-03.2** Remove that blocker while waiting; assert retry/replan timing and eventual arrival or can't-path event through the full owner tick.
 
 - [x] **ROUTE-03.3** Explicitly split retained ordinary coarse progress and admitted static fine refills from03.1's dynamic blocker/yield composition. Preserve original coarse buffers/indices, test .49-accelerator-unit approach before fine progression, invalidate/refill fine storage at the selected following destination and preserve both buffers across Save68. Reproduce64 engine transition failures; all32 complete original admitted controlled-source refills match every native fine word. The actual long public Move scheduler retains its coarse state and repeats180 saved continuation frames exactly after rebinding the rebuilt world's runtime cache epoch. Evidence: [engine payoff24](retail-pathfinding-engine.md#retained-coarse-progress-refills-the-fine-route). Denied-request timing, nonzero next indices, full retail physical multi-tick motion, dynamic blockers/yielding and portals remain03.1/2/04/05/SCHED/GATE.
+
+- [x] **ROUTE-03.4** Explicitly split03.3's nonzero following-index exclusion and newly discovered fine-index producer from dynamic refill/yield timing. Thirty-two full original128-cell routes retain their complete coarse buffers through160 admitted refills, including5→4→3→2→1→0 and9→8→7→2→1→0. Reproduce160 engine index failures; port original observed-obstruction latch and destination-vs-parent initial index. All192 initial/refill buffers, indices and outputs match every word;480 full original/C latch checks and O0/O2 frozen replay pass. Actual public long Move crosses multiple coarse transitions, reaches the legal goal and repeats260 saved frames with exact native/world pose, velocity, heading, order and both route indices. Evidence: [engine payoff28](retail-pathfinding-engine.md#successive-long-refills-select-the-original-fine-index). Full physical retail motion, denied requests, dynamic blockers/yielding and portals remain03.1/2/SCHED/GATE.
 
 ### ROUTE-04 — Route mode combinations
 

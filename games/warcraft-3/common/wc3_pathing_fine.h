@@ -33,6 +33,7 @@ typedef struct {
     wc3FineEntry_t heap[BZ_WC3_FINE_NODES];
     uint32_t hash[BZ_WC3_FINE_HASH];
     uint32_t count, queued, pops, reopens, stale, nearest, dist2;
+    bool observed_obstruction;
 } wc3FineSearch_t;
 
 static wc3FinePoint_t const wc3_fine_dirs[] = {
@@ -141,6 +142,7 @@ static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req)
     assert(req->budget <= BZ_WC3_FINE_WORK);
     memset(search->hash, 0, sizeof(search->hash));
     search->count = search->queued = search->pops = search->reopens = search->stale = 0;
+    search->observed_obstruction = false;
     search->nearest = 0; search->dist2 = wc3_fine_dist2(req->start, req->goal);
     int start = wc3_fine_node(search, req, req->start), goal = wc3_fine_node(search, req, req->goal);
     if (start < 0 || goal < 0) return -1;
@@ -154,6 +156,9 @@ static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req)
         node->state = WC3_FINE_NEW; node->gen++;
         if ((int)entry.node == goal) return goal;
         uint8_t edges = req->edges(req->data, node->pos);
+        /* Original1489a0 latches d0 on any denied perimeter cell. The four
+         * neighbor-mask unions cover that entire perimeter, even off-route. */
+        if (edges != 0xff) search->observed_obstruction = true;
         int neighbors[8];
         for (int dir = 0; dir < 8; dir++) {
             wc3FinePoint_t delta = wc3_fine_dirs[dir];

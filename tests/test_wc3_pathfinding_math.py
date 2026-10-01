@@ -58,6 +58,21 @@ class PathingMathTests(unittest.TestCase):
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
 
+    def test_search_obstruction_selects_initial_fine_waypoint(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-adaptive-long-progress-1.27.json').read_text())
+        class FineInput(ctypes.Structure):
+            _fields_=[('cells',ctypes.POINTER(ctypes.c_uint8)),('objects',ctypes.POINTER(ctypes.c_uint32))]
+        for engine in self.engines:
+            proc=engine.pathing_fine_obstruction
+            proc.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.POINTER(FineInput)];proc.restype=ctypes.c_uint32
+            for row in frozen['cases']:
+                grid=(ctypes.c_uint8*(128*128))(*(2 if row['fixture']=='gap' and x==64 and not 61<=y<=66 else 0 for y in range(128) for x in range(128)))
+                for leg in [row,*row['steps']]:
+                    values=[ctypes.c_float.from_buffer_copy(ctypes.c_uint32(v)).value for v in leg['source_bits']+leg['fine_words'][:2]]
+                    q=(ctypes.c_uint32*11)(128,128,*[int(v) for v in values],700,row['size_class'],0x02000000,0,0)
+                    self.assertEqual(proc(q,ctypes.byref(FineInput(grid,None))),leg['observed_obstruction'])
+                    self.assertEqual(leg['fine_index'],leg['fine_count']-2 if leg['observed_obstruction'] else 0)
+
     def test_primary_clock_observer_requires_native_order_and_words(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-primary-clock-inputs-1.27.json').read_text())
         trajectory = json.loads((ROOT / 'tools/ghidra/fixtures/retail-primary-clock-trajectory-1.27.json').read_text())

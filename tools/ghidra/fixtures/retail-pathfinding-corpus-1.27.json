@@ -14057,6 +14057,58 @@
       "exclusions": [
         "Whole engine live cadence, outside-map clipping, bridges, rejected terrain-level callbacks and other profiles remain open."
       ]
+    },
+    {
+      "id": "adaptive-long-progress-reference",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_refill.py",
+        "--binary",
+        "{binary}",
+        "--engine",
+        "{engine}",
+        "--report",
+        "{report}",
+        "--adaptive-long-reference",
+        "tools/ghidra/fixtures/retail-adaptive-long-progress-1.27.json",
+        "--adaptive-long-fixture",
+        "{report}.fixture.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-long-progress-reference.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "adaptive_long_cases": {
+          "equal": 32
+        },
+        "adaptive_long_steps": {
+          "equal": 160
+        },
+        "engine_exact_obstruction_cases": {
+          "equal": 480
+        },
+        "adaptive_long_reference_sha256": {
+          "equal": "34c76da9f066f684028c1b2d65985bcaecca025d1285413625bda92fec827b2d"
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Repeated full original165ae0 on128-cell maps preserves nonzero coarse indices through five admitted fine refills.480 complete original/C search obstruction flags; engine raw buffer/index/waypoint regressions and actual public Move saved continuation.",
+      "exclusions": [
+        "Full physical retail multi-tick long motion",
+        "Dynamic blockers/yielding",
+        "Denied scheduler requests",
+        "Portal execution"
+      ]
     }
   ],
   "fixtures": [
@@ -14383,6 +14435,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-stop-recovery-1.27.json",
       "sha256": "c261b8581c3572b82136a5a3a156cc62c5bcdf3c83df381fd53d70fd02e4b134"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-adaptive-long-progress-1.27.json",
+      "sha256": "34c76da9f066f684028c1b2d65985bcaecca025d1285413625bda92fec827b2d"
     }
   ]
 }

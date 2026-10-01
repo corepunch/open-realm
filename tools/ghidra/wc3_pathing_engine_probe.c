@@ -412,6 +412,12 @@ void pathing_fine_objects(uint32_t const *input, fineObjectInput_t const *data, 
     }
 }
 
+uint32_t pathing_fine_obstruction(uint32_t const *input, fineObjectInput_t const *data) {
+    int32_t out[6+2*BZ_WC3_FINE_NODES];
+    pathing_fine_objects(input,data,out);
+    return fine_probe.observed_obstruction;
+}
+
 /* Full request failure retains the closest admitted node, even if its goal
  * entry has not yet been popped. Output: result,pops,nodes,count,nearXY,dist2,
  * then the nearest start-to-end parent chain. */
