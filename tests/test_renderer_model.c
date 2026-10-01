@@ -1366,6 +1366,14 @@ TEST(renderer_model, frame_emission_bounds_extreme_authored_rates) {
     T_FEQ(accum, 0.0f, 0.001f);
 }
 
+TEST(renderer_model, frame_emission_keeps_finite_accumulator_at_float_max) {
+    uint32_t count = 0;
+    float accum = 0.5f;
+    R_EmitParticles(FLT_MAX, &accum, 100, test_spawn, &count);
+    T_EQ(count, R_EMIT_PARTICLE_BUDGET);
+    T_ASSERT(isfinite(accum)); T_ASSERT(accum >= 0 && accum < 1);
+}
+
 TEST(renderer_model, frame_emission_rejects_nonfinite_rates) {
     uint32_t count = 0;
     float accum = 0.5f;

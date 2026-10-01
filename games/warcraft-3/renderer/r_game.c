@@ -720,9 +720,8 @@ static wc3EventState_t *R_W3CameraEventState(renderEntity_t const *entity) {
         camera_event_state_capacity = capacity;
     }
     state = camera_event_states + camera_event_state_count++;
-    state->instance_id = entity->instance_id;
-    state->state.model = entity->model;
-    state->state.generation = entity->generation;
+    /* A compacted table slot owns no clock until this new instance seeds it. */
+    *state = (wc3CameraEventState_t){ .instance_id = entity->instance_id, .state = { .model = entity->model, .generation = entity->generation } };
     return &state->state;
 }
 
