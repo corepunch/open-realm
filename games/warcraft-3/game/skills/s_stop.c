@@ -20,6 +20,7 @@ void order_stop(edict_t *ent) {
      * Match CreateUnit's optional stand transition after retiring the order. */
     ent->current_order_id = 0;
     if (ent->stand) ent->stand(ent);
+    S_RecoverStoppedUnitPosition(ent);
 }
 
 BZ_COMMAND_PROC(AbilityStop) {

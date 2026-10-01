@@ -335,6 +335,22 @@ static bool placement_admit(void const *data, float const *point) {
     return placement_terrain_level(point) == graph->level;
 }
 
+/* Public placement and Stop recovery share geometry, but retain distinct attempt limits. */
+static bool move_place_unit(edict_t *unit, vec2_t point, uint32_t limit, vec2_t *out) {
+    uint8_t flags = unit->no_pathing ? 0 : M_UnitStaticPathingFlags(unit);
+    moveFineGraph_t graph = {.flags = flags, .endpoint = true};
+    float fine[2] = {point.x,point.y}; graph.level = placement_terrain_level(fine);
+    movePathQuery_t objects = {.mover = unit, .units = true};
+    move_query_objects(&graph,&objects,NULL);
+    wc3FinePlacement_t query = {.point = {point.x,point.y}, .limit = limit,
+        .footprint = {.cls = wc3_fine_class(unit->collision / pathmap_cell_world_size()),
+                      .cell = move_cell_ok, .data = &graph}, .admit = placement_admit};
+    float admitted[2];
+    if (!wc3_fine_place(&query,admitted)) return false;
+    *out = (vec2_t){admitted[0],admitted[1]};
+    return true;
+}
+
 /* Public SetUnitPosition's point/ring admission. CreateUnit and item drops
  * retain their separately tracked producer rather than borrowing this policy. */
 bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t *out) {
@@ -344,18 +360,26 @@ bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t 
         fprintf(stderr,"WC3 placement: terrain/pathing data unavailable\n");
         return false;
     }
-    vec2_t point = move_grid_from_world(requested->x,requested->y);
-    uint8_t flags = unit->no_pathing ? 0 : M_UnitStaticPathingFlags(unit);
-    moveFineGraph_t graph = {.flags = flags, .endpoint = true};
-    float fine[2] = {point.x,point.y}; graph.level = placement_terrain_level(fine);
-    movePathQuery_t objects = {.mover = unit, .units = true};
-    move_query_objects(&graph,&objects,NULL);
-    wc3FinePlacement_t query = {.point = {point.x,point.y}, .limit = 32,
-        .footprint = {.cls = wc3_fine_class(unit->collision / pathmap_cell_world_size()),
-                      .cell = move_cell_ok, .data = &graph}, .admit = placement_admit};
-    float admitted[2];
-    if (!wc3_fine_place(&query,admitted)) return false;
-    *out = move_world_from_grid(admitted[0],admitted[1]);
+    vec2_t point = move_grid_from_world(requested->x,requested->y), admitted;
+    if (!move_place_unit(unit,point,32,&admitted)) return false;
+    *out = move_world_from_grid(admitted.x,admitted.y);
+    return true;
+}
+
+/* Original170080 recovers the predicted fine point with five attempts. No
+ * admitted point means the stopped unit remains embedded; queryzero stays put. */
+bool G_FindUnitMoveRecoveryPosition(edict_t *unit, vec2_t const *fine, vec2_t *out) {
+    /* Recovery is inactive before a movement world is loaded or after it is released. */
+    if (M_UnitMoveDisabled(unit) || !world.map || !world.map->vertices ||
+        !pathmap.width || !pathmap.height) return false;
+    movePathQuery_t query = {.geometry.from=&unit->s.origin2,.fine=fine};
+    vec2_t point=move_query_source(&query), admitted;
+    if (!move_place_unit(unit,point,5,&admitted) ||
+        (wc3_float_bits(point.x)==wc3_float_bits(admitted.x) &&
+         wc3_float_bits(point.y)==wc3_float_bits(admitted.y))) return false;
+    box2_t bounds=CM_GetWorldBounds();
+    float cx=(bounds.max.x-bounds.min.x)/pathmap.width, cy=(bounds.max.y-bounds.min.y)/pathmap.height;
+    *out=(vec2_t){wc3_mul(admitted.x,wc3_div(cx,32)),wc3_mul(admitted.y,wc3_div(cy,32))};
     return true;
 }
 

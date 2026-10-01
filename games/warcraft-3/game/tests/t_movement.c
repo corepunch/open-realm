@@ -1624,6 +1624,49 @@ TEST(wc3_movement, forced_position_matches_original_native_pose_words) {
 /* Original public scene39 ring endpoints, with its terrain edits and31-unit
  * Footman footprint. Use the actual JASS native rather than the ring helper. */
 /* Public placement consumes the current query mask, independently of occupancy. */
+/* Public Stop recovers a blocked mover within five placement attempts; queryzero and exhaustion stay put. */
+TEST(wc3_movement, public_stop_recovers_embedded_unit_with_bounded_query) {
+    static uint8_t cells[256*128];
+    reset_entities(); setup_test_world(); memset(cells,0,sizeof(cells));
+    for (int x=161;x<=164;x++) cells[78*256+x]=2;
+    box2_t bounds={{-7168,-3072},{1024,1024}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hfoo',-1936,-976,0)\nendfunction\n"
+        "function prepare takes nothing returns nothing\ncall SetUnitPathing(mover,false)\n"
+        "call SetUnitPosition(mover,-1936,-560)\nendfunction\n"
+        "function enabled takes nothing returns nothing\ncall SetUnitPathing(mover,true)\n"
+        "call IssueImmediateOrder(mover,\"stop\")\nendfunction\n"
+        "function disabled takes nothing returns nothing\ncall IssueImmediateOrder(mover,\"stop\")\nendfunction\n"));
+    edict_t *unit=NULL; FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->collision=31; unit->stand=unit_stand; unit_stand(unit);
+    jass_callbyname(level.vm,"prepare",false);
+    T_EQ(unit->s.origin2.x,-1936); T_EQ(unit->s.origin2.y,-560);
+    T_ASSERT(WriteGame("/tmp/openwarcraft3-embedded-stop-save.bin"));
+    for (unsigned pass=0;pass<2;pass++) {
+        if (pass) T_ASSERT(ReadGame("/tmp/openwarcraft3-embedded-stop-save.bin"));
+        jass_callbyname(level.vm,"enabled",false);
+        T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(-1936));
+        T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(-592));
+        T_EQ(unit->current_order_id,0); T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+        jass_callbyname(level.vm,"prepare",false); jass_callbyname(level.vm,"disabled",false);
+        T_EQ(unit->s.origin2.x,-1936); T_EQ(unit->s.origin2.y,-560); T_EQ(unit->current_order_id,0);
+    }
+    /* Eleven-cell patch has no legal footprint in the five-attempt ring domain. */
+    for (int y=73;y<=83;y++) for (int x=158;x<=168;x++) cells[y*256+x]=2;
+    CM_SetupTestPathmap(256,128,cells);
+    jass_callbyname(level.vm,"enabled",false);
+    T_EQ(unit->s.origin2.x,-1936); T_EQ(unit->s.origin2.y,-560); T_EQ(unit->current_order_id,0);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    /* Map release must leave Stop able to retire a unit without querying stale geometry. */
+    void *saved_map=world.map; world.map=NULL;
+    jass_callbyname(level.vm,"enabled",false);
+    T_EQ(unit->s.origin2.x,-1936); T_EQ(unit->s.origin2.y,-560); T_EQ(unit->current_order_id,0);
+    world.map=saved_map;
+    remove("/tmp/openwarcraft3-embedded-stop-save.bin"); reset_entities(); setup_test_world();
+}
+
 TEST(wc3_movement, public_pathing_toggle_controls_blocked_placement) {
     static uint8_t cells[256*128];
     reset_entities(); setup_test_world(); memset(cells,0,sizeof(cells));

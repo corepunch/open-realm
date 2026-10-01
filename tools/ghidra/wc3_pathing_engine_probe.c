@@ -509,6 +509,15 @@ void pathing_native_pose(uint32_t const *input, uint32_t *out) {
     }
 }
 
+/* Native fine source2, map origin2, admitted fine point2 -> fine2/world2. */
+void pathing_fine_pose_write(uint32_t const *input, uint32_t *out) {
+    wc3GridPose_t pose={.grid={wc3_float(input[0]),wc3_float(input[1])},
+        .origin={wc3_float(input[2]),wc3_float(input[3])}};
+    float point[2]={wc3_float(input[4]),wc3_float(input[5])};
+    wc3_grid_place_fine(&pose,point);
+    for (unsigned k=0;k<2;k++) { out[k]=wc3_float_bits(pose.grid[k]); out[k+2]=wc3_float_bits(pose.world[k]); }
+}
+
 /* input: fine pose2, world velocity2, map origin2, requested world2, elapsed. */
 void pathing_pose_write(uint32_t const *input, uint32_t *out) {
     wc3GridPose_t pose = { .grid = {wc3_float(input[0]), wc3_float(input[1])},

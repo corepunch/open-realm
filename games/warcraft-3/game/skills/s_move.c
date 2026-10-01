@@ -545,6 +545,15 @@ void S_SetUnitAxisPosition(edict_t *self, uint32_t axis, float value) {
     self->movement.worker_avoid_blocked_frames = blocked;
 }
 
+/* Stop's bounded recovery uses the native fine pose; a world round trip loses low bits. */
+void S_RecoverStoppedUnitPosition(edict_t *self) {
+    wc3GridPose_t pose; unit_grid_pose(self,&pose);
+    vec2_t fine={pose.grid[0],pose.grid[1]}, admitted;
+    if (!G_FindUnitMoveRecoveryPosition(self,&fine,&admitted)) return;
+    float point[2]={admitted.x,admitted.y};
+    wc3_grid_place_fine(&pose,point); unit_commit_pose(self,&pose);
+}
+
 /* Both public placement natives replace the order before admitting position.
  * Retain the common native scalar writer; placement legality remains the game
  * adapter's current policy until FOOT-04 public admission is reconstructed. */

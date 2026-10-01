@@ -358,6 +358,37 @@ function PathProbeTick takes nothing returns nothing
         set numericY = GetUnitDefaultMoveSpeed(udg_PathProbeUnit)
         call Preload("PATHSPEED done=travel")
     endif
+    if PATH_PROBE_SCENARIO == 43 and (udg_PathProbeTick == 20 or udg_PathProbeTick == 30 or udg_PathProbeTick == 40 or udg_PathProbeTick == 50) then
+        if udg_PathProbeTick >= 30 then
+            if udg_PathProbeTick == 50 then
+                set crowdIndex = -5
+                loop
+                    exitwhen crowdIndex > 5
+                    set targetVisible = -5
+                    loop
+                        exitwhen targetVisible > 5
+                        call SetTerrainPathable(-1936.0 + I2R(crowdIndex)*32.0, -560.0 + I2R(targetVisible)*32.0, PATHING_TYPE_WALKABILITY, false)
+                        set targetVisible = targetVisible + 1
+                    endloop
+                    set crowdIndex = crowdIndex + 1
+                endloop
+            endif
+            call SetUnitPathing(udg_PathProbeUnit, false)
+            call SetUnitPosition(udg_PathProbeUnit, -1936.0, -560.0)
+            if udg_PathProbeTick != 40 then
+                call SetUnitPathing(udg_PathProbeUnit, true)
+            endif
+        endif
+        call Preload("PATHPOSE case=stop_recovery_" + I2S(udg_PathProbeTick))
+        call PathProbeRecord("stop_recovery_before")
+        if IssueImmediateOrder(udg_PathProbeUnit, "stop") then
+            call PathProbeRecord("stop_recovery_accepted")
+        else
+            call PathProbeRecord("stop_recovery_rejected")
+        endif
+        call PathProbeRecord("stop_recovery_after")
+        call Preload("PATHPOSE done=stop_recovery_" + I2S(udg_PathProbeTick))
+    endif
     if PATH_PROBE_SCENARIO == 42 and (udg_PathProbeTick == 20 or udg_PathProbeTick == 30 or udg_PathProbeTick == 40 or udg_PathProbeTick == 50 or udg_PathProbeTick == 60) then
         if udg_PathProbeTick == 30 or udg_PathProbeTick == 50 then
             call SetUnitPathing(udg_PathProbeUnit, false)
@@ -782,7 +813,7 @@ function PathProbeInit takes nothing returns nothing
             call PathProbeRecord("gate_inactive")
         endif
     endif
-    if PATH_PROBE_SCENARIO == 1 or PATH_PROBE_SCENARIO == 3 or PATH_PROBE_SCENARIO == 4 or PATH_PROBE_SCENARIO == 41 or PATH_PROBE_SCENARIO == 42 then
+    if PATH_PROBE_SCENARIO == 1 or PATH_PROBE_SCENARIO == 3 or PATH_PROBE_SCENARIO == 4 or PATH_PROBE_SCENARIO == 41 or PATH_PROBE_SCENARIO == 42 or PATH_PROBE_SCENARIO == 43 then
         call PathProbeWall(false)
     endif
     if PATH_PROBE_SCENARIO == 16 then

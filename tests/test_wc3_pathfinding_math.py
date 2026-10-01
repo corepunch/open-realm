@@ -28,6 +28,7 @@ from verify_wc3_item_speed import verify as verify_item_speed, digest as item_sp
 from verify_wc3_axis_position import verify as verify_axis_position, digest as axis_position_digest
 from verify_wc3_forced_position import verify as verify_forced_position, digest as forced_position_digest
 from verify_wc3_placement_trace import verify as verify_placement, digest as placement_digest
+from verify_wc3_stop_recovery_trace import verify as verify_stop_recovery, digest as stop_recovery_digest
 from verify_wc3_primary_clock import verify_primary, digest as primary_digest
 
 
@@ -218,6 +219,31 @@ class PathingMathTests(unittest.TestCase):
                 adjusted=dict(fixture,position_sha256=forced_position_digest(changed))
                 with self.subTest(mutation=mutation,opt=engine._name), self.assertRaises(ValueError):
                     verify_forced_position(changed,engine,adjusted)
+
+    def test_public_stop_recovery_replays_bounded_search_and_rejects_changes(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-stop-recovery-1.27.json').read_text())
+        rows=fixture['rows']
+        for engine in self.engines:
+            configure_arrival(engine)
+            result=verify_stop_recovery(rows,engine,fixture)
+            self.assertEqual([result[k] for k in ('recovery_calls','placement_searches','recovered_points','exhausted_searches','public_getters')],[8,3,1,2,24])
+            for mutation in ('truncated','receiver','limit','mask','callback','result','endpoint','fine-commit','exhaustion','getter','source'):
+                changed=copy.deepcopy(rows)
+                if mutation=='truncated': changed.pop()
+                elif mutation=='receiver': next(r for r in changed if r.get('event')=='stop-recovery-begin')['mover']='0xBAD'
+                elif mutation in ('limit','mask','callback'):
+                    r=next(r for r in changed if r.get('event')=='stop-recovery-begin')
+                    if mutation=='callback': r[mutation]=None
+                    else:r[mutation]^=1
+                elif mutation=='result': next(r for r in changed if r.get('event')=='stop-recovery-end')['result']^=1
+                elif mutation=='endpoint': next(r for r in changed if r.get('event')=='placement-search-end')['after'][0]^=1
+                elif mutation=='fine-commit': next(r for r in changed if r.get('event')=='stop-recovery-end' and r['case']=='stop_recovery_30')['after'][2]^=1
+                elif mutation=='exhaustion': next(r for r in changed if r.get('event')=='stop-recovery-end' and r['case']=='stop_recovery_50')['after'][2]^=1
+                elif mutation=='getter': next(r for r in changed if r.get('event')=='position-native')['output']^=1
+                elif mutation=='source': changed[0]['source_sha256']['wc3_pathfinding.js']='0'*64
+                adjusted=dict(fixture,recovery_sha256=stop_recovery_digest(changed))
+                with self.subTest(mutation=mutation,opt=engine._name),self.assertRaises(ValueError):
+                    verify_stop_recovery(changed,engine,adjusted)
 
     def test_public_pathing_placement_replays_zero_masks_and_rejects_changes(self):
         fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-pathing-position-1.27.json').read_text())

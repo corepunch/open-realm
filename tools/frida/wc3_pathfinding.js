@@ -347,14 +347,35 @@ function install(module) {
                 pose:words(mover.add(0x70),8), group:ints(mover.add(0x9c),2),
                 hasPath:!mover.add(0xa8).readPointer().isNull()};
         };
+        const stopRecoveries = new Map();
+        hook(0x170080, {
+            onEnter(args) {
+                if (!positionCase || !positionCase.startsWith('stop_recovery_')) return;
+                this.mover = this.context.ecx; this.previous = stopRecoveries.get(this.threadId);
+                this.row = {case:positionCase,mover:this.mover.toString(),mask:args[0].toUInt32(),
+                    limit:args[1].toUInt32(),callback:args[2].isNull() ? null : args[2].sub(base).toString(),
+                    context:args[3].isNull() ? null : args[3].readU32(),policy:args[4].toUInt32(),
+                    before:words(this.mover.add(0x70),8)};
+                stopRecoveries.set(this.threadId,this.row);
+                bump('stop-recovery-begin'); emit('stop-recovery-begin',this.row);
+            },
+            onLeave(result) {
+                if (!this.row) return;
+                bump('stop-recovery-end'); emit('stop-recovery-end',{...this.row,result:result.toUInt32(),
+                    after:words(this.mover.add(0x70),8)});
+                if (this.previous) stopRecoveries.set(this.threadId,this.previous);
+                else stopRecoveries.delete(this.threadId);
+            }
+        });
         const placementQueries = new Map();
         hook(0x14a1e0, {
             onEnter(args) {
                 const native = positionNatives.get(this.threadId);
-                if (!native || native.name !== 'SetUnitPosition') return;
+                const recovery = stopRecoveries.get(this.threadId);
+                if ((!native || native.name !== 'SetUnitPosition') && !recovery) return;
                 this.previous = placementQueries.get(this.threadId);
                 this.output = args[0]; this.fine = this.context.ecx;
-                this.row = {case:positionCase, unit:native.unit, before:words(this.output,2),
+                this.row = {case:positionCase, unit:native ? native.unit : null, recovery:recovery ? recovery.mover : null, before:words(this.output,2),
                     rect:words(args[1],4), policy:args[2].toUInt32(), radius:args[3].readU32(),
                     mask:args[4].readU32(), limit:args[5].toUInt32(),
                     callback:args[6].isNull() ? null : args[6].sub(base).toString(),

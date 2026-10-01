@@ -3271,3 +3271,59 @@ Validation: forced release RoC/TFT suites each pass54,785 assertions in2,234
 cases; full release umbrella and production builds pass without C compiler
 warnings, as do144 pathfinding tool tests, ability coverage, backlog counts/IDs/
 areas, local links and `git diff --check`.
+
+
+## Stop recovers an embedded mover with a bounded query
+
+Engine payoff27 ports the separate Stop recovery that FOOT-04.4 identified in
+blocked public placement. Actual `171340` receives a nonzero stack14 recovery
+limit, then calls `170080` with the current query mask, callback/context and
+policy2. The recovery helper predicts native fine pose, temporarily suppresses
+its own spatial object, tests the endpoint footprint, and only searches when
+that point is blocked. A successful `14a1e0` point/ring query applies its admitted
+fine point through `05c820`. Its return value is **source was blocked**, not
+search succeeded: an exhausted five-attempt query returns1 and leaves pose
+unchanged. Clear or in-bounds queryzero returns0 without a placement search.
+Instruction readback verifies RET14/RET1c and the explicit receiver/stack slots.
+
+Two fresh owned `stop_recovery` maps invoke public Stop on a clear travelling
+unit, an enabled unit embedded in the four-cell wall, a disabled embedded unit,
+and an enabled unit embedded in an eleven-cell square. Each command performs
+two recovery calls. The eight result words are0/0/1/0/0/0/1/1: first enabled
+wall recovery moves(-1936,-560) to(-1936,-592), the settled second call is clear,
+the disabled unit stays put, and both dense-square searches exhaust the five
+attempts. All three searches retain callback654060/context6, radius3f780000,
+endpoint mode and supplied query mask. Complete cell visits/results and output
+words match production C. The recovered native fine commit and exact published
+world pair match the new production fine-coordinate writer; all24 public getter
+words match C's noncommitting prediction and the native results. The preceding33
+motion and33 velocity/position/facing commits match and repeat exactly.
+
+The engine regression first fails both embedded-recovery destination assertions,
+before and after save/load. Stop now asks the Move owner to recover its stopped
+fine pose. Public32-attempt placement and Stop's five-attempt recovery share the
+same footprint/object/terrain-level admission, with separate limits. Recovery
+preserves native fine precision rather than converting an admitted point through
+world coordinates. Queryzero and failed bounded searches stay in place. The
+public-native regression passes29 assertions, including save/load, both toggle
+policies, exhaustion and Stop during map release; all196 movement tests also
+pass. Broader actor forms, bridge overlays and outside-map public recovery remain
+unverified. This does not change Save68, JASS snapshot7 or the wire contract.
+
+The strict verifier is `tools/frida/verify_wc3_stop_recovery_trace.py`; its frozen
+witness is `retail-public-stop-recovery-1.27.json`. It rejects missing calls,
+changed receiver/masks/limits/callbacks, wrong helper statuses, substituted fine
+outputs, movement during exhaustion, getter changes and source provenance.
+Accepted replay: `stop-recovery-corpus-accepted-261001/corpus-results.json`;
+raw witnesses `runtime/stop-recovery-{first,repeat}-261001.jsonl`. The inventory
+now has227 entries:91 original-code oracles,106 archived audits and30 live
+contracts, with81 hash-checked repository fixtures. Ghidra retains464 names,
+180 explicit prototypes,31 layouts and177 fields, with saved readbacks
+`runtime/stop-recovery-ghidra-types-261001.json` and
+`runtime/stop-recovery-ghidra-readback-261001.json`.
+
+Validation: forced release RoC/TFT suites each pass54,814 assertions in2,235
+cases;145 pathfinding tool tests, full release umbrella and production builds,
+ability coverage, backlog counts/IDs/areas, local links and `git diff --check`
+pass without C compiler warnings. Full retail owner phases, all Stop callers and dynamic
+multi-mover recovery remain separate from this bounded public result.

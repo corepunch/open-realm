@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "44 executable original-code oracle scripts,43 selected exact/frozen variants,29 explicit live/profile/repeat contracts and104 archived capture audits.",
+  "scope": "44 executable original-code oracle scripts,43 selected exact/frozen variants,30 explicit live/profile/repeat contracts and106 archived capture audits.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -13749,6 +13749,314 @@
       "exclusions": [
         "Nondegenerate rectangles, other scan policies, caller clipping and nonnull callbacks."
       ]
+    },
+    {
+      "id": "capture-stop-recovery-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/stop-recovery-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/stop-recovery-first-261001.jsonl",
+        "sha256": "1081641c32cea146026822c5f568fadfb859ceab9cbc7089e1dc0c65f73c4699",
+        "bytes": 164584,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "c61fbdbfdc46c2b35cee522b2a1a2bfad952acf96f88c7014972d244c06ec380",
+            "wc3_pathfinding.js": "1efed5b4f5532c8ff9fc75a1ae9782aab47f6f03e8d979849bcaca95a4172606",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "445280c2d9bead9994979a06aa381fab907620c763de3c36b42f97bea354831c"
+          },
+          "map": "Maps\\PathingRE-StopRecoveryFirst261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/stop-recovery-first-261001-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Bounded public ground placement query policy; outside-map clipping, bridge overlays and other actor forms remain open."
+      ]
+    },
+    {
+      "id": "capture-stop-recovery-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/stop-recovery-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/stop-recovery-repeat-261001.jsonl",
+        "sha256": "47121e2d1b8ab1ada53be421266c5ae35f38fdedfd05dc574207ca832518045a",
+        "bytes": 164586,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "c61fbdbfdc46c2b35cee522b2a1a2bfad952acf96f88c7014972d244c06ec380",
+            "wc3_pathfinding.js": "1efed5b4f5532c8ff9fc75a1ae9782aab47f6f03e8d979849bcaca95a4172606",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "445280c2d9bead9994979a06aa381fab907620c763de3c36b42f97bea354831c"
+          },
+          "map": "Maps\\PathingRE-StopRecoveryRepeat261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/stop-recovery-repeat-261001-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Audit this frozen archived capture only. Completion does not establish any omitted scenario requirement or full trajectory parity.",
+      "exclusions": [
+        "Bounded public ground placement query policy; outside-map clipping, bridge overlays and other actor forms remain open."
+      ]
+    },
+    {
+      "id": "live-stop-recovery-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_stop_recovery_trace.py",
+        "{archive}/runtime/stop-recovery-first-261001.jsonl",
+        "--repeat",
+        "{archive}/runtime/stop-recovery-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-stop-recovery-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/stop-recovery-first-261001.jsonl",
+        "sha256": "1081641c32cea146026822c5f568fadfb859ceab9cbc7089e1dc0c65f73c4699",
+        "bytes": 164584,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "c61fbdbfdc46c2b35cee522b2a1a2bfad952acf96f88c7014972d244c06ec380",
+            "wc3_pathfinding.js": "1efed5b4f5532c8ff9fc75a1ae9782aab47f6f03e8d979849bcaca95a4172606",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "445280c2d9bead9994979a06aa381fab907620c763de3c36b42f97bea354831c"
+          },
+          "map": "Maps\\PathingRE-StopRecoveryFirst261001.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 1000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/stop-recovery-repeat-261001.jsonl",
+            "sha256": "47121e2d1b8ab1ada53be421266c5ae35f38fdedfd05dc574207ca832518045a",
+            "bytes": 164586,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "c61fbdbfdc46c2b35cee522b2a1a2bfad952acf96f88c7014972d244c06ec380",
+                "wc3_pathfinding.js": "1efed5b4f5532c8ff9fc75a1ae9782aab47f6f03e8d979849bcaca95a4172606",
+                "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+                "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "445280c2d9bead9994979a06aa381fab907620c763de3c36b42f97bea354831c"
+              },
+              "map": "Maps\\PathingRE-StopRecoveryRepeat261001.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 1000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-stop-recovery-repeat-261001.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "exact_decisions": {
+          "equal": 33
+        },
+        "stopped_decisions": {
+          "equal": 0
+        },
+        "movers": {
+          "equal": 1
+        },
+        "decision_sha256": {
+          "equal": "9e7015fe0ee995a754eaf3e06d00212c5f5b16748b29846090bd44090aa5d89d"
+        },
+        "exact_velocity_commits": {
+          "equal": 33
+        },
+        "exact_position_commits": {
+          "equal": 33
+        },
+        "exact_facing_commits": {
+          "equal": 33
+        },
+        "velocity_sha256": {
+          "equal": "ea6cb59277b04f936389befa1b291a239525293f51625715c00e8d815b359ef7"
+        },
+        "recovery_calls": {
+          "equal": 8
+        },
+        "placement_searches": {
+          "equal": 3
+        },
+        "recovered_points": {
+          "equal": 1
+        },
+        "exhausted_searches": {
+          "equal": 2
+        },
+        "public_getters": {
+          "equal": 24
+        },
+        "recovery_sha256": {
+          "equal": "7f0c126356be59244667c17f10ff9c944d882d0b320f0b4d945a02b0a73860bd"
+        },
+        "repeated": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Four public Stop controls: clear/embedded/disabled/exhausted. Complete original queries, bounded search outputs and recovered native/world point match production C; full engine cadence and arbitrary actor/terrain domains remain open.",
+      "exclusions": [
+        "Whole engine live cadence, outside-map clipping, bridges, rejected terrain-level callbacks and other profiles remain open."
+      ]
     }
   ],
   "fixtures": [
@@ -13814,7 +14122,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "bea06d730aa7bf824bd8150d08897e22fb520775d40d0874ba8ae043459f3a56"
+      "sha256": "ac8e252c6ccfcadc456d8aa82ae3d1e3a33f4b2cc77237ebd5202e1dd4cf82c3"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -14071,6 +14379,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-pathing-position-1.27.json",
       "sha256": "a60419fe101a364833af3b11eaf30cf69da26e3bd5161a00d6711df49ee5a060"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-stop-recovery-1.27.json",
+      "sha256": "c261b8581c3572b82136a5a3a156cc62c5bcdf3c83df381fd53d70fd02e4b134"
     }
   ]
 }

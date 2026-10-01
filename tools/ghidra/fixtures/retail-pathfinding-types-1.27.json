@@ -4337,6 +4337,94 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f170080",
+      "name": "Mover_RecoverEmbeddedFinePoint",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Instruction RET14/RET1c and repeated public Stop recovery query/commit controls (payoff27).",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "mask",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "limit",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 12
+        },
+        {
+          "name": "context",
+          "type": "ptr:u32",
+          "storage": 16
+        },
+        {
+          "name": "policy",
+          "type": "u32",
+          "storage": 20
+        }
+      ]
+    },
+    {
+      "address": "6f171340",
+      "name": "Mover_StopAndInvalidatePath",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Instruction RET14/RET1c and repeated public Stop recovery query/commit controls (payoff27).",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "detach_group",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "notify",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "blocked_completion",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "completion_reason",
+          "type": "u32",
+          "storage": 16
+        },
+        {
+          "name": "recovery_limit",
+          "type": "u32",
+          "storage": 20
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 24
+        },
+        {
+          "name": "context",
+          "type": "ptr:u32",
+          "storage": 28
+        }
+      ]
     }
   ],
   "globals": [
