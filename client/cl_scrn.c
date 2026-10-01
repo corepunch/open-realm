@@ -1402,10 +1402,11 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE && !(f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
     }
-    /* FDF SIMPLESTATUSBARs are visual backdrops for sibling text (for
-     * example SimpleHeroLevelBar behind SimpleClassValue). Frame numbers
-     * reflect parse order rather than FDF sibling paint order, so draw these
-     * bars first instead of allowing a later-numbered fill to cover text. */
+    /* Paint the common sibling stack as texture background -> status bar ->
+     * remaining frames/text. Frame numbers can reflect FDF parse order rather
+     * than paint order: the Hero level label belongs above its XP bar, while
+     * hover-bar fills belong above their FT_TEXTURE backings. This global type
+     * order means textures cannot serve as foreground overlays over bars. */
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_TEXTURE) SCR_LayoutDrawFrame(f);
