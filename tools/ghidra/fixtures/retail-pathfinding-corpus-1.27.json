@@ -754,7 +754,9 @@
         "--binary",
         "{binary}",
         "--report",
-        "{report}"
+        "{report}",
+        "--engine",
+        "{engine}"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -768,13 +770,25 @@
         },
         "selection_cases": {
           "minimum": 1
+        },
+        "complete_init_cases": {
+          "equal": 336
+        },
+        "complete_advance_cases": {
+          "equal": 2016
+        },
+        "engine_exact_init_cases": {
+          "equal": 336
+        },
+        "engine_exact_advance_cases": {
+          "equal": 2016
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Original retry consumption and post-distance retry selection; no stubs.\n\nFull terminal routine with null target and pre-existing nonzero retry count.\nSelection slices supply the computed squared distance and resolved group;\noriginal owner PRNG executes. Does not emulate group-handle resolution.\n",
+      "scope": "Complete original retry initialization and null-target consumption; native distance, registered mover/group resolution, owner PRNG and exact production C words. Historical selection slices remain controls; group producer and full crowd lifecycle excluded.",
       "exclusions": []
     },
     {
@@ -14815,6 +14829,288 @@
       "exclusions": [
         "Full live producer/scheduler/crowd composition"
       ]
+    },
+    {
+      "id": "capture-peer-retry-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/peer-retry-live-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/peer-retry-live-first-261001.jsonl",
+        "sha256": "2f4540815cd925a8c362d3ade999525ecd03c462c264d5b8db87b11e93322525",
+        "bytes": 4293616,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "32c10a2c9cf70d0cff5bf6f480256f65ed004629e22548d5d13d9db21dfd71b0",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+          },
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": false,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "peer-retry-first-capture-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Owned crowd original retry calls with complete native source, adjusted goal, resolved group count and owner random words.",
+      "exclusions": [
+        "Original movement producer and stock crowd trajectory composition remain open."
+      ]
+    },
+    {
+      "id": "capture-peer-retry-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/peer-retry-live-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/peer-retry-live-repeat-261001.jsonl",
+        "sha256": "6a8efd8e7a085bd04434e9b9e1f5334b2d8585bb3eb76d697a77563e8bf2c08d",
+        "bytes": 4293617,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "32c10a2c9cf70d0cff5bf6f480256f65ed004629e22548d5d13d9db21dfd71b0",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+          },
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": false,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "peer-retry-repeat-capture-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Owned crowd original retry calls with complete native source, adjusted goal, resolved group count and owner random words.",
+      "exclusions": [
+        "Original movement producer and stock crowd trajectory composition remain open."
+      ]
+    },
+    {
+      "id": "live-peer-retry-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_retry_trace.py",
+        "--capture",
+        "{archive}/runtime/peer-retry-live-first-261001.jsonl",
+        "--compare",
+        "{archive}/runtime/peer-retry-live-repeat-261001.jsonl",
+        "--engine",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/peer-retry-live-first-261001.jsonl",
+        "sha256": "2f4540815cd925a8c362d3ade999525ecd03c462c264d5b8db87b11e93322525",
+        "bytes": 4293616,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "32c10a2c9cf70d0cff5bf6f480256f65ed004629e22548d5d13d9db21dfd71b0",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+          },
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": false,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/peer-retry-live-repeat-261001.jsonl",
+            "sha256": "6a8efd8e7a085bd04434e9b9e1f5334b2d8585bb3eb76d697a77563e8bf2c08d",
+            "bytes": 4293617,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "32c10a2c9cf70d0cff5bf6f480256f65ed004629e22548d5d13d9db21dfd71b0",
+                "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+                "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+              },
+              "map": "Maps\\PathingRE-Crowd.w3m",
+              "seconds": 130.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": false,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-peer-retry-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "counts": {
+          "equal": {
+            "retry-init": 42,
+            "retry-result": 55
+          }
+        },
+        "digest": {
+          "equal": "b22624f045c5916d77deae4f2c07ed815a42a577796e6851175d5eb89331068a"
+        },
+        "repeat_exact": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "42 complete original retry initializations and55 null-target transitions, exact owner/C words and two source/map-pinned repeats. Engine peer20 fine retry preserves coarse route and saved continuation.",
+      "exclusions": [
+        "Original group membership/bit8 producer",
+        "Full crowd/cycle scheduler",
+        "Terrain/idle/ineligible vectors and source-footprint recovery",
+        "Target perimeter and terminal owner transitions"
+      ]
     }
   ],
   "fixtures": [
@@ -14880,7 +15176,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "fb8f2b52bd2e01a52cb6732c313c4ffbb8b931c70a1f38e8327924d79462cf58"
+      "sha256": "49515fcdd0b07d8acaaf1adff5d41eaf8e261b750367205deb73dbeecf60d698"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -15169,6 +15465,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-wait-heading-1.27.json",
       "sha256": "faa327da33733b7cc65a080340cb8d84b07ea4f1d398f7221d074d39db6b77d6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-peer-retry-1.27.json",
+      "sha256": "366d66560f27fd9050b11df3a98ef097226fd21a3dc82fb5dc250d03a3ac8157"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-peer-retry-1.27.json",
+      "sha256": "98513cf163b6309cd823ef3ec308b4297397fb30b11566ae5279c23067aaf899"
     }
   ]
 }

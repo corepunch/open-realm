@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **237 entries**: **45** distinct original-code oracle
-scripts plus **50** declared variants, **110** archived JSONL audits and **32**
+The inventory now has **240 entries**: **45** distinct original-code oracle
+scripts plus **50** declared variants, **112** archived JSONL audits and **33**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -585,3 +585,20 @@ additional frozen fixtures bring the pinned inventory to88. Accepted fresh run:
 `wait-heading-corpus-accepted-v2-261001/corpus-results.json`. See
 [engine payoff31](retail-pathfinding-engine.md#waiting-headings-preserve-the-native-caller)
 for the reproduced world-coordinate failures and public saved continuation.
+
+
+### Peer retry production transaction
+
+Payoff32 strengthens `oracle-retry` with336 complete original initialization
+and2016 null-target transitions compared to production C, including actual
+registry/group lookup and owner random state. Two new archive audits and
+`live-peer-retry-repeat-261001` verify42 initializations plus55 transitions
+with identical raw-word digest
+`b22624f045c5916d77deae4f2c07ed815a42a577796e6851175d5eb89331068a`.
+The accepted fresh four-entry result is
+`peer-retry-corpus-accepted-261001/corpus-results.json`. Ninety pinned fixtures
+include the complete original counter cases and100 selected live rows. O0/O2
+checks reject ten damaged provenance/input/state/completion variants each.
+The engine owns the peer20 fine-reset/coarse-retention transaction and public
+saved continuation; full source admission, other blocked-vector kinds, group
+producers, terminal/perimeter ownership and stock crowds remain separate.

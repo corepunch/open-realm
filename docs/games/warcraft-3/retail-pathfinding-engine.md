@@ -3610,3 +3610,81 @@ umbrella suite passes, including154 pathfinding Python checks. Forced release
 and debug `openwarcraft3` builds pass without compiler warnings. The ability
 audit,237-entry corpus inventory, exact four-entry fresh replay, backlog IDs/
 counts/area totals and243 local documentation links pass.
+
+
+## Payoff32: blocked fine-leg retry and retained coarse plan
+
+`Move` now follows admitted original165c60 fine-progress retries: a nonempty
+next-step blocker vector assigning peer20 without a requester wait restores the caller's final
+goal, turns from its predicted native source, stops committed velocity, and
+resets only fine count/index. The coarse count/index/points remain owned for
+refill on the next thinker. Requester4 acquisition retains the fine waypoint;
+peer20 acquisition reaches this retry branch. Empty admitted progress clears
+retry/delay too, as original167070/1687e0 do. Move handles the held decision
+before route-pending and legacy settle branches can bypass the velocity commit.
+
+`wc3_pathing_retry.h` ports complete1689d0/167290 null-target scalar state.
+**Source-minus-adjusted-goal** is intentional: software subtraction truncation
+makes opposite operand orders differ at the144 threshold. Count2 consumes no
+random draw when distance-squared<=144 and unsigned group count<=1; otherwise
+1d62b0 takes bit22 of the owner's next word for7/8. Public GetRandomInt instead
+uses multiply-high and is not this operation. Consumption retains count1 and
+buffers for result4; all other counts clear only fine buffers and decrement for
+result1. Production currently uses the admitted-progress result1 transaction;
+index0 terminal/perimeter and direct-flow owner transitions remain open.
+Engine cohorts supply group members until the original membership producer is
+ported; this does not certify original groups or multi-unit cycles.
+
+Complete original registered-group oracle336 initializations and2016 transitions
+match production C, including owner words and native threshold boundaries:
+`runtime/peer-retry-full-engine-first-261001.json`, sequence
+`0365fb3e93fd856a73f2944858a0c465e802bad1bd862e712d4a74fd5a91cc09`.
+The frozen `retail-peer-retry-1.27.json` runs at O0/O2 without assets.
+The actual wall-detour regression first failed six movement/buffer assertions;
+now20/20 pass. The public JASS order regression runs120 actual scheduler ticks,
+then repeats after save/load:1467 assertions and1440 exact recorded state words,
+including positions, committed velocities, facing, retry/order and owner PRNG.
+Both actors resume, peer delay expires, and requester progress exceeds64 units.
+Save71 persists retry_count through the normal field table and rejects save70;
+network and JASS snapshot formats are unchanged.
+
+Ghidra `WC3PathPrefix+98` is now typed retry_count, and1689d0/167290 have explicit
+ECX-path/stack4-source/RET4 ABI. The472 names retain31 layouts,178 fields,196 prototypes and44 globals;
+070850 source-minus-point distance and1d62b0 mantissa-range draws now have saved
+roles and exact fastcall/stdcall storage, preventing renewed numerical confusion. This strengthens ROUTE-05.3 rather than
+closing full cycle resolution, group-bit8, target perimeter or denied scheduling.
+
+
+The broader regression suite exposed the remaining source-admission dependency:
+a stationary16-radius actor at60,0 overlaps the mover's quantized fine footprint
+at0,0 although their collision circles do not touch. Unconditionally retrying
+all nonempty vectors makes this legacy admitted source refill indefinitely.
+Payoff32 therefore ports **actual peer20 assignments on an admitted fine leg**;
+other terrain/idle/ineligible vectors retain existing engine steering pending
+original footprint admission/recovery. The existing idle-detour regression
+remains required. This is explicit ROUTE-03 scope, not full165c60 parity.
+
+
+Read-only Frida retry inputs now retain source/adjusted-goal words, actual
+registered group size and owner PRNG before/after. Two complete owned crowd
+captures each replay42 initializations and55 transitions, including eight
+terminal count1 calls, with exact digest
+`b22624f045c5916d77deae4f2c07ed815a42a577796e6851175d5eb89331068a`:
+`runtime/peer-retry-live-{first,repeat}-261001.jsonl` and
+`runtime/peer-retry-live-strict-261001.json`. Observer SHA256
+`32c10a2c9cf70d0cff5bf6f480256f65ed004629e22548d5d13d9db21dfd71b0`;
+map/creator identities remain the recorded crowd source. The corpus has240
+entries,95 original contracts,112 archive audits,33 live contracts and90 fixtures.
+The saved Ghidra ABI/field readback is
+`runtime/peer-retry-ghidra-readback-final-261001.json`.
+
+
+Final payoff32 checks: release and forced debug (`WC3_DEBUG_BUILD=1`) RoC/TFT
+both pass82423 assertions in2290 engine tests, including the idle detour and
+live retry field/version rejection. Forced release production and test binaries
+build cleanly; `make BUILD=release test` passes the umbrella. All156 Python
+pathfinding tests, the fresh four-entry retry corpus,240-entry inventory,
+ability audit, unchanged109/291 backlog accounting and relative file links pass.
+No engine/client/network boundary changed. Original full retry kernels are exact
+within their supplied null-target inputs; production coverage remains the
+peer20 admitted fine-leg transaction described above.

@@ -14,6 +14,7 @@
  */
 #include "s_skills.h"
 #include "games/warcraft-3/common/wc3_pathing_yield.h"
+#include "games/warcraft-3/common/wc3_pathing_retry.h"
 #include "games/warcraft-3/common/wc3_math.h"
 #include "games/warcraft-3/common/wc3_pathing_arrival.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
@@ -832,6 +833,37 @@ static float unit_desired_heading(edict_t *self, float goal_angle, float dist,
     return CM_SlideRoute(&slide);
 }
 
+/* Countdown and fine-retry callers restore the final destination before
+ * turning. Keep subtraction in native coordinates, before world publication. */
+static void move_hold_goal_heading(edict_t *self) {
+    wc3GridPose_t pose; unit_predicted_pose(self,&pose);
+    float x=wc3_grid_coordinate(self->goalentity->s.origin2.x,pose.origin[0],32);
+    float y=wc3_grid_coordinate(self->goalentity->s.origin2.y,pose.origin[1],32);
+    float heading=wc3_vector_heading(wc3_sub(x,pose.grid[0]),wc3_sub(y,pose.grid[1]));
+    self->movement.heading=heading; unit_turn_toward(self,heading);
+    self->movement.turn_blocked=true;
+}
+
+/* Original167290 resets the fine leg only; retaining the coarse route lets
+ * the following thinker refill around the peer that has now stopped. */
+static void move_retry_fine(edict_t *self) {
+    moveFineRoute_t *route=&self->movement.fine_route;
+    wc3GridPose_t pose; unit_predicted_pose(self,&pose);
+    wc3RetryInput_t in={{pose.grid[0],pose.grid[1]},
+        {route->points[0].x,route->points[0].y},1};
+    /* TODO GROUP: engine cohorts supply members until the original group
+     * activation/membership producer replaces the current selection owner. */
+    if (self->movement.group_id) {
+        in.members=0;
+        FILTER_EDICTS(peer,peer->inuse && peer->movement.group_id==self->movement.group_id) in.members++;
+    }
+    uint32_t result=wc3_retry_advance(&self->movement.retry_count,&in,&level.pathing_random);
+    assert(result==1); /* admitted fine progress clears the budget before collection */
+    route->count=0; route->index=UINT32_MAX;
+    self->movement.path.valid=false;
+    move_hold_goal_heading(self);
+}
+
 static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy_t policy) {
     self->movement.turn_blocked = false;
     float const dirlen = Vector2_len(dir);
@@ -850,17 +882,38 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
         if (self->movement.path.valid && route->count && route->index<route->count) {
             point[0]=route->points[route->index].x; point[1]=route->points[route->index].y; fine=point;
         }
+        /* 167070/1687e0 clear retry and delay before collection, including
+         * empty vectors. TODO ROUTE: index0 arrival/perimeter and direct-flow
+         * callers still need their complete original owner transitions. */
+        bool progress=fine && route->index>0;
+        if (fine && !progress) {
+            wc3GridPose_t pose; unit_predicted_pose(self,&pose);
+            float x=wc3_sub(pose.grid[0],fine[0]),y=wc3_sub(pose.grid[1],fine[1]);
+            float range=wc3_float(0x3efae148);
+            progress=wc3_add(wc3_mul(x,x),wc3_mul(y,y))>wc3_mul(range,range);
+        }
+        if (progress) self->movement.retry_count=self->movement.wait_delay=0;
         edict_t *blockers[32];
         uint32_t count=G_CollectUnitMoveStepBlockers(&query,fine,blockers);
-        if (count) wait=S_ResolveMoveBlockers(self,blockers,count);
+        if (count) {
+            wc3YieldDecision_t choice=S_ResolveMoveBlockers(self,blockers,count);
+            wait=choice==WC3_YIELD_SELF || self->movement.wait_delay;
+            if (progress && !wait && choice==WC3_YIELD_PEER) {
+                move_retry_fine(self);
+                return;
+            }
+            /* TODO ROUTE-03: other nonempty vectors also retry in retail.
+             * Their owner/source admission is not ported: the current circle
+             * validator can admit a source overlapping an idle fine footprint,
+             * so its refill repeats forever. Keep that owner's existing steering
+             * until footprint admission/recovery supplies a legal fine source. */
+        }
     }
     if (wait) {
         self->movement.heading=goal_angle; unit_turn_toward(self,goal_angle);
         self->movement.turn_blocked=true;
         return;
     }
-    /* TODO ROUTE-03/05: a peer20 assignment still uses engine collision steering;
-     * original165c60's caller-destination restoration/retry remains unported. */
     float const desired = unit_desired_heading(self, goal_angle,
                                                 unit_movedistance(self), policy);
     self->movement.heading = desired;
@@ -903,8 +956,9 @@ void S_FreeMoveRoute(edict_t *self) {
 }
 
 /* Original168360 clears the requester identity, keeps prior delay and scans in order. */
-bool S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count) {
+wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count) {
     self->movement.wait_blocker=NULL;
+    wc3YieldDecision_t result=WC3_YIELD_SKIP;
     float velocity[]={self->movement.velocity.x,self->movement.velocity.y};
     FOR_LOOP(i,count) {
         edict_t *peer=blockers[i];
@@ -919,14 +973,15 @@ bool S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t cou
         if (choice==WC3_YIELD_SELF) {
             self->movement.wait_blocker=peer;
             self->movement.wait_delay=MAX(self->movement.wait_delay,4u);
-            return true;
+            return WC3_YIELD_SELF;
         }
         if (choice==WC3_YIELD_PEER) {
             peer->movement.wait_blocker=self;
             peer->movement.wait_delay=MAX(peer->movement.wait_delay,20u);
+            result=WC3_YIELD_PEER;
         }
     }
-    return false;
+    return result;
 }
 
 /* Keep the bounded point-route turn until it is reached; retail likewise owns
@@ -1006,12 +1061,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         /* Original165ae0's countdown leaves the caller destination unchanged.
          * 16fbd0 subtracts it from the predicted native source, before world
          * projection; acquisition-time waits separately retain the waypoint. */
-        wc3GridPose_t pose; unit_predicted_pose(self,&pose);
-        float x=wc3_grid_coordinate(self->goalentity->s.origin2.x,pose.origin[0],32);
-        float y=wc3_grid_coordinate(self->goalentity->s.origin2.y,pose.origin[1],32);
-        float heading=wc3_vector_heading(wc3_sub(x,pose.grid[0]),wc3_sub(y,pose.grid[1]));
-        self->movement.heading=heading; unit_turn_toward(self,heading);
-        self->movement.turn_blocked=true;
+        move_hold_goal_heading(self);
         return;
     }
     if (move_displacement_steer(self, policy))
@@ -1511,6 +1561,7 @@ void move_reset_progress(edict_t *self) {
     self->movement.worker_avoid_blocked_frames = 0;
     self->movement.worker_avoid_active = false;
     self->movement.wait_delay=0;
+    self->movement.retry_count=0;
     self->movement.wait_blocker=NULL;
     self->movement.group_id = 0;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
@@ -2019,6 +2070,10 @@ static void ai_move_walk(edict_t *ent) {
          * this behavior treats an unresolved route as terminal. */
         unit_changeangle(ent);
 
+        if (ent->movement.turn_blocked) {
+            unit_moveindirection(ent);
+            return;
+        }
         if (ent->movement.flow_unreachable) {
             vec2_t approach;
             vec2_t direction;

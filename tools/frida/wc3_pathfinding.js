@@ -932,29 +932,47 @@ function install(module) {
             if (counts[kind] <= 16) emit(kind, {map: this.context.ecx.toString(), caller: this.returnAddress.sub(base).toString()});
         }});
     }
+    /* Read the same registered group used by1689d0 without calling any game
+     * routine. Raw native inputs and owner words permit exact C replay. */
+    const retryInput = (path, source) => {
+        const mover=base.add(0xd53a8c).readPointer(), id=mover.add(0x9c).readU32();
+        const generation=mover.add(0xa0).readU32(), registry=base.add(0xd68610).readPointer();
+        const alternate=!!(id&0x80000000), index=id&0x7fffffff;
+        if (index>=registry.add(alternate?0x3c:0x1c).readU32()) throw new Error('retry group outside registry');
+        const group=registry.add(alternate?0x2c:0xc).readPointer().add(index*8+4).readPointer();
+        if (group.isNull() || group.add(0x14).readU32()!==id || group.add(0x18).readU32()!==generation)
+            throw new Error('retry group identity mismatch');
+        return {nativeSource:ints(source,2).map(v=>v>>>0),
+            nativeGoal:ints(path.add(0x24),2).map(v=>v>>>0),
+            members:group.add(0x38).readU32(), group:group.toString(), mover:mover.toString(),
+            ownerBefore:ints(base.add(0xd53a48).readPointer(),2).map(v=>v>>>0)};
+    };
     hook(0x1689d0, {
         onEnter(args) {
             this.path = this.context.ecx;
             this.row = {path: this.path.toString(), position: [args[0].readFloat(), args[0].add(4).readFloat()],
                 adjusted: [this.path.add(0x24).readFloat(), this.path.add(0x28).readFloat()],
-                thresholdSquared: base.add(0xd54190).readFloat()};
+                thresholdSquared: base.add(0xd54190).readFloat(), ...retryInput(this.path,args[0])};
         },
         onLeave() {
             bump('retry-init');
             if (counts['retry-init'] <= config.samples)
-                emit('retry-init', {...this.row, count: this.path.add(0x98).readU32()});
+                emit('retry-init', {...this.row, count: this.path.add(0x98).readU32(),
+                    ownerAfter:ints(base.add(0xd53a48).readPointer(),2).map(v=>v>>>0)});
         }
     });
     hook(0x167290, {
-        onEnter() {
+        onEnter(args) {
             this.path = this.context.ecx;
             this.before = this.path.add(0x98).readU32();
+            this.row={...retryInput(this.path,args[0]),target:ints(this.path.add(0xa4),2).map(v=>v>>>0)};
         },
         onLeave(ret) {
             bump('retry-result');
             if (counts['retry-result'] <= config.samples)
-                emit('retry-result', {path: this.path.toString(), before: this.before,
+                emit('retry-result', {...this.row,path: this.path.toString(), before: this.before,
                     after: this.path.add(0x98).readU32(), result: ret.toInt32(),
+                    ownerAfter:ints(base.add(0xd53a48).readPointer(),2).map(v=>v>>>0),
                     counter: base.add(0xd53a48).readPointer().add(0x538).readU32()});
         }
     });

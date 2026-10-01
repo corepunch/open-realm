@@ -424,7 +424,7 @@ repeats600 saved continuation frames exactly. See
 Ordinary Move now collects next-step moving blockers and applies the original
 committed-velocity yield policy: requester waits at least4 eligible advances,
 or the slower same-player peer waits at least20. Candidate order and earlier
-peer side effects are retained. Save70 preserves live waits and blocker
+peer side effects are retained. Save71 preserves live waits and blocker
 references; removal clears references without cancelling the remaining delay.
 The public Move/save/removal regression and two exact retail decision repeats
 are recorded in [ordered moving waits](retail-pathfinding-engine.md#ordered-moving-waits-reach-ordinary-move).
@@ -438,3 +438,12 @@ save/load exactly before movement resumes. See
 [native waiting headings](retail-pathfinding-engine.md#waiting-headings-preserve-the-native-caller)
 for complete original callers and two live repeats; acquisition-time waypoint
 selection and peer retry remain separate work.
+
+
+Peer20 fine-route retries now restore the final-goal heading and stop the
+requester before another step, clear its fine leg and retain its coarse route
+for the next thinker. Save71 stores retry_count and all ordinary wait/route
+state. The public-order regression resumes through actual frames and repeats
+1440 state words after load. Source-footprint admission is still required before
+porting every idle/terrain/ineligible retry: circle-valid sources can overlap
+quantized fine footprints. See [the verified peer retry and remaining scope](retail-pathfinding-engine.md#payoff32-blocked-fine-leg-retry-and-retained-coarse-plan).

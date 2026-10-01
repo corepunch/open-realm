@@ -10,6 +10,24 @@
 #include "games/warcraft-3/common/wc3_pathing_repulsion.h"
 #include "games/warcraft-3/common/wc3_pathing_adaptive.h"
 #include "games/warcraft-3/common/wc3_pathing_yield.h"
+#include "games/warcraft-3/common/wc3_pathing_retry.h"
+
+/* Complete retry inputs retain native source/adjusted goal and owner words. */
+void pathing_retry_init(uint32_t const input[7], uint32_t output[3]) {
+    wc3RetryInput_t in={{wc3_float(input[0]),wc3_float(input[1])},
+        {wc3_float(input[2]),wc3_float(input[3])},input[4]};
+    wc3Random_t random={input[5],input[6]};
+    output[0]=wc3_retry_init(&in,&random); output[1]=random.sum; output[2]=random.index;
+}
+
+void pathing_retry_advance(uint32_t const input[8], uint32_t output[4]) {
+    wc3RetryInput_t in={{wc3_float(input[1]),wc3_float(input[2])},
+        {wc3_float(input[3]),wc3_float(input[4])},input[5]};
+    wc3Random_t random={input[6],input[7]};
+    uint32_t count=input[0];
+    output[0]=wc3_retry_advance(&count,&in,&random); output[1]=count;
+    output[2]=random.sum; output[3]=random.index;
+}
 
 /* Four supplied hierarchy levels, exact source/goal words and ordinary size1/2 route policy. */
 void pathing_adaptive_route(uint32_t const input[8], uint8_t const *classes, uint32_t *output) {

@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Original retry consumption and post-distance retry selection; no stubs.
+"""Original complete retry initialization and consumption; no replaced routines.
 
-Full terminal routine with null target and pre-existing nonzero retry count.
-Selection slices supply the computed squared distance and resolved group;
-original owner PRNG executes. Does not emulate group-handle resolution.
+Complete native-source distance, registered mover/group lookup and owner PRNG
+calls cover initialization and null-target terminal consumption. Historical
+post-distance selection slices remain explicit controls. Target perimeter,
+group-membership producers and full crowd scheduling remain separate.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
 import struct
 from pathlib import Path
+from verify_wc3_pathing_numeric import bits, initialize_runtime_scalars
 
 
 def main():
@@ -19,6 +22,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine', type=Path)
+    parser.add_argument('--fixture', type=Path)
     args = parser.parse_args()
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
@@ -108,7 +113,62 @@ def main():
         assert values == [[1, n] for n in range(initial - 1, 0, -1)] + [[4, 1], [4, 1]]
         sequences[initial] = values
 
+    # Complete initialization and terminal consumption with actual registered
+    # mover/group resolution, original native distance arithmetic and owner draws.
+    startup=initialize_runtime_scalars(machine,stack,stop)
+    registry,slots,mover,point,storage=[system+n for n in (0x3000,0x3100,0x4000,0x5000,0x6000)]
+    write(0x6fd68610,registry);write(registry+0xc,slots);write(registry+0x1c,2);write(registry+0x3c,0)
+    for index,obj in enumerate([mover,group]):
+        write(slots+index*8,-2,obj);write(obj+0x14,index,100+index)
+    write(mover+0x9c,1,101);write(mover+0xa8,system);write(0x6fd53a8c,mover)
+    engine=ctypes.CDLL(str(args.engine.resolve())) if args.engine else None
+    if engine:
+        engine.pathing_retry_init.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.POINTER(ctypes.c_uint32)]
+        engine.pathing_retry_advance.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.POINTER(ctypes.c_uint32)]
+    init_rows=[];advance_rows=[]
+    origins=[(0,0),(struct.unpack('<f',struct.pack('<I',0x3fb7b01a))[0],1.789),(8.125001,8.49999)]
+    deltas=[(0,0),(11.999999046,0),(12,0),(12.00000095,0),(8,8),(16,0),(-8,-8)]
+    for origin,delta,members,seed in itertools.product(origins,deltas,[0,1,2,10],[0,1,0x12345678,0xffffffff]):
+        native=[bits(v) for v in origin];goal=[bits(origin[k]+delta[k]) for k in range(2)]
+        write(point,*native);write(system+0x24,*goal);write(group+0x38,members);write(owner,seed,0)
+        write(system+0x98,0)
+        run(0x6f1689d0,system,point)
+        output_words=[read(system+0x98)[0],*read(owner,2)]
+        assert output_words[0] in (2,7,8)
+        assert (output_words[1:]==[seed,0])==(output_words[0]==2)
+        supplied=[*native,*goal,members,seed,0]
+        if engine:
+            out=(ctypes.c_uint32*3)();engine.pathing_retry_init((ctypes.c_uint32*7)(*supplied),out)
+            assert list(out)==output_words,(supplied,list(out),output_words)
+        init_rows.append(dict(input=supplied,output=output_words))
+        for initial in [0,1,2,7,8,0xffffffff]:
+            write(system+0x40,storage);write(storage,*goal,*native,*goal)
+            write(system+0x50,3);write(system+0x70,5,2,4)
+            write(system+0x88,0x30100000);write(system+0x94,7,initial);write(system+0xa4,0)
+            write(owner,seed,0)
+            run(0x6f167290,system,point)
+            from unicorn.x86_const import UC_X86_REG_EAX
+            output_words=[machine.reg_read(UC_X86_REG_EAX),read(system+0x98)[0],
+                          read(system+0x50)[0],*read(system+0x74,2),read(system+0x70)[0],
+                          read(system+0x88)[0],read(system+0x94)[0],*read(owner,2)]
+            assert output_words[0]==(4 if initial==1 else 1)
+            assert output_words[2:8]==([3,2,4,5,0x30100000,7] if initial==1 else
+                                        [0,0xffffffff,4,5,0x30000000,7])
+            supplied=[initial,*native,*goal,members,seed,0]
+            if engine:
+                out=(ctypes.c_uint32*4)();engine.pathing_retry_advance((ctypes.c_uint32*8)(*supplied),out)
+                assert list(out)==[output_words[0],output_words[1],*output_words[-2:]]
+            advance_rows.append(dict(input=supplied,output=output_words))
+    sequence=hashlib.sha256(json.dumps([init_rows,advance_rows],separators=(',',':')).encode()).hexdigest()
+    if args.fixture:
+        args.fixture.write_text(json.dumps(dict(version=1,binary_sha256=digest,
+            scope='Complete original retry init/advance with null target, registered groups and supplied native sources; no substituted routines.',
+            source_entries=['6f1689d0','6f167290'],initializations=init_rows,advances=advance_rows),separators=(',',':'))+'\n')
     report = dict(binary_sha256=digest, scope=__doc__, passed=True,
+                  complete_init_cases=len(init_rows),complete_advance_cases=len(advance_rows),startup=startup,
+                  engine_exact_init_cases=len(init_rows) if engine else 0,
+                  engine_exact_advance_cases=len(advance_rows) if engine else 0,
+                  complete_word_sequence_sha256=sequence,
                   selection_cases=selection_cases, observed_initial_counts=sorted(selected), consume_cases=consume_cases, sequences=sequences)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))

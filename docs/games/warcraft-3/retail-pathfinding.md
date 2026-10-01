@@ -39,8 +39,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists31 partial layouts,177 verified
-  fields and192 instruction-established prototypes with explicit register/stack
+  `MapPathfindingTypes.java` also persists31 partial layouts,178 verified
+  fields and196 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -50,9 +50,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  470 function names/comments applied and saved. Latest waiting-caller readbacks:
-  `runtime/wait-heading-ghidra-readback-261001.json` and
-  `runtime/wait-heading-types-261001.json`. Names are recovered roles, not original debug symbols;
+  472 function names/comments applied and saved. Latest retry readbacks:
+  `runtime/peer-retry-ghidra-readback-final-261001.json` and
+  `runtime/peer-retry-types-final-261001.json`. Names are recovered roles, not original debug symbols;
   RTTI names are original. No inferred prototypes installed.
 - `MapPathfindingCRT.java` separately saves the exact sibling CRT byte/locale map:
   three partial types, eight function roles, seven global labels and the verified
@@ -257,3 +257,15 @@ arrivals, membership2→1→0, complete cleanup and46 exact production-C commits
 retain maskless negative and open/reversal states, including retained rebuild
 metadata. Other movement profiles and the full ability-notification class graph
 remain BASE-02.1/BASE-03.1.
+
+
+### Engine payoff32: peer-assignment retry
+
+Complete original retry initialization/consumption now matches production C
+for336/2016 cases, plus two complete97-call live repeats with exact native
+source/adjusted-goal, registered group count and owner random state. Move ports
+peer20 fine-leg invalidation, retained coarse-route refill, final-goal heading
+and stopped velocity; public JASS/scheduler/save71 continuation repeats1440 state
+words. See [engine transaction and admission limit](retail-pathfinding-engine.md#payoff32-blocked-fine-leg-retry-and-retained-coarse-plan).
+Other nonempty vectors still require original source-footprint admission/recovery;
+this does not close full terrain/idle retries, group producers or crowd cycles.

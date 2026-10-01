@@ -26,6 +26,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "games/warcraft-3/common/terrain.h"
+#include "games/warcraft-3/common/wc3_pathing_segment.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -1722,21 +1723,137 @@ TEST(wc3_movement, moving_blocker_yield_uses_original_velocity_policy) {
     self->unitinfo.MoveSpeed=100; peer->unitinfo.MoveSpeed=400;
     self->movement.velocity=(vec2_t){256,0}; peer->movement.velocity=(vec2_t){64,0};
     edict_t *candidates[]={peer};
-    T_ASSERT(!S_ResolveMoveBlockers(self,candidates,1));
+    T_EQ(S_ResolveMoveBlockers(self,candidates,1),WC3_YIELD_PEER);
     T_EQ(peer->movement.wait_delay,20); T_EQ(peer->movement.wait_blocker,self);
     T_EQ(self->movement.wait_delay,0); T_EQ(self->movement.wait_blocker,NULL);
     /* The first decision must persist on the peer: a second visit skips it. */
     self->movement.velocity=(vec2_t){32,0};
-    T_ASSERT(!S_ResolveMoveBlockers(self,candidates,1));
+    T_EQ(S_ResolveMoveBlockers(self,candidates,1),WC3_YIELD_SKIP);
     /* A new order owns a fresh wait/blocker state. */
     unit_stand(peer); T_ASSERT(unit_issueorder(peer,"move",&goal));
     peer->movement.velocity=(vec2_t){64,0};
-    T_ASSERT(S_ResolveMoveBlockers(self,candidates,1));
+    T_EQ(S_ResolveMoveBlockers(self,candidates,1),WC3_YIELD_SELF);
     T_EQ(self->movement.wait_delay,4); T_EQ(self->movement.wait_blocker,peer);
     self->movement.wait_delay=25;
-    T_ASSERT(S_ResolveMoveBlockers(self,candidates,1)); T_EQ(self->movement.wait_delay,25);
+    T_EQ(S_ResolveMoveBlockers(self,candidates,1),WC3_YIELD_SELF); T_EQ(self->movement.wait_delay,25);
     G_FreeEdict(peer); T_EQ(self->movement.wait_blocker,NULL); T_EQ(self->movement.wait_delay,25);
     reset_entities(); setup_test_world();
+}
+
+/* After assigning a peer20 wait, original165c60 restores the final caller goal
+ * and167290 clears only fine storage. The current advance stops; coarse state
+ * remains owned for the next admitted refill. */
+TEST(wc3_movement, peer_yield_retries_fine_route_and_restores_goal) {
+    edict_t *self=make_moving_unit(136,152); self->collision=16; self->s.model=1;
+    level.waypoints=(typeof(level.waypoints)){0};
+    uint8_t cells[64*64]={0}; FOR_LOOP(y,41) cells[y*64+20]=2;
+    box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    vec2_t goal={1512,152}; T_ASSERT(unit_issueorder(self,"move",&goal));
+    self->unitinfo.TurnSpeed=self->unitinfo.PropWindow=6;
+    self->unitinfo.move_flags|=BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+    unit_changeangle(self);
+    moveFineRoute_t *curve=&self->movement.fine_route;
+    T_ASSERT(self->movement.path.valid); T_ASSERT(curve->count>1); T_ASSERT(curve->adaptive_count>0);
+    if (!curve->count || !curve->adaptive_count) return;
+    vec2_t source={4.25f,4.75f}, point=curve->points[curve->index];
+    wc3FineSegment_t segment={.start={source.x,source.y},
+        .direction={wc3_sub(point.x,source.x),wc3_sub(point.y,source.y)}};
+    wc3_segment_normalize(segment.direction);
+    wc3FinePoint_t next=wc3_segment_point(&segment,1);
+    edict_t *peer=alloc_test_unit(MAKEFOURCC('h','p','e','a'),(next.x+.5f)*32,(next.y+.5f)*32);
+    peer->movetype=MOVETYPE_STEP; peer->stand=unit_stand; peer->die=unit_die; peer->collision=16;
+    peer->s.model=1; unit_stand(peer); T_ASSERT(unit_issueorder(peer,"move",&goal)); gi.LinkEntity(peer);
+    self->movement.velocity=(vec2_t){64,0}; peer->movement.velocity=(vec2_t){32,0};
+    self->s.angle=0; self->movement.wait_delay=0;
+    edict_t *candidates[32]; float fine[]={point.x,point.y};
+    movePathQuery_t query={{&self->s.origin2,&goal,self->collision,M_UnitStaticPathingFlags(self)},self,self->goalentity,true,&source};
+    uint32_t count=G_CollectUnitMoveStepBlockers(&query,fine,candidates); bool found=false;
+    FOR_LOOP(i,count) found|=candidates[i]==peer;
+    T_ASSERT(found);
+    uint32_t coarse_count=curve->adaptive_count,coarse_index=curve->adaptive_index;
+    vec2_t *coarse=malloc(coarse_count*sizeof(*coarse)); T_NOT_NULL(coarse);
+    if (!coarse) return;
+    memcpy(coarse,curve->adaptive_points,coarse_count*sizeof(*coarse));
+    unit_changeangle(self); unit_moveindirection(self);
+    T_EQ(peer->movement.wait_delay,20); T_EQ(peer->movement.wait_blocker,self);
+    T_EQ(self->movement.wait_delay,0); T_EQ(self->movement.wait_blocker,NULL);
+    T_ASSERT(self->movement.turn_blocked); T_EQ(wc3_float_bits(self->movement.heading),0x3b508f4bu);
+    T_EQ(self->movement.velocity.x,0); T_EQ(self->movement.velocity.y,0);
+    T_EQ(curve->count,0); T_ASSERT(!self->movement.path.valid);
+    T_EQ(curve->adaptive_count,coarse_count); T_EQ(curve->adaptive_index,coarse_index);
+    T_EQ(memcmp(coarse,curve->adaptive_points,coarse_count*sizeof(*coarse)),0);
+    free(coarse); reset_entities(); setup_test_world();
+}
+
+/* Public orders retry an obstructed fine leg, retain its coarse plan across a
+ * save and resume through the actual movement thinker rather than a helper. */
+TEST(wc3_movement, public_peer_retry_save_and_resume) {
+    reset_entities(); setup_test_world();
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,8};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[64*64]={0}; FOR_LOOP(y,41) cells[y*64+20]=2;
+    box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nunit peer\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',136,152,0)\n"
+        "set peer=CreateUnit(Player(0),'hRTE',1700,1700,0)\n"
+        "call IssuePointOrder(mover,\"move\",1512,152)\nendfunction\n"
+        "function go takes nothing returns nothing\n"
+        "call IssuePointOrder(peer,\"move\",1512,152)\nendfunction\n"));
+    edict_t *unit=NULL,*peer=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+        if (ent->s.origin2.x==136) unit=ent; else peer=ent;
+    }
+    T_NOT_NULL(unit); T_NOT_NULL(peer);
+    if (!unit || !peer) return;
+    unit->collision=peer->collision=16;
+    unit->unitinfo.TurnSpeed=unit->unitinfo.PropWindow=6;
+    unit->unitinfo.move_flags|=BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+    unit_changeangle(unit);
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    T_ASSERT(route->count>1); T_ASSERT(route->adaptive_count>0);
+    if (!route->count || !route->adaptive_count) return;
+    vec2_t point=route->points[route->index];
+    wc3FineSegment_t segment={.start={4.25f,4.75f},
+        .direction={wc3_sub(point.x,4.25f),wc3_sub(point.y,4.75f)}};
+    wc3_segment_normalize(segment.direction);
+    wc3FinePoint_t next=wc3_segment_point(&segment,1);
+    S_SetUnitAxisPosition(peer,0,(next.x+.5f)*32); S_SetUnitAxisPosition(peer,1,(next.y+.5f)*32);
+    unit_stand(peer);
+    jass_callbyname(level.vm,"go",false);
+    unit->movement.velocity=(vec2_t){64,0}; peer->movement.velocity=(vec2_t){32,0};
+    unit_changeangle(unit); unit_moveindirection(unit);
+    T_EQ(peer->movement.wait_delay,20); T_EQ(peer->movement.wait_blocker,unit);
+    T_EQ(route->count,0); T_EQ(route->index,UINT32_MAX); T_ASSERT(route->adaptive_count>0);
+    T_ASSERT(unit->movement.retry_count==6 || unit->movement.retry_count==7);
+    uint32_t retry=unit->movement.retry_count,coarse=route->adaptive_count;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file="/tmp/openwarcraft3-peer-retry-save.bin"; T_ASSERT(WriteGame(file));
+    uint32_t words[120][12];
+    FOR_LOOP(pass,2) {
+        bool resumed=false;
+        if (pass) {
+            T_ASSERT(ReadGame(file)); T_EQ(unit->movement.retry_count,retry);
+            T_EQ(route->count,0); T_EQ(route->index,UINT32_MAX); T_EQ(route->adaptive_count,coarse);
+            T_EQ(peer->movement.wait_delay,20); T_EQ(peer->movement.wait_blocker,unit);
+        }
+        FOR_LOOP(i,120) {
+            level.time+=30; globals.RunFrame();
+            uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
+                wc3_float_bits(unit->s.angle),unit->movement.retry_count,unit->current_order_id,
+                wc3_float_bits(peer->s.origin2.x),wc3_float_bits(peer->s.origin2.y),
+                peer->movement.wait_delay,level.pathing_random.sum,level.pathing_random.index};
+            if (pass) FOR_LOOP(j,12) T_EQ(row[j],words[i][j]); else memcpy(words[i],row,sizeof(row));
+            if (unit->movement.velocity.x || unit->movement.velocity.y) resumed=true;
+        }
+        T_ASSERT(resumed); T_EQ(peer->movement.wait_delay,0);
+        T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){136,152})>64);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    remove(file); level.started=false; reset_entities(); setup_test_world();
 }
 
 /* Complete original16fbd0 waiting calls retain their native source. The world

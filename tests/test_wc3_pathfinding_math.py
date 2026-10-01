@@ -32,6 +32,7 @@ from verify_wc3_stop_recovery_trace import verify as verify_stop_recovery, diges
 from verify_wc3_primary_clock import verify_primary, digest as primary_digest
 from verify_wc3_yield_trace import verify as verify_yield
 from verify_wc3_wait_heading_trace import verify as verify_wait_heading
+from verify_wc3_retry_trace import verify as verify_retry
 
 
 class PathingMathTests(unittest.TestCase):
@@ -59,6 +60,42 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_live_retry_words_and_rejected_incomplete_captures(self):
+        rows=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-peer-retry-1.27.json').read_text())['rows']
+        for engine in self.engines:
+            result=verify_retry(rows,engine)
+            self.assertEqual(result['counts'],{'retry-init':42,'retry-result':55})
+            self.assertEqual(result['digest'],'b22624f045c5916d77deae4f2c07ed815a42a577796e6851175d5eb89331068a')
+            for kind in ('source','input','members','owner','result','target','missing','truncation','completion','error'):
+                changed=copy.deepcopy(rows)
+                init=next(r for r in changed if r['event']=='retry-init')
+                advance=next(r for r in changed if r['event']=='retry-result')
+                if kind=='source':changed[0]['source_sha256']['map']='z'*64
+                elif kind=='input':init['nativeGoal']=init['nativeSource'][:]
+                elif kind=='members':del init['members']
+                elif kind=='owner':init['ownerAfter'][0]^=1
+                elif kind=='result':advance['result']^=1
+                elif kind=='target':advance['target'][0]=1
+                elif kind=='missing':del init['nativeSource']
+                elif kind=='truncation':changed.remove(init)
+                elif kind=='completion':changed=[r for r in changed if r['event']!='marker']
+                else:changed.append(dict(event='error'))
+                with self.subTest(optimization=engine._name,case=kind),self.assertRaises(ValueError):
+                    verify_retry(changed,engine)
+
+    def test_complete_retry_native_distance_and_random_words(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-peer-retry-1.27.json').read_text())
+        self.assertEqual(len(frozen['initializations']),336)
+        self.assertEqual(len(frozen['advances']),2016)
+        for engine in self.engines:
+            for name,rows,n,k in [('init',frozen['initializations'],7,3),('advance',frozen['advances'],8,4)]:
+                proc=getattr(engine,'pathing_retry_'+name)
+                proc.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.POINTER(ctypes.c_uint32)]
+                for row in rows:
+                    out=(ctypes.c_uint32*k)();proc((ctypes.c_uint32*n)(*row['input']),out)
+                    expected=row['output'] if name=='init' else row['output'][:2]+row['output'][-2:]
+                    self.assertEqual(list(out),expected)
 
     def test_live_waiting_caller_words_and_rejected_incomplete_captures(self):
         rows=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-wait-heading-1.27.json').read_text())['rows']

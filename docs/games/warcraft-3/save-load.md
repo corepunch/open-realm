@@ -678,7 +678,7 @@ query0, then resumes with an exact48-word continuation after load. See
 
 ### Current combat and cargo state
 
-Format70 writes the current entity struct directly through the normal Quake II field serializer. Attack target incarnation, cooldown/backswing deadlines, per-weapon backswing points and range buffers, and pending Cargo Drop state live in that record. The cargo goal uses the ordinary `F_EDICT` fixup; its initiating rawcode and goal spawn identity remain scalar state. Invalid external pointers on write or unallocated goal indexes on load are rejected.
+Format71 writes the current entity struct directly through the normal Quake II field serializer. Attack target incarnation, cooldown/backswing deadlines, per-weapon backswing points and range buffers, and pending Cargo Drop state live in that record. The cargo goal uses the ordinary `F_EDICT` fixup; its initiating rawcode and goal spawn identity remain scalar state. Invalid external pointers on write or unallocated goal indexes on load are rejected.
 
 All format-56 variants, including the former combat/cargo extensions and extensionless files, are rejected. There is no frozen entity projection, optional extension reader, or legacy propulsion-window migration. Explicit zero propulsion windows round-trip as authored runtime state.
 
@@ -699,7 +699,18 @@ policy uses that existing decision to retain Stand while blocked and resume Walk
 when admitted, avoiding a second host-float/post-turn gate.
 
 Payoff31's countdown heading consumes the existing retained native prediction;
-it changes no field meaning or layout. Save70 remains current. The public
+it changes no field meaning or layout. Payoff31 retained save70; payoff32 advances the current format to71. The public
 oblique-wait regression saves before four held ticks and repeats120 exact
 position/native pose/velocity/facing/heading/wait/order words after load, then
 proves that ordinary Move resumes.
+
+
+### Fine retry state (version71)
+
+`edictMovement_s.retry_count` stores original path98 through the normal `F_INT`
+field entry. Save71 rejects prior70 and all older layouts. Peer20 fine retry
+saves count6/7, fine count0/indexUINT32_MAX, retained coarse points/index and
+peer wait identity/delay. The public JASS order test restores that live state,
+refills through the real thinker and repeats120 ticks/1440 state words including
+the owner random state. A focused field round-trip and prior-version rejection
+run in ROC/TFT. Network and JASS snapshot formats remain unchanged.

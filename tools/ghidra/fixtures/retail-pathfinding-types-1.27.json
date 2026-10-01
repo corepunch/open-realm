@@ -425,6 +425,12 @@
           "evidence": "165ae0/retry oracle"
         },
         {
+          "offset": 152,
+          "name": "retry_count",
+          "type": "u32",
+          "evidence": "Complete1689d0/167290 native-source and registered-group oracle336/2016; engine retry transaction."
+        },
+        {
           "offset": 156,
           "name": "query_mask",
           "type": "u32",
@@ -4686,6 +4692,87 @@
         {
           "name": "destination",
           "type": "ptr:WC3PathVector2",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f1689d0",
+      "name": "Path_InitRetryCount",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Original RET4; ECX path, stack4 native source pointer; complete original336 init/2016 consumption, exact C owner words.",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f167290",
+      "name": "Path_CheckTargetOrRetry",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Original RET4; ECX path, stack4 native source pointer; complete original336 init/2016 consumption, exact C owner words.",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f070850",
+      "name": "Math_DistanceSquaredSourceMinusPoint",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__fastcall",
+      "evidence": "Original RET4 ECX output EDX point stack4 source; source-minus-point arithmetic and complete retry threshold/C oracle.",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3PathVector2",
+          "storage": "EDX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1d62b0",
+      "name": "PathRandom_DrawMantissaRange",
+      "returns": "i32",
+      "convention": "__stdcall",
+      "evidence": "Original PUSH frame stack8/12, SSE low23 mantissa scaling, RET8; complete retry owner-state oracle.",
+      "parameters": [
+        {
+          "name": "range",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "state",
+          "type": "ptr:WC3PathRandomState",
           "storage": 8
         }
       ]
