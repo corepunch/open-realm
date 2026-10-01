@@ -26,7 +26,6 @@ static uint8_t *move_acc_classes[4][4];
 static uint8_t const move_acc_masks[4] = {2,4,0x40,0x80};
 typedef struct { movePathQuery_t const *input; wc3FineVector_t source, target; moveFineRoute_t *route; } moveAdaptiveQuery_t;
 static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *out);
-static bool move_find_fine_route(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *out);
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
 static bool entity_is_live_walkable_surface(edict_t const *ent) {
@@ -486,7 +485,7 @@ static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
     return wc3_fine_cell_edges(&query, pos);
 }
 
-/* Long ordinary location orders retain adaptive turns; fine routing still owns the local handoff. */
+/* Ordinary owned paths enable adaptive search at activation, including nearby orders. */
 static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out) {
     movePathQuery_t const *input = query->input;
     wc3FineVector_t source = query->source, target = query->target;
@@ -511,9 +510,9 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
         FOR_LOOP(level,4) move_acc.maps[level].classes = move_acc_classes[lane][level];
         wc3AccRequest_t req = {{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
             {wc3_mul(target.x,.5f),wc3_mul(target.y,.5f)},
-            input->geometry.radius >= pathmap_cell_world_size() ? 2 : 1,BZ_WC3_FINE_WORK};
+            input->geometry.radius >= pathmap_cell_world_size() ? 2 : 1,BZ_WC3_UNIT_ACC_WORK};
         uint32_t result=wc3_acc_route(&move_acc,&req,move_acc_points),count=result&0x7fffffffu;
-        if (count<2) return false;
+        if (!count) return false;
         wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,count-1},false);
         assert(!selected.gate); /* Ordinary hierarchy search has no portal producer. */
         point=selected.index ? (wc3FineVector_t){wc3_mul(move_acc_points[selected.index].x,2),wc3_mul(move_acc_points[selected.index].y,2)} : target;
@@ -529,13 +528,13 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
     vec2_t local = move_world_from_grid(point.x,point.y);
     movePathQuery_t nearby = *input; nearby.geometry.target = &local;
     /* Coarse representatives lie within the next8-base-cell region; refine that local leg with live units. */
-    if (!move_find_fine_route(&nearby,query->route,out)) return false;
+    if (!G_BuildUnitMoveLocalRoute(&nearby,query->route,out)) return false;
     return true;
 }
 
 /* Reconstruct destination-first points, then use the original next-point /
  * progressively farther selection policy. Move retains the selected turn. */
-static bool move_find_fine_route(movePathQuery_t const *input, moveFineRoute_t *curve, vec2_t *out) {
+bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *curve, vec2_t *out) {
     if (!input) return false;
     pathAccelParams_t const *params = &input->geometry;
     vec2_t source, target;
@@ -562,7 +561,8 @@ static bool move_find_fine_route(movePathQuery_t const *input, moveFineRoute_t *
         graph.target_hit = &target_hit;
     }
     wc3FineRequest_t req = { .start = {start.x, start.y}, .goal = {goal.x, goal.y},
-        .width = pathmap.width, .height = pathmap.height, .budget = BZ_WC3_FINE_WORK,
+        .width = pathmap.width, .height = pathmap.height,
+        .budget = input->mover ? BZ_WC3_UNIT_FINE_WORK : BZ_WC3_FINE_WORK,
         .edges = move_fine_edges, .data = &graph, .target_hit = &target_hit };
     int at = wc3_fine_search(&move_fine, &req);
     bool complete = at >= 0;
@@ -612,9 +612,10 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
         route->adaptive_goal.x!=b.x || route->adaptive_goal.y!=b.y))
         route->adaptive_count=route->adaptive_index=0;
     int dx=abs((int)floorf(a.x)-(int)floorf(b.x)),dy=abs((int)floorf(a.y)-(int)floorf(b.y));
-    if ((route && route->adaptive_count) || dx>PATH_ACCEL_MAX_DISTANCE || dy>PATH_ACCEL_MAX_DISTANCE)
+    if ((input->units && input->mover) || (route && route->adaptive_count) ||
+        dx>PATH_ACCEL_MAX_DISTANCE || dy>PATH_ACCEL_MAX_DISTANCE)
         return move_adaptive_waypoint(&(moveAdaptiveQuery_t){input,{a.x,a.y},{b.x,b.y},route},out);
-    return move_find_fine_route(input,route,out);
+    return G_BuildUnitMoveLocalRoute(input,route,out);
 }
 
 /* A loaded world has a new process-local bake epoch, with its saved terrain and

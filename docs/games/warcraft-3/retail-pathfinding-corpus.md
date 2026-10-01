@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **228 entries**: **44** distinct original-code oracle
-scripts plus **48** declared variants, **106** archived JSONL audits and **30**
+The inventory now has **230 entries**: **44** distinct original-code oracle
+scripts plus **50** declared variants, **106** archived JSONL audits and **30**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 86 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 88 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 98 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -545,3 +545,22 @@ JSON canonicalization corrected that structural mismatch without changing words.
 The current inventory has213 entries (44 scripts,42 variants,100 archive audits,
 27 live contracts) and75 checksummed fixtures. Controlled radius/profile and
 elapsed inputs exclude stock producer and real primary-owner cadence claims.
+
+## Ordinary unit activation and maze budgets
+
+`unit-default-route-reference` freezes eight complete original165ae0 requests
+on two winding64-cell maps across four footprint classes. Original166060 enables
+adaptive routing with400 adaptive/700 fine attempts, even when source and goal
+are within48 cells. Engine world regressions compare every coarse/fine point and
+both indices, and a public Move reaches the unchanged destination through the
+full maze with600 exact saved continuation frames.
+
+`unit-fine-budget-reference` isolates original148100 on the same maps. All16
+700/2048 controls have different budget-dependent partial endpoints; production
+C matches the complete request headers and reconstructed words. The engine local
+leg builder retains the700-word witnesses independently of adaptive admission.
+Strict fresh replay is `unit-default-corpus-accepted-261001/corpus-results.json`.
+The inventory contains230 entries:94 oracles,106 archives,30 live contracts,
+with84 pinned repository fixtures. Group5000 composition, admission timing and
+full physical retail maze motion remain separate contracts. See
+[ordinary path defaults](retail-pathfinding-engine.md#ordinary-path-defaults-enable-adaptive-routing).

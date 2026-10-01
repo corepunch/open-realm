@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**107 done / 289 tasks; 182 remaining.** Counts describe this backlog,
+**108 done / 290 tasks; 182 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -18,7 +18,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 
 | Area | Done | Remaining |
 | --- | ---: | ---: |
-| BASE — Baseline and reproducibility | 15 | 10 |
+| BASE — Baseline and reproducibility | 16 | 10 |
 | MAP — Map construction and lifetime | 7 | 15 |
 | FOOT — Footprints and query policy | 6 | 8 |
 | FINE — Fine search | 6 | 6 |
@@ -35,6 +35,8 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | GATE — Way Gates | 1 | 10 |
 | E2E — Combined scenarios and handoff | 1 | 18 |
 | READY — Start the faithful replacement | 0 | 4 |
+
+BASE-02.7 explicitly adds the missing ordinary path-activation/adaptive-admission policy; the wider scheduler and group-budget contracts remain open.
 
 Update these counts when checking, adding or splitting a task. Report progress
 as **IDs closed + artifact + next runnable ID**, not additional raw test counts.
@@ -217,6 +219,8 @@ BASE-02.1's remaining full authored producer/lane/support-surface inventory.
 - [x] **BASE-02.5** Explicitly add the missing typed UnitData map-row producer discovered by MOVE-01.4: bind original/custom movement types, turn rate and window to created units, inherit original edits, preserve stable distinct rows and free/rebind at map cleanup. Evidence: [authored speed limits reach Move](retail-pathfinding-engine.md#authored-speed-limits-reach-move), actual disabled-owner public setter regression fails before the cache port and passes afterward; public custom amph/float/fly units use their authored terrain masks. Full retail authored producer/support-surface inventory remains02.1.
 
 - [x] **BASE-02.6** Explicitly split public SetUnitPathing's ordinary query/category policy from02.1's larger runtime producer inventory. Trace actual native/bridge getters/setters; false preserves occupancy while zeroing own query, true restores authored masks. Two complete four-toggle live Footman captures preserve categoryca/object010000ca and cross a static wall under queryzero. All182 motion/183 velocity-position-facing commits match C and repeat. Reproduce four engine failures, then preserve disabled neighbours/target identity and bypass a retained detour for the disabled mover; public frames, wall crossing, collision restoration and240 saved continuation words pass261 assertions. Evidence: [engine payoff25](retail-pathfinding-engine.md#public-pathing-toggle-separates-query-from-occupancy). Placement, blocked command destinations, other profiles, repulsion/fallbacks and whole live phase parity remain02.1/FOOT-04/SEP/E2E.
+
+- [x] **BASE-02.7** Explicitly add the ordinary path-activation policy discovered while testing budget exhaustion: recover166060's enabled adaptive flag and packed400/700 limits, distinguish group1678f0's5000 producer, and remove the engine's inherited48-cell adaptive admission gate for ordinary unit location Move. Eight full original maze requests match every coarse/fine word and both indices;16 isolated fine700/2048 requests prove budget-dependent partial endpoints. Reproduce32 full-route failures and a public maze stall; the public Move now reaches its unchanged goal, refills successive legs and repeats600 saved frames exactly. Evidence: [engine payoff29](retail-pathfinding-engine.md#ordinary-path-defaults-enable-adaptive-routing). Group-owned5000 composition, charged-work cadence, admission queues and full physical retail maze motion remain GROUP/SCHED/E2E.
 
 ### BASE-03 — Coverage inventory
 

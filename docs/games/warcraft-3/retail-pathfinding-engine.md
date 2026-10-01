@@ -3375,3 +3375,55 @@ ability coverage, backlog counts/IDs/areas, local links and `git diff --check`
 pass without C compiler warnings. Dynamic
 blockers/yielding, denied refills, complete physical retail long motion and portals
 remain explicit separate tasks.
+
+
+## Ordinary path defaults enable adaptive routing
+
+Engine payoff29 closes BASE-02.7, explicitly adding the ordinary activation
+policy discovered while reproducing budget-limited routing. Original166060
+`Path_Activate` writes flags88=200000, fine/coarse indices=-1 and packed
+limits84=019002bc:700 fine attempts and400 adaptive attempts. Path_Advance165ae0
+calls165b60 before165c60; the adaptive stage has no48-cell admission cutoff.
+Original1678f0 independently returns5000 for169840's group-owned path. Existing
+accepted public captures (`pathing-position-first/repeat-261001.jsonl`) record
+that actual sequence: group5000, member400, member fine700. Reusing those captures
+establishes the producer distinction; this change does not claim a new live maze
+capture or complete group-budget implementation. The144-distance branch in1689d0
+controls retry counting and does not admit the adaptive stage.
+
+The engine inherited PATH_ACCEL_MAX_DISTANCE=48 from its bounded nearby-routing
+policy. On a64-cell maze whose goal is43 cells east and39 north, that gate skips
+the original coarse route. With the original fine700 cap, successive partial
+fine endpoints stop advancing beyond a wall, leaving the public unit oscillating.
+The full original165ae0 oracle reproduces32 coarse/fine count/index failures in
+eight engine cases. Ordinary live unit queries now build adaptive routes before
+fine refinement and use400/700 attempt limits. Generic moverless queries retain
+their existing bounded request policy. The local leg procedure is exposed as
+G_BuildUnitMoveLocalRoute and used directly by the adaptive stage; it provides
+an independent entry point for the isolated148100 fine contract without a
+second routing implementation.
+
+Two original winding-map patterns across four classes produce eight complete
+coarse/fine handoffs. Every coordinate and both indices match the actual engine
+world builder:1,276 assertions. Sixteen isolated original fine700/2048 controls
+produce distinct partial endpoints and match the production C request kernel
+atO0/O2; the actual local builder matches638 assertions. The public JASS Move
+keeps its final destination(1512,1400), follows the unmodified four-wall maze,
+refills successive legs and arrives. Save/load repeats600 continuation frames
+with exact world/native position, velocity, heading, order and fine index:
+7,112 assertions. All201 movement cases pass40,232 assertions. Save68, JASS
+snapshot7 and the wire representation are unchanged.
+
+Frozen witnesses: `retail-unit-default-route-1.27.json` and
+`retail-unit-fine-budget-1.27.json`. Strict fresh replay is
+`unit-default-corpus-accepted-261001/corpus-results.json`, including the prior
+long-refill reference. Two new Ghidra roles and explicit ABIs are saved and read
+back in `runtime/unit-budget-ghidra-readback-261001.json` and
+`runtime/unit-budget-ghidra-types-261001.json`:466 names,182 prototypes,
+31 layouts/177 fields/44 globals. Scheduling queues, charged-work reset cadence,
+group-owned5000 composition and complete physical retail maze motion remain open.
+
+Validation: forced release RoC/TFT suites each pass80,251 assertions in2,240
+cases. The release umbrella, production executable build,150 pathfinding tool tests, ability coverage,
+backlog counts/unique IDs/area totals, fixture hashes, local links and
+`git diff --check` pass without C compiler warnings.

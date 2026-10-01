@@ -24,7 +24,7 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),92)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),94)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),106)
         self.assertEqual(sum(e['id'].startswith('live-') for e in entries),30)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
@@ -125,6 +125,35 @@ class CorpusTests(unittest.TestCase):
             self.assertEqual(row['steps'][-1]['coarse_index'],0)
             others=[r for r in frozen['cases'] if (r['fixture'],r['size_class'])==(row['fixture'],row['size_class'])]
             self.assertTrue(all({k:v for k,v in r.items() if k!='lane'}=={k:v for k,v in row.items() if k!='lane'} for r in others))
+
+    def test_default_unit_route_matches_complete_engine_buffers(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-unit-default-route-1.27.json').read_text())
+        source=(ROOT/'games/warcraft-3/game/tests/t_movement.c').read_text()
+        table=source.split('unit_default_words[]={',1)[1].split('};',1)[0]
+        words=[int(word,16) for word in re.findall(r'0x([0-9a-f]+)u',table)]
+        self.assertEqual(len(frozen['cases']),8)
+        self.assertEqual(words,[word for row in frozen['cases'] for word in row['coarse_words']+row['fine_words']])
+        for row in frozen['cases']:
+            self.assertEqual(row['limits'],(400<<16)|700)
+            self.assertGreater(row['coarse_count'],1)
+            self.assertLess(row['coarse_work'],400)
+            self.assertLess(row['fine_work'],700)
+            self.assertEqual(row['coarse_words'][-2:],[0x40080000,0x40180000])
+            self.assertEqual(row['fine_words'][-2:],row['source_bits'])
+
+    def test_ordinary_budget_partial_words_match_engine_reference(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-unit-fine-budget-1.27.json').read_text())
+        source=(ROOT/'games/warcraft-3/game/tests/t_movement.c').read_text()
+        table=source.split('unit_budget_words[]={',1)[1].split('};',1)[0]
+        words=[int(word,16) for word in re.findall(r'0x([0-9a-f]+)u',table)]
+        rows=[r for r in frozen['cases'] if r['budget']==700]
+        self.assertEqual(len(frozen['cases']),16);self.assertEqual(words,[word for row in rows for word in row['fine_words']])
+        for row in rows:
+            control=next(r for r in frozen['cases'] if (r['pattern'],r['size_class'],r['budget'])==(row['pattern'],row['size_class'],2048))
+            self.assertNotEqual(row['fine_words'][:2],control['fine_words'][:2])
+            self.assertEqual(row['pops'],701); self.assertEqual(row['result'],0)
+            self.assertEqual(row['fine_index'],row['fine_count']-2)
+            self.assertEqual(row['fine_words'][-2:],row['source_bits'])
 
     def test_inventory_rejects_missing_scripts_changed_fixtures_and_hidden_differences(self):
         with tempfile.TemporaryDirectory() as directory:

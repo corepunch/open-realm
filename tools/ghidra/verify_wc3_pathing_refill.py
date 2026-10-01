@@ -26,6 +26,10 @@ def main():
     parser.add_argument('--adaptive-progress-reference',type=Path,help='repeat controlled original coarse approach/refill transitions against frozen words')
     parser.add_argument('--adaptive-long-fixture',type=Path,help='export repeated nonzero coarse indices and fine refills on 128-cell maps')
     parser.add_argument('--adaptive-long-reference',type=Path,help='compare complete long-route refills against frozen original words')
+    parser.add_argument('--unit-budget-fixture',type=Path,help='export700/2048-attempt fine requests on a winding64-cell map')
+    parser.add_argument('--unit-budget-reference',type=Path,help='compare original winding partial-route budget outcomes')
+    parser.add_argument('--unit-route-fixture',type=Path,help='export enabled default400/700 full route composition on winding64-cell maps')
+    parser.add_argument('--unit-route-reference',type=Path,help='compare original default adaptive/fine maze handoffs')
     args = parser.parse_args()
     engine=ctypes.CDLL(str(args.engine.resolve())) if args.engine else None
     class FineInput(ctypes.Structure):
@@ -575,6 +579,61 @@ def main():
     intermediate_cases=sum(row['acc_index']>0 for row in enabled if row['map_size']!=128)
     assert intermediate_cases==96
     report=dict(binary_sha256=digest,scope=__doc__,passed=True,formation_destination_cases=len(formation),formation_destinations=formation,refill_cases=len(records),denied_refill_cases=denied_cases,cached_waypoint_cases=cached_cases,dynamic_refill_cases=len(dynamic),terrain_equivalence_cases=terrain_equivalence,hierarchy_exclusion_cases=len(exclusion),hierarchy_exclusion=exclusion,enabled_advance_cases=len(enabled),intermediate_waypoint_cases=intermediate_cases,enabled_advance=enabled,full_advance_cases=len(full_advance),full_advance=full_advance,dynamic_cases=dynamic,cases=records)
+    if args.unit_budget_fixture or args.unit_budget_reference:
+        unit_budget_cases=[]
+        width=height=64; source=(4.25,4.75); target=(47.25,43.75)
+        for pattern,cls,budget in itertools.product(range(2),range(4),[700,2048]):
+            blocked={(x,y) for i,x in enumerate([12,22,32,42]) for y in range(64)
+                if (y<54 if (i+pattern)%2==0 else y>9)}
+            setup()
+            result=run(0x6f148100,system,route,source_ptr,target_ptr,mask_ptr,budget,radius_ptr,0)
+            n=read(route+0x1c)[0]; obstruction=read(system+0xd0)[0]
+            words=read(route_data,n*2)
+            record=dict(pattern=pattern,size_class=cls,budget=budget,result=result,fine_count=n,
+                fine_index=n-2 if obstruction and n>1 else 0,observed_obstruction=obstruction,
+                pops=read(system+0x6c)[0],nodes=read(system+0x40)[0],fine_words=words,
+                source_bits=read(source_ptr,2),goal_bits=read(target_ptr,2))
+            if engine:
+                q=(ctypes.c_uint32*15)(64,64,4,4,47,43,budget,cls,0x02000000,0,0,*record['source_bits'],*record['goal_bits'])
+                grid=(ctypes.c_uint8*(64*64))(*(2 if (x,y) in blocked else 0 for y in range(64) for x in range(64)))
+                out=(ctypes.c_uint32*(6+2*16386))()
+                engine.pathing_fine_request_words(q,ctypes.byref(FineInput(grid,None)),out)
+                assert list(out[:6])==[result,record['pops'],record['nodes'],n,record['fine_index'],obstruction],record
+                assert list(out[6:6+2*n])==words,record
+            unit_budget_cases.append(record)
+        payload=dict(version=1,binary_sha256=digest,source_entry='6f148100',cell_world=32,map_size=64,cases=unit_budget_cases,
+            scope='Complete original fine requests on two alternating-wall maps, four classes,700 versus2048 attempts. Exact partial buffers, work, node creation, source and obstruction/initial-index policy. Clock/admission queues and adaptive group budgets excluded.')
+        if args.unit_budget_reference:
+            assert payload==json.loads(args.unit_budget_reference.read_text())
+            report['unit_budget_reference_sha256']=hashlib.sha256(args.unit_budget_reference.read_bytes()).hexdigest()
+        if args.unit_budget_fixture:
+            args.unit_budget_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
+        report['unit_budget_cases']=len(unit_budget_cases)
+        if engine:report['engine_exact_unit_budget_cases']=len(unit_budget_cases)
+    if args.unit_route_fixture or args.unit_route_reference:
+        unit_route_cases=[]
+        width=height=64; acc_side=32; acc_budget=400; budget=700; lane=0
+        source=(4.25,4.75); target=(47.25,43.75)
+        for pattern,cls in itertools.product(range(2),range(4)):
+            blocked={(x,y) for i,x in enumerate([12,22,32,42]) for y in range(64)
+                if (y<54 if (i+pattern)%2==0 else y>9)}
+            setup_enabled()
+            result=run(0x6f165ae0,path,source_ptr,output,mover)
+            count=read(path+0x70)[0]; n=read(path+0x50)[0]
+            record=dict(pattern=pattern,size_class=cls,result=result,coarse_count=count,coarse_index=read(path+0x78)[0],
+                coarse_words=read(coarse,count*2),coarse_work=read(acc+0x9c)[0],fine_count=n,fine_index=read(path+0x74)[0],
+                fine_words=read(route_data,n*2),fine_work=read(system+0x6c)[0],output=read(output,2),
+                source_bits=read(source_ptr,2),goal_bits=read(target_ptr,2),limits=read(path+0x84)[0])
+            assert result==0 and count>1 and record['coarse_index']>0,record
+            unit_route_cases.append(record)
+        payload=dict(version=1,binary_sha256=digest,source_entry='6f165ae0',cell_world=32,map_size=64,cases=unit_route_cases,
+            scope='Complete original enabled default400-accelerator/700-fine requests on two winding64-cell maps, four footprint classes. Engine48-cell gate is absent in the original default activation. Source/maps/counter/buckets are supplied; full group5000 budgets and owner physical motion excluded.')
+        if args.unit_route_reference:
+            assert payload==json.loads(args.unit_route_reference.read_text())
+            report['unit_route_reference_sha256']=hashlib.sha256(args.unit_route_reference.read_bytes()).hexdigest()
+        if args.unit_route_fixture:
+            args.unit_route_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
+        report['unit_route_cases']=len(unit_route_cases)
     if args.adaptive_handoff_fixture or args.adaptive_handoff_reference:
         payload=dict(version=1,binary_sha256=digest,source_entry='6f165ae0',cell_world=32,map_size=64,cases=handoff_cases,
             scope='Complete original initial adaptive-to-fine request destination and both reconstructed route buffers on supplied static maps. Four classes/four lanes/open/solid-wall/gapped-wall. Owner cadence, dynamic blockers, fine-system index-init producer and retained multi-tick coarse progress excluded.')

@@ -189,7 +189,7 @@ progress while retaining OpenRealm's group-friendly cache for long routes.
 | Nearby detour | Persistent mover path object emits coordinate pairs; global accelerator is consulted | Verified retail fine-search ordering on current radius/corner graph; one persistent visible waypoint |
 | Long/shared route | Global `CLrPathingSys` and `CLrPathingAcc`; exact sharing policy unrecovered | Four LRU destination/radius integration fields, built backward with SPFA |
 | Dynamic units | Per-mover path flags and updates | Swept-circle movement plus deterministic local avoidance; not baked into static routes |
-| Scheduling | Countdown/pending and multiple result states prove resumable progress | Fine search is capped at 2,048 queue attempts; complete fields get a configurable per-frame queue budget |
+| Scheduling | Countdown/pending and multiple result states prove resumable progress | Ordinary unit paths enable adaptive search with400 attempts and refine local legs with700 fine attempts; generic moverless queries retain2,048; complete fields have a configurable per-frame queue budget |
 
 The speed difference was primarily work selection. Before the accelerator, one nearby cache miss cleared every route
 node, relaxed the complete reachable component, then copied one integer per map cell before movement could start. A
@@ -410,3 +410,10 @@ Move's retained detours also carry the published native source into reconstructi
 progress and steering. A nonzero world origin no longer changes the frozen
 retail detour's motion words. See [native route inputs](retail-pathfinding-engine.md#native-route-inputs-survive-world-projection)
 for the four-origin regression and remaining producer scope.
+
+Ordinary unit Move now uses the original enabled adaptive stage at all distances,
+with400 adaptive/700 fine attempt limits. This fixes the nearby winding-maze
+stall caused by the inherited48-cell admission gate. Full original route buffers
+match across four footprints; the public engine Move reaches its destination and
+repeats600 saved continuation frames exactly. See
+[activation defaults and budget evidence](retail-pathfinding-engine.md#ordinary-path-defaults-enable-adaptive-routing).

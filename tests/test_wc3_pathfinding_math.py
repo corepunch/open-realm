@@ -73,6 +73,26 @@ class PathingMathTests(unittest.TestCase):
                     self.assertEqual(proc(q,ctypes.byref(FineInput(grid,None))),leg['observed_obstruction'])
                     self.assertEqual(leg['fine_index'],leg['fine_count']-2 if leg['observed_obstruction'] else 0)
 
+    def test_ordinary_budget_requests_match_complete_original_partial_buffers(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-unit-fine-budget-1.27.json').read_text())
+        class FineInput(ctypes.Structure):
+            _fields_=[('cells',ctypes.POINTER(ctypes.c_uint8)),('objects',ctypes.POINTER(ctypes.c_uint32))]
+        for engine in self.engines:
+            proc=engine.pathing_fine_request_words
+            proc.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.POINTER(FineInput),ctypes.POINTER(ctypes.c_uint32)]
+            for row in frozen['cases']:
+                walls={x:i for i,x in enumerate([12,22,32,42])}
+                cells=(ctypes.c_uint8*(64*64))(*(2 if x in walls and (y<54 if (walls[x]+row['pattern'])%2==0 else y>9) else 0 for y in range(64) for x in range(64)))
+                q=(ctypes.c_uint32*15)(64,64,4,4,47,43,row['budget'],row['size_class'],0x02000000,0,0,*row['source_bits'],*row['goal_bits'])
+                out=(ctypes.c_uint32*(6+2*16386))()
+                proc(q,ctypes.byref(FineInput(cells,None)),out)
+                self.assertEqual(list(out[:6]),[row[k] for k in ('result','pops','nodes','fine_count','fine_index','observed_obstruction')])
+                self.assertEqual(list(out[6:6+2*row['fine_count']]),row['fine_words'])
+        capture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-pathing-position-1.27.json').read_text())
+        rows=capture['rows']
+        budgets=[r['budget'] for r in rows if r.get('event')=='search' and r.get('kind')=='fine']
+        self.assertEqual(budgets,[700])
+
     def test_primary_clock_observer_requires_native_order_and_words(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-primary-clock-inputs-1.27.json').read_text())
         trajectory = json.loads((ROOT / 'tools/ghidra/fixtures/retail-primary-clock-trajectory-1.27.json').read_text())

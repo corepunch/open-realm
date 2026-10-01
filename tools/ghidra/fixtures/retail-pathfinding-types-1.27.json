@@ -4425,6 +4425,29 @@
           "storage": 28
         }
       ]
+    },
+    {
+      "address": "6f166060",
+      "name": "Path_Activate",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f1678f0",
+      "name": "PathGroup_GetAcceleratedSearchLimit",
+      "returns": "u32",
+      "parameters": []
     }
   ],
   "globals": [

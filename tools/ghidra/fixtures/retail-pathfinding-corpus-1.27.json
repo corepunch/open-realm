@@ -14109,6 +14109,96 @@
         "Denied scheduler requests",
         "Portal execution"
       ]
+    },
+    {
+      "id": "unit-fine-budget-reference",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_refill.py",
+        "--binary",
+        "{binary}",
+        "--engine",
+        "{engine}",
+        "--report",
+        "{report}",
+        "--unit-budget-reference",
+        "tools/ghidra/fixtures/retail-unit-fine-budget-1.27.json",
+        "--unit-budget-fixture",
+        "{report}.fixture.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "unit-fine-budget-reference.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "unit_budget_cases": {
+          "equal": 16
+        },
+        "engine_exact_unit_budget_cases": {
+          "equal": 16
+        },
+        "unit_budget_reference_sha256": {
+          "equal": "f532a28a88ac80852c001b161a7658d1929c2dfe68aec4d7941b6a82e5a5f548"
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original fine requests and production C partial-route words on two winding64-cell maps: four footprints,700 ordinary attempts versus2048 legacy controls. Engine live-mover queries consume the verified700-attempt cap.",
+      "exclusions": [
+        "Adaptive/group work budgets",
+        "Owner admission queues and charged-budget reset timing",
+        "Full retail physical maze motion"
+      ]
+    },
+    {
+      "id": "unit-default-route-reference",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_refill.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--unit-route-reference",
+        "tools/ghidra/fixtures/retail-unit-default-route-1.27.json",
+        "--unit-route-fixture",
+        "{report}.fixture.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "unit-default-route-reference.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "unit_route_cases": {
+          "equal": 8
+        },
+        "unit_route_reference_sha256": {
+          "equal": "8e8fa029c120fd59bdfd1e7b5564b72a619c5bda712fa63153eb8a1404610fa4"
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Full original default-enabled165ae0 routes: two winding64-cell maps, four footprints, adaptive400/fine700. Actual engine world regression checks every coarse/fine word and both indices. Public Move traverses the unmodified maze with exact saved continuation.",
+      "exclusions": [
+        "Group5000 search policy",
+        "Owner admission queues and charged-budget reset timing",
+        "Full retail physical maze motion"
+      ]
     }
   ],
   "fixtures": [
@@ -14174,7 +14264,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "ac8e252c6ccfcadc456d8aa82ae3d1e3a33f4b2cc77237ebd5202e1dd4cf82c3"
+      "sha256": "8beb35f6de4de471fec4e62afda512d42e56b48b6268429ea786718aa53288bc"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -14439,6 +14529,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-adaptive-long-progress-1.27.json",
       "sha256": "34c76da9f066f684028c1b2d65985bcaecca025d1285413625bda92fec827b2d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-unit-fine-budget-1.27.json",
+      "sha256": "f532a28a88ac80852c001b161a7658d1929c2dfe68aec4d7941b6a82e5a5f548"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-unit-default-route-1.27.json",
+      "sha256": "8e8fa029c120fd59bdfd1e7b5564b72a619c5bda712fa63153eb8a1404610fa4"
     }
   ]
 }

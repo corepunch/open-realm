@@ -418,6 +418,23 @@ uint32_t pathing_fine_obstruction(uint32_t const *input, fineObjectInput_t const
     return fine_probe.observed_obstruction;
 }
 
+/* Complete fine request with native fractional source/goal, including the
+ * nearest partial reconstruction and original initial-index producer. */
+void pathing_fine_request_words(uint32_t const *input, fineObjectInput_t const *data, uint32_t *out) {
+    int32_t searched[6+2*BZ_WC3_FINE_NODES];
+    wc3FineVector_t points[BZ_WC3_FINE_NODES];
+    pathing_fine_objects(input,data,searched);
+    bool complete=searched[0]>=0;
+    int at=complete ? wc3_fine_node(&fine_probe,&(wc3FineRequest_t){.width=input[0],.height=input[1]},
+        (wc3FinePoint_t){(int)input[4],(int)input[5]}) : (int)fine_probe.nearest;
+    wc3FineReconstruct_t query={fine_probe.nodes,fine_probe.count,at,{wc3_float(input[11]),wc3_float(input[12])},
+        complete ? (wc3FineVector_t){wc3_float(input[13]),wc3_float(input[14])} : wc3_route_center(fine_probe.nodes[at].pos)};
+    uint32_t count=wc3_fine_reconstruct(&query,points,BZ_WC3_FINE_NODES);
+    out[0]=complete; out[1]=fine_probe.pops; out[2]=fine_probe.count; out[3]=count;
+    out[4]=fine_probe.observed_obstruction && count>1 ? count-2 : 0; out[5]=fine_probe.observed_obstruction;
+    for(uint32_t i=0;i<count;i++) { out[6+2*i]=wc3_float_bits(points[i].x); out[7+2*i]=wc3_float_bits(points[i].y); }
+}
+
 /* Full request failure retains the closest admitted node, even if its goal
  * entry has not yet been popped. Output: result,pops,nodes,count,nearXY,dist2,
  * then the nearest start-to-end parent chain. */
