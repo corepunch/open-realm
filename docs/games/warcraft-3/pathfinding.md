@@ -366,3 +366,9 @@ records remain observable. Ordinary point routes still retain their exact world
 destination words. The2,304-case original/C matrix verifies the search exit,
 work and parent chains; overlapping runtime target/foreign-blocker link order
 remains FINE-01.6. See [target identity exits](retail-pathfinding-engine.md#target-identity-exits-reach-the-engine).
+
+Public `SetUnitPosition/Loc` now retire Move/Patrol, queued orders and group
+routing before writing the retained fine pose. Save/load preserves the resulting
+stationary state. [Original Stop/placement evidence](retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine)
+includes repeated native words and actual engine regressions; blocked placement
+legality and the remaining forced writers are still tracked separately.

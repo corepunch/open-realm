@@ -3514,6 +3514,65 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f2155c0",
+      "name": "Jass_SetUnitPosition",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f215620",
+      "name": "Jass_SetUnitPositionLoc",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "location_handle",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f6803f0",
+      "name": "Unit_ReplaceOrdersForStop",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "flags",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [

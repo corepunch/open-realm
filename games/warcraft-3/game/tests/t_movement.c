@@ -740,6 +740,120 @@ TEST(wc3_movement, primary_clock_public_move_save_pause_and_stop) {
     }
 }
 
+/* Retail SetUnitPosition replaces the active order before placement; even a
+ * same-position call cancels Move. Exercise the public native, real frame
+ * scheduler, queued replacement and a save made after the placement. */
+TEST(wc3_movement, forced_position_retires_move_and_queued_orders) {
+    uint8_t cells[64 * 64] = {0};
+    box2_t bounds = {{0,0},{2048,2048}};
+    cstring_t file = "/tmp/openwarcraft3-forced-position-save.bin";
+    reset_entities(); setup_test_world();
+    memset(level.regions, 0, sizeof(level.regions)); level.num_regions = 0;
+    memset(level.triggers, 0, sizeof(level.triggers)); level.num_triggers = 0;
+    memset(&level.events, 0, sizeof(level.events));
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass(
+        "globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover = CreateUnit(Player(0), 'hpea', 128, 128, 0)\nendfunction\n"
+        "function same takes nothing returns nothing\n"
+        "call SetUnitPosition(mover, GetUnitX(mover), GetUnitY(mover))\nendfunction\n"
+        "function shift takes nothing returns nothing\n"
+        "call SetUnitPosition(mover, 640.125, 704.375)\nendfunction\n"
+        "function shiftLoc takes nothing returns nothing\n"
+        "local location p = Location(640.125, 704.375)\n"
+        "call SetUnitPositionLoc(mover, p)\ncall RemoveLocation(p)\nendfunction\n"
+        "function verifyStopped takes nothing returns nothing\n"
+        "call BJassAssert(GetUnitCurrentOrder(mover) == 0, \"forced placement retained order\")\nendfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) unit = g_edicts + i;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->collision = 0; unit->stand = unit_stand; unit->think = monster_think;
+    unit->svflags |= SVF_MONSTER; unit->movetype = MOVETYPE_STEP;
+    unit->health.value = unit->health.max_value = 250; unit_stand(unit);
+    S_SetUnitMoveSpeed(unit,173);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (unsigned mode = 0; mode < 5; mode++) {
+        vec2_t goal = {1800,1536}, queued = {1600,128};
+        T_ASSERT(unit_issueorder(unit, mode == 2 ? "patrol" : "move", &goal));
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&queued,true,0,0));
+        T_EQ(G_UnitQueuedOrderCount(unit),1);
+        FOR_LOOP(i,4) { level.time += FRAMETIME; globals.RunFrame(); }
+        if (mode != 2) T_ASSERT(unit->movement.clock_valid);
+        if (mode == 3) S_SetUnitPaused(unit,true);
+        unit->movement.group_id = 123; unit->movement.group_speed = 139;
+        vec2_t before = unit->s.origin2;
+        jass_callbyname(level.vm, mode == 4 ? "shiftLoc" : mode ? "shift" : "same", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(unit->current_order_id,0); T_EQ(G_UnitQueuedOrderCount(unit),0);
+        T_EQ(unit->movement.group_id,0); T_EQ(unit->movement.group_speed,0);
+        T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+        T_ASSERT(!unit->movement.clock_valid);
+        T_ASSERT(!move_is_active_order_walk(unit));
+        jass_callbyname(level.vm,"verifyStopped",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        vec2_t placed = unit->s.origin2;
+        if (mode) { T_FEQ(placed.x,640.125f,0.001f); T_FEQ(placed.y,704.375f,0.001f); }
+        else { T_EQ(placed.x,before.x); T_EQ(placed.y,before.y); }
+        T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
+        if (mode == 3) S_SetUnitPaused(unit,false);
+        FOR_LOOP(i,4) { level.time += FRAMETIME; globals.RunFrame(); }
+        T_EQ(unit->s.origin2.x,placed.x); T_EQ(unit->s.origin2.y,placed.y);
+        T_EQ(unit->current_order_id,0); T_EQ(G_UnitQueuedOrderCount(unit),0);
+    }
+    remove(file); level.started = false;
+}
+
+/* Captured before-Stop clocks and fine poses drive the actual public native.
+ * Exact expected placement words come from original38, not the C helper. */
+TEST(wc3_movement, forced_position_matches_original_native_pose_words) {
+    static uint8_t cells[256 * 128];
+    box2_t bounds = {{-7168,-3072},{1024,1024}};
+    static uint32_t const cases[][19] = {
+        {0x3ffd7094u,0x00000000u,0x43244b1cu,0x428bd688u,0x3f71e3f6u,0x4092eba4u,0x40960000u,0x3faf1514u,0x3ffffff0u,0x00000000u,0x43960000u,0xc4eec038u,0xc44fe9d4u,0x43244ff2u,0x428c058bu,0xc4eec038u,0xc44fe9d4u,0xc4eec038u,0xc44fe9d4u},
+        {0x407f5b52u,0x00000000u,0x4325271cu,0x4294db4bu,0x3f78dd65u,0x4092bd05u,0x40960000u,0x3fae5285u,0x407fff28u,0x00000000u,0x43960000u,0xc4eb559cu,0xc42c3cecu,0x43252a99u,0x4294f0c5u,0xc4eb559cu,0xc42c3cecu,0xc4eb599cu,0xc42c34ecu},
+        {0x407fff28u,0x00000000u,0x43252a99u,0x4294f0c5u,0x00000000u,0x00000000u,0x40960000u,0x3fae5285u,0x409ffefcu,0x00000000u,0x43960000u,0xc4eb559cu,0xc42c3cecu,0x43252a99u,0x4294f0c5u,0xc4eb559cu,0xc42c3cecu,0xc4eb559cu,0xc42c3cecu},
+        {0x40dfabe2u,0x00000000u,0x43262491u,0x429db7a9u,0x3f7041c7u,0x4092f65cu,0x40960000u,0x3faf429du,0x40dffdccu,0x00000000u,0x43960000u,0xc4e76020u,0xc408cb50u,0x432627f8u,0x429dcd2cu,0xc4e76020u,0xc408cb50u,0xc4e76420u,0xc408c350u},
+    };
+    for (unsigned i = 0; i < 4; i++) {
+        reset_entities(); setup_test_world();
+        CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells);
+        memset(level.regions,0,sizeof(level.regions)); level.num_regions = 0;
+        memset(level.triggers,0,sizeof(level.triggers)); level.num_triggers = 0;
+        memset(&level.events,0,sizeof(level.events));
+        T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set mover = CreateUnit(Player(0),'hfoo',0,0,0)\nendfunction\n"
+            "function same takes nothing returns nothing\n"
+            "call SetUnitPosition(mover,GetUnitX(mover),GetUnitY(mover))\nendfunction\n"
+            "function shift takes nothing returns nothing\n"
+            "call SetUnitPosition(mover,GetUnitX(mover)+0.125,GetUnitY(mover)-0.125)\nendfunction\n"));
+        edict_t *unit = NULL;
+        FOR_LOOP(n,globals.num_edicts) if (g_edicts[n].inuse && g_edicts[n].class_id == MAKEFOURCC('h','f','o','o')) unit = g_edicts + n;
+        T_NOT_NULL(unit); if (!unit) continue;
+        unit->collision = 0; unit->stand = unit_stand; unit_stand(unit);
+        unit->s.origin2 = (vec2_t){wc3_float(cases[i][17]),wc3_float(cases[i][18])};
+        level.pathing_clock = (wc3Clock_t){wc3_float(cases[i][8]),cases[i][9],wc3_float(cases[i][10])};
+        vec2_t goal = {-1600,-144}; T_ASSERT(unit_issueorder(unit,"move",&goal));
+        unit->movement.pose_clock = (wc3Clock_t){wc3_float(cases[i][0]),cases[i][1],300};
+        unit->movement.fine_pose = (vec2_t){wc3_float(cases[i][2]),wc3_float(cases[i][3])};
+        unit->movement.velocity = (vec2_t){wc3_float(cases[i][4])*32.f,wc3_float(cases[i][5])*32.f};
+        unit->movement.clock_valid = unit->movement.pose_valid = true;
+        unit->movement.pose_world = unit->s.origin2;
+        jass_callbyname(level.vm,i == 1 || i == 3 ? "shift" : "same",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),cases[i][13]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),cases[i][14]);
+        T_EQ(wc3_float_bits(unit->s.origin2.x),cases[i][15]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y),cases[i][16]);
+        T_EQ(wc3_float_bits(unit->movement.pose_clock.time),cases[i][8]);
+        T_EQ(unit->movement.pose_clock.epoch,cases[i][9]);
+        T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+        T_EQ(unit->current_order_id,0); T_ASSERT(!unit->movement.clock_valid);
+    }
+    reset_entities(); setup_test_world();
+}
+
 /* Natural point completion must integrate the same retained fine pose before publishing zero velocity. */
 TEST(wc3_movement, native_fine_pose_reaches_final_point_commit) {
     edict_t *unit = make_moving_unit(-2012, 568);

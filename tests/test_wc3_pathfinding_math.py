@@ -26,6 +26,7 @@ from verify_wc3_speed_inputs import verify as verify_speed_inputs, digest as spe
 from verify_wc3_speed_drop import verify as verify_speed_drop, digest as speed_drop_digest
 from verify_wc3_item_speed import verify as verify_item_speed, digest as item_speed_digest
 from verify_wc3_axis_position import verify as verify_axis_position, digest as axis_position_digest
+from verify_wc3_forced_position import verify as verify_forced_position, digest as forced_position_digest
 from verify_wc3_primary_clock import verify_primary, digest as primary_digest
 
 
@@ -184,6 +185,38 @@ class PathingMathTests(unittest.TestCase):
                 else: next(r for r in changed if r.get('event') == 'position-marker')['value'] = 'PATHPOSE case=idle_x_same'
                 adjusted = dict(fixture, position_sha256=axis_position_digest(changed))
                 with self.assertRaises(ValueError): verify_axis_position(changed, engine, adjusted)
+
+    def test_public_forced_position_requires_stop_then_exact_placement(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-forced-position-1.27.json').read_text())
+        rows = fixture['observations']
+        for engine in self.engines:
+            configure_arrival(engine)
+            for repeat in range(2):
+                result = verify_forced_position(rows, engine, fixture)
+                self.assertEqual([result[k] for k in ('public_position_calls','position_queries','position_commits',
+                                 'stop_integrations','retired_orders','exact_velocity_commits')],[28,60,4,4,4,99])
+            for mutation in ('truncated','actor','stop_flag','velocity','task','group','old_pose','placement',
+                             'notify','getter','sample','observer','source'):
+                changed = copy.deepcopy(rows)
+                if mutation == 'truncated': changed.pop()
+                elif mutation == 'actor': next(r for r in changed if r.get('event')=='position-native')['unit']='0x123'
+                elif mutation == 'stop_flag': next(r for r in changed if r.get('event')=='forced-position-stop-begin')['flags']=0
+                elif mutation in ('velocity','task','group','old_pose'):
+                    row=next(r for r in changed if r.get('event')=='forced-position-stop-end')
+                    if mutation=='velocity': row['after']['pose'][4]=1
+                    elif mutation=='old_pose': row['after']['pose'][2]^=1
+                    else: row['after']['taskHead' if mutation=='task' else 'group']=[1,2]
+                elif mutation in ('placement','notify'):
+                    row=next(r for r in changed if r.get('event')=='position-commit')
+                    if mutation=='placement': row['after'][2]^=1
+                    else: row['notify']=0
+                elif mutation=='getter': next(r for r in changed if r.get('event')=='position-native')['output']^=1
+                elif mutation=='sample': changed.remove(next(r for r in changed if r.get('event')=='marker' and 'tick=100 label=sample' in r['value']))
+                elif mutation=='observer': changed[0]['owned']=False
+                else: changed[0]['source_sha256']['wc3_pathfinding.js']='0'*64
+                adjusted=dict(fixture,position_sha256=forced_position_digest(changed))
+                with self.subTest(mutation=mutation,opt=engine._name), self.assertRaises(ValueError):
+                    verify_forced_position(changed,engine,adjusted)
 
     def test_native_pose_retains_original_words_and_world_publication_rounding(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-native-pose-1.27.json').read_text())

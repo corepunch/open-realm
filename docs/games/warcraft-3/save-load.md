@@ -613,3 +613,8 @@ matrix now rejects39 through58; JSVM remains7. The network contract is the
 upstream-approved generic view-offset protocol; this merge adds no wire fields.
 
 Version63 persists Move primary-clock time/epoch/span, the5ms cursor and six-step callback phase, pending owner dispatch, exact sampled/committed fine pose and prediction time origin. Runtime dispatch flags and per-frame callback stamps are cleared on load. Save62 is rejected. See [the clock integration and restoration evidence](retail-pathfinding-engine.md#primary-clock-reaches-move-and-predicted-positions).
+
+Public `SetUnitPosition/Loc` clear active Move/Patrol, queued orders and group
+state before placement. A save immediately afterward retains the exact fine
+pose and remains stationary after load; no additional fields or format change
+are needed. See [forced-position restoration](retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine).

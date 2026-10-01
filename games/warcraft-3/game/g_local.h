@@ -2524,6 +2524,7 @@ float S_UnitMoveSpeed(edict_t *);
 float S_UnitDefaultMoveSpeed(edict_t const *);
 void S_SetUnitMoveSpeed(edict_t *, float);
 void S_SetUnitAxisPosition(edict_t *, uint32_t, float);
+void S_SetUnitPosition(edict_t *, vec2_t const *);
 void S_PublishMovement(edict_t *);
 void S_SetUnitPaused(edict_t *, bool);
 uint32_t M_RefreshHeatmap(edict_t *, float);

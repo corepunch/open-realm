@@ -242,6 +242,43 @@ function PathProbeAxisPosition takes nothing returns nothing
     endif
 endfunction
 
+function PathProbeForcedPosition takes nothing returns nothing
+    local string label = ""
+    local real x = 0.0
+    local real y = 0.0
+    if udg_PathProbeTick == 20 then
+        set label = "moving_same"
+    elseif udg_PathProbeTick == 40 then
+        set label = "moving_fractional"
+    elseif udg_PathProbeTick == 50 then
+        set label = "idle_same"
+    elseif udg_PathProbeTick == 70 then
+        set label = "patrol_fractional"
+    endif
+    if label != "" then
+        call Preload("PATHPOSE case=" + label)
+        set x = GetUnitX(udg_PathProbeUnit)
+        set y = GetUnitY(udg_PathProbeUnit)
+        call PathProbeRecord("forced_before_" + label)
+        if udg_PathProbeTick == 40 or udg_PathProbeTick == 70 then
+            call SetUnitPosition(udg_PathProbeUnit, x + 0.125, y - 0.125)
+        else
+            call SetUnitPosition(udg_PathProbeUnit, x, y)
+        endif
+        call PathProbeRecord("forced_after_" + label)
+        call Preload("PATHPOSE done=" + label)
+    endif
+    if udg_PathProbeTick == 30 then
+        if IssuePointOrder(udg_PathProbeUnit, "move", -1600.0, -144.0) then
+            call PathProbeRecord("forced_move_reissued")
+        endif
+    elseif udg_PathProbeTick == 60 then
+        if IssuePointOrder(udg_PathProbeUnit, "patrol", -1600.0, -144.0) then
+            call PathProbeRecord("forced_patrol_reissued")
+        endif
+    endif
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
@@ -270,6 +307,8 @@ function PathProbeTick takes nothing returns nothing
     endif
     if PATH_PROBE_SCENARIO == 36 then
         call PathProbeAxisPosition()
+    elseif PATH_PROBE_SCENARIO == 38 then
+        call PathProbeForcedPosition()
     endif
     if (PATH_PROBE_SCENARIO == 34 or PATH_PROBE_SCENARIO == 35) then
         if udg_PathProbeTick == 1 then
@@ -409,7 +448,7 @@ function PathProbeTick takes nothing returns nothing
             else
                 call PathProbeRecord("order_rejected")
             endif
-        elseif PATH_PROBE_SCENARIO == 36 or PATH_PROBE_SCENARIO == 37 then
+        elseif PATH_PROBE_SCENARIO == 36 or PATH_PROBE_SCENARIO == 37 or PATH_PROBE_SCENARIO == 38 then
             if IssuePointOrder(udg_PathProbeUnit, "move", -1600.0, -144.0) then
                 call PathProbeRecord("order_accepted")
             else

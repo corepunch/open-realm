@@ -442,6 +442,27 @@ void S_SetUnitAxisPosition(edict_t *self, uint32_t axis, float value) {
     self->movement.worker_avoid_blocked_frames = blocked;
 }
 
+/* Both public placement natives replace the order before admitting position.
+ * Retain the common native scalar writer; placement legality remains the game
+ * adapter's current policy until FOOT-04 public admission is reconstructed. */
+void S_SetUnitPosition(edict_t *self, vec2_t const *requested) {
+    if (!self || !requested) return;
+    vec2_t old_position = self->s.origin2, position;
+    order_stop(self);
+    self->movement.velocity = (vec2_t){0};
+    self->movement.clock_valid = false;
+    G_FindUnitUnstuckPosition(self, requested, &position);
+    wc3GridPose_t pose;
+    unit_grid_pose(self, &pose);
+    float point[2] = {position.x, position.y};
+    wc3_grid_place(&pose, point);
+    unit_commit_pose(self, &pose);
+    self->movement.clock_valid = false;
+    self->movement.pose_clock = level.pathing_clock;
+    move_reset_progress(self);
+    G_UnitPositionChanged(self, &old_position);
+}
+
 /* Native scheduled Move integrates old velocity before requesting its new heading.
  * Other owners retain their existing snapshot-step contract until separately measured. */
 static vec2_t unit_step_heading(edict_t *self, float angle, moveStep_t *step) {

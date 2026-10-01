@@ -320,17 +320,40 @@ function install(module) {
                 throw new Error('Position bridge stale mover identity');
             return mover;
         };
+        const forcedPositionState = unit => {
+            const mover = positionMover(unit.add(0x164));
+            return {taskHead:ints(unit.add(0x174),2), orderHead:ints(unit.add(0x19c),2),
+                pose:words(mover.add(0x70),8), group:ints(mover.add(0x9c),2),
+                hasPath:!mover.add(0xa8).readPointer().isNull()};
+        };
+        hook(0x6803f0, {
+            onEnter(args) {
+                const native = positionNatives.get(this.threadId);
+                if (!native || native.name !== 'SetUnitPosition') return;
+                this.unit = this.context.ecx;
+                this.row = {case:positionCase, flags:args[0].toUInt32(), before:forcedPositionState(this.unit)};
+                bump('forced-position-stop-begin'); emit('forced-position-stop-begin',this.row);
+            },
+            onLeave() {
+                if (!this.row) return;
+                bump('forced-position-stop-end');
+                emit('forced-position-stop-end',{...this.row, after:forcedPositionState(this.unit)});
+            }
+        });
         for (const [name, rva] of [['GetUnitX',0x204100], ['GetUnitY',0x204140],
-                                  ['SetUnitX',0x215900], ['SetUnitY',0x215960]]) {
+                                  ['SetUnitX',0x215900], ['SetUnitY',0x215960], ['SetUnitPosition',0x2155c0]]) {
             hook(rva, {
                 onEnter(args) {
                     this.previous = positionNatives.get(this.threadId);
                     this.row = positionCase ? {case:positionCase, name, handle:args[0].toUInt32()} : null;
-                    if (this.row && name.startsWith('Set')) this.row.input = args[1].readU32();
+                    if (this.row && name.startsWith('Set')) this.row.input = name === 'SetUnitPosition'
+                        ? [args[1].readU32(), args[2].readU32()] : args[1].readU32();
                     positionNatives.set(this.threadId, this.row);
                 },
                 onLeave(result) {
                     if (this.row) {
+                        if (this.row.name === 'SetUnitPosition' && this.row.unit)
+                            this.row.after = forcedPositionState(ptr(this.row.unit));
                         bump('position-native');
                         if (counts['position-native'] <= config.samples)
                             emit('position-native', {...this.row, output:this.row.name.startsWith('Set') ? null : result.toUInt32()});
@@ -349,6 +372,8 @@ function install(module) {
                 if (this.row) {
                     this.row.unit = result.toString();
                     this.row.rawcode = result.isNull() ? null : result.add(0x30).readU32();
+                    if (this.row.name === 'SetUnitPosition' && !result.isNull())
+                        this.row.before = forcedPositionState(result);
                 }
             }
         });
@@ -464,6 +489,8 @@ function install(module) {
                 if (this.row) {
                     this.row.unit = result.toString();
                     this.row.rawcode = result.isNull() ? null : result.add(0x30).readU32();
+                    if (this.row.name === 'SetUnitPosition' && !result.isNull())
+                        this.row.before = forcedPositionState(result);
                 }
             }
         });

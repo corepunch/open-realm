@@ -16,7 +16,10 @@ void order_stop(edict_t *ent) {
     ent->movement.follow_target = NULL;
     ent->movement.holding_position = false;
     unit_leavecombat(ent);
-    ent->stand(ent);
+    /* Units without an installed movement lifecycle still admit placement.
+     * Match CreateUnit's optional stand transition after retiring the order. */
+    ent->current_order_id = 0;
+    if (ent->stand) ent->stand(ent);
 }
 
 BZ_COMMAND_PROC(AbilityStop) {

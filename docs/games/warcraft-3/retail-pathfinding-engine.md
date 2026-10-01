@@ -2549,3 +2549,59 @@ because the installed SDL2 compatibility layer crashes on the unchanged syntheti
 text-input fixture, independently of pathfinding. The required full suite passes;
 RoC/TFT each pass45,132 assertions in2,210 cases. All130 pathfinding tool tests,
 both accepted fresh target corpus entries and engine/menu boundary audits pass.
+
+
+## Forced-position Stop reaches the engine
+
+Public `SetUnitPosition`2155c0 resolves the unit and calls6803f0(1) before
+vtable180 admits placement. `SetUnitPositionLoc`215620 resolves the location,
+reads24/28 and delegates to2155c0. These cdecl natives have plain RET;
+6803f0 uses ECX Unit, stack4 flags and RET4. The nested Stop admission clears
+task/order/group identities, integrates old velocity at the current clock,
+then zeros velocity while retaining cap/facing and the allocated path.
+
+The owned `forced_position` scene38 brackets moving same-position, moving
+fractional, idle same-position and Patrol fractional writes. Two75-second
+captures contain300 samples,28 public Get/Set calls,60 position queries,
+four Stop pairs and four placement commits, with no observer errors.
+`verify_wc3_forced_position.py` checks native/query result relationships,
+event ordering, actor and bridge identity, captured clocks, scalar outputs,
+retired public orders and stationary samples after placement. All99 preceding
+motion and velocity commits also match production C. The position digest is
+`490e48e8f1e2c8c446bbda6cf536dbac780e4fcca19d8e33feed49a884c35917`.
+The fixture `retail-forced-position-1.27.json` retains the actual observations;
+O0/O2 replay and thirteen altered/truncated controls verify rejection.
+
+Both public engine natives now delegate to Move-owned `S_SetUnitPosition`.
+It replaces the active order, clears queued/group routing state and velocity,
+admits placement through the existing legality adapter, and writes through
+`wc3_grid_place`. This preserves the original fine reprojection and scalar
+delta operation: a distant placement can differ from the requested world
+word by one ULP. Region crossings, linking and fog invalidation retain their
+normal publication paths. Stop's stand transition is optional, as it already
+is in CreateUnit, for units without an installed movement lifecycle; existing
+public blocked-placement/region tests reproduced the null-callback crash.
+
+The actual public regressions reproduced57 failed assertions before the port.
+Five Move/Patrol/paused/Loc modes now clear orders, FIFO and group state and
+remain stationary after save/load. Four captured native before-Stop clocks,
+fine poses and velocities produce exact original fine/world/time words through
+public JASS writes. Together these two regressions pass167 assertions. They
+prove supplied captured placement state, not the complete retail route owner.
+Save format63 and network layouts are unchanged.
+
+Ghidra saves411 descriptive names and150 explicit prototypes; existing27
+layouts/159 fields and44 globals remain unchanged. Readback is
+`runtime/forced-position-ghidra-readback-261001.json`. All three fresh corpus
+entries pass in `forced-position-corpus-accepted-261001`.
+
+Blocked/overlapping placement legality still uses the existing adapter and
+remains FOOT-04. Gold-mine/cargo/dead actors, other forced writers and a live
+SetUnitPositionLoc capture remain BASE-01.4. The Loc engine regression and
+original wrapper disassembly do not claim that missing live capture.
+
+Validation: required `make test` and forced release RoC/TFT each pass45,299
+assertions in2,212 cases;131 pathfinding tool tests, production release build,
+engine/menu boundary audits and all three strict corpus entries pass. Tests use
+the [documented native SDL2 runtime](../../build-and-renderer-platforms.md#headless-sdl-input-regression-runtime).
+No production C warnings are reported.
