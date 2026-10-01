@@ -332,8 +332,10 @@ The lobby currently exposes no per-slot difficulty selector, so `GetAIDifficulty
 `AI_DIFFICULTY_NEWBIE/NORMAL/INSANE = 0/1/2`, while `common.ai` uses `MELEE_NEWBIE/NORMAL/INSANE = 1/2/3`.
 `aidifficulty` is a value-like JASS enum handle and must remain in the VM's payload-comparison type table. Add a lobby
 field before supporting newbie or insane; both APIs should then read the same per-slot setting and map it to their own
-public value scales. Do not infer difficulty from race,
-team, or map settings.
+public value scales. Until then, all four race scripts take their normal-difficulty branches: newbie-only opening and
+economy changes stay disabled, and no insane-specific behavior is selected. This is a known script-compatibility gap,
+not a claim that the scripts' full difficulty behavior is implemented. Do not infer difficulty from race, team, or map
+settings.
 
 Hero-policy setters remain registration/state only unless explicitly documented
 otherwise. In particular, `SetHeroLevels`, `SetHeroesFlee`,
