@@ -24,7 +24,7 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),86)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),87)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),100)
         self.assertEqual(sum(e['id'].startswith('live-') for e in entries),27)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
@@ -49,6 +49,19 @@ class CorpusTests(unittest.TestCase):
         expected=[]
         for row in case['steps']:
             expected.extend(row['position_bits']+row['velocity_bits']+[row['heading_bits'],row['waypoint']])
+        self.assertEqual(case['ticks'],34)
+        self.assertEqual(actual,expected)
+
+    def test_primary_owner_trajectory_matches_engine_word_reference(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-primary-owner-route-1.27.json').read_text())
+        case=frozen['cases'][0]
+        source=(ROOT/'games/warcraft-3/game/tests/t_movement.c').read_text()
+        table=source.split('primary_expected[34][9]={',1)[1].split('};',1)[0]
+        actual=[int(word,16) for word in re.findall(r'0x([0-9a-f]+)u',table)]
+        expected=[]
+        for row in case['steps']:
+            expected.extend(row['position_bits']+row['velocity_bits']+[row['heading_bits'],row['waypoint']]+row['clock'])
+        self.assertEqual(frozen['phases_per_owner'],6)
         self.assertEqual(case['ticks'],34)
         self.assertEqual(actual,expected)
 

@@ -3009,3 +3009,40 @@ backlog counts/IDs, document targets and diff checks pass. The diagnostic O0 TFT
 run had one additional branch assertion and also passed; the forced release
 artifacts above are the final matrix. No additional retail replay is claimed:
 the unchanged original fixture is reused for its native-input contract.
+
+
+## Primary owner clocks reproduce the complete detour
+
+Payoff22 joins the previous retained-route and native-coordinate ports to the
+actual engine frame scheduler. The original15aa80 controlled singleton wall
+case advances054190 six times with the authentic5ms word `3ba3d70a` before each
+owner pass. Original161040 supplies the elapsed interval; it is not replaced
+with host.03 or the earlier1/32 test input. Two independent complete executions
+match every clock, elapsed, fine position, velocity, heading and active curve
+index through34 motion ticks. The original performs45 owner passes including
+the supplied fresh callback atclock0 and nine visual settling ticks.
+
+The engine test creates the authored hRTE unit through compiled JASS, submits
+public Move, supplies the same fresh callback atclock0, then runs
+`globals.RunFrame()` every30ms. No test writes callback clocks or publishes
+positions during this trajectory. All509 assertions pass, including all active
+motion and clock words, natural order completion and the22 remaining ticks
+after loading a tick12 save. The existing engine implementation already agrees;
+this closes the combined scheduling regression without inventing a production
+change. Save67 and network contracts are unchanged.
+
+Frozen reference: `tools/ghidra/fixtures/retail-primary-owner-route-1.27.json`.
+Accepted fresh repeat: `primary-owner-route-corpus-accepted-261001/corpus-results.json`
+under the local analysis root. The strict corpus now has214 entries,87 oracles
+and76 frozen fixtures. Ghidra persists the expanded15aa80 contract; its saved
+readback is `runtime/primary-owner-route-ghidra-readback-261001.json`.
+
+This supplied starting phase does not establish initial public order-admission
+phase parity. Stock profile producers, other clocks, shared groups, live wall
+scenes, rendered unit presentation, adaptive refill and dynamic yielding remain
+open. SCHED-02.5 names exactly this bounded composition.
+
+Validation for payoff22: forced release RoC/TFT suites each pass49,337 assertions
+in2,229 cases. The required release umbrella and production executable build
+pass without C compiler warnings. All139 pathfinding tool tests, corpus hashes,
+backlog counts/IDs, document targets and diff checks pass.

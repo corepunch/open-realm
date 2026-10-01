@@ -60,6 +60,8 @@ def main():
     parser.add_argument('--clock-trajectory-fixture', type=Path, help='export original primary-clock and old-velocity trajectory')
     parser.add_argument('--position-fixture', type=Path, help='export original world-position bridge writes')
     parser.add_argument('--heading-fixture', type=Path, help='export raw original vector-heading errors for asset-free C replay')
+    parser.add_argument('--primary-route-fixture', type=Path, help='export full original owner detour on six authentic 5 ms advances per pass')
+    parser.add_argument('--primary-route-reference', type=Path, help='repeat and compare original owner/clock/detour words against the frozen fixture')
     parser.add_argument('--route-trajectory-fixture', type=Path, help='export complete controlled wall-route decisions and original mover parameters')
     parser.add_argument('--route-trajectory-reference', type=Path, help='check complete controlled wall-route words against the frozen fixture')
     args = parser.parse_args()
@@ -1949,6 +1951,7 @@ def main():
     obstacle_arrival_cases=[]
     adaptive_arrival_cases=[]
     owner_arrival_cases=[]
+    primary_arrival_cases=[]
     owner_separation_cases=[]
     active_pair_cases=[]
     arrival_task_wrapper,arrival_task,arrival_release_header,arrival_release_heap=[0x10300000+n for n in [0x8200,0x8400,0x8600,0x8700]]
@@ -2004,7 +2007,8 @@ def main():
         write(owner+0x540+0xc,0x10511000)
         write(owner+0x540+0x14,0,128,0)
         return sep_nodes,second_mover,second_path
-    for position,height,subscriptions,unit_status,task_mode in itertools.product([(4,4),(4.25,5.5),(10,11)],[-32,0,64],[1,2],[0,0x10000],[0,1,2,3,4,5,6,7,8,9,10]):
+    for position,height,subscriptions,unit_status,task_mode in itertools.product([(4,4),(4.25,5.5),(10,11)],[-32,0,64],[1,2],[0,0x10000],[0,1,2,3,4,5,6,7,8,9,10,11,12]):
+        if task_mode>=11 and not (args.primary_route_fixture or args.primary_route_reference):continue
         if task_mode>=5 and (position,height,subscriptions,unit_status)!=((4,4),0,1,0):continue
         active_task=task_mode!=0
         reject_next=task_mode==2
@@ -2014,6 +2018,7 @@ def main():
         obstacle=task_mode>=6
         adaptive=task_mode>=8
         whole_owner=task_mode>=9
+        primary_route=task_mode>=11
         active_pair=task_mode==10
         pair_ready=False
         owner_events.clear()
@@ -2467,7 +2472,7 @@ def main():
                 write(height_layer+0x18,height_samples)
                 floats(height_samples,*[height+(x+0.5)*32*slope for y in range(16) for x in range(16)])
                 floats(arrival_release_clock+0x48,8)
-                floats(elapsed_ptr,1/32)
+                floats(elapsed_ptr,.005 if primary_route else 1/32)
                 support_trace.clear()
                 presentation_trace.clear()
                 presentation_samples.clear()
@@ -2589,20 +2594,34 @@ def main():
                             candidates=query_count,model_error=model_error,positions=[read(m+0x78,2) for m in [support_mover,second_mover]],
                             vectors=[read(q+0x18,3) for q in sep_nodes]))
                 initial_motion={hex(offset):read(support_mover+offset)[0] for offset in (0x88,0x8c,0x90,0xb0,0xb4,0xb8,0xbc,0xc0,0xc4)}
+                primary_steps=[]
+                def advance_route_clock():
+                    for primary_phase in range(6 if primary_route else 1):
+                        machine.reg_write(UC_X86_REG_EDX,arrival_release_clock)
+                        run(0x6f054190,elapsed_ptr)
                 for elapsed_tick in range(1,129):
-                    machine.reg_write(UC_X86_REG_EDX,arrival_release_clock)
-                    run(0x6f054190,elapsed_ptr)
+                    advance_route_clock()
                     old_position=[scalar(support_mover+0x78+k*4) for k in range(2)]
                     old_velocity=[scalar(support_mover+0x80+k*4) for k in range(2)]
+                    if primary_route:
+                        run(0x6f161040,support_mover,elapsed_ptr+4)
+                        interval=read(elapsed_ptr+4)[0]
+                    else:interval=float_bits(1/32)
                     if active_pair:active_events.clear()
                     if whole_owner:owner_step('elapsed')
                     else:run(0x6f16c150,accepted_group)
-                    expected_position=[float_add(float_bits(v),float_multiply(float_bits(w),float_bits(1/32))) for v,w in zip(old_position,old_velocity)]
+                    expected_position=[float_add(float_bits(v),float_multiply(float_bits(w),interval)) for v,w in zip(old_position,old_velocity)]
                     actual_position=[scalar(support_mover+0x78+k*4) for k in range(2)]
                     assert (pair_snapshot['positions'][0] if active_pair else read(support_mover+0x78,2))==expected_position,(position,elapsed_tick,actual_position,expected_position)
 
-                    assert scalar(arrival_release_clock+0x40)==elapsed_tick/32
-                    assert scalar(support_mover+0x70)==elapsed_tick/32
+                    if primary_route:
+                        assert read(support_mover+0x70,2)==read(arrival_release_clock+0x40,2)
+                        primary_steps.append(dict(tick=elapsed_tick,clock=read(arrival_release_clock+0x40,3),elapsed=interval,
+                            position_bits=read(support_mover+0x78,2),velocity_bits=read(support_mover+0x80,2),
+                            heading_bits=read(support_mover+0x8c)[0],waypoint=read(tick_path+0x74)[0]))
+                    else:
+                        assert scalar(arrival_release_clock+0x40)==elapsed_tick/32
+                        assert scalar(support_mover+0x70)==elapsed_tick/32
                     assert read(0x6fd70f20+8)[0]==1  # Old task reclaimed by actual clock drain.
                     for obj,grid,data,records in zip(actor_objects[0],maps,cells,links):
                         rect=read(obj+0x1c,4)
@@ -2633,9 +2652,10 @@ def main():
                     if read(support_unit+0x174)[0]==0xffffffff:break
                 else:raise AssertionError('real elapsed trajectory did not arrive')
                 if adaptive:
-                    assert elapsed_tick==34
-                    assert obstacle_steps==obstacle_arrival_cases[0]['steps']
-                    assert adaptive_indices==[[0,0]]*33+[[0,0xffffffff]]
+                    if not primary_route:
+                        assert elapsed_tick==34
+                        assert obstacle_steps==obstacle_arrival_cases[0]['steps']
+                    assert adaptive_indices==[[0,0]]*(elapsed_tick-1)+[[0,0xffffffff]]
                     assert len(adaptive_requests)==2  # No later accelerated replan.
                     if not whole_owner:assert [read(0x6fd53a90+k*0x1c+8)[0] for k in range(4)]==[9,0,9,37]
                 elif obstacle:
@@ -2693,8 +2713,7 @@ def main():
                 assert read(actor_objects[0][1]+0x40)[0]==0
                 assert read(tick_path+0x74,7)==[0xffffffff,0xffffffff,0,0,700|(400<<16),0x300000 if adaptive else 0x100000,0]
                 assert read(next_task_wrapper+0x20)[0]==arrival_release_header+4
-                machine.reg_write(UC_X86_REG_EDX,arrival_release_clock)
-                run(0x6f054190,elapsed_ptr)
+                advance_route_clock()
                 assert read(0x6fd70f20+8)[0]==0
                 assert read(arrival_release_clock+0x20)[0]==1
                 assert read(next_task_wrapper+0x14,4)==[0xffffffff,0xffffffff,0,0]
@@ -2713,13 +2732,13 @@ def main():
                     assert read(support_mover+0xa8)[0]==tick_path
                     if whole_owner:
                         for settle_tick in range(1,33):
-                            machine.reg_write(UC_X86_REG_EDX,arrival_release_clock)
-                            run(0x6f054190,elapsed_ptr)
+                            advance_route_clock()
                             owner_step('settle')
                             if read(owner+0x440)[0]==0:break
                         else:raise AssertionError('visual heading failed to settle')
-                        assert settle_tick==8 and len(owner_frames)==44
-                        assert read(owner+0x538,2)==[144,0]
+                        if not primary_route:assert settle_tick==8 and len(owner_frames)==44
+                        assert len(owner_frames)==elapsed_tick+settle_tick+2
+                        assert read(owner+0x538,2)==[100+len(owner_frames),len(owner_frames)&1]
                         assert read(support_mover+4,2)==[0,0]
                         assert read(support_mover+0xc8,2)==[read(support_mover+0x8c)[0],0]
                         assert read(tick_registry+0x48)[0]==3
@@ -2727,7 +2746,7 @@ def main():
                         assert read(support_mover+0xa8)[0]==tick_path
                         owner_counts={hex(a):sum(row['events'].count(hex(a)) for row in owner_frames)
                                       for a in [0x6f15aa80,0x6f167310,0x6f16c150,0x6f1705c0,0x6f170cf0,0x6f1702f0]}
-                        assert list(owner_counts.values())==[44,44,36,44,1,43 if active_pair else 0]
+                        assert list(owner_counts.values())==[len(owner_frames),len(owner_frames),elapsed_tick+2,len(owner_frames),1,len(owner_frames)-1 if active_pair else 0]
                         assert any(row['visual_before']!=row['visual_after'] for row in owner_frames)
                         assert all(row['visual_list']==support_mover for row in owner_frames[:-1])
                         assert owner_frames[-1]['visual_list']==0
@@ -2772,6 +2791,11 @@ def main():
                                 profile='Controlled hfoo repulse1 after stock repulse0 predicate control; radius.25 and query mask02000000 controlled, not a stock ground or hgry movement profile',
                                 boundaries='Full owner active group plus registered nearby repulsor. Positive mover+c0 clears its separation vector and excludes it as candidate; actual cooldown delays later visits. Detour and natural arrival remain bit-identical to singleton; four accepted post-arrival displacements follow. Second mover has controlled path/occupancy without unit payload or ability/task. No simultaneous push while c0 positive, dynamic-mask collision fidelity, populated shared groups or region payloads. Unit arrival pose is a snapshot before subsequent separation; later unit presentation synchronization not executed')
                             active_pair_cases.append(adaptive_row)
+                            continue
+                        if primary_route:
+                            primary_arrival_cases.append(dict(start=position,goal=target,blocked=sorted(blocked),route=initial_route,
+                                initial_motion=initial_motion,ticks=elapsed_tick,steps=primary_steps,owner_updates=len(owner_frames),
+                                settle_ticks=settle_tick,call_counts=owner_counts))
                             continue
                         owner_arrival_cases.append(adaptive_row)
                         sep_nodes,second_mover,second_path=setup_separation_pair((9,4))
@@ -3117,6 +3141,23 @@ def main():
                       engine_exact_velocity_heading_cases=len(facing_cases) if engine else 0,
                       engine_exact_facing_angle_cases=len(facing_angles) if engine else 0,
                       engine_exact_heading_error_cases=angle_cases+heading_boundary_cases+deadzone_cases)
+    if args.primary_route_fixture or args.primary_route_reference:
+        assert len(primary_arrival_cases)==2
+        primary_arrival_cases=json.loads(json.dumps(primary_arrival_cases))
+        assert primary_arrival_cases[0]==primary_arrival_cases[1]
+        payload=dict(version=1,binary_sha256=digest,source_entry='6f15aa80',primary_step_bits=float_bits(.005),
+            phases_per_owner=6,cell_world=32,world_origin=[0,0],cases=primary_arrival_cases,
+            scope='Complete controlled original owner/group/member; authenticated clock advances six 5 ms intervals per pass. A fresh callback at clock 0 is supplied. Public order-admission phase, stock profiles, shared groups and live scenes are excluded.')
+        if args.primary_route_reference:
+            frozen=json.loads(args.primary_route_reference.read_text())
+            assert all(payload[key]==frozen[key] for key in ('version','binary_sha256','source_entry','primary_step_bits','phases_per_owner','cell_world','world_origin'))
+            assert len(frozen['cases'])==1 and all(case==frozen['cases'][0] for case in primary_arrival_cases)
+            report['primary_route_reference_sha256']=hashlib.sha256(args.primary_route_reference.read_bytes()).hexdigest()
+        if args.primary_route_fixture:
+            args.primary_route_fixture.parent.mkdir(parents=True,exist_ok=True)
+            args.primary_route_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
+        report['primary_route_cases']=len(primary_arrival_cases)
+        report['primary_route_ticks']=sum(c['ticks'] for c in primary_arrival_cases)
     if args.route_trajectory_fixture or args.route_trajectory_reference:
         route_cases=[{**{key:row[key] for key in ('blocked','start','goal','route','ticks','initial_motion','radius_bits','radius_world')},
             'steps':[{key:step[key] for key in ('tick','start_bits','position_bits','velocity_bits','heading_bits','waypoint')} for step in row['steps']]} for row in obstacle_arrival_cases]

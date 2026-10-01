@@ -12856,6 +12856,111 @@
         "Primary owner cadence",
         "Broader maps, targets and crowds"
       ]
+    },
+    {
+      "id": "primary-owner-route-reference",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_motion.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}",
+        "--primary-route-reference",
+        "tools/ghidra/fixtures/retail-primary-owner-route-1.27.json",
+        "--primary-route-fixture",
+        "{report}.fixture.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "primary-owner-route-reference.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "move_owner_active_separation_cases": {
+          "minimum": 1
+        },
+        "engine_exact_world_velocity_cases": {
+          "equal": 1040
+        },
+        "engine_exact_heading_error_cases": {
+          "minimum": 1
+        },
+        "exact_formation_cases": {
+          "equal": 865
+        },
+        "mixed_formation_cases": {
+          "equal": 720
+        },
+        "engine_formation_cases": {
+          "equal": 865
+        },
+        "native_pose_sequences": {
+          "equal": 18
+        },
+        "native_pose_commits": {
+          "equal": 288
+        },
+        "native_pose_world_differences": {
+          "equal": 139
+        },
+        "engine_native_pose_commits": {
+          "equal": 288
+        },
+        "position_write_cases": {
+          "equal": 576
+        },
+        "position_next_move_cases": {
+          "equal": 576
+        },
+        "engine_position_write_cases": {
+          "equal": 576
+        },
+        "engine_position_next_move_cases": {
+          "equal": 576
+        },
+        "primary_clock_advances": {
+          "equal": 6000
+        },
+        "primary_clock_motion_commits": {
+          "equal": 1000
+        },
+        "primary_clock_controls": {
+          "equal": 1944
+        },
+        "engine_primary_clock_advances": {
+          "equal": 6000
+        },
+        "engine_primary_clock_controls": {
+          "equal": 1944
+        },
+        "primary_route_cases": {
+          "equal": 2
+        },
+        "primary_route_ticks": {
+          "equal": 68
+        },
+        "primary_route_reference_sha256": {
+          "equal": "9b7a1af492ea0e89af51f75665aa85b086ba9166c39b8ddca751ff7b64f5cc20"
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete controlled owner/group/member wall detour under six authenticated original 5 ms clock advances per owner pass. Repeat every clock, elapsed, pose, velocity, heading and route-index word through natural arrival and owner visual settling. Actual engine RunFrame differential and saved continuation are C gameplay regressions.",
+      "exclusions": [
+        "Initial public order-admission phase",
+        "Stock movement profile producers and shared groups",
+        "Original rendered unit-presentation timeline and live wall scene"
+      ]
     }
   ],
   "fixtures": [
@@ -13158,6 +13263,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-fine-route-trajectory-1.27.json",
       "sha256": "b329d82dd2ca44e4078563e9a3149c04bd7e3005d1ccf895ff9fd2ec72cde0fa"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-primary-owner-route-1.27.json",
+      "sha256": "9b7a1af492ea0e89af51f75665aa85b086ba9166c39b8ddca751ff7b64f5cc20"
     }
   ]
 }

@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**100 done / 283 tasks; 183 remaining.** Counts describe this backlog,
+**101 done / 284 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -26,7 +26,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | NUM — Numbers and random state | 21 | 14 |
 | ROUTE — Route progression and yielding | 3 | 9 |
 | TARGET — Pursuit and arrival policy | 2 | 9 |
-| SCHED — Scheduling and owner updates | 2 | 9 |
+| SCHED — Scheduling and owner updates | 3 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
 | GROUP — Shared movement groups | 11 | 6 |
@@ -119,16 +119,17 @@ correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinati
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
 (NUM-01.8). Ghidra mapping persists456
-names,31 layouts,177 fields,171 x86 prototypes and44 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has213
+names,31 layouts,177 fields,171 x86 prototypes and44 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has214
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
 ROUTE-02.3 now reproduces the complete controlled wall detour in the engine,
-including turn-stop stepping and saved fine-curve progress. Next runnable work:
-NUM-02.3, extend that whole-motion comparison to the actual original primary-owner
-timeline; NUM-02.7 now keeps the controlled trajectory exact at four world origins.
-Check native cell-boundary admission next, then adaptive-to-fine refill.
+including turn-stop stepping and saved fine-curve progress. NUM-02.7 keeps that
+trajectory exact at four world origins. SCHED-02.5 now verifies the complete
+primary-clock detour through actual engine RunFrame and saved continuation.
+Next runnable work: adaptive-to-fine refill (BASE-06.5/ROUTE-03), with a concrete
+engine route correction; public admission phase and other clocks remain NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
@@ -514,6 +515,7 @@ Evidence: [movement evidence][M] and [routes][R]. Tools/artifacts: scheduler, mo
 - [x] **SCHED-02.2** Active singleton plus eligible repulsor: 43 separation updates and four accepted attempts pass. Evidence: [separation pair][pair], M `move_owner_active_separation_cases=1`; controlled profile, bounded numeric tolerance.
 - [ ] **SCHED-02.3** Populate two groups and the shared-cap/radius lists in one owner tick; assert scheduler/publication/group/movement/separation order and same-tick visibility.
 - [ ] **SCHED-02.4** Mutate membership or remove a mover from one callback during that tick; assert subsequent iteration order and ownership.
+- [x] **SCHED-02.5** Explicitly split primary-clock singleton route composition from02.1/NUM-02.3. Two complete original wall detours agree on all34 pose/velocity/heading/index/elapsed/clock rows under six authentic5ms advances per pass;45 owner updates include the supplied freshclock0 callback and nine settling ticks. Actual engine RunFrame matches every active motion/clock word and22 saved continuation ticks. Evidence: [primary-owner engine differential](retail-pathfinding-engine.md#primary-owner-clocks-reproduce-the-complete-detour), frozen primary-owner route and strict repeat corpus. Initial public order-admission phase, stock profiles, rendered presentation and populated groups remain separately required.
 
 ### SCHED-03 — Admission queues
 

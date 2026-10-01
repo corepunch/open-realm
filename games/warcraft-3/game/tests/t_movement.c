@@ -411,6 +411,85 @@ TEST(wc3_movement, retail_fine_route_wall_trajectory_words) {
     }
 }
 
+/* Original15aa80 detour under six authentic5ms clock advances per owner pass.
+ * Supply the same fresh callback atclock0, then use actual engine frames. */
+TEST(wc3_movement, retail_primary_owner_wall_trajectory_words) {
+    static uint32_t const primary_expected[34][9]={
+        {0x4087492fu,0x407b248au,0x40f2dca3u,0xc021ea24u,0x40bec402u,0x00000007u,0x3cf5c28eu,0x00000000u,0x41000000u},
+        {0x408e925cu,0x40764909u,0x40f2dce2u,0xc021e8a5u,0x40bec41bu,0x00000007u,0x3d75c28du,0x00000000u,0x41000000u},
+        {0x4095db8bu,0x40716d93u,0x40f2dcc3u,0xc021e965u,0x40bec40fu,0x00000007u,0x3db851e7u,0x00000000u,0x41000000u},
+        {0x409d24b9u,0x406c9217u,0x40f2dca3u,0xc021ea24u,0x40bec402u,0x00000007u,0x3df5c287u,0x00000000u,0x41000000u},
+        {0x40a46de6u,0x4067b696u,0x00000000u,0x00000000u,0x40aec402u,0x00000005u,0x3e199993u,0x00000000u,0x41000000u},
+        {0x40a46de6u,0x4067b696u,0x00000000u,0x00000000u,0x409ec402u,0x00000005u,0x3e3851e3u,0x00000000u,0x41000000u},
+        {0x40a46de6u,0x4067b696u,0x3fac1ee0u,0xc0fc5b90u,0x409c336du,0x00000005u,0x3e570a33u,0x00000000u,0x41000000u},
+        {0x40a5b85eu,0x40589260u,0x3fac1ee0u,0xc0fc5b90u,0x409c336du,0x00000005u,0x3e75c283u,0x00000000u,0x41000000u},
+        {0x40a702d6u,0x40496e2au,0x3fac1ee0u,0xc0fc5b90u,0x409c336du,0x00000005u,0x3e8a3d69u,0x00000000u,0x41000000u},
+        {0x40a84d4eu,0x403a49f4u,0x3fac1ee0u,0xc0fc5b90u,0x409c336du,0x00000005u,0x3e999991u,0x00000000u,0x41000000u},
+        {0x40a997c6u,0x402b25beu,0x3fac206du,0xc0fc5b7fu,0x409c3379u,0x00000005u,0x3ea8f5b9u,0x00000000u,0x41000000u},
+        {0x40aae241u,0x401c0189u,0x3fac206du,0xc0fc5b7fu,0x409c3379u,0x00000005u,0x3eb851e1u,0x00000000u,0x41000000u},
+        {0x40ac2cbcu,0x400cdd54u,0x3fac206du,0xc0fc5b7fu,0x409c3379u,0x00000005u,0x3ec7ae09u,0x00000000u,0x41000000u},
+        {0x40ad7737u,0x3ffb723eu,0x00000000u,0x00000000u,0x40ac3379u,0x00000003u,0x3ed70a31u,0x00000000u,0x41000000u},
+        {0x40ad7737u,0x3ffb723eu,0x00000000u,0x00000000u,0x40bc3379u,0x00000003u,0x3ee66659u,0x00000000u,0x41000000u},
+        {0x40ad7737u,0x3ffb723eu,0x40f9d706u,0xbfdf489cu,0x40c20737u,0x00000003u,0x3ef5c281u,0x00000000u,0x41000000u},
+        {0x40b4f5fbu,0x3ff4bf6du,0x40f9d7e2u,0xbfdf3939u,0x40c207b5u,0x00000003u,0x3f028f54u,0x00000000u,0x41000000u},
+        {0x40bc74c6u,0x3fee0d12u,0x40f9d78au,0xbfdf3f60u,0x40c20783u,0x00000003u,0x3f0a3d68u,0x00000000u,0x41000000u},
+        {0x40c3f38eu,0x3fe75a87u,0x40f9d83au,0xbfdf3311u,0x40c207e8u,0x00000003u,0x3f11eb7cu,0x00000000u,0x41000000u},
+        {0x40cb725cu,0x3fe0a85bu,0x40f9d732u,0xbfdf4588u,0x40c20750u,0x00000003u,0x3f199990u,0x00000000u,0x41000000u},
+        {0x40d2f122u,0x3fd9f5a1u,0x40f9d774u,0xbfdf40eau,0x40c20776u,0x00000003u,0x3f2147a4u,0x00000000u,0x41000000u},
+        {0x40da6feau,0x3fd3430bu,0x40f9d7b6u,0xbfdf3c4cu,0x40c2079cu,0x00000003u,0x3f28f5b8u,0x00000000u,0x41000000u},
+        {0x40e1eeb4u,0x3fcc9098u,0x00000000u,0x00000000u,0x3e8f7c30u,0x00000002u,0x3f30a3ccu,0x00000000u,0x41000000u},
+        {0x40e1eeb4u,0x3fcc9098u,0x00000000u,0x00000000u,0x3f47be18u,0x00000002u,0x3f3851e0u,0x00000000u,0x41000000u},
+        {0x40e1eeb4u,0x3fcc9098u,0x4060582eu,0x40e61dafu,0x3f8f016du,0x00000002u,0x3f3ffff4u,0x00000000u,0x41000000u},
+        {0x40e54c2fu,0x3fe82dbfu,0x4060582eu,0x40e61dafu,0x3f8f016du,0x00000002u,0x3f47ae08u,0x00000000u,0x41000000u},
+        {0x40e8a9aau,0x4001e573u,0x4060582eu,0x40e61dafu,0x3f8f016du,0x00000002u,0x3f4f5c1cu,0x00000000u,0x41000000u},
+        {0x40ec0725u,0x400fb406u,0x3f49a250u,0x40fec195u,0x3fbc7079u,0x00000001u,0x3f570a30u,0x00000000u,0x41000000u},
+        {0x40ecc8b6u,0x401efd13u,0x3f49a250u,0x40fec195u,0x3fbc7079u,0x00000001u,0x3f5eb844u,0x00000000u,0x41000000u},
+        {0x40ed8a47u,0x402e4620u,0x3f49a250u,0x40fec195u,0x3fbc7079u,0x00000001u,0x3f666658u,0x00000000u,0x41000000u},
+        {0x40ee4bd8u,0x403d8f2du,0x3f49a250u,0x40fec195u,0x3fbc7079u,0x00000001u,0x3f6e146cu,0x00000000u,0x41000000u},
+        {0x40ef0d69u,0x404cd83au,0x408d6677u,0x40d567d2u,0x3f7c51b0u,0x00000000u,0x3f75c280u,0x00000000u,0x41000000u},
+        {0x40f34b5cu,0x4059a621u,0x408d66cbu,0x40d5679au,0x3f7c514cu,0x00000000u,0x3f7d7094u,0x00000000u,0x41000000u},
+        {0x40f78952u,0x40667405u,0x00000000u,0x00000000u,0x3f7c514cu,0xffffffffu,0x3f828f54u,0x00000000u,0x41000000u},
+    };
+    reset_entities(); setup_test_world();
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=0;
+    level.pathing_msec=level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[16*16]={0};
+    for (int y=2;y<=6;y++) cells[y*16+6]=2;
+    box2_t bounds={{0,0},{512,512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',128,128,0)\ncall SetUnitTurnSpeed(mover,0.5)\ncall SetUnitPropWindow(mover,0.5)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",256,128)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->stand=unit_stand; unit->think=monster_think;
+    unit->svflags|=SVF_MONSTER; unit->movetype=MOVETYPE_STEP;
+    unit_stand(unit); jass_callbyname(level.vm,"go",false);
+    level.scheduled_think=true; unit->currentmove->think(unit); level.scheduled_think=false;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file="/tmp/openwarcraft3-retail-primary-owner-route-save.bin";
+    FOR_LOOP(pass,2) {
+        int first=pass?12:0;
+        if (pass) { T_ASSERT(ReadGame(file)); T_NOT_NULL(unit->movement.fine_route.points); }
+        for (int i=first;i<34;i++) {
+            level.time+=30; globals.RunFrame();
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),primary_expected[i][0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),primary_expected[i][1]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),primary_expected[i][2]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),primary_expected[i][3]);
+            T_EQ(wc3_float_bits(unit->s.angle),primary_expected[i][4]);
+            if (i<33) T_EQ(unit->movement.fine_route.index,primary_expected[i][5]);
+            T_EQ(wc3_float_bits(level.pathing_clock.time),primary_expected[i][6]);
+            T_EQ(level.pathing_clock.epoch,primary_expected[i][7]);
+            T_EQ(wc3_float_bits(level.pathing_clock.span),primary_expected[i][8]);
+            if (!pass && i==11) T_ASSERT(WriteGame(file));
+        }
+        T_EQ(unit->current_order_id,0);
+    }
+    remove(file); level.started=false; reset_entities(); setup_test_world();
+}
+
 /* Use the real order owner and scheduler to check retained curves through pause,
  * Stop, replacement and deferred public removal; inactive storage is not an order. */
 TEST(wc3_movement, retained_fine_route_public_lifecycle) {
