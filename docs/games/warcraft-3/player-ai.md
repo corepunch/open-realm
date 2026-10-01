@@ -352,6 +352,53 @@ in `War3.mpq` are internally consistent. In ROC mode `FS_ArchiveFileVisible` hid
 visible. TFT mode retains the ordinary expansion archive precedence. Command tests cover both policies, so do not
 register the TFT-only JASS helper `SetSkillArray` as an engine native or disable the whole localization archive.
 
+### AI Native Inventory For Retail Melee Scripts
+
+This inventory is based on the retail TFT `Scripts/common.ai` and the four race libraries (`human.ai`, `orc.ai`,
+`undead.ai`, `elf.ai`) extracted from the installed MPQs. It follows calls reachable from each race library's `main`,
+including function values passed to `StartThread` and common-library worker loops. The common library declares more
+natives than these four scripts use. `StartMeleeAI` is a separate map-facing JASS native which loads a race script; it
+is not declared in `common.ai`.
+
+The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
+functions, but their reachable native surface is the same. Fifty of those names are registered in OpenRealm's JASS
+module; the following 22 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+reached:
+
+| Unregistered native | Reachable role in `common.ai` |
+|---|---|
+| `AttackMoveKill` | Attack a target and continue attacking nearby units |
+| `CaptainRetreating` | Poll whether an attack captain is retreating |
+| `ConvertUnits` | Convert eligible units into a requested type |
+| `GetAllianceTarget`, `SetAllianceTarget` | Read/write the melee assault target |
+| `GetCreepCamp` | Find a creep camp within a level range |
+| `GetEnemyBase`, `GetExpansionFoe`, `GetEnemyExpansion`, `GetNextExpansion`, `GetExpansionPeon` | Locate enemies, expansion targets, and an expansion worker |
+| `GetMegaTarget` | Retrieve a high priority target |
+| `GetTownUnitCount` | Count units by town, completion, and type |
+| `IsTowered`, `TownThreatened` | Assess tower pressure and town danger |
+| `PurchaseZeppelin` | Request a transport for an assault |
+| `RemoveInjuries`, `RemoveSiege` | Reconcile the assault roster before formation |
+| `SetExpansion` | Order an expansion worker to establish a hall |
+| `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
+| `UnitInvis` | Query invisibility while deciding whether to continue targeting |
+
+The remaining reachable natives are registered: `AddAssault`, `CaptainInCombat`, `CaptainIsEmpty`, `CaptainIsFull`,
+`CaptainReadiness`, `CaptainReadinessHP`, `ClearHarvestAI`, `CommandsWaiting`, `CreateCaptains`, `DisplayText`,
+`DisplayTextI`, `GetAiPlayer`, `GetGoldOwned`, `GetHeroId`, `GetHeroLevelAI`, `GetMinesOwned`, `GetUnitCount`,
+`GetUnitCountDone`, `GetUnitGoldCost`, `GetUnitWoodCost`, `GetUpgradeGoldCost`, `GetUpgradeLevel`,
+`GetUpgradeWoodCost`, `HarvestGold`, `HarvestWood`, `InitAssault`, `MeleeDifficulty`, `MergeUnits`, `SetDefendPlayer`,
+`SetGroupsFlee`, `SetHeroLevels`, `SetHeroesBuyItems`, `SetHeroesFlee`, `SetHeroesTakeItems`, `SetIgnoreInjured`,
+`SetMeleeAI`, `SetPeonsRepair`, `SetProduce`, `SetSmartArtillery`, `SetTargetHeroes`, `SetUnitsFlee`, `SetUpgrade`,
+`SetWatchMegaTargets`, `Sleep`, `StartThread`, `StopGathering`, `TownHasHall`, `TownHasMine`, `TownWithMine`, and
+`UnitAlive`.
+
+Registration and behavior are separate questions. For example, several melee policy setters and `SetHeroLevels` store
+per-bot policy without a proven consumer; see the policy caveats above. `StartMeleeAI`, `StartCampaignAI`, and
+`GetAIDifficulty` are declared by `common.j` rather than `common.ai`; OpenRealm registers all three, and the startup
+functions load the requested player-bound AI script. `CommandAI` is likewise a `common.j` native and is implemented
+through the ordered per-player command queue. `Player`, `GetRandomInt`, `VersionCompatible`, JASS control flow, and
+`GetGameDifficulty` are ordinary JASS/common.j facilities, not `common.ai` natives.
+
 ### Melee Economy And Production
 
 Rivercross proved the following runtime contracts:
