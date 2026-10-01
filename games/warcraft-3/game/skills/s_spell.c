@@ -1108,6 +1108,10 @@ void spell_cmd(edict_t *clent) {
         G_ShowCommandErrorText(clent, "Requires training.");
         return;
     }
+    if (!G_IsUnitAbilityAvailable(caster, code)) {
+        G_ShowCommandErrorText(clent, "This ability is unavailable.");
+        return;
+    }
 
     /* Toggle abilities bypass the normal pipeline. */
     if (spell->flags & AB_TOGGLE) {

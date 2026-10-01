@@ -35,19 +35,19 @@ Right-click point handling preserves the existing formation-aware SmartPoint pat
 
 Rally is a control operation, not a consequence of selection. `SmartPoint` and the Rally point/entity target callbacks iterate `FOR_CONTROLLABLE_SELECTED_UNITS`, and `rally_command` validates the focused producer with `G_UnitCanControl`. Selecting an enemy or neutral producer for inspection must therefore never change its Rally target. See [selection-and-control.md](selection-and-control.md).
 
-Setting Rally back onto the producer normalizes to `RALLY_TARGET_SELF`.
+An untouched producer uses `RALLY_TARGET_SELF`. Explicitly clicking the producer stores an entity target to preserve the Smart order selected by the player; both states resolve to the same producer for the marker and JASS getters.
 
 ## Production handoff
 
 `G_ApplyRallyOrder(producer, produced)` is the single post-production handoff. It resolves the producer's *current* rally state when completion occurs:
 
 ```text
-self target   -> issue no order; return false
+self target   -> issue no order; return false (untouched default only)
 point target  -> unit_issueorder(produced, "smart", point)
 widget target -> unit_issuetargetorder(produced, "smart", widget)
 ```
 
-The self target remains visible as the default rally state but is not an instruction to Smart-click the producer. This matches the observed retail behavior at training completion and avoids accidental interactions such as a fresh Peasant repairing a damaged Town Hall while Auto Repair is off. Explicit point and widget targets continue to use Smart semantics. Normal training calls the helper only after `SP_FindUnitExitPosition` has found a legal location, the queued unit has been revealed, and the existing train-finish event has been published. Hero revival calls the same helper after `G_ReviveHero` and the Hero revive-finish events.
+The untouched self target remains visible as the default rally state but is not an instruction to Smart-click the producer. This matches the observed retail behavior at training completion and avoids accidental interactions such as a fresh Peasant repairing a damaged Town Hall while Auto Repair is off. Explicit point and widget targets, including a player-selected producer target, use Smart semantics. Normal training calls the helper only after `SP_FindUnitExitPosition` has found a legal location, the queued unit has been revealed, and the existing train-finish event has been published. Hero revival calls the same helper after `G_ReviveHero` and the Hero revive-finish events.
 
 The existing Smart resolver remains authoritative for what the produced unit does. Current supported downstream cases include point movement, worker Gold Mine harvesting, worker tree harvesting, resource return, worker repair, item pickup, destructable attack, and enemy attack. Rally does not contain special cases for those actions.
 
@@ -100,7 +100,7 @@ Focused in-engine tests live in `games/warcraft-3/game/tests/t_rally.c` and cove
 - explicit entity-rally Smart handoff;
 - point and widget storage through `setrally`/Smart;
 - moving widget coordinates;
-- reset by clicking the producer;
+- explicit producer target distinct from the untouched default;
 - dead-unit and freed-edict invalidation;
 - point Smart handoff;
 - reading the latest Rally target at training completion.

@@ -203,17 +203,21 @@ TEST(wc3_rally, setrally_and_smart_store_point_and_widget_targets) {
     T_FEQ(resolved_point.y, 224.0f, 0.01f);
 }
 
-TEST(wc3_rally, setting_producer_as_target_restores_default) {
+TEST(wc3_rally, explicitly_setting_producer_target_is_distinct_from_default) {
     edict_t *producer;
+    edict_t *produced;
     edict_t *target = NULL;
 
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    produced = rally_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
     producer->data.UnitProfile = &rally_train_profile;
     T_ASSERT(G_SetRallyPoint(producer, &MAKE(vec2_t, 64.0f, 64.0f)));
     T_ASSERT(G_SetRallyEntity(producer, producer));
-    T_EQ(G_ResolveRallyTarget(producer, NULL, &target), RALLY_TARGET_SELF);
+    T_EQ(G_ResolveRallyTarget(producer, NULL, &target), RALLY_TARGET_ENTITY);
     T_ASSERT(target == producer);
+    T_ASSERT(G_ApplyRallyOrder(producer, produced));
+    T_ASSERT(produced->movement.follow_target == producer);
 }
 
 TEST(wc3_rally, dead_unit_target_resets_to_producer) {

@@ -41,11 +41,9 @@ bool G_SetRallyPoint(edict_t *producer, vec2_t const *point) {
 
 bool G_SetRallyEntity(edict_t *producer, edict_t *target) {
     if (!G_UnitHasRally(producer) || !target || !target->inuse) return false;
-    if (target == producer) {
-        G_ResetRallyTarget(producer);
-        G_RefreshRallyIndicatorForProducer(producer);
-        return true;
-    }
+    /* Preserve an explicit click on the producer as an entity rally. The
+     * zero-initialized SELF state means untouched default and must remain a
+     * no-order handoff; an explicit self target is a Smart instruction. */
     producer->rally.type = RALLY_TARGET_ENTITY;
     producer->rally.entity = target;
     producer->rally.entity_spawn_time = target->spawn_time;
