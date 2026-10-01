@@ -97,6 +97,9 @@ the first wide console write.
 
 - Do not compute the scene from `re.GetWindowSize()` or `tr.drawableSize` anywhere else; the drawable can round to a
   slightly different aspect than the logical window and the two would disagree about the class at exactly 4:3.
+- `DrawFill` rectangles use authored UI-scene coordinates, while the debug console's `DrawCharScaled` uses window pixels.
+  Convert console panel dimensions through `GetUISceneRect()` before filling; passing a pixel height directly can exceed
+  the 480-unit scene on 1080p windows and darken the entire screen.
 - Hidden frames are skipped by `UI_WriteFrameWithChildrenSizedToText`; the gate must run before every console write
   because the FRAMEDEF tree is shared by all recipients.
 - `SV_Begin_f` assigns a missing edict, but `ui_canvas` needs one: it is sent after the configstring pages, which already
