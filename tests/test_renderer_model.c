@@ -139,6 +139,7 @@ static _Noreturn void BZ_TestShaderExit(int code) { shader_test.exitcode = code;
 #undef exit
 
 refImport_t ri;
+void R_ClearEntityCameraParticleScenes(void) {}
 struct render_globals tr;
 static uint32_t load_count, release_count, register_count;
 static bool fail_load, fail_scoped_load, touch_during_registration;
@@ -152,6 +153,7 @@ static uint32_t upload_count;
 static void const *upload_data;
 static cstring_t test_version = "3.1", test_extension = "";
 static uint32_t alloc_count, free_count, ext_count;
+static int test_alloc_fail_after = -1;
 static bool cache_minimap_textures;
 static bool minimap_test_saw_streamed_override;
 static uint32_t next_minimap_texture_id;
@@ -248,7 +250,12 @@ static void test_delete_ids(GLsizei count, GLuint const *ids) { (void)count; (vo
 #undef glDrawArrays
 #undef glDrawArraysInstanced
 
-static handle_t test_alloc(long size) { alloc_count++; return calloc(1, (size_t)size); }
+static handle_t test_alloc(long size) {
+    alloc_count++;
+    if (test_alloc_fail_after == 0) { test_alloc_fail_after = -1; return NULL; }
+    if (test_alloc_fail_after > 0) test_alloc_fail_after--;
+    return calloc(1, (size_t)size);
+}
 static void test_free(handle_t memory) { free_count++; free(memory); }
 static void test_error(cstring_t format, ...) { (void)format; T_ASSERT(false); }
 static void test_spawn(void *context) { (*(uint32_t *)context)++; }
@@ -569,6 +576,57 @@ TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
     T_FEQ(emitted[0].org.y, pivot.y, 0.00001f);
     T_FEQ(emitted[0].size[0] * emitted[0].size_value_scale, 0.01f, 0.0001f);
     T_FEQ(emitted[1].tail.z, 0.006f, 0.00001f);
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_particle_velocity_follows_emitter_node_rotation) {
+    mdxParticleEmitter_t emitter = { .node.node_id = 0, .LifeSpan = 1, .EmissionRate = 628,
+        .Speed = 10, .FrameFlags = BZ_MDX_PARTICLE_TAIL, .TailLength = 0.5f,
+        .Latitude = 0, .Alpha = {255, 255, 255}, .ParticleScaling = {2, 2, 2},
+        .SegmentColor = {1,1,1, 1,1,1, 1,1,1}, .Rows = 1, .Columns = 1 };
+    mdxModel_t model = { .emitters = &emitter };
+    renderEntity_t entity = { .frame = 0, .oldframe = 0 };
+    mat4_t matrix;
+    viewDef_t saved = tr.viewDef;
+
+    Matrix4_identity(&matrix);
+    Matrix4_identity(&node_matrices[0]);
+    Matrix4_rotate(&node_matrices[0], &(vec3_t){180, 0, 0}, ROTATE_XYZ);
+    tr.viewDef.deltaTime = 16;
+    emit_count = 0;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+
+    T_EQ(emit_count, 10);
+    T_FEQ(emitted[0].vel.z, -10.0f, 0.001f);
+    T_FEQ(emitted[0].tail.z, -5.0f, 0.001f);
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_xyquad_axes_use_orientation_without_world_translation) {
+    mdxParticleEmitter_t emitter = { .node.node_id = 0, .node.flags = MDLXNODE_XYQuad,
+        .LifeSpan = 1, .EmissionRate = 100, .Speed = 1, .Latitude = 0,
+        .Alpha = {255, 255, 255}, .ParticleScaling = {1, 1, 1},
+        .SegmentColor = {1,1,1, 1,1,1, 1,1,1}, .Rows = 1, .Columns = 1 };
+    mdxModel_t model = { .emitters = &emitter };
+    renderEntity_t entity = { .frame = 0, .oldframe = 0 };
+    mat4_t matrix;
+    viewDef_t saved = tr.viewDef;
+
+    Matrix4_identity(&matrix);
+    matrix.v[12] = 17.0f; matrix.v[13] = -23.0f; matrix.v[14] = 31.0f;
+    Matrix4_identity(&node_matrices[0]);
+    Matrix4_rotate(&node_matrices[0], &(vec3_t){90, 0, 0}, ROTATE_XYZ);
+    tr.viewDef.deltaTime = 10;
+    emit_count = 0;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+
+    T_EQ(emit_count, 1);
+    T_FEQ(emitted[0].quad_right.x, 1.0f, 0.001f);
+    T_FEQ(emitted[0].quad_right.y, 0.0f, 0.001f);
+    T_FEQ(emitted[0].quad_right.z, 0.0f, 0.001f);
+    T_FEQ(emitted[0].quad_up.x, 0.0f, 0.001f);
+    T_FEQ(emitted[0].quad_up.y, 0.0f, 0.001f);
+    T_FEQ(emitted[0].quad_up.z, 1.0f, 0.001f);
     tr.viewDef = saved;
 }
 
@@ -984,6 +1042,21 @@ TEST(renderer_model, mdx_sound_event_keys_follow_sequence_and_global_sequence_ti
     T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 500, 0, 0, 50, 1050));
 }
 
+TEST(renderer_model, mdx_animation_duration_uses_authored_sequence_interval) {
+    mdxSequence_t sequences[] = {
+        { .name = "Birth", .interval = { 250, 1750 } },
+    };
+    mdxModel_t mdx = { .sequences = sequences, .num_sequences = 1 };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    uint32_t duration = 0;
+
+    T_ASSERT(R_GetModelAnimationDuration(&model, "Birth", &duration));
+    T_EQ(duration, 1500);
+    T_ASSERT(!R_GetModelAnimationDuration(&model, "Stand", &duration));
+    model.modeltype = ID_43DM;
+    T_ASSERT(!R_GetModelAnimationDuration(&model, "Birth", &duration));
+}
+
 TEST(renderer_model, mdx_event_object_id_parses_spawn_rows) {
     mdxEvent_t event = { 0 };
     char id[32] = { 0 };
@@ -1282,6 +1355,32 @@ TEST(renderer_model, clock_emission_ignores_zero_rate_and_delta) {
     R_EmitParticlesAtTime(0.0f, 1050, 100, test_spawn, &spawn_count);
     R_EmitParticlesAtTime(10.0f, 1050, 0, test_spawn, &spawn_count);
     T_EQ(spawn_count, 0);
+}
+
+TEST(renderer_model, frame_emission_bounds_extreme_authored_rates) {
+    uint32_t count = 0;
+    float accum = 0.0f;
+
+    R_EmitParticles(1000000000.0f, &accum, 100, test_spawn, &count);
+    T_EQ(count, R_EMIT_PARTICLE_BUDGET);
+    T_FEQ(accum, 0.0f, 0.001f);
+}
+
+TEST(renderer_model, frame_emission_keeps_finite_accumulator_at_float_max) {
+    uint32_t count = 0;
+    float accum = 0.5f;
+    R_EmitParticles(FLT_MAX, &accum, 100, test_spawn, &count);
+    T_EQ(count, R_EMIT_PARTICLE_BUDGET);
+    T_ASSERT(isfinite(accum)); T_ASSERT(accum >= 0 && accum < 1);
+}
+
+TEST(renderer_model, frame_emission_rejects_nonfinite_rates) {
+    uint32_t count = 0;
+    float accum = 0.5f;
+
+    R_EmitParticles(INFINITY, &accum, 100, test_spawn, &count);
+    T_EQ(count, 0);
+    T_FEQ(accum, 0.0f, 0.001f);
 }
 
 TEST(renderer_alpha, active_samples_require_a_real_multisample_buffer) {
@@ -1809,7 +1908,9 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #define R_RenderRectSplatUV R_TestProductionRenderRectSplatUV
 #define R_RenderSplat R_TestProductionRenderSplat
 #define R_UpdateVertexArrayObject test_ground_update
+#define WC3_TERRAIN_NORMAL_TESTS
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
+#undef WC3_TERRAIN_NORMAL_TESTS
 #undef R_UpdateVertexArrayObject
 #undef glEnable
 #undef glDisable
@@ -1893,6 +1994,36 @@ TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
     R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
     test_free(layer);
     R_ResetGroundTextures();
+}
+
+TEST(renderer_terrain, terrain_normal_cache_hits_and_invalidates_between_bakes) {
+    war3mapVertex_t verts[25] = {0};
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts };
+    war3map_t const *saved_world = tr.world;
+    vec3_t first, repeated, updated;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 25) verts[i].accurate_height = 8192;
+    tr.world = &map;
+    terrain_normal_cache_hits = terrain_normal_cache_misses = 0;
+    R_BeginTerrainNormalCache(&map);
+    first = R_GetVertexNormal(&map, 2, 2);
+    repeated = R_GetVertexNormal(&map, 2, 2);
+    T_FEQ(first.x, repeated.x, 0.0f);
+    T_FEQ(first.y, repeated.y, 0.0f);
+    T_FEQ(first.z, repeated.z, 0.0f);
+    T_EQ(terrain_normal_cache_misses, 1);
+    T_EQ(terrain_normal_cache_hits, 1);
+
+    R_EndTerrainNormalCache();
+    verts[1 + 2 * 5].accurate_height += 1024;
+    R_BeginTerrainNormalCache(&map);
+    updated = R_GetVertexNormal(&map, 2, 2);
+    T_ASSERT(first.x != updated.x || first.y != updated.y || first.z != updated.z);
+    T_EQ(terrain_normal_cache_misses, 2);
+    T_EQ(terrain_normal_cache_hits, 1);
+    R_EndTerrainNormalCache();
+    R_ResetTerrainNormalCache();
+    tr.world = saved_world;
 }
 
 TEST(renderer_terrain, deformation_updates_and_expires_height_offsets) {
@@ -2019,9 +2150,15 @@ w3CliffType_t const *R_CliffType(uint32_t id) {
 }
 #include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
 /* The cliff material test needs the real bake/finalize lifecycle, but no OpenGL context. */
-static buffer_t *test_cliff_buffer(vertex_t const *vertices, uint32_t count) { return test_alloc(sizeof(buffer_t)); }
+static uint32_t cliff_buffer_upload_count;
+static buffer_t *test_cliff_buffer(vertex_t const *vertices, uint32_t count) {
+    cliff_buffer_upload_count++;
+    return test_alloc(sizeof(buffer_t));
+}
 #define R_MakeVertexArrayObject test_cliff_buffer
+#define WC3_CLIFF_TESTS
 #include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
+#undef WC3_CLIFF_TESTS
 #undef R_MakeVertexArrayObject
 
 TEST(renderer_terrain, cliff_cache_distinguishes_model_directories) {
@@ -2039,6 +2176,244 @@ TEST(renderer_terrain, cliff_cache_distinguishes_model_directories) {
     T_STREQ(last_model_load, "Doodads\\Terrain\\CliffTrans\\CliffTransBALH0.mdx");
     T_ASSERT(R_LoadCliffModel(&city, "BALH", true) == a); T_EQ(load_count, 4);
     R_ResetCliffCache(); T_EQ(release_count, 4);
+}
+
+TEST(renderer_terrain, cliff_baker_samples_each_indexed_vertex_once_per_piece) {
+    war3mapVertex_t verts[25] = {0};
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts };
+    vec3_t pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}};
+    vec3_t norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
+    vec2_t uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
+    short tris[] = {0,1,2,2,1,0};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 6,
+        .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo,
+        .bounds.box = { .min = {-128,0,0}, .max = {0,256,128} } };
+    cliffData_t data = { .cliff = 1, .rampModelDir = "CityCliffTrans", .cliffModelDir = "CityCliffs" };
+    float first_height;
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    reset_registry(); R_SetMapAssetScope(NULL);
+    FOR_LOOP(i, 25) verts[i] = (war3mapVertex_t){ .level = 5, .cliff = 1, .accurate_height = 8192 };
+    verts[6].level = verts[11].level = 6;
+    tr.world = &map; cliff_model = &mdx;
+    cliff_vertex_sample_count = cliff_vertex_cache_hit_count = 0;
+    cliff_bake.num_vertices = 0;
+    R_MakeCliff(&map, 1, 1, &data);
+    T_EQ(cliff_bake.num_vertices, 6);
+    T_EQ(cliff_vertex_sample_count, 3);
+    T_EQ(cliff_vertex_cache_hit_count, 3);
+    first_height = cliff_bake.vertices[0].position.z;
+    FOR_LOOP(i, 3) {
+        vertex_t const *a = &cliff_bake.vertices[i];
+        vertex_t const *b = &cliff_bake.vertices[5-i];
+        T_FEQ(a->position.x, b->position.x, 0.0f);
+        T_FEQ(a->position.y, b->position.y, 0.0f);
+        T_FEQ(a->position.z, b->position.z, 0.0f);
+        T_FEQ(a->normal.x, b->normal.x, 0.0f);
+        T_FEQ(a->normal.y, b->normal.y, 0.0f);
+        T_FEQ(a->normal.z, b->normal.z, 0.0f);
+        T_FEQ(a->texcoord.x, b->texcoord.x, 0.0f);
+        T_FEQ(a->texcoord.y, b->texcoord.y, 0.0f);
+    }
+
+    /* A later piece must sample the updated terrain instead of reusing the prior piece's values. */
+    FOR_LOOP(i, 25) verts[i].accurate_height += 128;
+    cliff_bake.num_vertices = 0;
+    R_MakeCliff(&map, 1, 1, &data);
+    T_EQ(cliff_bake.num_vertices, 6);
+    T_EQ(cliff_vertex_sample_count, 6);
+    T_EQ(cliff_vertex_cache_hit_count, 6);
+    T_ASSERT(cliff_bake.vertices[0].position.z != first_height);
+
+    cliff_model = NULL; tr.world = NULL;
+    R_ResetCliffCache(); R_FinishCliffs();
+}
+
+TEST(renderer_terrain, cliff_baker_rejects_out_of_range_triangle_indices) {
+    war3mapVertex_t verts[25] = {0};
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts };
+    vec3_t pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}};
+    vec3_t norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
+    vec2_t uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
+    short tris[] = {0,1,-1};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3,
+        .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo };
+    cliffData_t data = { .cliff = 1, .rampModelDir = "CityCliffTrans", .cliffModelDir = "CityCliffs" };
+    cliffData_t other = { .cliff = 1, .rampModelDir = "CliffTrans", .cliffModelDir = "Cliffs" };
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    reset_registry(); R_SetMapAssetScope(NULL);
+    FOR_LOOP(i, 25) verts[i] = (war3mapVertex_t){ .level = 5, .cliff = 1, .accurate_height = 8192 };
+    verts[6].level = verts[11].level = 6;
+    tr.world = &map; cliff_model = &mdx;
+    cliff_bake.num_vertices = 0;
+    cliff_model_warning_count = 0;
+    R_MakeCliff(&map, 1, 1, &data);
+    T_EQ(cliff_bake.num_vertices, 0);
+    T_EQ(cliff_model_warning_count, 1);
+    R_MakeCliff(&map, 1, 1, &data);
+    T_EQ(cliff_model_warning_count, 1);
+    R_MakeCliff(&map, 1, 1, &other);
+    T_EQ(cliff_model_warning_count, 2);
+    T_EQ(cliff_bake.num_vertices, 0);
+    cliff_model = NULL; tr.world = NULL;
+    R_ResetCliffCache(); R_FinishCliffs();
+}
+
+TEST(renderer_terrain, cliff_allocation_failures_leave_caches_and_weld_recoverable) {
+    war3mapVertex_t verts[25] = {0};
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts };
+    vec3_t pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}};
+    vec3_t norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
+    vec2_t uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
+    short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3,
+        .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo };
+    cliffData_t data = { .cliff = 1, .rampModelDir = "CityCliffTrans", .cliffModelDir = "CityCliffs" };
+    rCliffBakeList_t list = {0};
+    vertex_t weld_vertices[2] = {0};
+    uint32_t weld_groups[] = {1, 2};
+    int (*read_file)(cstring_t, void **) = ri.FS_ReadFile;
+    texture_t *saved_texture = texture_load_result;
+    texture_t texture = {0};
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    reset_registry(); R_SetMapAssetScope(NULL);
+    tr.world = &map; cliff_model = &mdx;
+    cliff_vertex_sample_capacity = cliff_vertex_generation = 0;
+    SAFE_DELETE(cliff_vertex_samples, ri.MemFree);
+    SAFE_DELETE(cliff_vertex_sample_generation, ri.MemFree);
+    test_alloc_fail_after = 0;
+    T_ASSERT(!R_GrowCliffVertexSamples(3));
+    T_ASSERT(R_GrowCliffVertexSamples(3));
+    R_ResetCliffCache();
+
+    test_alloc_fail_after = 0;
+    T_NULL(R_CliffBakeVertex(&list));
+    T_EQ(list.num_vertices, 0);
+    T_EQ(list.capacity, 0);
+    T_NOT_NULL(R_CliffBakeVertex(&list));
+    T_EQ(list.num_vertices, 1);
+    ri.MemFree(list.vertices); ri.MemFree(list.groups);
+
+    weld_vertices[0].normal = (vec3_t){1,0,0};
+    weld_vertices[1].normal = (vec3_t){1,0,0};
+    list = (rCliffBakeList_t){ .vertices = weld_vertices, .groups = weld_groups, .num_vertices = 2 };
+    test_alloc_fail_after = 0;
+    R_CliffWeldNormals(&list, 0.01f);
+    T_FEQ(weld_vertices[0].normal.x, 1, 0.0f);
+    R_CliffWeldNormals(&list, 0.01f);
+    T_FEQ(weld_vertices[1].normal.x, 1, 0.0f);
+
+    data.cliffModelDir = "CityCliffs";
+    test_alloc_fail_after = 0;
+    T_NULL(R_LoadCliffModel(&data, "AABB", false));
+    T_ASSERT(cliff_warn_model_cache_alloc);
+    T_NOT_NULL(R_LoadCliffModel(&data, "AABB", false));
+
+    ri.FS_ReadFile = test_texture_read;
+    texture_file = "";
+    texture_load_result = &texture;
+    data.texDir = "ReplaceableTextures\\Cliff";
+    data.texFile = "Cliff";
+    test_alloc_fail_after = 0;
+    T_ASSERT(R_LoadCliffTexture(1, 'L', &data) == &texture);
+    T_ASSERT(cliff_warn_texture_cache_alloc);
+    T_ASSERT(R_LoadCliffTexture(1, 'L', &data) == &texture);
+
+    bool saved_fail_load = fail_load;
+    R_ResetCliffCache();
+    cliff_model_warning_count = 0;
+    fail_load = true;
+    T_NULL(R_LoadCliffModel(&data, "AABB", false));
+    T_NULL(R_LoadCliffModel(&data, "AABB", false));
+    T_EQ(cliff_model_warning_count, 1);
+    fail_load = saved_fail_load;
+    ri.FS_ReadFile = read_file;
+    texture_load_result = saved_texture;
+    cliff_model = NULL; tr.world = NULL;
+    R_ResetCliffCache();
+}
+
+TEST(renderer_terrain, cliff_segment_allocation_failures_recover_without_stale_uploads) {
+    enum { span = SEGMENT_SIZE + 1 };
+    war3mapVertex_t verts[span * span];
+    uint32_t cliffs[] = { MAKEFOURCC('C','L','g','r') };
+    war3map_t map = { .tileset = 'L', .width = span, .height = span,
+        .vertices = verts, .cliffs = cliffs, .num_cliffs = 1 };
+    vec3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}};
+    vec3_t norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vec2_t uv[3] = {0}; short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3,
+        .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo,
+        .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
+    texture_t texture = {0}; texture_t *saved_texture = texture_load_result;
+    int (*read_file)(cstring_t, void **) = ri.FS_ReadFile;
+    maplayer_t *layer;
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    reset_registry(); R_SetMapAssetScope(NULL);
+    FOR_LOOP(y, span) FOR_LOOP(x, span)
+        verts[x + y * span] = (war3mapVertex_t){ .level = y >= 2 ? 5 : 4, .cliff = 0, .accurate_height = 8192 };
+    tr.world = &map; cliff_model = &mdx; cliff_buffer_upload_count = 0;
+    ri.FS_ReadFile = test_texture_read; texture_file = ""; texture_load_result = &texture;
+
+    test_alloc_fail_after = 0; /* Segment layer descriptor. */
+    T_NULL(R_BuildMapSegmentCliffs(&map, 0, 0, 0));
+    T_ASSERT(cliff_warn_layer_alloc);
+    layer = R_BuildMapSegmentCliffs(&map, 0, 0, 0);
+    T_NOT_NULL(layer);
+    R_FinishCliffs();
+    T_EQ(cliff_buffer_upload_count, 1);
+    test_free((buffer_t *)layer->buffer); test_free(layer);
+
+    /* Warm model/sample/texture caches above. The next four allocations are layer, bake
+     * vertices, bake groups, then pending-layer node; fail only the last one. */
+    test_alloc_fail_after = 3;
+    T_NULL(R_BuildMapSegmentCliffs(&map, 0, 0, 0));
+    T_ASSERT(cliff_warn_pending_alloc);
+    R_FinishCliffs();
+    T_EQ(cliff_buffer_upload_count, 1);
+
+    layer = R_BuildMapSegmentCliffs(&map, 0, 0, 0);
+    T_NOT_NULL(layer);
+    R_FinishCliffs();
+    T_EQ(cliff_buffer_upload_count, 2);
+    test_free((buffer_t *)layer->buffer); test_free(layer);
+
+    ri.FS_ReadFile = read_file; texture_load_result = saved_texture;
+    cliff_model = NULL; tr.world = NULL; R_ResetCliffCache();
+}
+
+TEST(renderer_terrain, cliff_weld_context_does_not_upload_discarded_layers) {
+    enum { span = SEGMENT_SIZE + 1 };
+    war3mapVertex_t verts[span * span];
+    uint32_t cliffs[] = { MAKEFOURCC('C','L','g','r') };
+    war3map_t map = { .width = span, .height = span, .vertices = verts,
+        .cliffs = cliffs, .num_cliffs = 1 };
+    vec3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}};
+    vec3_t norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vec2_t uv[3] = {0}; short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3,
+        .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo,
+        .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    reset_registry(); R_SetMapAssetScope(NULL);
+    FOR_LOOP(y, span) FOR_LOOP(x, span)
+        verts[x + y * span] = (war3mapVertex_t){ .level = y >= 2 ? 5 : 4, .cliff = 0, .accurate_height = 8192 };
+    tr.world = &map; cliff_model = &mdx; cliff_buffer_upload_count = 0;
+    R_BakeMapSegmentCliffsForWeld(&map, 0, 0, 0);
+    T_ASSERT(cliff_bake.num_vertices > 0);
+    R_FinishCliffs();
+    T_EQ(cliff_buffer_upload_count, 0);
+    T_EQ(cliff_bake.num_vertices, 0);
+
+    cliff_model = NULL; tr.world = NULL; R_ResetCliffCache();
 }
 
 TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage) {

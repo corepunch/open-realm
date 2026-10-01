@@ -882,15 +882,19 @@ TEST(wc3_combat, missing_weapon_data_disables_authored_attack_slots) {
 
 TEST(wc3_combat, missile_impact_uses_attack2_type_selected_at_launch) {
     UnitWeapons_t weapons = { .attacksEnabled = 3 };
-    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
+    edict_t *attacker;
+    edict_t *target;
     edict_t *missile = NULL;
 
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
     attacker->data.UnitWeapons = &weapons;
     attacker->goalentity = target;
     attacker->attack1.type = ATK_NORMAL;
     attacker->attack1.weapon = WPN_MISSILE;
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 500.0f;
     attacker->attack2.type = ATK_PIERCE;
     attacker->attack2.weapon = WPN_MISSILE;
     attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
@@ -899,6 +903,7 @@ TEST(wc3_combat, missile_impact_uses_attack2_type_selected_at_launch) {
     attacker->attack2.damagePoint = 0.1f;
     attacker->attack2.cooldown = 1.0f;
     attacker->attack2.projectile.speed = 1000;
+    attacker->attack2.range = 500.0f;
     target->targtype = TARG_AIR;
     target->defense_type = 0; /* Pierce deals 200%; Normal deals 100%. */
     target->armor_value = 0.0f;
@@ -1690,27 +1695,44 @@ TEST(wc3_combat, hero_setxp_does_not_lower_xp_or_level) {
     T_EQ((int)h->hero.xp, 500);
 }
 
-/* Attack timing: the post-swing recovery is cooldown - damagePoint, so the full
- * attack cycle (windup + recovery) equals WC3's "Cooldown Time". */
-TEST(wc3_combat, attack_recovery_excludes_damage_point) {
+/* Attack timing: after damage point, the next swing must wait for both the
+ * remaining weapon cooldown and the authored backswing. */
+TEST(wc3_combat, attack_recovery_respects_cooldown_and_backswing) {
     edict_t *u              = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    u->attack1.cooldown    = 1.5f;
+    u->attack1.cooldown = 1.5f;
     u->attack1.damagePoint = 0.3f;
+    u->attack1.backswingPoint = 0.5f;
     attack_melee_cooldown(u);
-    T_FEQ(u->wait, 1.2f, 0.001f);   /* 1.5 - 0.3 */
+    T_FEQ(u->wait, 1.2f, 0.001f);   /* cooldown - damagePoint wins */
 
-    u->attack1.cooldown    = 2.0f;
+    u->attack_cooldown_active = false;
+    u->attack1.cooldown = 1.0f;
     u->attack1.damagePoint = 0.5f;
+    u->attack1.backswingPoint = 0.8f;
     attack_ranged_cooldown(u);
-    T_FEQ(u->wait, 1.5f, 0.001f);   /* 2.0 - 0.5 */
+    T_FEQ(u->wait, 0.8f, 0.001f);   /* backswing wins */
 
-    /* damagePoint >= cooldown has no recovery phase.  The next swing starts
-     * immediately instead of leaving the attack state stuck on wait==0. */
-    u->attack1.cooldown    = 0.4f;
+    /* If cooldown has elapsed by damage point but backswing remains, the
+     * attack still cannot begin its next swing before backswing completes. */
+    u->attack_cooldown_active = false;
+    u->attack1.cooldown = 0.4f;
     u->attack1.damagePoint = 0.5f;
+    u->attack1.backswingPoint = 0.2f;
     attack_melee_cooldown(u);
-    T_STREQ(u->currentmove->animation, "attack");
-    T_FEQ(u->wait, 0.5f, 0.001f);
+    T_STREQ(u->currentmove->animation, "stand ready");
+    T_FEQ(u->wait, 0.2f, 0.001f);
+}
+
+TEST(wc3_combat, attack_ground_recovery_respects_backswing) {
+    edict_t *unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
+    unit->attack1.cooldown = 0.4f;
+    unit->attack1.damagePoint = 0.3f;
+    unit->attack1.backswingPoint = 0.8f;
+
+    attack_ground_cooldown(unit);
+
+    T_STREQ(unit->currentmove->animation, "stand ready");
+    T_FEQ(unit->wait, 0.8f, 0.001f);
 }
 
 TEST(wc3_combat, ranged_zero_recovery_immediately_starts_next_attack) {
@@ -1724,13 +1746,456 @@ TEST(wc3_combat, ranged_zero_recovery_immediately_starts_next_attack) {
     T_FEQ(u->wait, 0.4f, 0.001f);
 }
 
+TEST(wc3_combat, cooldown_range_buffer_holds_then_chases_at_ready_time) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 130.0f, 0.0f);
+    vec2_t const origin = attacker->s.origin2;
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.rangeBuffer = 40.0f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damagePoint = 0.1f;
+    attacker->unitinfo.MoveSpeed = 200.0f;
+    target->targtype = TARG_GROUND;
+    attacker->goalentity = target;
+
+    attack_melee_cooldown(attacker);
+    attacker->currentmove->think(attacker);
+    T_FEQ(attacker->s.origin2.x, origin.x, 0.001f);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+
+    attacker->wait = FRAMETIME / 1000.0f;
+    attacker->attack_cooldown_remaining = FRAMETIME / 1000.0f;
+    attacker->attack_cooldown_end_time = G_Time();
+    attacker->attack_cooldown_active = true;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+}
+
+TEST(wc3_combat, attack_animation_end_does_not_restart_swing_cooldown) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+    vec2_t const origin = attacker->s.origin2;
+    uint32_t swing_cooldown_end;
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.damageBase = 10.0f;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.rangeBuffer = 40.0f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damagePoint = 0.03f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "attack");
+    T_ASSERT(attacker->attack_cooldown_active);
+    swing_cooldown_end = attacker->attack_cooldown_end_time;
+
+    /* Commit a real hit at damage point while a finite animation remains
+     * active. The weapon cooldown began at swing start. */
+    attach_stub_anim(attacker);
+    attacker->wait = FRAMETIME / 1000.0f;
+    attacker->currentmove->think(attacker);
+    T_ASSERT(target->health.value < target->health.max_value);
+    T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
+
+    /* The attack animation's end callback happens later than damage point.
+     * It must preserve the existing swing deadline rather than start a second
+     * cooldown from animation completion. */
+    level.time += 600;
+    target->s.origin2.x = 130.0f;
+    attacker->currentmove->endfunc(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_FEQ(attacker->s.origin2.x, origin.x, 0.001f);
+    T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
+    T_ASSERT(attacker->attack_cooldown_active);
+    T_ASSERT(attacker->attack_cooldown_remaining < 0.5f);
+
+    /* The same target becomes too far for the buffer, so chase begins. */
+    target->s.origin2.x = 150.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+
+    /* Returning inside buffered range before the original swing deadline
+     * stops the chase; it must not start another swing early. */
+    target->s.origin2.x = 130.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_ASSERT(attacker->attack_cooldown_active);
+    T_ASSERT(attacker->attack_cooldown_remaining > 0.0f);
+    T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
+}
+
+TEST(wc3_combat, attack_animation_end_does_not_restart_expired_swing_cooldown) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+    uint32_t swing_cooldown_end;
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.damageBase = 10.0f;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.cooldown = 0.4f;
+    attacker->attack1.damagePoint = 0.03f;
+    attacker->attack1.backswingPoint = 0.8f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    swing_cooldown_end = attacker->attack_cooldown_end_time;
+    attach_stub_anim(attacker);
+    attacker->wait = FRAMETIME / 1000.0f;
+    attacker->currentmove->think(attacker);
+    T_ASSERT(target->health.value < target->health.max_value);
+
+    /* Ability think observes the expired cooldown before the attack animation
+     * ends. Recovery must still recognize the move as an existing swing. */
+    level.time = swing_cooldown_end + 100;
+    attacker->currentmove->think(attacker);
+    T_ASSERT(!attacker->attack_cooldown_active);
+    level.time = swing_cooldown_end + 200;
+    attacker->currentmove->endfunc(attacker);
+
+    T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
+    T_ASSERT(!attacker->attack_cooldown_active);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_FEQ(attacker->wait, 0.2f, 0.01f);
+}
+
+TEST(wc3_combat, backswing_recovery_uses_damage_point_deadline) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+    uint32_t swing_cooldown_end;
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.damageBase = 10.0f;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damagePoint = 0.03f;
+    attacker->attack1.backswingPoint = 0.8f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    swing_cooldown_end = attacker->attack_cooldown_end_time;
+    attach_stub_anim(attacker);
+    attacker->wait = FRAMETIME / 1000.0f;
+    attacker->currentmove->think(attacker);
+    T_ASSERT(target->health.value < target->health.max_value);
+
+    /* Damage point is at 30 ms; by animation end at 600 ms, only 230 ms of
+     * the authored 800 ms backswing remains. Cooldown still has 400 ms. */
+    level.time += 600;
+    attacker->currentmove->endfunc(attacker);
+    T_EQ(attacker->attack_cooldown_end_time, swing_cooldown_end);
+    T_FEQ(attacker->wait, 0.4f, 0.01f);
+}
+
+TEST(wc3_combat, attack_max_range_uses_both_unit_collision_edges) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 150.0f, 0.0f);
+
+    attacker->collision = 20.0f;
+    target->collision = 20.0f;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 110.0f;
+    attacker->attack1.cooldown = 1.0f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "attack");
+}
+
+TEST(wc3_combat, attack_minimum_range_uses_unit_collision_edges) {
+    static UnitWeapons_t const weapons = { .attacksEnabled = 3, .minimumAttackRange = 120.0f };
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 150.0f, 0.0f);
+
+    attacker->data.UnitWeapons = &weapons;
+    attacker->collision = 20.0f;
+    target->collision = 20.0f;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 200.0f;
+    attacker->attack1.cooldown = 1.0f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+}
+
+TEST(wc3_combat, cooldown_buffer_survives_chase_until_weapon_is_ready) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 150.0f, 0.0f);
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.rangeBuffer = 60.0f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damagePoint = 0.1f;
+    target->targtype = TARG_GROUND;
+    attacker->goalentity = target;
+
+    attack_melee_cooldown(attacker);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+
+    target->s.origin2.x = 180.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+
+    target->s.origin2.x = 150.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_ASSERT(attacker->wait > 0.0f);
+}
+
+TEST(wc3_combat, attack2_uses_its_own_cooldown_range_buffer) {
+    static UnitWeapons_t const weapons = { .attacksEnabled = 3 };
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 150.0f, 0.0f);
+
+    attacker->data.UnitWeapons = &weapons;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_AIR;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.rangeBuffer = 0.0f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damagePoint = 0.1f;
+    attacker->attack2.type = ATK_PIERCE;
+    attacker->attack2.weapon = WPN_MISSILE;
+    attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack2.range = 100.0f;
+    attacker->attack2.rangeBuffer = 60.0f;
+    attacker->attack2.cooldown = 1.0f;
+    attacker->attack2.damagePoint = 0.1f;
+    target->targtype = TARG_GROUND;
+    attacker->goalentity = target;
+
+    attack_ranged_cooldown(attacker);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    target->s.origin2.x = 170.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+}
+
+TEST(wc3_combat, target_leaving_true_range_before_damage_point_cancels_windup) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+    float const health = target->health.value;
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.rangeBuffer = 100.0f;
+    attacker->attack1.damagePoint = 0.3f;
+    attacker->attack1.cooldown = 1.0f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "attack");
+
+    target->s.origin2.x = 180.0f;
+    attacker->currentmove->think(attacker);
+
+    T_STREQ(attacker->currentmove->animation, "walk");
+    T_FEQ(target->health.value, health, 0.001f);
+}
+
+TEST(wc3_combat, canceled_windup_cooldown_survives_chase_and_reacquisition) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.rangeBuffer = 40.0f;
+    attacker->attack1.damagePoint = 0.3f;
+    attacker->attack1.cooldown = 1.0f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "attack");
+    T_ASSERT(attacker->wait > 0.0f);
+
+    target->s.origin2.x = 180.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+    T_ASSERT(attacker->attack_cooldown_remaining > 0.0f);
+
+    target->s.origin2.x = 80.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_ASSERT(attacker->wait > 0.0f);
+    T_ASSERT(attacker->attack_cooldown_active);
+}
+
+TEST(wc3_combat, canceled_windup_cooldown_advances_after_attack_order_is_replaced) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.damagePoint = 0.3f;
+    attacker->attack1.cooldown = 1.0f;
+    target->targtype = TARG_GROUND;
+
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    target->s.origin2.x = 180.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+    T_ASSERT(attacker->attack_cooldown_active);
+
+    vec2_t const replacement = { 240.0f, 0.0f };
+    T_ASSERT(unit_issueorder(attacker, "move", &replacement));
+    T_ASSERT(attacker->currentmove->proc != CAbilityAttack);
+    level.time += 1100;
+    order_attack(attacker, target);
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+    T_ASSERT(!attacker->attack_cooldown_active);
+}
+
+TEST(wc3_combat, backswing_still_blocks_attack_after_cooldown_during_chase) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.cooldown = 0.2f;
+    attacker->attack1.damagePoint = 0.1f;
+    attacker->attack1.backswingPoint = 0.8f;
+    target->targtype = TARG_GROUND;
+    attacker->goalentity = target;
+
+    attack_melee_cooldown(attacker);
+    target->s.origin2.x = 180.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "walk");
+
+    target->s.origin2.x = 80.0f;
+    attacker->currentmove->think(attacker);
+    T_STREQ(attacker->currentmove->animation, "stand ready");
+    T_ASSERT(attacker->wait > 0.0f);
+}
+
+TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
+    cstring_t filename = "/tmp/openwarcraft3-attack-chase-cooldown.bin";
+    edict_t *attacker;
+    edict_t *target;
+    float const cooldown_remaining = 0.73f;
+
+    setup_test_world();
+    reset_entities();
+    attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 180.0f, 0.0f);
+    attacker->stand = unit_stand;
+    unit_stand(attacker);
+    attacker->s.player = 0;
+    target->s.player = 1;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.rangeBuffer = 60.0f;
+    target->targtype = TARG_GROUND;
+    T_ASSERT(S_OrderAttack(attacker, target));
+    T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
+    attacker->attack_cooldown_active = true;
+    attacker->attack_cooldown_remaining = cooldown_remaining;
+    attacker->attack_cooldown_end_time = G_Time() + 730;
+
+    T_ASSERT(WriteGame(filename));
+    {
+        int const attacker_index = (int)(attacker - g_edicts);
+        int const target_index = (int)(target - g_edicts);
+        attacker->goalentity = NULL;
+        attacker->attack_cooldown_active = false;
+        attacker->attack_cooldown_remaining = 0.0f;
+        attacker->attack_cooldown_end_time = 0;
+        T_ASSERT(ReadGame(filename));
+
+        attacker = g_edicts + attacker_index;
+        target = g_edicts + target_index;
+    }
+    T_ASSERT(attacker->goalentity == target);
+    T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
+    T_ASSERT(attacker->currentmove != NULL);
+    T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
+    T_ASSERT(attacker->attack_cooldown_active);
+    T_FEQ(attacker->attack_cooldown_remaining, cooldown_remaining, 0.001f);
+    remove(filename);
+}
+
+TEST(wc3_combat, direct_attack_rejects_reused_target_edict) {
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+    uint32_t const target_number = (uint32_t)(target - g_edicts);
+
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 100.0f;
+    target->targtype = TARG_GROUND;
+    order_attack(attacker, target);
+    T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
+
+    G_FreeEdict(target);
+    level.time = target->freetime + 1001;
+    target = G_Spawn();
+    T_EQ((uint32_t)(target - g_edicts), target_number);
+    target->spawn_time = level.time;
+    target->svflags |= SVF_MONSTER;
+    target->health.value = target->health.max_value = 420.0f;
+    target->targtype = TARG_GROUND;
+    target->s.origin2.x = 80.0f;
+    target->data.UnitWeapons = attacker->data.UnitWeapons;
+    target->attack1.type = ATK_NORMAL;
+    target->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->health.value = 420.0f;
+
+    attacker->currentmove->think(attacker);
+    T_NULL(attacker->goalentity);
+    T_EQ(target->health.value, 420.0f);
+}
+
 TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
-    edict_t *u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
-    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
+    edict_t *u;
+    edict_t *target;
+
+    setup_test_world(); reset_entities();
+    u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
 
     u->goalentity = target;
     u->attack1.type = ATK_NORMAL;
     u->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    u->attack1.range = 500.0f;
     target->targtype = TARG_GROUND;
     u->attack1.weapon = WPN_MISSILE;
     u->attack1.cooldown = 1.0f;
@@ -1750,6 +2215,7 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
     edict_t *missile = NULL;
     FILTER_EDICTS(ent, ent->owner == u && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
     T_NOT_NULL(missile);
+    if (!missile) return;
     T_EQ((missile->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
     T_STREQ(u->currentmove->animation, "stand ready");
     T_ASSERT(u->wait > 0.0f);
@@ -1835,11 +2301,17 @@ TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
 TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND },
                               .attack2 = { .areaTargets = WC3_TARGET_FLAG_AIR } };
-    edict_t *attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
-    edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
-    edict_t *bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
-    edict_t *retarget = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 500.0f, 0.0f);
+    edict_t *attacker;
+    edict_t *target;
+    edict_t *bystander;
+    edict_t *retarget;
     edict_t *missile = NULL;
+
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    retarget = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 500.0f, 0.0f);
 
     attacker->data.UnitWeapons = &weapons;
     attacker->goalentity = target;
@@ -1851,6 +2323,7 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
     attacker->attack1.cooldown = 1.0f;
     attacker->attack1.projectile.speed = 1000;
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.range = 500.0f;
     attacker->attack1.areaFull = 40.0f;
     attacker->attack1.areaMedium = 80.0f;
     attacker->attack1.areaSmall = 120.0f;

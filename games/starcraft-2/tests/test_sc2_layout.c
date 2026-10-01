@@ -487,3 +487,24 @@ TEST(sc2_layout, model_camera_widescreen) {
     b = Matrix4_multiply_vector3(&wide, &(vec3_t){0,0,0});
     T_FEQ(b.x, 0, .0001f); T_FEQ(b.y, 0, .0001f); T_ASSERT(b.z > -1 && b.z < 1);
 }
+
+TEST(sc2_layout, native_minimap_templates_merge_icons_and_center_atlas) {
+    setup_sc2_layout_tests(); SC2_LayoutInit();
+    T_ASSERT(SC2_LayoutParseFile("UI/Layout/UI/MinimapPanel.SC2Layout"));
+    T_ASSERT(SC2_LayoutFlatten("MinimapPanelTemplate"));
+    sc2BaseFrame_t *ping=SC2_LayoutFindFrameByName("PingButton");
+    sc2BaseFrame_t *terrain=SC2_LayoutFindFrameByName("TerrainButton");
+    T_NOT_NULL(ping); T_NOT_NULL(terrain);
+    sc2BaseFrame_t *icon=SC2_LayoutFindChildFrame(ping,"Icon");
+    sc2BaseFrame_t *other=SC2_LayoutFindChildFrame(terrain,"Icon");
+    sc2BaseFrame_t *normal=SC2_LayoutFindChildFrame(ping,"NormalImage");
+    T_NOT_NULL(icon); T_NOT_NULL(other); T_NOT_NULL(normal);
+    T_ASSERT(icon!=other); T_EQ(icon->image,17);
+    T_EQ(icon->points.x[FPP_MIN].relative_index,ping->number);
+    T_EQ(other->points.x[FPP_MAX].relative_index,terrain->number);
+    T_ASSERT(normal->points.x[FPP_MID].used);
+    T_ASSERT(!normal->points.x[FPP_MIN].used);
+    T_FEQ(normal->texcoord.h,0.5f,0.001f);
+    T_ASSERT(normal->number<icon->number);
+    SC2_LayoutShutdown();
+}

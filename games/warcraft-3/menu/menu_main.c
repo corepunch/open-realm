@@ -7,6 +7,12 @@
 #include <stdio.h>
 
 #include "menu_local.h"
+
+static void M_ReleaseCameraEventInstance(uintptr_t instance_id) {
+    refExport_t *renderer = mi.GetRenderer ? mi.GetRenderer() : NULL;
+    if (renderer && renderer->ReleaseEntityCameraEvents)
+        renderer->ReleaseEntityCameraEvents(instance_id);
+}
 #include "common/video_modes.h"
 #include "menu_screen.h"
 
@@ -325,6 +331,7 @@ static void UI_UpdateMouseFrameFlags(frameDef_t const *hit, bool clear_pressed) 
 }
 
 void M_Init(void) {
+    UI_SetCameraEventRelease(M_ReleaseCameraEventInstance);
     memset(&ui_state, 0, sizeof(ui_state));
     UI_ResetGlueSceneModels();
     UI_RegisterMenuCommands();

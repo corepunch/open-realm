@@ -116,8 +116,61 @@ TEST(renderer_game, reused_entity_generation_seeds_mdx_event_clock) {
     R_W3ClearEventSplats();
 }
 
+TEST(renderer_game, entity_camera_event_state_invalidates_when_model_has_no_events) {
+    uint32_t key = 100;
+    mdxEvent_t event = { .num_keys = 1, .globalSeqId = (uint32_t)-1, .keys = &key };
+    mdxModel_t mdx_with_events = { .events = &event };
+    mdxModel_t mdx_without_events = { 0 };
+    model_t model_with_events = { .modeltype = ID_MDLX, .mdx = &mdx_with_events };
+    model_t model_without_events = { .modeltype = ID_MDLX, .mdx = &mdx_without_events };
+    renderEntity_t entity = { .model = &model_with_events, .number = 12, .frame = 0,
+                              .generation = 1, .instance_id = 99127 };
+    uint32_t saved_rdflags = tr.viewDef.rdflags;
+    render_phase_t saved_phase = tr.render_phase;
+
+    R_W3ClearCameraEventStates();
+    tr.viewDef.rdflags = RDF_USE_ENTITY_CAMERA;
+    tr.render_phase = RENDER_PHASE_SOLID;
+    R_UpdateEntityPresentation(&entity);
+    T_EQ(camera_event_state_count, 1);
+    wc3EventState_t *state = &camera_event_states[0].state;
+    T_ASSERT(state->valid);
+    T_EQ(state->model, &model_with_events);
+
+    entity.model = &model_without_events;
+    R_UpdateEntityPresentation(&entity);
+    /* Inspect retained state directly: calling R_W3CameraEventState here would
+     * itself perform the invalidation and let a broken update path pass. */
+    state = &camera_event_states[0].state;
+    T_ASSERT(!state->valid);
+    T_NULL(state->model);
+
+    R_W3ClearCameraEventStates();
+    tr.viewDef.rdflags = saved_rdflags;
+    tr.render_phase = saved_phase;
+}
+
 static handle_t test_renderer_alloc(long size) { return calloc(1, (size_t)size); }
 static void test_renderer_free(handle_t ptr) { free(ptr); }
+
+/* Removing a middle entry compacts the table; its old tail must not seed a new camera. */
+TEST(renderer_game, reused_camera_event_slot_starts_with_fresh_clock) {
+    refImport_t saved = ri;
+    model_t model = {0};
+    renderEntity_t entity = { .instance_id = 101, .model = &model };
+    ri.MemAlloc = test_renderer_alloc; ri.MemFree = test_renderer_free;
+    R_W3ClearCameraEventStates();
+    T_NOT_NULL(R_W3CameraEventState(&entity));
+    entity.instance_id = 202;
+    wc3EventState_t *state = R_W3CameraEventState(&entity);
+    state->valid = true; state->frame = 60; state->render_time = 100;
+    R_ReleaseGameEntityCameraEvents(101);
+    entity.instance_id = 303;
+    state = R_W3CameraEventState(&entity);
+    T_ASSERT(!state->valid); T_EQ(state->frame, 0); T_EQ(state->render_time, 0);
+    T_ASSERT(camera_event_states[0].state.valid); T_EQ(camera_event_states[0].state.frame, 60);
+    R_W3ClearCameraEventStates(); ri = saved;
+}
 
 static int test_renderer_read(cstring_t path, void **buffer) {
     handle_t file = NULL;
@@ -188,8 +241,10 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
     static mdxModel_t parent_mdx;
     static model_t parent_model;
     static renderEntity_t parent;
+    renderEntity_t camera_parent;
     wc3EventState_t saved_state = event_state[7];
     uint32_t saved_time = tr.viewDef.time;
+    uint32_t saved_rdflags = tr.viewDef.rdflags;
     render_phase_t saved_phase = tr.render_phase;
     refImport_t saved_imports = ri;
     model_t *child_model = NULL;
@@ -253,17 +308,62 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
     T_FEQ(test_spn_render_transform.v[14], 33.0f, 0.001f);
 
     /* Drawing the pool does not depend on another parent entity update. */
-    tr.viewDef.time = 250; R_W3DrawEventSpawns();
+    tr.viewDef.time = 250; R_W3DrawEventSpawns(false, NULL, 0);
     T_EQ(test_spn_render_count, 2);
     T_EQ(test_spn_render_entity.frame, 100);
-    tr.render_phase = RENDER_PHASE_LIGHTS; R_W3DrawEventSpawns();
+    tr.render_phase = RENDER_PHASE_LIGHTS; R_W3DrawEventSpawns(false, NULL, 0);
     T_EQ(test_spn_render_count, 2);
-    tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 1150; R_W3DrawEventSpawns();
+    tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 1150; R_W3DrawEventSpawns(false, NULL, 0);
     T_EQ(test_spn_render_count, 2);
     T_ASSERT(!event_spawns[0].active);
 
+    /* Separate entity cameras can use the same synthetic entity number. Their
+     * event clocks must remain independent so both authored SPN keys fire. */
+    R_W3ClearEventSpawns();
+    test_spn_render_count = 0;
+    event_state[7] = (wc3EventState_t){ 0 };
+    parent = (renderEntity_t){ .origin = { 10.0f, 20.0f, 30.0f }, .model = &parent_model,
+                               .number = 7, .team = 2, .scale = 1.0f, .instance_id = 1001 };
+    camera_parent = parent;
+    camera_parent.instance_id = 1002;
+    tr.viewDef.rdflags = RDF_USE_ENTITY_CAMERA;
+    tr.viewDef.time = 200;
+    R_UpdateEntityPresentation(&parent);
+    R_UpdateEntityPresentation(&camera_parent);
+    parent.frame = camera_parent.frame = 150;
+    tr.viewDef.time = 350;
+    R_UpdateEntityPresentation(&parent);
+    R_UpdateEntityPresentation(&camera_parent);
+    T_EQ(test_spn_render_count, 2);
+    T_ASSERT(event_spawns[0].entity_camera && event_spawns[1].entity_camera);
+    T_EQ(event_spawns[0].source_instance_id, 1001);
+    T_EQ(event_spawns[1].source_instance_id, 1002);
+    R_DrawEntityCameraEventSpawns(&parent_model, parent.instance_id);
+    T_EQ(test_spn_render_count, 3);
+    R_DrawEntityCameraEventSpawns(camera_parent.model, camera_parent.instance_id);
+    T_EQ(test_spn_render_count, 4);
+    R_W3DrawEventSpawns(false, NULL, 0);
+    T_EQ(test_spn_render_count, 4);
+    T_EQ(camera_event_state_count, 2);
+    for (uint32_t i = 0; i < 40; i++) {
+        camera_parent.instance_id = 2000 + i;
+        T_NOT_NULL(R_W3CameraEventState(&camera_parent));
+    }
+    camera_parent.instance_id = 1002;
+    T_EQ(camera_event_state_count, 42);
+    T_EQ(R_W3CameraEventState(&parent)->frame, 150);
+    R_ReleaseGameEntityCameraEvents(parent.instance_id);
+    T_EQ(camera_event_state_count, 41);
+    R_DrawEntityCameraEventSpawns(&parent_model, parent.instance_id);
+    T_EQ(test_spn_render_count, 4);
+    R_ReleaseGameEntityCameraEvents(camera_parent.instance_id);
+    T_EQ(camera_event_state_count, 40);
+    R_W3ClearCameraEventStates();
+    T_EQ(camera_event_state_count, 0);
+
 cleanup_spn_test:
     R_W3ClearEventSpawns();
+    R_W3ClearCameraEventStates();
     R_W3ClearEventSplats();
     R_W3FreeSpawnData(true);
     R_W3FreeSplatData();
@@ -272,7 +372,8 @@ cleanup_spn_test:
     R_TestUseProductionModelLoader(false);
     if (test_renderer_archive) { SFileCloseArchive(test_renderer_archive); test_renderer_archive = NULL; }
     ri = saved_imports;
-    event_state[7] = saved_state; tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
+    event_state[7] = saved_state; tr.viewDef.time = saved_time; tr.viewDef.rdflags = saved_rdflags;
+    tr.render_phase = saved_phase;
 }
 
 TEST(renderer_model, production_spl_dispatch_uses_splat_atlas_and_event_transform) {

@@ -479,6 +479,7 @@ void SP_SpawnUnit(edict_t *self) {
     self->invulnerable = G_ActorHasSkill(self, "Avul");
     G_ApplyUnitAbilityTraits(self);
     self->unitinfo.MoveSpeed = b->speed;
+    self->unitinfo.PropWindow = DEG2RAD(d->propWin);
     /* Warcraft object data owns model altitude.  Keep the mutable current
      * height separate from terrain support so SetUnitFlyHeight can change it
      * without losing the unit type's authored moveHeight/default. */
@@ -541,7 +542,9 @@ void SP_SpawnUnit(edict_t *self) {
     self->attack1.sidesPerDie = w->attack1.damageSides;
     self->attack1.cooldown = w->attack1.cooldown;
     self->attack1.damagePoint = w->attack1.damagePoint;
+    self->attack1.backswingPoint = w->attack1.backswingPoint;
     self->attack1.range = w->attack1.range;
+    self->attack1.rangeBuffer = w->attack1.rangeBuffer;
     self->attack1.targetsAllowed = (uint32_t)w->attack1.targetsAllowed;
     self->attack1.areaFull = w->attack1.areaFull;
     self->attack1.areaMedium = w->attack1.areaMedium;
@@ -560,7 +563,9 @@ void SP_SpawnUnit(edict_t *self) {
     self->attack2.sidesPerDie = w->attack2.damageSides;
     self->attack2.cooldown = w->attack2.cooldown;
     self->attack2.damagePoint = w->attack2.damagePoint;
+    self->attack2.backswingPoint = w->attack2.backswingPoint;
     self->attack2.range = w->attack2.range;
+    self->attack2.rangeBuffer = w->attack2.rangeBuffer;
     self->attack2.targetsAllowed = (uint32_t)w->attack2.targetsAllowed;
     self->attack2.areaFull = w->attack2.areaFull;
     self->attack2.areaMedium = w->attack2.areaMedium;

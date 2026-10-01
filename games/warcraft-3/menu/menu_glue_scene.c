@@ -2,6 +2,8 @@
  * scene.c - shared glue background/sprite-layer model cache.
  */
 
+#include <stdlib.h>
+
 #include "menu_local.h"
 #include "menu_glue_motion.h"
 
@@ -34,6 +36,9 @@ typedef struct {
 
 typedef struct {
     bool loaded;
+    bool has_render_time;
+    uint32_t last_render_time;
+    uiBirthSequence_t background_birth;
     model_t const *background, *top_left_panel, *top_right_panel;
     glueLayer_t layers[UI_GLUE_SIDE_COUNT];
     uiGluePanelChanged_f exited, changed;
@@ -42,6 +47,46 @@ typedef struct {
 
 
 static glueScene_t scene;
+
+void UI_BirthSequenceReset(uiBirthSequence_t *sequence) {
+    *sequence = (uiBirthSequence_t){0};
+}
+
+void UI_BirthSequenceBegin(uiBirthSequence_t *sequence, refExport_t *renderer,
+                           model_t const *model, cstring_t label) {
+    UI_BirthSequenceReset(sequence);
+    if (UI_GlueSkipTransitions()) {
+        sequence->complete = true;
+        return;
+    }
+    sequence->started = true;
+    sequence->start = M_Time();
+    if (!renderer || !renderer->GetModelAnimationDuration || !model ||
+        !renderer->GetModelAnimationDuration(model, "Birth", &sequence->duration) ||
+        !sequence->duration) {
+        fprintf(stderr, "UI: %s has no valid Birth sequence duration; using stable pose\n",
+                label ? label : "menu model");
+        sequence->complete = true;
+    }
+}
+
+cstring_t UI_BirthSequenceAnimation(uiBirthSequence_t *sequence, string_t anim,
+                                    size_t anim_size, cstring_t stable) {
+    if (UI_GlueSkipTransitions()) sequence->complete = true;
+    if (!sequence->started || sequence->complete) return stable;
+    uint32_t const elapsed = M_Time() - sequence->start;
+    if (elapsed >= sequence->duration) {
+        sequence->complete = true;
+        return stable;
+    }
+    snprintf(anim, anim_size, "Birth@%.4f", (float)elapsed / (float)sequence->duration);
+    return anim;
+}
+
+bool UI_GlueSkipTransitions(void) {
+    cstring_t value = mi.Cvar_String ? mi.Cvar_String("ui_skip_transitions", "0") : "0";
+    return value && atoi(value) != 0;
+}
 
 /* Sequence families differ in the MDX: Create has Birth/Death, while morph-only
  * tabs retain their authored final pose instead of inventing a Stand sequence. */
@@ -145,6 +190,9 @@ void UI_ResetGlueTransitions(void) {
 }
 
 void UI_ResetGlueSceneModels(void) {
+    refExport_t *renderer = mi.GetRenderer ? mi.GetRenderer() : NULL;
+    if (renderer && renderer->ReleaseEntityCameraEvents)
+        renderer->ReleaseEntityCameraEvents((uintptr_t)&scene);
     memset(&scene, 0, sizeof(scene));
 }
 
@@ -183,6 +231,7 @@ bool UI_GlueSideReady(uiGlueSide_t side) {
 /* Sample the same phase clock as the MDX; retain overshoot and the native exit curve. */
 float UI_GlueSideOffset(uiGlueSide_t side) {
     glueLayer_t const *layer = &scene.layers[side];
+    if (UI_GlueSkipTransitions()) return 0;
     if (layer->phase == UI_GLUE_PANEL_IDLE || !layer->current.panel) return 0;
     glueMotion_t const *track = motion[layer->current.panel][side][layer->current.tab];
     float pos = (BZ_GLUE_SAMPLES - 1) * (float)MIN(M_Time() - layer->start, durations[layer->phase]) / durations[layer->phase];
@@ -198,6 +247,12 @@ bool UI_GlueIsTransitioning(void) {
 /* Finish the running sequence before honoring a retarget. A tab leaves through
  * its base pose; a different family leaves through the closed-panel state. */
 static void UI_GlueAdvanceLayer(glueLayer_t *layer) {
+    if (UI_GlueSkipTransitions()) {
+        layer->current = layer->target;
+        layer->phase = UI_GLUE_PANEL_IDLE;
+        layer->start = M_Time();
+        return;
+    }
     if (layer->phase != UI_GLUE_PANEL_IDLE) {
         if (M_Time() - layer->start < durations[layer->phase]) return;
         if (layer->phase == UI_GLUE_PANEL_EXIT) {
@@ -240,6 +295,27 @@ static void UI_GlueAdvanceTransition(void) {
     }
 }
 
+/* SetEntityAnimFrame runs before RenderFrame installs this scene's time. Pass an
+ * explicit sequence phase so a prior map view clock cannot freeze the menu. */
+static cstring_t UI_GlueBackgroundStand(refExport_t *renderer, string_t anim, size_t anim_size) {
+    uint32_t duration;
+
+    if (!renderer->GetModelAnimationDuration ||
+        !renderer->GetModelAnimationDuration(scene.background, "Stand", &duration) || !duration)
+        return "Stand";
+    snprintf(anim, anim_size, "Stand@%.4f", (float)(M_Time() % duration) / (float)duration);
+    return anim;
+}
+
+/* The selected background's authored Birth settles into its stable Stand pose. */
+static cstring_t UI_GlueBackgroundAnimation(refExport_t *renderer, string_t anim, size_t anim_size) {
+    if (!scene.background_birth.started && !scene.background_birth.complete)
+        UI_BirthSequenceBegin(&scene.background_birth, renderer, scene.background,
+                              UI_GlueBackgroundPath());
+    return UI_BirthSequenceAnimation(&scene.background_birth, anim, anim_size,
+                                     UI_GlueBackgroundStand(renderer, anim, anim_size));
+}
+
 /* Left content and right navigation own separate clocks, targets, and readiness.
  * Only startup overrides can replace an unfinished Birth without first leaving. */
 void UI_GotoGluePanel(glueDest_t dest, uiGluePanelChanged_f exited, uiGluePanelChanged_f changed) {
@@ -271,6 +347,7 @@ void UI_CloseGluePanel(uiGluePanelChanged_f changed) { UI_GotoGluePanel((glueDes
 void UI_DrawGlueScene(void) {
     refExport_t *renderer = mi.GetRenderer();
     float right_offset;
+    uint32_t scene_time, delta_time;
     char left_anim[UI_GLUE_ANIM_NAME];
     char right_anim[UI_GLUE_ANIM_NAME];
 
@@ -278,17 +355,30 @@ void UI_DrawGlueScene(void) {
     if (!scene.layers[UI_GLUE_LEFT].current.panel && !scene.layers[UI_GLUE_RIGHT].current.panel) return;
     UI_PreloadGlueSceneModels();
     right_offset = UI_GlueRightPanelOffset(renderer);
+    scene_time = M_Time();
+    delta_time = scene.has_render_time && scene_time >= scene.last_render_time
+        ? scene_time - scene.last_render_time : 0;
+    scene.last_render_time = scene_time;
+    scene.has_render_time = true;
 
     if (scene.background) {
         renderEntity_t entity = {
             .model = scene.background, .scale = 1.0f,
+            .number = MAX_GAME_ENTITIES - 2,
+            .instance_id = (uintptr_t)&scene,
             .flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING,
         };
-        renderer->SetEntityAnimFrame(scene.background, "Stand", &entity);
+        char background_anim[UI_GLUE_ANIM_NAME];
+        renderer->SetEntityAnimFrame(scene.background,
+                                     UI_GlueBackgroundAnimation(renderer, background_anim,
+                                                                sizeof(background_anim)),
+                                     &entity);
 
         viewDef_t viewdef = {
             .viewport = {0, 0, 1, 1}, .num_entities = 1, .entities = &entity,
-            .rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA,
+            .time = scene_time, .deltaTime = delta_time,
+            .rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG |
+                RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES,
         };
         renderer->RenderFrame(&viewdef);
     }

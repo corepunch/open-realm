@@ -30,6 +30,10 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
     edict_t *ent = G_Spawn();
     ent->class_id = class_id;
     G_BindEntityData(ent);
+    /* This helper constructs allocator-only units instead of running
+     * SP_SpawnUnit. Give its generic movement fixture a permissive window;
+     * focused PropWindow tests set their authored/runtime value explicitly. */
+    ent->unitinfo.PropWindow = DEG2RAD(360.0f);
     /* Mirror the runtime structure classification installed by SP_SpawnUnit.
      * Tests exercising building behavior must not rely on authored type data
      * after the live unit has been allocated. */

@@ -495,7 +495,7 @@ int jass_gettype(jass_t *j, int index);
 static int32_t sc2_ev_abil(jass_t *j, int arg) {
     int type = jass_gettype(j, arg);
     if (type == SC2_JASS_INTEGER) return jass_checkinteger(j, arg);
-    if (type == SC2_JASS_HANDLE && !jass_checkhandle(j, arg, "abilcmd")) return 0;
+    if (type == SC2_JASS_HANDLE) return (int32_t)(uintptr_t)jass_checkhandle(j, arg, "abilcmd");
     jass_rterror(j, "Galaxy ability command is not an integer");
     return 0;
 }
@@ -657,7 +657,7 @@ static uint32_t sc2_EventTimer(jass_t *j) {
 }
 static uint32_t sc2_EventUnitAbility(jass_t *j) {
     sc2evresp_t const *e = sc2_ev_now();
-    return jass_pushinteger(j, e ? e->abil : 0);
+    return sc2_ev_h(j,e ? e->abil : 0,"abilcmd");
 }
 static uint32_t sc2_EventUnitAbilityStage(jass_t *j) {
     sc2evresp_t const *e = sc2_ev_now();

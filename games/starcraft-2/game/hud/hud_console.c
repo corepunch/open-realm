@@ -20,15 +20,37 @@ void SC2_HUD_WriteConsolePanel(edict_t *ent) {
     sc2BaseFrame_t *command = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_COMMAND_PANEL);
 
     if (!console && !ui_con) return;
-    SC2_HUD_PrepareCommandPanel(frames, count, command);
+    edict_t *selected=SC2_SelectedUnit(ent);
+    SC2_HUD_PrepareCommandPanel(frames,count,command,selected && selected->s.player==ent->client->ps.number ? selected : NULL);
+    SC2_HUD_PrepareMinimap(ent,minimap);
 
     SC2_HUD_WriteStart(LAYER_BACKGROUND);
 
     sc2BaseFrame_t *ref = console ? console : minimap;
-    SC2_HUD_WriteAncestors(frames, count, ref);
+    SC2_HUD_ReserveAncestors(frames,ref);
+    if (console) {
+        /* Chrome is the background of the portrait panel, including the right
+         * console model authored after it in XML. Reserve the draw pass first. */
+        FOR_LOOP(i,count) if (frames[i].parent_index==console->number && frames[i].sc2_type==SC2_FRAMETYPE_MODEL) {
+            SC2_HUD_ReserveAncestors(frames,&frames[i]); SC2_HUD_ReserveTree(frames,count,&frames[i]);
+        }
+        FOR_LOOP(i,count) if (frames[i].parent_index==console->number && frames[i].sc2_type!=SC2_FRAMETYPE_MODEL)
+            SC2_HUD_ReserveTree(frames,count,&frames[i]);
+    }
+    if (ui_con) SC2_HUD_ReserveAncestors(frames,minimap);
+    SC2_HUD_ReserveTree(frames,count,minimap);
+    SC2_HUD_ReserveTree(frames,count,info);
+    SC2_HUD_ReserveTree(frames,count,command);
+    SC2_HUD_WriteAncestors(frames,count,ref);
 
     /* ConsolePanel owns the three chrome models and the portrait panel. */
-    if (console) SC2_HUD_WriteFrameWithChildren(frames, count, console);
+    if (console) {
+        SC2_HUD_WriteFrame(console);
+        FOR_LOOP(i,count) if (frames[i].parent_index==console->number && frames[i].sc2_type==SC2_FRAMETYPE_MODEL)
+            SC2_HUD_WriteFrameWithChildren(frames,count,&frames[i]);
+        FOR_LOOP(i,count) if (frames[i].parent_index==console->number && frames[i].sc2_type!=SC2_FRAMETYPE_MODEL)
+            SC2_HUD_WriteFrameWithChildren(frames,count,&frames[i]);
+    }
 
     /* These are siblings under ConsoleUIContainer and must retain that shared parent. */
     if (ui_con)  SC2_HUD_WriteFrame(ui_con);

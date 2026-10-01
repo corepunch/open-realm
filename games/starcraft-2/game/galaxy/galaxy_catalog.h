@@ -11,26 +11,28 @@ static sc2GOrder_t sc2_gorders[MAX_GALAXY_ORDERS];
 static int32_t sc2_gorder_n = 1;  /* 1-based; 0 = null */
 
 static uint32_t sc2_AbilityClass(jass_t *j)       { return jass_pushinteger(j, 0); }
-static uint32_t sc2_AbilityCommand(jass_t *j) {
-    cstring_t name = jass_checkstring(j, 1);
-    int32_t   cmd  = jass_checkinteger(j, 2);
-    if (sc2_gabilcmd_n < MAX_GALAXY_ABILCMDS) {
-        int32_t h = sc2_gabilcmd_n++;
-        snprintf(sc2_gabilcmds[h].ability, sizeof(sc2_gabilcmds[h].ability),
-                 "%s", name ? name : "");
-        sc2_gabilcmds[h].cmd_idx = cmd;
-        return jass_pushinteger(j, h);
+static int32_t sc2_abilcmd_id(cstring_t name, int32_t cmd) {
+    if (!name || !*name) { fprintf(stderr,"AbilityCommand: empty ability id\n"); return 0; }
+    for (int32_t h=1;h<sc2_gabilcmd_n;h++)
+        if (sc2_gabilcmds[h].cmd_idx==cmd && !strcmp(sc2_gabilcmds[h].ability,name)) return h;
+    if (sc2_gabilcmd_n>=MAX_GALAXY_ABILCMDS) {
+        fprintf(stderr,"AbilityCommand: table full for '%s', command %d\n",name,cmd); return 0;
     }
-    fprintf(stderr, "AbilityCommand: table full (%d entries) — '%s' lost\n",
-            MAX_GALAXY_ABILCMDS, name ? name : "");
-    return jass_pushinteger(j, 0);
+    int32_t h=sc2_gabilcmd_n++;
+    snprintf(sc2_gabilcmds[h].ability,sizeof(sc2_gabilcmds[h].ability),"%s",name);
+    sc2_gabilcmds[h].cmd_idx=cmd;
+    return h;
+}
+static uint32_t sc2_AbilityCommand(jass_t *j) {
+    int32_t h=sc2_abilcmd_id(jass_checkstring(j,1),jass_checkinteger(j,2));
+    return jass_pushlighthandle(j,(handle_t)(uintptr_t)h,"abilcmd");
 }
 static uint32_t sc2_AbilityCommandGetAbility(jass_t *j) {
-    int32_t h = jass_checkinteger(j, 1);
+    int32_t h = sc2_ev_abil(j, 1);
     return jass_pushstring(j, (h > 0 && h < sc2_gabilcmd_n) ? sc2_gabilcmds[h].ability : "");
 }
 static uint32_t sc2_AbilityCommandGetCommand(jass_t *j) {
-    int32_t h = jass_checkinteger(j, 1);
+    int32_t h = sc2_ev_abil(j, 1);
     return jass_pushinteger(j, (h > 0 && h < sc2_gabilcmd_n) ? sc2_gabilcmds[h].cmd_idx : 0);
 }
 /* Action index is a higher-level concept (e.g. cast vs auto-cast); stub as 0 for now. */
@@ -69,7 +71,7 @@ static uint32_t sc2_OrderTargetingUnit(jass_t *j) {
 static uint32_t sc2_OrderSetPlayer(jass_t *j) { sc2_order(j)->player=sc2_player_index(j,2); return 0; }
 static uint32_t sc2_OrderGetPlayer(jass_t *j) { return jass_pushinteger(j,sc2_order(j)->player); }
 static uint32_t sc2_OrderSetAbilityCommand(jass_t *j) { sc2_order(j)->abilcmd_h=sc2_ev_abil(j,2); return 0; }
-static uint32_t sc2_OrderGetAbilityCommand(jass_t *j) { return jass_pushinteger(j,sc2_order(j)->abilcmd_h); }
+static uint32_t sc2_OrderGetAbilityCommand(jass_t *j) { return jass_pushlighthandle(j,(handle_t)(uintptr_t)sc2_order(j)->abilcmd_h,"abilcmd"); }
 static uint32_t sc2_OrderGetTargetType(jass_t *j) { return jass_pushinteger(j,sc2_order(j)->target_type); }
 static uint32_t sc2_OrderSetTargetPoint(jass_t *j) {
     sc2GOrder_t *o=sc2_order(j); o->pt_h=(int32_t)(uintptr_t)jass_checkhandle(j,2,"point");

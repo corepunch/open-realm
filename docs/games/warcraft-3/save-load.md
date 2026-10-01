@@ -6,14 +6,14 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 69, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 70, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
 - the quest and quest-item graph's strings and status flags;
 - the fixed point-order waypoint edict ring and its circular allocation cursor;
 - one used flag per entity slot, a raw `edict_t` block for used slots, and its retained native fine-route points;
-- basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict;
+- basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
 
@@ -47,9 +47,9 @@ with the same remaining22 retail position/velocity/heading steps. Formats66 and
 earlier are incompatible; JASS snapshot7 and wire messages are unchanged. See
 [retained fine routes](retail-pathfinding-engine.md#retained-fine-routes-reproduce-a-complete-retail-detour).
 
-### Version 40 compatibility concern and possible solution
+### Save compatibility policy
 
-Version 40 added the region registry to the level stream, region IDs to saved event registrations, and region context to the JASS snapshot (snapshot format 6). The exact-version guard rejects version 39 saves; the existing regression test confirms this. This remains a compatibility break for existing saves, even though the added data is limited to region-backed trigger state.
+Save compatibility is deliberately unsupported. Load only the current format version and serialized layout, and reject older or otherwise mismatched saves with a diagnostic. Bump the format version when the serialized layout, callback identity, or meaning changes, including changes that leave `sizeof(edict_t)` unchanged. Do not retain legacy layouts, migration defaults, compatibility aliases, or optional extension records.
 
 ORDER-01.5 extends the semantic JASS snapshot to version7 with callback
 `eventType`. Issued-order value/point/target snapshots already use the existing
@@ -59,7 +59,9 @@ coverage. This callback change left outer W3SV56 and the network protocol unchan
 embedded exact-version guard rejects a version6 JASS snapshot. See
 [immutable issued-order callbacks](issued-target-order-events.md#immutable-callback-ownership).
 
-One possible compatibility design is to retain the version 39 header and base payload byte-for-byte, then put version-40-only region state in a tagged, length-delimited extension after the JASS snapshot and before the existing checksum footer. The new reader would parse the optional extension; a version-39 reader could continue parsing the known base payload and ignore the remaining bytes after its snapshot. The extension would need its own schema/version and strict bounds, while the existing footer checksum would cover it. Before adopting this design, verify the trailing-byte behavior with an actual version-39 reader and move every version-40-only field—including region handle and coroutine context data—out of the base payload. This is a proposal only; implementing it requires a separate save-format change and compatibility tests.
+The server's map-selection read checks both the format version and entity size before reloading a map. The state reader applies the same guards, validates the existing checksum and reference domains, and requires the current payload to end at the commit footer.
+
+Version 40 added the region registry and region/event context. Its rejection of version 39 saves was intentional; later versions follow the same exact-match policy.
 
 Version 41 persists region and region-event handle generations and exhaustion state. This keeps each recycled handle's `GetHandleId` unique during a session and stable across save/load. The exact-version guard rejects version 40 saves as well as earlier versions.
 
@@ -177,7 +179,7 @@ common path memcpy-shaped while making pointer exceptions declarative rather tha
 - Use `TFC(type, field, kind, capacity, count_field)` for a bounded typedef-backed array. The descriptor writes and restores `count_field` itself, then processes that many elements; do not map the count separately.
 - Persistent movement defaults are part of that rule: Attack-Move/Patrol waypoints and `movement.follow_target` must be encoded as entity indexes rather than raw pointers.
 - Do not add process-owned pointers such as path textures, metadata rows, or animations. `WriteEdict()` clears `FIELD_RUNTIME` pointers and `ReadEdict()` rebinds class metadata; spatial links are rebuilt with `gi.LinkEntity`.
-- Edict C callbacks (`think`, `stand`, `birth`, `prethink`, `die`, `idle`, `move`, `run`, `attack`, `pain`) use `F_CFUNCTION`, not `F_IGNORE`. Add every production assignment to the append-only `save_cfunctions[]` roster in `g_save.c`; an unrostered pointer fails the save instead of writing an address.
+- Edict C callbacks (`think`, `stand`, `birth`, `prethink`, `die`, `idle`, `move`, `run`, `attack`, `pain`) use `F_CFUNCTION`, not `F_IGNORE`. Add every production assignment to the versioned `save_cfunctions[]` roster in `g_save.c`; an unrostered pointer fails the save instead of writing an address.
 - JASS `F_FUNCTION` remains name-string identity for timers and triggers. Do not overload it with C symbols.
 - Add remaining process-owned edict or client pointers to the corresponding runtime-field table so the fixed record copy cannot write an address into the save file.
 - When adding a new pointer or changing an existing edict field, update the table and the round-trip test together. A raw pointer omitted from the table can write an address into the save file.
@@ -352,9 +354,7 @@ from that index after the hash matches. NULL stays 0/0. An unrostered pointer fa
 `C callback %p is not in the save roster`; a bad index or hash fails the load instead of installing
 a wild pointer.
 
-The roster is append-only because the index is in the file. The callback name is hashed into the same
-record, so keep that serialized name stable when an implementation symbol is renamed; point the old
-name at the current function instead of changing the on-disk identity. Production assignments retained
+The roster indexes and callback names are part of the format. Bump the save version if their identity changes; keep the roster's names aligned with the current implementation instead of retaining old-name aliases. Production assignments retained
 by version 10:
 `monster_think`, `blight_mine_think`, `G_FreeEdict`, `G_EffectThink`, `G_EffectValidateTarget`,
 `blizzard_think`, `flame_strike_tick`, `siphon_mana_think`, `unit_stand`/`unit_birth`/`unit_die`,
@@ -674,3 +674,26 @@ the identity clears at the Move removal callback. A public two-Move fixture save
 with a live4-advance wait, removes its blocker, consumes all four waits despite
 query0, then resumes with an exact48-word continuation after load. See
 [the original policy and integration](retail-pathfinding-engine.md#ordered-moving-waits-reach-ordinary-move).
+
+
+### Current combat and cargo state
+
+Format70 writes the current entity struct directly through the normal Quake II field serializer. Attack target incarnation, cooldown/backswing deadlines, per-weapon backswing points and range buffers, and pending Cargo Drop state live in that record. The cargo goal uses the ordinary `F_EDICT` fixup; its initiating rawcode and goal spawn identity remain scalar state. Invalid external pointers on write or unallocated goal indexes on load are rejected.
+
+All format-56 variants, including the former combat/cargo extensions and extensionless files, are rejected. There is no frozen entity projection, optional extension reader, or legacy propulsion-window migration. Explicit zero propulsion windows round-trip as authored runtime state.
+
+Attack cooldown begins at swing start, independently of animation `wait`; it continues elapsing when another order or rooted state pauses the attack callback. A target escaping before damage point cancels the pending hit but does not erase the cooldown. A committed melee hit or projectile launch starts backswing recovery, and a save/load during recovery preserves only the remaining backswing time.
+
+Regression coverage includes prior/future version rejection, map-selection layout rejection, current combat/cargo round-trips, invalid cargo goal references, and payloads with unexpected trailing records. The movement suite saves a Zeppelin en route and completes its unload after restoration. Run `make test-wc3-engine WC3_PATTERN='wc3_save.*'` for both ROC and TFT.
+
+
+### Upstream combat/cargo merge (version70)
+
+The October1 merge combines format69's verified Move state with upstream's
+current combat and cargo fields. Both parent layouts are rejected, including
+prior69 and upstream57. The current raw record, recursive pointer fixups and
+owned route tails stay authoritative; no legacy projection or optional extension
+is introduced. Movement retains software scalar normalization, explicit zero
+window flags and the original pre-turn propulsion decision. Upstream's animation
+policy uses that existing decision to retain Stand while blocked and resume Walk
+when admitted, avoiding a second host-float/post-turn gate.

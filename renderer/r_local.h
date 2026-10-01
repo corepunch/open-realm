@@ -363,6 +363,7 @@ void R_ReleaseVertexArrayObject(buffer_t *buffer);
 texture_t const *R_FindTextureByID(uint32_t textureID);
 void R_DrawSprite(drawSprite_t const *sprite);
 bool R_SetEntityAnimFrame(model_t const *model, cstring_t anim, renderEntity_t *entity);
+bool R_GetModelAnimationDuration(model_t const *model, cstring_t anim, uint32_t *duration);
 void R_RenderSplat(vec2_t const *position, float radius, texture_t const *texture, splat_shader_t *shader, color32_t color);
 void R_DrawBackdrop(drawBackdrop_t const *drawBackdrop);
 typedef struct {
@@ -504,6 +505,9 @@ typedef struct {
 cparticle_t *R_BeginParticleScene(particleScene_t *scene);
 void R_EndParticleScene(particleScene_t *scene, cparticle_t *previous);
 void R_ClearParticleScene(particleScene_t *scene);
+void R_ReleaseEntityCameraEvents(uintptr_t instance_id);
+void R_ReleaseGameEntityCameraEvents(uintptr_t instance_id);
+void R_ClearEntityCameraParticleScenes(void);
 void R_InitParticles(void);
 void R_ShutdownParticles(void);
 void R_DrawParticles(void);

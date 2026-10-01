@@ -105,13 +105,22 @@ PR #481 initially used an independent thinker, which continued unloading after
 Stop/Move and during pause/stun. Its cited Warsmash `CBehaviorDrop.update` does
 confirm Cargo Hold duration and first-passenger removal, but it is the unit's
 active behavior, not a concurrent effect. The active move follows that ownership.
-The existing point-target limitation remains: the selected point is not yet used
-to move the transport or choose placement. Unloading uses the holder's position
-and the shared unstuck search.
+The point-target `Adro`/`Atdp` command sends the transport to the selected
+pathable point before beginning the same timed unload sequence. The pending
+arrival stores its concrete ability rawcode and waypoint identity in the save
+schema; replacing the destination cancels that pending unload, including when
+the replacement reuses the generic Move procedure. Passenger placement uses
+the transport's arrival position and the shared unstuck search.
 
 Verification: `make test-wc3-engine WC3_PATTERN='wc3_movement.unload_all*'`
 covers command dispatch, duplicate orders, Stop/Move, pause/stun, death, instant
 unload followed immediately by boarding, single-slot removal, mid-sequence
 save/load, non-stock TFT duration, and a zero-duration ROC `Data11` hold.
+The point-target path is covered by
+`wc3_movement.zeppelin_unload_moves_to_selected_point_before_ejecting` and
+`wc3_movement.replacement_point_order_cancels_pending_cargo_unload` in both
+classic and TFT modes.
 `wc3_spell.meat_wagon_corpse_hold_rejects_living_unit_boarding` covers the
 corpse-only gate; the existing Exhume/corpse tests cover accepted dead cargo.
+
+Pending point-unload state uses the normal format-57 entity record. The unload waypoint is relocated through the ordinary `F_EDICT` field schema, and the rawcode and spawn identity persist with the pending flag. Mismatched save versions or layouts are rejected. See [save-load.md](save-load.md).

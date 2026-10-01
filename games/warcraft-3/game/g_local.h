@@ -877,8 +877,10 @@ typedef struct {
     float permanentDamageBonus;
     float temporaryDamageBonus;
     float damagePoint;
+    float backswingPoint;
     float cooldown;
     float range;
+    float rangeBuffer;
     uint32_t targetsAllowed; /* WC3 targetflag bitmask (ua1g/ua2g) */
     /* Splash (area-of-effect) attack: full/medium/small radii and the damage
      * factors applied in the medium and small rings. */
@@ -1699,6 +1701,10 @@ struct edict_s {
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
         bool holding_position;
         bool explicit_allied_attack;
+        bool cargo_unload_pending; /* Drop ability: unload after point-move arrival */
+        uint32_t cargo_unload_ability; /* initiating concrete AbilityData rawcode */
+        edict_t *cargo_unload_goal; /* prevents a replacement point order from inheriting unload */
+        uint32_t cargo_unload_goal_spawn_time;
     } movement;
     edictStat_t health;
     edictStat_t mana;
@@ -1706,6 +1712,7 @@ struct edict_s {
     bool projectile_reflected; /* basic attack missile has already been returned by Defend */
     TARGTYPE targtype;
     edict_t *goalentity;
+    uint32_t attack_target_spawn_time; /* active CAbilityAttack target incarnation */
     edict_t *item_drop; /* inventory item owned by an active point-drop behavior */
     edict_t *spell_item; /* originating item for a pending walk-into-range spell */
     uint32_t spell_item_spawn_time;
@@ -1739,6 +1746,10 @@ struct edict_s {
     umove_t *currentmove;
     unitRace_t race;
     float wait;
+    bool attack_cooldown_active;
+    float attack_cooldown_remaining;
+    uint32_t attack_cooldown_end_time;
+    uint32_t attack_backswing_end_time;
     unitInfo_t unitinfo;
     unitAttack_t attack1;
     unitAttack_t attack2;

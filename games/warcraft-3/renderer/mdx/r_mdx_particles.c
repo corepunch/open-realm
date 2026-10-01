@@ -38,9 +38,16 @@ static void mdx_spawn_particle(void *raw) {
         pivot = ctx->model->pivots[ctx->emitter->node.node_id];
     vec3_t pivoted = Vector3_add(&origin, &pivot);
     vec3_t dir = FX_GenerateRandomDirection(ctx->lat * (float)M_PI / 180.0f);
+    mat4_t orientation_matrix = *ctx->matrix;
+    orientation_matrix.v[12] = orientation_matrix.v[13] = orientation_matrix.v[14] = 0.0f;
+    vec3_t world_dir = Matrix4_multiply_vector3(&orientation_matrix, &dir);
     p->org = Matrix4_multiply_vector3(ctx->matrix, &pivoted);
-    p->vel = Vector3_scale(&dir, ctx->speed + (r - 0.5f) * ctx->varia);
+    p->vel = Vector3_scale(&world_dir, ctx->speed + (r - 0.5f) * ctx->varia);
     p->accel = (vec3_t){ 0, 0, -ctx->grav };
+    if (ctx->emitter->node.flags & MDLXNODE_XYQuad) {
+        p->quad_right = Matrix4_multiply_vector3(&orientation_matrix, &(vec3_t){1, 0, 0});
+        p->quad_up = Matrix4_multiply_vector3(&orientation_matrix, &(vec3_t){0, 1, 0});
+    }
     p->lifespan = ctx->life; p->time = 0;
     p->midtime = ctx->emitter->Time * 0xff;
     p->texture = MDLX_GetTexture(ctx->model, ctx->team_id, ctx->emitter->TextureID, ctx->emitter->ReplaceableId, NULL, 0);

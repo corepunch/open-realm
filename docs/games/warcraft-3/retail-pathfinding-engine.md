@@ -3528,3 +3528,26 @@ The152 Python pathfinding checks, strict four-entry original/live corpus,
 ability audit, backlog counts/IDs/area totals and local documentation links pass.
 Umbrella `make test` and the release production `openwarcraft3` target pass
 without C compiler warnings.
+
+### Upstream synchronization after payoff30
+
+Merged41 commits from `upstream/main` at `f7b34c7b63892f7ee53a9d4f2e8dad4229ee1f6b`.
+Move retains the original pre-turn propagation gate, software native setters,
+adaptive/refill state and ordered waits, while incorporating upstream's Stand
+clip preservation and Walk resumption. Runtime propagation-window overrides
+still require their explicit presence bit, including zero. The incoming
+boundary-equality fixture now starts strictly inside its authored window;
+equality is still a stop before turning. Incoming combat target/cooldown and
+Cargo Drop state are persisted alongside movement through strict save70.
+JASS snapshot7 and the network layout are unchanged.
+
+Focused movement passes40,433 assertions in212 cases, native API24,199/342,
+and save1,491/164. Forced release RoC and TFT each pass80,659/2,285; the debug
+matrix with `WC3_DEBUG_BUILD=1` repeats those complete suites. Both umbrella
+configurations and all three production targets (`openwarcraft3`, `opensc2`,
+`openwow`) pass. An incoming SC2 filter's misleading-indentation warning was
+fixed and its production target and umbrella checks repeated successfully.
+The152 Python pathfinding checks,233-entry corpus admission and engine/menu
+boundary audits pass. Merge validation artifacts are
+`/tmp/wc3-upstream-{engine-full,umbrella,production,warning-fixed,debug-accepted}.log`.
+The merge closes no additional research leaf:109 done/291 tasks,182 remaining.

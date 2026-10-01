@@ -106,6 +106,7 @@ static void R_FreeUnusedModels(bool shutdown) {
 }
 
 void R_RegisterMapAssets(cstring_t mapFileName) {
+    R_ClearEntityCameraParticleScenes();
     if (!mapFileName || !*mapFileName) R_SetMapAssetScope(NULL);
     mod_registration_sequence++;
     if (!mod_registration_sequence) mod_registration_sequence = 1;

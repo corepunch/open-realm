@@ -8,6 +8,9 @@
 
 static void cargo_unload_all(edict_t *transport);
 static umove_t cargo_move_unload = { "stand", cargo_unload_all, NULL, CAbilityCargoDrop };
+static bool cargo_unload_move_arrive(edict_t *, abilityCall_t const *);
+
+BZ_ABILITY_PROC(CAbilityCargoDrop);
 
 /* Cargo abilities are data-driven per holder. Do not cache one global
  * capacity: Acar/Abun/Aenc and custom aliases can coexist in one map. */
@@ -264,6 +267,48 @@ bool S_CargoBeginUnloadAll(edict_t *transport) {
     unit_setmove(transport, &cargo_move_unload);
     transport->freetime = 0;
     cargo_unload_all(transport);
+    return true;
+}
+
+static void cargo_clear_pending_unload(edict_t *transport) {
+    if (!transport) return;
+    transport->movement.cargo_unload_pending = false;
+    transport->movement.cargo_unload_ability = 0;
+    transport->movement.cargo_unload_goal = NULL;
+    transport->movement.cargo_unload_goal_spawn_time = 0;
+}
+
+static bool cargo_begin_unload_at(edict_t *transport, vec2_t const *point, uint32_t ability_code) {
+    vec2_t destination;
+    edict_t *waypoint;
+
+    if (!transport || !point || !transport->inuse || !transport->cargo.count || M_IsDead(transport) ||
+        transport->paused || transport->stunned || !cargo_living_hold_alias(transport) || !ability_code) return false;
+    destination = *point;
+    if (!CM_ClosestPathablePointForRadiusFlags(point, transport->collision,
+                                               M_UnitStaticPathingFlags(transport), &destination)) return false;
+    cargo_clear_pending_unload(transport);
+    waypoint = Waypoint_add(&destination);
+    order_move(transport, waypoint);
+    if (!move_is_active_order_walk(transport) || transport->goalentity != waypoint) return false;
+    transport->movement.cargo_unload_ability = ability_code;
+    transport->movement.cargo_unload_goal = transport->goalentity;
+    transport->movement.cargo_unload_goal_spawn_time = transport->goalentity->spawn_time;
+    transport->movement.cargo_unload_pending = true;
+    return true;
+}
+
+static bool cargo_unload_move_arrive(edict_t *transport, abilityCall_t const *call) {
+    if (!transport || !transport->movement.cargo_unload_pending || !call || !call->item ||
+        call->item->code != transport->movement.cargo_unload_ability) return false;
+    if (transport->goalentity != transport->movement.cargo_unload_goal ||
+        !transport->movement.cargo_unload_goal || !transport->movement.cargo_unload_goal->inuse ||
+        transport->movement.cargo_unload_goal->spawn_time != transport->movement.cargo_unload_goal_spawn_time) {
+        cargo_clear_pending_unload(transport);
+        return false;
+    }
+    cargo_clear_pending_unload(transport);
+    S_CargoBeginUnloadAll(transport);
     return true;
 }
 
@@ -687,9 +732,8 @@ BZ_COMMAND_PROC(AbilityBattlestations) {
 
 static bool drop_selectlocation(edict_t *clent, vec2_t const *point) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
-    (void)point;
 
-    if (!caster || caster->cargo.count == 0) return false;
+    if (!caster || caster->cargo.count == 0 || !point) return false;
     if (clent->client->menu.ability_code == BZ_AMED) {
         bool dropped = false;
         while (caster->cargo.count > 0 &&
@@ -697,7 +741,7 @@ static bool drop_selectlocation(edict_t *clent, vec2_t const *point) {
             dropped |= S_CargoUnloadAt(caster, caster->cargo.count - 1);
         return dropped;
     }
-    return S_CargoBeginUnloadAll(caster);
+    return cargo_begin_unload_at(caster, point, clent->client->menu.ability_code);
 }
 
 static void drop_command(edict_t *clent) {
@@ -705,7 +749,21 @@ static void drop_command(edict_t *clent) {
     clent->client->menu.on_location_selected = drop_selectlocation;
 }
 
-BZ_COMMAND_PROC(AbilityCargoDrop) { drop_command(clent); }
+BZ_ABILITY_PROC(CAbilityCargoDrop) {
+    if (msg == A_MOVE_ARRIVE && cargo_unload_move_arrive(ent, call)) return true;
+    if (msg == A_DISABLE && ent && call && call->item && ent->movement.cargo_unload_pending &&
+        call->item->code == ent->movement.cargo_unload_ability) {
+        cargo_clear_pending_unload(ent);
+        return true;
+    }
+    if (msg == A_MOVE_LEAVE && ent && ent->movement.cargo_unload_pending) {
+        cargo_clear_pending_unload(ent);
+        return true;
+    }
+    if (msg != A_COMMAND) return 0;
+    drop_command(call && call->client ? call->client : ent);
+    return true;
+}
 
 /* ---- Drop Instant (Adri): unload every occupant immediately ------------- */
 BZ_COMMAND_PROC(AbilityCargoDropInstant) {

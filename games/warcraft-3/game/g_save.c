@@ -77,9 +77,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format69 retains owned fine/adaptive curves and moving-blocker waits/identities.
+/* Format70 combines verified Move curves/waits with upstream combat/cargo state.
  * Earlier streams lack the new edict/list layout and are rejected. */
-static uint32_t const save_version = 69;
+static uint32_t const save_version = 70;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -98,7 +98,8 @@ typedef struct {
 
 #define SAVE_CFUNCTION(fn) { .name = #fn, .func = (void *)(fn) }
 
-/* Append-only: the 1-based index is part of the save format. Reordering rejects older saves.
+/* The 1-based index is part of this save format. Bump the version when
+ * changing roster indexes or names; incompatible saves are rejected.
  * idle/move/run/attack have no production assignments; they still use F_CFUNCTION so a later
  * assignment must be rostered here or WriteGame fails instead of writing an ASLR address. */
 static saveCFunction_t const save_cfunctions[] = {
@@ -146,8 +147,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(cannibalize_approach_think),
     SAVE_CFUNCTION(incinerate_explode_think),
     SAVE_CFUNCTION(monsoon_think),
-    /* Keep the prior v47 name hash; the implementation now handles point targets too. */
-    { .name = "S_SpellUnitTargetApproachThink", .func = (void *)(S_SpellTargetApproachThink) },
+    SAVE_CFUNCTION(S_SpellTargetApproachThink),
     SAVE_CFUNCTION(land_mine_think),
     SAVE_CFUNCTION(death_damage_aoe_think),
 };
@@ -513,6 +513,17 @@ static field_t const entity_state_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const unit_attack_fields[] = {
+    TF(unitAttack_t, backswingPoint, F_FLOAT),
+    TF(unitAttack_t, rangeBuffer, F_FLOAT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const unit_info_fields[] = {
+    TF(unitInfo_t, PropWindow, F_FLOAT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const artillery_fields[] = {
     TF(edictArtillery_t, attack_type, F_INT), TF(edictArtillery_t, area_targets, F_INT),
     TF(edictArtillery_t, targets_allowed, F_INT),
@@ -702,6 +713,10 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, patrol_target, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, follow_target, F_EDICT, 0, FIELD_NONE),
     F(edictMovement_s, explicit_allied_attack, F_INT),
+    TF(edictMovement_s, cargo_unload_pending, F_INT),
+    TF(edictMovement_s, cargo_unload_ability, F_INT),
+    TF(edictMovement_s, cargo_unload_goal, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, cargo_unload_goal_spawn_time, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -803,6 +818,13 @@ field_t edict_fields[] = {
     F(edict_s, artillery, F_STRUCT, 1, artillery_fields),
     F(edict_s, projectile_reflected, F_INT),
     F(edict_s, collision, F_FLOAT),
+    F(edict_s, attack_cooldown_active, F_INT),
+    F(edict_s, attack_cooldown_remaining, F_FLOAT),
+    F(edict_s, attack_cooldown_end_time, F_INT),
+    F(edict_s, attack_backswing_end_time, F_INT),
+    F(edict_s, unitinfo, F_STRUCT, 1, unit_info_fields),
+    F(edict_s, attack1, F_STRUCT, 1, unit_attack_fields),
+    F(edict_s, attack2, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
     F(edict_s, construction, F_STRUCT, 1, construction_fields),
     F(edict_s, rally, F_STRUCT, 1, rally_fields),
@@ -821,6 +843,7 @@ field_t edict_fields[] = {
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
     F(edict_s, current_order_id, F_INT),
     F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, attack_target_spawn_time, F_INT),
     F(edict_s, item_drop, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spell_item, F_EDICT, 0, FIELD_NONE),
     F(edict_s, soul_trap_head, F_EDICT, 0, FIELD_NONE),
@@ -965,7 +988,8 @@ bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size) {
     if (!f || !map || !map_size) { if (f) fclose(f); return false; }
     if (!ReadFooter(f) || !LoadBytes(f, &magic, sizeof(magic)) || !LoadBytes(f, &version, sizeof(version)) ||
         magic != save_magic || version != save_version || fseek(f, 0, SEEK_SET) || !LoadBytes(f, &header, sizeof(header)) ||
-        !header.map_path[0]) {
+        header.edict_size != sizeof(edict_t) || !header.map_path[0]) {
+        fprintf(stderr, "WC3 LoadGame: invalid or incompatible save map header %s\n", filename);
         if (f) fclose(f);
         return false;
     }
@@ -1369,7 +1393,7 @@ static bool ReadField(field_t const *field, uint8_t *base) {
         int index = *(int *)p;
         switch (field->type) {
         case F_EDICT:
-            if (index < -1 || index >= globals.max_edicts) {
+            if (index < -1 || index >= globals.num_edicts) {
                 fprintf(stderr, "WC3 LoadGame: field %s[%u] has invalid edict index %d\n", field->name, i, index);
                 return false;
             }
@@ -1961,7 +1985,11 @@ bool ReadGame(cstring_t filename) {
         fseek(f, 0, SEEK_SET)) {
         fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
     }
-    if (header.version != save_version || !LoadBytes(f, &header, sizeof(header))) {
+    if (header.version != save_version) {
+        fprintf(stderr, "WC3 LoadGame: incompatible save version %u (expected %u)\n", header.version, save_version);
+        fclose(f); return false;
+    }
+    if (!LoadBytes(f, &header, sizeof(header))) {
         fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
     }
     {
@@ -2052,6 +2080,16 @@ bool ReadGame(cstring_t filename) {
     /* Sound-handle presentation state is part of the VM-owned handle payload;
      * the snapshot version rejects older layouts before reconstruction. */
     if (!ReadJass(f)) { fprintf(stderr, "WC3 LoadGame: failed at jass\n"); fclose(f); return false; }
+    {
+        saveFooter_t footer;
+        /* ReadFooter already verified the checksum. The current payload must
+         * end exactly here; no optional or unknown trailing records. */
+        if (!LoadBytes(f, &footer, sizeof(footer)) || footer.commit != save_commit ||
+            fgetc(f) != EOF || ferror(f)) {
+            fprintf(stderr, "WC3 LoadGame: payload does not match the current save layout\n");
+            fclose(f); return false;
+        }
+    }
     G_ResetSelectionSoundState();
     G_CommandErrorReset();
     FOR_LOOP(i, game.max_clients) g_edicts[i].client = game.clients + i;
@@ -2094,12 +2132,14 @@ bool ReadGame(cstring_t filename) {
 }
 
 #ifdef BZ_TESTS
-TEST(wc3_save, spell_approach_callback_keeps_v47_roster_identity) {
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+
+TEST(wc3_save, spell_approach_callback_uses_current_roster_identity) {
     int const index = SaveCFunctionIndex((void *)S_SpellTargetApproachThink);
 
-    T_EQ(index, 44);
+    T_ASSERT(index > 0);
     if (index > 0 && index <= (int)(sizeof(save_cfunctions) / sizeof(save_cfunctions[0])))
-        T_STREQ(save_cfunctions[index - 1].name, "S_SpellUnitTargetApproachThink");
+        T_STREQ(save_cfunctions[index - 1].name, "S_SpellTargetApproachThink");
 }
 
 static bool write_save_fixture_header(cstring_t source_path, cstring_t output_path, uint32_t version, uint32_t edict_size) {
@@ -2157,6 +2197,41 @@ TEST(wc3_save, rejects_invalid_fine_route_payloads) {
     }
 }
 
+TEST(wc3_save, rejects_previous_combat_cargo_format_before_restoring_world) {
+    cstring_t filename = "/tmp/openwarcraft3-save-current-format.bin";
+    cstring_t old_filename = "/tmp/openwarcraft3-save-previous-combat-cargo-format.bin";
+    saveHeader_t header;
+    char map[sizeof(((saveHeader_t *)0)->map_path)];
+    setup_test_world();
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    T_ASSERT(WriteGame(filename));
+    FILE *f = fopen(filename, "rb");
+    T_NOT_NULL(f);
+    if (!f) return;
+    T_ASSERT(LoadBytes(f, &header, sizeof(header)));
+    fclose(f);
+    T_ASSERT(write_save_fixture_header(filename, old_filename, 56, header.edict_size));
+    unit->user_data = 777;
+    T_ASSERT(!G_GetSaveMap(old_filename, map, sizeof(map)));
+    T_ASSERT(!ReadGame(old_filename));
+    T_EQ(unit->user_data, 777);
+    remove(filename); remove(old_filename);
+}
+
+TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
+    cstring_t filename = "/tmp/openwarcraft3-save-current-layout.bin";
+    cstring_t bad_filename = "/tmp/openwarcraft3-save-layout-mismatch.bin";
+    char map[sizeof(((saveHeader_t *)0)->map_path)];
+    setup_test_world();
+    reset_entities();
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(write_save_fixture_header(filename, bad_filename, save_version, sizeof(edict_t) - 1));
+    T_ASSERT(!G_GetSaveMap(bad_filename, map, sizeof(map)));
+    T_ASSERT(!ReadGame(bad_filename));
+    remove(filename); remove(bad_filename);
+}
+
 TEST(wc3_save, rejects_prior_save_versions) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-prior-format.bin";
     cstring_t old_paths[] = {
@@ -2189,8 +2264,10 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-65.bin",
         "/tmp/openwarcraft3-wc3-save-version-66.bin",
         "/tmp/openwarcraft3-wc3-save-version-67.bin",
+        "/tmp/openwarcraft3-wc3-save-version-68.bin",
+        "/tmp/openwarcraft3-wc3-save-version-69.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69 };
 
     reset_entities();
     setup_test_world();
@@ -2204,7 +2281,111 @@ TEST(wc3_save, rejects_prior_save_versions) {
     remove(filename);
 }
 
-TEST(wc3_save, rejects_pre_waygate_edict_layout) {
+TEST(wc3_save, cargo_unload_rejects_unallocated_goal_index) {
+    setup_test_world();
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t restored;
+    int const index = globals.num_edicts;
+    FILE *f = tmpfile();
+    T_NOT_NULL(f);
+    if (!f) return;
+    T_ASSERT(WriteEdict(f, unit));
+    T_ASSERT(fseek(f, offsetof(edict_t, movement.cargo_unload_goal), SEEK_SET) == 0);
+    T_ASSERT(SaveBytes(f, &index, sizeof(index)));
+    rewind(f);
+    T_ASSERT(!ReadEdict(f, &restored));
+    fclose(f);
+}
+
+TEST(wc3_save, cargo_unload_rejects_foreign_goal_pointer) {
+    cstring_t filename = "/tmp/openwarcraft3-save-foreign-cargo-goal.bin";
+    setup_test_world();
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->movement.cargo_unload_goal = (edict_t *)(uintptr_t)1;
+    T_ASSERT(!WriteGame(filename));
+    unit->movement.cargo_unload_goal = NULL;
+    remove(filename);
+}
+
+TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
+    cstring_t filename = "/tmp/openwarcraft3-save-current-combat-cargo.bin";
+    setup_test_world();
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t *goal = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
+    int const index = unit - g_edicts, goal_index = goal - g_edicts;
+    unit->attack_cooldown_active = true;
+    unit->attack_cooldown_remaining = 17.5f;
+    unit->attack_cooldown_end_time = 12000;
+    unit->attack_backswing_end_time = 9000;
+    unit->attack_target_spawn_time = goal->spawn_time;
+    unit->movement.cargo_unload_pending = true;
+    unit->movement.cargo_unload_ability = MAKEFOURCC('A','t','d','p');
+    unit->movement.cargo_unload_goal = goal;
+    unit->movement.cargo_unload_goal_spawn_time = goal->spawn_time;
+    unit->unitinfo.PropWindow = 0.0f;
+    T_ASSERT(WriteGame(filename));
+    unit->attack_cooldown_active = false;
+    unit->movement.cargo_unload_pending = false;
+    unit->movement.cargo_unload_goal = NULL;
+    unit->unitinfo.PropWindow = 1.0f;
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + index;
+    goal = g_edicts + goal_index;
+    T_ASSERT(unit->attack_cooldown_active);
+    T_FEQ(unit->attack_cooldown_remaining, 17.5f, 0.001f);
+    T_EQ(unit->attack_cooldown_end_time, 12000);
+    T_EQ(unit->attack_backswing_end_time, 9000);
+    T_EQ(unit->attack_target_spawn_time, goal->spawn_time);
+    T_FEQ(unit->unitinfo.PropWindow, 0.0f, 0.001f);
+    T_ASSERT(unit->movement.cargo_unload_pending);
+    T_EQ(unit->movement.cargo_unload_ability, MAKEFOURCC('A','t','d','p'));
+    T_EQ(unit->movement.cargo_unload_goal, goal);
+    T_EQ(unit->movement.cargo_unload_goal_spawn_time, goal->spawn_time);
+    remove(filename);
+}
+
+TEST(wc3_save, rejects_unexpected_trailing_payload) {
+    cstring_t filename = "/tmp/openwarcraft3-save-extra-payload.bin";
+    uint32_t const payload[] = { MAKEFOURCC('W','3','E','X'), 1, 0 };
+    setup_test_world();
+    reset_entities();
+    T_ASSERT(WriteGame(filename));
+    FILE *f = fopen(filename, "r+b");
+    T_NOT_NULL(f);
+    if (!f) return;
+    T_ASSERT(fseek(f, -(long)sizeof(saveFooter_t), SEEK_END) == 0);
+    T_ASSERT(SaveBytes(f, payload, sizeof(payload)));
+    T_ASSERT(WriteFooter(f));
+    rewind(f);
+    T_ASSERT(ReadFooter(f)); /* The failure is a layout mismatch, not a bad checksum. */
+    fclose(f);
+    T_ASSERT(!ReadGame(filename));
+    remove(filename);
+}
+
+TEST(wc3_save, current_format_uses_current_entity_layout) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-current-envelope.bin";
+    saveHeader_t header = { 0 };
+    FILE *f;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(WriteGame(filename));
+    f = fopen(filename, "rb");
+    T_NOT_NULL(f);
+    if (f) {
+        T_ASSERT(LoadBytes(f, &header, sizeof(header)));
+        fclose(f);
+    }
+    T_EQ(header.version, save_version);
+    T_EQ(header.edict_size, sizeof(edict_t));
+    remove(filename);
+}
+
+TEST(wc3_save, rejects_mismatched_entity_layout) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-waygate-current.bin";
     cstring_t old_path = "/tmp/openwarcraft3-wc3-save-old-edict-size.bin";
 

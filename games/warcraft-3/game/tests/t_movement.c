@@ -6739,6 +6739,109 @@ TEST(wc3_movement, immobile_unit_neither_moves_nor_rotates) {
     T_FEQ(unit->s.angle, angle, 0.01f);
 }
 
+TEST(wc3_movement, propwin_turns_in_place_until_inside_authored_window) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    UnitData_t data = *unit->data.UnitData;
+    vec2_t const target = {-100.0f, 0.0f};
+    vec2_t const origin = unit->s.origin2;
+
+    data.turnRate = 0.1f;
+    data.propWin = 10.0f;
+    unit->data.UnitData = &data;
+    unit->unitinfo.PropWindow = DEG2RAD(data.propWin);
+    unit->unitinfo.MoveSpeed = 100.0f;
+    unit->s.angle = 0.0f;
+
+    unit_changeangle_towards_point(unit, &target);
+    unit_moveindirection(unit);
+
+    T_FEQ(unit->s.origin2.x, origin.x, 0.001f);
+    T_FEQ(unit->s.origin2.y, origin.y, 0.001f);
+    T_ASSERT(fabsf(unit->s.angle) > 0.01f);
+}
+
+TEST(wc3_movement, propwin_turning_keeps_stand_animation_advancing) {
+    static animation_t const stand = { .name = "Stand", .interval = { 10, 5000 } };
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t target = {-100.0f, 0.0f};
+    UnitData_t data = *unit->data.UnitData;
+    data.turnRate = 0.1f;
+    data.propWin = 10.0f;
+    unit->data.UnitData = &data;
+    unit->unitinfo.PropWindow = DEG2RAD(data.propWin);
+    unit->unitinfo.MoveSpeed = 100.0f;
+    unit->goalentity = alloc_test_unit(0, target.x, target.y);
+    unit->s.angle = 0.0f;
+    unit_issueorder(unit, "move", &target);
+    unit->animation = &stand;
+    strlcpy(unit->animation_request, "stand", sizeof(unit->animation_request));
+    unit->s.frame = stand.interval[0];
+
+    monster_think(unit);
+    T_STREQ(unit->animation_request, "stand");
+    uint32_t const stand_frame = unit->s.frame;
+    monster_think(unit);
+    T_STREQ(unit->animation_request, "stand");
+    T_ASSERT(unit->s.frame > stand_frame);
+}
+
+TEST(wc3_movement, propwin_large_window_allows_translation_while_turning) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    UnitData_t data = *unit->data.UnitData;
+    vec2_t const target = {-100.0f, 0.0f};
+    vec2_t const origin = unit->s.origin2;
+
+    data.turnRate = 0.1f;
+    data.propWin = 180.0f;
+    unit->data.UnitData = &data;
+    unit->unitinfo.PropWindow = DEG2RAD(data.propWin);
+    unit->unitinfo.MoveSpeed = 100.0f;
+    unit->s.angle = 0.1f; /* strictly inside180 degrees before turning */
+
+    unit_changeangle_towards_point(unit, &target);
+    unit_moveindirection(unit);
+
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
+}
+
+TEST(wc3_movement, propwin_uses_mutable_runtime_unit_value) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    UnitData_t data = *unit->data.UnitData;
+    vec2_t const target = {-100.0f, 0.0f};
+    vec2_t const origin = unit->s.origin2;
+
+    data.turnRate = 0.1f;
+    data.propWin = 180.0f;
+    unit->data.UnitData = &data;
+    unit->unitinfo.PropWindow = DEG2RAD(10.0f);
+    unit->unitinfo.move_flags |= BZ_UNIT_WINDOW_SET; /* explicit native override, including zero */
+    unit->unitinfo.MoveSpeed = 100.0f;
+    unit->s.angle = 0.0f;
+
+    unit_changeangle_towards_point(unit, &target);
+    unit_moveindirection(unit);
+
+    T_FEQ(unit->s.origin2.x, origin.x, 0.001f);
+    T_FEQ(unit->s.origin2.y, origin.y, 0.001f);
+}
+
+TEST(wc3_movement, zero_propwin_blocks_translation) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    UnitData_t data = *unit->data.UnitData;
+    vec2_t const target = {-100.0f, 0.0f};
+    vec2_t const origin = unit->s.origin2;
+
+    unit->data.UnitData = &data;
+    unit->unitinfo.PropWindow = 0.0f;
+    unit->unitinfo.move_flags |= BZ_UNIT_WINDOW_SET; /* explicit native override, including zero */
+    unit->unitinfo.MoveSpeed = 100.0f;
+    unit->s.angle = 0.0f;
+    unit_changeangle_towards_point(unit, &target);
+    unit_moveindirection(unit);
+    T_FEQ(unit->s.origin2.x, origin.x, 0.001f);
+    T_FEQ(unit->s.origin2.y, origin.y, 0.001f);
+}
+
 TEST(wc3_movement, immobile_unit_rejects_ground_move_order) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     vec2_t dest = {100.0f, 0.0f};
@@ -8215,7 +8318,7 @@ static char const cargo_unload_test_data[] =
 
 /* Give cargo scenarios the same lifecycle callbacks as spawned units. */
 static edict_t *cargo_unload_transport(void) {
-    static UnitAbilities_t const abilities = { .abilList = "Acar,Adro,Adri" };
+    static UnitAbilities_t const abilities = { .abilList = "Acar,Adro,Adri,Atdp" };
     edict_t *transport = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 256);
     transport->data.UnitAbilities = &abilities;
     transport->think = monster_think; transport->stand = unit_stand; transport->die = unit_die;
@@ -8282,7 +8385,8 @@ TEST(wc3_movement, unload_all_command_and_instant_dispatch) {
     T_NOT_NULL(clent->client->menu.on_location_selected);
     if (clent->client->menu.on_location_selected)
         T_ASSERT(clent->client->menu.on_location_selected(clent, &transport->s.origin2));
-    T_EQ(transport->cargo.count, 2);
+    T_EQ(transport->cargo.count, 3); /* Point-target unload waits for move arrival. */
+    T_ASSERT(transport->movement.cargo_unload_pending);
     T_ASSERT(S_CargoBeginUnloadAll(transport)); /* Repeated clicks do not bypass Dur. */
     T_EQ(transport->cargo.count, 2);
     G_ClientCommand(clent, 2, instant);
@@ -8291,6 +8395,146 @@ TEST(wc3_movement, unload_all_command_and_instant_dispatch) {
     T_ASSERT(S_CargoTryLoad(transport, passenger));
     level.time += 1000; G_RunEntities();
     T_EQ(transport->cargo.count, 1); /* Instant cancels the old timed unload. */
+    gi.Write = old_write; gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, zeppelin_unload_moves_to_selected_point_before_ejecting) {
+    cstring_t filename = "/tmp/openwarcraft3-zeppelin-unload-point-save.bin";
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    cstring_t drop[] = { "button", "Atdp" };
+    edict_t *clent = &g_edicts[0];
+    vec2_t destination = { 512, 512 };
+    setup_test_world();
+    edict_t *transport = cargo_unload_transport();
+    transport->svflags |= SVF_MONSTER;
+    transport->movetype = MOVETYPE_STEP;
+    transport->collision = 0;
+    transport->abilities.added[0] = MAKEFOURCC('A','c','a','r');
+    transport->abilities.added[1] = MAKEFOURCC('A','t','d','p');
+    ARRAY_COUNT(transport->abilities.added) = 2;
+    G_SelectEntity(clent->client, transport);
+    level.time = 1000;
+    G_ClientCommand(clent, 2, drop);
+    T_NOT_NULL(clent->client->menu.on_location_selected);
+    T_ASSERT(clent->client->menu.on_location_selected(clent, &destination));
+    T_EQ(transport->cargo.count, 3);
+    T_ASSERT(transport->movement.cargo_unload_pending);
+    T_EQ(transport->goalentity->s.origin2.x, destination.x);
+    T_EQ(transport->goalentity->s.origin2.y, destination.y);
+    T_EQ(transport->movement.cargo_unload_ability, MAKEFOURCC('A','t','d','p'));
+    level.time += 100;
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    transport = &g_edicts[transport - g_edicts];
+    T_ASSERT(transport->goalentity && transport->goalentity->inuse);
+    T_EQ(transport->currentmove->proc, CAbilityMove);
+    T_ASSERT(transport->movement.cargo_unload_pending);
+    T_EQ(transport->movement.cargo_unload_ability, MAKEFOURCC('A','t','d','p'));
+    for (int i = 0; i < 300 && transport->movement.cargo_unload_pending; i++) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
+    T_ASSERT(!transport->movement.cargo_unload_pending);
+    T_ASSERT(transport->s.origin2.x > 400 && transport->s.origin2.y > 400);
+    T_EQ(transport->cargo.count, 2);
+    remove(filename);
+    gi.Write = old_write; gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, replacement_point_order_cancels_pending_cargo_unload) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    cstring_t drop[] = { "button", "Adro" };
+    edict_t *clent = &g_edicts[0];
+    vec2_t unload_point = { 512, 512 }, replacement = { -512, -512 };
+    setup_test_world();
+    edict_t *transport = cargo_unload_transport();
+    transport->svflags |= SVF_MONSTER;
+    transport->movetype = MOVETYPE_STEP;
+    transport->collision = 0;
+    G_SelectEntity(clent->client, transport);
+    level.time = 1000;
+    G_ClientCommand(clent, 2, drop);
+    T_ASSERT(clent->client->menu.on_location_selected(clent, &unload_point));
+    T_ASSERT(transport->movement.cargo_unload_pending);
+    T_ASSERT(move_selectlocation(clent, &replacement));
+    T_EQ(transport->goalentity->s.origin2.x, replacement.x);
+    T_EQ(transport->goalentity->s.origin2.y, replacement.y);
+    for (int i = 0; i < 600 && transport->currentmove && transport->currentmove->proc == CAbilityMove; i++) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
+    T_EQ(transport->cargo.count, 3);
+    T_ASSERT(!transport->movement.cargo_unload_pending);
+    gi.Write = old_write; gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, cargo_unload_rejects_point_when_no_pathable_cell_exists) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    uint8_t const blocked_pathmap[] = { 2 };
+    gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    cstring_t drop[] = { "button", "Adro" };
+    edict_t *clent = &g_edicts[0];
+    vec2_t destination = { 300, 300 };
+    setup_test_world();
+    edict_t *transport = cargo_unload_transport();
+    transport->svflags |= SVF_MONSTER;
+    transport->collision = 0;
+    umove_t *old_move = transport->currentmove;
+    edict_t *old_goal = transport->goalentity;
+    CM_SetupTestPathmap(1, 1, blocked_pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0, 0}, .max = {512, 512}));
+    G_SelectEntity(clent->client, transport);
+    level.time = 1000;
+    G_ClientCommand(clent, 2, drop);
+    T_ASSERT(clent->client->menu.on_location_selected != NULL);
+    if (clent->client->menu.on_location_selected)
+        T_ASSERT(!clent->client->menu.on_location_selected(clent, &destination));
+    T_EQ(transport->cargo.count, 3);
+    T_EQ(transport->currentmove, old_move);
+    T_EQ(transport->goalentity, old_goal);
+    T_ASSERT(!transport->movement.cargo_unload_pending);
+    gi.Write = old_write; gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, cargo_unload_ability_removal_clears_pending_arrival) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    cstring_t drop[] = { "button", "Atdp" };
+    edict_t *clent = &g_edicts[0];
+    vec2_t destination = { 512, 512 };
+    setup_test_world();
+    edict_t *transport = cargo_unload_transport();
+    transport->svflags |= SVF_MONSTER;
+    transport->collision = 0;
+    G_SelectEntity(clent->client, transport);
+    level.time = 1000;
+    G_ClientCommand(clent, 2, drop);
+    if (clent->client->menu.on_location_selected)
+        T_ASSERT(clent->client->menu.on_location_selected(clent, &destination));
+    T_ASSERT(transport->movement.cargo_unload_pending);
+    abilityitem_t item = S_AbilityItem(MAKEFOURCC('A','t','d','p'));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    T_ASSERT(S_AbilityMessage(transport, A_DISABLE, &call));
+    T_ASSERT(!transport->movement.cargo_unload_pending);
+    T_EQ(transport->cargo.count, 3);
     gi.Write = old_write; gi.unicast = old_unicast;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }

@@ -6969,6 +6969,38 @@ TEST(wc3_api, hero_xp_not_added_when_suspended) {
  * Unit flags — invulnerable / paused / no_pathing / unit_color
  * ========================================================================= */
 
+TEST(wc3_api, prop_window_runtime_native_and_authored_default) {
+    static UnitData_t authored = { .propWin = 23.0f };
+    edict_t *unit;
+
+    setup_test_world();
+    currentplayer = test_player(0);
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "globals\n"
+        "  unit subject = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set subject = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call SetUnitPropWindow(subject, 0.174532925)\n"
+        "endfunction\n"
+        "function verify_prop_window takes nothing returns nothing\n"
+        "  if GetUnitPropWindow(subject) == 0.174532925 and GetUnitDefaultPropWindow(subject) == 23.0 then\n"
+        "    call SetUnitPropWindow(subject, 0.34906585)\n"
+        "  else\n"
+        "    call SetUnitPropWindow(subject, 0.523598776)\n"
+        "  endif\n"
+        "endfunction\n"));
+
+    unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    unit->data.UnitData = &authored;
+    jass_callbyname(level.vm, "verify_prop_window", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_FEQ(unit->unitinfo.PropWindow, DEG2RAD(20.0f), 0.001f);
+}
+
 TEST(wc3_api, unit_invulnerable_default_false) {
     edict_t *ent = make_unit_hero();
     T_ASSERT(!ent->invulnerable);
@@ -7866,6 +7898,7 @@ TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
     subject->die = unit_die;
     subject->think = monster_think;
     subject->collision = 0.0f;
+    T_FEQ(subject->unitinfo.PropWindow, DEG2RAD(60.0f), 0.001f);
     subject->health.value = 250.0f;
     subject->health.max_value = 250.0f;
     unit_stand(subject);

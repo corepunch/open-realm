@@ -50,8 +50,17 @@ For each `unitAttack_t`:
 - `numberOfDice`, `sidesPerDie`: `NdS` random component.
 - `permanentDamageBonus`: permanent modifier ledger used to survive Hero stat recomputation (for example `ratx`).
 - `temporaryDamageBonus`: item/temporary modifier added to each roll but not folded into the base range.
-- `cooldown`, `damagePoint`, `range`: attack timing/range.
+- `cooldown`, `damagePoint`, `backswingPoint`: attack-cycle timing.
+- `range`, `rangeBuffer`: true weapon range and cooldown-only movement hysteresis.
 - artillery splash metadata (`Farea`/`Harea`/`Qarea`, `Hfact`/`Qfact`, `splashTargs`) is consumed by the generic `WPN_ARTILLERY` impact path; bounce/line/missile-splash weapon classes remain separate gaps.
+
+### Chase range and attack timing
+
+Direct Attack continues to use the compatible runtime Attack 1/Attack 2 profile selected for the current target. The weapon cooldown starts with the swing; while it remains active, that selected profile's `RngBuff1`/`RngBuff2` runtime copy (`rangeBuffer`) extends only the range at which the attacker may remain stationary while moving or recovering. The windup still rechecks true range at damage point before it commits a hit/projectile. Cooldown state and its remaining timer survive a chase transition, including a canceled windup; the attacker can stop again inside buffered range, and when cooldown expires it rechecks unbuffered range before beginning another swing. The later attack-animation end callback preserves the swing-start deadline instead of restarting `cooldown - damagePoint`, so a long animation tail does not extend either the cooldown or its range buffer. Thus `RngBuff` cannot become extra firing range. Ensnare's forced melee-range rule remains authoritative and does not receive the normal range buffer.
+
+Before melee damage or a projectile is committed at damage point, the target is rechecked against the **true**, unbuffered weapon range and minimum range. A target that escapes during windup cancels the pending launch and returns the attacker to chase; a projectile already launched remains owned by the projectile system.
+
+Runtime attacks now retain the authored `backSw1`/`backSw2` value as `backswingPoint`. Direct Attack and Attack Ground post-damage recovery wait for whichever gate is longer: remaining weapon cooldown (`cooldown - damagePoint`) or authored backswing. This prevents custom data with backswing longer than the remaining cooldown from starting the next swing early. Animation presentation is still driven by the existing model-sequence state machine; this change does not introduce a separate global surround or combat-animation scheduler. Attack profile timing/range fields and the active cooldown marker and timer are included in game saves.
 
 The displayed permanent range is:
 
@@ -253,4 +262,5 @@ The combat tests cover representative type multipliers, Divine, data-driven cons
 
 ## See Also
 
+- [Group Attack And Chase Gaps](group-attack-chase-gaps.md) — facing, target identity, range geometry, moving-target refresh, and acceptance coverage still outstanding.
 - [Unit Altitude And Support Surfaces](unit-altitude.md) — projectile target Z adds the target model-origin altitude and authored `impactZ`.

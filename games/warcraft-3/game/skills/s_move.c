@@ -623,6 +623,9 @@ static void unit_commit_motion(edict_t *self, moveStep_t const *step) {
 static void unit_moveindirection_policy(edict_t *self,
                                         moveCollisionPolicy_t collision_policy) {
     if ((self->aiflags & AI_IMMOBILE) || self->movement.turn_blocked) {
+        /* Preserve upstream's Stand clip while using retail's pre-turn gate. */
+        if (self->movement.turn_blocked && !G_AnimationHasPrimary(self->animation,"stand"))
+            unit_setanimation(self,"stand");
         /* Original1603d0 integrates the previous velocity before publishing a turn-induced stop. */
         if (level.scheduled_think && self->movement.turn_blocked && !(self->aiflags & AI_IMMOBILE)) {
             unit_commit_current_pose(self);
@@ -643,6 +646,7 @@ static void unit_moveindirection_policy(edict_t *self,
         return;
     }
 
+    if (!G_AnimationHasPrimary(self->animation,"walk")) unit_setanimation(self,"walk");
     moveStep_t motion;
     vec2_t facing_dir, heading_dir;
     wc3_sincos(self->s.angle, &facing_dir.y, &facing_dir.x);
@@ -1253,7 +1257,11 @@ uint32_t M_RefreshHeatmapForMover(edict_t const *mover, edict_t *self, float rad
         return route->heatmap2;
 
     if (cached && (route->svflags & SVF_MONSTER)) {
-        bool const moved = Vector2_distance(&route->s.origin2, &route->heatmap2_origin) >= 64.0f;
+        float const target_movement = Vector2_distance(&route->s.origin2, &route->heatmap2_origin);
+        float const refresh_distance = mover
+            ? Vector2_distance(&mover->s.origin2, &route->s.origin2) * 0.1f
+            : 64.0f;
+        bool const moved = target_movement > refresh_distance;
         bool const stale = (uint32_t)(level.time - route->heatmap2_time) >= 400;
         if (!moved || !stale)
             return route->heatmap2;
@@ -1838,7 +1846,6 @@ static void ai_follow_walk(edict_t *ent) {
     }
 
     if (standing) move_reset_progress(ent);
-    unit_setanimation(ent, "walk");
     unit_changeangle(ent);
     if (ent->movement.flow_unreachable) {
         unit_setanimation(ent, "stand");
@@ -1974,7 +1981,6 @@ static void ai_move_walk(edict_t *ent) {
             ent->stand(ent);
             return;
         }
-        unit_setanimation(ent, "walk");
         unit_changeangle(ent);
         unit_moveindirection(ent);
         return;
@@ -2057,10 +2063,6 @@ static void ai_move_walk(edict_t *ent) {
             return;
         }
 
-        /* Restore the walk pose only after steering resolves a heading;
-         * previously it advertised the stale facing throughout the pause. */
-        unit_setanimation(ent, "walk");
-
         /* Retail move orders keep trying when another unit temporarily blocks
          * the path.  Preserve the old near-goal settle behavior so an occupied
          * final slot does not orbit forever, but do not cancel a distant move
@@ -2108,6 +2110,7 @@ void order_move(edict_t *self, edict_t *target) {
     if (self->movement.clock_valid) unit_commit_current_pose(self);
     move_cancel_displacement(self);
     self->goalentity = target;
+    self->attack_target_spawn_time = 0;
     self->movement.attackmove_waypoint = NULL;
     self->movement.patrol_a = NULL;
     self->movement.patrol_b = NULL;

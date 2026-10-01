@@ -28,6 +28,9 @@ typedef struct {
 
 struct client_s {
     player_t ps;
+    uint64_t hud_hash;
+    uint32_t pending_order;
+    bool minimap_signal;
 };
 
 /* Like WC3 g_local.h, the game owns the full edict and the server only sees the leading fields.
@@ -48,6 +51,7 @@ struct edict_s {
     // keep above in sync with server.h
     sc2UnitState_t unit; /* vitals, flags, catalog links; Galaxy natives read it through sc2_galaxy_unit_state */
     sc2MoveState_t move;
+    struct { uint32_t kind, target, next_attack; vec2_t origin, destination; bool returning; } order;
 };
 
 extern struct game_import gi;
@@ -80,6 +84,18 @@ extern sc2Level_t sc2_level;
 int          G_RegisterModel(cstring_t filename);
 animation_t const *G_GetAnimation(uint32_t modelindex, cstring_t animname);
 void         G_FreeModels(void);
+
+bool SC2_CommandSupported(cstring_t ability, cstring_t command);
+void SC2_CommandButton(edict_t *client, cstring_t abilcmd);
+bool SC2_CommandPoint(edict_t *client, vec2_t const *point);
+bool SC2_CommandTarget(edict_t *client, uint32_t target);
+void SC2_RunOrders(edict_t *unit);
+void SC2_CancelCommand(edict_t *client);
+void SC2_SetUnitAnimation(edict_t *unit, cstring_t name);
+void SC2_OrderMove(edict_t *unit, vec2_t const *target);
+void SC2_StopUnit(edict_t *unit);
+void SC2_UpdateUnit(edict_t *unit);
+edict_t *SC2_SelectedUnit(edict_t const *client);
 
 /* HUD declarations are in hud/hud.h; include that separately in .c files. */
 #endif

@@ -108,6 +108,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Unit Selection And Control](selection-and-control.md)
 - [Team Colors](team-colors.md)
 - [Shift Order Queue](order-queue.md)
+- [Group Attack And Chase Gaps](group-attack-chase-gaps.md): remaining combat-movement parity work and acceptance coverage.
 - [Persistent Hero And Idle-Worker Shortcuts](unit-shortcuts.md)
 - [Pathfinding And Harvest Reachability](pathfinding.md)
 - [Numerical Pathfinding Integration](retail-pathfinding-engine.md)

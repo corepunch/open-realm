@@ -20,6 +20,44 @@ SPNxSomeSpawn
 `R_UpdateEntityPresentation()` consumes those events before world-entity
 frustum culling, but only for client-visible entities and only in the color
 pass.  The shadow-map pass must not play sounds or create duplicate children.
+Entity-camera scenes keep their event clocks separately from game edict numbers
+and initialize reused table slots completely. Releasing a middle instance compacts
+the table by copying its last entry; the next allocation must zero that old tail
+before assigning the new identity, or cameras share particles and inherit an old
+event clock. Regression coverage lives in `renderer_view.entity_camera_particle_scenes_follow_instance_lifecycle`
+and `renderer_game.reused_camera_event_slot_starts_with_fresh_clock`.
+
+Entity-camera scenes keep their event clocks separately from game edict numbers
+and draw retained `SPN` children in the source model's camera view. Each live
+camera entity supplies a stable, unique `renderEntity_t.instance_id`; that key
+is independent of both the model and the synthetic entity number, so two
+instances of one model do not share an event clock or retained child. Replacing
+an instance ID's model clears that instance's retained children. Camera event
+clocks grow to accommodate each distinct live presentation ID. Owners release
+an ID when its presentation instance is destroyed; release also removes retained
+`SPN` children and the retained particle scene for that instance. Map registration
+and renderer shutdown clear any remaining clocks and particle scenes. FDF frame
+slots receive generated IDs and release them when templates are cleared, so
+recycled frame addresses cannot resume stale event clocks. Glue and campaign
+backgrounds release their static IDs when their presentation is reset. Isolated
+camera particles are stored per instance, so concurrently rendered menu scenes
+cannot share particles or advance one another's particle time. Retained particle
+scenes are invalidated when an instance keeps its ID but changes model or entity
+generation; persistent scenes also require paired allocation/free imports and a
+nonzero instance ID. UI entities use
+synthetic numbers, so sharing the
+edict-indexed clock can reseed an event on every frame; omitting the camera
+child pass makes one-frame effects such as the main-menu Infernal meteor
+disappear immediately after spawning. Persistent layout portraits use stable IDs
+derived from layer and frame number and release those IDs when an empty layer
+packet clears the layout; ordinary packet replacement preserves the clocks.
+Transient window portraits use a per-window namespace and release it when the
+window is replaced or closed.
+
+Particle sprite UVs use the BLP top-down row convention. The billboard quad maps
+its top edge to V=1, so the selected atlas cell reverses its V endpoints before
+upload. This keeps generic MDX, weather, and M2 particle sprites upright while
+leaving authored UV frame selection unchanged.
 
 Current runtime consumers are:
 
@@ -30,6 +68,11 @@ Current runtime consumers are:
 | `SPL` | `Splats\SplatData.slk` | Create a renderer-owned terrain splat at the animated event-node position, using the authored texture-atlas life/decay ranges and colour phases. |
 | `FPT` | `Splats\SplatData.slk` | Use the same SplatData path for footprint event objects; placement comes from the animated event-node transform. |
 | `UBR` | `Splats\UberSplatData.slk` | Create a renderer-owned terrain splat at the animated event-node position and apply the authored birth/pause/decay colour phases. |
+
+Entity-camera scenes retain and draw `SPN` children for the owning model instance.
+`SPL`, `FPT`, and `UBR` are terrain effects, so an event from an entity-camera
+scene does not create a world decal; the renderer emits a bounded diagnostic
+instead of allowing a menu or portrait event to leak into the map.
 
 Warsmash uses the same `SPN` lookup chain: `EventObjectEmitterObject` loads
 `Splats\SpawnData.slk`, reads the row's `Model`, and `EventObjectSpn` creates an

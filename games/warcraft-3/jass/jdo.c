@@ -2920,6 +2920,10 @@ uint32_t jass_call(jass_t *j, uint32_t args) {
     return ret;
 }
 
+bool jass_hasfunction(jass_t *j, cstring_t name) {
+    return find_function(jass_root(j),name)!=NULL;
+}
+
 void jass_callbyname(jass_t *j, cstring_t name, bool spawn_coroutine) {
     jassFunc_t const *func = find_function(j, name);
     if (!func) {

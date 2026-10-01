@@ -38,6 +38,9 @@ void R_RegisterMap(cstring_t mapFileName);
 void R_SetupEnvironmentLighting(void);
 void R_ConformGroundSurfaces(viewDef_t *viewdef);
 void R_DrawWorld(void);
+/* Draw retained MDX event children belonging to an isolated entity-camera scene. */
+void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source_instance_id);
+void R_ReleaseGameEntityCameraEvents(uintptr_t instance_id);
 void R_DrawTerrainShadows(void);
 void R_DrawAlphaSurfaces(void);
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point);
@@ -48,6 +51,7 @@ void R_StopAllTerrainDeformations(void);
 float R_GetCameraHeightAtPoint(float x, float y);
 bool R_CameraUsesTerrainHeight(void);
 vec2_t R_WorldSize(void);
+vec2_t R_WorldOrigin(void);
 
 model_t *R_LoadModel(cstring_t modelFilename);
 void R_ReleaseModel(model_t *model);

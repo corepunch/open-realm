@@ -480,11 +480,11 @@ static bool R_W3SegmentBordersDirty(uint32_t sx, uint32_t sy, uint32_t columns, 
 
 static void R_W3EmitChangedTerrain(void) {
     war3map_t const *map = tr.world;
-    maplayer_t *weld_context = NULL;
     uint32_t columns, rows;
     bool rebuilt = false;
     if (!map || !w3_terrain_dirty_segments) return;
     columns = (map->width - 1) / SEGMENT_SIZE; rows = (map->height - 1) / SEGMENT_SIZE;
+    R_BeginTerrainNormalCache(map);
     FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments) {
         if (!w3_terrain_dirty_segments[segment->sx + segment->sy * columns]) continue;
         R_W3RebuildSegmentGeometry(segment);
@@ -493,20 +493,17 @@ static void R_W3EmitChangedTerrain(void) {
     /* Clean neighbours join the cliff bake as weld context only, so a rebuilt segment's
      * border normals weld across the seam as they did in the load-time whole-map bake. */
     if (rebuilt) FOR_LOOP(sy, rows) FOR_LOOP(sx, columns) {
-        maplayer_t *layer;
         if (w3_terrain_dirty_segments[sx + sy * columns] || !R_W3SegmentBordersDirty(sx, sy, columns, rows))
             continue;
         FOR_LOOP(cliff, map->num_cliffs) {
-            if ((layer = R_BuildMapSegmentCliffs(map, sx, sy, cliff))) {
-                ADD_TO_LIST(layer, weld_context);
-            }
+            R_BakeMapSegmentCliffsForWeld(map, sx, sy, cliff);
         }
     }
     if (rebuilt) {
         R_FinishCliffs();
-        R_FreeMapLayers(&weld_context);
         R_InvalidateBlightLayer();
     }
+    R_EndTerrainNormalCache();
     memset(w3_terrain_dirty_segments, 0, w3_terrain_segment_count);
     w3_terrain_rebuild_pending = false;
 }
@@ -517,6 +514,7 @@ void _W3M_ClearMap(void) {
     R_FreeMapSegments();
     R_FreeMapLayers(&g_groundLayers);
     R_W3ClearTerrainDeformations();
+    R_ResetTerrainNormalCache();
     R_ResetGroundTextures();
     R_ResetCliffCache();
     R_ResetBlightCache();
@@ -581,8 +579,9 @@ static mapsegment_t *R_BuildMapSegment(war3map_t const *map, uint32_t sx, uint32
 static void R_BuildGroundLayers(war3map_t const *map) {
     for (uint32_t layer = map->num_grounds; layer > 0; layer--) {
         maplayer_t *mapLayer = R_BuildGroundLayerGlobal(map, layer - 1);
-        /* ADD_TO_LIST writes both links; a missing layer must preserve the list. */
-        if (mapLayer) { ADD_TO_LIST(mapLayer, g_groundLayers); }
+        if (mapLayer) {
+            ADD_TO_LIST(mapLayer, g_groundLayers);
+        }
     }
 }
 

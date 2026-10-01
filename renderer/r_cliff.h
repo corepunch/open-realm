@@ -12,21 +12,46 @@ typedef struct {
 } rCliffBakeList_t;
 
 typedef struct { int qx, qy, qz; uint32_t idx; } rNormalWeldKey_t;
+static bool r_cliff_warn_bake_failure;
+static bool r_cliff_warn_weld_failure;
 
 /* Header consumers may only use the pure predicate; unused helpers must not import ri at -O0. */
-static inline void R_CliffBakeGrow(rCliffBakeList_t *list, uint32_t add) {
+static inline bool R_CliffBakeGrow(rCliffBakeList_t *list, uint32_t add) {
     vertex_t *vertices;
     uint32_t *groups;
     uint32_t capacity;
 
+    if (add > UINT32_MAX - list->num_vertices) {
+        if (!r_cliff_warn_bake_failure) fprintf(stderr, "renderer: cliff bake vertex count overflow; skipping cliff geometry\n");
+        r_cliff_warn_bake_failure = true;
+        return false;
+    }
     if (list->num_vertices + add <= list->capacity)
-        return;
+        return true;
     capacity = MAX(1024, list->capacity);
     while (list->num_vertices + add > capacity) {
+        if (capacity > UINT32_MAX / 2) {
+            if (!r_cliff_warn_bake_failure) fprintf(stderr, "renderer: cliff bake capacity overflow; skipping cliff geometry\n");
+            r_cliff_warn_bake_failure = true;
+            return false;
+        }
         capacity *= 2;
+    }
+    if ((size_t)capacity > SIZE_MAX / sizeof(*vertices) ||
+        (size_t)capacity > SIZE_MAX / sizeof(*groups)) {
+        if (!r_cliff_warn_bake_failure) fprintf(stderr, "renderer: cliff bake allocation size overflow; skipping cliff geometry\n");
+        r_cliff_warn_bake_failure = true;
+        return false;
     }
     vertices = ri.MemAlloc(capacity * sizeof(*vertices));
     groups = ri.MemAlloc(capacity * sizeof(*groups));
+    if (!vertices || !groups) {
+        if (vertices) ri.MemFree(vertices);
+        if (groups) ri.MemFree(groups);
+        if (!r_cliff_warn_bake_failure) fprintf(stderr, "renderer: unable to grow cliff bake buffers; skipping cliff geometry\n");
+        r_cliff_warn_bake_failure = true;
+        return false;
+    }
     if (list->vertices) {
         memcpy(vertices, list->vertices, list->num_vertices * sizeof(*vertices));
         memcpy(groups, list->groups, list->num_vertices * sizeof(*groups));
@@ -36,10 +61,11 @@ static inline void R_CliffBakeGrow(rCliffBakeList_t *list, uint32_t add) {
     list->vertices = vertices;
     list->groups = groups;
     list->capacity = capacity;
+    return true;
 }
 
 static inline vertex_t *R_CliffBakeVertex(rCliffBakeList_t *list) {
-    R_CliffBakeGrow(list, 1);
+    if (!R_CliffBakeGrow(list, 1)) return NULL;
     list->groups[list->num_vertices] = list->current_group;
     return &list->vertices[list->num_vertices++];
 }
@@ -69,6 +95,13 @@ static inline void R_CliffWeldNormals(rCliffBakeList_t *list, float snap) {
     if (n < 2 || snap <= 0.0f) return;
     keys = ri.MemAlloc(n * sizeof(*keys));
     normals = ri.MemAlloc(n * sizeof(*normals));
+    if (!keys || !normals) {
+        if (keys) ri.MemFree(keys);
+        if (normals) ri.MemFree(normals);
+        if (!r_cliff_warn_weld_failure) fprintf(stderr, "renderer: unable to allocate cliff normal weld scratch; retaining unwelded normals\n");
+        r_cliff_warn_weld_failure = true;
+        return;
+    }
     FOR_LOOP(i, n) {
         keys[i].qx = (int)roundf(vertices[i].position.x / snap);
         keys[i].qy = (int)roundf(vertices[i].position.y / snap);

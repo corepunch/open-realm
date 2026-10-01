@@ -2,13 +2,23 @@
 
 Implements issue #82. Mirrors the WC3 server-authored HUD pattern.
 
-## Selection/InfoPanel status
+## Selected-unit presentation (September 2026)
 
-The InfoPanel subtree is structurally present on `TRaynor01` and now travels with the complete console tree in `LAYER_BACKGROUND`. Its native subtree includes `UnitPanel`, `UnitWireframe`, `ShieldLabel`, `LifeLabel`, `EnergyLabel`, `InfoPaneUnit`, and the latter's direct `NameLabel` child. Missing selected-unit presentation is therefore a binding and selection-lifecycle problem, not a missing layout message.
+The game owns selection, command authority and presentation. Empty selection has no
+unit art or command card. Selected units bind their CUnit/CActorUnit name, wireframe,
+life/energy/shields, armor and kills. Foreign units can be inspected, but only owned,
+alive, unpaused units with enabled abilities receive commands. TRaynor01's user is
+player 1; dropship cargo inherits the transport owner.
 
-Do not establish an initial selection until native map-player assignment is parsed. Current runtime evidence is inconsistent across boundaries: `world_sc2.c` advertises map player 0, `SC2_InitClients` writes player 1, while controllable `TRaynor01` units are owned by native player 2. Inferring the human owner from the first mobile unit would also select civilians or neutral units on other maps.
+CUnit.CardLayouts supplies row/column/AbilCmd/Face; inherited CButton entries supply
+art, localized labels and hotkeys. Move, Stop, Hold Position, Patrol and Attack route
+to game-owned ability procedures. Unsupported commands stay unavailable. Raynor01
+has no inventory ability in its catalog: the native InventoryPanel remains hidden.
+This does not implement inventory behavior for other SC2 units.
 
-When player mapping is available, selection changes should derive one primary selected edict, update the portrait model, `InfoPaneUnit/NameLabel`, stats, and commands, then resend the unified `LAYER_BACKGROUND` console tree. Life, shield, and energy labels must remain hidden until their authoritative game-state values exist.
+The portrait currently uses the authored CModel.Image static mode. Animated FXA
+portraits require RequiredAnims (.m3a) and FacialController playback, which the
+renderer does not yet implement. Do not substitute a guessed model or texture.
 
 ## Overview
 
@@ -44,37 +54,39 @@ cl_unit_layout.c renders generically (SCR_Clear → SCR_LayoutDrawOverlay)
 | `games/starcraft-2/game/hud/hud_command.c` | Stamps command-card runtime data before console serialization |
 | `common/shared.h` `UILAYOUTLAYER` | reuses `LAYER_CONSOLE/BACKGROUND/COMMANDBAR/INFOPANEL` |
 
-## Send-on-connect pattern
+## Updates and media
 
-HUD is sent once per client on connect (in `SC2_ClientBegin`), not every frame. The client retains the last received layout per layer and renders it each frame via `SCR_DrawLayout`. This mirrors WC3's approach where `G_RefreshResourceBar` caches resource values and only resends on change.
+SC2_ClientBegin sends the console and resource layers. SC2_HUD_Update compares
+selected-unit state, selection count, UI mode, minimap presentation and supply each
+simulation frame, then resends changed presentation. Resource values use stat
+bindings. Map changes clear layout, localization and wire-number caches.
 
-```c
-/* g_sc2.c :: SC2_ClientBegin */
-SC2_HUD_WriteResourcePanel(ent);
-SC2_HUD_WriteConsolePanel(ent);
-```
+UI texture aliases resolve through merged Core/Liberty/map Assets.txt layers.
+GameStrings.txt and GameHotkeys.txt follow the same data layering. CButton icons
+are real retail DDS files. Some single-level compressed DDS files leave
+`dwMipMapCount` zero and omit DDSD_MIPMAPCOUNT: that means one level. The shared
+DDS loader previously uploaded no level for those icons, producing missing art.
 
-The `SC2_RunFrame` loop does NOT resend HUD. Selection changes will restamp dynamic command/info data and resend the unified console layer when that system is wired up.
+## Native layout semantics
 
-## UI texture resolution
+Templates instantiate independent child trees. Named overrides replace properties
+in their scoped subtree; relative paths resolve `$parent`, repeated parents and
+root-qualified names without a global same-name fallback. Resolve referenced
+definitions before copying inherited children. StateCount splits texture atlas UVs,
+so minimap buttons show one state rather than a stacked normal/hover atlas.
+Opposing MID anchors with explicit dimensions define a centered image rather than
+a zero-sized rectangle. Hidden containers retain transparent geometry carriers so
+visible siblings keep their native anchor chains.
 
-SC2 layout files reference textures as logical `UI/` keys (`<Texture val="@UI/MenuBarButtonNormal"/>`). These keys are defined in `GameData/Assets.txt` inside each mod archive — the SC2 equivalent of WC3's `war3skins.txt`. See [assets-txt.md](file-formats/assets-txt.md) for the format.
+SC2 uses a 1600×1200 canvas expanded horizontally for widescreen. Wire offsets use
+`32767 / 1600`, not normalized WC3 offsets. Reserve ancestor and visible-subtree
+numbers before writing frames: anchors may reference a later sibling. Layout
+indices and wire numbers have different limits; diagnose wire exhaustion rather
+than emitting frame zero. Console model backgrounds draw before portrait content.
 
-`sc2_hud_image_index()` in `hud.c` resolves a key to a `gi.ImageIndex` handle using two tiers:
-
-1. **Static `paths[]`** — hardcoded entries for Core.SC2Mod keys that the VFS cannot reach, because `Liberty.SC2Mod/Base.SC2Data` has higher archive priority and its `GameData/Assets.txt` shadows Core's. Covers ~30 HUD entries (menu bar, portrait, panels, etc.).
-
-2. **Runtime `assets_catalog[]`** — parsed from `gi.ReadFile("GameData/Assets.txt")` at `SC2_HUD_InitLayoutHost()`. Returns the Liberty.SC2Mod version, which covers minimap buttons, autocast overlay, bordered white, and other Liberty-specific entries.
-
-```c
-/* Lookup order in sc2_hud_image_index() */
-while (*resource == '@') resource++;   /* strip leading @ */
-// 1. static paths[]
-// 2. assets_catalog[] (from Assets.txt)
-// 3. return 0 and log "unresolved" for any UI/ key still not found
-```
-
-**VFS priority note:** `FS_OpenFile` searches archives from last-loaded to first-loaded (index `MAX_ARCHIVES-1` → `0`). The archive load order in `g_sc2.c` puts `Liberty.SC2Mod/Base.SC2Data` at a higher index than `Core.SC2Mod/Base.SC2Data`, so `gi.ReadFile("GameData/Assets.txt")` always returns Liberty's copy. Core entries that Liberty does not repeat must live in the static table.
+Minimap Ping, terrain visibility and alliance colors are game-authored actions.
+The renderer reads the opaque presentation flags and snapshot contact metadata.
+Minimap contacts use the pixel canvas dimensions.
 
 ## Layout parser in the game module
 
@@ -105,7 +117,7 @@ The `UNITY` macro in `Makefile` only scans directories. Adding `menu_layout.c` t
 SC2 anchors use `SC2_SIDE_{LEFT,RIGHT,TOP,BOTTOM}` + `SC2_POS_{MIN,MID,MAX}` mapped to the flat `sc2BaseFramePoints_t x[FPP_COUNT], y[FPP_COUNT]` arrays. These map directly to `uiFramePoint_t` with:
 - `targetPos` = `FPP_MIN/MID/MAX` from `sc2BaseFramePoint_t.targetPos`
 - `relativeTo` = wire frame number looked up from `relative_index` (or `UI_PARENT` when `-1`)
-- `offset` = `int16_t(px->offset * UI_FRAMEPOINT_SCALE)` where `UI_FRAMEPOINT_SCALE = 32767.0`
+- `offset` = `int16_t(px->offset * UI_FRAMEPOINT_SCALE)` where `UI_FRAMEPOINT_SCALE = 32767.0 / 1600.0`
 
 ## Frame numbering
 
@@ -243,7 +255,7 @@ Violating this order causes per-file pass "NOT FOUND" for cross-file refs, leavi
 
 ## SC2 button frames → FT_FRAME not FT_BUTTON
 
-`SC2_FRAMETYPE_BUTTON` and `SC2_FRAMETYPE_COMMAND_BUTTON` map to `FT_FRAME`, not `FT_BUTTON`. SC2 buttons are containers — their visual appearance comes from child `NormalImage`/`HoverImage` frames (`FT_TEXTURE`). The client's `SCR_LayoutGlueTextButton` (called for `FT_BUTTON`) expects a `uiGlueTextButton_t` buffer that SC2 buttons don't carry; using `FT_FRAME` avoids the crash.
+The parser maps `SC2_FRAMETYPE_BUTTON` and unbound `SC2_FRAMETYPE_COMMAND_BUTTON` to `FT_FRAME`, not `FT_BUTTON`. Bound gameplay cards become `FT_COMMANDBUTTON` with the proper `uiCommandButton_t` payload. SC2 buttons are containers — their visual appearance comes from child `NormalImage`/`HoverImage` frames (`FT_TEXTURE`). The client's `SCR_LayoutGlueTextButton` (called for `FT_BUTTON`) expects a `uiGlueTextButton_t` buffer that SC2 buttons don't carry; using `FT_FRAME` avoids the crash.
 
 ## BACKGROUND layer: complete bottom console
 
@@ -251,15 +263,12 @@ Violating this order causes per-file pass "NOT FOUND" for cross-file refs, leavi
 
 Command data is stamped into the shared parsed tree before serialization. Do not add independent InfoPanel or CommandPanel layer writers; they would duplicate descendants and break shared parent ownership.
 
-## Portrait panel (FT_PORTRAIT)
+## Portrait panel
 
-`PortraitPanel.SC2Layout` defines a `<Frame type="Portrait" name="Portrait">` child. This type maps to `FT_PORTRAIT` (added in `stb_sc2layout.h`: `SC2_FRAMETYPE_PORTRAIT` enum + `{ "Portrait", SC2_FRAMETYPE_PORTRAIT }` in the parse table).
-
-`SCR_LayoutDrawPortrait` renders it via `re.RenderFrame` with `RDF_USE_ENTITY_CAMERA`. For SC2, `R_GameExtractEntityCamera` (`games/starcraft-2/renderer/r_game.c`) computes a bounds-based portrait camera from `m3->boundings` (BoundingSphere min/max/radius): 35° FOV perspective, camera at `center + (0, -dist*0.9, +radius*0.25)` looking at the bounding sphere center.
-
-The portrait model index is set server-side by `SC2_HUD_SetPortraitModel(model)` (hud.c) before `SC2_HUD_WriteConsolePanel`. In `SC2_ClientBegin` (g_sc2.c), the first selectable unit's `s.model` is used. `SC2_HUD_BuildFrameForWrite` overrides `tex.index` with `portrait_model` for any `FT_PORTRAIT` frame.
-
-The `PortraitPanel` background image (`UI/BlankPortraitBackground` → `terranblankportrait_static.dds`) is a DXT5 texture that is black by design — it is the blank state shown behind the 3D portrait model.
+The parser preserves the native Portrait frame. Selected-unit presentation changes
+it to FT_TEXTURE using the inherited CModel.Image static portrait. Empty selection
+hides the panel. Animated portraits remain a separate renderer feature: their
+FXA RequiredAnims and FacialController playback are not implemented.
 
 ## ConsolePanel Model children (3D console chrome)
 
@@ -315,3 +324,25 @@ for missing fixture minimap/portrait assets are separate from console geometry; 
 See [shadow and catalog diagnostics](map-model-unit-data.md#shadow-and-catalog-diagnostics).
 
 See [Galaxy presentation state](galaxy-presentation.md) for objective/help metadata ownership and the remaining path from script records to HUD output.
+
+## Verified TRaynor01 HUD
+
+September 30, 2026: retail NativeLib/Core/Liberty layout and catalog data resolved
+Jim Raynor's five basic commands, static portrait, wireframe, life and armor.
+Move and Stop were clicked in the running game and verified with `cmd unitinfo`:
+Move set order 1/moving 1 and changed position; Stop set order 2/moving 0.
+Patrol set order 4/moving 1, Hold Position set order 3/moving 0, and Attack
+move through the minimap set order 5/moving 1 and cleared targeting.
+Selecting a Marine updated the HUD to 45/45 life. Terrain and alliance-color
+buttons changed the minimap, with visible contacts and the camera footprint.
+Ping was exercised in the running game. Solid fills now use the normal UI batch
+path, resetting the model transform and using the active canvas; previously a
+ping could reuse console-model state and cover the screen with a white rectangle.
+
+The shared minimap projector now reads R_WorldOrigin and R_WorldSize from the game
+renderer. Requiring the WC3 `tr.world` object rejected SC2 projection and inverse
+input even with a valid SC2 map. WC3 retains its existing center and dimensions.
+
+Screenshots are saved locally under `screenshots/sc2-hud-*.png`. Automated checks:
+`make test-sc2` (885 assertions), `make test-sc2-engine` (623), `make test-galaxy`
+(173), the full `make test`, and `tools/engine_boundary_audit.py`.

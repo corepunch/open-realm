@@ -262,3 +262,73 @@ TEST(sc2_control, galaxy_resources_publish_without_camera_change) {
     T_FEQ(sc2_players[1].properties[4],3.5f,0.001f);
     jass_close(vm); gi=saved; sc2_level.scriptsStarted=started;
 }
+
+TEST(sc2_control, empty_selection_has_no_placeholder_command_art) {
+    sc2BaseFrame_t frames[] = {
+        { .number=0, .sc2_type=SC2_FRAMETYPE_COMMAND_PANEL, .parent_index=UINT32_MAX },
+        { .number=1, .sc2_type=SC2_FRAMETYPE_COMMAND_BUTTON, .name="CommandButton00", .parent_index=0 },
+        { .number=2, .sc2_type=SC2_FRAMETYPE_IMAGE, .name="NormalImage", .parent_index=1 },
+    };
+    SC2_HUD_PrepareCommandPanel(frames, 3, frames, NULL);
+    T_EQ(frames[2].image, 0);
+}
+
+TEST(sc2_control, selected_paused_unit_keeps_presentation_but_cannot_order) {
+    uint32_t saved_n=globals.num_edicts,saved_clients=globals.max_clients;
+    edict_t saved_unit=sc2_edicts[1]; struct client_s saved_client=sc2_clients[0];
+    globals.num_edicts=2; globals.max_clients=1; sc2_clients[0].ps.number=1;
+    edict_t client={.client=&sc2_clients[0]};
+    sc2_edicts[1]=(edict_t){.inuse=true,.selected=2,.s={.player=1}};
+    sc2_edicts[1].unit=(sc2UnitState_t){.initialized=true,.states=1u<<SC2_UNIT_PAUSED,.abil_n=1};
+    sc2_edicts[1].unit.vitals[0].value=45;
+    strcpy(sc2_edicts[1].unit.abils[0].link,"move");
+    T_ASSERT(SC2_SelectedUnit(&client)==&sc2_edicts[1]);
+    T_ASSERT(!SC2_HUD_CommandEnabled(&sc2_edicts[1],"move,Move"));
+    sc2_edicts[1].unit.states=0;
+    T_ASSERT(SC2_HUD_CommandEnabled(&sc2_edicts[1],"move,Move"));
+    SC2_CommandButton(&client,"move,Move");
+    T_ASSERT(client.client->pending_order!=0);
+    SC2_CancelCommand(&client); T_EQ(client.client->pending_order,0);
+    SC2_CommandButton(&client,"move,HoldPos");
+    T_EQ(client.client->pending_order,0); T_ASSERT(sc2_edicts[1].order.kind!=0);
+    sc2_edicts[1].unit.abils[0].disabled=true;
+    T_ASSERT(!SC2_HUD_CommandEnabled(&sc2_edicts[1],"move,Move"));
+    sc2_edicts[1].unit.states=1u<<SC2_UNIT_HIDDEN;
+    T_ASSERT(!SC2_SelectedUnit(&client));
+    sc2_edicts[1]=saved_unit; sc2_clients[0]=saved_client;
+    globals.num_edicts=saved_n; globals.max_clients=saved_clients;
+}
+TEST(sc2_control, high_layout_index_has_valid_wire_number) {
+    sc2BaseFrame_t frame={.number=1000,.parent_index=UINT32_MAX,.type=FT_TEXTURE,.image=17,.alpha=1,.color=COLOR32_WHITE};
+    uiFrame_t output;
+    struct game_import saved=gi; gi.Write=sc2_test_write; sc2_test_count=0;
+    SC2_HUD_WriteStart(LAYER_BACKGROUND);
+    T_ASSERT(SC2_HUD_BuildFrameForWrite(&frame,&output));
+    gi=saved;
+    T_ASSERT(output.number>0); T_EQ(output.tex.index,17);
+}
+
+/* Right-click movement must honor the same ability gates as the command card. */
+TEST(sc2_control, smartpoint_rejects_disabled_and_paused_move) {
+    struct game_import saved = gi;
+    uint32_t saved_n = globals.num_edicts;
+    edict_t saved_unit = sc2_edicts[1];
+    struct client_s saved_client = sc2_clients[0];
+    edict_t client = { .client = &sc2_clients[0] };
+    gi.Write = sc2_test_write; gi.unicast = sc2_test_unicast;
+    globals.num_edicts = 2; client.client->ps.number = 1;
+    sc2_edicts[1] = (edict_t){ .inuse = true, .selected = 2, .s = { .player = 1, .model = 1 } };
+    sc2_edicts[1].unit = (sc2UnitState_t){ .initialized = true, .states = 1u << SC2_UNIT_SELECTABLE, .abil_n = 1 };
+    sc2_edicts[1].unit.vitals[0].value = 45;
+    strcpy(sc2_edicts[1].unit.abils[0].link, "move");
+    sc2_edicts[1].unit.abils[0].disabled = true;
+    sc2_test_count = 0;
+    SC2_ClientCommand(&client, 3, (cstring_t[]){ "smartpoint", "10", "10" });
+    T_ASSERT(!sc2_edicts[1].move.moving); T_EQ(sc2_edicts[1].order.kind, 0); T_EQ(sc2_test_count, 0);
+    sc2_edicts[1].unit.abils[0].disabled = false;
+    sc2_edicts[1].unit.states |= 1u << SC2_UNIT_PAUSED;
+    SC2_ClientCommand(&client, 3, (cstring_t[]){ "smartpoint", "10", "10" });
+    T_ASSERT(!sc2_edicts[1].move.moving); T_EQ(sc2_edicts[1].order.kind, 0); T_EQ(sc2_test_count, 0);
+    sc2_edicts[1] = saved_unit; sc2_clients[0] = saved_client;
+    globals.num_edicts = saved_n; gi = saved;
+}

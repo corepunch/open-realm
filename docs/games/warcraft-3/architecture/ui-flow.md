@@ -123,6 +123,20 @@ valid after map registration and makes Quit Campaign / EndGame / campaign-select
 the same edition selected by the main menu.
 
 `games/warcraft-3/menu/menu_glue_scene.c` renders the selected background with `RDF_USE_ENTITY_CAMERA`.
+The default RoC `MainMenu3d.mdx` contains `PRE2` model-particle emitters for its rain. Glue background views carry
+`M_Time()` and the elapsed frame delta so those emitters advance; the renderer draws their particles in a dedicated
+entity-camera particle scene because this camera path does not pass through the ordinary `R_RenderView` particle pass.
+PRE2 spawn velocity follows the emitter node's transformed local direction, which lets the authored rain nodes emit down
+into the camera view. Its accumulator honors the authored per-second rate during normal frames and limits catch-up after
+long stalls to 100 ms. Particle batches temporarily disable face culling and restore the previous state so the
+camera-facing tail quads are visible. The isolated scene keeps menu rain separate from the active map's particle list.
+On scene-model load, the background plays its authored `Birth` sequence for the duration reported by the MDX renderer,
+then holds `Stand`. The archived `ui_skip_transitions` cvar defaults to `0`; setting it to `1` skips this intro, panel
+Birth/Death sequences, and sampled panel movement while still running the screen handoff callbacks. This is MDX
+model-particle rendering, not the map/JASS weather system.
+The main-menu scene passes the background's normalized `Stand` phase from menu time because `SetEntityAnimFrame` runs
+before `RenderFrame` installs the scene clock; reading the renderer's previous view time would freeze the background at
+the last map frame on return to the menu. Backgrounds without a `Birth` sequence use the same clocked `Stand` path.
 `UI_GotoGluePanel(GLUEDEST, exited, changed)` accepts `{panel, tab, page}`. `tab` selects an authored left-panel pose;
 `page` distinguishes content pages that share that pose (Options Gameplay, Video, and Sound). Each `GLUELAYER` retains
 its own current/target destination, phase, and start time. The right layer uses only the panel family. RoC and TFT share
@@ -209,9 +223,10 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' +menu_options +com_frame_limit
 build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +menu_options +com_frame_limit 100
 ```
 
-Campaign background models render their stable `Stand` sequence. Their `Birth` durations vary by race and edition, so they are not
-part of the fixed panel-transition clock. Entering campaign selection waits for `SinglePlayer Death`; returning declares
-`SinglePlayer` as the desired panel and the closed-panel state starts its `Birth`. The retail/Warsmash
+Campaign backdrop changes play the selected model's authored `Birth` sequence, using the MDX-reported duration, then hold
+`Stand`. The duration varies by race and edition, so it has its own clock rather than sharing the fixed panel-transition clock.
+Campaign backdrop views advance their scene clock and isolated particles. Entering campaign selection waits for `SinglePlayer Death`;
+returning declares `SinglePlayer` as the desired panel and the closed-panel state starts its `Birth`. The retail/Warsmash
 `SlidingDoors Birth -> background swap -> SlidingDoors Death` campaign wipe is still separate work; OpenRealm currently keeps
 `SlidingDoors` hidden because its campaign-view ownership does not yet implement that intermediate transition state. Remaining glue
 parity gaps also include `MenuZFog` and edition-sensitive `GlueScreenLoop` ambience.

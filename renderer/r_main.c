@@ -828,6 +828,7 @@ void R_ShutdownRenderer(void) {
         return;
     }
     renderer_shutdown = true;
+    R_ClearEntityCameraParticleScenes();
     R_ShutdownModels();
     R_Shutdown();
     R_ShutdownModelShader();
@@ -1127,11 +1128,13 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawSprite = R_DrawSprite,
         .DrawCursor = R_DrawCursor,
         .SetEntityAnimFrame = R_SetEntityAnimFrame,
+        .GetModelAnimationDuration = R_GetModelAnimationDuration,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,
         .GetEntityOverheadPosition = R_GetEntityOverheadPosition,
         .GetEntityAttachmentPosition = R_GetEntityAttachmentPosition,
+        .ReleaseEntityCameraEvents = R_ReleaseEntityCameraEvents,
         .DrawBoundingBox = R_DrawBoundingBox,
         .GetHeightAtPoint = R_GetHeightAtPoint,
         .StartTerrainDeformation = R_StartTerrainDeformation,

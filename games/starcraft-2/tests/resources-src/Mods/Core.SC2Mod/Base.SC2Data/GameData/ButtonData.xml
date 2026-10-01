@@ -1,0 +1,1 @@
+<Catalog><CButton default="1"><Name value="Button/Name/##id##"/><Hotkey value="Button/Hotkey/##id##"/></CButton><CButton id="Move"><Icon value="Assets/Textures/Move.dds"/></CButton><CButton id="Stop" parent="Move"><Icon value="Assets/Textures/Stop.dds"/></CButton></Catalog>

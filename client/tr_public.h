@@ -139,6 +139,7 @@ typedef struct {
     cstring_t name;                      /* server-authored world label (NULL = none) */
     uint32_t number;
     uint32_t generation; /* client-local entity incarnation; not serialized */
+    uintptr_t instance_id; /* Stable identity for retained renderer presentation state. */
     uint32_t owner;                     /* authoritative entity owner/player slot when the game assigns one */
     uint32_t team;
 #ifdef WOW
@@ -297,11 +298,14 @@ typedef struct {
     void (*DrawSprite)(drawSprite_t const *sprite);
     bool (*DrawCursor)(drawCursor_t const *cursor);
     bool (*SetEntityAnimFrame)(model_t const *model, cstring_t anim, renderEntity_t *entity);
+    /* Authored named-sequence duration in milliseconds, when exposed by the model format. */
+    bool (*GetModelAnimationDuration)(model_t const *model, cstring_t anim, uint32_t *duration);
     void (*DrawText)(drawText_t const *drawText);
     vec2_t (*GetTextSize)(drawText_t const *drawText);
     bool (*GetModelInfo)(model_t *model, modelInfo_t *info);
     bool (*GetEntityOverheadPosition)(renderEntity_t const *entity, vec3_t *out);
     bool (*GetEntityAttachmentPosition)(renderEntity_t const *entity, cstring_t prefix, vec3_t *out);
+    void (*ReleaseEntityCameraEvents)(uintptr_t instance_id);
 
     void (*DrawBoundingBox)(box3_t const *box, mat4_t const *modelMatrix, mat4_t const *vpMatrix, color32_t color);
     float (*GetHeightAtPoint)(float x, float y);

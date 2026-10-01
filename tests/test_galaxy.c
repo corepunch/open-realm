@@ -1662,6 +1662,8 @@ TEST(galaxy, vm_event_null_abilcmd_matches_any_order) {
         "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
         "native point Point(fixed x, fixed y);\n"
         "native abilcmd AbilityCommand(string name, int index);\n"
+        "native string AbilityCommandGetAbility(abilcmd command);\n"
+        "native int AbilityCommandGetCommand(abilcmd command);\n"
         "native order Order(abilcmd command);\n"
         "native order OrderTargetingPoint(abilcmd command, point target);\n"
         "native bool UnitIssueOrder(unit value, order valueOrder, int queue);\n"
@@ -1674,15 +1676,35 @@ TEST(galaxy, vm_event_null_abilcmd_matches_any_order) {
         "bool on_stop(bool testConds, bool runActions) { gv_stop = gv_stop + 1; return true; }\n"
         "void main() {\n"
         "    unit mover = UnitCreate(1, \"Marine\", 0, 1, Point(0.0, 0.0), 0.0);\n"
+        "    abilcmd moveCommand = AbilityCommand(\"move\", 0);\n"
+        "    if (AbilityCommandGetAbility(moveCommand) != \"move\" || AbilityCommandGetCommand(moveCommand) != 0) { TestFail(\"stored abilcmd\"); }\n"
+        "    int i = 0; while (i < 2000) { i = i + 1; if (AbilityCommand(\"move\", 0) != moveCommand) { TestFail(\"abilcmd identity\"); } }\n"
         "    if (Order(null) == null) { TestFail(\"null order\"); }\n"
         "    PlayerModifyPropertyInt(1, 7, 0, ConversationDataStateGetValue(\"Credits\"));\n"
         "    TriggerAddEventUnitOrder(TriggerCreate(\"on_any\"), null, null);\n"
         "    TriggerAddEventUnitOrder(TriggerCreate(\"on_stop\"), null, AbilityCommand(\"stop\", 0));\n"
         "    TriggerAddEventUnitAbility(TriggerCreate(\"on_stop\"), null, null, -1, false);\n"
-        "    UnitIssueOrder(mover, OrderTargetingPoint(AbilityCommand(\"move\", 0), Point(1.0, 0.0)), 0);\n"
+        "    UnitIssueOrder(mover, OrderTargetingPoint(moveCommand, Point(1.0, 0.0)), 0);\n"
         "    if (gv_any != 1 || gv_stop != 0) { TestFail(\"null abilcmd filter\"); }\n"
         "}"));
     gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
+}
+
+TEST(galaxy, vm_library_variables_precede_map_initialization) {
+    gal_state_t s=gal_new();
+    galaxy_reset(); gal_use_natives();
+    T_ASSERT(gal_parse(&s,
+        "native void TestFail(string message);\n"
+        "native playergroup PlayerGroupEmpty();\n"
+        "native void PlayerGroupAdd(playergroup group, int player);\n"
+        "native bool PlayerGroupHasPlayer(playergroup group, int player);\n"
+        "playergroup cinematicPlayers; int phase = 0;\n"
+        "void libNtve_InitVariables() { cinematicPlayers = PlayerGroupEmpty(); phase = 1; }\n"
+        "void InitGlobals() { if (phase != 1) { TestFail(\"library order\"); } PlayerGroupAdd(cinematicPlayers, 1); phase = 2; }\n"
+        "void InitTriggers() { if (phase != 2 || !PlayerGroupHasPlayer(cinematicPlayers, 1)) { TestFail(\"cinematic group lifecycle\"); } }\n"));
+    galaxy_start(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    galaxy_reset(); gal_destroy(&s);
 }
 
 /* Targetable and tooltipable are writable natives.galaxy states. Rejecting them aborted map init. */

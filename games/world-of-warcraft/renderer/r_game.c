@@ -140,6 +140,12 @@ void R_DrawWorld(void) {
     Wow_DrawWorld();
 }
 
+void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source_instance_id) {
+    (void)source_model;
+    (void)source_instance_id;
+}
+void R_ReleaseGameEntityCameraEvents(uintptr_t instance_id) { (void)instance_id; }
+
 void R_DrawTerrainShadows(void) {
     Wow_DrawTerrainShadows();
 }
@@ -158,6 +164,8 @@ void R_StopAllTerrainDeformations(void) { }
 
 float R_GetCameraHeightAtPoint(float x, float y) { return R_GetHeightAtPoint(x, y); }
 bool R_CameraUsesTerrainHeight(void) { return false; }
+
+vec2_t R_WorldOrigin(void) { return (vec2_t){0}; }
 
 vec2_t R_WorldSize(void) {
     return (vec2_t){ 0 };
@@ -554,6 +562,13 @@ bool R_SetEntityAnimFrame(model_t const *model, cstring_t anim, renderEntity_t *
     if (!model || model->modeltype != ID_MD20)
         return false;
     return M2_SetEntitySequenceFrame(model->m2, anim, entity);
+}
+
+bool R_GetModelAnimationDuration(model_t const *model, cstring_t anim, uint32_t *duration) {
+    (void)model;
+    (void)anim;
+    (void)duration;
+    return false;
 }
 
 void R_DrawSprite(drawSprite_t const *sprite) {

@@ -117,43 +117,7 @@ static void sc2_hud_parse_assets_txt(handle_t buf, uint32_t len, void *ud) {
  * war3skins.txt).  paths[] covers Core.SC2Mod entries; assets_catalog
  * covers Liberty.SC2Mod entries loaded at runtime. */
 static int sc2_hud_image_index(cstring_t resource) {
-    static struct { cstring_t logical, physical; } const paths[] = {
-        { "UI/ResourceIcon0",    "Assets/Textures/icon-mineral.dds" },
-        { "UI/ResourceIcon1",    "Assets/Textures/icon-gas.dds" },
-        { "UI/ResourceIcon2",    "Assets/Textures/icon-highyieldmineral.dds" },
-        { "UI/ResourceIcon3",    "Assets/Textures/icon-mineral.dds" },
-        { "UI/ResourceIconSupply",  "Assets/Textures/icon-supply.dds" },
-        { "UI/ResourceIconPlayer",  "Assets/Textures/ui_ingame_resourcesharing_playericon.dds" },
-        { "UI/BlankPortraitBackground", "Assets/Textures/terranblankportrait_static.dds" },
-        { "UI/StandardGameTooltip",  "Assets/Textures/ui_battlenet_tooltip_outline.dds" },
-        { "UI/TechGlossarySmallButtonNormal", "Assets/Textures/ui_glossary_strongagainst_terran_normalandpressed.dds" },
-        { "UI/TechGlossarySmallButtonHover",  "Assets/Textures/ui_glossary_strongagainst_terran_normaloverandpressedover.dds" },
-        { "UI/IdleButtonNormal", "Assets/Textures/ui_idlepeon_normalpressed_terran.dds" },
-        { "UI/IdleButtonHover",  "Assets/Textures/ui_idlepeon_normaloverpressedover_terran.dds" },
-        { "UI/AIButton",         "Assets/Textures/ai_avatar.dds" },
-        { "UI/WarpButtonNormal", "Assets/Textures/ui_warpin_normalpressed.dds" },
-        { "UI/WarpButtonHover",  "Assets/Textures/ui_warpin_normaloverpressedover.dds" },
-        { "UI/CharacterSheetToggleButtonNormal", "Assets/Textures/ui_techlist_button_normalpressed.dds" },
-        { "UI/CharacterSheetToggleButtonHover",  "Assets/Textures/ui_techlist_button_normaloverpressedover.dds" },
-        { "UI/AllianceToggleButtonNormal", "Assets/Textures/ui_alliance_button_normalpressed.dds" },
-        { "UI/AllianceToggleButtonHover",  "Assets/Textures/ui_alliance_button_normaloverpressedover.dds" },
-        { "UI/TeamResourceToggleButtonNormal", "Assets/Textures/ui_resourcesharing_button_normalpressed.dds" },
-        { "UI/TeamResourceToggleButtonHover",  "Assets/Textures/ui_resourcesharing_button_normaloverpressedover.dds" },
-        { "UI/CreditsPanelBackground_Left",   "Assets/Textures/ui_credit_frame_l.dds" },
-        { "UI/CreditsPanelBackground_Right",  "Assets/Textures/ui_credit_frame_r.dds" },
-        { "UI/CreditsPanelBackground_Middle", "Assets/Textures/ui_credit_frame_m.dds" },
-        { "UI/ObjectivePanelCategoryBackground", "Assets/Textures/ui_objectives_frame_title.dds" },
-        { "UI/MenuBarButtonNormal", "Assets/Textures/ui_gamemenu_topbuttons_normalpressed.dds" },
-        { "UI/MenuBarButtonHover",  "Assets/Textures/ui_gamemenu_topbuttons_normaloverpressedover.dds" },
-        { "UI/SubtitleBorder",      "Assets/Textures/ui_storymode_subtitle_frame.dds" },
-        { "UI/BattleBuddyFriendsFrame",    "Assets/Textures/ui_battlebuddy_frame_terran.dds" },
-        { "UI/BattleBuddyMicrophoneFrame", "Assets/Textures/ui_battlemic_terran.dds" },
-    };
     while (*resource == '@') resource++;
-    FOR_LOOP(i, sizeof(paths) / sizeof(*paths)) {
-        if (!strcasecmp(resource, paths[i].logical))
-            return gi.ImageIndex(paths[i].physical);
-    }
     for (int i = 0; i < assets_catalog_count; i++) {
         if (!strcasecmp(resource, assets_catalog[i].key))
             return gi.ImageIndex(assets_catalog[i].val);
@@ -201,14 +165,16 @@ void SC2_HUD_SetPortraitModel(RESOURCE model) { portrait_model = model; }
 /* ------------------------------------------------------------------ */
 /* Frame numbering — flat wire[] map, (uint32_t)-1 = unassigned */
 
-#define SC2_MAX_FRAMES_WRITE 512
+#define SC2_MAX_FRAMES_WRITE SC2_MAX_FRAMES
 static uint32_t frame_to_wire[SC2_MAX_FRAMES_WRITE];
 static uint32_t num_frames_written;
+static bool frame_written[SC2_MAX_FRAMES_WRITE];
 
 static void reset_frame_write(void) {
     for (int i = 0; i < SC2_MAX_FRAMES_WRITE; i++)
         frame_to_wire[i] = (uint32_t)-1;
     num_frames_written = 0;
+    memset(frame_written,0,sizeof(frame_written));
 }
 
 static uint32_t get_wire(uint32_t index) {
@@ -218,7 +184,10 @@ static uint32_t get_wire(uint32_t index) {
 
 static uint32_t assign_number(uint32_t index) {
     if (index < SC2_MAX_FRAMES_WRITE && frame_to_wire[index] == (uint32_t)-1)
-        frame_to_wire[index] = ++num_frames_written;
+        {
+            if (num_frames_written>=254) { fprintf(stderr,"SC2 HUD: network frame limit exceeded at layout frame %u\n",index); return 0; }
+            frame_to_wire[index] = ++num_frames_written;
+        }
     return get_wire(index);
 }
 
@@ -257,6 +226,7 @@ bool SC2_HUD_BuildFrameForWrite(sc2BaseFrame_t const *frame, uiFrame_t *out) {
 
     memset(out, 0, sizeof(*out));
     out->number = assign_number(frame->number);
+    if (!out->number) { fprintf(stderr,"SC2 HUD: cannot encode frame %s\n",frame->name); return false; }
     out->parent = (frame->parent_index != (uint32_t)-1)
                   ? get_wire(frame->parent_index)
                   : 0;
@@ -268,16 +238,31 @@ bool SC2_HUD_BuildFrameForWrite(sc2BaseFrame_t const *frame, uiFrame_t *out) {
      * SC2_FRAMETYPE_MODEL    = console chrome: use the .m3 resolved from Assets.txt. */
     out->tex.index   = (frame->sc2_type == SC2_FRAMETYPE_PORTRAIT && portrait_model)
                        ? (uint16_t)portrait_model : (uint16_t)frame->image;
-    out->tex.coord[1] = 0xff;
-    out->tex.coord[3] = 0xff;
+    rect_t uv=frame->texcoord;
+    if (!uv.w && !uv.h) uv=(rect_t){0,0,1,1};
+    out->tex.coord[0]=(uint8_t)(uv.x*255);
+    out->tex.coord[1]=(uint8_t)((uv.x+uv.w)*255);
+    out->tex.coord[2]=(uint8_t)(uv.y*255);
+    out->tex.coord[3]=(uint8_t)((uv.y+uv.h)*255);
     out->flags.type  = frame->type;
     out->stat        = frame->stat;
     out->text        = frame->text;
+    out->onclick=frame->onclick; out->tooltip=frame->tooltip; out->hotkey=frame->hotkey;
+    if (frame->type==FT_TEXT && !out->stat && !out->text) out->text="";
     if (frame->type == FT_TEXT) {
         out->buffer.size = sizeof(frame->label);
         out->buffer.data = (handle_t)&frame->label;
     }
     copy_points(out, frame);
+    if (frame->ui_flags & SC2_UIFLAG_HIDDEN) {
+        out->flags.type=FT_FRAME; out->color.a=0; out->tex.index=0;
+        out->text=out->onclick=out->tooltip=NULL; out->hotkey=0; out->buffer.size=0;
+        return true;
+    }
+    if (frame->type==FT_COMMANDBUTTON) {
+        static uiCommandButton_t state;
+        out->buffer.data=&state; out->buffer.size=sizeof(state); out->stat=UINT8_MAX;
+    }
     if (frame->sc2_type == SC2_FRAMETYPE_MODEL) {
         if (frame->model_flags != BZ_SC2_MODEL_FIELDS) {
             fprintf(stderr, "SC2_HUD: incomplete model/camera payload for %s (fields=%x)\n", frame->name, frame->model_flags);
@@ -293,17 +278,19 @@ bool SC2_HUD_BuildFrameForWrite(sc2BaseFrame_t const *frame, uiFrame_t *out) {
 
 void SC2_HUD_WriteFrame(sc2BaseFrame_t const *frame) {
     uiFrame_t tmp;
+    if (!frame || frame->number>=SC2_MAX_FRAMES_WRITE || frame_written[frame->number]) return;
     if (!SC2_HUD_BuildFrameForWrite(frame, &tmp)) return;
+    frame_written[frame->number]=true;
     gi.Write(PF_UIFRAME, &tmp);
 }
 
 void SC2_HUD_WriteFrameWithChildren(sc2BaseFrame_t const *frames, uint32_t count,
                                     sc2BaseFrame_t const *frame) {
-    if (!frame || (frame->ui_flags & SC2_UIFLAG_HIDDEN)) return;
+    if (!frame) return;
     SC2_HUD_WriteFrame(frame);
+    if (frame->ui_flags & SC2_UIFLAG_HIDDEN) return;
     for (uint32_t i = 0; i < count; i++) {
-        if (frames[i].parent_index == frame->number &&
-            !(frames[i].ui_flags & SC2_UIFLAG_HIDDEN))
+        if (frames[i].parent_index == frame->number)
             SC2_HUD_WriteFrameWithChildren(frames, count, &frames[i]);
     }
 }
@@ -316,8 +303,19 @@ void SC2_HUD_WriteAncestors(sc2BaseFrame_t const *frames, uint32_t count,
     if (!frame || frame->parent_index == (uint32_t)-1) return;
     sc2BaseFrame_t const *parent = &frames[frame->parent_index];
     SC2_HUD_WriteAncestors(frames, count, parent);
-    if (!(parent->ui_flags & SC2_UIFLAG_HIDDEN))
-        SC2_HUD_WriteFrame(parent);
+    SC2_HUD_WriteFrame(parent);
+}
+
+void SC2_HUD_ReserveAncestors(sc2BaseFrame_t const *frames, sc2BaseFrame_t const *frame) {
+    if (!frame || frame->parent_index==UINT32_MAX) return;
+    sc2BaseFrame_t const *parent=&frames[frame->parent_index];
+    SC2_HUD_ReserveAncestors(frames,parent); assign_number(parent->number);
+}
+void SC2_HUD_ReserveTree(sc2BaseFrame_t const *frames, uint32_t count, sc2BaseFrame_t const *frame) {
+    if (!frame) return;
+    assign_number(frame->number);
+    if (frame->ui_flags & SC2_UIFLAG_HIDDEN) return;
+    FOR_LOOP(i,count) if (frames[i].parent_index==frame->number) SC2_HUD_ReserveTree(frames,count,&frames[i]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -334,7 +332,7 @@ static void sc2_hud_hide_optional_panels(void) {
         "RevealPanel", "AlliancePanel", "TeamResourcePanel",
         "LeaderPanel", "ChatBar", "SystemAlertPanel",
         /* TODO: show CommandTooltip only on command-button hover; hide for now. */
-        "CommandTooltip",
+        "CommandTooltip", "MinimapPanelTooltip",
         /* InfopanelModel, MinimapModel, CommandPanelModel are now rendered
          * via FT_PORTRAIT + R_ExtractEntityCamera. */
         NULL,
@@ -349,6 +347,7 @@ static void sc2_hud_hide_optional_panels(void) {
 sc2BaseFrame_t *SC2_HUD_EnsureLayout(uint32_t *count) {
     if (!layout_loaded) {
         layout_loaded = true;
+        SC2_HUD_LoadStrings();
         layout_ok = SC2_LayoutBuildGameUI();
         if (layout_ok)
             sc2_hud_hide_optional_panels();
@@ -360,6 +359,13 @@ sc2BaseFrame_t *SC2_HUD_EnsureLayout(uint32_t *count) {
 }
 
 /* ------------------------------------------------------------------ */
+
+void SC2_HUD_ResetMap(void) {
+    SC2_HUD_FreeStrings();
+    layout_loaded=layout_ok=false;
+    portrait_model=0;
+    SC2_LayoutShutdown();
+}
 
 void SC2_HUD_WriteStart(uint32_t layer) {
     reset_frame_write();
@@ -375,7 +381,8 @@ void SC2_HUD_WriteEnd(edict_t *ent) {
 
 void SC2_HUD_WriteLayout(edict_t *ent, sc2BaseFrame_t const *frames, uint32_t count,
                          sc2BaseFrame_t const *root, uint32_t layer) {
-    SC2_HUD_WriteStart(layer);   /* resets num_frames_written to 0 */
+    SC2_HUD_WriteStart(layer);
+    SC2_HUD_ReserveTree(frames,count,root);
     SC2_HUD_WriteFrameWithChildren(frames, count, root);
     SC2_HUD_WriteEnd(ent);
 }

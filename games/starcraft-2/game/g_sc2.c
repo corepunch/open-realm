@@ -1,5 +1,6 @@
 #include "g_sc2_local.h"
 #include "common/sc2_coords.h"
+#include "games/starcraft-2/common/sc2_minimap.h"
 #include "server/routing.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "games/starcraft-2/game/hud/hud.h"
@@ -105,16 +106,14 @@ static uint32_t SC2_ClientPlayer(edict_t const *ent) {
     return ent && ent->client ? ent->client->ps.number : 1;
 }
 
+static bool SC2_CanSelectUnit(edict_t const *ent) {
+    uint32_t number=SC2_EdictNumber(ent);
+    return number<SC2_MAX_EDICTS && ent->inuse && ent->s.model &&
+        (ent->unit.initialized ? SC2_UnitAlive(&ent->unit) &&
+        (ent->unit.states & (1u<<SC2_UNIT_SELECTABLE)) && !(ent->unit.states & (1u<<SC2_UNIT_HIDDEN)) : ent->move.mobile);
+}
 static bool SC2_IsSelectable(edict_t const *ent, uint32_t player) {
-    uint32_t number = SC2_EdictNumber(ent);
-
-    return number < SC2_MAX_EDICTS &&
-        ent->inuse &&
-        ent->s.model &&
-        ent->s.player == player &&
-        sc2_edicts[number].move.mobile && (!sc2_edicts[number].unit.initialized ||
-        (SC2_UnitAlive(&sc2_edicts[number].unit) && (sc2_edicts[number].unit.states & (1u<<SC2_UNIT_SELECTABLE)) &&
-         !(sc2_edicts[number].unit.states & (1u<<SC2_UNIT_HIDDEN))));
+    return SC2_CanSelectUnit(ent) && ent->s.player==player;
 }
 
 /* Selection replaces membership, including empty/invalid requests, then reconciles the client cache. */
@@ -125,7 +124,7 @@ static void SC2_Select(edict_t *clent, uint32_t argc, cstring_t argv[]) {
     FOR_LOOP(i, globals.num_edicts) sc2_edicts[i].selected &= ~(1 << player);
     for (uint32_t i = 1; i < argc && count < MAX_SELECTED_ENTITIES; i++) {
         uint32_t num = (uint32_t)atoi(argv[i]);
-        if (num >= (uint32_t)globals.num_edicts || !SC2_IsSelectable(&sc2_edicts[num], player)) continue;
+        if (num >= (uint32_t)globals.num_edicts || !SC2_CanSelectUnit(&sc2_edicts[num]) || (!sc2_edicts[num].unit.initialized && sc2_edicts[num].s.player!=player)) continue;
         if (sc2_edicts[num].selected & (1 << player)) continue;
         sc2_edicts[num].selected |= 1 << player;
         ids[count++] = num;
@@ -165,7 +164,7 @@ static void SC2_UnitAnimation(edict_t *ent, cstring_t name) {
     ent->s.frame = move->anim->interval[0];
 }
 
-static void SC2_StopUnit(edict_t *ent) {
+void SC2_StopUnit(edict_t *ent) {
     uint32_t number = SC2_EdictNumber(ent);
     if (number >= SC2_MAX_EDICTS) {
         return;
@@ -175,7 +174,10 @@ static void SC2_StopUnit(edict_t *ent) {
     ent->s.ability = 0;
 }
 
-static void SC2_OrderMove(edict_t *ent, vec2_t const *target) {
+void SC2_UpdateUnit(edict_t *unit) { SC2_UnitChanged(unit); }
+void SC2_SetUnitAnimation(edict_t *unit, cstring_t name) { SC2_UnitAnimation(unit,name); }
+
+void SC2_OrderMove(edict_t *ent, vec2_t const *target) {
     uint32_t number = SC2_EdictNumber(ent);
     vec2_t pathable = *target;
 
@@ -202,8 +204,11 @@ static void SC2_MoveSelected(edict_t *clent, vec2_t const *target) {
         if (!(ent->selected & (1 << player)) || !SC2_IsSelectable(ent, player)) {
             continue;
         }
-        SC2_OrderMove(ent, target);
-        issued = true;
+        /* Smart point orders use the same authored Move permission as buttons. */
+        if (ent->unit.initialized && !SC2_HUD_CommandEnabled(ent, "move,Move")) continue;
+        ent->order.kind=1; ent->order.target=0;
+        SC2_OrderMove(ent,target);
+        issued=true;
     }
     if (!issued) {
         return;
@@ -662,6 +667,7 @@ static void SC2_Init(void) {
 static void SC2_Shutdown(void) {
     if (sc2_level.vm) { galaxy_close(sc2_level.vm); sc2_level.vm = NULL; }
     G_FreeModels();
+    SC2_HUD_ResetMap();
     SC2_MapShutdown();
 }
 
@@ -677,6 +683,7 @@ static bool SC2_LoadMap(cstring_t mapFilename) {
     gi.ClearWorld();
     SC2_SpawnEntities();
     /* Register HUD configstrings after memset(&sv,...) in SV_Map wipes them. */
+    SC2_HUD_ResetMap();
     SC2_HUD_EnsureLayout(NULL);
 
     /* Open Galaxy VM and load map scripts. */
@@ -793,6 +800,7 @@ static void SC2_RunFrame(void) {
     FOR_LOOP(i, globals.num_edicts) {
         if (!sc2_edicts[i].inuse) continue;
         SC2_UnitTick(&sc2_edicts[i]);
+        SC2_RunOrders(&sc2_edicts[i]);
         SC2_RunUnit(&sc2_edicts[i]);
         animation_t const *anim = sc2_edicts[i].move.anim;
         if (anim && !(sc2_edicts[i].unit.states & (1u<<SC2_UNIT_PAUSED)) && anim->interval[1] > anim->interval[0])
@@ -800,6 +808,7 @@ static void SC2_RunFrame(void) {
     }
     SC2_SolveCollisions();
     CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
+    FOR_LOOP(c,globals.max_clients) SC2_HUD_Update(&sc2_edicts[c]);
 }
 
 /* Selection is per-connection presentation that SC2_ClientBegin seeds again; units and player state stay. */
@@ -819,20 +828,11 @@ static void SC2_ClientBegin(edict_t *ent) {
     ent->client->ps.client_ui_state = CLIENT_UI_GAME;
 
     /* Preserve the session player (also used by Galaxy PlayerGroupPlayer); army size picked the enemy in TRaynor01. */
-    uint32_t client_player = SC2_ClientPlayer(ent);
 
-    /* Pre-select the first selectable unit so InfoPanel shows unit info. */
-    for (uint32_t i = SC2_MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
-        edict_t *u = &sc2_edicts[i];
-        if (!SC2_IsSelectable(u, client_player)) continue;
-        u->selected |= 1 << client_player;
-        SC2_HUD_SetPortraitModel(u->s.model);
-        break;
-    }
-
-    /* Send initial static HUD. */
+    /* The native game starts with no selection; Galaxy and player input author it. */
+    ent->client->hud_hash=0;
     SC2_HUD_WriteResourcePanel(ent);
-    SC2_HUD_WriteConsolePanel(ent);
+    SC2_HUD_Update(ent);
     SC2_HUD_WriteStart(LAYER_WORLD_HOVER);
     SC2_HUD_WriteEnd(ent);
 
@@ -863,7 +863,24 @@ static void SC2_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     if (!ent || argc == 0 || !argv || !argv[0]) {
         return;
     }
+    if (!strcmp(argv[0],"unitinfo")) {
+        edict_t *unit=SC2_SelectedUnit(ent);
+        if (unit) fprintf(stderr,"SC2 selected: entity=%u type=%s player=%u states=%x life=%.0f position=%.2f,%.2f order=%u moving=%u ability=%u targeting=%u\n",unit->s.number,unit->unit.type,unit->s.player,unit->unit.states,unit->unit.vitals[0].value,unit->s.origin2.x,unit->s.origin2.y,unit->order.kind,unit->move.moving,unit->unit.abil_n,ent->client->pending_order);
+        else fprintf(stderr,"SC2 selected: none\n");
+        return;
+    }
+    if (!strcmp(argv[0],"button") && argc>1) { SC2_CommandButton(ent,argv[1]); return; }
+    if (!strcmp(argv[0],"cancel")) { SC2_CancelCommand(ent); return; }
+    if (!strcmp(argv[0],"minimapping")) {
+        ent->client->minimap_signal=!ent->client->minimap_signal;
+        ent->client->ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS]=ent->client->minimap_signal ? CURSOR_INPUT_MINIMAP_POINT : 0;
+        return;
+    }
+    if (!strcmp(argv[0],"minimapterrain")) { ent->client->ps.stats[UI_PLAYERSTAT_GAME_VARIANT]^=SC2_MINIMAP_HIDE_TERRAIN; return; }
+    if (!strcmp(argv[0],"minimapcolors")) { ent->client->ps.stats[UI_PLAYERSTAT_GAME_VARIANT]^=SC2_MINIMAP_ALLIANCE_COLORS; return; }
     if (!strcmp(argv[0], "select")) {
+        if (argc>1 && ent->client->pending_order && SC2_CommandTarget(ent,(uint32_t)atoi(argv[1]))) return;
+        SC2_CancelCommand(ent);
         SC2_Select(ent, argc, argv);
         return;
     }
@@ -873,14 +890,21 @@ static void SC2_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         }
         /* Shared input sends selection and right-click orders separately; never consume the first move. */
         loc = (vec2_t){ atof(argv[1]), atof(argv[2]) };
-        SC2_MoveSelected(ent, &loc);
+        if (!strcmp(argv[0],"point")) {
+            if (SC2_CommandPoint(ent,&loc)) return;
+            /* A ground click clears selection unless a command is targeting. */
+            SC2_Select(ent,1,argv); return;
+        }
+        SC2_CancelCommand(ent);
+        SC2_MoveSelected(ent,&loc);
         return;
     }
     if (!strcmp(argv[0], "smart")) {
         if (argc < 2) {
             return;
         }
-        SC2_MoveToTargetEntity(ent, (uint32_t)atoi(argv[1]));
+        SC2_CancelCommand(ent);
+        if (!SC2_CommandTarget(ent,(uint32_t)atoi(argv[1]))) SC2_MoveToTargetEntity(ent,(uint32_t)atoi(argv[1]));
     }
 }
 
@@ -907,9 +931,15 @@ static bool SC2_CanSeeEntity(uint32_t player, edict_t const *ent) {
     return true;
 }
 
-/* Exclude scenery and foreign units from both click and rectangle picking before they fill the client list. */
+/* Exclude scenery and hidden units before they fill the client selection list. */
 static void SC2_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t *state) {
-    if (!SC2_IsSelectable(ent, player)) state->flags |= EF_NOT_SELECTABLE;
+    if (!SC2_CanSelectUnit(ent) || (!ent->unit.initialized && ent->s.player!=player)) state->flags|=EF_NOT_SELECTABLE;
+    if (ent->unit.initialized && SC2_UnitAlive(&ent->unit) && !(ent->unit.states & (1u<<SC2_UNIT_HIDDEN))) {
+        uint32_t other=ent->s.player;
+        uint32_t contact=other==player ? SC2_MINIMAP_SELF : !other ? SC2_MINIMAP_NEUTRAL :
+            player<32 && other<32 && (sc2_players[player].alliances[other]&1u) ? SC2_MINIMAP_ALLY : SC2_MINIMAP_ENEMY;
+        state->effect_flags=EFX_GAME_VARIANT_SET(state->effect_flags,contact);
+    }
 }
 
 static cstring_t SC2_GetThemeValue(cstring_t filename) {
