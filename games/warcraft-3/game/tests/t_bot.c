@@ -1157,6 +1157,45 @@ TEST(wc3_bot, get_mega_target_native_is_registered_for_player_bound_ai) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
+TEST(wc3_bot, get_enemy_expansion_native_is_registered_for_player_bound_ai) {
+    bot_t *bot = level.bots + 2;
+
+    reset_entities();
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_get_enemy_expansion.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, get_enemy_expansion_returns_nearest_hostile_non_primary_town) {
+    player_t *caller = &game.clients[2].ps;
+    player_t *enemy = &game.clients[1].ps;
+    edict_t *caller_hall, *enemy_main, *enemy_far, *enemy_near;
+
+    reset_entities();
+    InitUnitData();
+    caller_hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    enemy_main = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 3000, 0, 1, &bot_hall_abilities);
+    enemy_far = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 5000, 0, 1, &bot_hall_abilities);
+    enemy_near = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 2000, 0, 1, &bot_hall_abilities);
+
+    T_ASSERT(G_BotGetEnemyExpansion(caller) == enemy_near);
+    G_SetPlayerAlliance(caller, enemy, ALLIANCE_PASSIVE, true);
+    T_NULL(G_BotGetEnemyExpansion(caller));
+
+    (void)caller_hall; (void)enemy_main; (void)enemy_far;
+}
+
+TEST(wc3_bot, get_enemy_expansion_ignores_enemy_primary_town) {
+    player_t *caller = &game.clients[2].ps;
+
+    reset_entities();
+    InitUnitData();
+    make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 3000, 0, 1, &bot_hall_abilities);
+    T_NULL(G_BotGetEnemyExpansion(caller));
+}
+
 TEST(wc3_bot, get_creep_camp_native_is_registered_for_player_bound_ai) {
     bot_t *bot = level.bots + 2;
 
