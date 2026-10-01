@@ -1402,9 +1402,18 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE && !(f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
     }
+    /* FDF SIMPLESTATUSBARs are visual backdrops for sibling text (for
+     * example SimpleHeroLevelBar behind SimpleClassValue). Frame numbers
+     * reflect parse order rather than FDF sibling paint order, so draw these
+     * bars first instead of allowing a later-numbered fill to cover text. */
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
-        if (f && f->flags.type != FT_SPRITE) SCR_LayoutDrawFrame(f);
+        if (f && f->flags.type == FT_SIMPLESTATUSBAR) SCR_LayoutDrawFrame(f);
+    }
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type != FT_SPRITE && f->flags.type != FT_SIMPLESTATUSBAR)
+            SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
