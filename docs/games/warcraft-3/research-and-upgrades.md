@@ -279,11 +279,13 @@ level to 1, so Invisibility is permitted while Polymorph is hidden.
 OpenRealm uses the resolved requirement for both command-card and direct
 activation checks. If the required level exceeds `GetPlayerTechMaxAllowed`,
 the command is hidden. If the level is allowed but not researched, the command
-stays visible and disabled. At or above the required researched level, it is
-usable. `SetPlayerAbilityAvailable` remains a separate per-player rawcode
-switch that can suppress an ability regardless of training. Unmapped owners do
-not use the fallback client returned by `G_GetPlayerClientByNumber`; their
-research state cannot be borrowed from a real player's slot.
+stays visible and disabled. The ability is usable only while its required level
+is within the current maximum and has been researched; lowering the maximum
+after research hides the command and blocks direct activation. `SetPlayerAbilityAvailable`
+remains a separate per-player rawcode switch that can suppress an ability
+regardless of training. Unmapped owners do not use the fallback client returned
+by `G_GetPlayerClientByNumber`; their research state cannot be borrowed from a
+real player's slot.
 
 Map object overrides can edit a unit's `UnitBalance.upgrades` and map ability
 data is parsed from `war3map.w3a`. The ability override path applies fields

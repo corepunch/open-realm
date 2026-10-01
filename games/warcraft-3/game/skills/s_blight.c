@@ -53,7 +53,6 @@ static void blight_growth_reset(edict_t *ent, uint32_t code, uint32_t now) {
 BZ_ABILITY_PROC(CAbilityBlightGrowth) {
     uint32_t code, level, now;
     float interval, expansion, max_radius;
-    gameClient_t *owner;
 
     if (!ent) return false;
     switch (msg) {
@@ -83,8 +82,7 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
     /* Construction owns the building's incomplete lifecycle.  Passive Abli
      * ticks resume only after the structure is complete. */
     if (ent->construction.active) return false;
-    owner = G_GetPlayerClientByNumber(ent->s.player);
-    if (owner && owner->ps.number == ent->s.player && !G_IsPlayerAbilityAvailable(owner, code)) return false;
+    if (!G_IsUnitAbilityAvailable(ent, code)) return false;
     level = G_UnitAbilityLevel(ent, code);
     if (!level) {
         memset(&ent->blight_growth, 0, sizeof(ent->blight_growth));

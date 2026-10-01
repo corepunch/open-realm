@@ -1262,6 +1262,7 @@ typedef struct {
 
 typedef enum {
     HERO_SKILL_ABSENT,
+    HERO_SKILL_DISABLED,
     HERO_SKILL_NO_POINTS,
     HERO_SKILL_LEVEL_LOCKED,
     HERO_SKILL_AVAILABLE,
@@ -3083,6 +3084,7 @@ uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode);
 uint32_t G_UnitSetAbilityLevel(edict_t *ent, uint32_t abilcode, int32_t level);
 void G_SetPlayerAbilityAvailable(gameClient_t *client, uint32_t abilid, bool avail);
 bool G_IsPlayerAbilityAvailable(gameClient_t const *client, uint32_t abilid);
+bool G_IsUnitAbilityAvailable(edict_t const *unit, uint32_t abilid);
 cstring_t G_ObjectName(uint32_t objectId);
 extern edict_t *eventsolditem;
 extern edict_t *eventsoldunit;

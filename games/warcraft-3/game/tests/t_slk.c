@@ -598,6 +598,47 @@ TEST(wc3_slk, unitabilities_default_active_ability_is_fourcc) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_slk, map_unit_default_active_ability_override_inherits_to_custom_unit) {
+    static char const slk[] =
+        "ID;PWXL;N;E\nB;X3;Y2;D0\n"
+        "C;X1;Y1;K\"unitAbilID\"\nC;X2;K\"abilList\"\nC;X3;K\"auto\"\n"
+        "C;X1;Y2;K\"hfoo\"\nC;X2;K\"Arep\"\nC;X3;K\"Adef\"\nE\n";
+    uint32_t const base_id = MAKEFOURCC('h','f','o','o');
+    uint32_t const custom_id = MAKEFOURCC('u','A','0','1');
+    uint32_t const default_active = MAKEFOURCC('A','r','e','p');
+    unitModification_t mod = {
+        .modID = MAKEFOURCC('u','d','a','a'), .type = mod_int, .data = &default_active
+    };
+    unitData_t original = {
+        .originalUnitID = base_id, .numbeOfModifications = 1, .modifications = &mod
+    };
+    unitData_t custom = { .originalUnitID = base_id, .newUnitID = custom_id };
+    mapInfo_t mapinfo = {
+        .num_originalUnits = 1, .originalUnits = &original,
+        .num_userCreatedUnits = 1, .userCreatedUnits = &custom
+    };
+    mapInfo_t const *saved_mapinfo;
+    slkTestData_t *rows = parse_slk_string(slk), *old_rows;
+    edict_t unit = { .class_id = custom_id };
+
+    setup_test_world();
+    saved_mapinfo = level.mapinfo;
+    old_rows = G_SetSLKRows("UnitAbilities", rows);
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    T_EQ(G_UnitAbil(base_id)->defaultActiveAbility, default_active);
+    T_EQ(G_UnitAbil(custom_id)->defaultActiveAbility, default_active);
+    G_BindEntityData(&unit);
+    T_EQ(unit.data.UnitAbilities->defaultActiveAbility, default_active);
+    T_EQ((uint32_t)UnitMetaInteger(&unit, MAKEFOURCC('u','d','a','a')), default_active);
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+    G_SetSLKRows("UnitAbilities", old_rows);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_slk, map_unit_name_resolves_wts_override) {
     static const char profile_slk[] =
         "C;Y1;X1;K\"id\"\n"
