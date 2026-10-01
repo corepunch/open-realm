@@ -47,6 +47,7 @@ native SetCaptainChanges takes boolean state returns nothing
 native SetSmartArtillery takes boolean state returns nothing
 native SetReplacementCount takes integer qty returns nothing
 native GroupTimedLife takes boolean allow returns nothing
+native RemoveInjuries takes nothing returns nothing
 native SetNewHeroes takes boolean state returns nothing
 native SetRandomPaths takes boolean state returns nothing
 native SetDefendPlayer takes boolean state returns nothing
