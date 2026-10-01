@@ -1681,8 +1681,12 @@ TEST(wc3_unit, stoneform_uses_authored_transform_endpoints_in_both_directions) {
     T_EQ(G_AbilityData(MAKEFOURCC('A','s','t','n'))->level[0].unitID, MAKEFOURCC('h','f','o','o'));
     T_ASSERT(unit_issueimmediateorder(ent, "stoneform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
+    /* Stone Form must add its presentation tag even when the authored target
+     * profile already contributes another alternate-family requirement. */
+    T_ASSERT(strstr(ent->animation_props, ",alternate") != NULL);
     T_ASSERT(unit_issueimmediateorder(ent, "unstoneform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
+    T_STREQ(ent->animation_props, "");
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
