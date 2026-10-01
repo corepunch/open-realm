@@ -168,8 +168,13 @@ bool G_ApplyRallyOrder(edict_t *producer, edict_t *produced) {
 
     if (!producer || !produced || !produced->inuse) return false;
     type = G_ResolveRallyTarget(producer, &point, &target);
+    /* The default target identifies the producer for the rally marker and
+     * JASS getters. Retail does not Smart-interact with the producer when a
+     * unit finishes training, so only an explicitly chosen target gets an
+     * order. */
+    if (type == RALLY_TARGET_SELF) return false;
     if (type == RALLY_TARGET_POINT) return unit_issueorder(produced, "smart", &point);
-    if (type == RALLY_TARGET_SELF || type == RALLY_TARGET_ENTITY)
+    if (type == RALLY_TARGET_ENTITY)
         return unit_issuetargetorder(produced, "smart", target);
     return false;
 }

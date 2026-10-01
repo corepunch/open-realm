@@ -4190,6 +4190,40 @@ TEST(wc3_building, spawn_without_default_active_repair_stays_disabled) {
     building_restore_repair_data(old_abilities, rows);
 }
 
+TEST(wc3_building, default_self_rally_does_not_autorepair_producer) {
+    UnitAbilities_t worker_abilities = { .abilList = "Arep" };
+    UnitProfile_t producer_profile = { .trains = "hpea" };
+    edict_t *worker, *producer;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    producer = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 64, 0);
+    worker->data.UnitAbilities = &worker_abilities;
+    worker->s.player = game.clients[0].ps.number;
+    producer->data.UnitProfile = &producer_profile;
+    producer->s.flags |= EF_BUILDING;
+    producer->svflags |= SVF_MONSTER;
+    producer->s.player = worker->s.player;
+    producer->health.max_value = 1000.0f;
+    producer->health.value = 500.0f;
+
+    /* Production initializes the new unit with Auto Repair disabled. Retail
+     * leaves it idle rather than Smart-interacting with its producer. */
+    SP_SpawnUnit(worker);
+    T_EQ(worker->autocast_code, 0);
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+    T_ASSERT(!G_ApplyRallyOrder(producer, worker));
+    T_EQ(worker->autocast_code, 0);
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+    T_NULL(worker->movement.follow_target);
+    T_ASSERT(worker->build != producer);
+    T_EQ(worker->buildwork.ability, 0);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
 TEST(wc3_building, repair_autocast_toggle_is_unit_state) {
     edict_t *worker;
     UnitAbilities_t abilities = { .abilList = "Aren" };
