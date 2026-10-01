@@ -3105,6 +3105,7 @@ bool G_UnitIsRaisableCorpse(edict_t const *);
 bool G_UnitIsRaisableStoredCorpse(edict_t const *);
 void G_ReviveCorpse(edict_t *, float life_fraction);
 bool G_UnitIsHero(edict_t const *ent);
+float G_UnitDissipatePresentationAlpha(edict_t const *ent);
 float G_UnitArmorValue(edict_t const *ent);
 bool S_SpellCooldownReady(edict_t *caster, uint32_t code);
 float S_SpellCooldownRemaining(edict_t *caster, uint32_t code);
