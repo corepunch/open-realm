@@ -139,6 +139,30 @@ TEST(wc3_bot, query_natives_read_authoritative_player_state) {
     T_EQ(G_BotTown(&game.clients[2].ps, 0), hall); T_EQ(G_BotTownMine(&game.clients[2].ps, 0), mine);
 }
 
+TEST(wc3_bot, town_unit_count_scopes_owned_units_and_completion_to_nearest_town) {
+    player_t *player = &game.clients[2].ps;
+    uint32_t footman = MAKEFOURCC('h','f','o','o');
+    edict_t *hall0, *hall1, *done, *building, *training, *pending_builder;
+
+    reset_entities();
+    hall0 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    hall1 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 1000, 0, 2, &bot_hall_abilities);
+    done = alloc_test_unit(footman, 64, 0); done->s.player = 2; done->svflags |= SVF_MONSTER;
+    building = alloc_test_unit(footman, 96, 0); building->s.player = 2; building->svflags |= SVF_MONSTER;
+    building->construction.active = true;
+    training = alloc_test_unit(footman, 1024, 0); training->s.player = 2; training->svflags |= SVF_MONSTER;
+    training->training = true;
+    pending_builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128, 0);
+    pending_builder->s.player = 2; pending_builder->health.value = 100; pending_builder->build_project = footman;
+
+    T_EQ(G_BotTown(player, 0), hall0); T_EQ(G_BotTown(player, 1), hall1);
+    T_EQ(G_BotTownUnitCount(player, footman, 0, false), 3);
+    T_EQ(G_BotTownUnitCount(player, footman, 0, true), 1);
+    T_EQ(G_BotTownUnitCount(player, footman, 1, false), 1);
+    T_EQ(G_BotTownUnitCount(player, footman, 1, true), 0);
+    T_EQ(G_BotTownUnitCount(player, footman, 2, false), 0);
+}
+
 TEST(wc3_bot, mines_belong_to_the_nearest_owned_town) {
     player_t *player = &game.clients[2].ps;
     reset_entities();

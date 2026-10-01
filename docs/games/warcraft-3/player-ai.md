@@ -363,26 +363,30 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Fifty of those names are registered in OpenRealm's JASS
-module; the following 22 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+functions, but their reachable native surface is the same. Fifty-one of those names are registered in OpenRealm's JASS
+module; the following 21 are still unresolved and will cause a native lookup/runtime failure when their call paths are
 reached:
 
 | Unregistered native | Reachable role in `common.ai` |
 |---|---|
 | `AttackMoveKill` | Attack a target and continue attacking nearby units |
-| `CaptainRetreating` | Poll whether an attack captain is retreating |
+| `CaptainRetreating` | Poll whether an attack captain is retreating; the state enum exists, but no runtime transition currently initiates or completes retreat |
 | `ConvertUnits` | Convert eligible units into a requested type |
 | `GetAllianceTarget`, `SetAllianceTarget` | Read/write the melee assault target |
 | `GetCreepCamp` | Find a creep camp within a level range |
 | `GetEnemyBase`, `GetExpansionFoe`, `GetEnemyExpansion`, `GetNextExpansion`, `GetExpansionPeon` | Locate enemies, expansion targets, and an expansion worker |
 | `GetMegaTarget` | Retrieve a high priority target |
-| `GetTownUnitCount` | Count units by town, completion, and type |
 | `IsTowered`, `TownThreatened` | Assess tower pressure and town danger |
 | `PurchaseZeppelin` | Request a transport for an assault |
 | `RemoveInjuries`, `RemoveSiege` | Reconcile the assault roster before formation |
 | `SetExpansion` | Order an expansion worker to establish a hall |
 | `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
 | `UnitInvis` | Query invisibility while deciding whether to continue targeting |
+
+`GetTownUnitCount` is now implemented using the existing stable town IDs and nearest-town ownership rule. It counts
+live owned units of the requested rawcode at that town; `dn == false` includes queued training, active construction, and
+accepted builder projects, while `dn == true` counts completed units only. Invalid town IDs return zero. The nearby
+town assignment uses nearest owned gold drop-off by distance, matching `SetProduce` town selection.
 
 The remaining reachable natives are registered: `AddAssault`, `CaptainInCombat`, `CaptainIsEmpty`, `CaptainIsFull`,
 `CaptainReadiness`, `CaptainReadinessHP`, `ClearHarvestAI`, `CommandsWaiting`, `CreateCaptains`, `DisplayText`,
@@ -392,7 +396,7 @@ The remaining reachable natives are registered: `AddAssault`, `CaptainInCombat`,
 `SetGroupsFlee`, `SetHeroLevels`, `SetHeroesBuyItems`, `SetHeroesFlee`, `SetHeroesTakeItems`, `SetIgnoreInjured`,
 `SetMeleeAI`, `SetPeonsRepair`, `SetProduce`, `SetSmartArtillery`, `SetTargetHeroes`, `SetUnitsFlee`, `SetUpgrade`,
 `SetWatchMegaTargets`, `Sleep`, `StartThread`, `StopGathering`, `TownHasHall`, `TownHasMine`, `TownWithMine`, and
-`UnitAlive`.
+`UnitAlive`, and `GetTownUnitCount`.
 
 Registration and behavior are separate questions. For example, several melee policy setters and `SetHeroLevels` store
 per-bot policy without a proven consumer; see the policy caveats above. `StartMeleeAI`, `StartCampaignAI`, and

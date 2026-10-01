@@ -64,6 +64,22 @@ edict_t *G_BotTown(player_t *player, int32_t town) {
     return NULL;
 }
 
+static bool G_BotUnitAtTown(player_t *, edict_t *, int32_t);
+
+int32_t G_BotTownUnitCount(player_t *player, uint32_t class_id, int32_t town_id, bool done) {
+    edict_t *town = G_BotTown(player, town_id);
+    int32_t count = 0;
+    if (!player || !town || !class_id) return 0;
+    FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && ent->class_id == class_id &&
+                         ent->s.player == PLAYER_NUM(player) && !(ent->svflags & SVF_DEADMONSTER) &&
+                         G_BotUnitAtTown(player, ent, town_id)) {
+        if (!done || (!ent->construction.active && !ent->training)) count++;
+    }
+    if (!done) FILTER_EDICTS(builder, G_BotUnitAlive(builder) && builder->s.player == PLAYER_NUM(player) &&
+                                      builder->build_project == class_id && G_BotUnitAtTown(player, builder, town_id)) count++;
+    return count;
+}
+
 static edict_t *G_BotMineOwner(player_t *player, edict_t *mine) {
     edict_t *best = NULL;
     float best_dist = 0;
