@@ -937,9 +937,10 @@ TEST(wc3_movement, public_long_move_clear_legs_and_saved_progress) {
     T_ASSERT(unit->movement.path.waypoint.x!=unit->goalentity->s.origin2.x);
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
-    T_ASSERT(unit->movement.path.valid); T_ASSERT(route->adaptive_index>0);
+    T_ASSERT(unit->movement.path.valid); T_ASSERT(route->group_index>0);
+    T_EQ(route->adaptive_index,0); /* The member routes to the group stage. */
     T_EQ(route->index,0); T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){136,152})>1);
-    uint32_t continued[260][10],changes=0,prior=route->adaptive_index;
+    uint32_t continued[260][11],changes=0,prior=route->group_index;
     cstring_t file="/tmp/openwarcraft3-long-refills-save.bin"; T_ASSERT(WriteGame(file));
     FOR_LOOP(pass,2) {
         if (pass) T_ASSERT(ReadGame(file));
@@ -948,11 +949,11 @@ TEST(wc3_movement, public_long_move_clear_legs_and_saved_progress) {
             uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
                 wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
                 wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
-                wc3_float_bits(unit->s.angle),unit->current_order_id,route->adaptive_index,route->index};
-            if (pass) FOR_LOOP(j,10) T_EQ(row[j],continued[i][j]);
+                wc3_float_bits(unit->s.angle),unit->current_order_id,route->adaptive_index,route->index,route->group_index};
+            if (pass) FOR_LOOP(j,11) T_EQ(row[j],continued[i][j]);
             else {
                 memcpy(continued[i],row,sizeof(row));
-                if (unit->current_order_id && route->adaptive_index!=prior) { changes++; prior=route->adaptive_index; }
+                if (unit->current_order_id && route->group_index!=prior) { changes++; prior=route->group_index; }
             }
             if (unit->current_order_id) {
                 movePathQuery_t legal={{&unit->s.origin2,NULL,unit->collision,2},unit,NULL,true};
@@ -3027,6 +3028,366 @@ TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes)
 
 /* Same eight public orders, now admitted by normal periodic JASS callbacks.
  * Start at zero; no captured per-actor clock or primary phase is supplied. */
+/* Actual scene37: retained original owner-clock and oblique route, no phase seed. */
+#include "retail_public_oblique.h"
+
+TEST(wc3_movement, periodic_public_oblique_three_lifetimes_match_retail) {
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','O','B','L'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    /* Read-only original geometry control after the explicit near-zero clear.
+     * Static scenery remains blocked; terrain edits cannot erase its occupancy.
+     * This fixture supplies scene geometry, not the scenery loading producer. */
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells));
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==1 then\ncall RemoveUnit(mover)\nset mover=CreateUnit(Player(0),'hOBL',-1936,-976,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall IssuePointOrder(mover,\"move\",-1600,-144)\n"
+        "elseif tick==101 then\ncall RemoveUnit(mover)\nset mover=CreateUnit(Player(0),'hOBL',-0.125,-0.125,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall IssuePointOrder(mover,\"move\",479.875,832.25)\n"
+        "elseif tick==201 then\ncall RemoveUnit(mover)\nset mover=CreateUnit(Player(0),'hOBL',-6000.125,-1500.25,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall IssuePointOrder(mover,\"move\",-5200.375,-832.5)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hOBL',-1936,-976,90)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    unsigned cases=0,steps[3]={0}; edict_t *unit=NULL; int birth=-1; uint32_t clock=0;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t saves[]={"/tmp/wc3-public-oblique-first-leg.bin","/tmp/wc3-public-oblique-handoff.bin"};
+    unsigned continuations=0;
+    FOR_LOOP(pass,3) {
+        if (pass) {
+            T_ASSERT(ReadGame(saves[pass-1]));
+            unit=NULL;
+            FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) unit=ent;
+            T_NOT_NULL(unit); if (!unit) break;
+            birth=unit->spawn_time; clock=wc3_float_bits(unit->movement.pose_clock.time);
+            steps[2]=pass==1 ? 81 : 159;
+            T_EQ(unit->movement.fine_route.group_count,6);
+            T_EQ(unit->movement.fine_route.group_index,pass==1 ? 1 : 0);
+            T_EQ(unit->current_order_id,G_OrderId("move"));
+        }
+        while (level.time<30000) {
+            level.time+=5; globals.RunFrame();
+            FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) unit=ent;
+            T_NOT_NULL(unit); if (!unit) break;
+            if (unit->spawn_time!=birth) {
+                birth=unit->spawn_time; clock=wc3_float_bits(unit->movement.pose_clock.time);
+                if (birth) { T_ASSERT(cases<3); if (cases>=3) break; T_EQ(clock,public_oblique_cases[cases][2]); cases++; }
+                continue;
+            }
+            uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+            if (now==clock || !cases) continue;
+            clock=now; unsigned c=cases-1,i=steps[c]++;
+            T_ASSERT(i<public_oblique_cases[c][1]); if (i>=public_oblique_cases[c][1]) continue;
+            uint32_t const *expected=public_oblique_motion[public_oblique_cases[c][0]+i];
+            if (pass) continuations++;
+            T_EQ(now,expected[0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[1]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[2]);
+            T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),expected[3]);
+            T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[4]);
+            T_EQ(wc3_float_bits(unit->s.angle),expected[5]);
+            if (!pass && c==2 && (i==80 || i==158)) {
+                T_EQ(unit->movement.fine_route.group_count,6);
+                T_EQ(unit->movement.fine_route.group_index,i==80 ? 1 : 0);
+                T_EQ(unit->movement.fine_route.count,i==80 ? 20 : 0);
+                T_EQ(unit->current_order_id,G_OrderId("move"));
+                T_EQ(wc3_float_bits(wc3_grid_coordinate(unit->goalentity->s.origin2.x,-7168,32)),0x4275f400u);
+                T_EQ(wc3_float_bits(wc3_grid_coordinate(unit->goalentity->s.origin2.y,-3072,32)),0x428bf800u);
+                T_ASSERT(WriteGame(saves[i==80 ? 0 : 1]));
+            }
+        }
+        T_EQ(cases,3); FOR_LOOP(c,3) T_EQ(steps[c],public_oblique_cases[c][1]);
+    }
+    T_EQ(continuations,260);
+    remove(saves[0]); remove(saves[1]);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+TEST(wc3_movement, periodic_public_oblique_move_matches_retail_from_zero_clock) {
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    /* Captured retail Misc clamps the public100 input to150, unlike the minimal fixture. */
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','O','B','L'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    uint32_t const terrain_rows[]={0x0fff00ffu,0x0fff00ffu,0x0fff00ffu,0x0fff00ffu,0xff0f00ffu,0xff0f00ffu,0xff0f00ffu,0xff0f00ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xfff000ffu,0xfff000ffu,0xfff000ffu,0xfff000ffu,0x00ff00ffu,0x00ff00ffu,0x00ff00ffu,0x00ff00ffu,0x00ff000fu,0x00ff000fu,0x00ff000fu,0x00ff000fu,0xfff0000fu,0xfff0000fu,0xfff0000fu,0xfff0000fu,0xff00000fu,0xff00000fu,0xff00000fu,0xff00000fu,0xff000000u,0xff000000u,0xff003c00u,0xff003c00u};
+    memset(cells,0,sizeof(cells));
+    FOR_LOOP(y,40) FOR_LOOP(x,32) if (terrain_rows[y]&(1u<<x)) cells[(y+56)*384+x+152]=2;
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall IssuePointOrder(mover,\"move\",-1600,-144)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hOBL',-1936,-976,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    uint32_t const oblique_motion[206][6]={
+        {0x3f828f54u,0x43238000u,0x42830000u,0x3115ffe5u,0x4095ffe4u,0x3fc90fdau},
+        {0x3f86665eu,0x43238000u,0x428347ffu,0x3115ffe5u,0x4095ffe4u,0x3fc90fdau},
+        {0x3f8a3d68u,0x43238000u,0x42838ffeu,0x3115ffe5u,0x4095ffe4u,0x3fc90fdau},
+        {0x3f8e1472u,0x43238000u,0x4283d7fdu,0x3115ffe5u,0x4095ffe4u,0x3fc90fdau},
+        {0x3f91eb7cu,0x43238000u,0x42841ffcu,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3f95c286u,0x43238741u,0x42846681u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3f999990u,0x43238e82u,0x4284ad06u,0x3f71de89u,0x4092ebc7u,0x3faf15abu},
+        {0x3f9d709au,0x432395c3u,0x4284f38bu,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fa147a4u,0x43239d04u,0x42853a10u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fa51eaeu,0x4323a445u,0x42858095u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fa8f5b8u,0x4323ab86u,0x4285c71au,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3facccc2u,0x4323b2c7u,0x42860d9fu,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fb0a3ccu,0x4323ba08u,0x42865424u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fb47ad6u,0x4323c149u,0x42869aa9u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fb851e0u,0x4323c88au,0x4286e12eu,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fbc28eau,0x4323cfcbu,0x428727b3u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fbffff4u,0x4323d70cu,0x42876e38u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fc3d6feu,0x4323de4du,0x4287b4bdu,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fc7ae08u,0x4323e58eu,0x4287fb42u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fcb8512u,0x4323eccfu,0x428841c7u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fcf5c1cu,0x4323f410u,0x4288884cu,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fd33326u,0x4323fb51u,0x4288ced1u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fd70a30u,0x43240292u,0x42891556u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fdae13au,0x432409d3u,0x42895bdbu,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fdeb844u,0x43241114u,0x4289a260u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fe28f4eu,0x43241855u,0x4289e8e5u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fe66658u,0x43241f96u,0x428a2f6au,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fea3d62u,0x432426d7u,0x428a75efu,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fee146cu,0x43242e18u,0x428abc74u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3ff1eb76u,0x43243559u,0x428b02f9u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x3ff5c280u,0x43243c9au,0x428b497eu,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x3ff9998au,0x432443dbu,0x428b9003u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x3ffd7094u,0x43244b1cu,0x428bd688u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x4000a3ceu,0x4324525du,0x428c1d0du,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x40028f50u,0x4324599eu,0x428c6392u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x40047ad2u,0x432460dfu,0x428caa17u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x40066654u,0x43246820u,0x428cf09cu,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x400851d6u,0x43246f61u,0x428d3721u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x400a3d58u,0x432476a2u,0x428d7da6u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x400c28dau,0x43247de3u,0x428dc42bu,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x400e145cu,0x43248524u,0x428e0ab0u,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x400fffdeu,0x43248c65u,0x428e5135u,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x4011eb60u,0x432493a6u,0x428e97bau,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x4013d6e2u,0x43249ae7u,0x428ede3fu,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x4015c264u,0x4324a228u,0x428f24c4u,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x4017ade6u,0x4324a969u,0x428f6b49u,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x40199968u,0x4324b0aau,0x428fb1ceu,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x401b84eau,0x4324b7ebu,0x428ff853u,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x401d706cu,0x4324bf2cu,0x42903ed8u,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x401f5beeu,0x4324c66du,0x4290855du,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x40214770u,0x4324cdaeu,0x4290cbe2u,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x402332f2u,0x4324d4efu,0x42911267u,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x40251e74u,0x4324dc30u,0x429158ecu,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x402709f6u,0x4324e371u,0x42919f71u,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x4028f578u,0x4324eab2u,0x4291e5f6u,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x402ae0fau,0x4324f1f3u,0x42922c7bu,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x402ccc7cu,0x4324f934u,0x42927300u,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x402eb7feu,0x43250075u,0x4292b985u,0x3f71eb34u,0x4092eb74u,0x3faf144au},
+        {0x4030a380u,0x432507b6u,0x4293000au,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x40328f02u,0x43250ef7u,0x4293468fu,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x40347a84u,0x43251638u,0x42938d14u,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x40366606u,0x43251d79u,0x4293d399u,0x3f71eb34u,0x4092eb74u,0x3faf144au},
+        {0x40385188u,0x432524bau,0x42941a1eu,0x3f71eb34u,0x4092eb74u,0x3faf144au},
+        {0x403a3d0au,0x43252bfbu,0x429460a3u,0x3f71eb34u,0x4092eb74u,0x3faf144au},
+        {0x403c288cu,0x4325333cu,0x4294a728u,0x3f71eb34u,0x4092eb74u,0x3faf144au},
+        {0x403e140eu,0x43253a7du,0x4294edadu,0x3f71ed03u,0x4092eb68u,0x3faf1418u},
+        {0x403fff90u,0x432541beu,0x42953432u,0x3f71ed03u,0x4092eb68u,0x3faf1418u},
+        {0x4041eb12u,0x432548ffu,0x42957ab7u,0x3f71ed03u,0x4092eb68u,0x3faf1418u},
+        {0x4043d694u,0x43255040u,0x4295c13cu,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x4045c216u,0x43255781u,0x429607c1u,0x3f71ed03u,0x4092eb68u,0x3faf1418u},
+        {0x4047ad98u,0x43255ec2u,0x42964e46u,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x4049991au,0x43256603u,0x429694cbu,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x404b849cu,0x43256d44u,0x4296db50u,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x404d701eu,0x43257485u,0x429721d5u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x404f5ba0u,0x43257bc7u,0x42976859u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x40514722u,0x43258309u,0x4297aeddu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x405332a4u,0x43258a4bu,0x4297f561u,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x40551e26u,0x4325918cu,0x42983be6u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x405709a8u,0x432598ceu,0x4298826au,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4058f52au,0x4325a010u,0x4298c8eeu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x405ae0acu,0x4325a752u,0x42990f72u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x405ccc2eu,0x4325ae94u,0x429955f6u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x405eb7b0u,0x4325b5d6u,0x42999c7au,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4060a332u,0x4325bd18u,0x4299e2feu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x40628eb4u,0x4325c45au,0x429a2982u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x40647a36u,0x4325cb9cu,0x429a7006u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x406665b8u,0x4325d2deu,0x429ab68au,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x4068513au,0x4325da1fu,0x429afd0fu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x406a3cbcu,0x4325e161u,0x429b4393u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x406c283eu,0x4325e8a3u,0x429b8a17u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x406e13c0u,0x4325efe5u,0x429bd09bu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x406fff42u,0x4325f727u,0x429c171fu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4071eac4u,0x4325fe69u,0x429c5da3u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4073d646u,0x432605abu,0x429ca427u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4075c1c8u,0x43260cedu,0x429ceaabu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4077ad4au,0x4326142fu,0x429d312fu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x407998ccu,0x43261b71u,0x429d77b3u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x407b844eu,0x432622b3u,0x429dbe37u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x407d6fd0u,0x432629f5u,0x429e04bbu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x407f5b52u,0x43263137u,0x429e4b3fu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4080a368u,0x43263878u,0x429e91c3u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x40819926u,0x43263fb9u,0x429ed847u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x40828ee4u,0x432646fbu,0x429f1ecbu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408384a2u,0x43264e3du,0x429f654fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x40847a60u,0x4326557fu,0x429fabd3u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4085701eu,0x43265cc1u,0x429ff257u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408665dcu,0x43266403u,0x42a038dbu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x40875b9au,0x43266b45u,0x42a07f5fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x40885158u,0x43267287u,0x42a0c5e3u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x40894716u,0x432679c9u,0x42a10c67u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408a3cd4u,0x4326810bu,0x42a152ebu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408b3292u,0x4326884du,0x42a1996fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408c2850u,0x43268f8fu,0x42a1dff3u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408d1e0eu,0x432696d1u,0x42a22677u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408e13ccu,0x43269e13u,0x42a26cfbu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408f098au,0x4326a555u,0x42a2b37fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408fff48u,0x4326ac97u,0x42a2fa03u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4090f506u,0x4326b3d9u,0x42a34087u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4091eac4u,0x4326bb1bu,0x42a3870bu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4092e082u,0x4326c25du,0x42a3cd8fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4093d640u,0x4326c99fu,0x42a41413u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4094cbfeu,0x4326d0e1u,0x42a45a97u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4095c1bcu,0x4326d823u,0x42a4a11bu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4096b77au,0x4326df65u,0x42a4e79fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4097ad38u,0x4326e6a7u,0x42a52e23u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4098a2f6u,0x4326ede9u,0x42a574a7u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x409998b4u,0x4326f52bu,0x42a5bb2bu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x409a8e72u,0x4326fc6du,0x42a601afu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x409b8430u,0x432703afu,0x42a64833u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x409c79eeu,0x43270af1u,0x42a68eb7u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x409d6facu,0x43271233u,0x42a6d53bu,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x409e656au,0x43271975u,0x42a71bbfu,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x409f5b28u,0x432720b7u,0x42a76243u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a050e6u,0x432727f9u,0x42a7a8c7u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a146a4u,0x43272f3bu,0x42a7ef4bu,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a23c62u,0x4327367du,0x42a835cfu,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a33220u,0x43273dbfu,0x42a87c53u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a427deu,0x43274501u,0x42a8c2d7u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a51d9cu,0x43274c43u,0x42a9095bu,0x3f71f610u,0x4092eb2du,0x3faf131bu},
+        {0x40a6135au,0x43275385u,0x42a94fdfu,0x3f71f610u,0x4092eb2du,0x3faf131bu},
+        {0x40a70918u,0x43275ac7u,0x42a99663u,0x3f71f610u,0x4092eb2du,0x3faf131bu},
+        {0x40a7fed6u,0x43276209u,0x42a9dce7u,0x3f71f7e0u,0x4092eb20u,0x3faf12e9u},
+        {0x40a8f494u,0x4327694bu,0x42aa236bu,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40a9ea52u,0x43277f17u,0x42aa5cb6u,0x4035a896u,0x406ebefbu,0x3f6b9d47u},
+        {0x40aae010u,0x432794e3u,0x42aa9601u,0x4035a7dau,0x406ebf8bu,0x3f6b9e11u},
+        {0x40abd5ceu,0x4327aaafu,0x42aacf4cu,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40accb8cu,0x4327c07bu,0x42ab0897u,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40adc14au,0x4327d647u,0x42ab41e2u,0x4035a7dau,0x406ebf8bu,0x3f6b9e11u},
+        {0x40aeb708u,0x4327ec13u,0x42ab7b2du,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40afacc6u,0x432801dfu,0x42abb478u,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40b0a284u,0x432817abu,0x42abedc3u,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40b19842u,0x43282d77u,0x42ac270eu,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40b28e00u,0x43284343u,0x42ac6059u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40b383beu,0x43285c7eu,0x42ac93b2u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b4797cu,0x432875b9u,0x42acc70bu,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b56f3au,0x43288ef4u,0x42acfa64u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b664f8u,0x4328a82fu,0x42ad2dbdu,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b75ab6u,0x4328c16au,0x42ad6116u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b85074u,0x4328daa5u,0x42ad946fu,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b94632u,0x4328f3e0u,0x42adc7c8u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40ba3bf0u,0x43290d1bu,0x42adfb21u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40bb31aeu,0x43292656u,0x42ae2e7au,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40bc276cu,0x43293f91u,0x42ae61d3u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40bd1d2au,0x432958ccu,0x42ae952cu,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40be12e8u,0x43297207u,0x42aec885u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40bf08a6u,0x43298b42u,0x42aefbdeu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40bffe64u,0x4329a47du,0x42af2f37u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c0f422u,0x4329bdb8u,0x42af6290u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c1e9e0u,0x4329d6f3u,0x42af95e9u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40c2df9eu,0x4329f02eu,0x42afc942u,0x40524491u,0x4055fa8bu,0x3f4b4d70u},
+        {0x40c3d55cu,0x432a0968u,0x42affc9bu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c4cb1au,0x432a22a3u,0x42b02ff4u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c5c0d8u,0x432a3bdeu,0x42b0634du,0x40524491u,0x4055fa8bu,0x3f4b4d70u},
+        {0x40c6b696u,0x432a5518u,0x42b096a6u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c7ac54u,0x432a6e53u,0x42b0c9ffu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c8a212u,0x432a878eu,0x42b0fd58u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40c997d0u,0x432aa0c9u,0x42b130b1u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40ca8d8eu,0x432aba04u,0x42b1640au,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40cb834cu,0x432ad33fu,0x42b19763u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40cc790au,0x432aec7au,0x42b1cabcu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40cd6ec8u,0x432b05b5u,0x42b1fe15u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40ce6486u,0x432b1ef0u,0x42b2316eu,0x405244e6u,0x4055fa38u,0x3f4b4d0bu},
+        {0x40cf5a44u,0x432b382au,0x42b264c7u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40d05002u,0x432b5165u,0x42b29820u,0x40524491u,0x4055fa8bu,0x3f4b4d70u},
+        {0x40d145c0u,0x432b6a9fu,0x42b2cb79u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40d23b7eu,0x432b83dau,0x42b2fed2u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40d3313cu,0x432b9d15u,0x42b3322bu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40d426fau,0x432bb650u,0x42b36584u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40d51cb8u,0x432bcf8bu,0x42b398ddu,0x405244e6u,0x4055fa38u,0x3f4b4d0bu},
+        {0x40d61276u,0x432be8c5u,0x42b3cc36u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40d70834u,0x432c0200u,0x42b3ff8fu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40d7fdf2u,0x432c1b3bu,0x42b432e8u,0x405244e6u,0x4055fa38u,0x3f4b4d0bu},
+        {0x40d8f3b0u,0x432c3475u,0x42b46641u,0x4072f456u,0x402ffd84u,0x3f207cf1u},
+        {0x40d9e96eu,0x432c519cu,0x42b4907du,0x4072f411u,0x402ffde2u,0x3f207d56u},
+        {0x40dadf2cu,0x432c6ec2u,0x42b4bab9u,0x4072f456u,0x402ffd84u,0x3f207cf1u},
+        {0x40dbd4eau,0x432c8be9u,0x42b4e4f5u,0x4072f49bu,0x402ffd23u,0x3f207c8du},
+        {0x40dccaa8u,0x432ca910u,0x42b50f30u,0x4072f527u,0x402ffc63u,0x3f207bc2u},
+        {0x40ddc066u,0x432cc637u,0x42b5396bu,0x4072f456u,0x402ffd84u,0x3f207cf1u},
+        {0x40deb624u,0x432ce35eu,0x42b563a7u,0x4072f4e2u,0x402ffcc3u,0x3f207c27u},
+        {0x40dfabe2u,0x432d0085u,0x42b58de2u,0x4072f4e2u,0x402ffcc3u,0x3f207c27u},
+        {0x40e0a1a0u,0x432d1dacu,0x42b5b81du,0x4072f49bu,0x402ffd23u,0x3f207c8du},
+        {0x40e1975eu,0x432d3ad3u,0x42b5e258u,0x4072f411u,0x402ffde2u,0x3f207d56u},
+        {0x40e28d1cu,0x432d57f9u,0x42b60c94u,0x4072f411u,0x402ffde2u,0x3f207d56u},
+        {0x40e382dau,0x432d751fu,0x42b636d0u,0x4072f56cu,0x402ffc04u,0x3f207b5du},
+        {0x40e47898u,0x432d9246u,0x42b6610bu,0x4072f527u,0x402ffc63u,0x3f207bc2u},
+        {0x40e56e56u,0x432daf6du,0x42b68b46u,0x00000000u,0x00000000u,0x3f207bc2u},
+    };
+    unsigned steps=0; uint32_t clock=wc3_float_bits(unit->movement.pose_clock.time);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(frame,6000) {
+        level.time+=5; globals.RunFrame();
+        uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+        if (now==clock) continue;
+        clock=now;
+        /* The point order materializes the idle pose at its admission clock. */
+        if (now==0x3f7ffff0u) continue;
+        T_ASSERT(steps<206); if (steps>=206) break;
+        uint32_t const *expected=oblique_motion[steps++];
+        T_EQ(now,expected[0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[1]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[2]);
+        T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),expected[3]);
+        T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[4]);
+        T_EQ(wc3_float_bits(unit->s.angle),expected[5]);
+    }
+    T_EQ(steps,206); T_ASSERT(!jass_rterror_pending(level.vm));
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
 TEST(wc3_movement, periodic_public_spawn_orders_match_retail_from_zero_clock) {
     float radius=31,speed=270;
     unitModification_t mods[]={

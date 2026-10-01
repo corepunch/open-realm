@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **249 entries**: **45** distinct original-code oracle
-scripts plus **50** declared variants, **118** archived JSONL audits and **36**
+The inventory now has **253 entries**: **45** distinct original-code oracle
+scripts plus **50** declared variants, **121** archived JSONL audits and **37**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -23,10 +23,10 @@ outside the accepted inventory unless given their own rejection contract.
 | 89 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 110 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Twenty-six public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Twenty-seven public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -649,3 +649,22 @@ stream. The two archive audits and repeated live contract produce fresh reports
 in `spawn-phase-corpus-final-261001`. The [engine producer regression](retail-pathfinding-engine.md#public-timer-admission-reaches-move-from-zero)
 drives ordinary TimerStart from zero, with no per-actor clock/phase supplied.
 General timer scalar deadlines, short/zero periods and other actor profiles remain open.
+
+## Public oblique singleton group handoffs
+
+`live-public-oblique-repeat-261001` verifies two source/map-pinned scene45
+captures and a third read-only geometry observer. All689 commits,684 scalar
+movement decisions,6000 primary advances,1000 owners, birth phases2/4/0 and
+five natural stops agree; two stops advance an intermediate group destination
+without replacing the one public point order per life. The checker composes
+production arithmetic, predicted arrival and state-chain validation with the
+observed group-to-member destination sequence.
+
+The frozen fixture supplies the observed terrain and static-object geometry
+as compact counted byte runs; read-only eligibility decoding is explicit.
+The near-zero predecessor without the clear terrain control stays a named,
+SHA-pinned diagnostic exclusion because it ends in forced arrival. Public
+scene/scenery construction and hierarchy invalidation remain separate.
+The [engine integration](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination)
+uses ordinary timers/frames from zero and includes260 original saved
+continuation commits. Generic archive audits alone do not certify that parity.

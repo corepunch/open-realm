@@ -25,8 +25,8 @@ class CorpusTests(unittest.TestCase):
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),95)
-        self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),118)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),36)
+        self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),37)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))
@@ -39,6 +39,25 @@ class CorpusTests(unittest.TestCase):
             self.assertEqual(entry['expected_exit'],1)
             check_report(dict(binary_sha256=self.target['game_sha256'],differences=[{}]*4,
                               stored_size=2,promotion_disabled=False,forced_east_boundary=False,engine_exact_cases=356,cases=356),entry,self.target)
+
+    def test_public_oblique_engine_words_and_geometry_match_frozen_original(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-oblique-1.27.json').read_text())
+        source=(ROOT/'games/warcraft-3/game/tests/retail_public_oblique.h').read_text()
+        block=source.split('public_oblique_motion[][6]={',1)[1].split('};',1)[0]
+        words=[int(w,16) for w in re.findall(r'0x([0-9a-f]+)u',block)]
+        self.assertEqual(len(words),689*6)
+        rows=[words[i:i+6] for i in range(0,len(words),6)]
+        digest=hashlib.sha256(json.dumps(rows,separators=(',',':')).encode()).hexdigest()
+        self.assertEqual(digest,frozen['engine_motion_sha256'])
+        block=source.split('public_oblique_terrain_runs[][2]={',1)[1].split('};',1)[0]
+        actual=bytes(value for n,value in re.findall(r'\{(\d+),(\d+)\}',block) for _ in range(int(n)) for value in (int(value),))
+        def expand(hex_runs):
+            raw=bytes.fromhex(hex_runs)
+            return bytes(raw[i+2] for i in range(0,len(raw),3) for _ in range(int.from_bytes(raw[i:i+2],'little')))
+        geometry=frozen['terrain']['geometry']
+        terrain,objects=expand(geometry['terrainRuns']),expand(geometry['objectRuns'])
+        self.assertEqual(len(actual),384*256)
+        self.assertEqual(actual,bytes(a|b for a,b in zip(terrain,objects)))
 
     def test_public_spawn_motion_engine_words_match_original_lifetimes(self):
         frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-spawn-motion-1.27.json').read_text())

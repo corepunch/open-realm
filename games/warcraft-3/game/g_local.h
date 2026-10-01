@@ -32,6 +32,12 @@ typedef struct {
     vec2_t adaptive_goal;
     float adaptive_radius;
     uint32_t adaptive_revision;
+    /* Singleton group plan is separate from the member's local route. */
+    vec2_t *group_points;
+    uint32_t group_count, group_index;
+    vec2_t group_goal;
+    float group_radius;
+    uint32_t group_revision;
 } moveFineRoute_t;
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
@@ -2686,6 +2692,8 @@ uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *query, float const
 wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count);
 bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
+bool G_UnitMoveGroupDestination(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *fine);
+bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route);
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 void G_FreeMovePathCache(void);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);

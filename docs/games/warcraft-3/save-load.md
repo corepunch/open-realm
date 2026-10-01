@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 72, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 73, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -736,3 +736,15 @@ Move through the fractional actor and subsequent RemoveUnit/CreateUnit lifetimes
 The JASS snapshot remains7; no network fields or callback identities change.
 Original scalar heap deadlines, arbitrary short/zero periods and timer-clock epoch
 rebasing remain explicit numerical backlog work.
+
+### Singleton group route (version73)
+
+Move persists its singleton group adaptive chain independently of the member's
+adaptive/fine buffers. Points, count/index, final native destination and radius
+survive; the process-local bake revision is rebound after terrain/entity
+restoration. Two public oblique saves resume260 original movement commits,
+including a save immediately after intermediate arrival with both member
+buffers empty and the final public order still active. The current reader
+rejects version72 and every earlier format; there is no migration. Group tail
+extent/index, finite coordinates and complete bytes are checked before use.
+See [retail group-destination payoff](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination).

@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "95 executable original oracle contracts,118 archive audits and36 strict live contracts;249 total entries. Archive audits and stronger live contracts are distinct evidence levels.",
+  "scope": "95 executable original oracle contracts,121 archive audits and37 strict live contracts;253 total entries. Archive audits and stronger live contracts are distinct evidence levels.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -16061,6 +16061,447 @@
         "General scalar timer deadlines and zero/submillisecond callback policy",
         "Other profiles, long oblique small/large producers and populated groups"
       ]
+    },
+    {
+      "id": "capture-public-oblique-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/public-oblique-open-small-live-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/public-oblique-open-small-live-first-261001.jsonl",
+        "sha256": "e423938adb500fbd3cd3fd717bbc7efefe54eeb47bc8cabf009e8fbfd65d475c",
+        "bytes": 6183552,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "364cfc94ea6a38a73f9daa44963cbe865269b16e538100124feb869db11c0f6a",
+            "make_wc3_pathfinding_map.py": "bdcf5844424fa1280cb6490385a9d5743ec3a1254cef8902039e59c14af7bf2a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "6892b320fd017c353231d73984e9dee622afa25b178a0d7ab6794e2499b3e6a8"
+          },
+          "map": "Maps\\PathingRE-PublicObliqueOpenSmall-261001.w3m",
+          "seconds": 170.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "capture-public-oblique-first.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Archive structure audit only: three public oblique lifetimes with explicit clear near-zero terrain control; natural stage/clock/word parity belongs to the strict repeat entry.",
+      "exclusions": [
+        "Outside-map, layered terrain/bridge and other actor forms; full engine trajectory parity."
+      ]
+    },
+    {
+      "id": "capture-public-oblique-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/public-oblique-open-small-live-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/public-oblique-open-small-live-repeat-261001.jsonl",
+        "sha256": "0f921d2b388dae0ab4d08aa4a18a8a07bcc8914c4dbe4028eea155d679ca3dbb",
+        "bytes": 6247295,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "364cfc94ea6a38a73f9daa44963cbe865269b16e538100124feb869db11c0f6a",
+            "make_wc3_pathfinding_map.py": "bdcf5844424fa1280cb6490385a9d5743ec3a1254cef8902039e59c14af7bf2a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "6892b320fd017c353231d73984e9dee622afa25b178a0d7ab6794e2499b3e6a8"
+          },
+          "map": "Maps\\PathingRE-PublicObliqueOpenSmall-261001.w3m",
+          "seconds": 170.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "capture-public-oblique-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Archive structure audit only: three public oblique lifetimes with explicit clear near-zero terrain control; natural stage/clock/word parity belongs to the strict repeat entry.",
+      "exclusions": [
+        "Outside-map, layered terrain/bridge and other actor forms; full engine trajectory parity."
+      ]
+    },
+    {
+      "id": "live-public-oblique-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_public_oblique_trace.py",
+        "{archive}/runtime/public-oblique-open-small-live-first-261001.jsonl",
+        "--repeat",
+        "{archive}/runtime/public-oblique-open-small-live-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-oblique-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--geometry",
+        "{archive}/runtime/public-oblique-geometry-live-first-261001.jsonl",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/public-oblique-open-small-live-first-261001.jsonl",
+        "sha256": "e423938adb500fbd3cd3fd717bbc7efefe54eeb47bc8cabf009e8fbfd65d475c",
+        "bytes": 6183552,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "364cfc94ea6a38a73f9daa44963cbe865269b16e538100124feb869db11c0f6a",
+            "make_wc3_pathfinding_map.py": "bdcf5844424fa1280cb6490385a9d5743ec3a1254cef8902039e59c14af7bf2a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "6892b320fd017c353231d73984e9dee622afa25b178a0d7ab6794e2499b3e6a8"
+          },
+          "map": "Maps\\PathingRE-PublicObliqueOpenSmall-261001.w3m",
+          "seconds": 170.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/public-oblique-open-small-live-repeat-261001.jsonl",
+            "sha256": "0f921d2b388dae0ab4d08aa4a18a8a07bcc8914c4dbe4028eea155d679ca3dbb",
+            "bytes": 6247295,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+                "wc3_pathfinding_probe.j": "364cfc94ea6a38a73f9daa44963cbe865269b16e538100124feb869db11c0f6a",
+                "make_wc3_pathfinding_map.py": "bdcf5844424fa1280cb6490385a9d5743ec3a1254cef8902039e59c14af7bf2a",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "6892b320fd017c353231d73984e9dee622afa25b178a0d7ab6794e2499b3e6a8"
+              },
+              "map": "Maps\\PathingRE-PublicObliqueOpenSmall-261001.w3m",
+              "seconds": 170.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/public-oblique-geometry-live-first-261001.jsonl",
+            "sha256": "30a579c5651eb20bb34d5ba4092a669ae3ed099521b1e6e89e23d7092ace12e3",
+            "bytes": 6360809,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "cef97da917b7bd3b209099c81e1c07f4da8c3b0e4de90046836670de62604663",
+                "wc3_pathfinding_probe.j": "364cfc94ea6a38a73f9daa44963cbe865269b16e538100124feb869db11c0f6a",
+                "make_wc3_pathfinding_map.py": "bdcf5844424fa1280cb6490385a9d5743ec3a1254cef8902039e59c14af7bf2a",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "6892b320fd017c353231d73984e9dee622afa25b178a0d7ab6794e2499b3e6a8"
+              },
+              "map": "Maps\\PathingRE-PublicObliqueOpenSmall-261001.w3m",
+              "seconds": 170.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-public-oblique-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "exact_decisions": {
+          "equal": 684
+        },
+        "exact_velocity_commits": {
+          "equal": 689
+        },
+        "exact_position_commits": {
+          "equal": 689
+        },
+        "exact_facing_commits": {
+          "equal": 689
+        },
+        "primary_advances": {
+          "equal": 6000
+        },
+        "owner_callbacks": {
+          "equal": 1000
+        },
+        "public_births": {
+          "equal": 3
+        },
+        "birth_phases": {
+          "equal": [
+            2,
+            4,
+            0
+          ]
+        },
+        "birth_primary_advances": {
+          "equal": [
+            20,
+            2020,
+            4020
+          ]
+        },
+        "natural_stops": {
+          "equal": 5
+        },
+        "intermediate_stops": {
+          "equal": 2
+        },
+        "journey_sha256": {
+          "equal": "5724e6aad3914d60fe2b988fc61bbe4b84e117d8ccd2aa23a619147b9ac4c913"
+        },
+        "primary_sha256": {
+          "equal": "c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae"
+        },
+        "repeated": {
+          "equal": true
+        },
+        "geometry_verified": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "Zero primary clock, public periodic timer, three oblique lifetimes,689 exact scalar commits, five natural stops and two intermediate group destination handoffs. Engine producer is separately regressed.",
+      "exclusions": [
+        "General timer deadlines and arbitrary movement profiles",
+        "Persistent shared multi-member groups and physical crowd scheduling"
+      ]
+    },
+    {
+      "id": "capture-public-oblique-geometry-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/public-oblique-geometry-live-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/public-oblique-geometry-live-first-261001.jsonl",
+        "sha256": "30a579c5651eb20bb34d5ba4092a669ae3ed099521b1e6e89e23d7092ace12e3",
+        "bytes": 6360809,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "cef97da917b7bd3b209099c81e1c07f4da8c3b0e4de90046836670de62604663",
+            "wc3_pathfinding_probe.j": "364cfc94ea6a38a73f9daa44963cbe865269b16e538100124feb869db11c0f6a",
+            "make_wc3_pathfinding_map.py": "bdcf5844424fa1280cb6490385a9d5743ec3a1254cef8902039e59c14af7bf2a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "6892b320fd017c353231d73984e9dee622afa25b178a0d7ab6794e2499b3e6a8"
+          },
+          "map": "Maps\\PathingRE-PublicObliqueOpenSmall-261001.w3m",
+          "seconds": 170.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "capture-public-oblique-geometry.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Archive audit of read-only scene geometry observer; the strict oblique contract composes the actual fine/static snapshot and unchanged689 commits.",
+      "exclusions": [
+        "Outside-map, layered terrain/bridge and other actor forms; full engine trajectory parity."
+      ]
     }
   ],
   "fixtures": [
@@ -16126,7 +16567,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "a99b73ee0dc31b47d17bfe020c9956506aaf29488099e50846737ee661d1cf47"
+      "sha256": "a2170113c833dab689e389160e7322b3fcf9cac9dac45f009854d0fac485c99a"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -16435,6 +16876,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-spawn-phase-1.27.json",
       "sha256": "64d7bfb1caf08397991d2d577fcf5c47d9a3eb9910e78e97e584447f201775c3"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-oblique-1.27.json",
+      "sha256": "acc86e9bc8498dd3705fea4c3d202409ce0377a76ded93a56c1c623ff1314bdb"
     }
   ]
 }

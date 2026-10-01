@@ -79,7 +79,7 @@ static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format72 retains each timer countdown cursor with the restored server clock.
  * Earlier streams lack this timer field/meaning and are rejected. */
-static uint32_t const save_version = 72;
+static uint32_t const save_version = 73;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -694,6 +694,12 @@ static field_t const movement_fields[] = {
     TF(struct edictMovement_s, fine_route.adaptive_goal, F_VECTOR),
     TF(struct edictMovement_s, fine_route.adaptive_radius, F_FLOAT),
     TF(struct edictMovement_s, fine_route.adaptive_revision, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.group_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.group_count, F_INT),
+    TF(struct edictMovement_s, fine_route.group_index, F_INT),
+    TF(struct edictMovement_s, fine_route.group_goal, F_VECTOR),
+    TF(struct edictMovement_s, fine_route.group_radius, F_FLOAT),
+    TF(struct edictMovement_s, fine_route.group_revision, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, repulse, F_STRUCT, 1, repulse_fields),
     TF(edictMovement_s, fine_pose, F_VECTOR),
     TF(edictMovement_s, pose_valid, F_INT),
@@ -1786,9 +1792,15 @@ static bool WriteEdict(FILE *f, edict_t const *ent) {
         fprintf(stderr,"WC3 SaveGame: invalid adaptive route count=%u index=%u\n",route->adaptive_count,route->adaptive_index);
         return false;
     }
+    if (route->group_count>BZ_WC3_FINE_NODES ||
+        (route->group_count && (!route->group_points || route->group_index>=route->group_count))) {
+        fprintf(stderr,"WC3 SaveGame: invalid group route count=%u index=%u\n",route->group_count,route->group_index);
+        return false;
+    }
     return SaveBytes(f, &temp, sizeof(temp)) &&
         (!route->count || SaveBytes(f,route->points,route->count*sizeof(*route->points))) &&
-        (!route->adaptive_count || SaveBytes(f,route->adaptive_points,route->adaptive_count*sizeof(*route->adaptive_points)));
+        (!route->adaptive_count || SaveBytes(f,route->adaptive_points,route->adaptive_count*sizeof(*route->adaptive_points))) &&
+        (!route->group_count || SaveBytes(f,route->group_points,route->group_count*sizeof(*route->group_points)));
 }
 
 static bool WriteClient(FILE *f, gameClient_t const *client) {
@@ -1889,7 +1901,7 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
 
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
     moveFineRoute_t *route = &ent->movement.fine_route;
-    route->points = NULL; route->adaptive_points=NULL;
+    route->points = NULL; route->adaptive_points=NULL; route->group_points=NULL;
     if (route->count > BZ_WC3_FINE_NODES || (route->count && route->index >= route->count)) return false;
     if (route->count) {
         route->points = malloc(route->count*sizeof(*route->points));
@@ -1911,6 +1923,21 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
         }
         FOR_LOOP(i,route->adaptive_count) if (!isfinite(route->adaptive_points[i].x) || !isfinite(route->adaptive_points[i].y)) {
             free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
+        }
+    }
+    if (route->group_count) {
+        if (route->group_count>BZ_WC3_FINE_NODES || route->group_index>=route->group_count ||
+            !isfinite(route->group_goal.x) || !isfinite(route->group_goal.y) || !isfinite(route->group_radius)) {
+            free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
+        }
+        route->group_points=malloc(route->group_count*sizeof(*route->group_points));
+        if (!route->group_points || !LoadBytes(f,route->group_points,route->group_count*sizeof(*route->group_points))) {
+            free(route->points); free(route->adaptive_points); free(route->group_points);
+            route->points=route->adaptive_points=route->group_points=NULL; return false;
+        }
+        FOR_LOOP(i,route->group_count) if (!isfinite(route->group_points[i].x) || !isfinite(route->group_points[i].y)) {
+            free(route->points); free(route->adaptive_points); free(route->group_points);
+            route->points=route->adaptive_points=route->group_points=NULL; return false;
         }
     }
     for (field = edict_fields; field->name; field++)
@@ -2175,26 +2202,35 @@ fail:
  * Reject impossible extents/indices, nonfinite points and truncated payloads
  * without retaining serialized process addresses or failed allocations. */
 TEST(wc3_save, rejects_invalid_fine_route_payloads) {
-    FOR_LOOP(i,8) {
+    FOR_LOOP(i,12) {
         FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
         edict_t raw={0},restored={0};
         raw.movement.fine_route=(moveFineRoute_t){.points=(vec2_t *)(uintptr_t)1,.count=1,.mask=2};
         if (i==0) raw.movement.fine_route.count=BZ_WC3_FINE_NODES+1;
         if (i==1) raw.movement.fine_route.index=1;
-        if (i>=4) {
+        if (i>=4 && i<8) {
             raw.movement.fine_route.adaptive_points=(vec2_t *)(uintptr_t)1;
             raw.movement.fine_route.adaptive_count=1;
             if (i==4) raw.movement.fine_route.adaptive_count=BZ_WC3_FINE_NODES+1;
             if (i==5) raw.movement.fine_route.adaptive_index=1;
         }
+        if (i>=8) {
+            raw.movement.fine_route.group_points=(vec2_t *)(uintptr_t)1;
+            raw.movement.fine_route.group_count=1;
+            if (i==8) raw.movement.fine_route.group_count=BZ_WC3_FINE_NODES+1;
+            if (i==9) raw.movement.fine_route.group_index=1;
+        }
         T_ASSERT(SaveBytes(file,&raw,sizeof(raw)));
         if (i==2) T_ASSERT(SaveBytes(file,&(vec2_t){NAN,0},sizeof(vec2_t)));
-        if (i>=4) T_ASSERT(SaveBytes(file,&(vec2_t){1,2},sizeof(vec2_t)));
+        if (i>=4 && i<8) T_ASSERT(SaveBytes(file,&(vec2_t){1,2},sizeof(vec2_t)));
         if (i==6) T_ASSERT(SaveBytes(file,&(vec2_t){NAN,0},sizeof(vec2_t)));
+        if (i>=8) T_ASSERT(SaveBytes(file,&(vec2_t){1,2},sizeof(vec2_t)));
+        if (i==10) T_ASSERT(SaveBytes(file,&(vec2_t){NAN,0},sizeof(vec2_t)));
         rewind(file);
         T_ASSERT(!ReadEdict(file,&restored));
         T_ASSERT(!restored.movement.fine_route.points);
         T_ASSERT(!restored.movement.fine_route.adaptive_points);
+        T_ASSERT(!restored.movement.fine_route.group_points);
         fclose(file);
     }
 }
@@ -2270,8 +2306,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-69.bin",
         "/tmp/openwarcraft3-wc3-save-version-70.bin",
         "/tmp/openwarcraft3-wc3-save-version-71.bin",
+        "/tmp/openwarcraft3-wc3-save-version-72.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72 };
 
     reset_entities();
     setup_test_world();

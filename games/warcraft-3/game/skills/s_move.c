@@ -966,6 +966,7 @@ static void unit_changeangle_towards_point_policy(edict_t *self, vec2_t const *p
 void S_FreeMoveRoute(edict_t *self) {
     free(self->movement.fine_route.points);
     free(self->movement.fine_route.adaptive_points);
+    free(self->movement.fine_route.group_points);
     self->movement.fine_route = (moveFineRoute_t){0};
     self->movement.path.valid = false;
 }
@@ -1006,6 +1007,13 @@ static bool unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *
     movePathQuery_t query = move_route_query(self, point);
     routePath_t *path = &self->movement.path;
     moveFineRoute_t *curve = &self->movement.fine_route;
+    vec2_t local;
+    if (query.units && curve->group_count && curve->group_index<curve->group_count) {
+        vec2_t fine=curve->group_index ? (vec2_t){wc3_mul(curve->group_points[curve->group_index].x,2),wc3_mul(curve->group_points[curve->group_index].y,2)} : curve->group_goal;
+        box2_t bounds=CM_GetWorldBounds();
+        local=(vec2_t){wc3_add(bounds.min.x,wc3_mul(fine.x,CM_PathCellWorldSize())),wc3_add(bounds.min.y,wc3_mul(fine.y,CM_PathCellWorldSize()))};
+        query.geometry.target=&local;
+    }
     moveRoutePoint_t turn = { &path->waypoint, point.radius, point.policy };
     if (query.units) {
         /* Original165ae0 retains the admitted leg until progress/refill. A
@@ -1575,6 +1583,10 @@ static uint32_t move_collect_selected(gameClient_t *client,
 }
 
 void move_reset_progress(edict_t *self) {
+    /* Replacement/internal approaches own a new group plan. Reusing the last
+     * point Move's destination can strand an ability at its previous endpoint. */
+    self->movement.fine_route.group_count=0;
+    self->movement.fine_route.group_index=UINT32_MAX;
     self->movement.last_origin = self->s.origin2;
     self->movement.last_distance = -1;
     self->movement.blocked_frames = 0;
@@ -2017,6 +2029,11 @@ static bool move_point_arrival(edict_t *ent) {
         a.source[k] = wc3_div(wc3_mul(pose.grid[k], 32), cell);
         a.target[k] = wc3_grid_coordinate(target[k], pose.origin[k], cell);
     }
+    moveFineRoute_t *route=&ent->movement.fine_route;
+    if (route->group_count && route->group_index<route->group_count) {
+        vec2_t fine=route->group_index ? (vec2_t){wc3_mul(route->group_points[route->group_index].x,2),wc3_mul(route->group_points[route->group_index].y,2)} : route->group_goal;
+        a.target[0]=fine.x; a.target[1]=fine.y;
+    }
     bool reached = wc3_arrival_update(&a);
     if (!a.in_range || !M_MoveIsValid(ent, &forecast)) return false;
     /* Original range acceptance stops translation even while the separate
@@ -2029,6 +2046,10 @@ static bool move_point_arrival(edict_t *ent) {
     ent->movement.velocity = (vec2_t){0};
     unit_commit_pose(ent, &pose);
     if (reached) {
+        if (G_AdvanceUnitMoveGroupDestination(route)) {
+            ent->movement.path.valid=false;
+            return true;
+        }
         if (!S_UnitAbilityMoveArrive(ent)) ent->stand(ent);
     }
     return true;
@@ -2068,6 +2089,20 @@ static void ai_move_walk(edict_t *ent) {
         return;
     }
 
+    if (point_order && !ent->no_pathing && !ent->movement.group_id) {
+        movePathQuery_t query=move_route_query(ent,(moveRoutePoint_t){&ent->goalentity->s.origin2,ent->collision,MOVE_AVOID_GENERIC});
+        vec2_t destination;
+        uint32_t revision=ent->movement.fine_route.group_revision;
+        vec2_t previous=ent->movement.fine_route.group_goal;
+        if (query.units && !G_UnitMoveGroupDestination(&query,&ent->movement.fine_route,&destination)) {
+            /* TODO GROUP-04.6: blocked-source group recovery/physical admission.
+             * The existing member recovery remains visible through its route state. */
+            ent->movement.fine_route.group_count=0;
+        }
+        if (ent->movement.fine_route.group_count && (revision!=ent->movement.fine_route.group_revision ||
+            previous.x!=ent->movement.fine_route.group_goal.x || previous.y!=ent->movement.fine_route.group_goal.y))
+            ent->movement.path.valid=false;
+    }
     if (point_order && move_point_arrival(ent)) return;
 
     if (!point_order && move_should_arrive(ent, move_distance)) {

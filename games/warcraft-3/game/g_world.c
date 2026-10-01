@@ -592,6 +592,57 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
     return true;
 }
 
+/* Original16ce10/1697a0 owns a coarse group plan before16a790 passes its
+ * selected destination to the member's separate path. Singleton layout adds
+ * zero offset. Shared cohort storage/formation admission remains GROUP-04.6. */
+bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *fine) {
+    if (!input || !route || !fine || !input->geometry.target || !pathmap.width || !pathmap.height) return false;
+    vec2_t goal=move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
+    bool retained=route->group_points && route->group_count && route->group_index<route->group_count &&
+        route->group_revision==pathmap.revision && route->mask==input->geometry.blocked_flags &&
+        route->group_radius==input->geometry.radius && route->group_goal.x==goal.x && route->group_goal.y==goal.y;
+    if (!retained) {
+        unsigned lane=0;
+        while (lane<4 && move_acc_masks[lane]!=input->geometry.blocked_flags) lane++;
+        if (lane==4) {
+            fprintf(stderr,"WC3 group routing: unsupported movement mask %02x\n",input->geometry.blocked_flags);
+            return false;
+        }
+        vec2_t source=move_query_source(input);
+        move_acc_prepare();
+        FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
+        wc3AccRequest_t req={{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
+            {wc3_mul(goal.x,.5f),wc3_mul(goal.y,.5f)},input->geometry.radius>=pathmap_cell_world_size()?2:1,BZ_WC3_GROUP_ACC_WORK};
+        uint32_t count=wc3_acc_route(&move_acc,&req,move_acc_points)&0x7fffffffu;
+        if (!count) return false;
+        wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,count-1},false);
+        assert(!selected.gate); /* This engine hierarchy has no portal producer. */
+        vec2_t *points=realloc(route->group_points,count*sizeof(*points));
+        if (!points) gi.error("WC3 group routing: cannot retain %u points",count);
+        route->group_points=points; route->group_count=count; route->group_index=selected.index;
+        route->group_goal=goal; route->group_radius=input->geometry.radius; route->group_revision=pathmap.revision;
+        route->mask=input->geometry.blocked_flags;
+        route->adaptive_count=route->count=0;
+        FOR_LOOP(i,count) points[i]=(vec2_t){move_acc_points[i].x,move_acc_points[i].y};
+    }
+    vec2_t point=route->group_points[route->group_index];
+    *fine=route->group_index ? (vec2_t){wc3_mul(point.x,2),wc3_mul(point.y,2)} : route->group_goal;
+    return true;
+}
+
+/* Singleton regroup succeeds after the member's actual arrival/zero commit.
+ * The next member update rebuilds its path to the new group destination. */
+bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route) {
+    if (!route || !route->group_count || !route->group_index || route->group_index>=route->group_count) return false;
+    FOR_LOOP(i,route->group_count) move_acc_points[i]=(wc3FineVector_t){route->group_points[i].x,route->group_points[i].y};
+    wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,route->group_index},false);
+    assert(!selected.gate);
+    route->group_index=selected.index;
+    route->count=route->adaptive_count=0;
+    route->index=route->adaptive_index=UINT32_MAX;
+    return true;
+}
+
 /* Reconstruct destination-first points, then use the original next-point /
  * progressively farther selection policy. Move retains the selected turn. */
 bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *curve, vec2_t *out) {
@@ -681,8 +732,11 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
 /* A loaded world has a new process-local bake epoch, with its saved terrain and
  * obstacles already restored. Retained routes belong to that rebuilt world. */
 void G_RebindSavedMoveRoutes(void) {
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.fine_route.adaptive_count)
-        ent->movement.fine_route.adaptive_revision=pathmap.revision;
+    FILTER_EDICTS(ent,ent->inuse) {
+        moveFineRoute_t *route=&ent->movement.fine_route;
+        if (route->adaptive_count) route->adaptive_revision=pathmap.revision;
+        if (route->group_count) route->group_revision=pathmap.revision;
+    }
 }
 
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {

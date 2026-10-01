@@ -373,6 +373,44 @@ function PathProbeSpawnAdmission takes nothing returns nothing
     call Preload("PATHPOSE done=spawn_" + I2S(i))
 endfunction
 
+function PathProbePublicOblique takes nothing returns nothing
+    local string label = ""
+    local real sourceX = -1936.0
+    local real sourceY = -976.0
+    local real goalX = -1600.0
+    local real goalY = -144.0
+    local real value = 0.0
+    if udg_PathProbeTick == 1 then
+        set label = "oblique_base"
+    elseif udg_PathProbeTick == 101 then
+        set label = "oblique_small"
+        set sourceX = -0.125
+        set sourceY = -0.125
+        set goalX = 479.875
+        set goalY = 832.25
+    elseif udg_PathProbeTick == 201 then
+        set label = "oblique_large"
+        set sourceX = -6000.125
+        set sourceY = -1500.25
+        set goalX = -5200.375
+        set goalY = -832.5
+    else
+        return
+    endif
+    call RemoveUnit(udg_PathProbeUnit)
+    call Preload("PATHPOSE case=" + label)
+    set udg_PathProbeUnit = CreateUnit(Player(0), 'hfoo', sourceX, sourceY, 90.0)
+    call SetUnitMoveSpeed(udg_PathProbeUnit, 100.0)
+    set value = GetUnitX(udg_PathProbeUnit)
+    set value = GetUnitY(udg_PathProbeUnit)
+    if IssuePointOrder(udg_PathProbeUnit, "move", goalX, goalY) then
+        call PathProbeRecord("oblique_order_accepted")
+    else
+        call PathProbeRecord("oblique_order_rejected")
+    endif
+    call Preload("PATHPOSE done=" + label)
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
@@ -381,6 +419,8 @@ function PathProbeTick takes nothing returns nothing
     set udg_PathProbeTick = udg_PathProbeTick + 1
     if PATH_PROBE_SCENARIO == 44 then
         call PathProbeSpawnAdmission()
+    elseif PATH_PROBE_SCENARIO == 45 then
+        call PathProbePublicOblique()
     endif
     if PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 1 then
         call PathProbeSpeedInputs(udg_PathProbeUnit, "foot")
@@ -580,7 +620,7 @@ function PathProbeTick takes nothing returns nothing
         set udg_PathProbeBuilding = null
         call PathProbeRecord("after_widget_remove")
     endif
-    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 then
+    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 and PATH_PROBE_SCENARIO != 45 then
         call PathProbeRecord("before_order")
         if (PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) then
             if IssueTargetOrder(udg_PathProbeUnit, "smart", udg_PathProbeTarget) then
@@ -766,6 +806,23 @@ function PathProbeInit takes nothing returns nothing
     endif
     if (PATH_PROBE_SCENARIO == 34 or PATH_PROBE_SCENARIO == 35) then
         set crowdType = 'Hpal'
+    endif
+    if PATH_PROBE_SCENARIO == 45 then
+        // A small-coordinate source lies in an isolated21-cell footprint component.
+        // Clear an explicit24x36-cell control corridor for its numerical journey.
+        set gx = 0
+        loop
+            exitwhen gx == 24
+            set gy = 0
+            loop
+                exitwhen gy == 36
+                call SetTerrainPathable(-128.0 + I2R(gx)*32.0, -128.0 + I2R(gy)*32.0, PATHING_TYPE_WALKABILITY, true)
+                set gy = gy + 1
+            endloop
+            set gx = gx + 1
+        endloop
+        set gx = 0
+        set gy = 0
     endif
     set udg_PathProbeUnit = CreateUnit(Player(0), crowdType, -1936.0, -976.0, 90.0)
     if PATH_PROBE_SCENARIO == 21 then

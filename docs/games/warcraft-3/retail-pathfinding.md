@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **362 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **478 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
 comparisons and remaining velocity/clock/trajectory gaps.
@@ -40,7 +40,7 @@ composition closes a gap.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
   `MapPathfindingTypes.java` also persists31 partial layouts,178 verified
-  fields and199 instruction-established prototypes with explicit register/stack
+  fields and202 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -270,3 +270,10 @@ and stopped velocity; public JASS/scheduler/save71 continuation repeats1440 stat
 words. See [engine transaction and admission limit](retail-pathfinding-engine.md#payoff32-blocked-fine-leg-retry-and-retained-coarse-plan).
 Other nonempty vectors still require original source-footprint admission/recovery;
 this does not close full terrain/idle retries, group producers or crowd cycles.
+
+Public singleton oblique movement now composes the real timer/clock producer
+with a separate group plan and member route. Three lifetimes match689 original
+commits, including two intermediate stop/refill handoffs and260 saved
+continuation commits. [Payoff36](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination)
+keeps supplied scenery geometry distinct from unresolved scene-loading and
+hierarchy-invalidation producers; shared physical crowds remain required.

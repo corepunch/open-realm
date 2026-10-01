@@ -36,6 +36,7 @@ from verify_wc3_retry_trace import verify as verify_retry
 from verify_wc3_spawn_trace import verify as verify_spawn, digest as spawn_digest
 from verify_wc3_spawn_motion_trace import verify as verify_spawn_motion, digest as spawn_motion_digest
 from verify_wc3_spawn_phase_trace import verify_births
+from verify_wc3_public_oblique_trace import verify_geometry as verify_oblique_geometry
 
 
 class PathingMathTests(unittest.TestCase):
@@ -63,6 +64,30 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_public_oblique_geometry_requires_complete_fine_and_hierarchy_snapshot(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-oblique-1.27.json').read_text())
+        geometry=copy.deepcopy(fixture['terrain']['geometry']);geometry.pop('encoding')
+        def unpack(value):
+            raw=bytes.fromhex(value)
+            return [[int.from_bytes(raw[i:i+2],'little'),raw[i+2]] for i in range(0,len(raw),3)]
+        geometry['terrainRuns']=unpack(geometry['terrainRuns'])
+        geometry['objectRuns']=unpack(geometry['objectRuns'])
+        for hierarchy in geometry['hierarchy']:hierarchy['runs']=unpack(hierarchy['runs'])
+        rows=[dict(event='metadata',sha256=fixture['binary_sha256'],source_sha256=fixture['terrain']['geometry_capture']['source_sha256']),geometry]
+        self.assertTrue(verify_oblique_geometry(rows,fixture)['geometry_verified'])
+        self.assertIsInstance(rows[1]['hierarchy'][0]['runs'],list)
+        for kind in ('source','missing','duplicate','width','terrain_count','object_mask','hierarchy_count','hierarchy_class'):
+            changed=copy.deepcopy(rows);g=changed[-1]
+            if kind=='source':changed[0]['source_sha256']['wc3_pathfinding.js']='0'*64
+            elif kind=='missing':changed.pop()
+            elif kind=='duplicate':changed.append(copy.deepcopy(g))
+            elif kind=='width':g['width']+=1
+            elif kind=='terrain_count':g['terrainRuns'][0][0]+=1
+            elif kind=='object_mask':g['objectRuns'][0][1]=1
+            elif kind=='hierarchy_count':g['hierarchy'][0]['runs'][0][0]+=1
+            else:g['hierarchy'][0]['runs'][0][1]^=1
+            with self.subTest(kind=kind),self.assertRaises(ValueError):verify_oblique_geometry(changed,fixture)
 
     def test_public_spawn_births_require_primary_dispatch_and_observed_owner_phase(self):
         fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-spawn-phase-1.27.json').read_text())

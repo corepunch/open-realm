@@ -3922,3 +3922,79 @@ forced debug/release production builds and the ordinary `make test` umbrella
 pass. All160 pathfinding Python checks,249-entry/93-fixture inventory and the
 three fresh strict phase corpus reports pass. Ghidra readback reports the
 program saved with the four relevant roles/prototypes intact.
+
+## Public oblique Move retains the singleton group destination
+
+Payoff36 moves from supplied route phases to three ordinary public lifetimes:
+CreateUnit, SetUnitMoveSpeed and IssuePointOrder run through a periodic0.1s
+JASS timer, with engine clock/phase initially zero. The original stock-shaped
+Footman row has radius31, speed270, turn0.6 and propagation window60 degrees.
+Captured Misc bounds150..400 clamp the requested100 speed to150; the minimal
+fixture's startup1..522 bounds are not silently substituted.
+
+Scene45 starts actors at(-1936,-976),(-0.125,-0.125) and
+(-6000.125,-1500.25), at timer ticks1/101/201. Public placement's scalar
+cancellation is retained, including the near-zero(-0.25,-0.25) result. Two
+complete owned170-second captures agree on6000 primary advances,1000 owner
+updates, three births,684 movement decisions and689 velocity/pose/facing/clock
+commits. Births occur after20/2020/4020 advances, at phases2/4/0.
+A third read-only geometry capture preserves those same motion/primary words.
+The strict journey digest is
+`5724e6aad3914d60fe2b988fc61bbe4b84e117d8ccd2aa23a619147b9ac4c913`.
+
+The missing engine layer was the group-owned adaptive plan. Original16ce10
+requests it with5000 work, and1697a0 advances its ten-accelerator-unit selector
+before167d70 publishes the group destination.16a790 passes the selected member
+point at+18 into16fbd0; the member then builds its separate400-work adaptive
+and700-work fine paths. A single public order therefore contains these stages:
+
+| Journey | Group chain | First member destination | Natural zero commits |
+| --- | --- | --- | --- |
+| Baseline |4 points, selected index0|final174/91.5|commit205|
+| Near zero |9 points, selected index1|233.5/113.5, then238.99609375/122.0078125|commits159/232|
+| Large coordinates |6 points, selected index1|49.5/65.5, then61.48828125/69.984375|commits158/249|
+
+Move now retains that group chain separately from the member's adaptive/fine
+buffers. Intermediate arrival integrates the previous velocity, publishes
+zero, advances the group destination after the commit, and refills the member
+route on its next owner update. The issued final goal and user order remain
+active. Both intermediate stops require this actual handoff; continuously
+consuming the member's coarse points does not reproduce it. The three public
+journeys initially exposed1533 word/count failures. The resulting engine
+regression matches every original commit and repeats260 further original
+commits after saves during the large-coordinate first leg and immediately
+after its intermediate stop.
+
+Geometry is explicit. The first diagnostic near-zero source was isolated in a
+21-cell class1 terrain component, so its eight stationary commits and forced
+arrival do not certify a natural long trajectory. Scene45 opens a24×36-cell
+terrain corridor before starting the timer. Read-only1489a0 eligibility decoding
+shows32 scenery-blocked cells remain inside it; terrain edits cannot remove
+those object records. The regression supplies the observed terrain-plus-static
+walkability bitmap. Omitting that scenery changed the first heading and created
+a212-commit route in place of233. This proves the numerical/routing composition
+under supplied scene geometry; it does not close the original scene-loading,
+cell-link chronology or stale-hierarchy invalidation producers.
+
+Replacement orders clear the retained group plan. The existing item-approach
+regression caught an internal approach inheriting an older point destination;
+cleanup belongs to Move's normal progress reset. Save73 serializes group
+points/count/index/final native goal/radius, rebinds the rebuilt world epoch,
+rejects72 and older formats, and rejects malformed/truncated group tails.
+[The engine regression](../../../games/warcraft-3/game/tests/t_movement.c) and
+[observed words/geometry](../../../tools/ghidra/fixtures/retail-public-oblique-1.27.json)
+remain paired with the strict fresh corpus entry.
+
+This is ordinary singleton point movement. Shared multi-member group ownership,
+formation admission, all-member decision/commit phases, moving targets, general
+timer deadlines, other profiles and arbitrary map/scenery producers remain
+open. Ghidra persists478 roles and202 explicit prototypes, including the
+instruction-checked165e30 selector wrapper and live group/member destination
+annotations;31 layouts/178 fields and45 globals remain unchanged.
+
+Validation: optimized and forced debug RoC/TFT each pass104,227 assertions in
+2297 tests; forced release/debug production builds also pass. All162
+pathfinding Python checks and the253-entry/94-fixture inventory pass. Fresh
+`public-oblique-corpus-final-261001` passes all four requested entries,
+including the third geometry observer. Persistent Ghidra names/prototypes and
+saved program are read back in the paired runtime reports.

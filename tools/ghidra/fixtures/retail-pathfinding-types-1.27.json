@@ -4921,6 +4921,19 @@
           "storage": 12
         }
       ]
+    },
+    {
+      "address": "6f165e30",
+      "name": "Path_AdvanceAcceleratedDistance",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Instruction-checked165e30 ECX retained inESI; calls167ae0 and writes78; plainRET. Scene45 original group1697a0 plus member handoffs."
     }
   ],
   "globals": [

@@ -1380,6 +1380,50 @@ function install(module) {
         onLeave(ret) {emit('gate-traversal', {result: ret.toInt32(), destination: this.destination,
             destinationSpace: 'fine-grid'});}
     });
+    // Read-only scene45 geometry control, after the old actor is removed and
+    // before the new public birth. Decode verified1489a0 static eligibility.
+    function snapshotObliqueGeometry() {
+        const owner = base.add(0xd53a48).readPointer();
+        const map = owner.add(0x238).readPointer();
+        const [width, height] = ints(map.add(0x3c), 2);
+        const cells = map.add(0x28).readPointer(), links = map.add(0x78).readPointer();
+        function runs(values) {
+            const out = [];
+            for (const value of values) {
+                if (out.length && out[out.length-1][1] === value) out[out.length-1][0]++;
+                else out.push([1,value]);
+            }
+            return out;
+        }
+        const terrain = [], objects = [];
+        for (let i=0; i<width*height; i++) {
+            const word = cells.add(i*4).readU32();
+            terrain.push((word >>> 24) & 2);
+            let at = word & 0xffffff, blocked = 0, visited = 0;
+            while (at !== 0xffffff) {
+                if (++visited > 10000) throw new Error('Oblique snapshot cyclic cell links');
+                const link = links.add(at*8), head = link.readU32();
+                const kind = head >>> 24;
+                if (kind === 1) {
+                    const object = link.add(4).readPointer();
+                    const category = object.add(0x34).readU32(), occupancy = object.add(0x40).readU32();
+                    if (object.add(0x38).readS32() !== -1 && (category & 0x01000000) &&
+                        !(occupancy & 0xefffffff) && (category & 2)) blocked = 2;
+                }
+                at = head & 0xffffff;
+            }
+            objects.push(blocked);
+        }
+        const hierarchy = [];
+        for (let level=0;level<4;level++) {
+            const coarse = owner.add(0x23c+level*4).readPointer();
+            const [w,h] = ints(coarse.add(0x3c),2), data = coarse.add(0x28).readPointer();
+            const values = [];
+            for (let i=0;i<w*h;i++) values.push(data.add(i*8+4).readU32() >>> 30);
+            hierarchy.push({width:w,height:h,runs:runs(values)});
+        }
+        emit('oblique-geometry', {width,height,terrainRuns:runs(terrain),objectRuns:runs(objects),hierarchy});
+    }
     function snapshotCells(marker) {
         if (!config.watchCell) return;
         const owner = base.add(0xd53a48).readPointer(), cells = [];
@@ -1424,6 +1468,7 @@ function install(module) {
             else if (/^PATHPOSE done=/.test(value)) positionCase = null;
             else throw new Error('Malformed position marker: ' + value);
             emit('position-marker', {value});
+            if (positionCase === 'oblique_small') snapshotObliqueGeometry();
         }
         if (config.motionEvents && value.startsWith('PATHSPEED ')) {
             const match = /^PATHSPEED case=([a-z0-9_]+)$/.exec(value);
