@@ -91,10 +91,12 @@ void CON_printf(cstring_t fmt, ...) {
 
 static void CON_DrawFull(void) {
     size2_t window = re.GetWindowSize();
+    rect_t scene = re.GetUISceneRect();
     float scale = CON_ScaleForWindow(window);
     float line_height = CON_LINE_HEIGHT * scale;
     float margin = CON_MARGIN * scale;
     float height = MAX(window.height / 2.0f, 120.0f * scale);
+    float scene_height, scene_line;
     uint32_t rows = (uint32_t)(height / line_height);
     uint32_t max_lines = rows > 4 ? rows - 4 : 1;
     uint32_t count = MIN(current_message, MAX_CONSOLE_MESSAGES);
@@ -102,8 +104,16 @@ static void CON_DrawFull(void) {
     float y = margin + line_height;
     char prompt[CON_INPUT_LEN + 8];
 
-    re.DrawFill(&(rect_t){ 0, 0, window.width, height }, (color32_t){ 0, 0, 0, 220 });
-    re.DrawFill(&(rect_t){ 0, height - 2.0f * scale, window.width, 2.0f * scale }, (color32_t){ 180, 160, 80, 220 });
+    if (window.height <= 0.0f || scene.w <= 0.0f || scene.h <= 0.0f) return;
+    scene_height = scene.h * (height / window.height);
+    scene_line = scene.h * (2.0f * scale / window.height);
+
+    /* DrawCharScaled uses window pixels; DrawFill uses authored UI-scene
+     * coordinates. Convert the panel dimensions so tall windows do not pass
+     * pixel heights larger than the scene and cover the whole screen. */
+    re.DrawFill(&(rect_t){ scene.x, scene.y, scene.w, scene_height }, (color32_t){ 0, 0, 0, 220 });
+    re.DrawFill(&(rect_t){ scene.x, scene.y + scene_height - scene_line, scene.w, scene_line },
+                (color32_t){ 180, 160, 80, 220 });
 
     CON_DrawAltString(margin, margin, "OpenWarcraft3 Console", scale);
 
