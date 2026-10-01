@@ -240,6 +240,10 @@ BZ_ABILITY_PROC(CAbilityWarp) {
         case A_ORDER_ACCEPTED: {
             bool const owns_move = ent && ent->currentmove && ent->currentmove->proc == CAbilityWarp;
             if (!waygate_behavior_active(ent)) return false;
+            /* A Smart order can itself start this approach. Its post-accept
+             * notification must not retire the behavior that just accepted it. */
+            if (owns_move && call && call->order && !strcmp(call->order, "smart"))
+                return true;
             waygate_clear_order(ent);
             /* The accepted order may already have installed its own cast/move.
              * Only replace the old Way Gate walk when it is still current. */

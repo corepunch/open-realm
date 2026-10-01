@@ -13,6 +13,26 @@ void ai_train_build(edict_t *self);
 static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out);
 static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows);
 
+static bool lifecycle_stop_frame_seen, lifecycle_hold_frame_seen;
+static uint32_t lifecycle_stop_frame_flags, lifecycle_hold_frame_flags;
+static uint32_t lifecycle_stop_frame_texture, lifecycle_hold_frame_texture;
+
+static void lifecycle_capture_command_frame(pfWriteType_t type, void const *value) {
+    uiFrame_t const *frame;
+    if (type != PF_UIFRAME || !value) return;
+    frame = value;
+    if (frame->flags.type != FT_COMMANDBUTTON) return;
+    if (frame->onclick && !strcmp(frame->onclick, "button CmdStop")) {
+        lifecycle_stop_frame_seen = true;
+        lifecycle_stop_frame_flags = frame->flagsvalue;
+        lifecycle_stop_frame_texture = frame->tex.index;
+    } else if (frame->onclick && !strcmp(frame->onclick, "button CmdHoldPos")) {
+        lifecycle_hold_frame_seen = true;
+        lifecycle_hold_frame_flags = frame->flagsvalue;
+        lifecycle_hold_frame_texture = frame->tex.index;
+    }
+}
+
 /* Keep production order, acquisition, and death entry points active in this review fixture. */
 static edict_t *review_order_unit(float x, uint32_t owner) {
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, 0);
@@ -286,6 +306,38 @@ TEST(wc3_order_lifecycle, stop_and_hold_buttons_expose_engaged_state) {
     T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
     T_EQ(stop.engaged, 1);
     T_EQ(hold.engaged, 0);
+}
+
+TEST(wc3_order_lifecycle, hold_button_command_refresh_publishes_new_engaged_state) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    edict_t *clent, *unit;
+    gameCommandButton_t hold;
+    cstring_t command[] = { "button", "CmdHoldPos" };
+
+    setup_test_world();
+    clent = &g_edicts[0];
+    clent->inuse = true;
+    clent->client->connected = true;
+    clent->client->ps.number = 0;
+    unit = review_order_unit(0, 0);
+    G_SelectEntity(clent->client, unit);
+
+    lifecycle_stop_frame_seen = lifecycle_hold_frame_seen = false;
+    lifecycle_stop_frame_flags = lifecycle_hold_frame_flags = 0;
+    lifecycle_stop_frame_texture = lifecycle_hold_frame_texture = 0;
+    gi.Write = lifecycle_capture_command_frame;
+    G_ClientCommand(clent, 2, command);
+    gi.Write = old_write;
+
+    T_ASSERT(unit->movement.holding_position);
+    T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
+    T_EQ(hold.engaged, 1);
+    T_ASSERT(lifecycle_stop_frame_seen);
+    T_ASSERT(lifecycle_hold_frame_seen);
+    T_ASSERT(lifecycle_stop_frame_texture != 0);
+    T_ASSERT(lifecycle_hold_frame_texture != 0);
+    T_ASSERT(!(lifecycle_stop_frame_flags & UIFLAG_ABILITY_ENGAGED));
+    T_ASSERT(lifecycle_hold_frame_flags & UIFLAG_ABILITY_ENGAGED);
 }
 TEST(wc3_order_lifecycle, stop_records_guard_position_and_returns_after_auto_combat) {
     setup_test_world();

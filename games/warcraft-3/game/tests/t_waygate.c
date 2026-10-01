@@ -136,6 +136,24 @@ TEST(wc3_waygate, approach_revalidates_gate_generation_before_teleport) {
     waygate_done(fix);
 }
 
+TEST(wc3_waygate, accepted_smart_order_preserves_its_new_approach) {
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
+
+    T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
+    T_ASSERT(fix.unit->currentmove && fix.unit->currentmove->proc == CAbilityWarp);
+    T_ASSERT(fix.unit->movement.waygate_target == fix.gate);
+    T_NOT_NULL(fix.unit->movement.waygate_goal);
+    T_ASSERT(S_UnitAbilityOrderAccepted(fix.unit, "smart"));
+    T_ASSERT(fix.unit->currentmove && fix.unit->currentmove->proc == CAbilityWarp);
+    T_ASSERT(fix.unit->movement.waygate_target == fix.gate);
+    T_NOT_NULL(fix.unit->movement.waygate_goal);
+
+    T_ASSERT(S_UnitAbilityOrderAccepted(fix.unit, "move"));
+    assert_no_waygate_order(fix.unit);
+    T_ASSERT(fix.unit->currentmove->think == ai_stand);
+    waygate_done(fix);
+}
+
 TEST(wc3_waygate, approach_rechecks_activation_before_traversal) {
     wayFix_t fix = waygate_setup(300.0f, 0.0f);
 
