@@ -2,7 +2,7 @@
 
 ## Contract
 
-Player-issued movement/combat orders use a per-unit pending FIFO that is separate from the current behavior and from a producer's training/research queue. The client captures either Shift key when the click is submitted and appends the literal `queue` modifier to the existing text command (`smart`, `smartpoint`, `select`, or `point`). The game module remains authoritative: it decides whether that modifier is meaningful for the active command, owns the queue, resolves targets, and starts the next order when the current behavior completes.
+Player-issued movement/combat orders use a per-unit pending FIFO that is separate from the current behavior and from a producer's training/research queue. The client captures either Shift key when the order is submitted and appends the literal `queue` modifier to the existing text command (`smart`, `smartpoint`, `select`, `point`, or the immediate Stop/Hold `button` command). The game module remains authoritative: it decides whether that modifier is meaningful for the active command, owns the queue, resolves targets, and starts the next order when the current behavior completes.
 
 The current implementation deliberately covers the high-confidence Warsmash-compatible core:
 
@@ -15,7 +15,7 @@ The current implementation deliberately covers the high-confidence Warsmash-comp
 - an idle/Stop/Hold unit starts the first Shift order immediately instead of leaving it pending;
 - a busy unit appends Shift orders in FIFO order;
 - a normal Move/Attack/Smart replacement clears pending Shift orders;
-- Stop and Hold Position clear pending Shift orders;
+- Shift + Stop and Shift + Hold Position append no-target FIFO entries while a unit is busy; unmodified Stop/Hold still replace the current order and clear pending work;
 - death clears pending Shift orders;
 - stale/recycled entity targets are skipped when their queued turn arrives;
 - invalid queued work is skipped and polling continues to the next pending order.
@@ -32,6 +32,8 @@ smart 57 1024 768 queue
 smartpoint 1024 768 queue
 select 57 queue
 point 1024 768 queue
+button CmdStop queue
+button CmdHoldPos queue
 ```
 
 Entity Smart clicks may also carry the traced world point as `smart <entity> <x> <y>`. The game normally resolves the entity target exactly as before; the point is only a fallback for an alive walkable destructable whose entity Smart action is rejected. This lets a bridge remain non-attackable by right-click while the same click still becomes formation-aware ground movement to the clicked deck position. Without Shift the corresponding form is `smart 57 1024 768`.
@@ -59,7 +61,7 @@ A small world click now sends either the entity target or the terrain point, not
 
 Each pending entry stores:
 
-- the normalized order name (`smart`, `move`, `attack`, `repair`, or `build` in the currently supported path);
+- the normalized order name (`smart`, `move`, `attack`, `repair`, `build`, `stop`, or `holdposition` in the currently supported path);
 - point, entity, or construction target kind;
 - the resolved point for a point order;
 - entity number plus `spawn_time` for an entity order; queued Build entries reuse this otherwise-unused stable pair to identify their owner-only Construction Site Indicator for teardown;
@@ -73,7 +75,7 @@ The FIFO is currently a bounded inline ring (`MAX_UNIT_ORDER_QUEUE`, 16 pending 
 
 ## Submission rules
 
-`G_IssueUnitPointOrder()`, `G_IssueUnitTargetOrder()`, and `G_IssueUnitBuildOrder()` are the queue-aware entry points. Existing `unit_issueorder()` and `unit_issuetargetorder()` remain compatibility wrappers that submit `queue=false`. `G_IssueBuildOrder()` remains the immediate shared construction API used by AI/JASS-facing callers.
+`G_IssueUnitPointOrder()`, `G_IssueUnitTargetOrder()`, and `G_IssueUnitBuildOrder()` are the target-bearing queue-aware entry points. Stop/Hold command procedures append `UNIT_ORDER_TARGET_NONE` entries when Shift is held and the unit already has active order work. Existing `unit_issueorder()` and `unit_issuetargetorder()` remain compatibility wrappers that submit `queue=false`. `G_IssueBuildOrder()` remains the immediate shared construction API used by AI/JASS-facing callers.
 
 For a supported order:
 
@@ -91,7 +93,7 @@ queue=true + no active behavior
     -> leave pending FIFO unchanged
 ```
 
-The implementation treats a `umove_t` whose `ability` pointer is non-null as active player-order work. Normal stand/hold states have no ability and therefore accept a first Shift command immediately. The terminal blocked-Move hold pose is explicitly recognized as completed order work; a later Shift command can start from that state instead of becoming stranded behind it.
+The implementation treats a `umove_t` whose `ability` pointer is non-null as active player-order work. Normal stand/hold states have no ability and therefore accept a first Shift command immediately. The terminal blocked-Move hold pose is explicitly recognized as completed order work; a later Shift command can start from that state instead of becoming stranded behind it. Queued Stop/Hold entries install their idle policy without clearing later FIFO entries; the Stop/Hold idle update then advances that later work, matching their use as ordinary queued no-target commands.
 
 Rally changes remain producer metadata, not unit behavior. Smart/set-rally changes are therefore applied immediately; they are not inserted into the movement/combat FIFO.
 
@@ -155,7 +157,7 @@ normal X
 => X becomes current; B and C are discarded
 ```
 
-`order_stop()` clears the FIFO before standing, so all Stop callers get the same cancellation policy. Hold Position explicitly clears the FIFO, then installs the existing holding-position state. `unit_die()` clears the FIFO before entering the death lifecycle.
+Unmodified Stop still clears the FIFO before standing, and unmodified Hold Position clears the FIFO before installing the existing holding-position state. Their queued forms use the same state transitions without clearing later entries. `UNIT_ORDER_TARGET_NONE` replay handles those delayed Stop/Hold commands, and ordinary Stop/Hold idle updates can advance any command intentionally queued after them. `unit_die()` clears the FIFO before entering the death lifecycle.
 
 OpenRealm does not yet have Warsmash's per-ability `onCancelFromQueue()` reservation callback. Queued construction does not reserve gold/lumber at insertion time: the placement is validated when clicked, and `G_ExecuteBuildOrder()` revalidates command state and placement when that queued build actually begins. Spell queueing remains disabled because mana/cooldown/cast reservations need an explicit policy first.
 
@@ -189,7 +191,7 @@ The unit suite contains coverage for:
 - FIFO progression across later Shift Move legs;
 - a non-Shift replacement clearing pending work;
 - stale entity-target rejection followed by the next valid order;
-- Stop clearing the pending queue;
+- queued Stop/Hold no-target replay, later FIFO preservation, and unmodified Stop/Hold replacement semantics;
 - point `attack` selecting attack-move rather than ordinary Move;
 - construction placement staying armed across successful Shift clicks;
 - construction queue entries retaining the building rawcode and point;
@@ -217,7 +219,7 @@ Runtime checks should additionally cover:
 4. queue an enemy that dies before its turn, followed by another Move, and confirm the unit continues to the Move;
 5. select several units and confirm each advances independently through the same issued chain;
 6. click Move or Attack once, hold Shift, and click several valid targets/points without reopening the command button;
-7. press Stop or Hold Position with queued work and confirm no old queued command resumes afterward;
+7. with queued work present, press unmodified Stop or Hold Position and confirm the old queue is discarded; separately Shift-queue Stop/Hold behind a Move and confirm each begins only after the preceding order;
 8. hold Shift while placing several buildings, confirm the same movable ghost remains active and every accepted queued site receives a translucent placeholder, then release the final Shift key and confirm only the movable ghost is removed while accepted-site placeholders and construction orders remain queued;
 9. replace or clear the worker queue and confirm all delayed construction placeholders disappear; let a queued Build begin normally and confirm its delayed placeholder is replaced by the ordinary active-build indicator rather than duplicated.
 

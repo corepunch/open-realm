@@ -188,4 +188,97 @@ TEST(wc3_order_lifecycle, finishing_repair_preserves_production_queue) {
     ai_train_build(building);
     T_ASSERT(queued->health.value > progress);
 }
+
+TEST(wc3_order_lifecycle, stop_auto_acquires_and_chases_after_returning_to_idle) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
+    order_stop(unit);
+    level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->goalentity == enemy);
+    T_ASSERT(!unit->movement.holding_position);
+    T_ASSERT(unit->currentmove->proc == CAbilityAttack);
+}
+
+TEST(wc3_order_lifecycle, queued_stop_preserves_later_fifo_work) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    vec2_t first = {300, 0}, second = {600, 0};
+
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &first, false, 0, 0.0f));
+    T_ASSERT(G_QueueUnitOrder(unit, "stop", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0.0f, 0));
+    T_ASSERT(G_QueueUnitOrder(unit, "move", UNIT_ORDER_TARGET_POINT, &second, NULL, 0, 0.0f, 0));
+    T_EQ(G_UnitQueuedOrderCount(unit), 2);
+
+    unit_stand(unit);
+    T_EQ(G_UnitQueuedOrderCount(unit), 1);
+    T_ASSERT(!unit->movement.holding_position);
+    T_ASSERT(unit->currentmove->think == ai_stand);
+
+    unit->currentmove->think(unit);
+    T_EQ(G_UnitQueuedOrderCount(unit), 0);
+    T_ASSERT(unit->currentmove->proc == CAbilityMove);
+}
+
+TEST(wc3_order_lifecycle, queued_hold_preserves_later_fifo_work) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    vec2_t first = {300, 0}, second = {600, 0};
+
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &first, false, 0, 0.0f));
+    T_ASSERT(G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0.0f, 0));
+    T_ASSERT(G_QueueUnitOrder(unit, "move", UNIT_ORDER_TARGET_POINT, &second, NULL, 0, 0.0f, 0));
+    T_EQ(G_UnitQueuedOrderCount(unit), 2);
+
+    unit_stand(unit);
+    T_EQ(G_UnitQueuedOrderCount(unit), 1);
+    T_ASSERT(unit->movement.holding_position);
+
+    unit->currentmove->think(unit);
+    T_EQ(G_UnitQueuedOrderCount(unit), 0);
+    T_ASSERT(!unit->movement.holding_position);
+    T_ASSERT(unit->currentmove->proc == CAbilityMove);
+}
+
+TEST(wc3_order_lifecycle, hold_position_interrupts_active_channel) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    unit->channel.code = MAKEFOURCC('A','x','x','x');
+
+    T_ASSERT(S_HoldPosition(unit));
+    T_EQ(unit->channel.code, 0);
+    T_ASSERT(unit->movement.holding_position);
+}
+
+TEST(wc3_order_lifecycle, stop_and_hold_buttons_expose_engaged_state) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    gameCommandButton_t stop, hold;
+
+    T_ASSERT(G_BuildCommandButton(unit, STR_CmdStop, false, 0, &stop));
+    T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
+    T_EQ(stop.engaged, 1);
+    T_EQ(hold.engaged, 0);
+
+    T_ASSERT(S_HoldPosition(unit));
+    T_ASSERT(G_BuildCommandButton(unit, STR_CmdStop, false, 0, &stop));
+    T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
+    T_EQ(stop.engaged, 0);
+    T_EQ(hold.engaged, 1);
+
+    {
+        edict_t *enemy = review_order_unit(20, 1);
+        level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
+        unit->currentmove->think(unit);
+        T_ASSERT(unit->goalentity == enemy);
+        T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
+        T_EQ(hold.engaged, 1);
+    }
+
+    order_stop(unit);
+    T_ASSERT(G_BuildCommandButton(unit, STR_CmdStop, false, 0, &stop));
+    T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
+    T_EQ(stop.engaged, 1);
+    T_EQ(hold.engaged, 0);
+}
 #endif

@@ -378,6 +378,7 @@ void S_PermanentInvisibilityInitialize(edict_t *unit);
 void S_PermanentInvisibilityReveal(edict_t *unit);
 void S_InfernoLand(edict_t *caster, uint32_t code, uint32_t level, vec2_t const *point);
 bool S_HoldPosition(edict_t *unit);
+bool S_HoldPositionQueued(edict_t *unit);
 bool S_MilitiaEnsureHallAbility(edict_t *hall);
 float S_MilitiaPairSearchRadius(uint32_t ability);
 float S_RegenerationHealthAura(edict_t *unit);

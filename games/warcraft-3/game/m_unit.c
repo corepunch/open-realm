@@ -175,19 +175,15 @@ bool unit_affectingcombat(edict_t *self) {
     return true;
 }
 
-void unit_stand(edict_t *self) {
-    /* Reaching stand is the common completion edge for Move, direct Attack,
-     * Repair, Harvest, and several cast behaviors. Retire transient state first,
-     * then let a pending Shift order become authoritative before installing the
-     * idle/default stand behavior. */
+static void unit_prepare_stand(edict_t *self) {
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
     self->s.ability = 255;
     self->movement.last_distance = 0;
     self->movement.blocked_frames = 0;
-    if (G_UnitStartNextQueuedOrder(self)) {
-        return;
-    }
+}
+
+static void unit_install_stand_move(edict_t *self) {
     if (self->movement.holding_position) {
         unit_setmove(self, unit_affectingcombat(self)
             ? &holdpos_move_stand_ready
@@ -197,6 +193,24 @@ void unit_stand(edict_t *self) {
             ? &unit_move_stand_ready
             : &unit_move_stand);
     }
+}
+
+void unit_stand_no_queue(edict_t *self) {
+    if (!self) return;
+    unit_prepare_stand(self);
+    unit_install_stand_move(self);
+}
+
+void unit_stand(edict_t *self) {
+    /* Reaching stand is the common completion edge for Move, direct Attack,
+     * Repair, Harvest, and several cast behaviors. Retire transient state first,
+     * then let a pending Shift order become authoritative before installing the
+     * idle/default stand behavior. */
+    unit_prepare_stand(self);
+    if (G_UnitStartNextQueuedOrder(self)) {
+        return;
+    }
+    unit_install_stand_move(self);
 }
 
 /* All runtime unit-health changes pass here so intrinsic ability levels transition exactly once. */
@@ -967,6 +981,15 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
             target = globals.edicts + queued.target_number;
             if (!target->inuse || target->spawn_time != queued.target_spawn_time) continue;
             if (unit_issuetargetorder_now(self, queued.order, target)) return true;
+        } else if (queued.target_type == UNIT_ORDER_TARGET_NONE) {
+            if (!strcmp(queued.order, "stop")) {
+                order_stop_queued(self);
+                return true;
+            }
+            if (!strcmp(queued.order, "holdposition")) {
+                return S_HoldPositionQueued(self);
+            }
+            if (S_UnitQueuedOrderEvent(self, &queued, A_QUEUE_ORDER_START)) return true;
         } else if (S_UnitQueuedOrderEvent(self, &queued, A_QUEUE_ORDER_START)) return true;
     }
     return false;

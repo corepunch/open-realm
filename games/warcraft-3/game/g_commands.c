@@ -1093,8 +1093,10 @@ CLIENTCOMMAND(Button) {
     ability_t const *ability;
     edict_t *producer;
     bool ability_off = false;
+    bool queued;
 
     if (argc < 2) return;
+    queued = G_CommandQueueRequested(argc, argv, 2);
     producer = G_GetMainSelectedUnit(client);
     classname = argv[1];
     /* A neutral shop remains neutral selection state; buying from it must not
@@ -1130,9 +1132,12 @@ CLIENTCOMMAND(Button) {
     if (S_AbilityHasCommand(ability)) {
         client->menu.ability_item = NULL;
         client->menu.ability_item_spawn_time = 0;
+        bool const old_queued = client->menu.order_queued;
         client->menu.ability_code = *((uint32_t const *)classname);
         client->menu.ability_off = ability_off;
+        client->menu.order_queued = queued;
         S_AbilityCommand(clent, ability);
+        client->menu.order_queued = old_queued;
         client->menu.ability_off = false;
     } else if (client->menu.cmdbutton) {
         client->menu.cmdbutton(clent, *((uint32_t *)classname));

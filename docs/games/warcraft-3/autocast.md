@@ -59,7 +59,7 @@ try normal automatic attack acquisition
 
 This lets a worker with an attack prefer a valid Auto Repair target over an enemy when both are available. Units with no attack can still autocast because the autocast pass occurs before the attack-capability early return.
 
-The current implementation only integrates this with ordinary idle/default stand. Hold Position, Attack-Move, Patrol, Follow, and other behaviors need explicit resume/movement semantics before they should call generic autocast.
+The current implementation only integrates generic autocast with ordinary idle/default stand. Hold Position now has stable persistent no-chase state, channel interruption, queue replay, and command-card engagement, but it still does **not** call generic autocast: the current `A_AUTOCAST_ACQUIRE` contract has no movement-policy input and several ability implementations own their own approach/order behavior. Hold-safe autocast therefore remains deliberate follow-up work; it must permit casts that can start from the held location without allowing automatic approach movement. Attack-Move, Patrol, Follow, and other behaviors likewise need explicit resume/movement semantics before they should call generic autocast.
 
 ## Auto Repair target policy
 
