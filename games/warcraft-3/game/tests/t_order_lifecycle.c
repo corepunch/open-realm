@@ -14,7 +14,8 @@ static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out);
 static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows);
 
 static bool lifecycle_stop_frame_seen, lifecycle_hold_frame_seen;
-static uint32_t lifecycle_stop_frame_flags, lifecycle_hold_frame_flags;
+static bool lifecycle_move_frame_seen;
+static uint32_t lifecycle_stop_frame_flags, lifecycle_hold_frame_flags, lifecycle_move_frame_flags;
 static uint32_t lifecycle_stop_frame_texture, lifecycle_hold_frame_texture;
 
 static void lifecycle_capture_command_frame(pfWriteType_t type, void const *value) {
@@ -30,6 +31,9 @@ static void lifecycle_capture_command_frame(pfWriteType_t type, void const *valu
         lifecycle_hold_frame_seen = true;
         lifecycle_hold_frame_flags = frame->flagsvalue;
         lifecycle_hold_frame_texture = frame->tex.index;
+    } else if (frame->onclick && !strcmp(frame->onclick, "button CmdMove")) {
+        lifecycle_move_frame_seen = true;
+        lifecycle_move_frame_flags = frame->flagsvalue;
     }
 }
 
@@ -324,8 +328,9 @@ TEST(wc3_order_lifecycle, hold_button_command_refresh_publishes_new_engaged_stat
     unit = review_order_unit(0, 0);
     G_SelectEntity(clent->client, unit);
 
-    lifecycle_stop_frame_seen = lifecycle_hold_frame_seen = false;
+    lifecycle_stop_frame_seen = lifecycle_hold_frame_seen = lifecycle_move_frame_seen = false;
     lifecycle_stop_frame_flags = lifecycle_hold_frame_flags = 0;
+    lifecycle_move_frame_flags = 0;
     lifecycle_stop_frame_texture = lifecycle_hold_frame_texture = 0;
     gi.Write = lifecycle_capture_command_frame;
     G_ClientCommand(clent, 2, command);
@@ -336,10 +341,14 @@ TEST(wc3_order_lifecycle, hold_button_command_refresh_publishes_new_engaged_stat
     T_EQ(hold.engaged, 1);
     T_ASSERT(lifecycle_stop_frame_seen);
     T_ASSERT(lifecycle_hold_frame_seen);
+    T_ASSERT(lifecycle_move_frame_seen);
     T_ASSERT(lifecycle_stop_frame_texture != 0);
     T_ASSERT(lifecycle_hold_frame_texture != 0);
     T_ASSERT(!(lifecycle_stop_frame_flags & UIFLAG_ABILITY_ENGAGED));
     T_ASSERT(lifecycle_hold_frame_flags & UIFLAG_ABILITY_ENGAGED);
+    T_ASSERT(lifecycle_stop_frame_flags & UIFLAG_ORDER_QUEUEABLE);
+    T_ASSERT(lifecycle_hold_frame_flags & UIFLAG_ORDER_QUEUEABLE);
+    T_ASSERT(!(lifecycle_move_frame_flags & UIFLAG_ORDER_QUEUEABLE));
 }
 TEST(wc3_order_lifecycle, stop_records_guard_position_and_returns_after_auto_combat) {
     setup_test_world();

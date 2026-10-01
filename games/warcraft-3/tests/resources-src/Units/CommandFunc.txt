@@ -1,3 +1,6 @@
+[CmdMove]
+Art=TestUI\Textures\solid_white.blp
+
 [CmdAttack]
 Art=TestUI\Textures\solid_white.blp
 
