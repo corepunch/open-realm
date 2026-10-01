@@ -243,6 +243,15 @@ static bool G_ResearchCommentsMatch(cstring_t ability_comments, cstring_t upgrad
 static bool G_UpgradeResearchesAbility(UpgradeData_t const *upgrade, uint32_t ability_id) {
     AbilityData_t const *ability = G_AbilityData(ability_id);
 
+    /* Retail's Sorceress training row has stat effects and does not identify
+     * its unlocked spells in UpgradeData. AbilityData marks the two advanced
+     * Sorceress spells as dependency checked, and hsor lists Rhst in its
+     * Upgrades Used field. Preserve that stock relation where the source
+     * tables omit an explicit effect-code link. */
+    if (upgrade && upgrade->id == MAKEFOURCC('R', 'h', 's', 't') &&
+        (ability_id == MAKEFOURCC('A', 'i', 'v', 's') ||
+         ability_id == MAKEFOURCC('A', 'p', 'l', 'y'))) return true;
+
     return upgrade && ability && ability->id == ability_id && ability->checkDep &&
            G_UpgradeHasNoEffect(upgrade) &&
            G_ResearchCommentsMatch(ability->comments, upgrade->comments);

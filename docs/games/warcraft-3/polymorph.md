@@ -25,9 +25,11 @@ Movement-class selection uses `UnitData.moveTypeName`: `fly` selects `Ply3`, `am
 
 ## Campaign availability
 
-Campaign maps may keep `Aply` on the Sorceress unit type while suppressing the command for a player with `SetPlayerAbilityAvailable(player, 'Aply', false)`. Human05 relies on this player-wide availability state rather than removing Polymorph from the Sorceress object data. OpenRealm therefore hides an unavailable authored `Aply` command and rejects direct command/order/validation/execute/autocast activation until the map enables the rawcode again.
+Campaign maps can suppress `Aply` for a player with `SetPlayerAbilityAvailable(player, 'Aply', false)`. Human05 does not do this: its Sorceress retains `Aply` in `UnitAbilities`, while `InitUpgrades_Player1` sets `Rhst` (Sorceress training) maximum allowed to 1. Retail AbilityData marks `Aply` and `Aivs` as dependency checked, but `UpgradeData.slk` gives `Rhst` stat effects without naming those unlocked abilities. OpenRealm connects these two stock Sorceress spells to `Rhst`; their command buttons remain visible but disabled until the owner researches it, and direct spell activation uses the same gate.
 
 This player-level gate only applies when the unit owner resolves to the same real player client. Neutral or otherwise unmapped owners must not inherit the fallback client returned by `G_GetPlayerClientByNumber()`.
+
+The command path rejects an unavailable spell before opening a target cursor and displays “Requires training.”
 
 ## Runtime behavior
 

@@ -1104,6 +1104,11 @@ void spell_cmd(edict_t *clent) {
     }
     if (!caster) return;
 
+    if (!G_UnitAbilityResearchAvailable(caster, code)) {
+        G_ShowCommandErrorText(clent, "Requires training.");
+        return;
+    }
+
     /* Toggle abilities bypass the normal pipeline. */
     if (spell->flags & AB_TOGGLE) {
         spellTarget_t target = { .type = SPELL_TARGET_NONE };
