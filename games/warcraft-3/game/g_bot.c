@@ -458,6 +458,30 @@ bool G_BotCaptainInCombat(player_t *player, bool attack) {
     return false;
 }
 
+/* common.ai repeatedly calls AttackMoveKill while its selected target lives.
+ * Issue an attack-move for the current assault captain toward the target's
+ * current position; the script's three-second loop refreshes moving targets.
+ * This deliberately does not implement the lower-confidence retail minimap
+ * signal or post-kill return-home behavior. */
+void G_BotAttackMoveKill(player_t *player, edict_t *target) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    edict_t *waypoint;
+    bool any = false;
+
+    if (!bot || !G_BotUnitAlive(target)) return;
+    captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    FOR_EACH_ARRAY(edict_t *, member, captain->units)
+        if (G_BotUnitAlive(*member)) { any = true; break; }
+    if (!any) return;
+
+    captain->goal = target->s.origin2;
+    captain->state = BOT_CAPTAIN_ACTIVE;
+    waypoint = Waypoint_add(&captain->goal);
+    FOR_EACH_ARRAY(edict_t *, member, captain->units)
+        if (G_BotUnitAlive(*member)) order_attackmove(*member, waypoint);
+}
+
 static bool G_BotCaptainHasUnit(bot_t *bot, edict_t *unit) {
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) FOR_EACH_ARRAY(edict_t *, member, bot->captains[i].units)
         if (*member == unit) return true;
