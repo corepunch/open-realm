@@ -231,9 +231,10 @@ by this effect.
 Some Warcraft units author a research-granted command in their normal ability
 list before the research completes. For those units, OpenRealm correlates the
 unit's `Upgrades Used` list with any `rlev` effect targeting that command. The
-command remains visible but disabled on the command card, and direct execution
-is rejected until the owning player has researched the matching upgrade. Human
-Footman Defend
+command is hidden when its required upgrade level exceeds the player's maximum
+allowed level; if that level is allowed but unresearched, the command remains
+visible but disabled. Direct execution is rejected until the owning player has
+researched the matching upgrade. Human Footman Defend
 (`Rhde` targeting `Adef`) uses this path; custom unit/upgrade pairs using the
 same data contract inherit it without rawcode-specific code.
 
@@ -247,9 +248,13 @@ does not gain a level from the research.
 Retail Sorceress training (`Rhst`) is an explicit stock relation that the SLKs
 do not encode as an effect/code pair: `hsor` lists `Rhst` in `UnitBalance` and
 `Aivs` / `Aply` are marked `checkDep`, while the `Rhst` UpgradeData row only
-contains stat effects. OpenRealm gates those two commands on `Rhst` research.
-Keep this relation in the dependency gate because otherwise both spells appear
-ready on a newly created Sorceress despite the authored dependency flag.
+contains stat effects. Invisibility (`Aivs`) requires training level 1;
+Polymorph (`Aply`) requires level 2. OpenRealm applies those per-ability
+thresholds to command-card and direct activation gates. A command is hidden if
+its required level exceeds the player's maximum allowed level; otherwise it
+remains visible but disabled until researched. Keep this relation in the
+dependency gate because otherwise the spells appear ready before their authored
+training tier.
 
 ### `rmnx` / `rmnr` — mana capacity and regeneration
 

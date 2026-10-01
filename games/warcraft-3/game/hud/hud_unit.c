@@ -337,6 +337,7 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
     uint8_t idx;
     uint32_t rawcode;
     bool researched;
+    bool research_visible;
 
     if (!S_AbilityHasCommand(ability) || !G_AncientAbilityVisible(ent, ability) ||
         strlen(code) != 4 || *count >= max_buttons) return;
@@ -346,6 +347,8 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
      * mine exists. Keep the authored command unavailable for that overlay lifetime. */
     if (ability->proc == CAbilityEntangle && S_EntangleCommandHidden(ent, rawcode)) return;
     researched = G_UnitAbilityResearchAvailable(ent, rawcode);
+    research_visible = G_UnitAbilityResearchVisible(ent, rawcode);
+    if (!research_visible) return;
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
      * from Astd inherit the same visibility rule. */
@@ -526,10 +529,11 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities + i;
         if (ha->level > 0 && G_PlayerAbilityVisible(ent, ha->code) &&
-            G_UnitAbilityResearchAvailable(ent, ha->code)) {
+            G_UnitAbilityResearchVisible(ent, ha->code)) {
             uint8_t const idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
             if (count > idx) {
+                if (!G_UnitAbilityResearchAvailable(ent, ha->code)) buttons[idx].disabled = 1;
                 G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = ha->code, .level = ha->level, .button = &buttons[idx] });
             }
         }
