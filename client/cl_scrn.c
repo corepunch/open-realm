@@ -1527,7 +1527,12 @@ static void SCR_LayoutApplyOrderQueueModifier(uiFrame_t const *frame, char *comm
     strlcat(command, " queue", size);
 }
 
-bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param, bool shift_held) {
+bool SCR_LayoutMouseEvent(layoutMouseEvent_t const *mouse_event) {
+    menuMouseEvent_t const event = mouse_event->event;
+    int const x = mouse_event->x;
+    int const y = mouse_event->y;
+    int32_t const param = mouse_event->param;
+    bool const shift_held = mouse_event->shift_held;
     vec2_t const point = SCR_ScreenToUI(x, y);
     uiFrame_t const *hovered_frame = NULL;
     int const modal_layer = SCR_LayoutModalLayer();
