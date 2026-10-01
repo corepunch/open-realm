@@ -70,14 +70,15 @@ static void G_AttackAlertCommitCooldown(gameClient_t const *recipient) {
     wc3_attack_alert_until[recipient->ps.number] = G_Time() + millis;
 }
 
-/* Attack alerts use CommandStrings [AdvisorStrings], not the command-error [Errors]
- * table. Keep the stock text data-driven so archive localization and map overrides
- * remain authoritative. */
+/* Retail CommandStrings comments out its [AdvisorStrings] header, leaving the
+ * advisor keys under [Errors]. Prefer an explicit advisor section for overrides,
+ * then read the stock legacy placement from Errors. */
 static cstring_t G_AttackAlertAdvisorString(bool allied, bool town) {
     cstring_t key = allied
         ? (town ? "Allytownattack" : "Allyunderattack")
         : (town ? "Townattack" : "Unitattack");
     cstring_t value = FindConfigValue("AdvisorStrings", key);
+    if (!value || !value[0]) value = FindConfigValue("Errors", key);
     return value && value[0] ? G_LevelString(value) : NULL;
 }
 
