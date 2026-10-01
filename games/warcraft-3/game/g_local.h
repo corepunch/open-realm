@@ -2241,6 +2241,7 @@ void G_BotPause(uint32_t, bool);
 void G_BotRunFrame(void);
 bool G_BotUnitAlive(edict_t *);
 edict_t *G_BotTown(player_t *, int32_t);
+int32_t G_BotTownUnitCount(player_t *, uint32_t, int32_t, bool);
 edict_t *G_BotTownMine(player_t *, int32_t);
 int32_t G_BotTownWithMine(player_t *);
 uint32_t G_BotMinesOwned(player_t *);

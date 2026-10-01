@@ -9,6 +9,12 @@ function main takes nothing returns nothing
     if GetUnitCountDone('hfoo') != 1 then
         call MissingAIAction()
     endif
+    if GetTownUnitCount('hfoo', 0, false) != 3 or GetTownUnitCount('hfoo', 0, true) != 1 then
+        call MissingAIAction()
+    endif
+    if GetTownUnitCount('hfoo', 1, false) != 0 then
+        call MissingAIAction()
+    endif
     if GetPlayerUnitTypeCount(Player(2), 'hfoo') != 3 then
         call MissingAIAction()
     endif

@@ -84,6 +84,11 @@ uint32_t GetUnitCountDone(jass_t *j) {
     return jass_pushinteger(j, BotUnitCount(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), true));
 }
 
+uint32_t GetTownUnitCount(jass_t *j) {
+    return jass_pushinteger(j, G_BotTownUnitCount(jass_getcontext(j)->playerState,
+        jass_checkinteger(j, 1), jass_checkinteger(j, 2), jass_checkboolean(j, 3)));
+}
+
 uint32_t GetMinesOwned(jass_t *j) { return jass_pushinteger(j, G_BotMinesOwned(jass_getcontext(j)->playerState)); }
 uint32_t GetGoldOwned(jass_t *j) { return jass_pushinteger(j, G_BotGoldOwned(jass_getcontext(j)->playerState)); }
 uint32_t TownWithMine(jass_t *j) { return jass_pushinteger(j, G_BotTownWithMine(jass_getcontext(j)->playerState)); }

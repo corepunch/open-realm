@@ -32,6 +32,7 @@ jassModule_t jass_funcs[] = {
     { "GetUnitCount", GetUnitCount },
     { "GetPlayerUnitTypeCount", GetPlayerUnitTypeCount },
     { "GetUnitCountDone", GetUnitCountDone },
+    { "GetTownUnitCount", GetTownUnitCount },
     { "GetMinesOwned", GetMinesOwned },
     { "GetGoldOwned", GetGoldOwned },
     { "TownWithMine", TownWithMine },

@@ -848,7 +848,7 @@ TEST(wc3_game, attack_alert_is_remote_throttled_and_remembered) {
     edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 2000.0f, 0.0f);
     edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 2100.0f, 0.0f);
 
-    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeUser;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
     victim->s.player = 0; attacker->s.player = 1;
     game.clients[0].connected = true;
@@ -886,7 +886,7 @@ TEST(wc3_game, attack_alert_shows_advisor_text_without_message_log_entry) {
     gameClient_t *owner = &game.clients[0];
 
     InitUnitData();
-    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeUser;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
     victim->s.player = 0; attacker->s.player = 1;
     owner->connected = true;
@@ -918,9 +918,9 @@ TEST(wc3_game, allied_attack_alert_formats_attacked_player_name) {
     gameClient_t *ally = &game.clients[2];
 
     InitUnitData();
-    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeUser;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
-    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeUser;
+    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeHuman;
     victim->s.player = 0; attacker->s.player = 1;
     owner->connected = true; ally->connected = true;
     strlcpy(owner->jass.name, "Jaina", sizeof(owner->jass.name));
@@ -953,9 +953,9 @@ TEST(wc3_game, attack_alert_suppresses_near_camera_and_honors_help_request) {
     edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 100.0f);
     edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200.0f, 100.0f);
 
-    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeUser;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
-    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeUser;
+    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeHuman;
     victim->s.player = 0; attacker->s.player = 1;
     game.clients[0].connected = true; game.clients[2].connected = true;
     game.clients[0].camera.state.position = victim->s.origin2;
