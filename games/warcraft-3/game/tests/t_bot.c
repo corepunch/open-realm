@@ -1127,6 +1127,57 @@ TEST(wc3_bot, convert_units_native_is_registered_for_player_bound_ai) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
+TEST(wc3_bot, town_threatened_native_is_registered_for_player_bound_ai) {
+    bot_t *bot = level.bots + 2;
+
+    reset_entities();
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_town_threatened.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, town_threatened_tracks_active_hostile_attacks_on_any_owned_unit) {
+    player_t *player = &game.clients[2].ps;
+    edict_t *unit, *building, *enemy, *friendly;
+
+    reset_entities();
+    InitUnitData();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
+    friendly = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 192, 0);
+    unit->s.player = building->s.player = friendly->s.player = 2;
+    enemy->s.player = 1;
+
+    T_ASSERT(!G_BotTownThreatened(player));
+    order_attack(enemy, unit);
+    T_ASSERT(G_BotTownThreatened(player));
+    order_stop(enemy);
+    T_ASSERT(!G_BotTownThreatened(player));
+
+    order_attack(enemy, building);
+    T_ASSERT(G_BotTownThreatened(player));
+    order_stop(enemy);
+
+    /* Friendly force-fire may install attack behavior, but it is not a hostile threat. */
+    order_attack(friendly, unit);
+    T_ASSERT(!G_BotTownThreatened(player));
+}
+
+TEST(wc3_bot, town_threatened_ignores_owned_units_attacking_outward) {
+    player_t *player = &game.clients[2].ps;
+    edict_t *owned, *enemy;
+
+    reset_entities();
+    InitUnitData();
+    owned = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 96, 0);
+    owned->s.player = 2; enemy->s.player = 1;
+    order_attack(owned, enemy);
+    T_ASSERT(!G_BotTownThreatened(player));
+}
+
 TEST(wc3_bot, convert_units_uses_authored_morph_and_stops_at_desired_target_count) {
     static UnitAbilities_t const conversion_abilities = { .abilList = "Aave" };
     player_t *player = &game.clients[2].ps;

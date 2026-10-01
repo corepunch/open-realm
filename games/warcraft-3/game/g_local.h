@@ -2251,6 +2251,7 @@ void G_BotShutdown(void);
 void G_BotPause(uint32_t, bool);
 void G_BotRunFrame(void);
 bool G_BotUnitAlive(edict_t *);
+bool G_BotTownThreatened(player_t *);
 void G_BotSetAllianceTarget(player_t *, edict_t *);
 edict_t *G_BotGetAllianceTarget(player_t *);
 edict_t *G_BotTown(player_t *, int32_t);

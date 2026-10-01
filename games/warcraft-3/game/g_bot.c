@@ -27,6 +27,24 @@ bool G_BotUnitAlive(edict_t *unit) {
     return unit && unit->inuse && unit->health.value > 0 && !(unit->svflags & SVF_DEADMONSTER);
 }
 
+/* common.ai uses TownThreatened as a global "is anything I own under attack?" gate
+ * before launching or refreshing an offensive wave. Despite the native name, retail
+ * documentation says any owned unit or building qualifies. BZ_COMPAT_GUESS: retail
+ * does not expose the exact threatened-state latch lifetime, so use authoritative active
+ * attack behavior instead of inventing a town radius or recent-damage timeout: a hostile
+ * live attacker must currently be executing CAbilityAttack against a live owned unit. */
+bool G_BotTownThreatened(player_t *player) {
+    uint32_t owner;
+    if (!player || (owner = PLAYER_NUM(player)) >= MAX_PLAYERS) return false;
+    FILTER_EDICTS(attacker, G_BotUnitAlive(attacker) && attacker->currentmove &&
+        attacker->currentmove->proc == CAbilityAttack && G_BotUnitAlive(attacker->goalentity) &&
+        ((attacker->goalentity->svflags & SVF_MONSTER) || G_UnitIsStructure(attacker->goalentity)) &&
+        attacker->goalentity->s.player == owner &&
+        S_SpellIsEnemy(attacker, attacker->goalentity))
+        return true;
+    return false;
+}
+
 /* common.ai uses this as a shared assault rendezvous, not as an order primitive.
  * Publish the same target into each mutually-passive ally's bot slot so a later
  * GetAllianceTarget observes the common value. Publishing NULL clears that shared

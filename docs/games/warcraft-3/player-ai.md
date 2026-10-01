@@ -363,8 +363,8 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Sixty-two of those names are registered in OpenRealm's JASS
-module; the following 10 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+functions, but their reachable native surface is the same. Sixty-three of those names are registered in OpenRealm's JASS
+module; the following 9 are still unresolved and will cause a native lookup/runtime failure when their call paths are
 reached:
 
 | Unregistered native | Reachable role in `common.ai` |
@@ -373,7 +373,7 @@ reached:
 | `GetCreepCamp` | Find a creep camp within a level range |
 | `GetEnemyBase`, `GetEnemyExpansion` | Locate enemy bases and expansion targets |
 | `GetMegaTarget` | Retrieve a high priority target |
-| `IsTowered`, `TownThreatened` | Assess tower pressure and town danger |
+| `IsTowered` | Assess tower pressure |
 | `PurchaseZeppelin` | Request a transport for an assault |
 | `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
 
@@ -407,6 +407,25 @@ count comes from the surrounding stock `Conversions(desire, unitid)` helper and 
 units already exist. OpenRealm's generic `CAbilityMetamorphosis` path does not yet model Destroyer Form's retail
 gold/lumber/food delta, so that resource-cost parity remains separate ability work rather than special-cased AI-native
 accounting.
+
+### Threatened Town Query
+
+`TownThreatened()` reports whether any live unit or building owned by the invoking AI is currently the target of a live
+hostile unit's active Warcraft attack behavior. The name is misleading: retail-facing `common.ai` documentation records
+that the native covers any owned unit/building, and stock melee AI uses it as a global defense gate before launching
+attacks and while refreshing `AttackMoveKill` pursuit. OpenRealm therefore does not invent a town radius, base
+classifier, or recent-damage timer.
+
+`BZ_COMPAT_GUESS`: retail documentation establishes the broad "any owned unit/building is being attacked" condition,
+but not whether the engine latches that state briefly after an attack order or damage event ends. OpenRealm currently
+uses the live attack-order state itself; keep that timing choice local to `G_BotTownThreatened` if direct retail capture
+later establishes a persistence window.
+
+The query requires the attacker to be executing `CAbilityAttack`, to have a live owned monster/building as its current
+goal, and to be hostile under the ordinary WC3 alliance/targeting rules. Attack-move waypoints, friendly force-fire,
+spell/DoT damage, stale combat links, and an owned unit merely fighting an enemy do not make the town threatened unless
+an enemy is actively attacking an owned unit. This keeps `TownThreatened` a read-only AI query; it does not form the
+defense captain or issue any orders.
 
 `RemoveSiege()` compacts the attack-captain roster and removes live members classified as siege units before the next
 melee assault group is assembled. This matches stock `common.ai`, where `InitMeleeGroup()` calls `RemoveInjuries()` and
