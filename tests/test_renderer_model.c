@@ -2186,6 +2186,7 @@ TEST(renderer_terrain, cliff_allocation_failures_leave_caches_and_weld_recoverab
     data.cliffModelDir = "CityCliffs";
     test_alloc_fail_after = 0;
     T_NULL(R_LoadCliffModel(&data, "AABB", false));
+    T_ASSERT(cliff_warn_model_cache_alloc);
     T_NOT_NULL(R_LoadCliffModel(&data, "AABB", false));
 
     ri.FS_ReadFile = test_texture_read;
@@ -2195,7 +2196,17 @@ TEST(renderer_terrain, cliff_allocation_failures_leave_caches_and_weld_recoverab
     data.texFile = "Cliff";
     test_alloc_fail_after = 0;
     T_ASSERT(R_LoadCliffTexture(1, 'L', &data) == &texture);
+    T_ASSERT(cliff_warn_texture_cache_alloc);
     T_ASSERT(R_LoadCliffTexture(1, 'L', &data) == &texture);
+
+    bool saved_fail_load = fail_load;
+    R_ResetCliffCache();
+    cliff_model_warning_count = 0;
+    fail_load = true;
+    T_NULL(R_LoadCliffModel(&data, "AABB", false));
+    T_NULL(R_LoadCliffModel(&data, "AABB", false));
+    T_EQ(cliff_model_warning_count, 1);
+    fail_load = saved_fail_load;
     ri.FS_ReadFile = read_file;
     texture_load_result = saved_texture;
     cliff_model = NULL; tr.world = NULL;
@@ -2228,6 +2239,7 @@ TEST(renderer_terrain, cliff_segment_allocation_failures_recover_without_stale_u
 
     test_alloc_fail_after = 0; /* Segment layer descriptor. */
     T_NULL(R_BuildMapSegmentCliffs(&map, 0, 0, 0));
+    T_ASSERT(cliff_warn_layer_alloc);
     layer = R_BuildMapSegmentCliffs(&map, 0, 0, 0);
     T_NOT_NULL(layer);
     R_FinishCliffs();
@@ -2238,6 +2250,7 @@ TEST(renderer_terrain, cliff_segment_allocation_failures_recover_without_stale_u
      * vertices, bake groups, then pending-layer node; fail only the last one. */
     test_alloc_fail_after = 3;
     T_NULL(R_BuildMapSegmentCliffs(&map, 0, 0, 0));
+    T_ASSERT(cliff_warn_pending_alloc);
     R_FinishCliffs();
     T_EQ(cliff_buffer_upload_count, 1);
 
