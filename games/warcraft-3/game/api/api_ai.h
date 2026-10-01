@@ -191,6 +191,11 @@ uint32_t GetCreepCamp(jass_t *j) {
     return target ? jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
 }
 
+uint32_t PurchaseZeppelin(jass_t *j) {
+    G_BotPurchaseZeppelin(jass_getcontext(j)->playerState);
+    return 0;
+}
+
 uint32_t RemoveSiege(jass_t *j) {
     G_BotRemoveSiege(jass_getcontext(j)->playerState);
     return 0;

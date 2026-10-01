@@ -220,6 +220,51 @@ edict_t *G_BotGetCreepCamp(player_t *player, int32_t min_power, int32_t max_powe
     return best;
 }
 
+/* PurchaseZeppelin is a common.ai convenience action. Retail-facing
+ * documentation requires an owned Hero near a Goblin Laboratory. Reuse the
+ * neutral-unit shop path so authored stock, activation range, resources, food,
+ * exit placement, and restock timing remain authoritative. */
+void G_BotPurchaseZeppelin(player_t *player) {
+    uint32_t const zeppelin = MAKEFOURCC('n','z','e','p');
+    uint32_t player_num;
+    gameClient_t *client;
+    edict_t *clent;
+    edict_t *best_shop = NULL;
+    float best_distance = 0.0f;
+
+    if (!player || (player_num = PLAYER_NUM(player)) >= MAX_PLAYERS) return;
+    client = G_GetPlayerClientByNumber(player_num);
+    clent = G_GetPlayerEntityByNumber(player_num);
+    if (!client || !clent || !clent->client) return;
+
+    FILTER_EDICTS(shop, shop->inuse && shop->s.player == PLAYER_NEUTRAL_PASSIVE &&
+                         G_ShopSellsUnit(shop, zeppelin)) {
+        edict_t *nearest_hero = NULL;
+        float nearest_distance = 0.0f;
+        float radius = G_ShopActivationRadius(shop);
+
+        FILTER_EDICTS(hero, G_BotUnitAlive(hero) && hero->s.player == player_num && G_UnitIsHero(hero)) {
+            float distance = Vector2_distance(&shop->s.origin2, &hero->s.origin2);
+            float reach = radius + MAX(0.0f, shop->collision) + MAX(0.0f, hero->collision);
+            if (distance > reach) continue;
+            if (!nearest_hero || distance < nearest_distance ||
+                (distance == nearest_distance && hero->s.number < nearest_hero->s.number)) {
+                nearest_hero = hero;
+                nearest_distance = distance;
+            }
+        }
+        if (!nearest_hero) continue;
+
+        if (!best_shop || nearest_distance < best_distance ||
+            (nearest_distance == best_distance && shop->s.number < best_shop->s.number)) {
+            best_shop = shop;
+            best_distance = nearest_distance;
+        }
+    }
+
+    if (best_shop) G_ShopPurchaseUnit(clent, best_shop, zeppelin);
+}
+
 /* common.ai uses this as a shared assault rendezvous, not as an order primitive.
  * Publish the same target into each mutually-passive ally's bot slot so a later
  * GetAllianceTarget observes the common value. Publishing NULL clears that shared
