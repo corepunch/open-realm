@@ -556,8 +556,9 @@ struct client_s {
         uint8_t pending_game_result; /* 0 = none, PLAYER_GAME_RESULT_* + 1 while fallback UI is deferred */
         uint32_t pending_game_result_event; /* level.events.read must reach this write ordinal before fallback UI */
         char name[MAX_PATHLEN];
-        uint32_t disabled_abilities[64]; /* SetPlayerAbilityAvailable(false) rawcodes */
+        uint32_t *disabled_abilities; /* SetPlayerAbilityAvailable(false) rawcodes */
         uint32_t disabled_ability_count;
+        size_t disabled_ability_capacity;
     } jass;
     playerTechState_t tech[MAX_PLAYER_TECH_STATE];
     char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
@@ -3067,6 +3068,7 @@ void unit_learnability(edict_t *, uint32_t);
 uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode);
 uint32_t G_UnitSetAbilityLevel(edict_t *ent, uint32_t abilcode, int32_t level);
 void G_SetPlayerAbilityAvailable(gameClient_t *client, uint32_t abilid, bool avail);
+void G_ClearPlayerAbilityAvailability(gameClient_t *client);
 bool G_IsPlayerAbilityAvailable(gameClient_t const *client, uint32_t abilid);
 bool G_IsUnitAbilityAvailable(edict_t const *unit, uint32_t abilid);
 cstring_t G_ObjectName(uint32_t objectId);

@@ -507,6 +507,7 @@ static void G_InitGame(void) {
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(gameClient_t));
+    memset(game.clients, 0, game.max_clients * sizeof(gameClient_t));
     game.data_prefix[0] = '\0';
     Stb_IniCacheLoad(&game.config.theme, "UI\\war3skins.txt");
     InitConstants();
@@ -535,6 +536,7 @@ static void G_ShutdownGame(void) {
     G_FowShutdown();
     G_BlightShutdown();
     G_FreeModels();
+    if (game.clients) FOR_LOOP(i, game.max_clients) G_ClearPlayerAbilityAvailability(game.clients + i);
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;
