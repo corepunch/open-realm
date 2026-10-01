@@ -257,6 +257,14 @@ static bool G_UpgradeResearchesAbility(UpgradeData_t const *upgrade, uint32_t ab
            G_ResearchCommentsMatch(ability->comments, upgrade->comments);
 }
 
+static int32_t G_UpgradeAbilityRequiredLevel(uint32_t upgrade_id, uint32_t ability_id) {
+    /* Sorceress Adept Training (Rhst 1) unlocks Invisibility; Polymorph is a
+     * Master Training spell and requires Rhst 2. */
+    if (upgrade_id == MAKEFOURCC('R', 'h', 's', 't') &&
+        ability_id == MAKEFOURCC('A', 'p', 'l', 'y')) return 2;
+    return 1;
+}
+
 float G_UnitUpgradeEffectBonus(edict_t const *unit, uint32_t effect) {
     gameClient_t *owner;
     char token[64];
@@ -283,12 +291,16 @@ float G_UnitUpgradeEffectBonus(edict_t const *unit, uint32_t effect) {
  * checkDep flag and the authored ability/upgrade comments because those rows
  * have no effect/code pair.  Keep both paths data-driven so custom
  * units/upgrades inherit the same command-card and execution gate. */
-bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id) {
+static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
+                                      bool *visible) {
     gameClient_t *owner;
     cstring_t upgrades;
     char token[64];
     bool gated = false;
+    bool researched = false;
+    bool researchable = false;
 
+    if (visible) *visible = true;
     if (!unit || !ability_id || !unit->data.UnitBalance) return true;
     upgrades = unit->data.UnitBalance->upgrades;
     if (!upgrades || !*upgrades) return true;
@@ -307,16 +319,45 @@ bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id) {
             if (upgrade->effect[i] != ID_UPGRADE_EFFECT_SPELL_LEVEL ||
                 upgrade->effectCode[i] != ability_id) continue;
             gated = true;
-            if (owner && owner->ps.number == unit->s.player &&
-                G_GetPlayerTechResearchedLevel(owner, upgrade_id) > 0) return true;
+            if (!owner || owner->ps.number != unit->s.player) {
+                researchable = true;
+                continue;
+            }
+            {
+                int32_t const required = G_UpgradeAbilityRequiredLevel(upgrade_id, ability_id);
+                int32_t const maximum = G_GetPlayerTechMaxAllowed(owner, upgrade_id);
+                if (maximum < 0 || maximum >= required) researchable = true;
+                if (G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= required)
+                    researched = true;
+            }
         }
         if (G_UpgradeResearchesAbility(upgrade, ability_id)) {
             gated = true;
-            if (owner && owner->ps.number == unit->s.player &&
-                G_GetPlayerTechResearchedLevel(owner, upgrade_id) > 0) return true;
+            if (!owner || owner->ps.number != unit->s.player) {
+                researchable = true;
+                continue;
+            }
+            {
+                int32_t const required = G_UpgradeAbilityRequiredLevel(upgrade_id, ability_id);
+                int32_t const maximum = G_GetPlayerTechMaxAllowed(owner, upgrade_id);
+                if (maximum < 0 || maximum >= required) researchable = true;
+                if (G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= required)
+                    researched = true;
+            }
         }
     }
-    return !gated;
+    if (visible) *visible = !gated || researchable;
+    return !gated || researched;
+}
+
+bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id) {
+    return G_UnitAbilityResearchState(unit, ability_id, NULL);
+}
+
+bool G_UnitAbilityResearchVisible(edict_t const *unit, uint32_t ability_id) {
+    bool visible;
+    G_UnitAbilityResearchState(unit, ability_id, &visible);
+    return visible;
 }
 
 static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade,
