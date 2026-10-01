@@ -714,3 +714,10 @@ peer wait identity/delay. The public JASS order test restores that live state,
 refills through the real thinker and repeats120 ticks/1440 state words including
 the owner random state. A focused field round-trip and prior-version rejection
 run in ROC/TFT. Network and JASS snapshot formats remain unchanged.
+
+Public ground creation now retains the original freshly committed native fine
+pose rather than reconstructing it from requested/published world XY. Save71
+already owns that representation, so no layout, callback or meaning changes.
+The [spawn regression](retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose)
+saves the fractional public getter result immediately and repeats640 scheduler
+continuation words through normal ReadGame/WriteGame.

@@ -1134,18 +1134,9 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     if (!unit) {
         return NULL;
     }
-    /* Warsmash CreateUnit delegates to createUnitSimple, which checks the
-     * spawned unit against static pathing and nudges it to a legal point. */
-    vec2_t position;
-    if (G_FindUnitUnstuckPosition(unit, location, &position)) {
-        unit->s.origin2 = position;
-        unit->s.origin.x = position.x;
-        unit->s.origin.y = position.y;
-        M_CheckGround(unit);
-        gi.LinkEntity(unit);
-    } else fprintf(stderr, "WC3 CreateUnit: no legal spawn point for %c%c%c%c player %u at (%.1f, %.1f); retaining requested position\n",
-                   unitid & 255, (unitid >> 8) & 255, (unitid >> 16) & 255, (unitid >> 24) & 255,
-                   player, location->x, location->y);
+    /* Retail public creation uses Move's32-ring admission and initial scalar
+     * commit; the former64-unit circle spiral chose different destinations. */
+    S_InitUnitPosition(unit,location);
     if (unit->stand) {
         unit->stand(unit);
     }

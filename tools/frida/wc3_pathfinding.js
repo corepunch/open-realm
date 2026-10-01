@@ -372,7 +372,7 @@ function install(module) {
             onEnter(args) {
                 const native = positionNatives.get(this.threadId);
                 const recovery = stopRecoveries.get(this.threadId);
-                if ((!native || native.name !== 'SetUnitPosition') && !recovery) return;
+                if ((!native || !['SetUnitPosition','CreateUnit'].includes(native.name)) && !recovery) return;
                 this.previous = placementQueries.get(this.threadId);
                 this.output = args[0]; this.fine = this.context.ecx;
                 this.row = {case:positionCase, unit:native ? native.unit : null, recovery:recovery ? recovery.mover : null, before:words(this.output,2),
@@ -417,13 +417,18 @@ function install(module) {
             }
         });
         for (const [name, rva] of [['GetUnitX',0x204100], ['GetUnitY',0x204140],
-                                  ['SetUnitX',0x215900], ['SetUnitY',0x215960], ['SetUnitPosition',0x2155c0]]) {
+                                  ['SetUnitX',0x215900], ['SetUnitY',0x215960], ['SetUnitPosition',0x2155c0],
+                                  ['CreateUnit',0x1fc930]]) {
             hook(rva, {
                 onEnter(args) {
                     this.previous = positionNatives.get(this.threadId);
                     this.row = positionCase ? {case:positionCase, name, handle:args[0].toUInt32()} : null;
                     if (this.row && name.startsWith('Set')) this.row.input = name === 'SetUnitPosition'
                         ? [args[1].readU32(), args[2].readU32()] : args[1].readU32();
+                    if (this.row && name==='CreateUnit') {
+                        this.row.rawcode=args[1].toUInt32();
+                        this.row.input=[args[2].readU32(),args[3].readU32(),args[4].readU32()];
+                    }
                     positionNatives.set(this.threadId, this.row);
                 },
                 onLeave(result) {

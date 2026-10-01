@@ -45,4 +45,14 @@ static inline void wc3_grid_place(wc3GridPose_t *pose, float const point[2]) {
     }
 }
 
+/* Original15ed40 seeds both axes from ce4584 before CreateUnit's first05c200
+ * write. This cancellation is observable through public fractional getters. */
+static inline void wc3_grid_spawn_place(wc3GridPose_t *pose, float const point[2]) {
+    pose->grid[0] = pose->grid[1] = wc3_float(0xc7fa0040u);
+    wc3_grid_place(pose,point);
+    /* The factory's notified second write consumes the first published world pair. */
+    float world[2] = {pose->world[0],pose->world[1]};
+    wc3_grid_place(pose,world);
+}
+
 #endif

@@ -232,15 +232,18 @@ Do not reintroduce a distance-only timeout around Harvest to hide these routing 
 
 ## JASS repositioning: `SetUnitPosition` vs raw X/Y
 
-`SetUnitPosition` and `SetUnitPositionLoc` are pathing-aware repositioning natives. Warsmash implements both through
-`CUnit.setPointAndCheckUnstuck()`: it tests the requested point, then checks a deterministic 64-world-unit square spiral for up to
-300 candidates against unit collision and movement pathing. If no candidate is legal, the requested point remains the fallback.
+`SetUnitPosition` and `SetUnitPositionLoc` stop the current order, then admit the
+requested point with the recovered policy2 fine-cell rings, bounded to32 rings.
+The search uses the mover's current movement mask, quantized footprint and
+same-level terrain callback, excluding its own occupancy and including live
+neighbours. Public `CreateUnit` and `CreateUnitAtLoc` share that admission,
+then initialize Move from the original fresh-mover sentinel before publishing
+world XY. Their fractional results can differ from the original request even
+when its first cell is legal. See [spawn admission and native pose](retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose).
 
-OpenRealm mirrors that contract in `G_FindUnitUnstuckPosition()` (`g_spawn.c`). The requested point is checked against
-the mover's movement-class static pathing (`UNFLYABLE` for flyers, `UNWALKABLE` otherwise) and live same-layer collision circles before the spiral advances. Authored building/destructable
-pathing is already baked into the static pathmap, so a script that requests a point inside a structure is displaced to the first
-legal nearby candidate instead of being left occluded inside the structure. `SetUnitX` and `SetUnitY` intentionally remain raw
-coordinate setters; do not route them through the unstuck search.
+`SetUnitX/Y` retain the scalar writer without the admission search or order
+retirement. The legacy64-unit spiral in `G_FindUnitUnstuckPosition` remains for
+item drops, cargo, summons and Way Gates until their own producers are recovered.
 
 This distinction matters for campaign scripts. The Prologue01 Thrall investigation showed `Othr` alive and renderer-visible at the
 scripted destination while a no-depth/white diagnostic exposed his geometry through a nearby structure. The old native assigned X/Y
@@ -296,7 +299,7 @@ Focused tests live in `games/warcraft-3/game/tests/t_pathfinding.c` and `t_movem
 - gold return/deposit at an authored Town Hall footprint corner;
 - lumber return to a Town Hall through an authored blocking building footprint;
 - a distant temporarily blocked plain move keeps its order alive while near-goal jitter still settles;
-- `SetUnitPosition` / `SetUnitPositionLoc` use the Warsmash-style blocked-point unstuck spiral while `SetUnitX/Y` remain raw.
+- Public `SetUnitPosition` / `SetUnitPositionLoc` retire orders and use verified fine-cell admission; `CreateUnit` / `CreateUnitAtLoc` share admission and preserve fresh-mover scalar initialization. `SetUnitX/Y` retain the scalar writer without that search.
 - flying `SetUnitPosition` unstuck checks ignore UNWALKABLE-only cells and obey UNFLYABLE cells.
 
 Run when validating locally:

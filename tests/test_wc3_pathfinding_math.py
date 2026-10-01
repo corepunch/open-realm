@@ -33,6 +33,7 @@ from verify_wc3_primary_clock import verify_primary, digest as primary_digest
 from verify_wc3_yield_trace import verify as verify_yield
 from verify_wc3_wait_heading_trace import verify as verify_wait_heading
 from verify_wc3_retry_trace import verify as verify_retry
+from verify_wc3_spawn_trace import verify as verify_spawn, digest as spawn_digest
 
 
 class PathingMathTests(unittest.TestCase):
@@ -60,6 +61,34 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_public_spawn_words_and_rejected_incomplete_captures(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-spawn-1.27.json').read_text())
+        for engine in self.engines:
+            configure_arrival(engine)
+            result=verify_spawn(fixture['rows'],engine,fixture)
+            self.assertEqual(result['public_create_calls'],8)
+            self.assertEqual(result['position_commits'],16)
+            self.assertEqual(result['exact_decisions'],239)
+            for kind in ('source','input','sentinel','native','commit','candidate','mask','truncation','completion','error'):
+                changed=copy.deepcopy(fixture['rows'])
+                commit=next(r for r in changed if r['event']=='position-commit')
+                native=next(r for r in changed if r['event']=='position-native')
+                search=next(r for r in changed if r['event']=='placement-search-end')
+                if kind=='source':changed[0]['source_sha256']['map']='z'*64
+                elif kind=='input':native['input'][0]^=0x10000
+                elif kind=='sentinel':commit['before'][2]^=0x100000
+                elif kind=='native':native['output']^=1
+                elif kind=='commit':commit['after'][2]^=1
+                elif kind=='candidate':search['visits'][-1]['point'][0]+=1
+                elif kind=='mask':search['mask']=0
+                elif kind=='truncation':changed.remove(commit)
+                elif kind=='completion':changed=[r for r in changed if r['event']!='marker']
+                else:changed.append(dict(event='error'))
+                # Let producer/C checks reject coherent sequence changes too.
+                expected=dict(fixture,spawn_sha256=spawn_digest(changed))
+                with self.subTest(optimization=engine._name,case=kind),self.assertRaises(ValueError):
+                    verify_spawn(changed,engine,expected)
 
     def test_live_retry_words_and_rejected_incomplete_captures(self):
         rows=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-peer-retry-1.27.json').read_text())['rows']

@@ -3688,3 +3688,101 @@ ability audit, unchanged109/291 backlog accounting and relative file links pass.
 No engine/client/network boundary changed. Original full retry kernels are exact
 within their supplied null-target inputs; production coverage remains the
 peer20 admitted fine-leg transaction described above.
+
+## Public spawn admission and initial mover pose
+
+Engine payoff33 replaces public `CreateUnit`/`CreateUnitAtLoc`'s approximate
+64-world-unit collision-circle spiral with the recovered32-ring, policy2 fine
+footprint admission. `unit_create` delegates position initialization to Move;
+Move preserves the fresh mover's scalar cancellation, publishes/supports the
+accepted point and retains native fine coordinates for subsequent movement.
+Item drops, cargo, summons and Way Gate placement still have separately tracked
+producers; this port does not silently grant them the public spawn contract.
+
+Two owned scene44 captures create eight ground Footmen beside stationary source
+`(-1936,-976)`, at east offsets0,16,31,32,60,63.9999,64,96. Each brackets the
+public create/getter calls, then issues an accepted Move for the new unit.
+All300 samples and completion markers are present. Each capture contains eight
+complete placement calls, sixteen position writes,104 predicted world queries,
+56 public native calls and239 movement decisions. The searches use current mask
+`02000002`, radius`3f780000` (31/32), callback654060/context6, limit32 and policy2.
+Source/self identity and each first accepted candidate remain distinguishable.
+
+| Requested world X | Accepted public XY | Retained native XY |
+| ---: | --- | --- |
+| -1936 | (-1968,-1040) | (162.5,63.5) |
+| -1920 | (-1872,-1008) | (165.5,64.5) |
+| -1905 | (-1872,-1008) | (165.5,64.5) |
+| -1904 | (-1872,-1008) | (165.5,64.5) |
+| -1876 | (-1876,-976) | (165.375,65.5) |
+| c4ea0001 (-1872.0001220703125) | (-1872.25,-976) | (165.4921875,65.5) |
+| -1872 | (-1872,-976) | (165.5,65.5) |
+| -1840 | (-1840,-976) | (166.5,65.5) |
+
+The fractional row exposes why placement alone is insufficient. Registered
+native1fc930 calls64e650, which calls the unit factory677870 with flags502,1,-1.
+Mover activation15ed40 seeds both fine axes from immutablece4584:
+`c7fa0040`, **-128000.5**. The first05c200 world write has notify0 and maximum
+cap`7f7fffff`; it computes requested-minus-sentinel then adds that delta back.
+The accepted fine point`43257fff` first projects to world`c4ea0004`, then
+cancellation commits fine`43257e00`, publishing world`c4ea0800`. A second notified
+world write consumes that canonical pair. Inverting the original request into
+an already initialized pose skips this observable rounding. Production
+`wc3_grid_spawn_place` retains the original order of both writes.
+
+`verify_wc3_spawn_trace.py` strictly checks owned binary/source/map identities,
+completion/counts, created/source actor relationships, public getters and write
+ordering. It replays footprint visits against the stationary actor's equivalent
+class1 occupied cells, all eight endpoints, sixteen complete scalar commits,
+104 read-only queries and239 movement decisions through production C. Both
+captures have identical normalized spawn digest
+`860c89180e22330fdba167e727887383550d82c8650f46c27d177e54cfef99b5` and motion digest
+`5611670c6339529325e4ba121128e3768194c4b717606e7193478a5cf84a0368`.
+The accepted reports are `runtime/spawn-admission-live-accepted-261001.json` and
+the fresh corpus report; raw captures are
+`runtime/spawn-admission-live-{first,repeat}-261001.jsonl`. The observer source is
+`1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd`; map is
+`bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f`.
+The frozen `retail-public-spawn-1.27.json` preserves raw evidence and negative
+checks at O0/O2, including coherent input, sentinel, getter, commit and candidate
+mutations after recomputing the sequence checksum.
+
+The public engine regression initially reproduced35 failures. After porting,
+all eight captured destination/native-pose pairs pass through actual JASS
+CreateUnit/AtLoc. A custom authored collision row supplies the captured31-unit
+footprint to the visible route fixture; an8-unit nonstock control must instead
+select the closer class0 cell. The fractional actor saves immediately
+after creation, issues public Move and runs80 real scheduler frames, then repeats
+after loading:640 continuation state words match exactly and both runs travel
+more than64 world units. Initial test source uses the original JASS expression
+`-1936+63.9999`; rewriting it as a rounded decimal literal changes the producer
+input. Save71, callback identities and the serialized meaning of retained fine
+pose remain unchanged; no save migration or new network contract is added.
+
+Ghidra persists three new roles/ABIs: `Jass_CreateUnit`1fc930 (cdecl five stack
+arguments/EAX handle), `Unit_CreatePublic`64e650 (fastcall player/rawcode plus
+three scalar-pointer stack arguments, RETc/EAX payload), and
+`Mover_ActivateSpatialPose`15ed40 (thiscall context, RET4). The sentinel is a typed
+named scalar, with instruction xrefs retained. Saved type readback is
+`runtime/spawn-admission-types-261001.json` plus persisted role/constant check
+`runtime/spawn-admission-ghidra-readback-261001.json`:475 roles,199 prototypes,31 partial
+layouts/178 fields and45 globals. These descriptive names are evidence labels.
+
+FOOT-04.6 closes this ordinary in-map ground public spawn producer and its engine
+consumer. Original Loc, buildings/other factory flags, outside-map clipping,
+bridge/rejected-level callbacks and full physical crowd/group cadence remain
+FOOT-04.1/02, BASE-02, MAP and E2E work. Exact public spawn outputs do not certify
+whole retail trajectories.
+
+Final payoff33 validation: public spawn regression passes783 assertions across
+the eight original endpoints and the nonstock footprint, including640 saved
+continuation words. Optimized and forced debug (`WC3_DEBUG_BUILD=1`) RoC/TFT
+both pass83,207 assertions in2,291 engine tests. Forced release production/test
+builds and the complete `make BUILD=release test` umbrella pass. All157 Python
+pathfinding checks pass, including ten negative variants at O0/O2. The fresh
+three-entry spawn corpus,243-entry/91-fixture inventory, ability audit,
+110/292 backlog counts and224 relative file links pass. Full logs are indexed in
+`runtime/spawn-admission-validation-261001.json`; no shared engine/client boundary
+or network format changed. Next runnable work: actual post-spawn first scheduled
+velocity and arrival through the retained fine pose, then wider source admission
+and original group/cycle scheduling.

@@ -332,12 +332,56 @@ function PathProbeRandom takes nothing returns nothing
 @RANDOM_CASES@
 endfunction
 
+// CreateUnit must supply a legal first fine source around the retained idle
+// Footman. Separate cases by simulation ticks so previous removal is visible.
+function PathProbeSpawnAdmission takes nothing returns nothing
+    local integer i = (udg_PathProbeTick - 1) / 20
+    local real offset = 0.0
+    local real value = 0.0
+    if ModuloInteger(udg_PathProbeTick - 1, 20) != 0 or i > 7 then
+        return
+    endif
+    if udg_PathProbeTarget != null then
+        call RemoveUnit(udg_PathProbeTarget)
+    endif
+    if i == 1 then
+        set offset = 16.0
+    elseif i == 2 then
+        set offset = 31.0
+    elseif i == 3 then
+        set offset = 32.0
+    elseif i == 4 then
+        set offset = 60.0
+    elseif i == 5 then
+        set offset = 63.9999
+    elseif i == 6 then
+        set offset = 64.0
+    elseif i == 7 then
+        set offset = 96.0
+    endif
+    call Preload("PATHPOSE case=spawn_" + I2S(i))
+    set udg_PathProbeTarget = CreateUnit(Player(0), 'hfoo', -1936.0 + offset, -976.0, 0.0)
+    set value = GetUnitX(udg_PathProbeTarget)
+    set value = GetUnitY(udg_PathProbeTarget)
+    set value = GetUnitX(udg_PathProbeUnit)
+    set value = GetUnitY(udg_PathProbeUnit)
+    if IssuePointOrder(udg_PathProbeTarget, "move", -1632.0, -976.0) then
+        call PathProbeRecord("spawn_order_accepted")
+    else
+        call PathProbeRecord("spawn_order_rejected")
+    endif
+    call Preload("PATHPOSE done=spawn_" + I2S(i))
+endfunction
+
 function PathProbeTick takes nothing returns nothing
     local integer targetVisible = 0
     local integer crowdIndex = 0
     local real numericX = 0.0
     local real numericY = 0.0
     set udg_PathProbeTick = udg_PathProbeTick + 1
+    if PATH_PROBE_SCENARIO == 44 then
+        call PathProbeSpawnAdmission()
+    endif
     if PATH_PROBE_SCENARIO == 32 and udg_PathProbeTick == 1 then
         call PathProbeSpeedInputs(udg_PathProbeUnit, "foot")
         call PathProbeSpeedInputs(udg_PathProbeCrowd[0], "custom")
@@ -536,7 +580,7 @@ function PathProbeTick takes nothing returns nothing
         set udg_PathProbeBuilding = null
         call PathProbeRecord("after_widget_remove")
     endif
-    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 then
+    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 then
         call PathProbeRecord("before_order")
         if (PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) then
             if IssueTargetOrder(udg_PathProbeUnit, "smart", udg_PathProbeTarget) then

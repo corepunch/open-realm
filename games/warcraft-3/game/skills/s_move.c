@@ -556,9 +556,24 @@ void S_RecoverStoppedUnitPosition(edict_t *self) {
     wc3_grid_place_fine(&pose,point); unit_commit_pose(self,&pose);
 }
 
-/* Both public placement natives replace the order before admitting position.
- * Retain the common native scalar writer; placement legality remains the game
- * adapter's current policy until FOOT-04 public admission is reconstructed. */
+/* Public ground spawn admits first, then commits from the fresh mover sentinel.
+ * Applying the normal setter to an already inverted requested pose loses the
+ * original initialization cancellation and publishes different fractional XY. */
+void S_InitUnitPosition(edict_t *self, vec2_t const *requested) {
+    if (M_UnitMoveDisabled(self)) return;
+    vec2_t old = self->s.origin2, point;
+    if (!G_FindUnitPlacementPosition(self,requested,&point))
+        fprintf(stderr,"WC3 CreateUnit: no legal point for %08x at (%.9g, %.9g); retaining requested position\n",self->class_id,requested->x,requested->y);
+    wc3GridPose_t pose; unit_grid_pose(self,&pose);
+    float world[2] = {point.x,point.y};
+    wc3_grid_spawn_place(&pose,world);
+    unit_commit_pose(self,&pose);
+    self->movement.pose_clock = level.pathing_clock;
+    self->movement.clock_valid = false;
+    G_UnitPositionChanged(self,&old);
+}
+
+/* Both public placement natives replace the order before admitting position. */
 void S_SetUnitPosition(edict_t *self, vec2_t const *requested) {
     if (!self || !requested) return;
     vec2_t old_position = self->s.origin2, position;

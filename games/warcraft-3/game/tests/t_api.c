@@ -2603,6 +2603,8 @@ TEST(wc3_api, camera_target_controller_can_inherit_unit_facing) {
     gameClient_t *gc = &game.clients[0];
     edict_t *target = NULL;
 
+    /* Camera offsets need an admitted clear spawn, independent of prior camera bounds. */
+    reset_entities(); setup_test_world();
     gc->ps.number = 0;
     currentplayer = &gc->ps;
     T_ASSERT(run_test_jass(
@@ -3493,8 +3495,7 @@ TEST(wc3_api, set_unit_position_unstucks_from_blocked_pathing) {
 
     moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(moved);
-    /* Retail policy2 visits cell(8,7) first and publishes its centre.
-     * CreateUnit has a separately tracked placement producer below. */
+    /* Retail policy2 visits cell(8,7) first and publishes its centre. */
     T_FEQ(moved->s.origin.x, 272.0f, 0.001f);
     T_FEQ(moved->s.origin.y, 240.0f, 0.001f);
 }
@@ -3510,10 +3511,9 @@ TEST(wc3_api, createunit_unstucks_from_blocked_pathing) {
 
     created = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(created);
-    /* Warsmash CreateUnit calls createUnitSimple, which nudges an embedded
-     * unit to the first legal point in its 64-unit spiral. */
-    T_FEQ(created->s.origin.x, 256.0f, 0.001f);
-    T_FEQ(created->s.origin.y, 192.0f, 0.001f);
+    /* Public CreateUnit uses the same verified cell(8,7) admission as SetUnitPosition. */
+    T_FEQ(created->s.origin.x, 272.0f, 0.001f);
+    T_FEQ(created->s.origin.y, 240.0f, 0.001f);
 }
 
 TEST(wc3_api, createunit_static_scenery_keeps_requested_spawn) {
@@ -3706,8 +3706,10 @@ TEST(wc3_api, createunit_avoids_live_unit_collision) {
     T_NOT_NULL(first); T_NOT_NULL(second);
     if (first && second) {
         T_FEQ(first->s.origin.x, 256.0f, 0.001f);
-        T_FEQ(second->s.origin.x, 256.0f, 0.001f);
-        T_FEQ(second->s.origin.y, 192.0f, 0.001f);
+        T_EQ(second->collision,16);
+        /* Both16-radius actors are class1; first disjoint cell is(7,6). */
+        T_FEQ(second->s.origin.x, 240.0f, 0.001f);
+        T_FEQ(second->s.origin.y, 208.0f, 0.001f);
     }
 }
 

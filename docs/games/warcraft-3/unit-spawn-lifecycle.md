@@ -22,10 +22,13 @@ activates food. It must not call `SP_SpawnAtLocation()` followed by `stand()`:
 `stand()` changes the animation but does not clear the birth wait, leaving a
 ready unit with a stale build-time delay.
 
-Mobile runtime units are moved to a nearby legal point when the requested
-location overlaps static pathing. If the bounded search finds none,
-`CreateUnit` preserves its handle contract by retaining the requested point and
-logs a warning with the unit, player, and coordinates.
+Public mobile creation uses the verified32-ring fine footprint admission through
+Move's `S_InitUnitPosition`, including stationary neighbours and static pathing.
+The initial scalar write starts from retail's `-128000.5` native-fine sentinel;
+preserving cancellation is necessary for exact fractional GetUnitX/Y results.
+The accepted pose survives save/load and begins ordinary scheduled Move without
+losing its native bits. If no point is admitted, creation retains its handle and
+logs the unresolved unit/coordinates. See [original public spawn evidence](retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose).
 
 Movement-disabled units keep the requested point. Warsmash resolves `movetp`
 through `PathingGrid.getMovementType()`; a value that names no movement type
@@ -34,17 +37,16 @@ becomes `MovementType.DISABLED`, which `isPathable()` accepts everywhere and
 authors `_` on all 136 building and scenery rows (farms, towers, the `nfrm`
 Frostmourne pedestal) and one of `foot`/`horse`/`fly`/`hover`/`float`/`amph` on
 everything else. `M_UnitMoveDisabled()` in `skills/s_move.c` is that class, and
-`G_CanRepositionUnitAt()` consults it, so `CreateUnit`, `SetUnitPosition` and
+Public admission and `G_CanRepositionUnitAt()` consult it, so `CreateUnit`, `SetUnitPosition` and
 `SetUnitPositionLoc` agree. A row with no `movetp` cell at all stays mobile.
 
 Do not classify scenery from speed or weapons: an earlier heuristic (no movement
 type + zero speed + no enabled attack, `CreateUnit` only) left towers nudged,
 farms not, and `SetUnitPosition` inconsistent with `CreateUnit`.
 
-The creation search also respects live-unit occupancy, matching Warsmash's
-`setPointAndCheckUnstuck`. Its collision queries use the server's linked-entity
-spatial index so dense scripted spawns do not scan every edict at each of the
-search's 300 possible candidates.
+The public creation search snapshots quantized live-unit occupancy once per
+request and uses the verified class-sized fine rectangles. Candidate tests
+reuse that snapshot; they do not rescan the full actor set for each cell.
 
 Construction, training, and summons use `SP_SpawnAtLocation()` directly because
 their owning systems may consume the birth presentation or replace it with a

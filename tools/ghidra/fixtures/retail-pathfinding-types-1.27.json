@@ -4776,6 +4776,93 @@
           "storage": 8
         }
       ]
+    },
+    {
+      "address": "6f1fc930",
+      "name": "Jass_CreateUnit",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "evidence": "Public spawn payoff33; native registry, disassembly RET/register operands and two complete scene44 captures.",
+      "parameters": [
+        {
+          "name": "player_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "rawcode",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "facing_degrees",
+          "type": "ptr:WC3PathScalar",
+          "storage": 20
+        }
+      ]
+    },
+    {
+      "address": "6f64e650",
+      "name": "Unit_CreatePublic",
+      "returns": "ptr:u8",
+      "convention": "__fastcall",
+      "evidence": "Public spawn payoff33; native registry, disassembly RET/register operands and two complete scene44 captures.",
+      "parameters": [
+        {
+          "name": "player_index",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "rawcode",
+          "type": "u32",
+          "storage": "EDX"
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "facing_radians",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f15ed40",
+      "name": "Mover_ActivateSpatialPose",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Public spawn payoff33; native registry, disassembly RET/register operands and two complete scene44 captures.",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [
@@ -5042,6 +5129,12 @@
       "name": "Simulation_PresentationAdvanceMaximum",
       "type": "WC3PathScalar",
       "evidence": "001e70 original initializer EDX299/ECXthis global tail070d80. Presentation subdivision04c0d0; primary04c1a0 bypasses it. Both live captures read43958000."
+    },
+    {
+      "address": "6fce4584",
+      "name": "Mover_InitialFinePosition",
+      "type": "WC3PathScalar",
+      "evidence": "15ed40 reads raw c7fa0040 (-128000.5) into mover78/7c; two repeated public CreateUnit first commits retain exact sentinel cancellation."
     }
   ]
 }

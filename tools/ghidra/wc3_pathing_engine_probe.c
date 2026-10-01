@@ -571,6 +571,16 @@ void pathing_pose_write(uint32_t const *input, uint32_t *out) {
     for (unsigned k = 0; k < 2; k++) { out[k] = wc3_float_bits(pose.grid[k]); out[k + 2] = wc3_float_bits(pose.world[k]); }
 }
 
+/* Original public spawn: origin2, admitted world2 -> retained fine2, world2. */
+void pathing_spawn_position(uint32_t const *input, uint32_t *out) {
+    wc3GridPose_t pose = {.origin={wc3_float(input[0]),wc3_float(input[1])}};
+    float point[2] = {wc3_float(input[2]),wc3_float(input[3])};
+    wc3_grid_spawn_place(&pose,point);
+    for (unsigned k=0;k<2;k++) {
+        out[k]=wc3_float_bits(pose.grid[k]); out[k+2]=wc3_float_bits(pose.world[k]);
+    }
+}
+
 /* Live bridge input: mover time/epoch/pose/velocity/cap/facing8, clock3, origin2, point2.
  * Output: committed mover8, published world2, queried predicted world2. */
 void pathing_position_bridge(uint32_t const *input, uint32_t *out) {

@@ -350,8 +350,8 @@ static bool move_place_unit(edict_t *unit, vec2_t point, uint32_t limit, vec2_t 
     return true;
 }
 
-/* Public SetUnitPosition's point/ring admission. CreateUnit and item drops
- * retain their separately tracked producer rather than borrowing this policy. */
+/* Original public CreateUnit and SetUnitPosition share32-ring point admission.
+ * Item drops retain their separately tracked producer. */
 bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t *out) {
     *out = *requested;
     if (M_UnitMoveDisabled(unit)) return true;

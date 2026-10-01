@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **240 entries**: **45** distinct original-code oracle
-scripts plus **50** declared variants, **112** archived JSONL audits and **33**
+The inventory now has **243 entries**: **45** distinct original-code oracle
+scripts plus **50** declared variants, **114** archived JSONL audits and **34**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -23,10 +23,10 @@ outside the accepted inventory unless given their own rejection contract.
 | 89 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 102 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 106 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Twenty-two public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Twenty-four public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -602,3 +602,11 @@ checks reject ten damaged provenance/input/state/completion variants each.
 The engine owns the peer20 fine-reset/coarse-retention transaction and public
 saved continuation; full source admission, other blocked-vector kinds, group
 producers, terminal/perimeter ownership and stock crowds remain separate.
+
+Public spawn payoff33 adds two complete scene44 archive audits and one strict
+repeat contract. It compares eight class1 overlap/fractional admissions, sixteen
+fresh mover position commits,104 world queries and239 motion decisions through
+production C. Engine CreateUnit/AtLoc consumes the verified rings and sentinel
+pose; saved scheduler continuation is covered separately. The corpus now pins91
+fixtures. See [public spawn admission](retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose)
+for the exact destination matrix and remaining producer limits.

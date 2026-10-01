@@ -15111,6 +15111,297 @@
         "Terrain/idle/ineligible vectors and source-footprint recovery",
         "Target perimeter and terminal owner transitions"
       ]
+    },
+    {
+      "id": "capture-spawn-admission-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/spawn-admission-live-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/spawn-admission-live-first-261001.jsonl",
+        "sha256": "bfa4d4b56f1b3eabafb3eb5ff1bbb7dae66687a44e5560fae8778797298e3705",
+        "bytes": 384554,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+            "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+          },
+          "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": false,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "spawn-admission-first-capture-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Owned public ground CreateUnit overlap/fractional placement scene44: eight creates, sixteen position writes,104 queries, eight complete placement searches and300 owner samples.",
+      "exclusions": [
+        "Outside-map, layered terrain/bridge and other actor forms; full engine trajectory parity."
+      ]
+    },
+    {
+      "id": "capture-spawn-admission-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/spawn-admission-live-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/spawn-admission-live-repeat-261001.jsonl",
+        "sha256": "639626241f52b683d1252ad3efb970931a50c396e47d7285cb965b0107d52773",
+        "bytes": 384555,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+            "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+          },
+          "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": false,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "spawn-admission-repeat-capture-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Owned public ground CreateUnit overlap/fractional placement scene44: eight creates, sixteen position writes,104 queries, eight complete placement searches and300 owner samples.",
+      "exclusions": [
+        "Outside-map, layered terrain/bridge and other actor forms; full engine trajectory parity."
+      ]
+    },
+    {
+      "id": "live-public-spawn-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_spawn_trace.py",
+        "{archive}/runtime/spawn-admission-live-first-261001.jsonl",
+        "--repeat",
+        "{archive}/runtime/spawn-admission-live-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-spawn-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/spawn-admission-live-first-261001.jsonl",
+        "sha256": "bfa4d4b56f1b3eabafb3eb5ff1bbb7dae66687a44e5560fae8778797298e3705",
+        "bytes": 384554,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+            "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+          },
+          "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": false,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/spawn-admission-live-repeat-261001.jsonl",
+            "sha256": "639626241f52b683d1252ad3efb970931a50c396e47d7285cb965b0107d52773",
+            "bytes": 384555,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+                "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+                "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+              },
+              "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+              "seconds": 130.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": false,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-public-spawn-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "public_create_calls": {
+          "equal": 8
+        },
+        "placement_searches": {
+          "equal": 8
+        },
+        "position_commits": {
+          "equal": 16
+        },
+        "position_queries": {
+          "equal": 104
+        },
+        "exact_decisions": {
+          "equal": 239
+        },
+        "spawn_sha256": {
+          "equal": "860c89180e22330fdba167e727887383550d82c8650f46c27d177e54cfef99b5"
+        },
+        "repeated": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "Two exact original public CreateUnit repeats replay all placement destinations/cell decisions, sentinel software commits, getters and motion decisions through production C. Engine public CreateUnit/AtLoc now admit the same class footprint and retain initial fine pose/save continuation.",
+      "exclusions": [
+        "Original Loc wrapper and broader actor/factory producers",
+        "Bridge/rejected-level and outside clipping",
+        "Whole engine cadence and crowd/group trajectories"
+      ]
     }
   ],
   "fixtures": [
@@ -15176,7 +15467,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "49515fcdd0b07d8acaaf1adff5d41eaf8e261b750367205deb73dbeecf60d698"
+      "sha256": "cbd51bf19989e07082bbbfa9280b43116cf7298b0082a58dc6a69d476951b2e1"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -15473,6 +15764,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-peer-retry-1.27.json",
       "sha256": "98513cf163b6309cd823ef3ec308b4297397fb30b11566ae5279c23067aaf899"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-spawn-1.27.json",
+      "sha256": "263d74033f2377d86a82895ef92c21232e2385203d948eac7c0e018e9492a5fe"
     }
   ]
 }

@@ -2707,6 +2707,91 @@ TEST(wc3_movement, forced_position_matches_original_native_pose_words) {
 /* Original public scene39 ring endpoints, with its terrain edits and31-unit
  * Footman footprint. Use the actual JASS native rather than the ring helper. */
 /* Public placement consumes the current query mask, independently of occupancy. */
+/* Scene44's public spawn endpoints include the initial sentinel cancellation.
+ * The custom row gives the visible route fixture the captured31-unit footprint. */
+TEST(wc3_movement, public_spawn_admission_matches_retail_and_resumes) {
+    uint32_t const requested[]={0xc4f20000u,0xc4f00000u,0xc4ee2000u,0xc4ee0000u,
+        0xc4ea8000u,0xc4ea0001u,0xc4ea0000u,0xc4e60000u,0xc4f20000u};
+    uint32_t const expected[][4]={
+        {0xc4f60000u,0xc4820000u,0x43228000u,0x427e0000u},
+        {0xc4ea0000u,0xc47c0000u,0x43258000u,0x42810000u},
+        {0xc4ea0000u,0xc47c0000u,0x43258000u,0x42810000u},
+        {0xc4ea0000u,0xc47c0000u,0x43258000u,0x42810000u},
+        {0xc4ea8000u,0xc4740000u,0x43256000u,0x42830000u},
+        {0xc4ea0800u,0xc4740000u,0x43257e00u,0x42830000u},
+        {0xc4ea0000u,0xc4740000u,0x43258000u,0x42830000u},
+        {0xc4e60000u,0xc4740000u,0x43268000u,0x42830000u},
+        {0xc4f20000u,0xc47c0000u,0x43238000u,0x42810000u},
+    };
+    float radius=31;
+    unitModification_t mod={.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','P','N'),
+        .numbeOfModifications=1,.modifications=&mod};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    static uint8_t cells[256*128];
+    box2_t bounds={{-7168,-3072},{1024,1024}};
+    FOR_LOOP(c,9) {
+        reset_entities(); setup_test_world();
+        /* A nonstock8-unit authored radius selects class0, not Footman's class1. */
+        radius=c==8 ? 8 : 31;
+        level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+        level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,8};
+        level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+        CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells);
+        char script[1400];
+        /* Use original requested words, including the JASS addition's low bit. */
+        char call[160];
+        snprintf(call,sizeof(call),c&1 ? "CreateUnitAtLoc(Player(0),'hSPN',Location(%.9g,-976),0)" :
+            "CreateUnit(Player(0),'hSPN',%.9g,-976,0)",wc3_float(requested[c]));
+        if (c==5) strcpy(call,"CreateUnitAtLoc(Player(0),'hSPN',Location(-1936+63.9999,-976),0)");
+        snprintf(script,sizeof(script),"globals\nunit source\nunit mover\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set source=CreateUnit(Player(0),'hSPN',-1936,-976,0)\nset mover=%s\nendfunction\n"
+            "function go takes nothing returns nothing\n"
+            "call IssuePointOrder(mover,\"move\",-1632,-976)\nendfunction\n",call);
+        T_ASSERT(run_test_jass(script));
+        edict_t *unit=NULL,*source=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) {
+            if (!source) source=ent; else unit=ent;
+        }
+        T_NOT_NULL(unit); T_NOT_NULL(source);
+        if (!unit || !source) continue;
+        T_EQ(unit->collision,radius); T_EQ(source->collision,radius);
+        T_EQ(source->s.origin2.x,-1936); T_EQ(source->s.origin2.y,-976);
+        T_EQ(wc3_float_bits(unit->s.origin2.x),expected[c][0]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y),expected[c][1]);
+        T_ASSERT(unit->movement.pose_valid);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[c][2]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[c][3]);
+        T_EQ(unit->current_order_id,0); T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+        if (c!=5) continue;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        cstring_t file="/tmp/openwarcraft3-spawn-admission-save.bin";
+        T_ASSERT(WriteGame(file)); uint32_t state[80][8];
+        FOR_LOOP(pass,2) {
+            if (pass) {
+                T_ASSERT(ReadGame(file));
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[c][2]);
+                T_EQ(wc3_float_bits(unit->s.origin2.x),expected[c][0]);
+            }
+            jass_callbyname(level.vm,"go",false);
+            FOR_LOOP(i,80) {
+                level.time+=30; globals.RunFrame();
+                uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
+                    wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                    wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
+                    wc3_float_bits(unit->s.angle),unit->current_order_id};
+                if (pass) FOR_LOOP(j,8) T_EQ(row[j],state[i][j]); else memcpy(state[i],row,sizeof(row));
+            }
+            T_ASSERT(unit->s.origin2.x>wc3_float(expected[c][0])+64);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        remove(file); level.started=false;
+    }
+    reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
 /* Public Stop recovers a blocked mover within five placement attempts; queryzero and exhaustion stay put. */
 TEST(wc3_movement, public_stop_recovers_embedded_unit_with_bounded_query) {
     static uint8_t cells[256*128];

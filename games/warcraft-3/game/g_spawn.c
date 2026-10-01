@@ -1083,11 +1083,9 @@ static bool G_CanRepositionUnitAt(edict_t *unit, vec2_t const *point) {
     return gi.BoxEdicts(&area, blockers, MAX_REPOSITION_BLOCKERS, G_RepositionBlocker) == 0;
 }
 
-/* Warcraft III SetUnitPosition is not the raw X/Y setter. Warsmash models the
- * native through CUnit.setPointAndCheckUnstuck(): test the requested point,
- * then walk a deterministic 64-world-unit square spiral for at most 300
- * candidates. Keep the requested point as the fallback when no candidate is
- * legal, matching Warsmash's outputX/outputY initialization. */
+/* TODO: legacy placement for item drops, cargo, summons and Way Gates retains
+ * Warsmash's300-candidate64-unit spiral until those original producers are
+ * recovered. Public CreateUnit/SetUnitPosition use verified fine rings instead. */
 bool G_FindUnitUnstuckPosition(edict_t *unit, vec2_t const *requested, vec2_t *out) {
     int check_x = 0, check_y = 0;
 
