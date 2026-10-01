@@ -307,3 +307,28 @@ TEST(sc2_control, high_layout_index_has_valid_wire_number) {
     gi=saved;
     T_ASSERT(output.number>0); T_EQ(output.tex.index,17);
 }
+
+/* Right-click movement must honor the same ability gates as the command card. */
+TEST(sc2_control, smartpoint_rejects_disabled_and_paused_move) {
+    struct game_import saved = gi;
+    uint32_t saved_n = globals.num_edicts;
+    edict_t saved_unit = sc2_edicts[1];
+    struct client_s saved_client = sc2_clients[0];
+    edict_t client = { .client = &sc2_clients[0] };
+    gi.Write = sc2_test_write; gi.unicast = sc2_test_unicast;
+    globals.num_edicts = 2; client.client->ps.number = 1;
+    sc2_edicts[1] = (edict_t){ .inuse = true, .selected = 2, .s = { .player = 1, .model = 1 } };
+    sc2_edicts[1].unit = (sc2UnitState_t){ .initialized = true, .states = 1u << SC2_UNIT_SELECTABLE, .abil_n = 1 };
+    sc2_edicts[1].unit.vitals[0].value = 45;
+    strcpy(sc2_edicts[1].unit.abils[0].link, "move");
+    sc2_edicts[1].unit.abils[0].disabled = true;
+    sc2_test_count = 0;
+    SC2_ClientCommand(&client, 3, (cstring_t[]){ "smartpoint", "10", "10" });
+    T_ASSERT(!sc2_edicts[1].move.moving); T_EQ(sc2_edicts[1].order.kind, 0); T_EQ(sc2_test_count, 0);
+    sc2_edicts[1].unit.abils[0].disabled = false;
+    sc2_edicts[1].unit.states |= 1u << SC2_UNIT_PAUSED;
+    SC2_ClientCommand(&client, 3, (cstring_t[]){ "smartpoint", "10", "10" });
+    T_ASSERT(!sc2_edicts[1].move.moving); T_EQ(sc2_edicts[1].order.kind, 0); T_EQ(sc2_test_count, 0);
+    sc2_edicts[1] = saved_unit; sc2_clients[0] = saved_client;
+    globals.num_edicts = saved_n; gi = saved;
+}

@@ -2,6 +2,13 @@
 
 ## Ownership and input
 
+Right-click `smartpoint` movement checks the selected unit's authored `move,Move`
+ability through `SC2_HUD_CommandEnabled`, just like a command-card click. Disabled,
+hidden, paused, and foreign units cannot acquire a new player Move order through
+that path. `sc2_control.smartpoint_rejects_disabled_and_paused_move` drives the
+production client-command dispatcher and checks that rejected requests emit no
+confirmation event or persistent order.
+
 The single local client retains `ps.number == 1`, matching the current Galaxy
 `PlayerGroupPlayer` session contract. Do not infer its identity from placed army
 size: TRaynor01's script assigns `gv_p1_USER = 1`, while player 2 owns the largest
