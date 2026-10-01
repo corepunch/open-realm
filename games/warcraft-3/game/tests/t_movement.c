@@ -355,48 +355,60 @@ TEST(wc3_movement, retail_fine_route_wall_trajectory_words) {
         {0x40f692a5u,0x405d2628u,0x40739f72u,0x40e1297bu,0x3f899619u,0x00000000u},
         {0x40fa6122u,0x406b38bfu,0x00000000u,0x00000000u,0x3f899619u,0xffffffffu}
     };
-    reset_entities(); setup_test_world();
-    uint8_t cells[16*16]={0};
-    for (int y=2;y<=6;y++) cells[y*16+6]=2;
-    box2_t bounds={{0,0},{512,512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
-    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
-        "set mover=CreateUnit(Player(0),'hRTE',128,128,0)\ncall SetUnitTurnSpeed(mover,0.5)\ncall SetUnitPropWindow(mover,0.5)\nendfunction\n"
-        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",256,128)\nendfunction\n"));
-    edict_t *unit=NULL;
-    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
-    T_NOT_NULL(unit); if (!unit) return;
-    unit_stand(unit); jass_callbyname(level.vm,"go",false);
-    level.scheduled_think=true; level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=0;
-    unit->currentmove->think(unit);
-    cstring_t file="/tmp/openwarcraft3-retail-fine-route-save.bin";
-    FOR_LOOP(i,34) {
-        level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
-        S_PublishMovement(unit); unit->currentmove->think(unit);
-        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[i][0]);
-        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[i][1]);
-        T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),expected[i][2]);
-        T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),expected[i][3]);
-        T_EQ(wc3_float_bits(unit->s.angle),expected[i][4]);
-        if (i<33) T_EQ(unit->movement.fine_route.index,expected[i][5]);
-        if (i==11) T_ASSERT(WriteGame(file));
+    /* Original motion/path points are native fine coordinates. Their words
+     * are independent of the world projection; test translated publications
+     * against the same authoritative trace rather than rounded world deltas. */
+    static vec2_t const origins[]={{0,0},{-256,-256},{-2048,512},{.125f,-19.25f}};
+    FOR_LOOP(k,sizeof(origins)/sizeof(*origins)) {
+        vec2_t origin=origins[k];
+        reset_entities(); setup_test_world();
+        level.waypoints=(typeof(level.waypoints)){0};
+        level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=0;
+        uint8_t cells[16*16]={0};
+        for (int y=2;y<=6;y++) cells[y*16+6]=2;
+        box2_t bounds={origin,{origin.x+512,origin.y+512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+        char script[1024];
+        snprintf(script,sizeof(script),"globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+            "set mover=CreateUnit(Player(0),'hRTE',%.9g,%.9g,0)\ncall SetUnitTurnSpeed(mover,0.5)\ncall SetUnitPropWindow(mover,0.5)\nendfunction\n"
+            "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",%.9g,%.9g)\nendfunction\n",
+            origin.x+128,origin.y+128,origin.x+256,origin.y+128);
+        T_ASSERT(run_test_jass(script));
+        edict_t *unit=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+        T_NOT_NULL(unit); if (!unit) return;
+        unit_stand(unit); jass_callbyname(level.vm,"go",false);
+        level.scheduled_think=true; level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=0;
+        unit->currentmove->think(unit);
+        cstring_t file="/tmp/openwarcraft3-retail-fine-route-save.bin";
+        FOR_LOOP(i,34) {
+            level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
+            S_PublishMovement(unit); unit->currentmove->think(unit);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[i][0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[i][1]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),expected[i][2]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),expected[i][3]);
+            T_EQ(wc3_float_bits(unit->s.angle),expected[i][4]);
+            if (i<33) T_EQ(unit->movement.fine_route.index,expected[i][5]);
+            if (i==11) T_ASSERT(WriteGame(file));
+        }
+        T_EQ(unit->current_order_id,0);
+        T_ASSERT(ReadGame(file));
+        /* Save clears this transient dispatch flag; a real owner callback installs it again. */
+        level.scheduled_think=true;
+        T_NOT_NULL(unit->movement.fine_route.points);
+        for (int i=12;i<34;i++) {
+            level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
+            S_PublishMovement(unit); unit->currentmove->think(unit);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[i][0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[i][1]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),expected[i][2]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),expected[i][3]);
+            T_EQ(wc3_float_bits(unit->s.angle),expected[i][4]);
+            if (i<33) T_EQ(unit->movement.fine_route.index,expected[i][5]);
+        }
+        T_EQ(unit->current_order_id,0); remove(file);
+        level.scheduled_think=false; reset_entities(); setup_test_world();
     }
-    T_EQ(unit->current_order_id,0);
-    T_ASSERT(ReadGame(file));
-    /* Save clears this transient dispatch flag; a real owner callback installs it again. */
-    level.scheduled_think=true;
-    T_NOT_NULL(unit->movement.fine_route.points);
-    for (int i=12;i<34;i++) {
-        level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
-        S_PublishMovement(unit); unit->currentmove->think(unit);
-        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[i][0]);
-        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[i][1]);
-        T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),expected[i][2]);
-        T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),expected[i][3]);
-        T_EQ(wc3_float_bits(unit->s.angle),expected[i][4]);
-        if (i<33) T_EQ(unit->movement.fine_route.index,expected[i][5]);
-    }
-    T_EQ(unit->current_order_id,0); remove(file);
-    level.scheduled_think=false; reset_entities(); setup_test_world();
 }
 
 /* Use the real order owner and scheduler to check retained curves through pause,

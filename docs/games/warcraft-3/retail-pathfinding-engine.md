@@ -2955,3 +2955,57 @@ was stopped, the existing bounds were extracted into `wc3_pathing_limits.h`,
 and the complete final release checks passed without C compiler warnings.
 The first lifecycle fixture's misplaced SLK row was corrected and its authored
 turn/window values are now asserted. Failed attempts grant no accepted evidence.
+
+
+## Native route inputs survive world projection
+
+Engine payoff21 fixes the next complete-motion mismatch rather than adding a
+standalone numeric helper. The controlled detour's native inputs are unchanged
+while the engine publishes into four maps with origins `(0,0)`, `(-256,-256)`,
+`(-2048,512)` and `(0.125,-19.25)`. After resetting each case's clock and waypoint
+pool,174 position/velocity/heading word assertions failed. The first divergence
+occurs when the callback subtracts a world waypoint from a rounded published
+world position; subsequent fine motion inherits that different velocity.
+
+Original16a790 obtains the predicted native vector from05bdd0 and passes it
+directly to16fbd0. At16fd3b,16fbd0 subtracts its native waypoint and native source
+before16f630 computes heading. That decision has no world-origin input. Move now
+carries its valid published `sampled_pose` into the route query; unchanged world
+publication words validate the alias. Explicit world-only geometry still has its
+own input path. Initial fine reconstruction, retained-point distance, segment
+sampling and route direction consume the native source without inverting world
+publication. World coordinates remain the engine's visible waypoint and actor
+position interface. Manual world writers invalidate the alias through the
+existing pose/publication contract.
+
+The actual compiled-JASS Move regression now passes1,364 assertions: all34
+original fine position/velocity/heading ticks at each origin and each22-tick
+saved continuation, with the same active indices and natural arrival. This
+proves the original native-input contract under translated engine publication;
+it does not claim four new live retail scenes or a different original clock
+producer. The original reference remains the twice-replayed controlled detour
+from payoff20. Full primary-owner cadence, additional footprints/lanes, adaptive
+refill and dynamic yielding remain open. Runtime query fields do not change
+Save67, the semantic JASS snapshot or the wire format.
+
+Ghidra saves the native coordinate contract on05bdd0/16fbd0 and now explicitly
+types16fbd0's ECX mover and nine stack words, including its source/destination
+vectors. Instruction readback confirms `RET0x24`. The schema retains31 layouts,
+177 verified fields and171 explicit prototypes;456 descriptive names are
+unchanged. Saved readback under the analysis root:
+`runtime/native-route-source-ghidra-types-261001.json` and
+`runtime/native-route-source-ghidra-readback-261001.json`.
+
+Accepted regression artifacts: `/tmp/wc3-route-origin-fixture-corrected-red.log`
+records the174 genuine failures after fixture correction;
+`/tmp/wc3-route-origin-native-first.log` records the1,364-word acceptance.
+The earlier loop experiments reset clocks after order submission or retained
+an old waypoint pool; those invalid fixtures are rejected, not engine evidence.
+
+Validation for payoff21: forced release RoC/TFT suites pass48,828 assertions in
+2,228 cases each. The required release umbrella and production executable build
+pass without C compiler warnings. All138 pathfinding tool tests, ability coverage,
+backlog counts/IDs, document targets and diff checks pass. The diagnostic O0 TFT
+run had one additional branch assertion and also passed; the forced release
+artifacts above are the final matrix. No additional retail replay is claimed:
+the unchanged original fixture is reused for its native-input contract.

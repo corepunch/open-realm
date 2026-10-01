@@ -255,8 +255,14 @@ static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
      * adds live fine occupancy to location orders only. */
     bool units = unit_routes_to_location(self) && point.policy != MOVE_AVOID_STATIC_ONLY &&
         !S_UnitStatusAbilityEvent(self, A_MOVE_COLLISION_QUERY, NULL);
+    /* Original16a790 passes05bdd0's fine prediction to16fbd0. Reversing a
+     * published world coordinate loses low bits at nonzero map origins. */
+    vec2_t const *fine = self->movement.pose_valid &&
+        wc3_float_bits(self->movement.pose_world.x)==wc3_float_bits(self->s.origin2.x) &&
+        wc3_float_bits(self->movement.pose_world.y)==wc3_float_bits(self->s.origin2.y) ?
+        &self->movement.sampled_pose : NULL;
     return (movePathQuery_t){ {&self->s.origin2, point.point, point.radius, M_UnitStaticPathingFlags(self)},
-                             self, self->goalentity, units };
+                             self, self->goalentity, units, fine };
 }
 
 static bool move_route_line(edict_t *self, moveRoutePoint_t point) {
@@ -876,7 +882,7 @@ static bool unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *
             if (!G_BuildUnitMoveFineRoute(&query,curve,&path->waypoint)) return false;
             path->target = *point.point; path->radius = point.radius; path->valid = true;
         }
-        *dir = Vector2_sub(&path->waypoint,query.geometry.from);
+        *dir = G_MoveFineRouteDirection(&query,curve);
         return true;
     }
     curve->count = curve->index = 0;

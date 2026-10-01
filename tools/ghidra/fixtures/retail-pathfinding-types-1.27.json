@@ -4160,6 +4160,65 @@
           "storage": 8
         }
       ]
+    },
+    {
+      "address": "6f16fbd0",
+      "name": "Mover_StepRoute",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Original16a790 passes05bdd0 predicted native fine vector. Instruction readback16fbd0..16fd88; RET24 hex=36 bytes confirms nine stack words.16fd3b subtracts returned fine waypoint minus stack4 source before16f630 heading. Complete controlled original motion and translated engine word replay.",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "destination",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        },
+        {
+          "name": "speed",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "heading",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "arrived",
+          "type": "ptr:i32",
+          "storage": 20
+        },
+        {
+          "name": "held",
+          "type": "ptr:i32",
+          "storage": 24
+        },
+        {
+          "name": "changed",
+          "type": "ptr:u32",
+          "storage": 28
+        },
+        {
+          "name": "query_word",
+          "type": "u32",
+          "storage": 32
+        },
+        {
+          "name": "refresh",
+          "type": "u32",
+          "storage": 36
+        }
+      ]
     }
   ],
   "globals": [

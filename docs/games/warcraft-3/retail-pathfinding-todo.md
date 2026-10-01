@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**99 done / 282 tasks; 183 remaining.** Counts describe this backlog,
+**100 done / 283 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -23,7 +23,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FOOT — Footprints and query policy | 4 | 9 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
-| NUM — Numbers and random state | 20 | 14 |
+| NUM — Numbers and random state | 21 | 14 |
 | ROUTE — Route progression and yielding | 3 | 9 |
 | TARGET — Pursuit and arrival policy | 2 | 9 |
 | SCHED — Scheduling and owner updates | 2 | 9 |
@@ -118,16 +118,17 @@ state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
-(NUM-01.8). Ghidra mapping persists360
-names,23 layouts,142 fields,119 x86 prototypes and35 scalar globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has166
+(NUM-01.8). Ghidra mapping persists456
+names,31 layouts,177 fields,171 x86 prototypes and44 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has213
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
 ROUTE-02.3 now reproduces the complete controlled wall detour in the engine,
 including turn-stop stepping and saved fine-curve progress. Next runnable work:
-NUM-02.3, extend that whole-motion comparison to nonzero map origins and the
-actual original primary-owner timeline; follow with adaptive-to-fine refill.
+NUM-02.3, extend that whole-motion comparison to the actual original primary-owner
+timeline; NUM-02.7 now keeps the controlled trajectory exact at four world origins.
+Check native cell-boundary admission next, then adaptive-to-fine refill.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
@@ -418,6 +419,8 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 
 
 - [x] **NUM-02.6** Split the primary source/owner clock and previous-velocity phase from02.3: recover and repeat the5ms source/six-advance owner cadence, port scheduled point Move and between-callback prediction, then preserve clock/pose/phase across save/load and interruptions. Evidence: [primary clock reaches Move](retail-pathfinding-engine.md#primary-clock-reaches-move-and-predicted-positions),6000 complete original/C advances,1944 boundary/pause/epoch controls,1000 original controlled commits,300 original queries, two identical primary/live movement sequences and an actual30-second engine trajectory matching2100 words. Production public Move/save/pause/stun/Stop/region and queued-Patrol regressions pass. Save63, persistent Ghidra clock prefix/prototypes,195-entry corpus and67 frozen fixtures are synchronized. Full original routes, other ability clocks and small/large public producer trajectories remain02.3/ROUTE/MOVE.
+
+- [x] **NUM-02.7** Explicitly split native route-source/heading consumption from02.3's full producer/cadence trajectory. Trace05bdd0→16a790→16fbd0/16fd3b, retain native source through route queries, and reproduce the complete controlled wall detour plus save/load at four world origins. Evidence: [engine payoff21](retail-pathfinding-engine.md#native-route-inputs-survive-world-projection),174 genuine reproduced failures then1,364 exact assertions, saved vector-input ABI/comment readback. Actual original primary-owner timeline, stock profile/other lanes, adaptive refill and cell-boundary admission remain02.3/FOOT/ROUTE.
 
 ### NUM-03 — Exceptional numeric inputs
 

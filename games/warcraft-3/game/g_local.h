@@ -2653,9 +2653,11 @@ typedef struct {
     pathAccelParams_t geometry;
     edict_t const *mover, *target;
     bool units;
+    vec2_t const *fine; /* Published native32-unit pose; NULL for explicit world-only geometry. */
 } movePathQuery_t;
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 void S_FreeMoveRoute(edict_t *self);
+vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);
 bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 void G_FreeMovePathCache(void);

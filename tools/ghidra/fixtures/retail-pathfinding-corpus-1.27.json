@@ -12921,7 +12921,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "3f64f1061fa039d746bcf4c2057561fcfb4c0fa614f8f5d61555a286f8f2fadb"
+      "sha256": "f1b0c63dc8a1033bb23ebcf35a48f9a7a2d251d558f60ddf20c63e453b525eb7"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",

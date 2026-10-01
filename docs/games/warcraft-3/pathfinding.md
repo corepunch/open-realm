@@ -405,3 +405,8 @@ controlled original wall detour's34 position/velocity/heading steps exactly,
 including turn stops and natural arrival; save/load retains the same remaining
 motion. See [complete fine-route detour](retail-pathfinding-engine.md#retained-fine-routes-reproduce-a-complete-retail-detour)
 for the fixture and remaining world-origin/scheduler/adaptive/yield limits.
+
+Move's retained detours also carry the published native source into reconstruction,
+progress and steering. A nonzero world origin no longer changes the frozen
+retail detour's motion words. See [native route inputs](retail-pathfinding-engine.md#native-route-inputs-survive-world-projection)
+for the four-origin regression and remaining producer scope.

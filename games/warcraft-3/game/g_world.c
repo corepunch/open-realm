@@ -98,6 +98,15 @@ static vec2_t move_grid_from_world(float x, float y) {
     return (vec2_t){wc3_grid_coordinate(x, bounds.min.x, cx), wc3_grid_coordinate(y, bounds.min.y, cy)};
 }
 
+/* A published native pose is authoritative; world inversion can round into a
+ * different heading or progress decision. Synthetic maps retain their scale. */
+static vec2_t move_query_source(movePathQuery_t const *input) {
+    if (!input->fine) return move_grid_from_world(input->geometry.from->x,input->geometry.from->y);
+    box2_t const bounds=CM_GetWorldBounds();
+    float cx=(bounds.max.x-bounds.min.x)/pathmap.width, cy=(bounds.max.y-bounds.min.y)/pathmap.height;
+    return (vec2_t){wc3_mul(input->fine->x,wc3_div(32,cx)),wc3_mul(input->fine->y,wc3_div(32,cy))};
+}
+
 /* Cell centres and retained route points must not round through map fractions. */
 static vec2_t move_world_from_grid(float x, float y) {
     box2_t const bounds = CM_GetWorldBounds();
@@ -416,7 +425,7 @@ static bool move_query_line(movePathQuery_t const *input) {
     if (!pathmap.width || !pathmap.height) return true;
     pathAccelParams_t end = *params; end.from = params->target;
     if (!G_MovePathPointIsPathable(params) || !G_MovePathPointIsPathable(&end)) return false;
-    vec2_t a = move_grid_from_world(params->from->x, params->from->y);
+    vec2_t a = move_query_source(input);
     vec2_t b = move_grid_from_world(params->target->x, params->target->y);
     moveFineGraph_t graph = move_foot_shape(params);
     wc3FineSegment_t query = { .start = {a.x, a.y},
@@ -492,7 +501,9 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *curve
     if (!params || !params->from || !params->target || !out || !pathmap.width || !pathmap.height) return false;
     pathAccelParams_t dest = *params; dest.from = params->target;
     if (!G_ClosestMovePathPoint(params, &source) || !G_ClosestMovePathPoint(&dest, &target)) return false;
-    vec2_t a = move_grid_from_world(source.x, source.y), b = move_grid_from_world(target.x, target.y);
+    vec2_t a = source.x==params->from->x && source.y==params->from->y ?
+        move_query_source(input) : move_grid_from_world(source.x,source.y);
+    vec2_t b = move_grid_from_world(target.x,target.y);
     wc3FinePoint_t start = { (int)floorf(a.x), (int)floorf(a.y) };
     wc3FinePoint_t goal = { (int)floorf(b.x), (int)floorf(b.y) };
     if (abs(start.x - goal.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - goal.y) > PATH_ACCEL_MAX_DISTANCE)
@@ -553,12 +564,20 @@ bool G_BuildUnitMoveFineRoute(movePathQuery_t const *input, moveFineRoute_t *rou
     return route && move_find_route(input,route,out);
 }
 
+/* Original16fbd0 subtracts the predicted fine source from the returned native
+ * waypoint before vector-heading calculation; world publication is downstream. */
+vec2_t G_MoveFineRouteDirection(movePathQuery_t const *input, moveFineRoute_t const *route) {
+    assert(input && route && route->points && route->index<route->count);
+    vec2_t source=move_query_source(input), target=route->points[route->index];
+    return (vec2_t){wc3_sub(target.x,source.x),wc3_sub(target.y,source.y)};
+}
+
 /* Original167070 retains the current point until .49 cells, then165e60 skips visible successors. */
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *out) {
     if (!input || !input->geometry.from || !out || !route || !route->points || route->count < 2 ||
         route->count > BZ_WC3_FINE_NODES || route->index >= route->count || route->mask != input->geometry.blocked_flags)
         return false;
-    vec2_t source = move_grid_from_world(input->geometry.from->x,input->geometry.from->y);
+    vec2_t source = move_query_source(input);
     vec2_t point = route->points[route->index];
     float dx = wc3_sub(point.x,source.x), dy = wc3_sub(point.y,source.y), range = wc3_float(0x3efae148);
 
