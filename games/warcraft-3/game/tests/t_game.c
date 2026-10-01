@@ -4233,6 +4233,8 @@ SAVE_PTR_FIELD_TEST(field_cargo_round_trip, "cargo.units", cargo.units[4], MAX_C
 SAVE_PTR_FIELD_TEST(field_item_carrier_round_trip, "item.carrier", item.carrier, 0)
 SAVE_PTR_FIELD_TEST(field_ground_next_round_trip, "ground_next", ground_next, 0)
 SAVE_PTR_FIELD_TEST(field_attackmove_waypoint_round_trip, "movement.attackmove_waypoint", movement.attackmove_waypoint, 0)
+SAVE_PTR_FIELD_TEST(field_move_wait_blocker_round_trip, "movement.wait_blocker", movement.wait_blocker, 0)
+SAVE_INT_FIELD_TEST(field_move_wait_delay_round_trip, movement.wait_delay, 25)
 SAVE_PTR_FIELD_TEST(field_patrol_a_round_trip, "movement.patrol_a", movement.patrol_a, 0)
 SAVE_PTR_FIELD_TEST(field_patrol_b_round_trip, "movement.patrol_b", movement.patrol_b, 0)
 SAVE_PTR_FIELD_TEST(field_patrol_target_round_trip, "movement.patrol_target", movement.patrol_target, 0)

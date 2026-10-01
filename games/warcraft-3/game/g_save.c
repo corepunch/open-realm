@@ -77,9 +77,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format67 retains complete fine-route points and progression alongside the owner repulsion state.
+/* Format69 retains owned fine/adaptive curves and moving-blocker waits/identities.
  * Earlier streams lack the new edict/list layout and are rejected. */
-static uint32_t const save_version = 68;
+static uint32_t const save_version = 69;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -691,6 +691,8 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, pose_clock.epoch, F_INT),
     TF(edictMovement_s, pose_clock.span, F_FLOAT),
     TF(edictMovement_s, clock_valid, F_INT),
+    TF(edictMovement_s, wait_delay, F_INT),
+    TF(edictMovement_s, wait_blocker, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, group_id, F_INT),
     TF(edictMovement_s, waygate_target, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, waygate_goal, F_EDICT, 0, FIELD_NONE),

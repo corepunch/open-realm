@@ -983,6 +983,53 @@ function install(module) {
             if (row && ret.toInt32()) row.matched = this.cell;
         }
     });
+    if (config.yieldEvents) {
+        const decisions = new Map();
+        const words = (p,n) => Array.from({length:n},(_,i)=>p.add(i*4).readU32());
+        const snapshot = mover => {
+            if (mover.isNull()) return null;
+            const path=mover.add(0xa8).readPointer();
+            return {mover:mover.toString(),identity:words(mover.add(0x14),2),
+                velocity:words(mover.add(0x80),2),path:path.toString(),
+                player:(path.add(0x88).readU32()>>>16)&15,
+                before:{delay:path.add(0x94).readU32(),blocker:words(path.add(0xa8),2)}};
+        };
+        hook(0x168360, {
+            onEnter(args) {
+                const vector=args[0], count=vector.add(0x1c).readU32();
+                if (count>32) throw new Error('Yield candidate capacity exceeded');
+                const current=base.add(0xd53a8c).readPointer();
+                this.row={sequence:++serial,self:snapshot(current),candidates:[],groups:{},blocked:{}};
+                const entries=vector.add(0xc).readPointer();
+                for(let i=0;i<count;i++) this.row.candidates.push(snapshot(entries.add(i*4).readPointer()));
+                decisions.set(this.threadId,this.row);
+            },
+            onLeave() {
+                const row=this.row;
+                for(const actor of [row.self,...row.candidates]) if(actor) {
+                    const path=ptr(actor.path);
+                    actor.after={delay:path.add(0x94).readU32(),blocker:words(path.add(0xa8),2)};
+                }
+                bump('yield-decision');
+                if(counts['yield-decision']<=config.samples) emit('yield-decision',row);
+                decisions.delete(this.threadId);
+            }
+        });
+        hook(0x1702a0, {
+            onEnter() {this.actor=this.context.ecx.toString();},
+            onLeave(ret) {
+                const row=decisions.get(this.threadId);
+                if(row) row.groups[this.actor]=ret.isNull()?null:{pointer:ret.toString(),flags:ret.add(0x80).readU32()};
+            }
+        });
+        hook(0x1680f0, {
+            onEnter() {this.path=this.context.ecx.toString();},
+            onLeave(ret) {
+                const row=decisions.get(this.threadId);
+                if(row) (row.blocked[this.path]||(row.blocked[this.path]=[])).push(!ret.isNull());
+            }
+        });
+    }
     hook(0x168070, {
         onEnter(args) {
             this.path = this.context.ecx;

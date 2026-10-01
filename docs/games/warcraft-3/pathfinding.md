@@ -417,3 +417,14 @@ stall caused by the inherited48-cell admission gate. Full original route buffers
 match across four footprints; the public engine Move reaches its destination and
 repeats600 saved continuation frames exactly. See
 [activation defaults and budget evidence](retail-pathfinding-engine.md#ordinary-path-defaults-enable-adaptive-routing).
+
+
+Ordinary Move now collects next-step moving blockers and applies the original
+committed-velocity yield policy: requester waits at least4 eligible advances,
+or the slower same-player peer waits at least20. Candidate order and earlier
+peer side effects are retained. Save69 preserves live waits and blocker
+references; removal clears references without cancelling the remaining delay.
+The public Move/save/removal regression and two exact retail decision repeats
+are recorded in [ordered moving waits](retail-pathfinding-engine.md#ordered-moving-waits-reach-ordinary-move).
+Original overlapping cell-link order, group-bit8 producers, caller retry
+composition and full crowd trajectory parity remain open.

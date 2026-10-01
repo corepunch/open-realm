@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**108 done / 290 tasks; 182 remaining.** Counts describe this backlog,
+**109 done / 291 tasks; 182 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -24,7 +24,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 21 | 14 |
-| ROUTE — Route progression and yielding | 6 | 9 |
+| ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 2 | 9 |
 | SCHED — Scheduling and owner updates | 3 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
@@ -36,7 +36,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | E2E — Combined scenarios and handoff | 1 | 18 |
 | READY — Start the faithful replacement | 0 | 4 |
 
-BASE-02.7 explicitly adds the missing ordinary path-activation/adaptive-admission policy; the wider scheduler and group-budget contracts remain open.
+BASE-02.7 explicitly adds the missing ordinary path-activation/adaptive-admission policy; the wider scheduler and group-budget contracts remain open. ROUTE-05.3 explicitly adds the parallel engine ordered-wait port; it does not close05.1/05.2 producer/cycle requirements.
 
 Update these counts when checking, adding or splitting a task. Report progress
 as **IDs closed + artifact + next runnable ID**, not additional raw test counts.
@@ -493,6 +493,8 @@ eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope
 
 - [ ] **ROUTE-05.1** Trace blocker identity and group-bit-8 producers; assert delay duration after blocker removal and replacement by a reused handle.
 - [ ] **ROUTE-05.2** Run a two-mover asymmetric yield and a three-mover yield cycle; compare countdown, release order and eventual progress/failure.
+
+- [x] **ROUTE-05.3** Explicitly split the verified ordered velocity decision and ordinary engine wait consumer from05.1's group-bit8/reused-handle producers and05.2's full cycles. Port committed-velocity software comparison, ordered persistent peer side effects and max4/20 delays into Move; collect the native next-step class strips and preserve waits/blocker references through Save69. All8,640 original decision cases and25 gate controls match C. Two fresh source/map-pinned crowd captures repeat2,503 complete ordered decisions,51 duplicates,56 short/10 long assignments and424 retiring advances exactly. The public two-Move/remove/query0/save regression consumes four scheduled waits and repeats48 state words, while field tests reject invalid blocker pointers. Evidence: [engine payoff30](retail-pathfinding-engine.md#ordered-moving-waits-reach-ordinary-move), frozen original fixtures, saved Ghidra names/ABIs and strict four-entry corpus. Lazy overlapping cell-link order, original group-bit8/membership producers, peer-wait retry restoration, denied requests, oblique held-heading composition and full crowd/cycle trajectories remain ROUTE-02.2/03/05.1/05.2/GROUP/SCHED/E2E.
 
 ## TARGET — Pursuit and arrival policy
 

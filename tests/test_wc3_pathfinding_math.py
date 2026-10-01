@@ -30,6 +30,7 @@ from verify_wc3_forced_position import verify as verify_forced_position, digest 
 from verify_wc3_placement_trace import verify as verify_placement, digest as placement_digest
 from verify_wc3_stop_recovery_trace import verify as verify_stop_recovery, digest as stop_recovery_digest
 from verify_wc3_primary_clock import verify_primary, digest as primary_digest
+from verify_wc3_yield_trace import verify as verify_yield
 
 
 class PathingMathTests(unittest.TestCase):
@@ -57,6 +58,47 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_moving_yield_matches_original_velocity_and_countdown_words(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-moving-yield-1.27.json').read_text())
+        self.assertEqual(len(frozen['decisions']),8640)
+        for engine in self.engines:
+            proc=engine.pathing_yield_decision
+            proc.argtypes=[ctypes.POINTER(ctypes.c_uint32)];proc.restype=ctypes.c_uint32
+            gate=engine.pathing_yield_advance
+            gate.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.c_uint32];gate.restype=ctypes.c_uint32
+            for row in frozen['decisions']:
+                self.assertEqual(proc((ctypes.c_uint32*10)(*row['input'])),row['decision'])
+            for row in frozen['gates']:
+                delay=ctypes.c_uint32(row['delay'])
+                result=gate(ctypes.byref(delay),bool(row['flags']&0x100000))
+                self.assertEqual(delay.value,row['output'])
+                self.assertEqual(bool(result),not row['flags']&0x100000 and bool(row['delay']))
+
+    def test_live_ordered_yield_matches_original_and_rejects_incomplete_inputs(self):
+        rows=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-moving-yield-1.27.json').read_text())['rows']
+        for engine in self.engines:
+            result=verify_yield(rows,engine)
+            self.assertEqual((result['decisions'],result['assignments'],result['delay_calls'],result['duplicate_candidates']),
+                             (2503,{4:56,20:10},424,51))
+            self.assertEqual(result['digest'],'dc0362228855a17aba4279a9581f9f8a176b8daf8a782f9d1b2d6bbd3fed05fc')
+            for kind in ('source','group','blocker','state','writer','gate','truncation','completion','error'):
+                changed=copy.deepcopy(rows)
+                if kind=='source':changed[0]['source_sha256']['map']='z'*64
+                elif kind=='group':
+                    row=next(r for r in changed if r['event']=='yield-decision')
+                    del row['groups'][row['self']['mover']]
+                elif kind=='blocker':
+                    next(r for r in changed if r['event']=='yield-decision' and r['blocked'])['blocked']={}
+                elif kind=='state':
+                    next(r for r in changed if r['event']=='yield-decision')['self']['after']['delay']+=1
+                elif kind=='writer':next(r for r in changed if r['event']=='yield-set')['stored']=[0,0]
+                elif kind=='gate':next(r for r in changed if r['event']=='path-delay')['after']+=1
+                elif kind=='truncation':changed.pop(next(i for i,r in enumerate(changed) if r['event']=='yield-decision'))
+                elif kind=='completion':changed=[r for r in changed if r['event']!='marker']
+                else:changed.append(dict(event='error'))
+                with self.subTest(optimization=engine._name,case=kind),self.assertRaises(ValueError):
+                    verify_yield(changed,engine)
 
     def test_search_obstruction_selects_initial_fine_waypoint(self):
         frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-adaptive-long-progress-1.27.json').read_text())

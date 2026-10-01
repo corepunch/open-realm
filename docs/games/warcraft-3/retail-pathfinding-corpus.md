@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **230 entries**: **44** distinct original-code oracle
-scripts plus **50** declared variants, **106** archived JSONL audits and **30**
+The inventory now has **233 entries**: **44** distinct original-code oracle
+scripts plus **50** declared variants, **108** archived JSONL audits and **31**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -23,10 +23,10 @@ outside the accepted inventory unless given their own rejection contract.
 | 88 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 98 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 100 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Twenty public/native/compiler/heading/arrival/speed/pose/clock/placement/random repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Twenty-one public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -564,3 +564,13 @@ The inventory contains230 entries:94 oracles,106 archives,30 live contracts,
 with84 pinned repository fixtures. Group5000 composition, admission timing and
 full physical retail maze motion remain separate contracts. See
 [ordinary path defaults](retail-pathfinding-engine.md#ordinary-path-defaults-enable-adaptive-routing).
+
+
+Payoff30 extends `oracle-yield` to compare all8,640 original single-candidate
+choices and25 countdown gates with production C. Two fresh owned crowd archives
+and `live-moving-yield-repeat-261001` retain source/map provenance and compare
+all2,503 ordered decisions, every actor wait-state change and424 delayed calls;
+the independent repeat has identical normalized digest. The two added frozen
+fixtures bring the pinned inventory to86. Accepted strict run:
+`moving-yield-corpus-accepted-v2-261001/corpus-results.json`.
+See [ordinary Move integration and exclusions](retail-pathfinding-engine.md#ordered-moving-waits-reach-ordinary-move).

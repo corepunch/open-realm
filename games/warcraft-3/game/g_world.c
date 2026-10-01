@@ -485,6 +485,51 @@ static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
     return wc3_fine_cell_edges(&query, pos);
 }
 
+typedef struct { movePathQuery_t const *query; edict_t **items; uint32_t count; } moveBlockerQuery_t;
+
+/* Original148ad0 includes terrain/null tokens and moving objects. Deduplication
+ * is per cell; a wider object can consume multiple slots across the footprint. */
+static bool move_collect_blocker_cell(void const *data, wc3FinePoint_t pos) {
+    moveBlockerQuery_t *scan=(moveBlockerQuery_t *)data;
+    if (scan->count==32) return true;
+    uint8_t mask=scan->query->geometry.blocked_flags;
+    if (!is_valid_point(pos.x,pos.y) || (mask && !is_pathable_node_original_flags(pos.x,pos.y,mask))) {
+        scan->items[scan->count++]=NULL;
+        return true;
+    }
+    FILTER_EDICTS(ent,ent->inuse && ent!=scan->query->mover && !IS_HOLLOW(ent) && ent->data.UnitData &&
+        !G_UnitIsStructure(ent) && ent->collision>0 && (entity_dynamic_pathing_flags(ent)&mask)) {
+        vec2_t point=move_grid_from_world(ent->s.origin2.x,ent->s.origin2.y);
+        wc3FineBox_t box=wc3_fine_cover(wc3_fine_class(ent->collision/pathmap_cell_world_size()),
+            (wc3FinePoint_t){(int)floorf(point.x),(int)floorf(point.y)});
+        if (pos.x>=box.min.x && pos.x<box.max.x && pos.y>=box.min.y && pos.y<box.max.y) {
+            scan->items[scan->count++]=ent;
+            if (scan->count==32) break;
+        }
+    }
+    /* TODO MAP/FINE/ROUTE-02.2: engine edict order does not retain original lazy
+     * cell-link insertion/stamp order for overlapping objects. Single-object
+     * cells and footprint cell order use the original collector geometry. */
+    return true;
+}
+
+/* Original166140 normalizes the native next step and collects every entering
+ * cell. Returning true from the callback keeps scanning after a rejection. */
+uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *input, float const fine_goal[2], edict_t **out) {
+    if (!input || !input->units || !input->mover || !out || !input->geometry.target ||
+        !pathmap.width || !pathmap.height || (input->mover->aiflags&AI_FLYING)) return 0;
+    vec2_t source=move_query_source(input), goal=fine_goal ? (vec2_t){fine_goal[0],fine_goal[1]} :
+        move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
+    moveBlockerQuery_t scan={input,out,0};
+    wc3FineSegment_t query={.start={source.x,source.y},.direction={wc3_sub(goal.x,source.x),wc3_sub(goal.y,source.y)},
+        .cls=wc3_fine_class(input->geometry.radius/pathmap_cell_world_size()),.cell=move_collect_blocker_cell,.data=&scan};
+    wc3_segment_normalize(query.direction);
+    wc3FinePoint_t current={(int)floorf(source.x),(int)floorf(source.y)}, next=wc3_segment_point(&query,1.f);
+    unsigned code=(next.x<current.x?8u:next.x>current.x?2u:0u)|(next.y<current.y?1u:next.y>current.y?4u:0u);
+    wc3_segment_foot(&query,next,code);
+    return scan.count;
+}
+
 /* Ordinary owned paths enable adaptive search at activation, including nearby orders. */
 static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out) {
     movePathQuery_t const *input = query->input;

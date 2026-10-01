@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 68, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 69, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -661,3 +661,16 @@ to the new world's bake revision. Exact-version checks reject earlier layouts.
 The public long Move scheduler regression compares180 continuation frames after
 loading, with retained coarse count/index; JASS snapshot7 and wire data are
 unchanged. See [the engine integration](retail-pathfinding-engine.md#retained-coarse-progress-refills-the-fine-route).
+
+
+### Moving-blocker waits (version69)
+
+Move persists the unsigned eligible-advance countdown and its blocker edict
+reference. The movement schema uses `F_INT` and `F_EDICT`; save/load converts the
+pointer to/from an edict index and rejects invalid pointers. A new order clears
+both values. Actor reclamation clears other actors' references before slot reuse
+while retaining their remaining waits. Public `RemoveUnit` defers reclamation;
+the identity clears at the Move removal callback. A public two-Move fixture saves
+with a live4-advance wait, removes its blocker, consumes all four waits despite
+query0, then resumes with an exact48-word continuation after load. See
+[the original policy and integration](retail-pathfinding-engine.md#ordered-moving-waits-reach-ordinary-move).

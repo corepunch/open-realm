@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--byte-events', action='store_true', help='capture raw byte parser inputs and exact sibling CRT digit/locale observations')
     parser.add_argument('--task-events', action='store_true', help='observe point-task acceptance and arrival queue state')
     parser.add_argument('--motion-events', action='store_true', help='capture raw speed/heading decision bits for numerical replay')
+    parser.add_argument('--yield-events', action='store_true', help='observe ordered moving-blocker decisions, actual resolved groups and blocker handles')
     parser.add_argument('--velocity-events', action='store_true', help='capture raw velocity commits and selected simulation clocks')
     parser.add_argument('--clock-events', action='store_true', help='observe original clock subdivision and path-owner update order during the scenario')
     parser.add_argument('--heading-events', action='store_true', help='capture raw vector-to-heading errors')
@@ -53,7 +54,7 @@ def main():
               'imageSize': struct.unpack_from('<I', binary, pe + 80)[0], 'samples': args.samples,
               'watchCell': args.watch_cell, 'blockers': args.blockers, 'taskEvents': args.task_events,
               'widgetEvents': args.widget_events, 'motionEvents': args.motion_events,
-              'velocityEvents': args.velocity_events, 'clockEvents': args.clock_events, 'headingEvents': args.heading_events,
+              'velocityEvents': args.velocity_events, 'yieldEvents': args.yield_events, 'clockEvents': args.clock_events, 'headingEvents': args.heading_events,
               'profileEvents': args.profile_events, 'numericEvents': args.numeric_events, 'randomEvents': args.random_events,
               'literalTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_literal_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.literal_events else [],
               'integerTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_integer_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.integer_events else [], 'byteEvents': args.byte_events}

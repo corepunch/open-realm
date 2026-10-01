@@ -4448,6 +4448,223 @@
       "name": "PathGroup_GetAcceleratedSearchLimit",
       "returns": "u32",
       "parameters": []
+    },
+    {
+      "address": "6f149560",
+      "name": "PathFine_CollectClassZeroStepBlockers",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:i32",
+          "storage": 4
+        },
+        {
+          "name": "direction",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "candidates",
+          "type": "ptr:void",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f1497c0",
+      "name": "PathFine_CollectClass1StepBlockers",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:i32",
+          "storage": 4
+        },
+        {
+          "name": "direction",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "candidates",
+          "type": "ptr:void",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f149b00",
+      "name": "PathFine_CollectClass2StepBlockers",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:i32",
+          "storage": 4
+        },
+        {
+          "name": "direction",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "candidates",
+          "type": "ptr:void",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f149e60",
+      "name": "PathFine_CollectClass3StepBlockers",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:i32",
+          "storage": 4
+        },
+        {
+          "name": "direction",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "candidates",
+          "type": "ptr:void",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f1680f0",
+      "name": "Path_ResolveBlocker",
+      "returns": "ptr:WC3MoverPrefix",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f168360",
+      "name": "Path_ResolveMovingBlockers",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "candidates",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f168070",
+      "name": "Path_SetBlockerAndMinDelay",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "blocker",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": 4
+        },
+        {
+          "name": "delay",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f165ae0",
+      "name": "Path_Advance",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "destination",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        },
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f166140",
+      "name": "Path_CollectAndResolveNextStepBlockers",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "destination",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [

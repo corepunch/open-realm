@@ -1676,6 +1676,8 @@ struct edict_s {
         moveFallbackState_t flow_fallback_state;
         routePath_t path; /* mover-owned waypoint cache; geometry contract shared with other server games */
         moveFineRoute_t fine_route;
+        uint32_t wait_delay; /* eligible ordinary path advances; original requester4/peer20 */
+        edict_t *wait_blocker; /* removed actors invalidate references before edict reuse */
         uint32_t group_id; /* Move-owned active selection identity; independent of waypoint ring reuse. */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float flat_speed_bonus; /* AIms maximum last published by a speed setter/order, independent of live inventory. */
@@ -2666,6 +2668,8 @@ void G_RebindSavedMoveRoutes(void);
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 void S_FreeMoveRoute(edict_t *self);
 vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);
+uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *query, float const fine_goal[2], edict_t **out);
+bool S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count);
 bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);

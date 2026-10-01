@@ -9,6 +9,7 @@
 #include "games/warcraft-3/common/wc3_pathing_random.h"
 #include "games/warcraft-3/common/wc3_pathing_repulsion.h"
 #include "games/warcraft-3/common/wc3_pathing_adaptive.h"
+#include "games/warcraft-3/common/wc3_pathing_yield.h"
 
 /* Four supplied hierarchy levels, exact source/goal words and ordinary size1/2 route policy. */
 void pathing_adaptive_route(uint32_t const input[8], uint8_t const *classes, uint32_t *output) {
@@ -631,4 +632,14 @@ void pathing_repulsion_tail(uint32_t const input[8], uint32_t output[3]) {
     wc3_repulse_tail(&state,&config);
     for (unsigned i=0;i<2;i++) output[i]=wc3_float_bits(state.vector[i]);
     output[2]=state.packed;
+}
+
+/* Current velocity/player then peer velocity/player/flags/group/identity state. */
+uint32_t pathing_yield_decision(uint32_t const input[10]) {
+    float velocity[]={wc3_float(input[0]),wc3_float(input[1])};
+    wc3YieldPeer_t peer={{wc3_float(input[3]),wc3_float(input[4])},input[5],input[6],input[7],input[8],input[9]};
+    return wc3_yield_decide(velocity,input[2],&peer);
+}
+uint32_t pathing_yield_advance(uint32_t *delay, uint32_t disabled) {
+    return wc3_yield_advance(delay,disabled!=0);
 }

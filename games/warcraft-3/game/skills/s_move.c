@@ -13,6 +13,7 @@
  * Steering, collision-aware steps, route goals, and support heights are owned here.
  */
 #include "s_skills.h"
+#include "games/warcraft-3/common/wc3_pathing_yield.h"
 #include "games/warcraft-3/common/wc3_math.h"
 #include "games/warcraft-3/common/wc3_pathing_arrival.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
@@ -837,6 +838,25 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
      * the move step (unit_moveindirection) follows it, keeping facing and motion
      * aligned (no second, disagreeing search). */
     float const goal_angle = wc3_vector_heading(dir->x, dir->y);
+    bool wait=false;
+    if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) && !self->no_pathing) {
+        movePathQuery_t query=move_route_query(self,(moveRoutePoint_t){&self->goalentity->s.origin2,self->collision,policy});
+        moveFineRoute_t const *route=&self->movement.fine_route;
+        float point[2]; float const *fine=NULL;
+        if (self->movement.path.valid && route->count && route->index<route->count) {
+            point[0]=route->points[route->index].x; point[1]=route->points[route->index].y; fine=point;
+        }
+        edict_t *blockers[32];
+        uint32_t count=G_CollectUnitMoveStepBlockers(&query,fine,blockers);
+        if (count) wait=S_ResolveMoveBlockers(self,blockers,count);
+    }
+    if (wait) {
+        self->movement.heading=goal_angle; unit_turn_toward(self,goal_angle);
+        self->movement.turn_blocked=true;
+        return;
+    }
+    /* TODO ROUTE-03/05: a peer20 assignment still uses engine collision steering;
+     * original165c60's caller-destination restoration/retry remains unported. */
     float const desired = unit_desired_heading(self, goal_angle,
                                                 unit_movedistance(self), policy);
     self->movement.heading = desired;
@@ -876,6 +896,33 @@ void S_FreeMoveRoute(edict_t *self) {
     free(self->movement.fine_route.adaptive_points);
     self->movement.fine_route = (moveFineRoute_t){0};
     self->movement.path.valid = false;
+}
+
+/* Original168360 clears the requester identity, keeps prior delay and scans in order. */
+bool S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count) {
+    self->movement.wait_blocker=NULL;
+    float velocity[]={self->movement.velocity.x,self->movement.velocity.y};
+    FOR_LOOP(i,count) {
+        edict_t *peer=blockers[i];
+        if (!peer || !peer->inuse || peer==self) continue;
+        wc3YieldPeer_t other={.velocity={peer->movement.velocity.x,peer->movement.velocity.y},
+            .player=peer->s.player,.grouped=unit_routes_to_location(peer),
+            .same_group=self->movement.group_id && self->movement.group_id==peer->movement.group_id,
+            .blocked=peer->movement.wait_blocker && peer->movement.wait_blocker->inuse};
+        /* TODO GROUP/ROUTE-05.1: ordinary engine cohorts retain activation's flags0;
+         * the original group-bit8 writer/producer remains unimplemented. */
+        wc3YieldDecision_t choice=wc3_yield_decide(velocity,self->s.player,&other);
+        if (choice==WC3_YIELD_SELF) {
+            self->movement.wait_blocker=peer;
+            self->movement.wait_delay=MAX(self->movement.wait_delay,4u);
+            return true;
+        }
+        if (choice==WC3_YIELD_PEER) {
+            peer->movement.wait_blocker=self;
+            peer->movement.wait_delay=MAX(peer->movement.wait_delay,20u);
+        }
+    }
+    return false;
 }
 
 /* Keep the bounded point-route turn until it is reached; retail likewise owns
@@ -950,6 +997,16 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
 static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root.rooted_turning))
         return;
+    if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
+        wc3_yield_advance(&self->movement.wait_delay,false)) {
+        /* TODO ROUTE-03/05: verify oblique held-waypoint heading composition;
+         * the ordinary engine wait currently turns toward its order goal. */
+        vec2_t direction=Vector2_sub(&self->goalentity->s.origin2,&self->s.origin2);
+        float heading=wc3_vector_heading(direction.x,direction.y);
+        self->movement.heading=heading; unit_turn_toward(self,heading);
+        self->movement.turn_blocked=true;
+        return;
+    }
     if (move_displacement_steer(self, policy))
         return;
     if (move_fallback_steer(self, policy))
@@ -1442,6 +1499,8 @@ void move_reset_progress(edict_t *self) {
     self->movement.worker_avoid_heading = self->s.angle;
     self->movement.worker_avoid_blocked_frames = 0;
     self->movement.worker_avoid_active = false;
+    self->movement.wait_delay=0;
+    self->movement.wait_blocker=NULL;
     self->movement.group_id = 0;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
     self->movement.turn_blocked = false;
@@ -2190,6 +2249,8 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_UNIT_INIT:
     case A_UNIT_OWNER_CHANGED: move_repulse_init(ent); return true;
     case A_UNIT_REMOVE:
+        FILTER_EDICTS(other,other->inuse && other->movement.wait_blocker==ent)
+            other->movement.wait_blocker=NULL;
         if (ent->movement.repulse.active) move_repulse_unlink(ent);
         S_FreeMoveRoute(ent);
         return true;

@@ -3427,3 +3427,104 @@ Validation: forced release RoC/TFT suites each pass80,251 assertions in2,240
 cases. The release umbrella, production executable build,150 pathfinding tool tests, ability coverage,
 backlog counts/unique IDs/area totals, fixture hashes, local links and
 `git diff --check` pass without C compiler warnings.
+
+
+## Ordered moving waits reach ordinary Move
+
+Engine payoff30 integrates original moving-blocker decisions and retained waits;
+it explicitly splits ROUTE-05.3 from the remaining05.1/05.2 producer and cycle
+work. Every completed leaf includes the production Move change, original/C
+comparison, public-order regression and saved continuation. It does not close
+full crowd trajectory parity.
+
+Original168360 first clears the requester blocker identity, keeps its unsigned
+prior delay and scans the supplied vector in order. It uses software squared
+**committed velocity**, not authored movement speed. A candidate without a
+resolved group, with zero speed, or with a resolved existing blocker is skipped.
+Same group with bit8 clear, faster/equal candidate, or different player class
+sets requester identity and `max(delay,4)`, then returns. Otherwise it sets the
+candidate identity and `max(delay,20)` and continues; those earlier side effects
+survive a later requester wait. A repeated candidate can therefore be skipped
+because the first visit blocked it.
+
+The shared production `wc3_pathing_yield.h` decision and countdown kernels match
+all8,640 complete original single-candidate cases and25 enabled/disabled gate
+controls. The original oracle also checks128 multi-candidate sequences using
+real registered identity/group resolution. Original165ae0 checks internal flag
+100000 before the delay: it freezes a disabled path; an enabled nonzero delay
+consumes one eligible advance and returns1, including1→0. `SetUnitPathing(false)`
+zeroes the query mask, which is a different contract from this disabled flag.
+
+Two fresh owned Frida crowd captures record actual velocities, player classes,
+group pointers/flags, ordered candidate identities, each chronological blocker
+resolution, all actor before/after wait states and the countdown calls. Each
+matches the production C decision kernel on2,503 complete runtime decisions,
+including51 duplicate candidates,56 requester4 waits,10 peer20 waits and424
+retiring delay calls. Actual group flags20000/30000 have bit8 clear. Exact
+normalized repeat digest:
+`dc0362228855a17aba4279a9581f9f8a176b8daf8a782f9d1b2d6bbd3fed05fc`.
+Observer source and map hashes are embedded; map hash:
+`3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027`.
+
+Move now collects the next native route step using the existing four-class
+entering-strip sampler, continuing across all cells and retaining duplicates
+and terrain/null tokens in its32-entry vector. `S_ResolveMoveBlockers` owns the
+ordinary engine cohort decisions and persistent4/20 waits. Waits stop
+translation while turning still runs; the scheduler consumes one per eligible
+ordinary Move call. New orders clear progress; actor reclamation clears other
+waiter identities before edict reuse while preserving their remaining delays.
+Save69 persists the counter and `F_EDICT` blocker reference. Older save layouts
+are rejected; JASS snapshot7 and the network contract are unchanged.
+
+The19-assertion ordered peer-policy regression uses distinct actual actors,
+contrasting authored speed with committed velocity, preserving an earlier peer
+wait, skipping an already blocked candidate and retaining a larger prior wait.
+The124-assertion public regression issues two real JASS Move orders, collects a
+moving blocker, saves with its identity/delay live, removes it through deferred
+`RemoveUnit` reclamation and disables the query. Both continued runs consume
+exactly four scheduled waits, then resume motion; all48 captured position,
+velocity, heading, order and wait words repeat exactly after load. The missing
+resolver was reproduced with a no-decision control before accepting the port.
+All203 movement cases pass40,375 assertions.
+
+Evidence under the report root:
+
+- `runtime/moving-yield-oracle-first-261001.json` and `runtime/moving-yield-oracle-repeat-261001.json`.
+- `runtime/moving-yield-ordered-first-261001.jsonl` and `runtime/moving-yield-ordered-repeat-261001.jsonl`.
+- `runtime/moving-yield-ordered-strict-261001.json`.
+- `moving-yield-corpus-accepted-v2-261001/corpus-results.json`.
+- `runtime/moving-yield-ghidra-readback-261001.json` and `runtime/moving-yield-types-261001.json`.
+
+Frozen asset-free original fixtures are `retail-moving-yield-1.27.json` and
+`retail-public-moving-yield-1.27.json`; both production optimization levels are
+checked. Missing group/resolver inputs, mutated states/writers/countdowns,
+truncated captures and absent completion/provenance are rejected. Ghidra now
+retains470 role names,191 verified prototypes,31 layouts,177 fields and44
+globals; the four class collectors and blocker resolver have saved operand ABI.
+The corpus contains233 entries:94 original oracles,108 archive audits and31
+stronger live contracts, with86 pinned fixtures.
+
+Remaining work is explicit: retail overlapping lazy cell-link insertion/stamp
+order, group-bit8 and complete group-membership producers, caller restoration
+and retry after a peer20 assignment, denied scheduler requests, oblique held
+heading composition, multi-mover cycles and full stock crowd trajectories.
+Engine cohort IDs represent the existing reimplementation group ownership;
+the scalar decision port does not certify the original group producer.
+
+
+The old collision fixture's lateral-distance comparison was an inference from
+an earlier authored-speed slide policy. It pinned a peer after committing motion
+but started its requester at rest; both variants now correctly wait. The fixture
+now commits both actors and checks original4/20 identities and counters through
+actual collision steering. A pinned peer still occupies the next step, so a
+peer20 assignment alone does not prove immediate movement or the unported
+caller retry. Independent save-field tests cover the wait counter, pointer fixup
+and rejection of a misaligned blocker pointer.
+
+
+Final validation: forced release RoC and TFT each pass80,425 assertions in2,244
+cases; the collision encounter passes21 assertions and new save fields13.
+The152 Python pathfinding checks, strict four-entry original/live corpus,
+ability audit, backlog counts/IDs/area totals and local documentation links pass.
+Umbrella `make test` and the release production `openwarcraft3` target pass
+without C compiler warnings.

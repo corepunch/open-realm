@@ -237,42 +237,43 @@ TEST(wc3_collision, mover_passes_through_dead_unit) {
     T_ASSERT(fabsf(mover->s.origin2.y) < 1.0f);
 }
 
-/* Order a mover east past a stationary *moving* blocker directly in its path and
- * return the mover's peak lateral deviation.  Mover speed is fixed across calls
- * so only the give-way ring count (faster holds line vs slower swings wide)
- * changes the result. */
-static float peak_lateral_against_blocker(float mover_speed, float blocker_speed) {
-    reset_collision_world();
-    edict_t *mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
-    edict_t *blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
-    mover->unitinfo.MoveSpeed   = mover_speed;
-    blocker->unitinfo.MoveSpeed = blocker_speed;
-    vec2_t dest = {300.0f, 0.0f};
-    unit_issueorder(blocker, "move", &dest);   /* blocker is in the walking state */
-    /* A walk order alone still has zero velocity and retail fine search treats
-     * it as idle. Commit actual motion, then freeze its pose for this fixture. */
-    blocker->currentmove->think(blocker);
-    T_ASSERT(fabsf(blocker->movement.velocity.x) > 0.01f);
-    blocker->s.origin2 = (vec2_t){45.f, 0.f};
-    gi.LinkEntity(blocker);
-    unit_issueorder(mover, "move", &dest);     /* (only the mover is stepped)     */
-    float peak = 0.0f;
-    for (int i = 0; i < 10; i++) {
-        if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0) break;
-        mover->currentmove->think(mover);
-        float const lat = fabsf(mover->s.origin2.y);
-        if (lat > peak) peak = lat;
-    }
-    return peak;
-}
-
-/* Speed-priority give-way (RE finding): the slower unit yields to the faster.
- * A faster mover holds its line (narrow slide) against a slower mover; a slower
- * mover swings wide to get around a faster one. */
+/* Original168360 uses committed velocity: a faster same-player requester
+ * delays its peer20; a slower requester holds itself4. Authored speeds alone
+ * cannot establish this policy, and a requester at rest always waits. */
 TEST(wc3_collision, faster_unit_holds_line_slower_yields) {
-    float lateral_when_faster = peak_lateral_against_blocker(200.0f, 100.0f);
-    float lateral_when_slower = peak_lateral_against_blocker(200.0f, 300.0f);
-    T_ASSERT(lateral_when_faster < lateral_when_slower);
+    FOR_LOOP(pass,2) {
+        reset_collision_world(); level.waypoints=(typeof(level.waypoints)){0};
+        edict_t *mover=make_collision_unit(0,0,16);
+        mover->unitinfo.MoveSpeed=200;
+        vec2_t dest={300,0}; T_ASSERT(unit_issueorder(mover,"move",&dest));
+        /* Commit requester motion before introducing the encounter. */
+        mover->currentmove->think(mover);
+        T_ASSERT(mover->movement.velocity.x>0);
+        edict_t *blocker=make_collision_unit(45,0,16);
+        blocker->unitinfo.MoveSpeed=pass ? 300 : 100;
+        T_ASSERT(unit_issueorder(blocker,"move",&dest)); blocker->currentmove->think(blocker);
+        T_ASSERT(blocker->movement.velocity.x>0);
+        blocker->s.origin2=(vec2_t){45,0}; gi.LinkEntity(blocker);
+        unit_changeangle(mover);
+        if (pass) {
+            T_EQ(mover->movement.wait_delay,4); T_EQ(mover->movement.wait_blocker,blocker);
+            T_ASSERT(mover->movement.turn_blocked); T_EQ(blocker->movement.wait_delay,0);
+        } else {
+            T_EQ(blocker->movement.wait_delay,20); T_EQ(blocker->movement.wait_blocker,mover);
+            T_EQ(mover->movement.wait_delay,0); T_ASSERT(!mover->movement.turn_blocked);
+        }
+        level.time+=FRAMETIME;
+        mover->currentmove->think(mover);
+        if (pass) {
+            T_EQ(mover->movement.wait_delay,3); T_EQ(mover->movement.velocity.x,0);
+        } else {
+            /* The pinned peer still occupies the step: assigning its wait does
+             * not itself grant collision admission or prove caller retry. */
+            T_EQ(mover->movement.wait_delay,0); T_EQ(blocker->movement.wait_delay,20);
+            T_ASSERT(mover->current_order_id!=0);
+        }
+    }
+    reset_collision_world();
 }
 
 /* Resource workers sharing a route should form a short queue instead of

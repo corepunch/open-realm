@@ -5,6 +5,7 @@ Synthetic registered movers/groups, real arithmetic and identity/countdown
 writers. No stubs; contains no retail executable bytes.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -20,7 +21,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine', type=Path, help='compare the production ordered-decision and countdown kernels')
+    parser.add_argument('--fixture', type=Path, help='freeze complete original decision/gate input and output words')
     args = parser.parse_args()
+    engine=ctypes.CDLL(str(args.engine.resolve())) if args.engine else None
+    if engine:
+        engine.pathing_yield_decision.argtypes=[ctypes.POINTER(ctypes.c_uint32)]
+        engine.pathing_yield_decision.restype=ctypes.c_uint32
+        engine.pathing_yield_advance.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.c_uint32]
+        engine.pathing_yield_advance.restype=ctypes.c_uint32
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -74,6 +83,7 @@ def main():
     write(candidates + 0x1c, 1)
     write(entries, other)
     cases, self_waits, other_waits, skipped = 0,0,0,0
+    frozen_decisions=[]; frozen_gates=[]
     for speed, other_speed, group, group_flags, player, other_player, blocked, prior in itertools.product(
             [0,1,2,3], [0,1,2,3], ['same','different','none'], [0,8], [0,1,15], [0,1,15],
             [False,True], [0,3,4,19,25]):
@@ -92,11 +102,19 @@ def main():
         own_wait = eligible and ((group=='same' and not (group_flags & 8)) or
                                 speed <= other_speed or player != other_player)
         peer_wait = eligible and not own_wait
+        if engine:
+            words=lambda v:struct.unpack('<I',struct.pack('<f',v))[0]
+            supplied=(ctypes.c_uint32*10)(words(speed),0,player,words(other_speed),0,other_player,group_flags,group!='none',group=='same',blocked)
+            assert engine.pathing_yield_decision(supplied)==(1 if own_wait else 2 if peer_wait else 0)
         run(0x6f168360, path, candidates)
         assert read(path + 0xa8,2) == ([1,101] if own_wait else [0xffffffff]*2)
         assert read(path + 0x94)[0] == (max(prior,4) if own_wait else prior)
         assert read(other_path + 0xa8,2) == ([0,100] if peer_wait or blocked else [0xffffffff]*2)
         assert read(other_path + 0x94)[0] == (max(prior,20) if peer_wait else prior)
+        words=lambda v:struct.unpack('<I',struct.pack('<f',v))[0]
+        frozen_decisions.append(dict(input=[words(speed),0,player,words(other_speed),0,other_player,group_flags,group!='none',group=='same',blocked],
+            decision=1 if read(path+0xa8,2)==[1,101] else 2 if peer_wait else 0,
+            prior=prior,output=[read(path+0x94)[0],*read(path+0xa8,2),read(other_path+0x94)[0],*read(other_path+0xa8,2)]))
         cases += 1
         self_waits += own_wait
         other_waits += peer_wait
@@ -154,9 +172,14 @@ def main():
         disabled = bool(flags & 0x100000)
         assert machine.reg_read(UC_X86_REG_EAX) == (0x100000 if disabled else 1)
         assert read(path + 0x94)[0] == (countdown if disabled else countdown-1)
+        if engine:
+            value=ctypes.c_uint32(countdown)
+            assert engine.pathing_yield_advance(ctypes.byref(value),disabled)==(0 if disabled else 1)
+            assert value.value==read(path+0x94)[0]
         assert read(path + 0xa8,2) == [1,101]
         assert read(destination,2) == [0x42a00000,0x42c80000]
         assert read(0x6fd53a80,4) == [0xdeadbeef]*4
+        frozen_gates.append(dict(flags=flags,delay=countdown,output=read(path+0x94)[0],result=machine.reg_read(UC_X86_REG_EAX)))
         gate_cases += 1
     delay_sequences = 0
     for initial in [4,20]:
@@ -188,7 +211,11 @@ def main():
 
     report = dict(binary_sha256=digest, scope=__doc__, passed=True, countdown_gate_cases=gate_cases, delay_sequences=delay_sequences, context_setup_cases=setup_cases,
                   decision_cases=cases, sequence_cases=sequence_cases,
+                  engine_exact_decisions=cases if engine else 0, engine_exact_countdown_cases=gate_cases if engine else 0,
                   self_waits=self_waits, other_waits=other_waits, skipped_candidates=skipped)
+    if args.fixture:
+        args.fixture.write_text(json.dumps(dict(version=1,binary_sha256=digest,source_entries=['6f168360','6f165ae0'],
+            decisions=frozen_decisions,gates=frozen_gates,scope='Complete original registered single-candidate decisions and enabled/disabled countdown gates. Engine integrates ordinary cohorts with default group flags0; group-bit8 producer, lazy cell-chain order, queued admission and full retail crowd trajectories remain open.'),separators=(',',':'))+'\n')
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
 

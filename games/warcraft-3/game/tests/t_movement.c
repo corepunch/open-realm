@@ -1708,6 +1708,97 @@ TEST(wc3_movement, native_fine_pose_retains_original_commits) {
     reset_entities(); setup_test_world();
 }
 
+/* Original168360 compares committed velocity and player class, not authored speed. */
+TEST(wc3_movement, moving_blocker_yield_uses_original_velocity_policy) {
+    reset_entities(); setup_test_world();
+    edict_t *self=make_moving_unit(0,0);
+    /* make_moving_unit resets the pool; additional actors must use the allocator. */
+    edict_t *peer=alloc_test_unit(MAKEFOURCC('h','p','e','a'),32,0);
+    peer->movetype=MOVETYPE_STEP; peer->stand=unit_stand; peer->die=unit_die;
+    unit_stand(peer); T_ASSERT(self!=peer);
+    level.waypoints=(typeof(level.waypoints)){0};
+    vec2_t goal={256,0}; T_ASSERT(unit_issueorder(self,"move",&goal)); T_ASSERT(unit_issueorder(peer,"move",&goal));
+    T_ASSERT(unit_is_walking(self)); T_ASSERT(unit_is_walking(peer));
+    self->unitinfo.MoveSpeed=100; peer->unitinfo.MoveSpeed=400;
+    self->movement.velocity=(vec2_t){256,0}; peer->movement.velocity=(vec2_t){64,0};
+    edict_t *candidates[]={peer};
+    T_ASSERT(!S_ResolveMoveBlockers(self,candidates,1));
+    T_EQ(peer->movement.wait_delay,20); T_EQ(peer->movement.wait_blocker,self);
+    T_EQ(self->movement.wait_delay,0); T_EQ(self->movement.wait_blocker,NULL);
+    /* The first decision must persist on the peer: a second visit skips it. */
+    self->movement.velocity=(vec2_t){32,0};
+    T_ASSERT(!S_ResolveMoveBlockers(self,candidates,1));
+    /* A new order owns a fresh wait/blocker state. */
+    unit_stand(peer); T_ASSERT(unit_issueorder(peer,"move",&goal));
+    peer->movement.velocity=(vec2_t){64,0};
+    T_ASSERT(S_ResolveMoveBlockers(self,candidates,1));
+    T_EQ(self->movement.wait_delay,4); T_EQ(self->movement.wait_blocker,peer);
+    self->movement.wait_delay=25;
+    T_ASSERT(S_ResolveMoveBlockers(self,candidates,1)); T_EQ(self->movement.wait_delay,25);
+    G_FreeEdict(peer); T_EQ(self->movement.wait_blocker,NULL); T_EQ(self->movement.wait_delay,25);
+    reset_entities(); setup_test_world();
+}
+
+/* An ordinary public Move collects a moving blocker; its owned wait survives
+ * save/load and removal without losing the remaining eligible advances. */
+TEST(wc3_movement, public_move_yield_wait_and_save) {
+    reset_entities(); setup_test_world();
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,8};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[64*64]={0}; box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nunit peer\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',136,152,0)\n"
+        "set peer=CreateUnit(Player(0),'hRTE',176,152,0)\nendfunction\n"
+        "function go takes nothing returns nothing\n"
+        "call IssuePointOrder(mover,\"move\",1512,152)\n"
+        "call IssuePointOrder(peer,\"move\",1512,152)\nendfunction\n"
+        "function remove takes nothing returns nothing\ncall RemoveUnit(peer)\nendfunction\n"
+        "function disable takes nothing returns nothing\ncall SetUnitPathing(mover,false)\nendfunction\n"));
+    edict_t *unit=NULL,*peer=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+        if (ent->s.origin2.x==136) unit=ent; else peer=ent;
+    }
+    T_NOT_NULL(unit); T_NOT_NULL(peer);
+    if (!unit || !peer) return;
+    unit_stand(unit); unit_stand(peer); jass_callbyname(level.vm,"go",false);
+    /* The decision must use the committed velocities, not equal authored speeds. */
+    unit->movement.velocity=(vec2_t){32,0}; peer->movement.velocity=(vec2_t){64,0};
+    unit_changeangle(unit);
+    T_EQ(unit->movement.wait_delay,4); T_EQ(unit->movement.wait_blocker,peer);
+    T_ASSERT(unit->movement.turn_blocked); T_EQ(peer->movement.wait_delay,0);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file="/tmp/openwarcraft3-moving-yield-save.bin"; T_ASSERT(WriteGame(file));
+    uint32_t words[6][8];
+    FOR_LOOP(pass,2) {
+        if (pass) {
+            T_ASSERT(ReadGame(file)); T_EQ(unit->movement.wait_delay,4);
+            T_EQ(unit->movement.wait_blocker,peer); T_ASSERT(peer->inuse);
+        }
+        jass_callbyname(level.vm,"remove",false);
+        /* RemoveUnit defers reclamation; Move clears identity at A_UNIT_REMOVE. */
+        T_EQ(unit->movement.wait_delay,4);
+        /* Query0 is SetUnitPathing(false), not original Path_Advance's disabled flag. */
+        jass_callbyname(level.vm,"disable",false); T_ASSERT(unit->no_pathing);
+        FOR_LOOP(i,6) {
+            level.time+=30; globals.RunFrame();
+            T_EQ(unit->movement.wait_blocker,NULL);
+            uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
+                wc3_float_bits(unit->s.angle),unit->current_order_id,unit->movement.wait_delay,
+                unit->movement.turn_blocked};
+            if (pass) FOR_LOOP(j,8) T_EQ(row[j],words[i][j]); else memcpy(words[i],row,sizeof(row));
+            T_EQ(unit->movement.wait_delay,i<4 ? 3-i : 0);
+            T_ASSERT(unit->current_order_id!=0);
+            if (i<4) { T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0); }
+            else T_ASSERT(unit->movement.velocity.x>0);
+        }
+        T_ASSERT(!peer->inuse); T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    remove(file); level.started=false; reset_entities(); setup_test_world();
+}
+
 /* Positive world origins discard native pose bits; persist the fine words rather than reprojecting a save. */
 TEST(wc3_movement, native_fine_pose_survives_save_and_reposition) {
     uint32_t const expected[16][7] = {

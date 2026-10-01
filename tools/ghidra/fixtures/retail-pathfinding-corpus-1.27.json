@@ -1149,7 +1149,9 @@
         "--binary",
         "{binary}",
         "--report",
-        "{report}"
+        "{report}",
+        "--engine",
+        "{engine}"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -1163,13 +1165,19 @@
         },
         "countdown_gate_cases": {
           "minimum": 1
+        },
+        "engine_exact_decisions": {
+          "equal": 8640
+        },
+        "engine_exact_countdown_cases": {
+          "equal": 25
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Original moving-blocker yielding, including actual handle resolution.\n\nSynthetic registered movers/groups, real arithmetic and identity/countdown\nwriters. No stubs; contains no retail executable bytes.\n",
+      "scope": "Original moving-blocker yielding, including actual handle resolution.\n\nSynthetic registered movers/groups, real arithmetic and identity/countdown\nwriters. No stubs; contains no retail executable bytes.\n Production wc3_pathing_yield decision/countdown kernels are compared on every single-candidate case; full original ordered128 sequences independently check persistent peer side effects.",
       "exclusions": []
     },
     {
@@ -14199,6 +14207,291 @@
         "Owner admission queues and charged-budget reset timing",
         "Full retail physical maze motion"
       ]
+    },
+    {
+      "id": "capture-moving-yield-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/moving-yield-ordered-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/moving-yield-ordered-first-261001.jsonl",
+        "sha256": "f52dd12528894974a1eed92dfae925cd604f6e6d36f92185d5d8ac3bf535e901",
+        "bytes": 5341647,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "b1dea948c8cacbc975c4a655dc4c98a36f2c7879f93c8542ffc9ed62268d91b5",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+          },
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/moving-yield-first-261001-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Fresh owned original crowd observer with pinned source/map provenance; archive consistency does not establish whole engine crowd trajectory parity.",
+      "exclusions": [
+        "Original movement producer and stock crowd trajectory composition remain open."
+      ]
+    },
+    {
+      "id": "capture-moving-yield-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/moving-yield-ordered-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/moving-yield-ordered-repeat-261001.jsonl",
+        "sha256": "e984c120e1397a94d960629f16e03fbe87734362bec852ba5ff447a6e0976f72",
+        "bytes": 5341649,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "b1dea948c8cacbc975c4a655dc4c98a36f2c7879f93c8542ffc9ed62268d91b5",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+          },
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "captures/moving-yield-repeat-261001-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Fresh owned original crowd observer with pinned source/map provenance; archive consistency does not establish whole engine crowd trajectory parity.",
+      "exclusions": [
+        "Original movement producer and stock crowd trajectory composition remain open."
+      ]
+    },
+    {
+      "id": "live-moving-yield-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_yield_trace.py",
+        "--capture",
+        "{archive}/runtime/moving-yield-ordered-first-261001.jsonl",
+        "--compare",
+        "{archive}/runtime/moving-yield-ordered-repeat-261001.jsonl",
+        "--engine",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/moving-yield-ordered-first-261001.jsonl",
+        "sha256": "f52dd12528894974a1eed92dfae925cd604f6e6d36f92185d5d8ac3bf535e901",
+        "bytes": 5341647,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "b1dea948c8cacbc975c4a655dc4c98a36f2c7879f93c8542ffc9ed62268d91b5",
+            "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+            "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+          },
+          "map": "Maps\\PathingRE-Crowd.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 4000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/moving-yield-ordered-repeat-261001.jsonl",
+            "sha256": "e984c120e1397a94d960629f16e03fbe87734362bec852ba5ff447a6e0976f72",
+            "bytes": 5341649,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "b1dea948c8cacbc975c4a655dc4c98a36f2c7879f93c8542ffc9ed62268d91b5",
+                "wc3_pathfinding_probe.j": "a9026b112205e318d2d1c7936c2ef3151ca77d68806ebfe13f7647694f81fa01",
+                "make_wc3_pathfinding_map.py": "4f2f68f7b316b938c07bda5248f83bbae921f50f8e2e40d2e875e8ab7070669a",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027"
+              },
+              "map": "Maps\\PathingRE-Crowd.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 4000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-moving-yield-repeat-261001.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "decisions": {
+          "equal": 2503
+        },
+        "delay_calls": {
+          "equal": 424
+        },
+        "duplicate_candidates": {
+          "equal": 51
+        },
+        "digest": {
+          "equal": "dc0362228855a17aba4279a9581f9f8a176b8daf8a782f9d1b2d6bbd3fed05fc"
+        },
+        "repeat_exact": {
+          "equal": true
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "Complete observed ordered decision inputs, every actor before/after state and424 original wait advances match production C; independent raw repeat matches normalized decisions and provenance. Engine public Move/save/removal regression owns actual integration.",
+      "exclusions": [
+        "Original group-bit8 producer",
+        "Lazy overlapping cell-chain insertion order",
+        "Peer-wait caller retry restoration",
+        "Full engine stock crowd trajectory"
+      ]
     }
   ],
   "fixtures": [
@@ -14264,7 +14557,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "8beb35f6de4de471fec4e62afda512d42e56b48b6268429ea786718aa53288bc"
+      "sha256": "8dcf681cf9c00a9c9409889381609cf4352ad74418dc56cf4353392885c2d321"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -14537,6 +14830,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-unit-default-route-1.27.json",
       "sha256": "8e8fa029c120fd59bdfd1e7b5564b72a619c5bda712fa63153eb8a1404610fa4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-moving-yield-1.27.json",
+      "sha256": "0af5c4a00a30d3995e7e1f41ee3efa71882830cb362dd7c9ac51604bd55cc6fa"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-moving-yield-1.27.json",
+      "sha256": "e9a9b9ddbefea001b1ceaedfb76cee70db8f43151b47635c760d9783f0147e1c"
     }
   ]
 }
