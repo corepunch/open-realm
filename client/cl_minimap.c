@@ -4,6 +4,7 @@
 #define CL_MINIMAP_PING_COUNT 16 // markers; bounds simultaneous transient minimap attention effects
 #define CL_MINIMAP_RECENT_COUNT 8 // positions; bounds Warcraft-style recent-alert Space recall
 #define CL_MINIMAP_PACKET_SIZE 17 // bytes; fixed svc_minimap_ping payload size used for bounds validation
+#define CL_MINIMAP_CONTACT_SIZE 0.002f // UI-canvas units; matches the WC3 unit marker footprint
 
 typedef struct {
     bool active;
@@ -99,8 +100,15 @@ static void CL_DrawMinimapPings(void) {
         if (!ping->active) continue;
         if ((int32_t)(cl.time - ping->end_time) >= 0) { ping->active = false; continue; }
         if (!re.WorldToMinimap(&ping->position, &screen)) continue;
-        if (cl.minimap_model) {
+        if (cl.minimap_model && !(ping->flags & MINIMAP_PING_FORCE_COLOR)) {
             re.DrawSprite(&MAKE(drawSprite_t, .model = cl.minimap_model, .anim = "Stand", .x = screen.x, .y = screen.y, .id = &cl.minimap_model));
+            continue;
+        }
+        if (ping->flags & MINIMAP_PING_FORCE_COLOR) {
+            marker = MAKE(rect_t, screen.x - CL_MINIMAP_CONTACT_SIZE * 0.5f,
+                          screen.y - CL_MINIMAP_CONTACT_SIZE * 0.5f,
+                          CL_MINIMAP_CONTACT_SIZE, CL_MINIMAP_CONTACT_SIZE);
+            re.DrawFill(&marker, ping->color);
             continue;
         }
         pulse = 3.0f + (float)((cl.time - ping->start_time) % 500) / 250.0f;

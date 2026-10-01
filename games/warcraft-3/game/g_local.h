@@ -1824,6 +1824,9 @@ struct game_locals {
          * acquisition range. war3mapMisc.txt may override either value. */
         float followRange;
         float structureFollowRange;
+        /* Automatic attack alarms use stock MiscGame tuning; map Misc overrides win. */
+        float attackNotifyDelay;
+        float attackNotifyRange;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
         float defenseArmor;
@@ -2986,6 +2989,8 @@ void G_QueueOwnerSoundAlias(edict_t *, cstring_t);
 void G_QueueOwnerUISound(edict_t *, cstring_t);
 void G_SendMinimapPing(gameClient_t *, vec2_t const *, float, color32_t, uint32_t);
 void G_SendOwnerMinimapAlert(edict_t *);
+void G_ResetAttackAlerts(void);
+void G_WC3_AttackAlert(edict_t *victim, edict_t *attacker);
 color32_t G_SmartTargetIndicatorColor(uint32_t, edict_t const *);
 void G_SendWidgetIndicator(edict_t *, color32_t, player_t *);
 void G_CommandErrorReset(void);

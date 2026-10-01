@@ -841,6 +841,69 @@ TEST(wc3_game, minimap_ping_uses_generic_packet_import) {
     gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
 }
 
+TEST(wc3_game, attack_alert_is_remote_throttled_and_remembered) {
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
+    edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 2000.0f, 0.0f);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 2100.0f, 0.0f);
+
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeUser;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    victim->s.player = 0; attacker->s.player = 1;
+    game.clients[0].connected = true;
+    game.clients[0].camera.state.position = (vec2_t){ 0.0f, 0.0f };
+    game.constants.attackNotifyRange = 1250.0f;
+    game.constants.attackNotifyDelay = 30.0f;
+    level.time = 1000;
+    alert_ping_count = 0;
+    gi.MinimapPing = alert_test_minimap_ping; gi.configstring = alert_test_configstring;
+
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 1);
+    T_EQ(alert_ping_color.r, 255); T_EQ(alert_ping_color.g, 0); T_EQ(alert_ping_color.b, 0);
+    T_ASSERT(alert_ping_flags & MINIMAP_PING_REMEMBER);
+    T_ASSERT(alert_ping_flags & MINIMAP_PING_FORCE_COLOR);
+    T_FEQ(alert_ping_position.x, victim->s.origin2.x, 0.001f);
+
+    level.time = 2000;
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 1); /* shared per-recipient cooldown */
+
+    level.time = 32000;
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 2);
+
+    gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
+}
+
+TEST(wc3_game, attack_alert_suppresses_near_camera_and_honors_help_request) {
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
+    edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 100.0f);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200.0f, 100.0f);
+
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeUser;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeUser;
+    victim->s.player = 0; attacker->s.player = 1;
+    game.clients[0].connected = true; game.clients[2].connected = true;
+    game.clients[0].camera.state.position = victim->s.origin2;
+    game.clients[2].camera.state.position = (vec2_t){ 3000.0f, 3000.0f };
+    game.constants.attackNotifyRange = 1250.0f;
+    game.constants.attackNotifyDelay = 30.0f;
+    G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[2].ps, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[2].ps, ALLIANCE_HELP_REQUEST, true);
+    level.time = 1000;
+    alert_ping_count = 0;
+    gi.MinimapPing = alert_test_minimap_ping; gi.configstring = alert_test_configstring;
+
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 1); /* owner is in range; distant help-request ally receives it */
+    T_EQ(alert_ping_target, &g_edicts[2]);
+
+    gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
+}
+
 TEST(wc3_game, hud_authored_window_frame_uses_offset_codec) {
     FRAMEDEF frame = { .Type = FT_TEXT, .Text = "Window text" };
     uiWindowDef_t def = { .id = 1, .class_id = 2, .flags = UI_WINDOW_MOVABLE };
