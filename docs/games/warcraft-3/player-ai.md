@@ -363,14 +363,13 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Sixty-five of those names are registered in OpenRealm's JASS
-module; the following 7 are still unresolved and will cause a native lookup/runtime failure when their call paths are
+functions, but their reachable native surface is the same. Sixty-six of those names are registered in OpenRealm's JASS
+module; the following 6 are still unresolved and will cause a native lookup/runtime failure when their call paths are
 reached:
 
 | Unregistered native | Reachable role in `common.ai` |
 |---|---|
 | `CaptainRetreating` | Poll whether an attack captain is retreating; the state enum exists, but no runtime transition currently initiates or completes retreat |
-| `GetCreepCamp` | Find a creep camp within a level range |
 | `GetEnemyBase`, `GetEnemyExpansion` | Locate enemy bases and expansion targets |
 | `PurchaseZeppelin` | Request a transport for an assault |
 | `StartGetEnemyBase`, `WaitGetEnemyBase` | Start and poll asynchronous enemy-base discovery |
@@ -438,6 +437,21 @@ non-`ATK_NONE` attack) rather than hardcoded Guard Tower/Cannon Tower/etc. rawco
 1024 world units for each test. Those constants live only in `g_bot.c`; direct retail/native capture can replace them without
 changing generic combat range, acquisition, building metadata, or the JASS API. The defending tower is required to share the
 target's owner; the invoking AI player's own towers do not make an enemy expansion "towered".
+
+### Creep Camp Query
+
+`GetCreepCamp(min, max, flyers_ok)` searches live `PLAYER_NEUTRAL_AGGRESSIVE` creeps and returns a representative unit
+from the nearest qualifying camp. Retail-facing `common.ai` documentation defines camp power as the sum of the
+`UnitBalance.level` values of all creeps in that camp; the inclusive `min`/`max` bounds filter that total. When
+`flyers_ok` is false, a camp containing a unit whose authored movement type is `fly` is excluded. Stock helpers use
+`GetCreepCamp(0, 9, false)` for minor camps and `GetCreepCamp(10, 100, allow_air_creeps)` for major camps.
+
+`BZ_COMPAT_GUESS`: Blizzard does not expose the internal camp-membership structure or grouping radius. OpenRealm groups
+Neutral Hostile units into connected components where neighboring creeps are at most 600 world units apart, then chooses
+the qualifying component nearest the invoking AI's primary town. If no town exists, the first live owned unit supplies
+the search origin. The returned representative is the camp member nearest that origin. Keep this geometry confined to
+`G_BotGetCreepCamp` so direct retail/native capture can replace it without changing creep ownership, unit level data, or
+assault behavior.
 
 ### Mega Target Query
 

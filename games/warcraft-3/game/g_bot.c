@@ -9,6 +9,7 @@
 #define BOT_TOWERED_BASE_RADIUS 1024.0f // world units; BZ_COMPAT_GUESS: exact retail IsTowered base-proximity radius is unknown
 #define BOT_TOWERED_GUARD_RADIUS 1024.0f // world units; BZ_COMPAT_GUESS: exact retail IsTowered tower-proximity radius is unknown
 #define BOT_MEGA_DEFENDER_RADIUS 1200.0f // world units; BZ_COMPAT_GUESS: exact retail mega-target protection radius is unknown
+#define BOT_CREEP_CAMP_RADIUS 600.0f // world units; BZ_COMPAT_GUESS: exact retail creep-camp grouping radius is unknown
 #define BOT_DEFAULT_REPLACEMENT_COUNT 3
 
 static bot_t *G_BotState(uint32_t player) {
@@ -136,6 +137,86 @@ edict_t *G_BotGetMegaTarget(player_t *player) {
         dist = Vector2_distance(&home->s.origin2, &hall->s.origin2);
         if (!best || dist < best_dist) { best = hall; best_dist = dist; }
     }
+    return best;
+}
+
+/* GetCreepCamp returns a representative unit from the nearest Neutral Hostile camp whose
+ * total creep level lies in [min_power,max_power]. Retail-facing documentation defines camp
+ * power as the sum of UnitBalance levels and optionally excludes camps containing flyers.
+ * BZ_COMPAT_GUESS: Blizzard does not expose camp membership geometry; group Neutral Hostile
+ * units by connected proximity using BOT_CREEP_CAMP_RADIUS, then choose the qualifying camp
+ * nearest the caller's primary town (or first live owned unit when no town exists). */
+static bool G_BotCreepFlyer(edict_t const *unit) {
+    cstring_t move = unit && unit->data.UnitData ? unit->data.UnitData->moveTypeName : NULL;
+    return move && !strcmp(move, "fly");
+}
+
+static bool G_BotCreepCandidate(edict_t *unit) {
+    return G_BotUnitAlive(unit) && unit->s.player == PLAYER_NEUTRAL_AGGRESSIVE &&
+        (unit->svflags & SVF_MONSTER) && !G_UnitIsBuilding(unit->class_id);
+}
+
+static edict_t *G_BotCreepSearchOrigin(player_t *player) {
+    edict_t *town = G_BotTown(player, 0);
+    if (town) return town;
+    if (!player) return NULL;
+    FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && (unit->svflags & SVF_MONSTER))
+        return unit;
+    return NULL;
+}
+
+edict_t *G_BotGetCreepCamp(player_t *player, int32_t min_power, int32_t max_power, bool flyers_ok) {
+    edict_t *origin, *best = NULL;
+    float best_dist = 0.0f;
+    uint32_t count, *queue;
+    uint8_t *visited;
+
+    if (!player || min_power > max_power) return NULL;
+    origin = G_BotCreepSearchOrigin(player);
+    if (!origin) return NULL;
+
+    count = globals.num_edicts;
+    visited = gi.MemAlloc(count ? count : 1);
+    queue = gi.MemAlloc((count ? count : 1) * sizeof(*queue));
+    memset(visited, 0, count ? count : 1);
+
+    for (uint32_t seed_index = 0; seed_index < count; seed_index++) {
+        edict_t *seed = globals.edicts + seed_index;
+        uint32_t head = 0, tail = 0;
+        int32_t power = 0;
+        bool has_flyer = false;
+        edict_t *representative = NULL;
+        float representative_dist = 0.0f;
+
+        if (visited[seed_index] || !G_BotCreepCandidate(seed)) continue;
+        visited[seed_index] = 1;
+        queue[tail++] = seed_index;
+
+        while (head < tail) {
+            edict_t *creep = globals.edicts + queue[head++];
+            int32_t level = creep->data.UnitBalance ? creep->data.UnitBalance->level : 0;
+            float dist = Vector2_distance(&origin->s.origin2, &creep->s.origin2);
+            power += level;
+            has_flyer |= G_BotCreepFlyer(creep);
+            if (!representative || dist < representative_dist) { representative = creep; representative_dist = dist; }
+
+            for (uint32_t other_index = 0; other_index < count; other_index++) {
+                edict_t *other;
+                if (visited[other_index]) continue;
+                other = globals.edicts + other_index;
+                if (!G_BotCreepCandidate(other)) continue;
+                if (Vector2_distance(&creep->s.origin2, &other->s.origin2) > BOT_CREEP_CAMP_RADIUS) continue;
+                visited[other_index] = 1;
+                queue[tail++] = other_index;
+            }
+        }
+
+        if (!representative || power < min_power || power > max_power || (!flyers_ok && has_flyer)) continue;
+        if (!best || representative_dist < best_dist) { best = representative; best_dist = representative_dist; }
+    }
+
+    gi.MemFree(queue);
+    gi.MemFree(visited);
     return best;
 }
 
