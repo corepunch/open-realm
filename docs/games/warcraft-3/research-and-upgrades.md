@@ -239,8 +239,9 @@ researched the matching upgrade. Human Footman Defend
 same data contract inherit it without rawcode-specific code.
 
 Some stock dependencies are authored as gate-only upgrade rows with no effect
-or target code. When the ability's `checkDep` flag is set, OpenRealm matches the
-ability and upgrade's authored comments within the unit's `Upgrades Used` list.
+or target code. When the ability's `checkDep` flag is set, OpenRealm matches
+complete words in the ability and upgrade's authored comments within the
+unit's `Upgrades Used` list. Prefix-only matches do not create a dependency.
 Undead Ghoul Cannibalize (`Ruac` / `Acan`) uses this path. It has the same
 command-card and direct-execution gate as an `rlev` dependency, but the ability
 does not gain a level from the research.

@@ -225,14 +225,16 @@ static bool G_ResearchCommentsMatch(cstring_t ability_comments, cstring_t upgrad
         if (!*ability_word) break;
         ability_length = 0;
         while (isalpha((unsigned char)ability_word[ability_length])) ability_length++;
-        if (ability_length >= 3) for (upgrade_word = upgrade_comments; *upgrade_word;) {
+        if (ability_length >= 4) for (upgrade_word = upgrade_comments; *upgrade_word;) {
             size_t upgrade_length;
             while (*upgrade_word && !isalpha((unsigned char)*upgrade_word)) upgrade_word++;
             if (!*upgrade_word) break;
             upgrade_length = 0;
             while (isalpha((unsigned char)upgrade_word[upgrade_length])) upgrade_length++;
-            if (MIN(ability_length, upgrade_length) >= 3 &&
-                !strncasecmp(ability_word, upgrade_word, MIN(ability_length, upgrade_length))) return true;
+            /* Compare complete words: prefix overlap such as "Canine" and
+             * "Cannibalize" must not invent an ability/research dependency. */
+            if (ability_length == upgrade_length && !strncasecmp(ability_word, upgrade_word, ability_length))
+                return true;
             upgrade_word += upgrade_length;
         }
         ability_word += ability_length;

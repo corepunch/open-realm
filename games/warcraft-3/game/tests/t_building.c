@@ -11,6 +11,7 @@ void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void repair_build_primary(edict_t *ent, edict_t *building);
 void repair_build_legacy(edict_t *ent, edict_t *building);
 void build_build(edict_t *ent);
+void ai_train_build(edict_t *ent);
 bool build_menu_send_builder(edict_t *clent, vec2_t const *location);
 void build_menu_selectlocation(edict_t *ent, uint32_t building_id);
 slkTestData_t *parse_slk_string(char const *slk_text);
@@ -271,13 +272,16 @@ static const char building_upgrade_slk[] =
 
 static const char building_dependency_ability_slk[] =
     "ID;PWXL;N;E\n"
-    "B;X4;Y2;D0\n"
+    "B;X4;Y3;D0\n"
     "C;X1;Y1;K\"alias\"\n"
     "C;X3;K\"checkDep\"\n"
     "C;X4;K\"comments\"\n"
     "C;X1;Y2;K\"Amic\"\n"
     "C;X3;K1\n"
     "C;X4;K\"Cannibalize\"\n"
+    "C;X1;Y3;K\"Axyz\"\n"
+    "C;X3;K1\n"
+    "C;X4;K\"Canine\"\n"
     "E\n";
 
 static slkTestData_t *building_install_upgrade_data(slkTestData_t **rows_out) {
@@ -1603,6 +1607,8 @@ TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
     memset(client->tech, 0, sizeof(client->tech));
 
     T_ASSERT(!G_UnitAbilityResearchAvailable(unit, cannibalize));
+    /* Similar prefixes in authored comments are not a dependency link. */
+    T_ASSERT(G_UnitAbilityResearchAvailable(unit, MAKEFOURCC('A','x','y','z')));
     count = G_GetCommandButtons(unit, buttons, 16);
     found = false;
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
@@ -4218,13 +4224,18 @@ TEST(wc3_building, spawn_without_default_active_repair_stays_disabled) {
 }
 
 TEST(wc3_building, default_self_rally_does_not_autorepair_producer) {
+    UnitBalance_t worker_balance = { .buildTime = 0, .foodUsed = 0, .foodMade = 0 };
     UnitAbilities_t worker_abilities = { .abilList = "Arep" };
     UnitProfile_t producer_profile = { .trains = "hpea" };
+    bool old_instant_build;
     edict_t *worker, *producer;
     slkTestData_t *rows, *old_abilities;
 
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
+    game.clients[0].ps.number = 0;
+    old_instant_build = game.clients[0].cheat_instant_build;
+    game.clients[0].cheat_instant_build = true;
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     producer = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 64, 0);
     worker->data.UnitAbilities = &worker_abilities;
@@ -4233,21 +4244,36 @@ TEST(wc3_building, default_self_rally_does_not_autorepair_producer) {
     producer->s.flags |= EF_BUILDING;
     producer->svflags |= SVF_MONSTER;
     producer->s.player = worker->s.player;
+    producer->targtype = TARG_STRUCTURE;
+    producer->collision = 32.0f;
+    producer->movetype = MOVETYPE_NONE;
+    producer->stand = unit_stand;
     producer->health.max_value = 1000.0f;
     producer->health.value = 500.0f;
+    worker->data.UnitBalance = &worker_balance;
+    worker->collision = 16.0f;
+    worker->stand = unit_stand;
+    worker->training = true;
+    worker->s.renderfx |= RF_HIDDEN;
+    producer->build = worker;
 
-    /* Production initializes the new unit with Auto Repair disabled. Retail
-     * leaves it idle rather than Smart-interacting with its producer. */
+    /* The unit starts production with Auto Repair off. Completion must not
+     * Smart-interact with the damaged producer as though it were a rally order. */
     SP_SpawnUnit(worker);
     T_EQ(worker->autocast_code, 0);
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
-    T_ASSERT(!G_ApplyRallyOrder(producer, worker));
+    ai_train_build(producer);
+    T_ASSERT(!worker->training);
+    T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
     T_EQ(worker->autocast_code, 0);
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+    T_FEQ(producer->health.value, 500.0f, 0.01f);
     T_NULL(worker->movement.follow_target);
     T_ASSERT(worker->build != producer);
+    T_ASSERT(worker->goalentity != producer);
     T_EQ(worker->buildwork.ability, 0);
 
+    game.clients[0].cheat_instant_build = old_instant_build;
     building_restore_repair_data(old_abilities, rows);
 }
 
