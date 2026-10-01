@@ -10,6 +10,10 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 
 `games/warcraft-3/game/skills/s_move.c` owns per-tick steering and local block-and-slide. `server/sv_routing.c` owns static pathmap line tests, connectivity queries, and cached flow fields. Harvest target selection remains in `skills/s_harvest_lumber.c`; the router never changes a tree target by itself.
 
+Game-owned Move queries now use [direct software world/fine conversion](retail-pathfinding-engine.md#direct-world-coordinates-preserve-boundary-cells).
+This preserves boundary cells and exact corrected/route point words on maps
+whose dimensions are not powers of two.
+
 Selection Move and Shift queues now use [retail ranked formation geometry](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders)
 for up to twelve members. Authored ranks, collision radii, tie assignments,
 row dimensions and offset arithmetic reach the assigned destinations; the

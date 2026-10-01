@@ -324,14 +324,19 @@
       "checks": {
         "coordinate_cases": {
           "minimum": 1
+        },
+        "world_grid_boundary_cases": {
+          "equal": 576
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Complete original calls; exact dyadic world inputs; terrain high-bit set/clear, cell selection, no implicit hierarchy mutation; clipped base/parent updates and metadata preservation against independent model. Synthetic maps; constructors, actual origin producers, objects and non-dyadic rounding excluded.",
-      "exclusions": []
+      "scope": "Complete original calls; exact dyadic world inputs; terrain high-bit set/clear, cell selection, no implicit hierarchy mutation; clipped base/parent updates and metadata preservation against independent model. Synthetic maps; constructors, actual origin producers, objects and non-dyadic rounding excluded. Additional576 complete world-to-fine edits record exact boundary words/cell admission and separate original scalar inverse composition.",
+      "exclusions": [
+        "Original public coordinate/metadata producers, full domain rejection and fine/proximity/adaptive padding remain MAP-01.2/3."
+      ]
     },
     {
       "id": "oracle-motion",
@@ -10886,6 +10891,45 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "oracle-world-grid-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_maps.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "world-grid-engine.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "coordinate_cases": {
+          "minimum": 1
+        },
+        "world_grid_boundary_cases": {
+          "equal": 576
+        },
+        "world_grid_boundary_engine_cases": {
+          "equal": 576
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original calls; exact dyadic world inputs; terrain high-bit set/clear, cell selection, no implicit hierarchy mutation; clipped base/parent updates and metadata preservation against independent model. Synthetic maps; constructors, actual origin producers, objects and non-dyadic rounding excluded. Additional576 complete world-to-fine edits record exact boundary words/cell admission and separate original scalar inverse composition.",
+      "exclusions": [
+        "Original public coordinate/metadata producers, full domain rejection and fine/proximity/adaptive padding remain MAP-01.2/3."
+      ]
     }
   ],
   "fixtures": [
@@ -11132,6 +11176,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-formation-layout-1.27.json",
       "sha256": "694e7e1cc07bbd4f02194ee2a47832202ef8b7ad5025f2fdb490d0cea7518957"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-world-grid-boundaries-1.27.json",
+      "sha256": "f571a489959b991ec6e223cf4f15d8588f0c706a6a8634415bd79459480aa8d5"
     }
   ]
 }

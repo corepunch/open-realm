@@ -2218,3 +2218,59 @@ movement checks each pass3,068 assertions in171 cases, including the139-assertio
 resume regression. Ghidra readback now has25 layouts,149 fields,124 explicit
 prototypes and43 scalar globals plus the original native registry. Boundary
 and documentation-link audits are clean.
+
+
+## Direct world coordinates preserve boundary cells
+
+`wc3_pathing_coordinates.h` applies the original scalar subtraction and direct
+cell scaling, and the separate multiply/add inverse. Game-owned routing no
+longer divides a point by the full map extent and multiplies it by the cell
+count. On a96×96 WPM with32-unit cells, world X435fffff (223.9999847,
+just before224) belongs to cell6. The old adapter rounded the normalized
+coordinate to7 and rejected the point against a wall in cell7; destination
+correction also replaced its world word. The reverse adapter changed a legal
+cell centre112 into111.999992 on a23-cell map.
+
+The actual engine regression covers before/equal/after that wall boundary,
+unchanged legal destination words, a one-ulp rectangle on the open side,
+a real Move order advancing left, and correction to the only open cell(3,4)
+in a23×23 map. Temporarily restoring the actual previous `g_world.c` reproduces
+five assertion failures; the direct adapter passes all15. Investigation traces
+and temporary production edits are removed.
+
+The direct transform now serves endpoint checks, corrected cell centres,
+idle object positions, segment inputs/pruning bounds, fine-search endpoints,
+reconstructed waypoints and game-owned rectangle goals. Formation input
+coordinates share the scalar helper. Cell dimensions still come from the
+engine's authoritative world extents/pathmap dimensions; stock WC3 produces32.
+Shared long-field traversal and nearest-ring search remain the engine policy.
+No server/client API, private entity or save layout changes.
+
+`verify_wc3_pathing_maps.py` executes576 additional complete original04d870
+set/clear boundary pairs, covering23/96/160/288 square maps, three positive/
+negative origins, both axes, and predecessor/exact/successor words around
+zero, interior and final boundaries. A read-only hook at original070c80 records
+the exact fine words. Original floor/integer conversion and actual054000
+cell/null admission are asserted; low occupancy bits and all adaptive words
+remain unchanged. The inverse separately executes original06f9c0 multiplication
+by32 and06fbb0 addition of origin. The production probe matches all six raw
+fine/cell/inverse outputs, with immutable inputs, twice at O0/O2.
+
+`retail-world-grid-boundaries-1.27.json` freezes that matrix.
+`world-grid-corpus-final-261001/corpus-results.json` freshly reproduces the
+strengthened original map oracle and its new production variant. The original
+11,664 edits,216 rebuild/reversals and30 clipped updates still pass unchanged.
+The original inline divide-by32 uses an exponent adjustment after software
+subtraction; the tested helper preserves its boundary words. Public metadata
+construction, complete domain rejection, proximity/adaptive padding and all
+corner producers remain MAP-01.2/3. Ghidra saves this bounded contract on04d870.
+
+
+Validation: complete Classic/TFT suites each pass42,282 assertions in2,202
+cases; all124 pathfinding tool tests pass. The first full run exposed the
+inventory's old76-oracle assertion after adding the77th comparison; the count
+was updated before accepting the final run. Boundary/link audits are clean.
+
+Forced debug and optimized release routing runs each pass588 assertions in78
+cases per schema. The production build succeeds with the same game-owned
+conversion; no debug traces remain in the implementation.

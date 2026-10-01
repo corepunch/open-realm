@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 71 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 72 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 82 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -409,3 +409,18 @@ Fresh outcomes live in `formation-corpus-final-261001/corpus-results.json`.
 The enlarged geometry domain does not certify larger-than-twelve groups,
 original UI selection production or the complete refresh-to-motion engine
 chain. The existing archival captures are unchanged.
+
+
+## Direct world-to-grid boundaries
+
+`oracle-maps` now requires576 additional complete original boundary edits;
+`oracle-world-grid-engine` requires all576 production coordinate comparisons.
+The frozen six-word fine/cell/inverse outputs are replayed twice at O0/O2 and
+hash-pinned as `retail-world-grid-boundaries-1.27.json`. The inventory is189
+entries:39 original scripts plus38 variants,90 archive audits and22 live
+contracts. Fresh accepted outcomes are
+`world-grid-corpus-final-261001/corpus-results.json`.
+
+The matrix covers original world/fine conversion and scalar inverse composition;
+it does not certify the complete public coordinate/metadata producers or
+proximity/adaptive padding. Existing live archives are unchanged.

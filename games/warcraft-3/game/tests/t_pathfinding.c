@@ -296,6 +296,51 @@ TEST(wc3_pathfinding, terrain_flags_and_routing_share_game_storage) {
     setup_test_world();
 }
 
+/* Original04d870 on the96-cell map keeps raw435fffff (just before224)
+ * in cell6. Normalizing through the whole width rounds it into blocked cell7. */
+TEST(wc3_pathfinding, world_cell_boundary_keeps_original_side_and_point_words) {
+    uint32_t const old_time = level.time;
+    reset_entities(); setup_test_world();
+    uint8_t cells[96 * 96] = {0};
+    cells[16 * 96 + 7] = CM_PATHING_UNWALKABLE;
+    setup_test_pathmap(96, 96, cells);
+    CM_SetupTestWorldBounds(&(box2_t){ .min = {0, 0}, .max = {3072, 3072} });
+    vec2_t const before = {wc3_float(0x435fffffu), 528};
+    vec2_t const edge = {224, 528}, after = {wc3_float(0x43600001u), 528};
+    vec2_t corrected;
+    pathAccelParams_t query = { .from = &before, .blocked_flags = CM_PATHING_UNWALKABLE };
+    T_ASSERT(G_MovePathPointIsPathable(&query));
+    T_ASSERT(G_ClosestMovePathPoint(&query, &corrected));
+    T_EQ(wc3_float_bits(corrected.x), wc3_float_bits(before.x));
+    T_EQ(wc3_float_bits(corrected.y), wc3_float_bits(before.y));
+    query.from = &edge; T_ASSERT(!G_MovePathPointIsPathable(&query));
+    query.from = &after; T_ASSERT(!G_MovePathPointIsPathable(&query));
+    box2_t const rectangle = { .min = {before.x, 520}, .max = {224, 530} };
+    T_ASSERT(G_ClosestStaticPathablePointInRectForRadiusFlags(&before, &rectangle, 0, CM_PATHING_UNWALKABLE, &corrected));
+    T_EQ(wc3_float_bits(corrected.x), wc3_float_bits(before.x));
+    T_EQ(wc3_float_bits(corrected.y), wc3_float_bits(before.y));
+    edict_t *unit = make_unit_at(before.x, before.y);
+    unit->collision = 0; unit->unitinfo.MoveSpeed = 100; unit->s.angle = M_PI;
+    gi.LinkEntity(unit);
+    T_ASSERT(unit_issueorder(unit, "move", &(vec2_t){160, 528}));
+    level.time += FRAMETIME; unit->currentmove->think(unit);
+    T_ASSERT(unit->s.origin2.x < before.x);
+    T_EQ(unit->current_order_id, G_OrderId("move"));
+    reset_entities(); setup_test_world();
+    uint8_t restricted[23 * 23]; memset(restricted, CM_PATHING_UNWALKABLE, sizeof(restricted));
+    restricted[4 * 23 + 3] = 0;
+    setup_test_pathmap(23, 23, restricted);
+    CM_SetupTestWorldBounds(&(box2_t){ .min = {0, 0}, .max = {736, 736} });
+    vec2_t const blocked = {144, 144};
+    query.from = &blocked;
+    T_ASSERT(G_ClosestMovePathPoint(&query, &corrected));
+    /* Original scalar inverse of fine(3.5,4.5), scale32, origin0. */
+    T_EQ(wc3_float_bits(corrected.x), 0x42e00000u);
+    T_EQ(wc3_float_bits(corrected.y), 0x43100000u);
+    level.time = old_time;
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_pathfinding, movement_class_pathing_distinguishes_walk_and_fly_bits) {
     uint8_t cells[10 * 10] = { 0 };
     vec2_t nowalk = { 4.5f, 3.5f };

@@ -53,6 +53,19 @@ class PathingMathTests(unittest.TestCase):
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
 
+    def test_world_grid_boundaries_match_complete_original_edits_and_scalar_inverse(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-world-grid-boundaries-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']), 576)
+        for engine in self.engines:
+            engine.pathing_world_grid.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+            for _ in range(2):
+                for case in fixture['cases']:
+                    inputs = (ctypes.c_uint32 * 6)(*case['input'])
+                    output = (ctypes.c_uint32 * 6)()
+                    engine.pathing_world_grid(inputs, output)
+                    self.assertEqual(list(output), case['output'], case['input'])
+                    self.assertEqual(list(inputs), case['input'])
+
     def test_formation_matches_original_mixed_ranks_radii_sort_ties_and_clocks(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-formation-layout-1.27.json').read_text())
         self.assertEqual(len(fixture['cases']), 865)

@@ -5,6 +5,7 @@ No stubs or retail bytes. Synthetic preallocated maps, exact dyadic coordinates,
 independent cell/rectangle/reducer models. Does not execute map constructors.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -18,11 +19,15 @@ SHA256 = 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236'
 
 def main():
     from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE
-    from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EDX
+    from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EDX, UC_X86_REG_EAX
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--coordinate-fixture', type=Path, help='freeze complete original world-to-grid boundary words')
+    parser.add_argument('--engine-library', type=Path, help='compare production coordinate arithmetic')
     args = parser.parse_args()
+    engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine: engine.pathing_world_grid.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != SHA256:
@@ -41,7 +46,7 @@ def main():
     uc.mem_map(0x10000000, 0x100000)
     uc.mem_map(0x20000000, 0x10000)
     owner, system, fine, game = 0x10000000, 0x10001000, 0x10002000, 0x10003000
-    cells, xptr, yptr, rect = 0x10004000, 0x10008000, 0x10008010, 0x10008020
+    cells, xptr, yptr, rect = 0x10060000, 0x10008000, 0x10008010, 0x10008020
     maps = [0x10009000 + n * 0x100 for n in range(4)]
     storage = [0x10010000 + n * 0x10000 for n in range(4)]
     stack, stop = 0x20008000, 0x30000000
@@ -52,7 +57,7 @@ def main():
     def floats(address, *values):
         uc.mem_write(address, struct.pack('<' + 'f' * len(values), *values))
 
-    def words(address, count):
+    def words(address, count=1):
         return list(struct.unpack('<' + 'I' * count, uc.mem_read(address, 4 * count)))
 
     def run(entry, ecx, *arguments, edx=0):
@@ -209,13 +214,78 @@ def main():
             checked_update(terrain, rectangle, 1)
             assert checked_update(terrain, rectangle, 0) == blocked_baseline
             rectangle_cases += 1
-    report = dict(binary_sha256=digest, terrain_entry='6f04d870', cell_edit='6f054000',
+    # Complete original edits at predecessor/exact/successor boundary words.
+    # The original scales by32 directly; whole-map normalization is absent.
+    raw_cases=[]
+    grid_reads=[]
+    grid_hook=uc.hook_add(UC_HOOK_CODE, lambda m,a,n,d:grid_reads.append(words(m.reg_read(UC_X86_REG_EDX))[0]),
+                          begin=0x6f070c80,end=0x6f070c80)
+    baseline_levels=read_levels()
+    scalar_a,scalar_b,scalar_out=0x10008500,0x10008510,0x10008520
+    def word(value):return struct.unpack('<I',struct.pack('<f',value))[0]
+    def adjacent(value,step):
+        raw=word(value)
+        if not step:return raw
+        if not raw&0x7fffffff:return 0x80000001 if step<0 else 1
+        return raw-step if raw&0x80000000 else raw+step
+    for size,(ox,oy),axis in itertools.product([23,96,160,288],origins,range(2)):
+        write(fine+0x3c,size,size)
+        floats(game+0x6c,ox,oy)
+        terrain=[0xffffff]*(size*size)
+        write(cells,*terrain)
+        for edge,step in itertools.product(sorted({0,1,3,7,13,size//2,size-1,size}),[-1,0,1]):
+            positions=[word(ox+528),word(oy+528)]
+            positions[axis]=adjacent((ox,oy)[axis]+32*edge,step)
+            inputs=positions+[word(ox),word(oy),word(32),word(32)]
+            write(xptr,positions[0]);write(yptr,positions[1])
+            observed.clear();grid_reads.clear()
+            run(0x6f04d870,xptr,2,1,edx=yptr)
+            assert len(grid_reads)==2
+            fine_words=grid_reads[::-1]
+            xy=[math.floor(struct.unpack('<f',struct.pack('<I',w))[0]) for w in fine_words]
+            valid=all(0<=v<size for v in xy)
+            pointer=cells+4*(xy[1]*size+xy[0]) if valid else 0
+            assert observed==[pointer],(size,inputs,xy,observed,pointer)
+            if valid:terrain[xy[1]*size+xy[0]]=0x02ffffff
+            assert words(cells,size*size)==terrain
+            outputs=fine_words[:]
+            for k in range(2):
+                write(scalar_a,fine_words[k])
+                run(0x6f070c80,scalar_out,edx=scalar_a)
+                run(0x6f070120,scalar_out)
+                integer=uc.reg_read(UC_X86_REG_EAX)
+                assert integer==xy[k]&0xffffffff
+                outputs.append(integer)
+            for k in range(2):
+                write(scalar_a,fine_words[k]);write(scalar_b,word(32))
+                run(0x6f06f9c0,scalar_out,scalar_b,edx=scalar_a)
+                write(scalar_a,words(scalar_out)[0]);write(scalar_b,inputs[k+2])
+                run(0x6f06fbb0,scalar_out,scalar_b,edx=scalar_a)
+                outputs.append(words(scalar_out)[0])
+            if engine:
+                actual=(ctypes.c_uint32*6)();original=(ctypes.c_uint32*6)(*inputs)
+                engine.pathing_world_grid(original,actual)
+                assert list(actual)==outputs,(size,inputs,list(actual),outputs)
+                assert list(original)==inputs
+            raw_cases.append(dict(dimensions=[size,size],input=inputs,output=outputs,valid=valid))
+            run(0x6f04d870,xptr,2,0,edx=yptr)
+            if valid:terrain[xy[1]*size+xy[0]]=0xffffff
+            assert words(cells,size*size)==terrain
+            assert read_levels()==baseline_levels
+    uc.hook_del(grid_hook)
+    assert len(raw_cases)==576
+    if args.coordinate_fixture:
+        args.coordinate_fixture.write_text(json.dumps(dict(binary_sha256=digest,cases=raw_cases,
+            scope='Complete04d870 fine inputs/cell admission and scalar inverse composition; origin/map producers and full Move caller excluded'),separators=(',',':'))+'\n')
+    report = dict(world_grid_boundary_cases=len(raw_cases),world_grid_boundary_engine_cases=len(raw_cases) if engine else 0,
+                  binary_sha256=digest, terrain_entry='6f04d870', cell_edit='6f054000',
                   hierarchy_entry='6f15d360', coordinate_cases=coordinate_cases,
                   composed_edit_rebuild_restore_cases=composed_cases,
                   clipped_clear_restore_cases=rectangle_cases,
                   dimensions=dimensions, origins=origins, selected_cells=len(selected_cells),
                   scope='Complete original calls; exact dyadic world inputs; terrain high-bit set/clear, cell selection, no implicit hierarchy mutation; clipped base/parent updates and metadata preservation against independent model. Synthetic maps; constructors, actual origin producers, objects and non-dyadic rounding excluded.')
     args.report.parent.mkdir(parents=True, exist_ok=True)
+    if engine:report['engine_library_sha256']=hashlib.sha256(args.engine_library.read_bytes()).hexdigest()
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

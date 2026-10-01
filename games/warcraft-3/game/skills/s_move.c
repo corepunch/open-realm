@@ -17,6 +17,7 @@
 #include "games/warcraft-3/common/wc3_pathing_arrival.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
 #include "games/warcraft-3/common/wc3_pathing_formation.h"
+#include "games/warcraft-3/common/wc3_pathing_coordinates.h"
 
 /* With move-time collision (block-and-slide), "blocked" now means the unit
  * could not take a step this frame because it was boxed in — common and
@@ -1817,15 +1818,15 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
         box2_t const bounds = CM_GetWorldBounds();
         float mean[2] = {0};
         FOR_LOOP(i, num_units) {
-            members[i].position[0] = wc3_div(wc3_sub(units[i]->s.origin2.x, bounds.min.x), 32);
-            members[i].position[1] = wc3_div(wc3_sub(units[i]->s.origin2.y, bounds.min.y), 32);
+            members[i].position[0] = wc3_grid_coordinate(units[i]->s.origin2.x, bounds.min.x, 32);
+            members[i].position[1] = wc3_grid_coordinate(units[i]->s.origin2.y, bounds.min.y, 32);
             members[i].radius = wc3_div(units[i]->collision, 32);
             members[i].rank = units[i]->data.UnitData->formationRank;
             FOR_LOOP(k, 2) mean[k] = wc3_add(mean[k], members[i].position[k]);
         }
         float const reciprocal = wc3_recip(wc3_float(wc3_from_int(num_units)));
-        float const dx = wc3_sub(wc3_div(wc3_sub(location->x, bounds.min.x), 32), wc3_mul(mean[0], reciprocal));
-        float const dy = wc3_sub(wc3_div(wc3_sub(location->y, bounds.min.y), 32), wc3_mul(mean[1], reciprocal));
+        float const dx = wc3_sub(wc3_grid_coordinate(location->x, bounds.min.x, 32), wc3_mul(mean[0], reciprocal));
+        float const dy = wc3_sub(wc3_grid_coordinate(location->y, bounds.min.y, 32), wc3_mul(mean[1], reciprocal));
         wc3Formation_t formation = { members, num_units, dx == 0 && dy == 0 ? 0 : wc3_atan2(dy, dx) };
         wc3_formation_layout(&formation);
         /* TODO: FORM-03 owns the original clock prediction and refresh-to-motion

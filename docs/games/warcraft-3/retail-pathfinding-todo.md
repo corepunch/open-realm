@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**83 done / 263 tasks; 180 remaining.** Counts describe this backlog,
+**84 done / 264 tasks; 180 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -19,7 +19,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | Area | Done | Remaining |
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 12 | 10 |
-| MAP — Map construction and lifetime | 5 | 15 |
+| MAP — Map construction and lifetime | 6 | 15 |
 | FOOT — Footprints and query policy | 3 | 8 |
 | FINE — Fine search | 5 | 6 |
 | ACC — Adaptive search | 1 | 10 |
@@ -234,6 +234,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 - [x] **MAP-01.1** Terrain-origin producer and 25 no-file map loads are covered. Evidence: [map construction][map-load]; file-backed loading and non-dyadic inputs are excluded.
 - [ ] **MAP-01.2** Sweep negative origins and non-power-of-two dimensions through coordinate conversion; assert fine/proximity/adaptive padding and clipping.
 - [ ] **MAP-01.3** Test each map corner at below/equal/above boundary coordinates, including non-dyadic values; record exact accepted cells and conversions.
+- [x] **MAP-01.4** Explicitly integrate the discovered whole-map normalization mismatch: use direct software world/fine conversion for engine endpoint admission/correction, object positions, segments, fine route points and rectangle goals. Evidence: [direct coordinate conversion](retail-pathfinding-engine.md#direct-world-coordinates-preserve-boundary-cells),576 complete original edits and scalar inverse compositions, repeated O0/O2 raw comparisons, actual Move/point/rectangle/correction regression fails five assertions under the old adapter. Original public domain/padding and complete corner producers remain01.2/3.
 
 ### MAP-02 — Initial loading
 

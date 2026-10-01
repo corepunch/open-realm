@@ -1,3 +1,4 @@
+#include "games/warcraft-3/common/wc3_pathing_coordinates.h"
 /* Compile as a shared library to compare the same arithmetic used by Move with retail calls. */
 #include "games/warcraft-3/common/wc3_math.h"
 #include "games/warcraft-3/common/wc3_pathing_masks.h"
@@ -414,4 +415,15 @@ uint32_t pathing_segment_waypoint(uint32_t const *input, uint8_t const *cells, u
     wc3FineSegment_t query = { .start = {wc3_float(input[0]), wc3_float(input[1])},
         .cls = input[2], .cell = segment_probe_cell, .data = &probe };
     return wc3_segment_waypoint(&query, (wc3FineRoute_t){points, input[3]});
+}
+
+/* World XY, origin XY, cell dimensions XY: fine words, integer cells and the
+ * composed original scalar inverse. Caller metadata is supplied separately. */
+void pathing_world_grid(uint32_t const *input, uint32_t *out) {
+    for (unsigned k = 0; k < 2; k++) {
+        float grid = wc3_grid_coordinate(wc3_float(input[k]), wc3_float(input[k+2]), wc3_float(input[k+4]));
+        out[k] = wc3_float_bits(grid);
+        out[k+2] = wc3_int_bits(wc3_floor_bits(out[k]));
+        out[k+4] = wc3_float_bits(wc3_world_coordinate(grid, wc3_float(input[k+2]), wc3_float(input[k+4])));
+    }
 }

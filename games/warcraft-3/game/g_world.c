@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "../common/wc3_pathing_route.h"
+#include "../common/wc3_pathing_coordinates.h"
 
 typedef struct { int size; uint8_t flags; uint32_t objects; } moveFineGraph_t;
 static wc3FineBox_t move_objects[MAX_ENTITIES];
@@ -70,6 +71,23 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 #include "common/world_w3.c"
 #include "server/sv_routing.c"
 
+/* Map extents/dimensions describe cell sizes; simulation coordinates then use
+ * the direct software transform. Stock WC3 WPM cells are32 world units. */
+static vec2_t move_grid_from_world(float x, float y) {
+    box2_t const bounds = CM_GetWorldBounds();
+    float const cx = (bounds.max.x - bounds.min.x) / pathmap.width;
+    float const cy = (bounds.max.y - bounds.min.y) / pathmap.height;
+    return (vec2_t){wc3_grid_coordinate(x, bounds.min.x, cx), wc3_grid_coordinate(y, bounds.min.y, cy)};
+}
+
+/* Cell centres and retained route points must not round through map fractions. */
+static vec2_t move_world_from_grid(float x, float y) {
+    box2_t const bounds = CM_GetWorldBounds();
+    float const cx = (bounds.max.x - bounds.min.x) / pathmap.width;
+    float const cy = (bounds.max.y - bounds.min.y) / pathmap.height;
+    return (vec2_t){wc3_world_coordinate(x, bounds.min.x, cx), wc3_world_coordinate(y, bounds.min.y, cy)};
+}
+
 /* Original 16ee80 checks a class-sized square, biased left/up for even sizes.
  * ceil(radius) instead imposed 3/5-cell squares on retail's 1/2/3/4 classes. */
 static pathGridQuery_t move_field_shape(float radius, uint8_t flags) {
@@ -98,8 +116,8 @@ static bool move_object_collect(edict_t const *ent) {
     uint32_t mask = graph->flags;
     mask |= mask << 24;
     if (!wc3_fine_object_blocks((wc3FineObject_t){0x010000ca, flags, true}, mask, false)) return false;
-    vec2_t n = CM_GetNormalizedMapPosition(ent->s.origin2.x, ent->s.origin2.y);
-    wc3FinePoint_t point = { (int)floorf(n.x * pathmap.width), (int)floorf(n.y * pathmap.height) };
+    vec2_t n = move_grid_from_world(ent->s.origin2.x, ent->s.origin2.y);
+    wc3FinePoint_t point = { (int)floorf(n.x), (int)floorf(n.y) };
     assert(graph->objects < MAX_ENTITIES);
     move_objects[graph->objects++] = wc3_fine_cover(wc3_fine_class(ent->collision / pathmap_cell_world_size()), point);
     return false; /* Collect rectangles directly; no capped BoxEdicts pointer list. */
@@ -130,10 +148,8 @@ static box2_t move_segment_bounds(wc3FineSegment_t const *query) {
     wc3FinePoint_t min = {MIN(a.x, b.x), MIN(a.y, b.y)}, max = {MAX(a.x, b.x), MAX(a.y, b.y)};
     wc3FineBox_t lo = wc3_fine_cover(query->cls, min), hi = wc3_fine_cover(query->cls, max);
     wc3FineBox_t obj = wc3_fine_cover(3, (wc3FinePoint_t){0, 0});
-    vec2_t p = CM_GetDenormalizedMapPosition((float)(lo.min.x - obj.max.x) / pathmap.width,
-                                            (float)(lo.min.y - obj.max.y) / pathmap.height);
-    vec2_t q = CM_GetDenormalizedMapPosition((float)(hi.max.x + 1 - obj.min.x) / pathmap.width,
-                                            (float)(hi.max.y + 1 - obj.min.y) / pathmap.height);
+    vec2_t p = move_world_from_grid(lo.min.x - obj.max.x, lo.min.y - obj.max.y);
+    vec2_t q = move_world_from_grid(hi.max.x + 1 - obj.min.x, hi.max.y + 1 - obj.min.y);
     return (box2_t){ {MIN(p.x, q.x), MIN(p.y, q.y)}, {MAX(p.x, q.x), MAX(p.y, q.y)} };
 }
 
@@ -192,9 +208,9 @@ static moveFineGraph_t move_foot_shape(pathAccelParams_t const *params) {
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params) {
     if (!params || !params->from) return false;
     if (!pathmap.width || !pathmap.height) return true;
-    vec2_t n = CM_GetNormalizedMapPosition(params->from->x, params->from->y);
+    vec2_t n = move_grid_from_world(params->from->x, params->from->y);
     moveFineGraph_t graph = move_foot_shape(params);
-    return move_foot_ok(&graph, (wc3FinePoint_t){ (int)floorf(n.x * pathmap.width), (int)floorf(n.y * pathmap.height) });
+    return move_foot_ok(&graph, (wc3FinePoint_t){ (int)floorf(n.x), (int)floorf(n.y) });
 }
 
 /* Keep existing nearest-ring endpoint correction while using the actual
@@ -205,8 +221,7 @@ bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out) {
     pathGridQuery_t query = move_field_shape(params->radius, params->blocked_flags);
     point2_t chosen;
     if (!closest_pathable_node_query(params->from, &query, &chosen)) return false;
-    *out = CM_GetDenormalizedMapPosition((chosen.x + 0.5f) / pathmap.width,
-                                         (chosen.y + 0.5f) / pathmap.height);
+    *out = move_world_from_grid(chosen.x + 0.5f, chosen.y + 0.5f);
     return true;
 }
 
@@ -218,14 +233,14 @@ static bool move_query_line(movePathQuery_t const *input) {
     if (!pathmap.width || !pathmap.height) return true;
     pathAccelParams_t end = *params; end.from = params->target;
     if (!G_MovePathPointIsPathable(params) || !G_MovePathPointIsPathable(&end)) return false;
-    vec2_t a = CM_GetNormalizedMapPosition(params->from->x, params->from->y);
-    vec2_t b = CM_GetNormalizedMapPosition(params->target->x, params->target->y);
+    vec2_t a = move_grid_from_world(params->from->x, params->from->y);
+    vec2_t b = move_grid_from_world(params->target->x, params->target->y);
     moveFineGraph_t graph = move_foot_shape(params);
-    wc3FineSegment_t query = { .start = {a.x * pathmap.width, a.y * pathmap.height},
+    wc3FineSegment_t query = { .start = {a.x, a.y},
         .cls = wc3_fine_class(params->radius / pathmap_cell_world_size()),
         .cell = move_cell_ok, .data = &graph };
-    query.direction[0] = wc3_sub(b.x * pathmap.width, query.start[0]);
-    query.direction[1] = wc3_sub(b.y * pathmap.height, query.start[1]);
+    query.direction[0] = wc3_sub(b.x, query.start[0]);
+    query.direction[1] = wc3_sub(b.y, query.start[1]);
     query.length = wc3_segment_normalize(query.direction);
     if (query.length > 1.f) {
         box2_t bounds = move_segment_bounds(&query);
@@ -260,9 +275,9 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
     if (!params || !params->from || !params->target || !out || !pathmap.width || !pathmap.height) return false;
     pathAccelParams_t dest = *params; dest.from = params->target;
     if (!G_ClosestMovePathPoint(params, &source) || !G_ClosestMovePathPoint(&dest, &target)) return false;
-    vec2_t a = CM_GetNormalizedMapPosition(source.x, source.y), b = CM_GetNormalizedMapPosition(target.x, target.y);
-    wc3FinePoint_t start = { (int)floorf(a.x * pathmap.width), (int)floorf(a.y * pathmap.height) };
-    wc3FinePoint_t goal = { (int)floorf(b.x * pathmap.width), (int)floorf(b.y * pathmap.height) };
+    vec2_t a = move_grid_from_world(source.x, source.y), b = move_grid_from_world(target.x, target.y);
+    wc3FinePoint_t start = { (int)floorf(a.x), (int)floorf(a.y) };
+    wc3FinePoint_t goal = { (int)floorf(b.x), (int)floorf(b.y) };
     if (abs(start.x - goal.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - goal.y) > PATH_ACCEL_MAX_DISTANCE) return false;
     moveFineGraph_t graph = move_foot_shape(params);
     move_query_objects(&graph, input, NULL);
@@ -277,17 +292,17 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
     if (at < 0) return false;
     wc3FinePoint_t endpoint = move_fine.nodes[at].pos;
     wc3FineReconstruct_t route = {move_fine.nodes, move_fine.count, at,
-        {a.x * pathmap.width, a.y * pathmap.height},
-        complete ? (wc3FineVector_t){b.x * pathmap.width, b.y * pathmap.height}
+        {a.x, a.y},
+        complete ? (wc3FineVector_t){b.x, b.y}
                  : wc3_route_center(endpoint)};
     uint32_t count = wc3_fine_reconstruct(&route, move_fine_points, BZ_WC3_FINE_NODES);
     if (count < 2) return false;
-    wc3FineSegment_t query = { .start = {a.x * pathmap.width, a.y * pathmap.height},
+    wc3FineSegment_t query = { .start = {a.x, a.y},
         .cls = (unsigned)graph.size - 1, .cell = move_cell_ok, .data = &graph };
     uint32_t chosen = wc3_segment_waypoint(&query, (wc3FineRoute_t){move_fine_points, count - 1});
     wc3FineVector_t point = move_fine_points[chosen];
     /* Preserve admitted world words when the selected point is the exact goal. */
-    *out = complete && chosen == 0 ? target : CM_GetDenormalizedMapPosition(point.x / pathmap.width, point.y / pathmap.height);
+    *out = complete && chosen == 0 ? target : move_world_from_grid(point.x, point.y);
     return true;
 }
 
@@ -317,12 +332,12 @@ bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, bo
         return true;
     }
 
-    nmin = CM_GetNormalizedMapPosition(rect.min.x, rect.min.y);
-    nmax = CM_GetNormalizedMapPosition(rect.max.x, rect.max.y);
-    x0 = MIN((int)pathmap.width - 1, MAX(0, (int)floorf(MIN(nmin.x, nmax.x) * pathmap.width)));
-    x1 = MIN((int)pathmap.width - 1, MAX(0, (int)floorf(MAX(nmin.x, nmax.x) * pathmap.width)));
-    y0 = MIN((int)pathmap.height - 1, MAX(0, (int)floorf(MIN(nmin.y, nmax.y) * pathmap.height)));
-    y1 = MIN((int)pathmap.height - 1, MAX(0, (int)floorf(MAX(nmin.y, nmax.y) * pathmap.height)));
+    nmin = move_grid_from_world(rect.min.x, rect.min.y);
+    nmax = move_grid_from_world(rect.max.x, rect.max.y);
+    x0 = MIN((int)pathmap.width - 1, MAX(0, (int)floorf(MIN(nmin.x, nmax.x))));
+    x1 = MIN((int)pathmap.width - 1, MAX(0, (int)floorf(MAX(nmin.x, nmax.x))));
+    y0 = MIN((int)pathmap.height - 1, MAX(0, (int)floorf(MIN(nmin.y, nmax.y))));
+    y1 = MIN((int)pathmap.height - 1, MAX(0, (int)floorf(MAX(nmin.y, nmax.y))));
     radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
 
     for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
@@ -331,15 +346,14 @@ bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, bo
         int check_x, check_y;
 
         if (!is_pathable_node_original_for_radius_cells_flags(x, y, radius_cells, blocked_flags)) continue;
-        a = CM_GetDenormalizedMapPosition((float)x / pathmap.width, (float)y / pathmap.height);
-        b = CM_GetDenormalizedMapPosition((float)(x + 1) / pathmap.width,
-                                           (float)(y + 1) / pathmap.height);
+        a = move_world_from_grid(x, y);
+        b = move_world_from_grid(x + 1, y + 1);
         min_x = MAX(rect.min.x, MIN(a.x, b.x)); max_x = MIN(rect.max.x, MAX(a.x, b.x));
         min_y = MAX(rect.min.y, MIN(a.y, b.y)); max_y = MIN(rect.max.y, MAX(a.y, b.y));
         if (min_x > max_x || min_y > max_y) continue;
         candidate = (vec2_t){ MIN(max_x, MAX(min_x, location->x)), MIN(max_y, MAX(min_y, location->y)) };
-        check = CM_GetNormalizedMapPosition(candidate.x, candidate.y);
-        check_x = (int)floorf(check.x * pathmap.width); check_y = (int)floorf(check.y * pathmap.height);
+        check = move_grid_from_world(candidate.x, candidate.y);
+        check_x = (int)floorf(check.x); check_y = (int)floorf(check.y);
         if (check_x != x || check_y != y)
             candidate = (vec2_t){ (min_x + max_x) * 0.5f, (min_y + max_y) * 0.5f };
         distance = Vector2_distance(location, &candidate);
