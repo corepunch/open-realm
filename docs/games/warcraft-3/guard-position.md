@@ -1,0 +1,57 @@
+# Warcraft III guard position and Stop return
+
+## Implemented contract
+
+OpenRealm distinguishes the player's Stop guard point from Hold Position.
+
+- Stop captures the unit's current world position as its guard position.
+- Ordinary idle acquisition after Stop is a temporary guard-combat detour. The unit may chase and fight normally.
+- When that automatic combat ends, and no explicit Shift-queued order is waiting, the unit returns to the remembered guard position through the ordinary point-Move path.
+- Arrival uses the existing Move completion/tolerance rules; guard return does not introduce another pathfinder or magic arrival radius.
+- After the return Move completes, the unit resumes ordinary stopped/idle behavior and can acquire again.
+- A newer explicit Move/Attack/Smart-style order clears the old player Stop guard point. It therefore cannot reassert after the newer order later completes.
+- A queued player order outranks guard return. Combat completion advances the FIFO instead of starting the internal return.
+- A second Stop captures the unit's then-current position as the new guard point.
+- Hold Position is separate: it suppresses automatic translation and does not use a return-to-anchor journey.
+
+Guard return is internal default AI behavior rather than a player FIFO entry. This keeps the priority order:
+
+```text
+current explicit order
+    > queued explicit orders
+    > automatic combat detour
+    > Stop guard return
+    > ordinary idle acquisition
+```
+
+## State ownership
+
+The authoritative state lives on the unit movement state:
+
+```text
+guard_position
+guard_position_valid
+guard_combat
+guard_returning
+```
+
+`guard_combat` is set only when ordinary stopped/idle acquisition (or retaliation from that stopped idle state) starts an attack. Explicit Attack and persistent parent behaviors such as Patrol, Attack-Move, and Follow keep their existing completion/resume rules and do not use Stop guard return.
+
+`guard_returning` marks the ordinary Move behavior as an internal guard return. The Move path clears it on arrival or its normal near-goal settle edge, then installs the ordinary stand state. While that Move is active, normal idle acquisition is not running.
+
+## Explicit-order replacement
+
+The player Stop guard point is deliberately conservative: an explicit point/target replacement clears it instead of assuming every Move destination automatically becomes a new retail guard point. Pressing Stop at the desired location establishes a new point.
+
+This prevents an old Stop location from unexpectedly taking control after a later explicit Move or Attack completes.
+
+## Retail guard-system follow-up
+
+Warcraft also exposes a broader AI/creep guard-position system (`SetUnitCreepGuard`, `RemoveGuardPosition`, `RecycleGuardPosition`) and neutral-creep leash constants such as GuardDistance, MaxGuardDistance, and GuardReturnTime. Those behaviors are related but are not folded into this player Stop patch:
+
+- `RemoveGuardPosition` and `RecycleGuardPosition` are still JASS placeholders in OpenRealm.
+- `SetUnitCreepGuard` is declared by `common.txt` but does not yet have a native implementation here.
+- neutral-creep 600/1000/5-style leash timing needs its own owner/AI policy and damage-timestamp state rather than being guessed onto player units.
+- forced relocation does not rewrite a generic retail creep guard point, whereas Hold Position remains a non-anchor policy. Keep those systems separate.
+
+Implement the broader creep/JASS guard layer as a follow-up on top of the shared guard-return movement primitive rather than changing Stop semantics again.

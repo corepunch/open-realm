@@ -917,7 +917,10 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (!queue) G_ClearUnitOrderQueue(self);
     {
         bool const accepted = unit_issuetargetorder_now(self, order, target);
-        if (accepted) unit_publish_target_order(self, order, target, issuer_player);
+        if (accepted) {
+            G_ClearUnitGuardPosition(self);
+            unit_publish_target_order(self, order, target, issuer_player);
+        }
         return accepted;
     }
 }
@@ -970,6 +973,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     {
         bool const accepted = unit_issueorder_now(self, order, point, group_speed);
         if (accepted) {
+            G_ClearUnitGuardPosition(self);
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
         }
@@ -983,14 +987,19 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
     if (!self || M_IsDead(self) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
         if (queued.target_type == UNIT_ORDER_TARGET_POINT) {
-            if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed))
+            if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed)) {
+                G_ClearUnitGuardPosition(self);
                 return true;
+            }
         } else if (queued.target_type == UNIT_ORDER_TARGET_ENTITY) {
             edict_t *target;
             if (queued.target_number >= globals.num_edicts) continue;
             target = globals.edicts + queued.target_number;
             if (!target->inuse || target->spawn_time != queued.target_spawn_time) continue;
-            if (unit_issuetargetorder_now(self, queued.order, target)) return true;
+            if (unit_issuetargetorder_now(self, queued.order, target)) {
+                G_ClearUnitGuardPosition(self);
+                return true;
+            }
         } else if (queued.target_type == UNIT_ORDER_TARGET_NONE) {
             if (!strcmp(queued.order, "stop")) {
                 order_stop_queued(self);

@@ -1653,6 +1653,12 @@ struct edict_s {
         edict_t *patrol_a, *patrol_b, *patrol_target;
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
         bool holding_position;
+        /* Stop establishes a WC3 guard point. Automatic idle combat may leave
+         * that point temporarily, then returns once the combat detour ends. */
+        vec2_t guard_position;
+        bool guard_position_valid;
+        bool guard_combat;
+        bool guard_returning;
         bool explicit_allied_attack;
         bool cargo_unload_pending; /* Drop ability: unload after point-move arrival */
         uint32_t cargo_unload_ability; /* initiating concrete AbilityData rawcode */
@@ -3132,6 +3138,9 @@ bool move_displacement_active(edict_t const *);
 bool move_displacement_reached(edict_t *);
 void order_stop(edict_t *);
 void order_stop_queued(edict_t *);
+void G_SetUnitGuardPosition(edict_t *);
+void G_ClearUnitGuardPosition(edict_t *);
+bool G_StartUnitGuardReturn(edict_t *);
 void order_attackmove(edict_t *, edict_t *);
 void order_patrol(edict_t *, edict_t *);
 void order_patrol_resume(edict_t *);

@@ -97,6 +97,8 @@ The implementation treats a `umove_t` whose `ability` pointer is non-null as act
 
 Rally changes remain producer metadata, not unit behavior. Smart/set-rally changes are therefore applied immediately; they are not inserted into the movement/combat FIFO.
 
+Stop guard return sits below the explicit FIFO. If a stopped unit temporarily auto-acquires an enemy, combat completion starts the next queued player order first; only an empty queue permits the internal return Move to the remembered Stop point. The return itself is not inserted into the FIFO. A newer explicit point/target order clears the old player Stop guard point so it cannot reassert after that order later completes.
+
 Issued-order trigger events describe command submission rather than delayed execution. An accepted point order publishes `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` / `EVENT_UNIT_ISSUED_POINT_ORDER` immediately, including when Shift causes the order to be appended to the FIFO; an accepted entity target similarly publishes the target-order family. Construction follows the same rule: `G_IssueUnitBuildOrder()` publishes the building rawcode and snapped point when the click is accepted, while delayed execution calls `G_ExecuteBuildOrder()` and does not publish a second event. See [Issued Target and Point Order Events](issued-target-order-events.md).
 
 ## Move and formation behavior

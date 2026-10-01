@@ -212,7 +212,12 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target)
         order_attackmove(attacker, attacker->movement.attackmove_waypoint);
     } else if (attacker->movement.follow_target) {
         order_follow_resume(attacker);
+    } else if (attacker->movement.guard_combat && G_StartUnitGuardReturn(attacker)) {
+        /* Automatic idle combat returns to the Stop guard point before the
+         * ordinary stopped/idle state resumes. */
+        return;
     } else if (attacker->stand) {
+        attacker->movement.guard_combat = false;
         attacker->stand(attacker);
     }
 }
@@ -337,8 +342,14 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
     if (can_attack(target) && !unit_is_walking(target) &&
         S_SpellIsEnemy(target, attacker)) {
-        if (!S_UnitAbilityEvent(target, A_NO_RETALIATE))
+        if (!S_UnitAbilityEvent(target, A_NO_RETALIATE)) {
+            /* A stopped unit retaliates as an automatic guard detour just like
+             * ordinary idle acquisition. Explicit/persistent combat behaviors
+             * already own their own completion path. */
+            target->movement.guard_combat = target->movement.guard_position_valid &&
+                target->currentmove && target->currentmove->think == ai_stand;
             order_attack(target, attacker);
+        }
     } else if (target->pain) {
         target->pain(target);
     }
@@ -799,6 +810,7 @@ bool S_OrderAttack(edict_t *self, edict_t *target) {
     self->movement.patrol_a = self->movement.patrol_b = self->movement.patrol_target = NULL;
     self->movement.follow_target = NULL;
     self->movement.holding_position = false;
+    G_ClearUnitGuardPosition(self);
     order_attack(self, target);
     self->movement.explicit_allied_attack = G_PlayerTreatsPlayerAsAlly(self->s.player, target->s.player);
     return true;
