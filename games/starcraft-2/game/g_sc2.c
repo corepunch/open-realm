@@ -204,6 +204,8 @@ static void SC2_MoveSelected(edict_t *clent, vec2_t const *target) {
         if (!(ent->selected & (1 << player)) || !SC2_IsSelectable(ent, player)) {
             continue;
         }
+        /* Smart point orders use the same authored Move permission as buttons. */
+        if (ent->unit.initialized && !SC2_HUD_CommandEnabled(ent, "move,Move")) continue;
         ent->order.kind=1; ent->order.target=0;
         SC2_OrderMove(ent,target);
         issued=true;
