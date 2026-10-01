@@ -878,11 +878,13 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         return false;
     }
     if (!strcmp(order, "harvest")) {
+        bool accepted = false;
         if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm"))
-            return S_AcolyteHarvestOrder(self, target);
-        if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
-            return harvest_gold_order(self, target);
-        return false;
+            accepted = S_AcolyteHarvestOrder(self, target);
+        else if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
+            accepted = harvest_gold_order(self, target);
+        if (accepted) S_UnitAbilityOrderAccepted(self, order);
+        return accepted;
     }
     {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
