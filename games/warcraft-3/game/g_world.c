@@ -2,7 +2,14 @@
 #include "../common/wc3_pathing_route.h"
 #include "../common/wc3_pathing_coordinates.h"
 
-typedef struct { int size; uint8_t flags; uint32_t objects; } moveFineGraph_t;
+typedef struct {
+    int size;
+    uint8_t flags;
+    uint32_t objects;
+    wc3FineBox_t target;
+    bool has_target;
+    bool *target_hit;
+} moveFineGraph_t;
 static wc3FineBox_t move_objects[MAX_ENTITIES];
 typedef struct { moveFineGraph_t *graph; movePathQuery_t const *query; } moveObjectScan_t;
 static moveObjectScan_t *move_scan;
@@ -168,6 +175,12 @@ static bool move_cell_ok(void const *data, wc3FinePoint_t pos) {
         wc3FineBox_t const *box = &move_objects[i];
         if (pos.x < box->max.x && pos.y >= box->min.y && pos.y < box->max.y) return false;
     }
+    /* TODO FINE-01.6: sorted rectangles do not retain retail cell-link order.
+     * A foreign blocker above still hides a coincident target. Port the actual
+     * link producer before claiming overlap parity; separate targets are exact. */
+    if (graph->has_target && pos.x >= graph->target.min.x && pos.x < graph->target.max.x &&
+        pos.y >= graph->target.min.y && pos.y < graph->target.max.y)
+        *graph->target_hit = true;
     return true;
 }
 
@@ -200,8 +213,8 @@ bool G_ClosestReachableMovePoint(pathAccelParams_t const *params, vec2_t *out) {
 }
 
 static moveFineGraph_t move_foot_shape(pathAccelParams_t const *params) {
-    return (moveFineGraph_t){ (int)wc3_fine_class(params->radius / pathmap_cell_world_size()) + 1,
-                             normalize_blocked_flags(params->blocked_flags), 0 };
+    return (moveFineGraph_t){ .size = (int)wc3_fine_class(params->radius / pathmap_cell_world_size()) + 1,
+        .flags = normalize_blocked_flags(params->blocked_flags) };
 }
 
 /* Endpoint geometry is shared by routing and the Move step validator. */
@@ -281,9 +294,20 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
     if (abs(start.x - goal.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - goal.y) > PATH_ACCEL_MAX_DISTANCE) return false;
     moveFineGraph_t graph = move_foot_shape(params);
     move_query_objects(&graph, input, NULL);
+    bool target_hit = false;
+    edict_t const *object = input->target;
+    if (input->units && input->mover && !(input->mover->aiflags & AI_FLYING) && object && object->inuse &&
+        !IS_HOLLOW(object) && object->data.UnitData && !G_UnitIsStructure(object) &&
+        !M_UnitMoveDisabled(object) && !object->no_pathing && object->collision > 0 && !(object->aiflags & AI_FLYING)) {
+        vec2_t pos = move_grid_from_world(object->s.origin2.x, object->s.origin2.y);
+        graph.target = wc3_fine_cover(wc3_fine_class(object->collision / pathmap_cell_world_size()),
+            (wc3FinePoint_t){(int)floorf(pos.x), (int)floorf(pos.y)});
+        graph.has_target = true;
+        graph.target_hit = &target_hit;
+    }
     wc3FineRequest_t req = { .start = {start.x, start.y}, .goal = {goal.x, goal.y},
         .width = pathmap.width, .height = pathmap.height, .budget = BZ_WC3_FINE_WORK,
-        .edges = move_fine_edges, .data = &graph };
+        .edges = move_fine_edges, .data = &graph, .target_hit = &target_hit };
     int at = wc3_fine_search(&move_fine, &req);
     bool complete = at >= 0;
     /* Original148100 retains the nearest admitted chain after exhaustion.
@@ -302,7 +326,8 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *input, vec2_t *out) {
     uint32_t chosen = wc3_segment_waypoint(&query, (wc3FineRoute_t){move_fine_points, count - 1});
     wc3FineVector_t point = move_fine_points[chosen];
     /* Preserve admitted world words when the selected point is the exact goal. */
-    *out = complete && chosen == 0 ? target : move_world_from_grid(point.x, point.y);
+    *out = complete && endpoint.x == goal.x && endpoint.y == goal.y && chosen == 0
+        ? target : move_world_from_grid(point.x, point.y);
     return true;
 }
 

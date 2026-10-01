@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **188 entries**: **39** distinct original-code oracle
-scripts plus **37** declared variants, **90** archived JSONL audits and **22**
+The inventory now has **197 entries**: **40** distinct original-code oracle
+scripts plus **39** declared variants, **94** archived JSONL audits and **24**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,13 +20,13 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 72 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 74 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 82 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 86 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Five numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Twelve public/native/compiler/heading/arrival/speed repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Fifteen public/native/compiler/heading/arrival/speed/pose/clock repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 NUM-01.13 adds original CRT byte classification and the complete authored-name
 producer:514 public S2R/parser calls and1,040 classifier observations repeat,
@@ -449,3 +449,20 @@ negative mutation controls. Fresh accepted results live in
 Engine geometry now consumes this result through public SetUnitX/Y; owner
 clock cadence, between-frame prediction and other forced setters remain open.
 See [the engine payoff and limits](retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step).
+
+
+## Primary clock and fine target integration
+
+The primary-clock source/owner repeat adds two archive audits and one strict
+live contract. Motion oracles compare6,000 original primary advances,1,944
+clock controls,1,000 controlled commits and300 predicted queries; the engine
+runs the complete controlled30-second trajectory. See [primary clocks](retail-pathfinding-engine.md#primary-clock-reaches-move-and-predicted-positions).
+
+`oracle-fine-targets` and `engine-fine-targets` add2,304 original core/full
+requests with200 identity completions. They pin suppression, terrain precedence,
+active/link/category eligibility and both overlapping supplied-chain orders;
+production C compares complete parent chains, cost, work and node creation.
+The inventory has197 entries (79 oracles from40 scripts/39 variants,94 archives,
+24 live contracts) and68 hash-pinned fixtures. Fresh accepted target outcomes
+are in `fine-target-corpus-accepted-261001/corpus-results.json`.
+Runtime target-link chronology remains FINE-01.6; see [engine scope](retail-pathfinding-engine.md#target-identity-exits-reach-the-engine).

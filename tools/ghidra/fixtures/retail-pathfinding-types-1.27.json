@@ -1079,6 +1079,48 @@
           "evidence": "054190 bit1 pause; actual primary1000 flag permits advance"
         }
       ]
+    },
+    {
+      "name": "WC3FineSearchPrefix",
+      "length": 216,
+      "fields": [
+        {
+          "offset": 160,
+          "name": "size_class",
+          "type": "u16",
+          "evidence": "14b760 ushort selector and four-class original corpus"
+        },
+        {
+          "offset": 164,
+          "name": "query_mask",
+          "type": "u32",
+          "evidence": "1489a0 terrain high-byte and occupancy low24 masks"
+        },
+        {
+          "offset": 168,
+          "name": "target",
+          "type": "ptr:WC3SpatialPrefix",
+          "evidence": "1489a0 kind1 identity before collision suppression"
+        },
+        {
+          "offset": 204,
+          "name": "target_seen",
+          "type": "u32",
+          "evidence": "1489a0 sets;14b760 skips relaxation;14a4c0 consumes"
+        },
+        {
+          "offset": 208,
+          "name": "observed_obstruction",
+          "type": "u32",
+          "evidence": "1489a0 blocked terrain/object result; distinct from success"
+        },
+        {
+          "offset": 212,
+          "name": "endpoint_mode",
+          "type": "u32",
+          "evidence": "1489a0 moving60000000 eligibility policy"
+        }
+      ]
     }
   ],
   "methods": [
@@ -3418,6 +3460,60 @@
       "returns": "void",
       "convention": "__cdecl",
       "parameters": []
+    },
+    {
+      "address": "6f1489a0",
+      "name": "PathFine_TestOccupiedCell",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f14a4c0",
+      "name": "PathFine_Search",
+      "returns": "i32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f14b760",
+      "name": "PathFine_ExpandNode",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "node",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [

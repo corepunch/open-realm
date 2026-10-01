@@ -859,6 +859,41 @@ TEST(wc3_pathfinding, fine_route_retains_fractional_destination_for_every_class)
     setup_test_world();
 }
 
+/* Original148100 retains the current node centre on a target identity hit,
+ * even though the requested point is farther away. Target suppression must
+ * leave the object observable to the perimeter queries. */
+TEST(wc3_pathfinding, fine_target_exit_preserves_approach_endpoint) {
+    uint8_t cells[24 * 24] = {0};
+    static float const radii[] = {0.25f, 0.5f, 1.f, 1.5f};
+    vec2_t goal = {19.25f, 19.75f}, out;
+    for (unsigned cls = 0; cls < 4; cls++) {
+        reset_entities();
+        setup_test_world();
+        setup_test_pathmap(24, 24, cells);
+        edict_t *unit = make_unit_at(4.25f, 4.75f), *target = make_unit_at(12.25f, 12.25f);
+        unit->collision = radii[cls]; target->collision = 0.25f;
+        gi.LinkEntity(unit); gi.LinkEntity(target);
+        movePathQuery_t query = {{&unit->s.origin2, &goal, radii[cls], CM_PATHING_UNWALKABLE}, unit, target, true};
+        T_ASSERT(G_FindUnitMovePathWaypoint(&query, &out));
+        T_EQ(out.x, cls < 2 ? 11.5f : 10.5f);
+        T_EQ(out.y, cls < 2 ? 11.5f : 10.5f);
+        target->movement.velocity.x = 0.1f;
+        T_ASSERT(G_FindUnitMovePathWaypoint(&query, &out));
+        T_EQ(out.x, cls < 2 ? 11.5f : 10.5f);
+        T_EQ(out.y, cls < 2 ? 11.5f : 10.5f);
+        query.target = NULL;
+        target->no_pathing = true;
+        T_ASSERT(G_FindUnitMovePathWaypoint(&query, &out));
+        T_EQ(out.x, goal.x); T_EQ(out.y, goal.y);
+        target->movement.velocity = (vec2_t){0};
+        query.target = target; /* Inactive category never reports target identity. */
+        T_ASSERT(G_FindUnitMovePathWaypoint(&query, &out));
+        T_EQ(out.x, goal.x); T_EQ(out.y, goal.y);
+    }
+    reset_entities();
+    setup_test_world();
+}
+
 TEST(wc3_pathfinding, nearby_move_routes_around_idle_unit_footprint) {
     uint8_t cells[24 * 24] = {0};
     vec2_t target = {19.5f, 4.5f};

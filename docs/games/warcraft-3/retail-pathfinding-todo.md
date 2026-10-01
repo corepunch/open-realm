@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**87 done / 267 tasks; 180 remaining.** Counts describe this backlog,
+**88 done / 268 tasks; 180 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -21,7 +21,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | BASE — Baseline and reproducibility | 13 | 10 |
 | MAP — Map construction and lifetime | 6 | 15 |
 | FOOT — Footprints and query policy | 3 | 8 |
-| FINE — Fine search | 5 | 6 |
+| FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 1 | 10 |
 | NUM — Numbers and random state | 17 | 12 |
 | ROUTE — Route progression and yielding | 2 | 9 |
@@ -48,7 +48,7 @@ Runtime radius producers and the full passage matrices remain FOOT-01.2/03 and
 FOOT-02; the bounded cardinal witnesses do not close them.
 FINE-01.4 explicitly owns incremental engine integration of the completed static
 search policy; it does not replace FINE-01.2/03 dynamic composition or FINE-02
-termination requirements. FINE-01.5 explicitly adds the independently reviewable engine idle-object port; ground/flight original composition is completed within01.2, while its other public lanes remain required.
+termination requirements. FINE-01.6 explicitly splits the overlapping target link producer from01.3's completed supplied-chain matrix and separate-target engine port. FINE-01.5 explicitly adds the independently reviewable engine idle-object port; ground/flight original composition is completed within01.2, while its other public lanes remain required.
 NUM-01.4 explicitly splits01.2's paired-trig production consumer from its
 remaining arithmetic/conversion and public-domain inventory; both are required.
 NUM-01.5/06 explicitly split the decimal/public-native engine integration from01.2.
@@ -305,11 +305,13 @@ Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
 
 - [x] **FINE-01.1** 288 complete static searches plus repeat/stamp reuse pass with exact route/state expectations. Evidence: [static fine searches][fine-static]; mixed dynamic objects remain excluded.
 - [x] **FINE-01.2** Compose stationary/moving/suppressed/mixed object chains in all four published ground/flight/float/amph masks and footprint classes.384 original full searches,384 retained-metadata repeats and384 complete requests match production C cost/work/nodes/parent routes at O0/O2 with reuse. Captured stock getter/publication producers establish the mask table; target exit and public endpoint admission retain01.3/FOOT-04. Evidence: [authored movement masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries).
-- [ ] **FINE-01.3** Add self/suppressed objects and target-exit cases to the same matrix; assert eligibility changes rather than only reachability.
+- [x] **FINE-01.3** Compose self/suppressed/target identities, collision eligibility, terrain-first rejection and both overlapping cell-link orders across four footprints/masks and budgets0/5/700.2304 original core and complete setup/search/reconstruction requests freeze200 target exits; C matches cost/work/node counts and full parent chains twice at O0/O2. Engine separate active ground targets retain the original approach-node centre, including moving targets; point destinations remain exact. Original public wrapper suppression/restore already has288 composed requests. Evidence: [target identity exits reach the engine](retail-pathfinding-engine.md#target-identity-exits-reach-the-engine). Runtime cell-link chronology is explicitly split into01.6; categories/building targets remain BASE-02/FOOT-04.
 
 - [x] **FINE-01.4** Port the recovered static search policy into the engine and retain its turns through actual Move steering. All288 original cell routes/costs/pops/node counts match C at O0/O2 with reuse; three blocked wall-gap Move cases retain their turn with a ready generic field. Current radius/corner legality, visible-point adapter, long-route fields and dynamic objects remain separate. Evidence: [engine fine routing](retail-pathfinding-engine.md#retail-fine-search-drives-nearby-detours).
 
 - [x] **FINE-01.5** Port idle ground-object occupancy into location-order direct checks, fine search, waypoint selection and retained-segment validation. Initial actual Move failed to detour; all four classes now pass the fixed idle unit. Moving/idle transitions, overlapping objects, self/target exclusion and unchanged static field generation have regressions.192 original mixed-chain routes/costs/pops/nodes match C at O0/O2; fresh read-only hfoo/hgry captures verify profiles and velocity flags. Interaction queues stay ability-owned; full categories, endpoint admission and partial routes remain separate. Evidence: [engine idle objects](retail-pathfinding-engine.md#idle-objects-affect-nearby-move-routes).
+
+- [ ] **FINE-01.6** Preserve actual dynamic cell-link insertion/removal chronology in the engine and observe overlapping target/foreign-blocker queries through public orders. A target before an eligible blocker must report identity even when the cell rejects; a blocker before a target must hide it. Reuse01.3's two original chain-order controls, then capture/repeat the actual producer. The current sorted ground-rectangle adapter checks foreign blockers first; its separate-target integration does not close this task.
 
 ### FINE-02 — Search termination
 

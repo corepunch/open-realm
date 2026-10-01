@@ -1127,6 +1127,13 @@ flushing the emulator's translation cache after installing the observer
 restored the hook. No retail behavior was changed, and missing observations
 remain assertion failures rather than being ignored.
 
+The separate2,304-case target matrix now freezes the core and complete fine
+requests for both overlapping link orders, terrain-first rejection, inactive,
+unlinked, moving and off-lane target records. C matches every cost/work/node
+and parent-chain result; the engine consumes separate active ground targets.
+See [target identity exits](retail-pathfinding-engine.md#target-identity-exits-reach-the-engine).
+Public runtime link chronology is retained as FINE-01.6.
+
 ### Public path advance composed with refill
 
 The oracle executes **108 complete `6f165ae0` (`Path_Advance`) calls**

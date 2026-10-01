@@ -11552,6 +11552,87 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "oracle-fine-targets",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_targets.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-targets-original.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2304
+        },
+        "target_exits": {
+          "equal": 200
+        },
+        "engine_cases": {
+          "equal": 0
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Original core and complete setup/search/reconstruction, supplied target identity/counters, active/inactive/moving/unlinked/category cases, terrain-first and overlapping link order. C compares cost/work/node/parent chain at target exit.",
+      "exclusions": [
+        "Public target-category and cell-link chronological producer; building/destructable target footprints; populated owner route state."
+      ]
+    },
+    {
+      "id": "engine-fine-targets",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_targets.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-targets-engine.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2304
+        },
+        "target_exits": {
+          "equal": 200
+        },
+        "engine_cases": {
+          "equal": 2304
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original core and complete setup/search/reconstruction, supplied target identity/counters, active/inactive/moving/unlinked/category cases, terrain-first and overlapping link order. C compares cost/work/node/parent chain at target exit.",
+      "exclusions": [
+        "Public target-category and cell-link chronological producer; building/destructable target footprints; populated owner route state."
+      ]
     }
   ],
   "fixtures": [
@@ -11617,7 +11698,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "1c93dff95cb0b19397453bf6909ffae6eb7321195a079cd79509caaa189ce63f"
+      "sha256": "6a218f55f073eaf6e2bba7841022d673dedf43580b00bf17ec4158be52175e18"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -11822,6 +11903,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-primary-clock-inputs-1.27.json",
       "sha256": "132e3e493dfb71df1bb458d21e48bde008997a8b8db043081e2903ee1782f9d7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-targets-1.27.json",
+      "sha256": "fb9ba1ac32e339c53603814634da22703a903e7e6853d9aed11e9ab418bf0c1f"
     }
   ]
 }

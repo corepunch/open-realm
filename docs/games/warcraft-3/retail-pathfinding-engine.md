@@ -2495,3 +2495,57 @@ RoC/TFT suites each pass45,084 assertions in2209 cases, including2101 fixed
 trajectory and255 public lifecycle assertions. All129 pathfinding tool tests,
 all five fresh strict corpus entries, engine/menu boundary audits and the
 production release build pass. Ghidra readback and explicit program save succeed.
+
+
+## Target identity exits reach the engine
+
+The fine search now stops at the original current node when a perimeter query
+observes the requested target object. Suppressing that object from collision
+checks does not remove its identity. The search samples the complete perimeter
+and creates every legal neighbor before consuming the hit; it returns without
+relaxing those neighbors or closing the current node. This matters for exact
+work, node counts and later parent-chain reconstruction.
+
+`verify_wc3_pathing_targets.py` executes2,304 original core searches and complete
+setup/search/reconstruction requests: a single-cell target or full-height wall,
+open or blocked target terrain, four movement masks, four footprints, budgets
+0/5/700 and twelve object roles. Self/suppressed, target/both, moving, inactive,
+unlinked and off-lane records are included. Two overlapping chains establish
+that an earlier foreign blocker hides the target, while a target preceding the
+blocker still reports identity even when the cell returns false. Terrain rejects
+before any identity query. There are200 non-goal target completions; production
+C matches cost, work, created nodes and full parent chains twice at O0/O2 with
+reuse. The frozen fixture is `retail-fine-targets-1.27.json`.
+
+The engine's `G_FindUnitMovePathWaypoint` now carries separate active ground-unit
+target bounds through the same perimeter observer. Classes0/1 stop at
+`(11.5,11.5)` and classes2/3 at `(10.5,10.5)` in the controlled request from
+`(4.25,4.75)` toward `(19.25,19.75)` with target at `(12.25,12.25)`. These are
+fine-grid fixture coordinates, not a retail public-order replay. The regression
+failed16 coordinate checks before the adapter port; all48 assertions now pass,
+including moving targets, no-pathing category rejection and retained fractional
+point destinations. A target-completed route retains its approach-node centre;
+only a route that actually reaches the requested goal substitutes its original
+world words. No persistent or network state changes.
+
+The sorted ground-rectangle snapshot still evaluates foreign blockers before
+target identity. It does not preserve retail's overlapping link chronology.
+FINE-01.6 explicitly owns that producer and public-order composition; building,
+destructable and complete category publication remain BASE-02/FOOT-04. The exact
+supplied-chain C matrix must not be presented as proof that these runtime
+producers already match.
+
+Ghidra persists the216-byte `WC3FineSearchPrefix` with six verified fields:
+size classa0, maska4, targeta8, target-seencc, obstructiond0 and endpoint-moded4.
+The occupancy, expansion and search functions have explicit operand prototypes
+and durable comments for the exit timing. The saved readback is
+`fine-target-ghidra-readback-261001.json` (27 layouts/159 fields,147 prototypes).
+The corpus now has197 entries and68 frozen fixtures; accepted fresh original/C
+results are in `fine-target-corpus-accepted-261001`.
+
+
+Validation uses the [native SDL2 headless runtime](../../build-and-renderer-platforms.md#headless-sdl-input-regression-runtime)
+because the installed SDL2 compatibility layer crashes on the unchanged synthetic
+text-input fixture, independently of pathfinding. The required full suite passes;
+RoC/TFT each pass45,132 assertions in2,210 cases. All130 pathfinding tool tests,
+both accepted fresh target corpus entries and engine/menu boundary audits pass.

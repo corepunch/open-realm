@@ -110,6 +110,28 @@ class FineSearchTests(unittest.TestCase):
                                                             case['pops'], case['nodes'], len(case['path'])])
                             self.assertEqual([[out[6 + 2*i], out[7 + 2*i]] for i in range(out[3])], case['path'])
 
+    def test_suppressed_target_identity_exits_match_original_searches(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-fine-targets-1.27.json').read_text())
+        self.assertEqual(len(fixture['cases']), 2304)
+        for engine in self.engines:
+            engine.pathing_fine_target.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ObjectInput),
+                                                   ctypes.POINTER(ctypes.c_int32)]
+            for case in fixture['cases']:
+                width, height = case['input'][:2]
+                blocked = {tuple(p) for p in case['blocked']}
+                terrain = (ctypes.c_uint8 * (width * height))(*(case['input'][8] >> 24 if (x,y) in blocked else 0
+                    for y in range(height) for x in range(width)))
+                raw = [v for obj in case['objects'] for v in obj]
+                data = ObjectInput(terrain, (ctypes.c_uint32 * len(raw))(*raw))
+                inp = (ctypes.c_uint32 * 12)(*case['input'])
+                for repeat in range(2):
+                    out = (ctypes.c_int32 * 4096)()
+                    engine.pathing_fine_target(inp, ctypes.byref(data), out)
+                    with self.subTest(bounds=case['bounds'], terrain=case['terrain'], variant=case['variant'],
+                                      query=case['input'], repeat=repeat, opt=engine._name):
+                        self.assertEqual(list(out[:7]), case['output'])
+                        self.assertEqual([[out[7+2*i], out[8+2*i]] for i in range(out[3])], case['path'])
+
     def test_original_nearest_chains_survive_request_budget_boundaries(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-fine-partials-1.27.json').read_text())
         self.assertEqual(len(fixture['budget_cases']), 1456)

@@ -319,6 +319,7 @@ void pathing_fine_reconstruct(uint32_t const *input, int32_t const *cells, uint3
 typedef struct {
     uint32_t const *query, *objects;
     uint8_t const *cells;
+    bool *target_hit;
 } fineObjectProbe_t;
 
 /* Use production eligibility before constructing edges, rather than supplying
@@ -328,10 +329,13 @@ static bool fine_object_cell(void const *data, wc3FinePoint_t pos) {
     uint32_t const *q = probe->query;
     if ((uint32_t)pos.x >= q[0] || (uint32_t)pos.y >= q[1] ||
         (probe->cells[(uint32_t)pos.y * q[0] + (uint32_t)pos.x] & (q[8] >> 24))) return false;
-    for (uint32_t i = 0; i < q[10]; i++) {
+    /* Original cell records are prepended; the fixture inserts ascending IDs. */
+    for (uint32_t remaining = q[10]; remaining; remaining--) {
+        uint32_t i = remaining - 1;
         uint32_t const *obj = probe->objects + 7 * i;
         if (pos.x < (int32_t)obj[0] || pos.y < (int32_t)obj[1] ||
             pos.x >= (int32_t)obj[2] || pos.y >= (int32_t)obj[3]) continue;
+        if (probe->target_hit && i == q[11] && obj[6] && (obj[4] & 0x01000000)) *probe->target_hit = true;
         if (wc3_fine_object_blocks((wc3FineObject_t){obj[4], obj[5], obj[6]}, q[8], q[9])) return false;
     }
     return true;
@@ -348,7 +352,7 @@ typedef struct { uint8_t const *cells; uint32_t const *objects; } fineObjectInpu
 /* Query: grid input7,class,mask,endpoint-mode,object count. Objects: half-open
  * bounds4,category,flags,linked. This exercises the actual C search policy. */
 void pathing_fine_objects(uint32_t const *input, fineObjectInput_t const *data, int32_t *out) {
-    fineObjectProbe_t graph = { input, data->objects, data->cells };
+    fineObjectProbe_t graph = { .query = input, .objects = data->objects, .cells = data->cells };
     wc3FineRequest_t req = { .start = {(int)input[2], (int)input[3]}, .goal = {(int)input[4], (int)input[5]},
         .width = input[0], .height = input[1], .budget = input[6], .edges = fine_object_edges, .data = &graph };
     int at = wc3_fine_search(&fine_probe, &req), length = 0;
@@ -371,6 +375,26 @@ void pathing_fine_partial(uint32_t const *input, fineObjectInput_t const *data, 
     int at = (int)fine_probe.nearest, length = 0;
     out[4] = fine_probe.nodes[at].pos.x; out[5] = fine_probe.nodes[at].pos.y;
     out[6] = (int32_t)fine_probe.dist2;
+    for (int node = at; node >= 0; node = fine_probe.nodes[node].parent) length++;
+    out[3] = length;
+    for (int i = length - 1; i >= 0; i--, at = fine_probe.nodes[at].parent) {
+        out[7 + i * 2] = fine_probe.nodes[at].pos.x; out[8 + i * 2] = fine_probe.nodes[at].pos.y;
+    }
+}
+
+/* Target request adds the object identity after the ordinary query words.
+ * Emit either the successful chain or the retained nearest chain. */
+void pathing_fine_target(uint32_t const *input, fineObjectInput_t const *data, int32_t *out) {
+    bool target_hit = false;
+    fineObjectProbe_t graph = { .query = input, .objects = data->objects, .cells = data->cells, .target_hit = &target_hit };
+    wc3FineRequest_t req = { .start = {(int)input[2], (int)input[3]}, .goal = {(int)input[4], (int)input[5]},
+        .width = input[0], .height = input[1], .budget = input[6], .edges = fine_object_edges, .data = &graph, .target_hit = &target_hit };
+    int at = wc3_fine_search(&fine_probe, &req), length = 0;
+    out[0] = at < 0 ? -1 : (int32_t)fine_probe.nodes[at].g;
+    out[1] = (int32_t)fine_probe.pops; out[2] = (int32_t)fine_probe.count;
+    out[4] = at >= 0 && (fine_probe.nodes[at].pos.x != req.goal.x || fine_probe.nodes[at].pos.y != req.goal.y);
+    if (at < 0) at = (int)fine_probe.nearest;
+    out[5] = fine_probe.nodes[at].pos.x; out[6] = fine_probe.nodes[at].pos.y;
     for (int node = at; node >= 0; node = fine_probe.nodes[node].parent) length++;
     out[3] = length;
     for (int i = length - 1; i >= 0; i--, at = fine_probe.nodes[at].parent) {

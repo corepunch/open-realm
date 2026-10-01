@@ -28,6 +28,7 @@ typedef struct {
     uint32_t width, height, budget;
     uint8_t (*edges)(void const *data, wc3FinePoint_t pos);
     void const *data;
+    bool *target_hit; /* Occupancy observer, consumed after neighbor creation. */
 } wc3FineRequest_t;
 typedef struct {
     wc3FineNode_t nodes[BZ_WC3_FINE_NODES];
@@ -136,8 +137,8 @@ static void wc3_fine_relax(wc3FineSearch_t *search, wc3FinePoint_t goal, wc3Fine
 }
 
 /* 14aa10/14a4c0 search policy; callers supply the legal eight-edge graph.
- * TODO: target exits and public admission remain separate. The game adapter
- * now supplies verified entering strips and idle-object eligibility. */
+ * Target identity is observed during perimeter sampling, including suppressed
+ * objects. Original14b760 creates neighbors, then skips relaxation on a hit. */
 static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req) {
     assert(req->budget <= BZ_WC3_FINE_WORK);
     memset(search->hash, 0, sizeof(search->hash));
@@ -155,11 +156,20 @@ static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req)
         node->state = WC3_FINE_NEW; node->gen++;
         if ((int)entry.node == goal) return goal;
         uint8_t edges = req->edges(req->data, node->pos);
+        int neighbors[8];
         for (int dir = 0; dir < 8; dir++) {
-            if (!(edges & (1u << dir))) continue;
             wc3FinePoint_t delta = wc3_fine_dirs[dir];
-            int at = wc3_fine_node(search, req, (wc3FinePoint_t){ node->pos.x + delta.x, node->pos.y + delta.y });
+            neighbors[dir] = edges & (1u << dir) ? wc3_fine_node(search, req,
+                (wc3FinePoint_t){ node->pos.x + delta.x, node->pos.y + delta.y }) : -1;
+        }
+        if (req->target_hit && *req->target_hit) {
+            *req->target_hit = false;
+            return (int)entry.node;
+        }
+        for (int dir = 0; dir < 8; dir++) {
+            int at = neighbors[dir];
             if (at < 0) continue;
+            wc3FinePoint_t delta = wc3_fine_dirs[dir];
             uint32_t cost = node->g + (delta.x && delta.y ? 21u : 15u);
             wc3_fine_relax(search, req->goal, (wc3FineStep_t){ (uint32_t)at, entry.node, cost });
         }

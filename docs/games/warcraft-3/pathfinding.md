@@ -358,3 +358,11 @@ that writes the same visible coordinate can change the next movement words.
 See [axis-position evidence](retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step).
 Point Move now consumes [primary-clock prediction](retail-pathfinding-engine.md#primary-clock-reaches-move-and-predicted-positions)
 between callbacks. Other ability cadence and the full original route owner remain open.
+
+
+Fine target routing now retains a suppressed ground-unit target's identity during
+perimeter queries and returns the original approach-node centre. Moving target
+records remain observable. Ordinary point routes still retain their exact world
+destination words. The2,304-case original/C matrix verifies the search exit,
+work and parent chains; overlapping runtime target/foreign-blocker link order
+remains FINE-01.6. See [target identity exits](retail-pathfinding-engine.md#target-identity-exits-reach-the-engine).
