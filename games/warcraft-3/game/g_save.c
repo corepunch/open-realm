@@ -80,7 +80,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 56 retains the camera target controller layout; combat state uses an extension. */
 static uint32_t const save_version = 56;
 #define SAVE_COMBAT_EXTENSION_MAGIC MAKEFOURCC('W', '3', 'E', 'X')
-#define SAVE_COMBAT_EXTENSION_VERSION 1u
+#define SAVE_COMBAT_EXTENSION_VERSION 2u
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -187,7 +187,15 @@ typedef struct {
     float attack1_range_buffer;
     float attack2_backswing_point;
     float attack2_range_buffer;
+    uint32_t cargo_unload_pending;
+    uint32_t cargo_unload_ability;
+    int32_t cargo_unload_goal;
+    uint32_t cargo_unload_goal_spawn_time;
 } saveCombatExtensionRecord_t;
+
+/* Version 1 ends before the cargo suffix. */
+#define SAVE_COMBAT_EXTENSION_V1_SIZE offsetof(saveCombatExtensionRecord_t, cargo_unload_pending)
+static field_t const cargo_unload_goal_field = TF(edictMovement_s, cargo_unload_goal, F_EDICT, 0, FIELD_NONE);
 
 typedef struct {
     size_t offset;
@@ -697,10 +705,7 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, patrol_target, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, follow_target, F_EDICT, 0, FIELD_NONE),
     F(edictMovement_s, explicit_allied_attack, F_INT),
-    F(edictMovement_s, cargo_unload_pending, F_INT),
-    F(edictMovement_s, cargo_unload_ability, F_INT),
-    TF(edictMovement_s, cargo_unload_goal, F_EDICT, 0, FIELD_NONE),
-    F(edictMovement_s, cargo_unload_goal_spawn_time, F_INT),
+    /* Pending cargo arrival is serialized in the W3EX version-2 suffix. */
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -1748,8 +1753,16 @@ static bool ReadHashtables(FILE *f) {
     return true;
 }
 
-static size_t SaveEdictV56Spans(saveEdictSpan_t spans[6]) {
+static size_t SaveEdictV56Spans(saveEdictSpan_t spans[7]) {
     size_t count = 0;
+    size_t const alignment = _Alignof(struct edictMovement_s);
+    size_t const legacy_movement_end =
+        (offsetof(edict_t, movement.explicit_allied_attack) + sizeof(bool) + alignment - 1) / alignment * alignment;
+    /* The first cargo fields can occupy old tail padding. Only remove bytes
+     * beyond the old aligned end; clear the padding occupants separately. */
+    spans[count++] = (saveEdictSpan_t) {
+        legacy_movement_end, offsetof(edict_t, health) - legacy_movement_end
+    };
     spans[count++] = (saveEdictSpan_t) {
         offsetof(edict_t, attack1) + offsetof(unitAttack_t, backswingPoint), sizeof(float)
     };
@@ -1786,14 +1799,14 @@ static size_t SaveEdictV56Spans(saveEdictSpan_t spans[6]) {
 }
 
 static size_t SaveEdictV56Size(void) {
-    saveEdictSpan_t spans[6];
+    saveEdictSpan_t spans[7];
     size_t removed = 0;
     FOR_LOOP(i, SaveEdictV56Spans(spans)) removed += spans[i].length;
     return sizeof(edict_t) - removed;
 }
 
 static bool PackEdictV56(uint8_t *image) {
-    saveEdictSpan_t spans[6];
+    saveEdictSpan_t spans[7];
     size_t count = SaveEdictV56Spans(spans), image_size = sizeof(edict_t);
 
     while (count) {
@@ -1807,7 +1820,7 @@ static bool PackEdictV56(uint8_t *image) {
 }
 
 static bool UnpackEdictV56(uint8_t *image) {
-    saveEdictSpan_t spans[6];
+    saveEdictSpan_t spans[7];
     size_t count = SaveEdictV56Spans(spans), image_size = SaveEdictV56Size();
 
     for (size_t i = count; i-- > 0;) {
@@ -1823,6 +1836,13 @@ static bool UnpackEdictV56(uint8_t *image) {
     return image_size == sizeof(edict_t);
 }
 
+static void ClearSavedCargoUnload(edict_t *ent) {
+    ent->movement.cargo_unload_pending = false;
+    ent->movement.cargo_unload_ability = 0;
+    ent->movement.cargo_unload_goal = NULL;
+    ent->movement.cargo_unload_goal_spawn_time = 0;
+}
+
 static bool WriteEdict(FILE *f, edict_t const *ent) {
     edict_t temp = *ent;
     field_t const *field;
@@ -1830,6 +1850,7 @@ static bool WriteEdict(FILE *f, edict_t const *ent) {
     ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
     for (field = edict_fields; field->name; field++)
         if (!WriteField1(field, (uint8_t *)&temp)) return false;
+    ClearSavedCargoUnload(&temp);
     if (!PackEdictV56((uint8_t *)&temp)) return false;
     return SaveBytes(f, &temp, SaveEdictV56Size());
 }
@@ -1849,7 +1870,12 @@ static bool WriteCombatExtension(FILE *f) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t const *ent = g_edicts + i;
         saveCombatExtensionRecord_t record;
+        int cargo_goal;
         if (!ent->inuse) continue;
+        if (!WriteMappedIndex(&cargo_unload_goal_field, (void *)&ent->movement.cargo_unload_goal, &cargo_goal)) {
+            fprintf(stderr, "WC3 SaveGame: invalid cargo unload goal on edict %u\n", (unsigned)i);
+            return false;
+        }
         record = (saveCombatExtensionRecord_t) {
             .edict_index = i,
             .attack_target_spawn_time = ent->attack_target_spawn_time,
@@ -1861,6 +1887,10 @@ static bool WriteCombatExtension(FILE *f) {
             .attack1_range_buffer = ent->attack1.rangeBuffer,
             .attack2_backswing_point = ent->attack2.backswingPoint,
             .attack2_range_buffer = ent->attack2.rangeBuffer,
+            .cargo_unload_pending = ent->movement.cargo_unload_pending ? 1u : 0u,
+            .cargo_unload_ability = ent->movement.cargo_unload_ability,
+            .cargo_unload_goal = cargo_goal,
+            .cargo_unload_goal_spawn_time = ent->movement.cargo_unload_goal_spawn_time,
         };
         if (!SaveBytes(f, &record, sizeof(record))) return false;
     }
@@ -1870,6 +1900,7 @@ static bool WriteCombatExtension(FILE *f) {
 static bool ReadCombatExtension(FILE *f, uint32_t num_edicts, bool *present) {
     saveCombatExtensionHeader_t header;
     uint32_t count;
+    size_t record_size;
     long start, payload_end;
 
     if (!present || (start = ftell(f)) < 0 || fseek(f, 0, SEEK_END) != 0) return false;
@@ -1879,18 +1910,19 @@ static bool ReadCombatExtension(FILE *f, uint32_t num_edicts, bool *present) {
     if (start > payload_end || fseek(f, start, SEEK_SET) != 0) return false;
     if (start == payload_end) { *present = false; return true; }
     if (!LoadBytes(f, &header, sizeof(header)) || header.magic != SAVE_COMBAT_EXTENSION_MAGIC ||
-        header.version != SAVE_COMBAT_EXTENSION_VERSION || header.payload_size < sizeof(count) ||
+        (header.version != 1u && header.version != SAVE_COMBAT_EXTENSION_VERSION) || header.payload_size < sizeof(count) ||
         (uint64_t)start + sizeof(header) + header.payload_size != (uint64_t)payload_end ||
-        !LoadBytes(f, &count, sizeof(count)) || count > num_edicts ||
-        header.payload_size != sizeof(count) + (uint64_t)count * sizeof(saveCombatExtensionRecord_t))
-        return false;
+        !LoadBytes(f, &count, sizeof(count)) || count > num_edicts) return false;
+    record_size = header.version == 1u ? SAVE_COMBAT_EXTENSION_V1_SIZE : sizeof(saveCombatExtensionRecord_t);
+    if (header.payload_size != sizeof(count) + (uint64_t)count * record_size) return false;
     {
         uint32_t previous_index = UINT32_MAX;
         FOR_LOOP(i, count) {
-            saveCombatExtensionRecord_t record;
+            saveCombatExtensionRecord_t record = { .cargo_unload_goal = -1 };
             edict_t *ent;
-            if (!LoadBytes(f, &record, sizeof(record)) || record.edict_index >= num_edicts ||
-                record.attack_cooldown_active > 1 ||
+            if (!LoadBytes(f, &record, record_size) || record.edict_index >= num_edicts ||
+                record.attack_cooldown_active > 1 || record.cargo_unload_pending > 1 ||
+                record.cargo_unload_goal < -1 || record.cargo_unload_goal >= (int32_t)num_edicts ||
                 (i && record.edict_index <= previous_index)) return false;
             ent = g_edicts + record.edict_index;
             if (!ent->inuse) return false;
@@ -1904,6 +1936,10 @@ static bool ReadCombatExtension(FILE *f, uint32_t num_edicts, bool *present) {
             ent->attack1.rangeBuffer = record.attack1_range_buffer;
             ent->attack2.backswingPoint = record.attack2_backswing_point;
             ent->attack2.rangeBuffer = record.attack2_range_buffer;
+            ent->movement.cargo_unload_pending = record.cargo_unload_pending != 0;
+            ent->movement.cargo_unload_ability = record.cargo_unload_ability;
+            ent->movement.cargo_unload_goal = record.cargo_unload_goal < 0 ? NULL : g_edicts + record.cargo_unload_goal;
+            ent->movement.cargo_unload_goal_spawn_time = record.cargo_unload_goal_spawn_time;
         }
     }
     *present = true;
@@ -2000,6 +2036,7 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
 
     if (!LoadBytes(f, image, SaveEdictV56Size()) || !UnpackEdictV56(image)) return false;
     memcpy(ent, image, sizeof(*ent));
+    ClearSavedCargoUnload(ent);
     for (field = edict_fields; field->name; field++)
         if (!ReadField(field, (uint8_t *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
@@ -2312,6 +2349,106 @@ TEST(wc3_save, rejects_prior_save_versions) {
         remove(old_paths[i]);
     }
     remove(filename);
+}
+
+/* Rewrite only the length-delimited extension to model a prior writer or a
+ * corrupt entity reference, then refresh the real file checksum. */
+static bool rewrite_save_combat_extension(cstring_t source_path, cstring_t output_path,
+                                         uint32_t version, bool invalid_goal) {
+    FILE *source = fopen(source_path, "rb"), *output = NULL;
+    uint8_t *bytes = NULL;
+    long file_size, payload_end;
+    bool ok = false;
+    if (!source || fseek(source, 0, SEEK_END) || (file_size = ftell(source)) < (long)sizeof(saveFooter_t) ||
+        fseek(source, 0, SEEK_SET)) goto done;
+    bytes = malloc((size_t)file_size);
+    if (!bytes || !LoadBytes(source, bytes, (size_t)file_size)) goto done;
+    payload_end = file_size - (long)sizeof(saveFooter_t);
+    for (size_t offset = sizeof(saveHeader_t); offset + sizeof(saveCombatExtensionHeader_t) <= (size_t)payload_end; offset++) {
+        saveCombatExtensionHeader_t header;
+        uint32_t count;
+        size_t record_size = version == 1u ? SAVE_COMBAT_EXTENSION_V1_SIZE : sizeof(saveCombatExtensionRecord_t);
+        memcpy(&header, bytes + offset, sizeof(header));
+        if (header.magic != SAVE_COMBAT_EXTENSION_MAGIC || header.version != SAVE_COMBAT_EXTENSION_VERSION ||
+            (uint64_t)offset + sizeof(header) + header.payload_size != (uint64_t)payload_end) continue;
+        memcpy(&count, bytes + offset + sizeof(header), sizeof(count));
+        if (header.payload_size != sizeof(count) + (uint64_t)count * sizeof(saveCombatExtensionRecord_t)) goto done;
+        header.version = version;
+        header.payload_size = sizeof(count) + count * record_size;
+        output = fopen(output_path, "w+b");
+        if (!output || !SaveBytes(output, bytes, offset) || !SaveBytes(output, &header, sizeof(header)) ||
+            !SaveBytes(output, &count, sizeof(count))) goto done;
+        FOR_LOOP(i, count) {
+            saveCombatExtensionRecord_t record;
+            memcpy(&record, bytes + offset + sizeof(header) + sizeof(count) + i * sizeof(record), sizeof(record));
+            if (invalid_goal && i == 0) record.cargo_unload_goal = globals.num_edicts;
+            if (!SaveBytes(output, &record, record_size)) goto done;
+        }
+        ok = WriteFooter(output);
+        break;
+    }
+done:
+    free(bytes);
+    if (source) fclose(source);
+    if (output) fclose(output);
+    if (!ok) remove(output_path);
+    return ok;
+}
+
+TEST(wc3_save, version_1_combat_extension_loads_without_cargo_arrival) {
+    cstring_t filename = "/tmp/openwarcraft3-save-cargo-extension.bin";
+    cstring_t old_filename = "/tmp/openwarcraft3-save-combat-extension-v1.bin";
+    setup_test_world();
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    int index = unit - g_edicts;
+    unit->attack_cooldown_active = true;
+    unit->attack_cooldown_remaining = 17.5f;
+    unit->movement.cargo_unload_pending = true;
+    unit->movement.cargo_unload_ability = MAKEFOURCC('A','t','d','p');
+    unit->movement.cargo_unload_goal = unit;
+    unit->movement.cargo_unload_goal_spawn_time = unit->spawn_time;
+    unit->unitinfo.PropWindow = 0.0f; /* Intentional zero in a new save. */
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(rewrite_save_combat_extension(filename, old_filename, 1, false));
+    T_ASSERT(ReadGame(old_filename));
+    unit = g_edicts + index;
+    T_ASSERT(unit->attack_cooldown_active);
+    T_FEQ(unit->attack_cooldown_remaining, 17.5f, 0.001f);
+    T_FEQ(unit->unitinfo.PropWindow, 0.0f, 0.001f);
+    T_ASSERT(!unit->movement.cargo_unload_pending);
+    T_EQ(unit->movement.cargo_unload_ability, 0);
+    T_NULL(unit->movement.cargo_unload_goal);
+    T_EQ(unit->movement.cargo_unload_goal_spawn_time, 0);
+    remove(filename); remove(old_filename);
+}
+
+TEST(wc3_save, cargo_extension_rejects_invalid_goal_index) {
+    cstring_t filename = "/tmp/openwarcraft3-save-cargo-goal.bin";
+    cstring_t bad_filename = "/tmp/openwarcraft3-save-invalid-cargo-goal.bin";
+    setup_test_world();
+    reset_entities();
+    alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(rewrite_save_combat_extension(filename, bad_filename, SAVE_COMBAT_EXTENSION_VERSION, true));
+    T_ASSERT(!ReadGame(bad_filename));
+    remove(filename); remove(bad_filename);
+}
+
+TEST(wc3_save, cargo_extension_rejects_foreign_goal_pointer) {
+    cstring_t filename = "/tmp/openwarcraft3-save-foreign-cargo-goal.bin";
+    setup_test_world();
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->movement.cargo_unload_goal = (edict_t *)(uintptr_t)1;
+    T_ASSERT(!WriteGame(filename));
+    unit->movement.cargo_unload_goal = NULL;
+    remove(filename);
+}
+
+TEST(wc3_save, frozen_version_56_entity_image_size) {
+    /* Measured from main before the combat/cargo additions on the 64-bit ABI. */
+    if (sizeof(void *) == 8) T_EQ(SaveEdictV56Size(), 4992);
 }
 
 TEST(wc3_save, attack_movement_state_keeps_version_56_envelope) {
