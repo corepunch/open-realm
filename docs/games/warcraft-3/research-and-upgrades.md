@@ -241,10 +241,14 @@ same data contract inherit it without rawcode-specific code.
 Some stock dependencies are authored as gate-only upgrade rows with no effect
 or target code. `checkDep` indicates that an ability checks dependencies, but
 it does not identify the governing upgrade. Comments are descriptive text, so
-OpenRealm does not infer links from overlapping words. Undead Ghoul
-Cannibalize (`Ruac` / `Acan`) uses a stock compatibility entry; it has the
-same command-card and direct-execution gate as an `rlev` dependency, but the
-ability does not gain a level from the research.
+OpenRealm does not infer links from overlapping words. These retail-only facts
+are held in `stock_ability_requirements` in `g_building.c`, separately from the
+generic `rlev` data path. This is a deliberate, narrow hardcoded compatibility
+exception: retail rows contain no structured link to parse, comments are not
+authoritative identifiers, and `reqLevel` has Hero-skill meaning. Undead Ghoul
+Cannibalize (`Ruac` / `Acan`) uses this
+table; it has the same command-card and direct-execution gate as an `rlev`
+dependency, but the ability does not gain a level from the research.
 
 Retail Sorceress training (`Rhst`) is an explicit stock relation that the SLKs
 do not encode as an effect/code pair: `hsor` lists `Rhst` in `UnitBalance` and
@@ -263,9 +267,10 @@ Hero level at which each skill rank can be learned. It is unrelated to caster
 training, and map ability edits can change it through `arlv` without changing
 the meaning.
 
-OpenRealm therefore uses one small stock compatibility table for the links
-that retail omits: Invisibility (`Aivs`) requires `Rhst` level 1, Polymorph
-(`Aply`) level 2, Dispel Magic (`Adis`) requires `Rhpt` level 1, Inner Fire
+OpenRealm therefore uses one small stock compatibility table in
+`g_building.c` for the links that retail omits: Invisibility (`Aivs`) requires
+`Rhst` level 1, Polymorph (`Aply`) level 2, Dispel Magic (`Adis`) requires
+`Rhpt` level 1, Inner Fire
 (`Ainf`) level 2, and Cannibalize (`Acan`) is gated by `Ruac`. Custom
 dependencies use the parsed `UpgradeData.effect` / `effectCode` pair when it
 contains `rlev`; descriptive comments alone do not create a dependency. The
@@ -293,8 +298,10 @@ data is parsed from `war3map.w3a`. The ability override path applies fields
 such as `alev`, `arlv`, and DataA-I, but `arlv` retains its Hero-level meaning.
 OpenRealm does not currently merge `war3map.w3q` upgrade-object overrides, so
 custom maps cannot yet supply a new `rlev` upgrade-to-ability relation through
-that file. The stock caster table remains necessary until the retail link/tier
-is available as parsed runtime data.
+that file. Unit object edits can change which upgrades a unit uses, but cannot
+author the missing spell-to-upgrade tier. The stock table remains necessary
+until a supported authoritative source exposes those links and tiers. Do not
+infer them from text fields or repurpose `reqLevel`.
 
 ### `rmnx` / `rmnr` — mana capacity and regeneration
 
