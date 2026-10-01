@@ -3639,6 +3639,7 @@ TEST(net, minimap_ping_packet_reaches_generic_client_state) {
     test_client_stubs_init(); CL_ClearMinimap(); cl.time = 1000;
     MSG_WriteByte(&msg, svc_minimap_ping);
     MSG_WriteFloat(&msg, 123.5f); MSG_WriteFloat(&msg, -44.25f); MSG_WriteFloat(&msg, 2.5f);
+    MSG_WriteFloat(&msg, 0.0f);
     MSG_WriteByte(&msg, 10); MSG_WriteByte(&msg, 20); MSG_WriteByte(&msg, 30); MSG_WriteByte(&msg, 255);
     MSG_WriteByte(&msg, MINIMAP_PING_REMEMBER);
     msg.readcount = 0; CL_ParseServerMessage(&msg);
@@ -3668,6 +3669,7 @@ TEST(net, minimap_ping_packet_rejects_invalid_values) {
     test_client_stubs_init(); CL_ClearMinimap();
     MSG_WriteByte(&msg, svc_minimap_ping);
     MSG_WriteFloat(&msg, NAN); MSG_WriteFloat(&msg, 1.0f); MSG_WriteFloat(&msg, MINIMAP_PING_DURATION_MAX + 1.0f);
+    MSG_WriteFloat(&msg, 0.0f);
     MSG_WriteByte(&msg, 255); MSG_WriteByte(&msg, 255); MSG_WriteByte(&msg, 255); MSG_WriteByte(&msg, 255);
     MSG_WriteByte(&msg, MINIMAP_PING_REMEMBER);
     msg.readcount = 0; CL_ParseServerMessage(&msg);

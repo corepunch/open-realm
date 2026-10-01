@@ -51,7 +51,7 @@ struct game_import {
                             float attenuation, float timeofs);
     void (*SoundPolicy)(vec3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
                          float attenuation, float timeofs, soundPolicy_t const *policy);
-    void (*MinimapPing)(edict_t *ent, vec2_t const *position, float duration, color32_t color, uint32_t flags);
+    void (*MinimapPing)(edict_t *ent, vec2_t const *position, float duration, color32_t color, uint32_t flags, float marker_size);
     int (*ImageIndex)(cstring_t imageName);
     int (*FontIndex)(cstring_t fontName, uint32_t fontSize);
     void (*LinkEntity)(edict_t *ent);

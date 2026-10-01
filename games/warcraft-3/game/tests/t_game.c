@@ -792,15 +792,16 @@ static uint32_t alert_ping_count, alert_ping_flags;
 static edict_t *alert_ping_target;
 static vec2_t alert_ping_position;
 static float alert_ping_duration;
+static float alert_ping_marker_size;
 static color32_t alert_ping_color;
 static PATHSTR alert_ping_model;
 
 static void alert_test_configstring(uint32_t index, cstring_t value) {
     if (index == CS_MINIMAP) snprintf(alert_ping_model, sizeof(alert_ping_model), "%s", value);
 }
-static void alert_test_minimap_ping(edict_t *ent, vec2_t const *position, float duration, color32_t color, uint32_t flags) {
+static void alert_test_minimap_ping(edict_t *ent, vec2_t const *position, float duration, color32_t color, uint32_t flags, float marker_size) {
     alert_ping_count++; alert_ping_target = ent; alert_ping_position = *position; alert_ping_duration = duration;
-    alert_ping_color = color; alert_ping_flags = flags;
+    alert_ping_color = color; alert_ping_flags = flags; alert_ping_marker_size = marker_size;
 }
 
 /* =========================================================================
@@ -816,7 +817,7 @@ TEST(wc3_game, hud_proxy_number_never_moves_backwards) {
 }
 
 TEST(wc3_game, minimap_ping_uses_generic_packet_import) {
-    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t, float) = gi.MinimapPing;
     void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
     vec2_t position = { 123.5f, -44.25f };
     color32_t color = MAKE(color32_t, 10, 20, 30, 255);
@@ -842,7 +843,7 @@ TEST(wc3_game, minimap_ping_uses_generic_packet_import) {
 }
 
 TEST(wc3_game, attack_alert_is_remote_throttled_and_remembered) {
-    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t, float) = gi.MinimapPing;
     void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
     edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 2000.0f, 0.0f);
     edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 2100.0f, 0.0f);
@@ -863,6 +864,7 @@ TEST(wc3_game, attack_alert_is_remote_throttled_and_remembered) {
     T_EQ(alert_ping_color.r, 255); T_EQ(alert_ping_color.g, 0); T_EQ(alert_ping_color.b, 0);
     T_ASSERT(alert_ping_flags & MINIMAP_PING_REMEMBER);
     T_ASSERT(alert_ping_flags & MINIMAP_PING_FORCE_COLOR);
+    T_FEQ(alert_ping_marker_size, wc3_minimap_contact_size(WC3_MINIMAP_CONTACT_UNIT), 0.0001f);
     T_FEQ(alert_ping_position.x, victim->s.origin2.x, 0.001f);
 
     level.time = 2000;
@@ -876,8 +878,77 @@ TEST(wc3_game, attack_alert_is_remote_throttled_and_remembered) {
     gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
 }
 
+TEST(wc3_game, attack_alert_shows_advisor_text_without_message_log_entry) {
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t, float) = gi.MinimapPing;
+    void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
+    edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 2000.0f, 0.0f);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 2100.0f, 0.0f);
+    gameClient_t *owner = &game.clients[0];
+
+    InitUnitData();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeUser;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    victim->s.player = 0; attacker->s.player = 1;
+    owner->connected = true;
+    owner->camera.state.position = (vec2_t){ 0.0f, 0.0f };
+    game.constants.attackNotifyRange = 1250.0f;
+    game.constants.attackNotifyDelay = 30.0f;
+    memset(&owner->message, 0, sizeof(owner->message));
+    memset(&owner->message_log, 0, sizeof(owner->message_log));
+    level.time = 1000;
+    alert_ping_count = 0;
+    gi.MinimapPing = alert_test_minimap_ping; gi.configstring = alert_test_configstring;
+
+    G_WC3_AttackAlert(victim, attacker);
+
+    T_STREQ(owner->message.text, "The battle has been joined.");
+    T_ASSERT(owner->message.end_time > level.time);
+    T_EQ(owner->message_log.count, 0);
+    T_EQ(alert_ping_count, 1);
+
+    gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
+}
+
+TEST(wc3_game, allied_attack_alert_formats_attacked_player_name) {
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t, float) = gi.MinimapPing;
+    void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
+    edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 100.0f);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200.0f, 100.0f);
+    gameClient_t *owner = &game.clients[0];
+    gameClient_t *ally = &game.clients[2];
+
+    InitUnitData();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeUser;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeUser;
+    victim->s.player = 0; attacker->s.player = 1;
+    owner->connected = true; ally->connected = true;
+    strlcpy(owner->jass.name, "Jaina", sizeof(owner->jass.name));
+    owner->ps.name = owner->jass.name;
+    owner->camera.state.position = victim->s.origin2;
+    ally->camera.state.position = (vec2_t){ 3000.0f, 3000.0f };
+    game.constants.attackNotifyRange = 1250.0f;
+    game.constants.attackNotifyDelay = 30.0f;
+    G_SetPlayerAlliance(&owner->ps, &ally->ps, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(&owner->ps, &ally->ps, ALLIANCE_HELP_REQUEST, true);
+    memset(&ally->message, 0, sizeof(ally->message));
+    memset(&ally->message_log, 0, sizeof(ally->message_log));
+    level.time = 1000;
+    alert_ping_count = 0;
+    gi.MinimapPing = alert_test_minimap_ping; gi.configstring = alert_test_configstring;
+
+    G_WC3_AttackAlert(victim, attacker);
+
+    T_STREQ(ally->message.text, "Jaina is under attack.");
+    T_EQ(ally->message_log.count, 0);
+    T_EQ(alert_ping_count, 1);
+    T_EQ(alert_ping_target, &g_edicts[2]);
+
+    gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
+}
+
 TEST(wc3_game, attack_alert_suppresses_near_camera_and_honors_help_request) {
-    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t, float) = gi.MinimapPing;
     void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
     edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 100.0f);
     edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200.0f, 100.0f);

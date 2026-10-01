@@ -168,7 +168,7 @@ void SV_StartSoundPolicy(vec3_t const *origin, edict_t *ent, int channel, int so
                          float attenuation, float timeofs, soundPolicy_t const *policy);
 void SV_StartSound(vec3_t const *origin, edict_t *ent, int channel, int sound_index, float volume, float attenuation,
                    float timeofs);
-void SV_MinimapPing(edict_t *ent, vec2_t const *position, float duration, color32_t color, uint32_t flags);
+void SV_MinimapPing(edict_t *ent, vec2_t const *position, float duration, color32_t color, uint32_t flags, float marker_size);
 int SV_ImageIndex(cstring_t name);
 int SV_FontIndex(cstring_t name, uint32_t fontSize);
 //void SV_LoadModels(void); // model animation data is loaded lazily by game modules now
