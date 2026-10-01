@@ -6,6 +6,8 @@
 #define BOT_BUILD_GRID 32.0f // world units; WC3 structures snap to this placement-cell interval
 #define BOT_BUILD_SEARCH_RINGS 32 // 32-unit grid rings; searches 1024 world units around a town for legal placement
 #define BOT_INJURED_HEALTH_FRACTION 0.5f // retail AI Editor: units below 50% life are treated as injured
+#define BOT_TOWERED_BASE_RADIUS 1024.0f // world units; BZ_COMPAT_GUESS: exact retail IsTowered base-proximity radius is unknown
+#define BOT_TOWERED_GUARD_RADIUS 1024.0f // world units; BZ_COMPAT_GUESS: exact retail IsTowered tower-proximity radius is unknown
 #define BOT_DEFAULT_REPLACEMENT_COUNT 3
 
 static bot_t *G_BotState(uint32_t player) {
@@ -41,6 +43,43 @@ bool G_BotTownThreatened(player_t *player) {
         ((attacker->goalentity->svflags & SVF_MONSTER) || G_UnitIsStructure(attacker->goalentity)) &&
         attacker->goalentity->s.player == owner &&
         S_SpellIsEnemy(attacker, attacker->goalentity))
+        return true;
+    return false;
+}
+
+/* Retail-facing AI documentation says IsTowered(target) requires the target to be near a
+ * base and guarded by a tower, while the tower's authored acquisition/attack ranges do
+ * not affect the result. Custom towers are allowed, so classify by authoritative unit
+ * properties rather than stock rawcodes. BZ_COMPAT_GUESS: Blizzard does not publish the
+ * two internal proximity radii; keep both constants local to this query for replacement
+ * after direct native capture. */
+static bool G_BotTowerDefenseBuilding(edict_t *unit, uint32_t owner) {
+    return G_BotUnitAlive(unit) && unit->s.player == owner && G_UnitIsBuilding(unit->class_id) &&
+        ((unit->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 0)) ||
+         (unit->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 1)));
+}
+
+bool G_BotIsTowered(player_t *player, edict_t *target) {
+    player_t *defender;
+    edict_t *town;
+    uint32_t owner;
+    bool near_base = false;
+
+    (void)player; /* Query is about the target's defenses; caller identity does not classify the tower. */
+    if (!G_BotUnitAlive(target) || target->s.player >= MAX_PLAYERS) return false;
+    owner = target->s.player;
+    defender = &game.clients[owner].ps;
+
+    for (int32_t town_id = 0; (town = G_BotTown(defender, town_id)); town_id++) {
+        if (Vector2_distance(&town->s.origin2, &target->s.origin2) <= BOT_TOWERED_BASE_RADIUS) {
+            near_base = true;
+            break;
+        }
+    }
+    if (!near_base) return false;
+
+    FILTER_EDICTS(tower, G_BotTowerDefenseBuilding(tower, owner) && tower != target &&
+        Vector2_distance(&tower->s.origin2, &target->s.origin2) <= BOT_TOWERED_GUARD_RADIUS)
         return true;
     return false;
 }

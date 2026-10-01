@@ -54,6 +54,7 @@ jassModule_t jass_funcs[] = {
     { "GetUpgradeLevel", GetUpgradeLevel },
     { "UnitAlive", UnitAlive },
     { "TownThreatened", TownThreatened },
+    { "IsTowered", IsTowered },
     { "UnitInvis", UnitInvis },
     { "SetCampaignAI", SetCampaignAI },
     { "SetMeleeAI", SetMeleeAI },

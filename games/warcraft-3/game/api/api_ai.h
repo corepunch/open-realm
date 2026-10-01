@@ -176,6 +176,10 @@ uint32_t TownThreatened(jass_t *j) {
     return jass_pushboolean(j, G_BotTownThreatened(jass_getcontext(j)->playerState));
 }
 
+uint32_t IsTowered(jass_t *j) {
+    return jass_pushboolean(j, G_BotIsTowered(jass_getcontext(j)->playerState, jass_checkhandle(j, 1, "unit")));
+}
+
 uint32_t RemoveSiege(jass_t *j) {
     G_BotRemoveSiege(jass_getcontext(j)->playerState);
     return 0;
