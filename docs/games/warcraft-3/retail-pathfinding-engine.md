@@ -3783,6 +3783,92 @@ pathfinding checks pass, including ten negative variants at O0/O2. The fresh
 three-entry spawn corpus,243-entry/91-fixture inventory, ability audit,
 110/292 backlog counts and224 relative file links pass. Full logs are indexed in
 `runtime/spawn-admission-validation-261001.json`; no shared engine/client boundary
-or network format changed. Next runnable work: actual post-spawn first scheduled
-velocity and arrival through the retained fine pose, then wider source admission
-and original group/cycle scheduling.
+or network format changed. The following section extends this initial-pose
+evidence to actual post-spawn scheduled movement; broader source admission
+and original group/cycle scheduling remain separate requirements.
+
+
+## Clear public routes retain native waypoints
+
+Engine payoff34 removes the ordinary location-order clear-line heading shortcut.
+Original `Mover_StepRoute`16fbd0 runs `Path_Advance` even in a clear corridor;
+it subtracts the predicted native fine source from the selected fine waypoint
+before16f630. A fine search may observe a blocked neighbour while its forward
+corridor remains legal, causing the retained initial index to be `count-2`.
+Steering directly toward the final world destination loses that real waypoint
+and also reverses the native-to-world publication before heading evaluation.
+Move now enters its existing retained fine/adaptive route for a clear ordinary
+location order. Interaction abilities still own their approach/range policies.
+Disconnected static routes retain the existing component fallback.
+
+The admitted fine leg also survives static sample-cell changes as its source
+moves. Original165ae0/165c60 consumes progress and collects the next step;
+it does not rerun a full static segment from every fractional source. The old
+engine recheck rebuilt the route at the sixth fractional commit, replacing
+its admitted final waypoint with a new parent. Move now uses the saved route's
+terrain epoch/mask and retains the existing live occupancy check through
+`G_UnitMoveFineRouteIsUnoccupied`, with native source/waypoint inputs.
+Static edits still invalidate through the bake epoch. The broader original
+nonempty blocker retry remains ROUTE-03: the existing full live peer segment is
+explicitly marked as the remaining engine approximation, and its idle-insertion
+regression remains required. No new saved field or callback is introduced.
+
+Two complete scene44 captures with `--motion-events --velocity-events
+--profile-events` retain239 movement decisions,247 velocity/position/facing
+commits,247 predicted arrivals and eight final natural arrival stops. The eight
+public CreateUnit lifetimes use stock Footman speed270 (fine cap`41070000`),
+turn0.6 and authored60-degree propagation window. Original scene samples refer
+to the stationary source, so its public X/Y markers do not describe the moving
+actor; the moving trajectory comes from the raw commits. Mover addresses are
+reused between actors, and markers delimit each lifetime.
+
+The original fractional journey starts from native `(165.4921875,65.5)` and
+initially steers to `(166.5,65.5)`, not final `(173,65.5)`. Its first requested
+heading is0; commit publishes velocity`4106ff7b,00000000` and facing`3b8f1bc4`.
+The old world shortcut produced79 failures in183 engine assertions. Retained
+native routing matches all29 scheduled commits. The final committed world point
+is approximately `(-1645.501953125,-975.993408203125)`; it integrates the previous
+velocity and stops within the original arrival range without snapping to-1632.
+The tiny alternating headings and sideways velocities are measured software
+arithmetic, not noise to smooth away.
+
+`public_spawn_move_matches_retained_retail_motion_and_resumes` drives actual
+JASS CreateUnit/IssuePointOrder and the production RunFrame scheduler, comparing
+clock/native position/velocity/facing against the frozen captured words. Each
+initial clock/primary phase is a supplied measured control; this does not close
+NUM-02.3's full original admission-phase producer. The fractional journey also
+saves after its eighth commit and reloads for the remaining original trajectory.
+The custom visible unit row supplies captured radius31 and speed270.
+
+Scene44 retains Human02Interlude's terrain. The initial empty test map was a
+valid control for the fractional journey, but its other trajectories diverged
+when segment skipping crossed real blocked cells. The regression now supplies
+the derived ground walk-bit rectangle x152..183/y56..71 from the pinned original
+WPM, with original384×256 dimensions and origin`(-7168,-3072)`. This small control
+is recorded in the fixture and checked against the C table. It does not claim
+parity for unrepresented terrain cells. Altering heading arithmetic to fit the
+empty-map control would have hidden a scene mismatch.
+
+`verify_wc3_spawn_motion_trace.py` replays all original lifetimes and checks the
+initial/next/terminal state chains, range publication and predicted arrival
+against production C. Both complete captures share journey digest
+`c9bdf0f74634db0555f2625776af7d97d8838997999efd5a6f8c37c6a593bf96` and velocity digest
+`3c3033e448af26248d72c1b53d06e24a27afa0cdaaca034f87e55c4470d8e9f4`.
+The frozen fixture and strict negative tests execute at O0/O2. Ghidra's existing
+16fbd0 role retains this clear-route consumer finding; no new speculative ABI
+or layout is needed. Save71 and network layouts remain unchanged: the existing
+retained route/pose representation now receives the original movement decisions.
+
+
+Final payoff34 validation: the public spawn-to-Move regression passes1,686
+assertions, including all247 original commit rows and21 original saved
+continuation rows. Release and forced debug (`WC3_DEBUG_BUILD=1`) RoC/TFT each
+pass84,904 assertions in2,292 tests. Forced release production/test builds and
+`make BUILD=release test` pass. All159 Python checks pass, including twelve
+corrupt/incomplete lifetime variants at O0/O2; motion decisions are paired with
+their own mover, old-vector speed and following requested heading. The fresh
+three-entry producer corpus,246-entry/92-fixture inventory, ability audit,
+110/292 backlog count, relative file links and diff checks pass. Logs are indexed
+in `runtime/spawn-motion-validation-261001.json`. This strengthens ROUTE-01.3 and
+NUM-02.3's partial evidence without declaring the initial clock producer or full
+dynamic crowd replacement complete.

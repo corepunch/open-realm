@@ -1008,8 +1008,13 @@ static bool unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *
     moveFineRoute_t *curve = &self->movement.fine_route;
     moveRoutePoint_t turn = { &path->waypoint, point.radius, point.policy };
     if (query.units) {
+        /* Original165ae0 retains the admitted leg until progress/refill. A
+         * fresh full-length interior sample every tick can reject a valid
+         * cached turn as its fractional source crosses sample-cell boundaries.
+         * Advance checks terrain epoch/mask; the step collector handles peers. */
         if (path->valid && (Vector2_distance(&path->target,point.point) >= 1.f ||
-            fabsf(path->radius-point.radius) >= .01f || !move_route_line(self,turn) ||
+            fabsf(path->radius-point.radius) >= .01f ||
+            !G_UnitMoveFineRouteIsUnoccupied(&query,curve) ||
             !G_AdvanceUnitMoveFineRoute(&query,curve,&path->waypoint))) path->valid = false;
         if (!path->valid) {
             if (!G_BuildUnitMoveFineRoute(&query,curve,&path->waypoint)) return false;
@@ -1103,6 +1108,14 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
      * sent units into narrow gaps and touching obstacle corners. */
     if (move_route_line(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}) &&
         !(unit_routes_to_location(self) && !self->no_pathing && self->movement.path.valid && self->movement.fine_route.count)) {
+        /* Retail16fbd0 advances even a clear point route. Its retained fine
+         * turn and predicted native source determine the heading; subtracting
+         * published world positions changes velocity/facing before a blocker. */
+        if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) && !self->no_pathing &&
+            unit_accel_direction(self,(moveRoutePoint_t){&self->goalentity->s.origin2,radius,policy},&dir)) {
+            unit_apply_heading(self,&dir,policy);
+            return;
+        }
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;

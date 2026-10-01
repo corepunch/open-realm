@@ -737,8 +737,10 @@ TEST(wc3_pathfinding, mover_detours_follow_retail_fine_routes) {
         T_ASSERT(CM_BuildHeatmapForRadius(wp, 0));
         unit_changeangle(unit);
         if (CM_LineIsPathableForRadiusFlags(&from, &target, 0, CM_PATHING_UNWALKABLE)) {
-            T_ASSERT(unit->movement.flow_direct);
-            T_ASSERT(!unit->movement.path.valid);
+            /* A clear corridor still enters retail's retained fine route. */
+            T_ASSERT(!unit->movement.flow_direct);
+            T_ASSERT(unit->movement.path.valid);
+            T_ASSERT(unit->movement.fine_route.count>1);
             continue;
         }
         T_ASSERT(unit->movement.path.valid);

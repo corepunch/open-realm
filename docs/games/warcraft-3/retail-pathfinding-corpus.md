@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **243 entries**: **45** distinct original-code oracle
-scripts plus **50** declared variants, **114** archived JSONL audits and **34**
+The inventory now has **246 entries**: **45** distinct original-code oracle
+scripts plus **50** declared variants, **116** archived JSONL audits and **35**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -23,10 +23,10 @@ outside the accepted inventory unless given their own rejection contract.
 | 89 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 106 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 108 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Twenty-four public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Twenty-five public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -610,3 +610,25 @@ production C. Engine CreateUnit/AtLoc consumes the verified rings and sentinel
 pose; saved scheduler continuation is covered separately. The corpus now pins91
 fixtures. See [public spawn admission](retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose)
 for the exact destination matrix and remaining producer limits.
+
+
+## Public spawn-to-Move lifetimes
+
+`live-public-spawn-motion-repeat-261001` strengthens the spawn producer witness
+with all247 velocity/position/facing commits and247 predicted arrival evaluations
+across eight actual actor lifetimes. Each retains its initial spawn state, entire
+commit chain and one natural final old-velocity stop. Mover pointers are reused;
+case markers define lifetimes, so two distinct addresses do not mean two actors.
+`verify_wc3_spawn_motion_trace.py` composes the existing strict spawn and motion
+checks with per-lifetime identity, prediction, range and arrival replay. The two
+complete captures share journey digest
+`c9bdf0f74634db0555f2625776af7d97d8838997999efd5a6f8c37c6a593bf96`.
+
+Raw inputs are `runtime/spawn-motion-live-{first,repeat}-261001.jsonl`;
+`spawn-motion-corpus-producers-261001/corpus-results.json` freshly accepts both
+archives and their stronger repeat contract. The frozen
+`retail-public-spawn-motion-1.27.json` pins247 complete commits, the corresponding
+arrival inputs, source/map identities and a small derived ground WPM control.
+The engine's public-order table is checked against these original words.
+The original phase producer and broader terrain/profile/group composition remain
+separate requirements. See [the actual engine consumer](retail-pathfinding-engine.md#clear-public-routes-retain-native-waypoints).

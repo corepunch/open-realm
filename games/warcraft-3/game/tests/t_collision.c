@@ -260,7 +260,13 @@ TEST(wc3_collision, faster_unit_holds_line_slower_yields) {
             T_ASSERT(mover->movement.turn_blocked); T_EQ(blocker->movement.wait_delay,0);
         } else {
             T_EQ(blocker->movement.wait_delay,20); T_EQ(blocker->movement.wait_blocker,mover);
-            T_EQ(mover->movement.wait_delay,0); T_ASSERT(!mover->movement.turn_blocked);
+            /* Clear location routes now own fine progress too. Original165c60
+             * stops this advance after peer20 and retries only the fine leg. */
+            T_EQ(mover->movement.wait_delay,0); T_ASSERT(mover->movement.turn_blocked);
+            T_EQ(mover->movement.fine_route.count,0);
+            T_EQ(mover->movement.fine_route.index,UINT32_MAX);
+            T_ASSERT(!mover->movement.path.valid);
+            T_ASSERT(mover->movement.fine_route.adaptive_count>0);
         }
         level.time+=FRAMETIME;
         mover->currentmove->think(mover);

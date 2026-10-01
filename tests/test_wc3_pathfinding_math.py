@@ -34,6 +34,7 @@ from verify_wc3_yield_trace import verify as verify_yield
 from verify_wc3_wait_heading_trace import verify as verify_wait_heading
 from verify_wc3_retry_trace import verify as verify_retry
 from verify_wc3_spawn_trace import verify as verify_spawn, digest as spawn_digest
+from verify_wc3_spawn_motion_trace import verify as verify_spawn_motion, digest as spawn_motion_digest
 
 
 class PathingMathTests(unittest.TestCase):
@@ -61,6 +62,39 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_public_spawn_motion_lifetimes_and_rejected_corruption(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-spawn-motion-1.27.json').read_text())
+        for engine in self.engines:
+            configure_arrival(engine)
+            result=verify_spawn_motion(fixture['rows'],engine,fixture)
+            self.assertEqual(result['journeys'],8)
+            self.assertEqual(result['arrival_evaluations'],247)
+            self.assertEqual(result['exact_velocity_commits'],247)
+            self.assertEqual(result['final_old_velocity_stops'],8)
+            for kind in ('options','identity','stored','predicted','heading','range','result','order','truncation','velocity','motion_identity','motion_order'):
+                changed=copy.deepcopy(fixture['rows'])
+                a=next(r for r in changed if r['event']=='arrival-evaluation')
+                c=next(r for r in changed if r['event']=='velocity-commit')
+                if kind=='options':changed[0]['velocityEvents']=False
+                elif kind=='identity':a['mover']='0x1'
+                elif kind=='stored':a['storedPosition'][0]^=1
+                elif kind=='predicted':a['source'][0]^=1
+                elif kind=='heading':a['heading']^=1
+                elif kind=='range':a['storedRange']^=1
+                elif kind=='result':a['result']=1
+                elif kind=='order':
+                    index=changed.index(a);changed.remove(c);changed.insert(index,c)
+                elif kind=='truncation':changed.remove(a)
+                elif kind=='motion_identity':next(r for r in changed if r['event']=='motion-decision')['mover']='0x1'
+                elif kind=='motion_order':
+                    m=next(r for r in changed if r['event']=='motion-decision')
+                    changed.remove(m);changed.insert(changed.index(c)+1,m)
+                else:c['after'][4]^=1
+                # Recompute sequence hashes so real producer/C checks reject it.
+                expected=dict(fixture,spawn_sha256=spawn_digest(changed),journey_sha256=spawn_motion_digest(changed))
+                with self.subTest(optimization=engine._name,case=kind),self.assertRaises(ValueError):
+                    verify_spawn_motion(changed,engine,expected)
 
     def test_public_spawn_words_and_rejected_incomplete_captures(self):
         fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-spawn-1.27.json').read_text())

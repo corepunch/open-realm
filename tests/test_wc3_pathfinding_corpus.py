@@ -25,8 +25,8 @@ class CorpusTests(unittest.TestCase):
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),95)
-        self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),114)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),34)
+        self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),116)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),35)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))
@@ -39,6 +39,20 @@ class CorpusTests(unittest.TestCase):
             self.assertEqual(entry['expected_exit'],1)
             check_report(dict(binary_sha256=self.target['game_sha256'],differences=[{}]*4,
                               stored_size=2,promotion_disabled=False,forced_east_boundary=False,engine_exact_cases=356,cases=356),entry,self.target)
+
+    def test_public_spawn_motion_engine_words_match_original_lifetimes(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-spawn-motion-1.27.json').read_text())
+        source=(ROOT/'games/warcraft-3/game/tests/t_movement.c').read_text()
+        table=source.split('spawn_motion[][6]={',1)[1].split('};',1)[0]
+        actual=[int(w,16) for w in re.findall(r'0x([0-9a-f]+)u',table)]
+        expected=[word for r in frozen['rows'] if r['event']=='velocity-commit'
+            for word in [r['clock'][0],*r['after'][2:6],r['after'][7]]]
+        self.assertEqual(len(expected),247*6)
+        self.assertEqual(actual,expected)
+        terrain=source.split('uint32_t const terrain_rows[]={',1)[1].split('};',1)[0]
+        self.assertEqual([int(w,16) for w in re.findall(r'0x([0-9a-f]+)u',terrain)],frozen['terrain_control']['rows'])
+        self.assertEqual(frozen['terrain_control']['bounds'],[152,56,184,72])
+        self.assertEqual(frozen['terrain_control']['dimensions'],[384,256])
 
     def test_zero_query_placement_retains_bounds_against_authored_blockage(self):
         frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-zero-query-placement-1.27.json').read_text())

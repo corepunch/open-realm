@@ -45,6 +45,8 @@ integration; the routing/velocity pipeline does not yet have full retail parity.
 now drive direct/step/retention checks and nearby route turns. Long shared fields
 use the same class geometry, while their SPFA/interpolation policy remains the
 engine algorithm.
+Ordinary clear location orders also retain [native fine waypoints](retail-pathfinding-engine.md#clear-public-routes-retain-native-waypoints) before heading evaluation. A clear final corridor does not erase the original first fine turn.
+Retained terrain legs use the bake epoch and native waypoint progress; each tick still checks current live occupancy. Repeating the full static segment sampler from each fractional source can spuriously rebuild an already admitted turn.
 Individual stepping now consumes the same existing status/aura speed composition as
 selection-group caps. Actual Cripple/Bloodlust Move/expiry tests cover slowing,
 boosting and mixed-speed formations; see [effective-speed integration](retail-pathfinding-engine.md#effective-speed-reaches-actual-movement).

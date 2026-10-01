@@ -231,12 +231,9 @@ static box2_t move_segment_bounds(wc3FineSegment_t const *query) {
 
 /* Rectangles coexist rather than overwriting a cell: a moving object must
  * never hide an idle object occupying the same cells. */
-static bool move_cell_ok(void const *data, wc3FinePoint_t pos) {
+static bool move_occupancy_cell(void const *data, wc3FinePoint_t pos) {
     moveFineGraph_t const *graph = data;
-    /* Public placement can carry a real zero query after SetUnitPathing(false).
-     * Generic routing normalizes its legacy zero before constructing this graph. */
-    if (!is_valid_point(pos.x,pos.y) ||
-        (graph->flags && !is_pathable_node_original_flags(pos.x,pos.y,graph->flags))) return false;
+    if (!is_valid_point(pos.x,pos.y)) return false;
     uint32_t lo = 0, hi = graph->objects;
     while (lo < hi) {
         uint32_t mid = lo + (hi - lo) / 2;
@@ -254,6 +251,15 @@ static bool move_cell_ok(void const *data, wc3FinePoint_t pos) {
         pos.y >= graph->target.min.y && pos.y < graph->target.max.y)
         *graph->target_hit = true;
     return true;
+}
+
+static bool move_cell_ok(void const *data, wc3FinePoint_t pos) {
+    moveFineGraph_t const *graph = data;
+    /* Public placement can carry a real zero query after SetUnitPathing(false).
+     * Generic routing normalizes its legacy zero before constructing this graph. */
+    if (!is_valid_point(pos.x,pos.y) ||
+        (graph->flags && !is_pathable_node_original_flags(pos.x,pos.y,graph->flags))) return false;
+    return move_occupancy_cell(data,pos);
 }
 
 /* Native terrain words use the original direct software world/fine transform.
@@ -446,18 +452,18 @@ bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out) {
 
 /* Engine admission checks both endpoints; the recovered interior sampler
  * itself leaves them unchecked and starts its previous cell at0,0. */
-static bool move_query_line(movePathQuery_t const *input) {
+static bool move_query_line(movePathQuery_t const *input, vec2_t const *fine_target, bool occupancy) {
     pathAccelParams_t const *params = &input->geometry;
     if (!params || !params->from || !params->target) return false;
     if (!pathmap.width || !pathmap.height) return true;
     pathAccelParams_t end = *params; end.from = params->target;
-    if (!G_MovePathPointIsPathable(params) || !G_MovePathPointIsPathable(&end)) return false;
+    if (!occupancy && (!G_MovePathPointIsPathable(params) || !G_MovePathPointIsPathable(&end))) return false;
     vec2_t a = move_query_source(input);
-    vec2_t b = move_grid_from_world(params->target->x, params->target->y);
+    vec2_t b = fine_target ? *fine_target : move_grid_from_world(params->target->x, params->target->y);
     moveFineGraph_t graph = move_foot_shape(params);
     wc3FineSegment_t query = { .start = {a.x, a.y},
         .cls = wc3_fine_class(params->radius / pathmap_cell_world_size()),
-        .cell = move_cell_ok, .data = &graph };
+        .cell = occupancy ? move_occupancy_cell : move_cell_ok, .data = &graph };
     query.direction[0] = wc3_sub(b.x, query.start[0]);
     query.direction[1] = wc3_sub(b.y, query.start[1]);
     query.length = wc3_segment_normalize(query.direction);
@@ -471,11 +477,20 @@ static bool move_query_line(movePathQuery_t const *input) {
 /* Static geometry remains available to admission and step validation. */
 bool G_MovePathLineIsPathable(pathAccelParams_t const *params) {
     if (!params) return false;
-    return move_query_line(&(movePathQuery_t){ .geometry = *params });
+    return move_query_line(&(movePathQuery_t){ .geometry = *params },NULL,false);
 }
 
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query) {
-    return query && move_query_line(query);
+    return query && move_query_line(query,NULL,false);
+}
+
+/* Retained terrain is validated by its bake epoch. Preserve the existing live
+ * occupancy check without resampling static cells along an already admitted
+ * fine turn. TODO ROUTE-03: replace this full peer segment with the original
+ * next-step nonempty-vector retry once its source admission is complete. */
+bool G_UnitMoveFineRouteIsUnoccupied(movePathQuery_t const *query, moveFineRoute_t const *route) {
+    if (!query || !route || !route->points || route->index>=route->count) return false;
+    return move_query_line(query,&route->points[route->index],true);
 }
 
 /* Original fine expansion tests entering strips, including both diagonal sides. */

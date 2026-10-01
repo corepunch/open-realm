@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "95 executable original oracle contracts and 142 archive/live contracts; 237 total entries. Archive audits and stronger live contracts are distinct evidence levels.",
+  "scope": "95 executable original oracle contracts,116 archive audits and35 strict live contracts;246 total entries. Archive audits and stronger live contracts are distinct evidence levels.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -15402,6 +15402,318 @@
         "Bridge/rejected-level and outside clipping",
         "Whole engine cadence and crowd/group trajectories"
       ]
+    },
+    {
+      "id": "capture-spawn-motion-first-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/spawn-motion-live-first-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/spawn-motion-live-first-261001.jsonl",
+        "sha256": "4df21ca4fd58cd84f5f8fd1a5ddec751cb99140900ce6afac85dcdbf540e27f7",
+        "bytes": 501338,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+            "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+          },
+          "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "spawn-motion-first-capture-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Eight actual public ground spawn-to-Move lifetimes;247 velocity/facing/position commits and247 predicted arrivals, including reused mover addresses.",
+      "exclusions": [
+        "Outside-map, layered terrain/bridge and other actor forms; full engine trajectory parity."
+      ]
+    },
+    {
+      "id": "capture-spawn-motion-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/analyze_pathfinding_trace.py",
+        "{archive}/runtime/spawn-motion-live-repeat-261001.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/spawn-motion-live-repeat-261001.jsonl",
+        "sha256": "c7414701023666db5af1cea3b724d1d01deb8758a09e899c44dadfa17216d920",
+        "bytes": 501338,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+            "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+          },
+          "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "spawn-motion-repeat-capture-audit.json",
+      "expected_exit": 0,
+      "expected_status": "archive-consistent",
+      "checks": {
+        "violations": {
+          "equal": []
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Eight actual public ground spawn-to-Move lifetimes;247 velocity/facing/position commits and247 predicted arrivals, including reused mover addresses.",
+      "exclusions": [
+        "Outside-map, layered terrain/bridge and other actor forms; full engine trajectory parity."
+      ]
+    },
+    {
+      "id": "live-public-spawn-motion-repeat-261001",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_spawn_motion_trace.py",
+        "{archive}/runtime/spawn-motion-live-first-261001.jsonl",
+        "--repeat",
+        "{archive}/runtime/spawn-motion-live-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-spawn-motion-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/spawn-motion-live-first-261001.jsonl",
+        "sha256": "4df21ca4fd58cd84f5f8fd1a5ddec751cb99140900ce6afac85dcdbf540e27f7",
+        "bytes": 501338,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+            "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+            "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+          },
+          "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+          "seconds": 130.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/spawn-motion-live-repeat-261001.jsonl",
+            "sha256": "c7414701023666db5af1cea3b724d1d01deb8758a09e899c44dadfa17216d920",
+            "bytes": 501338,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd",
+                "wc3_pathfinding_probe.j": "1c07415522ce16588057b96fd1164a478f35f1041fdf8b861bb61520f1533d52",
+                "make_wc3_pathfinding_map.py": "6deb9ac71aa77404141318c76937f501c8f7bba47720537320eb1ba881c0df86",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f"
+              },
+              "map": "Maps\\PathingRE-SpawnAdmission-261001.w3m",
+              "seconds": 130.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "live-public-spawn-motion-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "live-original-engine-repeat",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "public_create_calls": {
+          "equal": 8
+        },
+        "placement_searches": {
+          "equal": 8
+        },
+        "position_commits": {
+          "equal": 16
+        },
+        "position_queries": {
+          "equal": 104
+        },
+        "exact_decisions": {
+          "equal": 239
+        },
+        "spawn_sha256": {
+          "equal": "860c89180e22330fdba167e727887383550d82c8650f46c27d177e54cfef99b5"
+        },
+        "repeated": {
+          "equal": true
+        },
+        "journeys": {
+          "equal": 8
+        },
+        "arrival_evaluations": {
+          "equal": 247
+        },
+        "exact_velocity_commits": {
+          "equal": 247
+        },
+        "exact_position_commits": {
+          "equal": 247
+        },
+        "exact_facing_commits": {
+          "equal": 247
+        },
+        "final_old_velocity_stops": {
+          "equal": 8
+        },
+        "journey_sha256": {
+          "equal": "c9bdf0f74634db0555f2625776af7d97d8838997999efd5a6f8c37c6a593bf96"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "Eight exact original spawn-to-Move lifetimes replayed through production arithmetic/arrival, with complete initial/next/terminal state chains and repeated normalized words. Engine scheduled public-order trajectory is separately exercised with supplied measured phase.",
+      "exclusions": [
+        "Original Loc wrapper and broader actor/factory producers",
+        "Bridge/rejected-level and outside clipping",
+        "Whole engine cadence and crowd/group trajectories"
+      ]
     }
   ],
   "fixtures": [
@@ -15768,6 +16080,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-spawn-1.27.json",
       "sha256": "263d74033f2377d86a82895ef92c21232e2385203d948eac7c0e018e9492a5fe"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-spawn-motion-1.27.json",
+      "sha256": "1178a6ca4d2dfa96f4d76ba53f1d85641c325ce5f37d6a8e2557d143054ede89"
     }
   ]
 }

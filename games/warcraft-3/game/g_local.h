@@ -2689,6 +2689,7 @@ bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *rou
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 void G_FreeMovePathCache(void);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
+bool G_UnitMoveFineRouteIsUnoccupied(movePathQuery_t const *query, moveFineRoute_t const *route);
 bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *query, float const fine[2]);
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params);
 bool G_MovePathLineIsPathable(pathAccelParams_t const *params);
