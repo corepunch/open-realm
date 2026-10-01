@@ -48,6 +48,23 @@ static bool stone_form_execute(edict_t *unit, uint32_t code) {
 BZ_ABILITY_PROC(CAbilityStoneForm) {
     uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
+    case A_COMMAND: {
+        gameClient_t *client;
+        uint32_t subgroup_class;
+        bool executed = false;
+
+        if (!ent || !call || !call->client || !(client = call->client->client)) return false;
+        subgroup_class = ent->class_id;
+        /* Stone Form is an immediate subgroup command in Warcraft. Capture the
+         * focused type before transforming the first Gargoyle because the same
+         * edict changes class_id during G_TransformUnitType(). */
+        FOR_CONTROLLABLE_SELECTED_UNITS(client, unit) {
+            if (unit->class_id != subgroup_class || !G_UnitAbilityLevel(unit, code)) continue;
+            if (S_CastNoTargetSpell(unit, code)) executed = true;
+        }
+        if (executed) Get_Commands_f(call->client);
+        return executed;
+    }
     case A_ORDER:
         /* Immediate orders use shared cast validation, preserving ownership and cooldown checks. */
         return false;

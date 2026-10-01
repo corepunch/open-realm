@@ -1179,6 +1179,10 @@ CLIENTCOMMAND(Autocast) {
 
     enabled = !G_UnitAutocastIsOn(main, FS_SLKKey(classname));
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
+        /* Warcraft command-card autocast toggles belong to the focused unit-type
+         * subgroup. Other selected types keep their own autocast state even if
+         * custom object data gives them the same ability rawcode. */
+        if (ent->class_id != main->class_id) continue;
         if (!G_ActorHasSkill(ent, classname)) continue;
         if (G_SetUnitAutocast(ent, FS_SLKKey(classname), enabled)) {
             changed = true;

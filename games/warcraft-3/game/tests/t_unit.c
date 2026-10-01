@@ -1690,6 +1690,37 @@ TEST(wc3_unit, stoneform_uses_authored_transform_endpoints_in_both_directions) {
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
+TEST(wc3_unit, stoneform_command_applies_to_focused_unit_type_subgroup) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    cstring_t command[] = { "button", "Astn" };
+    uint32_t const astn = MAKEFOURCC('A','s','t','n');
+    edict_t *first, *second, *other_form;
+
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 64.0f);
+    other_form = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 64.0f);
+    edict_t *units[] = { first, second, other_form };
+    FOR_LOOP(i, ARRAY_COUNT(units)) {
+        units[i]->s.player = 0;
+        units[i]->svflags |= SVF_MONSTER;
+        units[i]->selected = 1;
+        units[i]->abilities.added[0] = astn;
+        units[i]->abilities.added_count = 1;
+    }
+    T_ASSERT(G_FocusSelectedUnit(game.clients, first));
+
+    G_ClientCommand(g_edicts, 2, command);
+
+    T_EQ(first->class_id, MAKEFOURCC('h','f','o','o'));
+    T_EQ(second->class_id, MAKEFOURCC('h','f','o','o'));
+    /* This selected unit began in the other type subgroup and must not receive
+     * the focused Gargoyle subgroup command. */
+    T_EQ(other_form->class_id, MAKEFOURCC('h','f','o','o'));
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
 TEST(wc3_unit, unravenform_accepts_preplaced_alternate_form) {
     slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
     edict_t *ent;

@@ -15,6 +15,7 @@ Autocast procedures receive three typed messages:
 - `A_AUTOCAST_ACQUIRE` acquires a target and issues its ordinary order using `call->item->code`.
 
 `G_SetUnitAutocast(unit, rawcode, enabled)` enforces one selected autocast ability.
+Command-card right-click toggling applies the requested state to every controllable selected unit in the currently focused unit-type subgroup that owns the same authored ability. Selected units in other subgroups keep their existing autocast state.
 `edict.autocast_code` retains the actual authored alias; `AI_AUTOCAST_ACTIVE` is
 its fast scheduler marker. Human Heal, Inner Fire, Slow and Spell Steal use that
 selection directly. Repair additionally stores its policy bit in
