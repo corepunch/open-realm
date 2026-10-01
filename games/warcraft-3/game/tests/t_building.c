@@ -4132,6 +4132,64 @@ TEST(wc3_building, repair_button_then_target_issues_repair_order) {
     building_restore_repair_data(old_abilities, rows);
 }
 
+TEST(wc3_building, spawn_initializes_authored_default_repair_autocast) {
+    UnitAbilities_t abilities = {
+        .abilList = "Aren",
+        .defaultActiveAbility = MAKEFOURCC('A','r','e','n')
+    };
+    gameCommandButton_t button;
+    edict_t *worker;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    worker->data.UnitAbilities = &abilities;
+
+    SP_SpawnUnit(worker);
+
+    T_EQ(worker->autocast_code, MAKEFOURCC('A','r','e','n'));
+    T_ASSERT(worker->aiflags & AI_AUTOCAST_ACTIVE);
+    T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
+    T_ASSERT(G_UnitAutocastIsOn(worker, MAKEFOURCC('A','r','e','n')));
+    T_ASSERT(G_BuildCommandButton(worker, "Aren", false, 0, &button));
+    T_EQ(button.alternate_active, 1);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, spawn_without_default_active_repair_stays_disabled) {
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    gameCommandButton_t button;
+    edict_t *worker, *building;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 96, 0);
+    worker->data.UnitAbilities = &abilities;
+    building->s.player = worker->s.player;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+
+    SP_SpawnUnit(worker);
+    worker->runtime.acquisition_range = 400.0f;
+    gi.LinkEntity(worker);
+    gi.LinkEntity(building);
+
+    T_EQ(worker->autocast_code, 0);
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_ACTIVE));
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+    T_ASSERT(!G_UnitAutocastIsOn(worker, MAKEFOURCC('A','r','e','n')));
+    T_ASSERT(!G_TryUnitAutocast(worker));
+    T_NULL(worker->build);
+    T_ASSERT(G_BuildCommandButton(worker, "Aren", false, 0, &button));
+    T_EQ(button.alternate_active, 0);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
 TEST(wc3_building, repair_autocast_toggle_is_unit_state) {
     edict_t *worker;
     UnitAbilities_t abilities = { .abilList = "Aren" };

@@ -262,7 +262,8 @@ typedef struct {
     cstring_t  sortAbil, comments;
     cstring_t  abilList;                /* comma-separated ability codes      */
     cstring_t  heroAbilList;            /* hero abilities                     */
-    bool    auto_, InBeta;            /* auto is a keyword, use auto_       */
+    uint32_t   defaultActiveAbility;    /* auto: authored default autocast rawcode */
+    bool       InBeta;
 } UnitAbilities_t;
 
 /* =========================================================================
