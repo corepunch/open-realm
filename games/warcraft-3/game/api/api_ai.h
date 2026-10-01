@@ -180,6 +180,11 @@ uint32_t IsTowered(jass_t *j) {
     return jass_pushboolean(j, G_BotIsTowered(jass_getcontext(j)->playerState, jass_checkhandle(j, 1, "unit")));
 }
 
+uint32_t GetMegaTarget(jass_t *j) {
+    edict_t *target = G_BotGetMegaTarget(jass_getcontext(j)->playerState);
+    return target ? jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
+}
+
 uint32_t RemoveSiege(jass_t *j) {
     G_BotRemoveSiege(jass_getcontext(j)->playerState);
     return 0;

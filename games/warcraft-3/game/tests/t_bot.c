@@ -1147,6 +1147,53 @@ TEST(wc3_bot, is_towered_native_is_registered_for_player_bound_ai) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
+TEST(wc3_bot, get_mega_target_native_is_registered_for_player_bound_ai) {
+    bot_t *bot = level.bots + 2;
+
+    reset_entities();
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_get_mega_target.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, get_mega_target_requires_watch_and_vulnerable_hostile_main) {
+    static UnitWeapons_t const enabled_attack = { .attacksEnabled = 1 };
+    player_t *caller = &game.clients[2].ps;
+    player_t *enemy = &game.clients[1].ps;
+    edict_t *caller_hall, *enemy_hall, *worker, *defender, *tower;
+
+    reset_entities();
+    InitUnitData();
+    caller_hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    enemy_hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 3000, 0, 1, &bot_hall_abilities);
+
+    level.bots[2].flags &= ~BOT_WATCH_MEGA;
+    T_NULL(G_BotGetMegaTarget(caller));
+    level.bots[2].flags |= BOT_WATCH_MEGA;
+    T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall);
+
+    worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 3072, 0, 1, &bot_harvester_abilities);
+    worker->data.UnitWeapons = &enabled_attack; worker->attack1.type = ATK_NORMAL;
+    T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall); /* economy workers alone do not protect the main */
+
+    defender = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 3100, 0, 1, NULL);
+    defender->data.UnitWeapons = &enabled_attack; defender->attack1.type = ATK_NORMAL;
+    T_NULL(G_BotGetMegaTarget(caller));
+    defender->s.origin2.x = 5000;
+    T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall);
+
+    tower = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 3200, 0, 1, NULL);
+    tower->data.UnitWeapons = &enabled_attack; tower->attack1.type = ATK_PIERCE;
+    T_NULL(G_BotGetMegaTarget(caller));
+    tower->attack1.type = ATK_NONE;
+    T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall);
+
+    G_SetPlayerAlliance(caller, enemy, ALLIANCE_PASSIVE, true);
+    T_NULL(G_BotGetMegaTarget(caller));
+    (void)caller_hall;
+}
+
 TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_building) {
     static UnitWeapons_t const enabled_attack = { .attacksEnabled = 1 };
     player_t *caller = &game.clients[2].ps;

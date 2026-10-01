@@ -8,6 +8,7 @@
 #define BOT_INJURED_HEALTH_FRACTION 0.5f // retail AI Editor: units below 50% life are treated as injured
 #define BOT_TOWERED_BASE_RADIUS 1024.0f // world units; BZ_COMPAT_GUESS: exact retail IsTowered base-proximity radius is unknown
 #define BOT_TOWERED_GUARD_RADIUS 1024.0f // world units; BZ_COMPAT_GUESS: exact retail IsTowered tower-proximity radius is unknown
+#define BOT_MEGA_DEFENDER_RADIUS 1200.0f // world units; BZ_COMPAT_GUESS: exact retail mega-target protection radius is unknown
 #define BOT_DEFAULT_REPLACEMENT_COUNT 3
 
 static bot_t *G_BotState(uint32_t player) {
@@ -82,6 +83,60 @@ bool G_BotIsTowered(player_t *player, edict_t *target) {
         Vector2_distance(&tower->s.origin2, &target->s.origin2) <= BOT_TOWERED_GUARD_RADIUS)
         return true;
     return false;
+}
+
+/* Stock melee AI gives GetMegaTarget priority over ordinary expansion/base discovery,
+ * and contemporary analysis describes it as exploiting an enemy main base left
+ * unprotected while defenders are elsewhere. SetWatchMegaTargets gates the engine-side
+ * watch. Keep the vulnerable-base heuristic isolated here: retail does not publish the
+ * exact defender radius, defender weighting, or arbitration when several mains qualify. */
+static bool G_BotMegaCombatDefender(edict_t *unit, uint32_t owner, edict_t *hall) {
+    if (!G_BotUnitAlive(unit) || unit == hall || unit->s.player != owner || G_UnitIsBuilding(unit->class_id)) return false;
+    /* Workers remaining at an economy do not by themselves make the main base a defended
+     * military position. Ahar is the stock/custom worker harvest command shared by melee workers. */
+    if (G_ActorHasSkill(unit, "Ahar")) return false;
+    return (unit->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 0)) ||
+           (unit->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 1));
+}
+
+edict_t *G_BotGetMegaTarget(player_t *player) {
+    bot_t *bot;
+    edict_t *home, *best = NULL;
+    float best_dist = 0.0f;
+    uint32_t caller;
+
+    if (!player || (caller = PLAYER_NUM(player)) >= MAX_PLAYERS) return NULL;
+    bot = G_BotState(caller);
+    if (!bot || !(bot->flags & BOT_WATCH_MEGA)) return NULL;
+    home = G_BotTown(player, 0);
+
+    FOR_LOOP(i, MAX_PLAYERS) {
+        player_t *enemy;
+        edict_t *hall;
+        bool defended = false;
+        float dist;
+
+        if (i == caller) continue;
+        enemy = &game.clients[i].ps;
+        hall = G_BotTown(enemy, 0);
+        if (!G_BotUnitAlive(hall) || !G_BotIsHostile(player, hall)) continue;
+        if (G_BotIsTowered(player, hall)) continue;
+
+        FILTER_EDICTS(unit, G_BotMegaCombatDefender(unit, i, hall) &&
+            Vector2_distance(&unit->s.origin2, &hall->s.origin2) <= BOT_MEGA_DEFENDER_RADIUS) {
+            defended = true;
+            break;
+        }
+        if (defended) continue;
+
+        /* BZ_COMPAT_GUESS: when several enemy mains are simultaneously vulnerable,
+         * retail's arbitration is unknown. Prefer the one nearest our primary town;
+         * without a town, stable player-slot order wins. */
+        if (!home) return hall;
+        dist = Vector2_distance(&home->s.origin2, &hall->s.origin2);
+        if (!best || dist < best_dist) { best = hall; best_dist = dist; }
+    }
+    return best;
 }
 
 /* common.ai uses this as a shared assault rendezvous, not as an order primitive.
