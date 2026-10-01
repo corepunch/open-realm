@@ -244,6 +244,13 @@ Undead Ghoul Cannibalize (`Ruac` / `Acan`) uses this path. It has the same
 command-card and direct-execution gate as an `rlev` dependency, but the ability
 does not gain a level from the research.
 
+Retail Sorceress training (`Rhst`) is an explicit stock relation that the SLKs
+do not encode as an effect/code pair: `hsor` lists `Rhst` in `UnitBalance` and
+`Aivs` / `Aply` are marked `checkDep`, while the `Rhst` UpgradeData row only
+contains stat effects. OpenRealm gates those two commands on `Rhst` research.
+Keep this relation in the dependency gate because otherwise both spells appear
+ready on a newly created Sorceress despite the authored dependency flag.
+
 ### `rmnx` / `rmnr` — mana capacity and regeneration
 
 `rmnx` changes maximum mana by the authored old/new level delta and moves
