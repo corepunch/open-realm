@@ -2,6 +2,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "../hud/hud_local.h"
+#include "../skills/s_skills.h"
 #include "jass/jass.h"
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -1282,6 +1283,175 @@ TEST(wc3_building, player_ability_availability_does_not_leak_to_unmapped_owner) 
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
     T_ASSERT(found);
     G_SetPlayerAbilityAvailable(fallback, FS_SLKKey("Aply"), true);
+}
+
+TEST(wc3_building, caster_training_gates_sorceress_and_priest_spell_tiers) {
+    gameClient_t *client;
+    edict_t *sorceress, *priest;
+    UnitBalance_t sorceress_balance = { .upgrades = "Rhst" };
+    UnitBalance_t priest_balance = { .upgrades = "Rhpt" };
+    UnitAbilities_t sorceress_abilities = { .abilList = "Aivs,Aply" };
+    UnitAbilities_t priest_abilities = { .abilList = "Adis,Ainf" };
+    gameCommandButton_t buttons[16];
+    uint32_t invisibility = MAKEFOURCC('A','i','v','s');
+    uint32_t polymorph = MAKEFOURCC('A','p','l','y');
+    uint32_t dispel = MAKEFOURCC('A','d','i','s');
+    uint32_t inner_fire = MAKEFOURCC('A','i','n','f');
+    uint32_t sorceress_training = MAKEFOURCC('R','h','s','t');
+    uint32_t priest_training = MAKEFOURCC('R','h','p','t');
+    uint8_t count;
+    bool found;
+
+    setup_test_world();
+    client = &game.clients[0];
+    client->ps.number = 0;
+    memset(client->tech, 0, sizeof(client->tech));
+    G_SetPlayerTechMaxAllowed(client, MAKEFOURCC('R','h','s','t'), 1);
+    G_SetPlayerTechMaxAllowed(client, MAKEFOURCC('R','h','p','t'), 1);
+    sorceress = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+    sorceress->s.player = client->ps.number;
+    sorceress->data.UnitBalance = &sorceress_balance;
+    sorceress->data.UnitAbilities = &sorceress_abilities;
+    priest = alloc_test_unit(MAKEFOURCC('h','m','p','r'), 64, 0);
+    priest->s.player = client->ps.number;
+    priest->data.UnitBalance = &priest_balance;
+    priest->data.UnitAbilities = &priest_abilities;
+
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aivs")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(!found);
+
+    count = G_GetCommandButtons(priest, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Adis")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Ainf")) found = true;
+    T_ASSERT(!found);
+
+    G_SetPlayerTechMaxAllowed(client, sorceress_training, 1);
+    G_SetPlayerTechMaxAllowed(client, priest_training, 1);
+    T_ASSERT(G_UnitAbilityResearchVisible(sorceress, invisibility));
+    T_ASSERT(!G_UnitAbilityResearchVisible(sorceress, polymorph));
+    T_ASSERT(G_UnitAbilityResearchVisible(priest, dispel));
+    T_ASSERT(!G_UnitAbilityResearchVisible(priest, inner_fire));
+    G_SetPlayerTechResearched(client, sorceress_training, 1);
+    G_SetPlayerTechResearched(client, priest_training, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(sorceress, invisibility));
+    T_ASSERT(G_UnitAbilityResearchAvailable(priest, dispel));
+    G_SetPlayerTechResearched(client, sorceress_training, 0);
+    G_SetPlayerTechResearched(client, priest_training, 0);
+
+    G_SetPlayerTechMaxAllowed(client, sorceress_training, 2);
+    G_SetPlayerTechMaxAllowed(client, priest_training, 2);
+    T_ASSERT(G_UnitAbilityResearchVisible(sorceress, polymorph));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(sorceress, polymorph));
+    T_ASSERT(G_UnitAbilityResearchVisible(priest, inner_fire));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(priest, inner_fire));
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    count = G_GetCommandButtons(priest, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Ainf")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    {
+        abilityitem_t item = S_AbilityItem(polymorph);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+        T_ASSERT(!S_AbilityMessage(sorceress, A_EXECUTE, &call));
+    }
+
+    G_SetPlayerTechResearched(client, sorceress_training, 2);
+    G_SetPlayerTechResearched(client, priest_training, 2);
+    T_ASSERT(G_UnitAbilityResearchAvailable(sorceress, polymorph));
+    T_ASSERT(G_UnitAbilityResearchAvailable(priest, inner_fire));
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    count = G_GetCommandButtons(priest, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Ainf")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    G_SetPlayerTechResearched(client, sorceress_training, 0);
+    G_SetPlayerTechResearched(client, priest_training, 0);
+    G_SetPlayerTechMaxAllowed(client, sorceress_training, -1);
+    G_SetPlayerTechMaxAllowed(client, priest_training, -1);
+}
+
+TEST(wc3_building, rlev_dependency_uses_custom_upgrade_and_ability_rawcodes) {
+    static const char upgrade_slk[] =
+        "ID;PWXL;N;E\nB;X13;Y2;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X3;K\"maxlevel\"\n"
+        "C;X10;K\"effect1\"\nC;X13;K\"code1\"\n"
+        "C;X1;Y2;K\"Rxyz\"\nC;X3;K2\nC;X10;K\"rlev\"\nC;X13;K\"Axyz\"\nE\n";
+    static const char ability_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;X1;Y2;K\"Axyz\"\nC;X2;K\"Axyz\"\nE\n";
+    UnitBalance_t balance = { .upgrades = "Rxyz" };
+    UnitAbilities_t abilities = { .abilList = "Axyz" };
+    edict_t *unit;
+    slkTestData_t *rows = parse_slk_string(upgrade_slk), *old;
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk), *old_ability;
+    uint32_t const training = MAKEFOURCC('R','x','y','z');
+    uint32_t const custom_ability = MAKEFOURCC('A','x','y','z');
+
+    setup_test_world();
+    old = G_SetSLKRows("UpgradeData", rows);
+    old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->s.player = game.clients[0].ps.number;
+    unit->data.UnitBalance = &balance;
+    unit->data.UnitAbilities = &abilities;
+    T_ASSERT(!G_UnitAbilityResearchAvailable(unit, custom_ability));
+    G_SetPlayerTechResearched(&game.clients[0], training, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(unit, custom_ability));
+    G_SetPlayerTechResearched(&game.clients[0], training, 0);
+    G_SetSLKRows("AbilityData", old_ability);
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(ability_rows);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, training_research_state_does_not_leak_to_unmapped_owner) {
+    gameClient_t *fallback;
+    edict_t *unit;
+    UnitBalance_t balance = { .upgrades = "Rhst" };
+    uint32_t const invisibility = MAKEFOURCC('A','i','v','s');
+    uint32_t const training = MAKEFOURCC('R','h','s','t');
+
+    setup_test_world();
+    fallback = &game.clients[MAX_PLAYERS - 1];
+    unit = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+    unit->s.player = MAX_PLAYERS;
+    unit->data.UnitBalance = &balance;
+    G_SetPlayerTechResearched(fallback, training, 1);
+    T_ASSERT(!G_UnitAbilityResearchAvailable(unit, invisibility));
+    G_SetPlayerTechResearched(fallback, training, 0);
 }
 
 TEST(wc3_building, town_hall_and_tree_of_life_show_train_and_upgrade_buttons) {

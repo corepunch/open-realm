@@ -240,32 +240,61 @@ static bool G_ResearchCommentsMatch(cstring_t ability_comments, cstring_t upgrad
     return false;
 }
 
-static bool G_UpgradeResearchesAbility(UpgradeData_t const *upgrade, uint32_t ability_id) {
-    AbilityData_t const *ability = G_AbilityData(ability_id);
+typedef struct {
+    bool matched;
+    int32_t required_level;
+} abilityUpgradeRequirement_t;
 
-    /* Retail caster training rows have stat effects and do not identify their
-     * unlocked spells in UpgradeData. Preserve these stock dependency links
-     * where the source tables omit an explicit effect-code link. */
-    if (upgrade &&
-        ((upgrade->id == MAKEFOURCC('R', 'h', 's', 't') &&
-          (ability_id == MAKEFOURCC('A', 'i', 'v', 's') ||
-           ability_id == MAKEFOURCC('A', 'p', 'l', 'y'))) ||
-         (upgrade->id == MAKEFOURCC('R', 'h', 'p', 't') &&
-          (ability_id == MAKEFOURCC('A', 'd', 'i', 's') ||
-           ability_id == MAKEFOURCC('A', 'i', 'n', 'f'))))) return true;
+typedef struct {
+    uint32_t upgrade_id;
+    uint32_t ability_id;
+    int32_t required_level;
+} stockAbilityUpgradeRequirement_t;
 
-    return upgrade && ability && ability->id == ability_id && ability->checkDep &&
-           G_UpgradeHasNoEffect(upgrade) &&
-           G_ResearchCommentsMatch(ability->comments, upgrade->comments);
-}
+/* Retail AbilityData / UpgradeData does not connect these caster spells to
+ * their training rows. Keep the omitted stock relationship and tier data in
+ * one compatibility table. */
+static stockAbilityUpgradeRequirement_t const stock_caster_requirements[] = {
+    { MAKEFOURCC('R', 'h', 's', 't'), MAKEFOURCC('A', 'i', 'v', 's'), 1 },
+    { MAKEFOURCC('R', 'h', 's', 't'), MAKEFOURCC('A', 'p', 'l', 'y'), 2 },
+    { MAKEFOURCC('R', 'h', 'p', 't'), MAKEFOURCC('A', 'd', 'i', 's'), 1 },
+    { MAKEFOURCC('R', 'h', 'p', 't'), MAKEFOURCC('A', 'i', 'n', 'f'), 2 },
+};
 
-static int32_t G_UpgradeAbilityRequiredLevel(uint32_t upgrade_id, uint32_t ability_id) {
-    /* Sorceress and Priest training level 1 is Adept; level 2 is Master. */
-    if ((upgrade_id == MAKEFOURCC('R', 'h', 's', 't') &&
-         ability_id == MAKEFOURCC('A', 'p', 'l', 'y')) ||
-        (upgrade_id == MAKEFOURCC('R', 'h', 'p', 't') &&
-         ability_id == MAKEFOURCC('A', 'i', 'n', 'f'))) return 2;
-    return 1;
+static abilityUpgradeRequirement_t G_GetAbilityUpgradeRequirement(
+    UpgradeData_t const *upgrade, AbilityData_t const *ability) {
+    abilityUpgradeRequirement_t result = { false, 0 };
+
+    if (!upgrade || !ability || !ability->id) return result;
+
+    /* rlev explicitly names the affected ability in UpgradeData.effectCode.
+     * Its first researched level is the unlock threshold; subsequent levels
+     * raise the ability rank. */
+    FOR_LOOP(i, 4) {
+        if (upgrade->effect[i] == ID_UPGRADE_EFFECT_SPELL_LEVEL &&
+            upgrade->effectCode[i] == ability->id) {
+            result.matched = true;
+            result.required_level = 1;
+            return result;
+        }
+    }
+
+    if (ability->checkDep && G_UpgradeHasNoEffect(upgrade) &&
+        G_ResearchCommentsMatch(ability->comments, upgrade->comments)) {
+        result.matched = true;
+        result.required_level = 1;
+        return result;
+    }
+
+    FOR_LOOP(i, (uint32_t)(sizeof(stock_caster_requirements) / sizeof(stock_caster_requirements[0]))) {
+        stockAbilityUpgradeRequirement_t const *stock = stock_caster_requirements + i;
+        if (upgrade->id == stock->upgrade_id && ability->id == stock->ability_id) {
+            result.matched = true;
+            result.required_level = stock->required_level;
+            return result;
+        }
+    }
+    return result;
 }
 
 float G_UnitUpgradeEffectBonus(edict_t const *unit, uint32_t effect) {
@@ -297,6 +326,7 @@ float G_UnitUpgradeEffectBonus(edict_t const *unit, uint32_t effect) {
 static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
                                       bool *visible) {
     gameClient_t *owner;
+    AbilityData_t const *ability;
     cstring_t upgrades;
     char token[64];
     bool gated = false;
@@ -305,6 +335,8 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
 
     if (visible) *visible = true;
     if (!unit || !ability_id || !unit->data.UnitBalance) return true;
+    ability = G_AbilityData(ability_id);
+    if (!ability || ability->id != ability_id) return true;
     upgrades = unit->data.UnitBalance->upgrades;
     if (!upgrades || !*upgrades) return true;
     owner = G_GetPlayerClientByNumber(unit->s.player);
@@ -318,33 +350,21 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
         upgrade = G_UpgradeData(upgrade_id);
         if (!upgrade || upgrade->id != upgrade_id) continue;
 
-        FOR_LOOP(i, 4) {
-            if (upgrade->effect[i] != ID_UPGRADE_EFFECT_SPELL_LEVEL ||
-                upgrade->effectCode[i] != ability_id) continue;
+        {
+            abilityUpgradeRequirement_t const requirement =
+                G_GetAbilityUpgradeRequirement(upgrade, ability);
+            if (!requirement.matched) continue;
             gated = true;
             if (!owner || owner->ps.number != unit->s.player) {
+                /* An invalid owner cannot inherit the fallback client. Keep
+                 * the command visible, while execution remains unavailable. */
                 researchable = true;
                 continue;
             }
             {
-                int32_t const required = G_UpgradeAbilityRequiredLevel(upgrade_id, ability_id);
                 int32_t const maximum = G_GetPlayerTechMaxAllowed(owner, upgrade_id);
-                if (maximum < 0 || maximum >= required) researchable = true;
-                if (G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= required)
-                    researched = true;
-            }
-        }
-        if (G_UpgradeResearchesAbility(upgrade, ability_id)) {
-            gated = true;
-            if (!owner || owner->ps.number != unit->s.player) {
-                researchable = true;
-                continue;
-            }
-            {
-                int32_t const required = G_UpgradeAbilityRequiredLevel(upgrade_id, ability_id);
-                int32_t const maximum = G_GetPlayerTechMaxAllowed(owner, upgrade_id);
-                if (maximum < 0 || maximum >= required) researchable = true;
-                if (G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= required)
+                if (maximum < 0 || maximum >= requirement.required_level) researchable = true;
+                if (G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= requirement.required_level)
                     researched = true;
             }
         }
