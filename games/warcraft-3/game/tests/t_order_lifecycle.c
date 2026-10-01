@@ -273,6 +273,12 @@ TEST(wc3_order_lifecycle, stop_and_hold_buttons_expose_engaged_state) {
         T_ASSERT(unit->goalentity == enemy);
         T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
         T_EQ(hold.engaged, 1);
+        unit->goalentity = NULL;
+        unit_stand(unit);
+        T_ASSERT(G_BuildCommandButton(unit, STR_CmdStop, false, 0, &stop));
+        T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
+        T_EQ(stop.engaged, 0);
+        T_EQ(hold.engaged, 1);
     }
 
     order_stop(unit);
