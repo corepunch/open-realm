@@ -7,6 +7,7 @@
 #include "games/warcraft-3/common/wc3_pathing_formation.h"
 #include "games/warcraft-3/common/wc3_pathing_placement.h"
 #include "games/warcraft-3/common/wc3_pathing_random.h"
+#include "games/warcraft-3/common/wc3_pathing_repulsion.h"
 
 /* Complete public terrain native inputs: XY/origin words, type, seed, passable. */
 void pathing_terrain_native(uint32_t const input[7], uint32_t output[4]) {
@@ -549,4 +550,25 @@ void pathing_random_query(uint32_t const input[3], uint32_t words[2], uint32_t o
         break;
     }
     words[0] = state.sum; words[1] = state.index;
+}
+
+/* Supplied original pair locals, exact state/result words; same kernel used by Move. */
+void pathing_repulsion_pair(uint32_t const input[13], uint32_t output[4]) {
+    wc3Random_t random = {input[0],input[1]};
+    wc3Repulse_t state = {{wc3_float(input[11]),wc3_float(input[12])},0};
+    wc3RepulsePair_t pair = {.source={wc3_float(input[7]),wc3_float(input[8])},
+        .other={wc3_float(input[9]),wc3_float(input[10])},
+        .config={wc3_float(input[2]),wc3_float(input[3]),wc3_float(input[4]),wc3_float(input[5]),wc3_float(input[6])},
+        .random=&random};
+    wc3_repulse_pair(&state,&pair);
+    output[0]=random.sum; output[1]=random.index;
+    for (unsigned i=0;i<2;i++) output[i+2]=wc3_float_bits(state.vector[i]);
+}
+void pathing_repulsion_tail(uint32_t const input[8], uint32_t output[3]) {
+    wc3Repulse_t state = {{wc3_float(input[0]),wc3_float(input[1])},input[7]};
+    wc3RepulseConfig_t config = {wc3_float(input[2]),wc3_float(input[3]),wc3_float(input[4]),
+        wc3_float(input[5]),wc3_float(input[6])};
+    wc3_repulse_tail(&state,&config);
+    for (unsigned i=0;i<2;i++) output[i]=wc3_float_bits(state.vector[i]);
+    output[2]=state.packed;
 }

@@ -70,6 +70,8 @@ typedef enum {
 
 /* UnitData movetp values that name a movement type; anything else (retail authors "_") is movement-disabled. */
 static cstring_t const move_type_names[] = { "foot", "horse", "fly", "hover", "float", "amph" };
+typedef struct { edict_t *self; wc3RepulsePair_t pair; uint32_t category, rank; } moveRepulseQuery_t;
+static moveRepulseQuery_t *repulse_query;
 static edict_t *trymove_self = NULL;
 static edict_t *trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
 static edict_t *trymove_colliders[MAX_MOVE_COLLIDERS];
@@ -408,6 +410,99 @@ static void unit_commit_current_pose(edict_t *self) {
     if (clocked) {
         self->movement.pose_clock = level.pathing_clock;
         self->movement.clock_valid = true;
+    }
+}
+
+/* Membership survives idle/attack orders and is removed before freeing or rebinding an actor. */
+static void move_repulse_unlink(edict_t *self) {
+    edict_t **link = &level.repulse_head;
+    while (*link && *link != self) link = &(*link)->movement.repulse.next;
+    if (*link) *link = self->movement.repulse.next;
+    memset(&self->movement.repulse,0,sizeof(self->movement.repulse));
+}
+
+/* Original1710e0 replaces the old repulsor and inserts the new object at the list head. */
+static void move_repulse_init(edict_t *self) {
+    if (self->movement.repulse.active) move_repulse_unlink(self);
+    UnitBalance_t const *balance = self->data.UnitBalance;
+    if (!balance || !balance->repulse || M_UnitMoveDisabled(self)) return;
+    uint32_t selector = wc3_int_bits(wc3_float_bits(balance->repulseParam)) & 255;
+    uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,false);
+    /* Match the selector/category/rank setters in order, including their clearing masks. */
+    uint32_t packed = ((selector << 16) & 0xf00fffffu) | (category << 20);
+    self->movement.repulse.state.packed = (packed & 0x0fffffffu) | ((uint32_t)balance->repulsePrio << 28);
+    self->movement.repulse.active = true;
+    self->movement.repulse.next = level.repulse_head; level.repulse_head = self;
+    /* TODO: Unit+60.1's category15 override and66fc50's extra runtime-disable producers remain SEP-01.2. */
+}
+
+/* Predict from the committed fine pose without consuming its clock or velocity. */
+static void move_repulse_pose(edict_t const *self, wc3GridPose_t *pose) {
+    unit_grid_pose(self,pose);
+    if (self->movement.clock_valid) {
+        float velocity[2] = {self->movement.velocity.x,self->movement.velocity.y};
+        wc3_grid_step(pose,velocity,wc3_elapsed(&level.pathing_clock,&self->movement.pose_clock));
+    }
+}
+
+/* The callback only accumulates; endpoint application precedes this query on the next eligible visit. */
+static bool move_repulse_candidate(edict_t const *other) {
+    moveRepulseQuery_t *query = repulse_query;
+    uint32_t word = other->movement.repulse.state.packed;
+    if (other == query->self || !other->movement.repulse.active || !G_UnitIsWorldActive(other) ||
+        IS_HOLLOW(other) || other->collision <= 0 || other->paused || other->stunned || other->no_pathing ||
+        ((word >> 20) & 255) != query->category || (word >> 28) < query->rank) return false;
+    wc3GridPose_t pose; move_repulse_pose(other,&pose);
+    for (unsigned i = 0; i < 2; i++) query->pair.other[i] = pose.grid[i];
+    wc3_repulse_pair(&query->self->movement.repulse.state,&query->pair);
+    return false;
+}
+
+/* Retained displacement is an endpoint admission, not a swept collision/slide or a replacement order. */
+static void move_repulse_update(edict_t *self) {
+    wc3Repulse_t *state = &self->movement.repulse.state;
+    if (wc3_repulse_cooldown(state)) return;
+    if (self->paused || self->stunned) {
+        state->vector[0] = state->vector[1] = 0; state->packed = (state->packed & 0xffff0000u) | 7; return;
+    }
+    wc3GridPose_t pose; move_repulse_pose(self,&pose);
+    wc3GridPose_t next = pose;
+    for (unsigned i = 0; i < 2; i++) next.grid[i] = wc3_add(next.grid[i],state->vector[i]);
+    for (unsigned i = 0; i < 2; i++) next.world[i] = wc3_world_coordinate(next.grid[i],next.origin[i],32);
+    vec2_t point = {next.world[0],next.world[1]}, old = self->s.origin2;
+    movePathQuery_t endpoint = {{&point,NULL,self->collision,M_UnitStaticPathingFlags(self)},self,NULL,true};
+    float sq = wc3_add(wc3_mul(state->vector[0],state->vector[0]),wc3_mul(state->vector[1],state->vector[1]));
+    if (sq != 0 && G_UnitMovePathFinePointIsPathable(&endpoint,next.grid)) {
+        /* Original05c820 subtracts the predicted position before15f7b0 adds the delta back. */
+        for (unsigned i = 0; i < 2; i++) {
+            next.grid[i] = wc3_add(pose.grid[i],wc3_sub(next.grid[i],pose.grid[i]));
+            next.world[i] = wc3_world_coordinate(next.grid[i],next.origin[i],32);
+        }
+        unit_commit_pose(self,&next); pose = next;
+        G_UnitPositionChanged(self,&old);
+    }
+    wc3RepulseConfig_t config = wc3_repulse_config(state->packed);
+    moveRepulseQuery_t query = {.self=self,.pair={.source={pose.grid[0],pose.grid[1]},
+        .config=config,.random=&level.pathing_random},.category=(state->packed >> 20) & 255,.rank=state->packed >> 28};
+    float radius = wc3_mul(config.radius,32);
+    box2_t area = {{wc3_sub(pose.world[0],radius),wc3_sub(pose.world[1],radius)},
+                  {wc3_add(pose.world[0],radius),wc3_add(pose.world[1],radius)}};
+    edict_t *unused; repulse_query = &query;
+    /* TODO: retail proximity cell-chain ordering/stamps remain SEP-02; this engine area index
+     * visits each actor once. Single-neighbor words are exact; multi-neighbor draw/order parity is open. */
+    gi.BoxEdicts(&area,&unused,1,move_repulse_candidate); repulse_query = NULL;
+    wc3_repulse_tail(state,&config);
+}
+
+/* Original15aa80 toggles parity first, then visits every other linked repulsor after movement. */
+static void move_repulse_owner_update(void) {
+    level.repulse_phase ^= 1;
+    unsigned skip = level.repulse_phase;
+    for (edict_t *self = level.repulse_head, *next; self; self = next) {
+        next = self->movement.repulse.next;
+        if (!G_UnitIsWorldActive(self) || IS_HOLLOW(self)) { move_repulse_unlink(self); continue; }
+        if (skip) { skip--; continue; }
+        move_repulse_update(self); skip = 1;
     }
 }
 
@@ -2047,6 +2142,12 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 /* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
 BZ_ABILITY_PROC(CAbilityMove) {
     switch (msg) {
+    case A_OWNER_UPDATE: move_repulse_owner_update(); return true;
+    case A_UNIT_INIT:
+    case A_UNIT_OWNER_CHANGED: move_repulse_init(ent); return true;
+    case A_UNIT_REMOVE:
+        if (ent->movement.repulse.active) move_repulse_unlink(ent);
+        return true;
     case A_COMMAND: {
         edict_t *clent = call && call->client ? call->client : ent;
         UI_AddCancelButton(clent);

@@ -330,6 +330,14 @@ bool G_MovePathPointIsPathable(pathAccelParams_t const *params) {
     return move_foot_ok(&graph, (wc3FinePoint_t){ (int)floorf(n.x), (int)floorf(n.y) });
 }
 
+/* Repulsion validates its proposed endpoint with live occupancy, excluding its own mover. */
+bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *input, float const fine[2]) {
+    if (!input || !input->geometry.from || !pathmap.width || !pathmap.height) return false;
+    moveFineGraph_t graph = move_foot_shape(&input->geometry); graph.endpoint = true;
+    move_query_objects(&graph,input,NULL);
+    return move_foot_ok(&graph,(wc3FinePoint_t){(int)floorf(fine[0]),(int)floorf(fine[1])});
+}
+
 /* Keep existing nearest-ring endpoint correction while using the actual
  * class footprint. Retail public admission/exclusion remains FOOT-04. */
 bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out) {

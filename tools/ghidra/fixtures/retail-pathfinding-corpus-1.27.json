@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "43 executable original-code oracle scripts,39 selected exact/frozen variants,27 explicit live/profile/repeat contracts and100 archived capture audits.",
+  "scope": "44 executable original-code oracle scripts,39 selected exact/frozen variants,27 explicit live/profile/repeat contracts and100 archived capture audits.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -12611,6 +12611,55 @@
         "Startup seed producer",
         "Complete movement/crowd draw order"
       ]
+    },
+    {
+      "id": "oracle-repulsion-kernels",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_repulsion.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "repulsion-kernels-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "settings_rows": {
+          "equal": 16
+        },
+        "category_cases": {
+          "equal": 1024
+        },
+        "pair_cases": {
+          "equal": 600
+        },
+        "tail_cases": {
+          "equal": 105
+        },
+        "engine_exact_cases": {
+          "equal": 705
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original settings/default CRT and category getter; exact supplied pair/tail slices against production C.",
+      "exclusions": [
+        "Complete proximity/application/scheduler chain",
+        "Special category override semantic producer"
+      ]
     }
   ],
   "fixtures": [
@@ -12676,7 +12725,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "62531ad65d4b49a9bd51e0e5d1f1203dcc5bbbdf871ec3ae9ded530fbe58fc3d"
+      "sha256": "09f75d4189d4508186f23d935ae93aa639dd9de90610c5d8e4471c652e6867de"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -12905,6 +12954,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-random-1.27.json",
       "sha256": "e13364280c30c2212cca25953b70579633cb48f5865cfb2140c1ad77983f7ba4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-pathfinding-repulsion-1.27.json",
+      "sha256": "ae10ed982d48798c845596f7e527db6a6ee5e208cee1947b171ce1b11b006da0"
     }
   ]
 }

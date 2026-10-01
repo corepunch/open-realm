@@ -96,6 +96,128 @@ TEST(wc3_movement, retail_vector_heading_words) {
     T_ASSERT(!unit->movement.turn_blocked);
 }
 
+/* Actual game-owner dispatch must move idle authored repulsors; Footman opts out. */
+TEST(wc3_movement, repulsion_reaches_idle_units_through_owner_scheduler) {
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local unit a=CreateUnit(Player(0),'hgry',512,512,0)\n"
+        "local unit b=CreateUnit(Player(0),'hgry',512,512,0)\n"
+        "local unit c=CreateUnit(Player(0),'hfoo',1024,512,0)\n"
+        "local unit d=CreateUnit(Player(0),'hfoo',1024,512,0)\n"
+        "call SetUnitX(a,512)\ncall SetUnitY(a,512)\ncall SetUnitX(b,512)\ncall SetUnitY(b,512)\n"
+        "call SetUnitX(c,1024)\ncall SetUnitY(c,512)\ncall SetUnitX(d,1024)\ncall SetUnitY(d,512)\n"
+        "call SetRandomSeed(12345)\nendfunction\n"));
+    edict_t *fly[2]={0}; unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','g','r','y')) {
+        if (count<2) fly[count++]=ent;
+    }
+    T_EQ(count,2); if (count!=2) return;
+    /* Synthetic models do not supply a birth sequence; establish the ordinary idle lifecycle. */
+    FOR_LOOP(i,2) unit_stand(fly[i]);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    level.repulse_phase=0; level.time=35; globals.RunFrame();
+    /* Original first-overlap composition: saved owner seed, one direction draw, then damping. */
+    T_EQ(wc3_float_bits(fly[0]->movement.repulse.state.vector[0]),1031535248u);
+    T_EQ(wc3_float_bits(fly[0]->movement.repulse.state.vector[1]),1043093862u);
+    T_EQ(level.pathing_random.sum,815324285u); T_EQ(level.pathing_random.index,1957431332u);
+    T_EQ(fly[1]->movement.repulse.state.vector[0],0); T_EQ(fly[1]->movement.repulse.state.vector[1],0);
+    cstring_t file="/tmp/openwarcraft3-repulsion-save.bin";
+    T_ASSERT(WriteGame(file));
+    FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
+    vec2_t positions[2]={fly[0]->s.origin2,fly[1]->s.origin2};
+    wc3Repulse_t pending[2]={fly[0]->movement.repulse.state,fly[1]->movement.repulse.state};
+    wc3Random_t random=level.pathing_random;
+    T_ASSERT(Vector2_distance(&fly[0]->s.origin2,&fly[1]->s.origin2)>1);
+    FOR_LOOP(i,2) { T_EQ(fly[i]->current_order_id,0); T_EQ(fly[i]->movement.velocity.x,0); T_EQ(fly[i]->movement.velocity.y,0); }
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) {
+        T_EQ(ent->s.origin2.x,1024); T_EQ(ent->s.origin2.y,512);
+    }
+    T_ASSERT(ReadGame(file));
+    T_EQ(level.repulse_phase,1); T_ASSERT(level.repulse_head==fly[1]);
+    T_ASSERT(fly[1]->movement.repulse.next==fly[0]); T_ASSERT(!fly[0]->movement.repulse.next);
+    T_EQ(wc3_float_bits(fly[0]->movement.repulse.state.vector[0]),1031535248u);
+    T_EQ(wc3_float_bits(fly[0]->movement.repulse.state.vector[1]),1043093862u);
+    FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
+    FOR_LOOP(i,2) {
+        T_EQ(wc3_float_bits(fly[i]->s.origin2.x),wc3_float_bits(positions[i].x));
+        T_EQ(wc3_float_bits(fly[i]->s.origin2.y),wc3_float_bits(positions[i].y));
+        FOR_LOOP(k,2) T_EQ(wc3_float_bits(fly[i]->movement.repulse.state.vector[k]),wc3_float_bits(pending[i].vector[k]));
+        T_EQ(fly[i]->movement.repulse.state.packed,pending[i].packed);
+    }
+    T_EQ(level.pathing_random.sum,random.sum); T_EQ(level.pathing_random.index,random.index);
+    remove(file);
+    reset_entities(); setup_test_world();
+}
+
+/* Public owner transfer must replace policy and membership before the next owner visit. */
+TEST(wc3_movement, repulsion_owner_change_pause_and_removal) {
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass("globals\nunit a\nunit b\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hgry',512,512,0)\nset b=CreateUnit(Player(1),'hgry',512,512,0)\n"
+        "call SetUnitX(a,512)\ncall SetUnitY(a,512)\ncall SetUnitX(b,512)\ncall SetUnitY(b,512)\n"
+        "call SetRandomSeed(12345)\nendfunction\n"
+        "function transfer takes nothing returns nothing\ncall SetUnitOwner(b,Player(0),false)\nendfunction\n"
+        "function freeze takes nothing returns nothing\ncall PauseUnit(a,true)\nendfunction\n"
+        "function retire takes nothing returns nothing\ncall RemoveUnit(b)\nendfunction\n"));
+    edict_t *fly[2]={0}; unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','g','r','y'))
+        if (count<2) fly[count++]=ent;
+    T_EQ(count,2); if (count!=2) return;
+    FOR_LOOP(i,2) unit_stand(fly[i]);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=0; level.pathing_phase=level.repulse_phase=0; level.pathing_due=false;
+    level.time=65; globals.RunFrame();
+    FOR_LOOP(i,2) {
+        T_EQ(fly[i]->s.origin2.x,512); T_EQ(fly[i]->s.origin2.y,512);
+        T_EQ(fly[i]->movement.repulse.state.packed & 65535,7);
+    }
+    T_EQ(level.pathing_random.sum,2689401862u); T_EQ(level.pathing_random.index,2025332800u);
+    jass_callbyname(level.vm,"transfer",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(fly[1]->movement.repulse.state.packed,0); T_ASSERT(level.repulse_head==fly[1]);
+    level.time=125; globals.RunFrame();
+    T_ASSERT(fly[1]->movement.repulse.state.vector[0]!=0 || fly[1]->movement.repulse.state.vector[1]!=0);
+    jass_callbyname(level.vm,"freeze",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    vec2_t frozen=fly[0]->s.origin2;
+    level.time=335; globals.RunFrame();
+    T_EQ(fly[0]->s.origin2.x,frozen.x); T_EQ(fly[0]->s.origin2.y,frozen.y);
+    jass_callbyname(level.vm,"retire",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time+=100; globals.RunFrame();
+    T_ASSERT(level.repulse_head==fly[0]); T_ASSERT(!fly[0]->movement.repulse.next);
+    T_ASSERT(!fly[1]->movement.repulse.active);
+    reset_entities(); setup_test_world();
+}
+
+/* A non-stock SLK row must select authored configuration, group and priority, rather than Gryphon defaults. */
+TEST(wc3_movement, repulsion_uses_authored_nonstock_policy) {
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local unit a=CreateUnit(Player(0),'hRPL',512,512,0)\n"
+        "local unit b=CreateUnit(Player(0),'hRPL',512,512,0)\n"
+        "local unit c=CreateUnit(Player(0),'hgry',512,512,0)\n"
+        "call SetUnitX(a,512)\ncall SetUnitY(a,512)\ncall SetUnitX(b,512)\ncall SetUnitY(b,512)\n"
+        "call SetUnitX(c,512)\ncall SetUnitY(c,512)\ncall SetRandomSeed(12345)\nendfunction\n"));
+    edict_t *first=NULL, *stock=NULL; unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','P','L')) {
+        if (!first) first=ent;
+        count++; unit_stand(ent); T_EQ(ent->movement.repulse.state.packed,0x30310000u);
+    }
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','g','r','y')) stock=ent;
+    T_EQ(count,2); T_NOT_NULL(stock); if (!first || !stock) return;
+    unit_stand(stock);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=0; level.pathing_phase=level.repulse_phase=0; level.pathing_due=false;
+    level.time=65; globals.RunFrame();
+    T_ASSERT(first->movement.repulse.state.vector[0]!=0 || first->movement.repulse.state.vector[1]!=0);
+    T_EQ(stock->movement.repulse.state.vector[0],0); T_EQ(stock->movement.repulse.state.vector[1],0);
+    T_EQ(stock->movement.repulse.state.packed & 65535,7);
+    FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
+    T_ASSERT(first->s.origin2.x!=512 || first->s.origin2.y!=512);
+    T_EQ(stock->s.origin2.x,512); T_EQ(stock->s.origin2.y,512);
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_movement, retail_oblique_velocity_and_step_words) {
     edict_t *unit = make_moving_unit(320, 320);
     /* Original fixture starts in fine cell10 with a zero world origin. */

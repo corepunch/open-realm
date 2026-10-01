@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **205 entries**: **42** distinct original-code oracle
-scripts plus **39** declared variants, **98** archived JSONL audits and **26**
+The inventory now has **210 entries**: **44** distinct original-code oracle
+scripts plus **39** declared variants, **100** archived JSONL audits and **27**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,13 +20,13 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 76 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 78 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Two adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
-| 90 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
+| 92 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Five numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Seventeen public/native/compiler/heading/arrival/speed/pose/clock/placement repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Eighteen public/native/compiler/heading/arrival/speed/pose/clock/placement/random repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 NUM-01.13 adds original CRT byte classification and the complete authored-name
 producer:514 public S2R/parser calls and1,040 classifier observations repeat,
@@ -499,3 +499,12 @@ Scene40's `live-random-owner-repeat` requires all539 public seed/query returns,
 raw inputs/results and owner-before/after words to match both the original
 oracle and the second completed capture. The10s loading-key attempt is kept
 outside accepted evidence because it did not reach scheduled samples.
+
+The repulsion-kernels entry adds the complete settings initializer/default
+shipped CRT and1,024 authentic category-producer calls, plus705 exact production
+C pair/tail slice comparisons. Its exclusions retain complete proximity,
+application and scheduler composition; those kernel counts do not certify a
+whole crowd trajectory. The versioned fixture also records the first seeded
+overlap used by the actual engine scheduler regression. Accepted fresh result:
+`repulsion-kernels-corpus-final-261001/corpus-results.json` under the analysis
+root. The repository inventory contains74 checksummed fixtures.

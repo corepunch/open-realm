@@ -373,8 +373,8 @@ not merely inferred from observed configurations. Loader `6f6b0870` reads
 feed `6f66bf40`, whose assembly at `6f66ca50..6f66ca88` stores the results
 into runtime lookup fields **`+224/+228/+22c/+230`**. These are respectively
 enable, configuration-row selector, low category nibble and minimum rank.
-The category's high nibble still has the virtual-slot/override provenance
-above; its gameplay meaning is not yet proved.
+The category's high nibble comes from the authentic CUnit owner getter;
+Unit+60 bit1 forces15. The gameplay producer of that override remains open.
 
 Extraction from this installation's `War3Patch.mpq` member
 `Units/UnitBalance.slk` gives:
@@ -636,14 +636,12 @@ extraction of the parser's decimal-string arguments gives:
 | 5–15 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
 
 The selector in `6f1702f0` is packed-word bits **16–19**, distinct from the
-candidate category and rank. These are authored decimal values, not a live
-float dump. Attempting the complete initializer in Unicorn reaches imported
-`isdigit` through `6f070de0` and fails with an unmapped fetch; it is not part
-of the passing no-stub oracle. The assembly and extracted strings are saved
-in `6f004790-separation-asm.json` and `separation-config-authored.json` in the
-external analysis directory. Coefficient roles and vector math are recovered above.
-Authored producers are covered under repulsion fields; complete numerical and
-crowd parity across all configurations remains open.
+candidate category and rank. These are authored decimal values. The original
+static-only experiment could not resolve CRT `isdigit`; the new
+`verify_wc3_pathing_repulsion.py` executes the complete initializer with the
+pinned shipped CRT/default locale and records the exact words below. The older
+string/assembly extraction remains provenance for that earlier experiment.
+Full crowd parity across configurations and runtime overrides remains open.
 
 Oracle: `verify_wc3_pathing_separation.py` → `separation-oracle.json`.
 
@@ -687,3 +685,36 @@ above 1 unchanged. Host correctly rounded arithmetic is not a substitute.
 Reciprocal constants come from the binary; interpolation is independently
 modeled, but table-generation derivation remains open. Trigonometry, producer
 domains and general composed trajectories remain open.
+
+### Engine port inputs recovered on2026-10-01
+
+`verify_wc3_pathing_repulsion.py` now executes the complete004790 initializer
+using the shipped CRT `isdigit` and the default C-locale branch, with no
+import stubs. Row0 words are `[40a00000,3c23d70b,3f000000,3eccccce,3f333334]`;
+row1 radius is40e00001 and rows1–4 cap is3e4cccce. Rows5–15 are zero.
+These differ from host float literals. The earlier authored-string extraction
+and approximate kernel oracle must not supply production coefficient words.
+
+The category producer695090 uses CUnit vtable6fb77eb0 slotEC, which points to
+685da0: a plain return of Unit+58, its player index. Its high nibble is therefore
+`owner &15`; Unit+60 bit1 overrides that nibble to15, and the authored
+`repulseGroup &15` supplies the low nibble. The full producer with the actual
+CUnit vtable and supplied authentic rawcode cache matches1,024 owner/override/
+group cases. Do not reuse the earlier unproven movement-type interpretation.
+The semantic producer of Unit+60 bit1 remains open.
+
+15fc70 unconditionally rescales the vector using reciprocal(square_root(sum))
+and the requested length; the strict cap/tiny guards belong to its callers.
+Its old descriptive name `Math_ClampVectorLength` did not prove it contained
+those guards. Repulsion needs the unconditional operation, including near
+zero inputs, rather than `wc3_velocity_cap`'s conditional policy.
+
+The same vtableEC identity means6803f0's decompiled apparent three-argument
+call is misleading: its owner getter takes no stack args. Those pushed
+arguments belong to subsequent order construction/admission. The observed
+public Stop ordering and engine retirement remain verified independently.
+
+The new fixture stores600 ordered pair slices (including exact/nearly-exact
+and threshold overlaps),105 complete arithmetic tails,16 settings rows and
+1,024 category results. These kernels exclude proximity enumeration and
+application/scheduling; engine scheduler coverage must accompany the port.

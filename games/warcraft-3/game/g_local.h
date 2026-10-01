@@ -18,6 +18,7 @@
 #include "jass/jlex.h"
 #include "games/warcraft-3/common/wc3_math.h"
 #include "games/warcraft-3/common/wc3_pathing_random.h"
+#include "games/warcraft-3/common/wc3_pathing_repulsion.h"
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
@@ -689,6 +690,7 @@ typedef struct {
 #define AB_INNATE       (1u << 9)  // bit 9; unit-data behavior; receives lifecycle messages without a command-card slot
 #define AB_COOLDOWN_ON_STATUS_REMOVE (1u << 10) // bit 10; defer spell cooldown until its owned status ends
 #define AB_STATUS_EVENTS (1u << 11) // bit 11; active statuses from this ability accept generic status policy events
+#define AB_OWNER_UPDATE (1u << 12) // bit 12; persistent owner-clock behavior; receives one update after scheduled moves
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -789,6 +791,8 @@ typedef enum {
     A_ATTACK_DAMAGE_BONUS, /* Active status ability query: return additive attack damage. */
     A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
     A_TARGET_REMOVED,    /* Active move owner: call->removed_target is semantically removed, still allocated. */
+    A_OWNER_UPDATE,     /* After owner-clock movement callbacks: update persistent ability-owned lists. */
+    A_UNIT_OWNER_CHANGED, /* Ownership changes refresh behavior-owned policies after publishing the new player. */
     A_MOVE_SPEED_BONUS,  /* Aggregate all owners into call->move_speed_bonus; no stop-first dispatch. */
 } abilityMsg_t;
 
@@ -1638,6 +1642,7 @@ struct edict_s {
         bool active;
     } waygate;
     struct edictMovement_s {
+        struct edictRepulse_s { wc3Repulse_t state; edict_t *next; bool active; } repulse;
         vec2_t last_origin;
         float last_distance;
         uint32_t blocked_frames;
@@ -2117,6 +2122,8 @@ struct level_locals {
     uint32_t time;
     wc3Clock_t pathing_clock;
     wc3Random_t pathing_random;
+    edict_t *repulse_head;
+    uint32_t repulse_phase;
     uint32_t pathing_msec;
     uint32_t pathing_phase; /* six primary advances per owner update */
     bool pathing_due; /* owner request due at the next timer dispatch */
@@ -2640,6 +2647,7 @@ typedef struct {
 } movePathQuery_t;
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
+bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *query, float const fine[2]);
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params);
 bool G_MovePathLineIsPathable(pathAccelParams_t const *params);
 bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out);
@@ -2649,6 +2657,7 @@ bool G_ActivateMovePathField(uint32_t generation, float radius, uint8_t flags);
 
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);
+void S_RunAbilityOwnerUpdates(void);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
 void S_UnitTargetRemoved(edict_t *);
 bool S_UnitAbilityMoveArrive(edict_t *);

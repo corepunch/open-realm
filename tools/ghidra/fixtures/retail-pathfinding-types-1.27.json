@@ -671,6 +671,18 @@
           "evidence": "678b50/678b60 thunk loads Unit+30 before690c20/690c80 profile lookup"
         },
         {
+          "offset": 88,
+          "name": "owner_index",
+          "type": "u32",
+          "evidence": "685da0 authentic CUnit vtableEC: MOV EAX,[ECX+58];695090 category1024 full cases"
+        },
+        {
+          "offset": 96,
+          "name": "separation_category_flags",
+          "type": "u32",
+          "evidence": "695090 Unit60 bit1 forces category high nibble15; remaining flag meanings undefined"
+        },
+        {
           "offset": 372,
           "name": "internal_head",
           "type": "WC3PathIdentity",
@@ -1179,6 +1191,42 @@
           "name": "index",
           "type": "u32",
           "evidence": "Four packed byte offsets with prime periods47/53/59/61"
+        }
+      ]
+    },
+    {
+      "name": "WC3SeparationConfig",
+      "length": 20,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "radius",
+          "type": "WC3PathScalar",
+          "evidence": "Full original004790 initializer16 rows/default shipped CRT;600 pair105 tail slices"
+        },
+        {
+          "offset": 4,
+          "name": "minimum",
+          "type": "WC3PathScalar",
+          "evidence": "Full original004790 initializer16 rows/default shipped CRT;600 pair105 tail slices"
+        },
+        {
+          "offset": 8,
+          "name": "cap",
+          "type": "WC3PathScalar",
+          "evidence": "Full original004790 initializer16 rows/default shipped CRT;600 pair105 tail slices"
+        },
+        {
+          "offset": 12,
+          "name": "weight",
+          "type": "WC3PathScalar",
+          "evidence": "Full original004790 initializer16 rows/default shipped CRT;600 pair105 tail slices"
+        },
+        {
+          "offset": 16,
+          "name": "damping",
+          "type": "WC3PathScalar",
+          "evidence": "Full original004790 initializer16 rows/default shipped CRT;600 pair105 tail slices"
         }
       ]
     }
@@ -4037,6 +4085,55 @@
           "name": "state",
           "type": "ptr:WC3PathRandomState",
           "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f695090",
+      "name": "Unit_GetSeparationCategory",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f685da0",
+      "name": "CUnit_GetOwnerIndex",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f05c820",
+      "name": "Mover_ApplyFinePoint",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "notify",
+          "type": "u32",
+          "storage": 8
         }
       ]
     }

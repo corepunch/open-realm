@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 65, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 66, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -632,3 +632,10 @@ Public `SetRandomSeed`/`GetRandomInt`/`GetRandomReal` use this state; saved
 continuation is tested through the compiled natives. Formats64 and earlier
 are rejected. Edict, callback and JSVM7 layouts remain unchanged. See
 [deterministic owner random state](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).
+
+Version66 adds Move-owned authored repulsion: pending vector, packed
+configuration/category/rank/cooldown, active membership and relocated next
+pointers, plus the level list head and alternating owner phase. An actual idle
+overlap save reproduces subsequent positions, vectors, cooldown and random
+state exactly after load. Formats65 and earlier are rejected; JSVM7 and the
+callback roster are unchanged. See [repulsion integration](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units).

@@ -181,6 +181,7 @@ void M_RunScheduledThinks(void) {
         self->scheduled_think_frame = level.framenum;
         SAFE_CALL(self->currentmove->think, self);
     }
+    S_RunAbilityOwnerUpdates();
     level.scheduled_think = false;
 }
 

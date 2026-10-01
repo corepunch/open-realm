@@ -2782,3 +2782,53 @@ Validation: `make test`, forced release RoC/TFT engine suites and the release
 binary build; original/C comparisons run twice atO0/O2. The full engine suites
 now contain46,022 assertions across2,219 cases per mode. Dedicated public
 random tests have560 assertions. Network/snapshot contracts are unchanged.
+
+## Authored repulsion reaches idle engine units
+
+The engine now applies authored `repulse`, `repulseParam`, `repulseGroup` and
+`repulsePrio` through Move. A generic ability owner-update hook runs after the
+scheduled movement callbacks. Repulsors retain newest-first membership and
+alternate owner-list parity before updating every other member, including idle
+units. Each visit consumes cooldown first, admits the retained fine-coordinate
+endpoint against terrain/live occupancy excluding self, then accumulates
+eligible neighbors and applies retail damping, deadzone and cap. Near overlap
+consumes exactly one draw from the saved pathfinding-owner random state.
+
+`wc3_pathing_repulsion.h` uses the complete original initializer's scalar words
+and the ordered software arithmetic. `verify_wc3_pathing_repulsion.py` executes
+16 settings rows and 1,024 full category-producer cases with the authentic CUnit
+vtable. Its 600 pair and 105 tail slices match production C exactly; these are
+arithmetic slices, not a complete original scheduler/query/application replay.
+The first seed12345 overlap's pending vector and next random state also match
+through the real engine `RunFrame` scheduler.
+
+Three actual JASS/scheduler regressions pass72 assertions in RoC and TFT:
+overlapping idle Gryphons separate without receiving an order, overlapping
+Footmen remain stationary, Save66 restores the identical numerical continuation,
+owner transfer replaces policy/membership, paused sources remain stationary,
+and public removal retires membership after deferred reclamation. A custom
+`hRPL` SLK row selects configuration1, group19 and rank3, separating only its
+matching group while the coincident stock Gryphon remains stationary.
+
+Save66 includes pending vectors, packed policy/cooldown, active membership,
+relocated next/head pointers and owner-list parity. The pathfinding random state
+and fine pose/clock continue through the existing schema. Original-proximity
+cell-chain order, stamps, runtime category15 semantics and extra disable
+producers remain explicitly open; the current area index visits actors once,
+so this port does not establish multi-neighbor accumulation/draw-order parity.
+This is the next separation integration boundary, not a claimed complete WC3
+pathfinding replacement.
+
+Artifacts under the local analysis root: `repulsion-kernels-corpus-final-261001/`,
+`runtime/repulsion-ghidra-readback-261001.json`, and the versioned repository
+`retail-pathfinding-repulsion-1.27.json`. Ghidra now retains440 names,31 layouts,
+173 verified fields and170 explicit prototypes, including the owner getter and
+fine-point application contract. The misleading historical15fc70 cap comment
+and6803f0 virtual-call interpretation are corrected.
+
+Validation: the required umbrella suite passes; forced release builds pass
+46,097 assertions in2,222 WC3 cases in each fixture variant. All137 pathfinding
+tool tests pass. Original/C pair/tail words match atO0 andO2 twice. The first
+umbrella attempt rejected a stale types-fixture checksum after annotation;
+that metadata was corrected before the accepted rerun. The release game build
+and repository checks are recorded with the engine change.

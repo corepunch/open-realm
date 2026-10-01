@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**93 done / 276 tasks; 183 remaining.** Counts describe this backlog,
+**96 done / 279 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -684,17 +684,26 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 
 Evidence: [separation evidence][P]. Tools/artifacts: separation, spatial, motion.
 
+SEP-01.4 explicitly splits settings/authored category prerequisites from01.2.
+SEP-02.4/05 split numerical engine integration and saved lifecycle from02.2/03;
+complete neighbor traversal, ordering and original full application remain required.
+
 ### SEP-01 — Repulsion producers
 
 - [x] **SEP-01.1** Authored Footman-disabled/Gryphon-enabled controls distinguish path blocking from opt-in repulsion. Evidence: [repulsion controls][repulsion]; mixed policy combinations remain open.
 - [ ] **SEP-01.2** Trace nonzero config selectors and category/rank/mask overrides from authored/runtime producers; publish eligible/disabled cases for each.
 - [ ] **SEP-01.3** Exercise the resulting policy table across supported movement types and owners; assert candidate eligibility before displacement.
 
+- [x] **SEP-01.4** Split the shipped settings/category prerequisites from01.2: execute the full004790 initializer with pinned CRT, record all16 rows, verify actual CUnit owner getter/category1024 cases, persist Ghidra structures/names/ABI and integrate authored selector/group/rank into Move. Evidence: [engine repulsion port](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units), custom configuration1/group19/rank3 SLK regression. Runtime override/extra disable semantics remain01.2; all movement/owner policy matrix remains01.3.
+
 ### SEP-02 — Separation composition
 
 - [x] **SEP-02.1** Post-arrival pair: 16 ticks, 14 attempts, ten accepted and four blocked. Evidence: [pair][pair], M `move_owner_separation_cases`; controlled profile and bounded numeric tolerance.
 - [ ] **SEP-02.2** Record and independently compare every neighbor contribution for a three-object query through accumulation, clamp/cooldown and application.
 - [ ] **SEP-02.3** After NUM-04, include an exact-overlap pair in that query; assert PRNG draws, endpoint result and actual occupancy changes across subsequent ticks.
+
+- [x] **SEP-02.4** Split ordered numerical pair/tail integration from02.2/03: original600 pair105 tail slices match production C exactly, including owner random overlap; port actual idle owner scheduling and pending fine endpoint application with Footman-disabled control. First overlap pending displacement/random words match through engine RunFrame. Full retail neighbor-chain composition remains02.2/03.
+- [x] **SEP-02.5** Persist repulsion vectors/cooldown/policy and relocated membership/parity; verify actual idle overlap continuation after Save66, public owner transfer, pause and deferred removal. Evidence: [72 engine assertions and Save66](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units). Multi-neighbor query stamps/order remainSEP-03.
 
 ### SEP-03 — Spatial records
 

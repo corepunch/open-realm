@@ -171,6 +171,7 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
         G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, unit->food.made);
     }
     unit->s.player = player;
+    S_UnitAbilityEvent(unit, A_UNIT_OWNER_CHANGED);
     G_PublishChangeOwnerEvents(unit, old_player);
     G_InvalidateCommands(old_client);
     G_InvalidateCommands(new_client);

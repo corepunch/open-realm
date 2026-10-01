@@ -103,7 +103,7 @@ static ability_t abilitylist[] = {
     { "Afir", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire */
     { "Afiu", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire (Undead) */
     { "Aloc", CAbilityPassive, AB_PASSIVE },  /* Locust */
-    { "Amov", CAbilityMove, AB_COMMAND },  /* Move */
+    { "Amov", CAbilityMove, AB_COMMAND | AB_INNATE | AB_OWNER_UPDATE },  /* Move */
     { "Atdp", CAbilityCargoDrop, AB_COMMAND },  /* Drop Pilot */
     { "Atlp", CAbilityCargoLoad, AB_COMMAND },  /* Load Pilot */
     { "Attu", CAbilityPassive, AB_PASSIVE },  /* Turret */
@@ -725,6 +725,8 @@ static ability_t abilitylist[] = {
 /* Build a compact unique procedure list once, rather than scan the whole registry per unit tick. */
 static abilityProc_t ability_updates[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static uint32_t num_updates;
+static abilityProc_t owner_updates[sizeof(abilitylist) / sizeof(abilitylist[0])];
+static uint32_t num_owner_updates;
 static abilityitem_t innate_items[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static uint32_t num_innate;
 static abilityProc_t ability_index_procs[sizeof(abilitylist) / sizeof(abilitylist[0])];
@@ -754,6 +756,11 @@ ability_t const *FindAbilityByOrder(cstring_t order) {
             if (!strcmp(*name, order)) return ability;
     }
     return NULL;
+}
+
+/* Owner lists are ability-owned; keep the scheduler independent of concrete movement rules. */
+void S_RunAbilityOwnerUpdates(void) {
+    FOR_LOOP(i, num_owner_updates) owner_updates[i](NULL, A_OWNER_UPDATE, NULL);
 }
 
 /* Persistent effects can outlive their active order; the callback owns its per-unit state checks. */
@@ -1196,7 +1203,7 @@ void S_AbilityCommand(edict_t *clent, ability_t const *ability) {
 
 void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
-    num_updates = 0;
+    num_updates = num_owner_updates = 0;
     num_innate = 0;
     num_ability_index_procs = 0;
     FOR_LOOP(i, game.num_abilities) {
@@ -1211,6 +1218,10 @@ void InitAbilities(void) {
         if (entry->flags & AB_UPDATE) {
             for (n = 0; n < num_updates && ability_updates[n] != entry->proc; n++) {}
             if (n == num_updates) ability_updates[num_updates++] = entry->proc;
+        }
+        if (entry->flags & AB_OWNER_UPDATE) {
+            for (n = 0; n < num_owner_updates && owner_updates[n] != entry->proc; n++) {}
+            if (n == num_owner_updates) owner_updates[num_owner_updates++] = entry->proc;
         }
         for (n = 0; n < num_ability_index_procs && ability_index_procs[n] != entry->proc; n++) {}
         if (n == num_ability_index_procs) {

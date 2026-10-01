@@ -1,5 +1,12 @@
 # WC3 Pathfinding And Harvest Reachability
 
+Authored repulsion now runs through Move after each owner movement pass, so
+eligible idle flyers separate as well as moving units. It uses saved retail
+random state, exact scalar pair/tail arithmetic and collision-sized endpoint
+admission. Ownership changes, pause, removal and save/load are covered through
+actual native/scheduler tests. See [the engine port and remaining crowd-order
+boundary](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units).
+
 ## Contract
 
 WC3 movement keeps target selection, static routing, and interaction behavior separate:
