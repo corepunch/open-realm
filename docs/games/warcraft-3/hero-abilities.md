@@ -58,6 +58,8 @@ There is no separate “starting XP” subsystem. Preplaced units exist before t
 
 - level-locked skills remain visible but disabled and append `Requires: Level N`;
 - skills with no available points remain visible but disabled;
+- skills disabled by `SetPlayerAbilityAvailable` are omitted, and the same
+  availability check prevents `SelectHeroSkill` from learning them;
 - maxed skills are omitted from the learn menu;
 - Research UI fields, including the Research hotkey, are used for learn buttons.
 
@@ -78,9 +80,9 @@ Runtime ordinary-ability membership from `UnitAddAbility` / `UnitRemoveAbility` 
 
 ## Known Boundaries
 
-Map/campaign object modifications are only partially merged into typed runtime rows. `war3map.w3u` now applies registered `UnitBalance`/`UnitProfile`/`UnitUI` fields such as `usst`, `uani`, and `umdl`, but a map-specific `heroAbilList`, Data/Weapons/Abilities unit fields, and `war3map.w3a`/campaign overrides for `levels`, `reqLevel`, `levelSkip`, or Research UI fields still require the broader object-data merge layer.
+Map/campaign object modifications are only partially merged into typed runtime rows. `war3map.w3u` applies registered `UnitBalance`/`UnitProfile`/`UnitUI`/`UnitAbilities` fields such as `usst`, `uani`, `umdl`, `uabi`, `uhab`, and `udaa`, but Data/Weapons fields and `war3map.w3a`/campaign overrides for `levels`, `reqLevel`, `levelSkip`, or Research UI fields still require the broader object-data merge layer.
 
-`SetPlayerAbilityAvailable` now has player-wide rawcode state plus shared runtime activation and learned-command-card gating, so disabling a learned Hero spell hides it and rejects direct activation. The Select Skill submenu is still driven by Hero learnability rather than the player-wide availability flag, and passive/on-tick lifecycle removal remains separate work.
+`SetPlayerAbilityAvailable` has player-wide rawcode state plus shared runtime activation, learned-command-card, and Hero skill-learning gates. Disabling a learned Hero spell hides its command and rejects direct activation; disabling an unlearned skill omits it from Select Skill and rejects `SelectHeroSkill`. Passive/on-tick lifecycle removal remains ability-specific work.
 
 `SetHeroLevel` still does not lower a Hero. Requests at or below the current level are ignored; implementing level loss needs explicit XP/stat/event semantics rather than reversing the raise path opportunistically.
 

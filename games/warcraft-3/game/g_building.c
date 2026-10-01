@@ -251,9 +251,9 @@ typedef struct {
     int32_t required_level;
 } stockAbilityUpgradeRequirement_t;
 
-/* Retail AbilityData / UpgradeData does not connect these caster spells to
- * their training rows. Keep the omitted stock relationship and tier data in
- * one compatibility table. */
+/* HACK: Retail AbilityData / UpgradeData omits the relationship and tier for
+ * caster-training spells, so keep the four stock associations in one place
+ * until the game data exposes that dependency. */
 static stockAbilityUpgradeRequirement_t const stock_caster_requirements[] = {
     { MAKEFOURCC('R', 'h', 's', 't'), MAKEFOURCC('A', 'i', 'v', 's'), 1 },
     { MAKEFOURCC('R', 'h', 's', 't'), MAKEFOURCC('A', 'p', 'l', 'y'), 2 },
@@ -330,8 +330,8 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
     cstring_t upgrades;
     char token[64];
     bool gated = false;
-    bool researched = false;
     bool researchable = false;
+    bool available = false;
 
     if (visible) *visible = true;
     if (!unit || !ability_id || !unit->data.UnitBalance) return true;
@@ -363,14 +363,17 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
             }
             {
                 int32_t const maximum = G_GetPlayerTechMaxAllowed(owner, upgrade_id);
-                if (maximum < 0 || maximum >= requirement.required_level) researchable = true;
-                if (G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= requirement.required_level)
-                    researched = true;
+                bool const allowed = maximum < 0 || maximum >= requirement.required_level;
+                if (allowed) {
+                    researchable = true;
+                    if (G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= requirement.required_level)
+                        available = true;
+                }
             }
         }
     }
     if (visible) *visible = !gated || researchable;
-    return !gated || researched;
+    return !gated || available;
 }
 
 bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id) {

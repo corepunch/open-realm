@@ -1595,6 +1595,11 @@ TEST(wc3_combat, hero_skill_progression_uses_candidate_points_level_and_max_rank
     memset(h->heroabilities, 0, sizeof(h->heroabilities));
 
     T_EQ((int)G_UnitAbilityLevel(h, MAKEFOURCC('A','I','n','v')), 1);
+    G_SetPlayerAbilityAvailable(&game.clients[0], holy, false);
+    T_EQ((int)G_HeroSkillState(h, holy, &next, &required), HERO_SKILL_DISABLED);
+    T_ASSERT(!G_HeroLearnSkill(h, holy));
+    T_EQ((int)h->hero.skillpoints, 1);
+    G_SetPlayerAbilityAvailable(&game.clients[0], holy, true);
     T_EQ((int)G_HeroSkillState(h, holy, &next, &required), HERO_SKILL_AVAILABLE);
     T_EQ((int)next, 1);
     T_EQ((int)required, 1);

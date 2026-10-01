@@ -889,6 +889,17 @@ bool G_IsPlayerAbilityAvailable(gameClient_t const *client, uint32_t abilid) {
     return true;
 }
 
+/* Unmapped owners have no player-wide availability state to consult. Never
+ * read the fallback client for neutral or invalid owner numbers. */
+bool G_IsUnitAbilityAvailable(edict_t const *unit, uint32_t abilid) {
+    gameClient_t const *client;
+
+    if (!unit || !abilid) return true;
+    client = G_GetPlayerClientByNumber(unit->s.player);
+    return !client || client->ps.number != unit->s.player ||
+           G_IsPlayerAbilityAvailable(client, abilid);
+}
+
 static float G_ShopPawnRate(void) {
     cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", "PawnItemRate");
     float rate;

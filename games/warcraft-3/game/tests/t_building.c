@@ -1251,6 +1251,12 @@ TEST(wc3_building, setplayerabilityavailable_hides_human05_polymorph_command) {
     T_ASSERT(found);
 
     G_SetPlayerAbilityAvailable(client, FS_SLKKey("Aply"), false);
+    {
+        abilityitem_t item = S_AbilityItem(FS_SLKKey("Aply"));
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+        T_ASSERT(!S_AbilityMessage(sorceress, A_EXECUTE, &call));
+        T_ASSERT(!S_AbilityMessage(sorceress, A_ORDER, &call));
+    }
     count = G_GetCommandButtons(sorceress, buttons, 16);
     found = false;
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
@@ -1278,6 +1284,7 @@ TEST(wc3_building, player_ability_availability_does_not_leak_to_unmapped_owner) 
     unit->data.UnitAbilities = &abilities;
 
     G_SetPlayerAbilityAvailable(fallback, FS_SLKKey("Aply"), false);
+    T_ASSERT(G_IsUnitAbilityAvailable(unit, FS_SLKKey("Aply")));
     count = G_GetCommandButtons(unit, buttons, 16);
     found = false;
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
@@ -1396,6 +1403,26 @@ TEST(wc3_building, caster_training_gates_sorceress_and_priest_spell_tiers) {
         T_ASSERT(!buttons[i].disabled);
     }
     T_ASSERT(found);
+
+    /* A completed tier remains unusable when the map lowers its maximum. */
+    G_SetPlayerTechMaxAllowed(client, sorceress_training, 1);
+    G_SetPlayerTechMaxAllowed(client, priest_training, 1);
+    T_ASSERT(!G_UnitAbilityResearchVisible(sorceress, polymorph));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(sorceress, polymorph));
+    T_ASSERT(!G_UnitAbilityResearchVisible(priest, inner_fire));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(priest, inner_fire));
+    {
+        abilityitem_t item = S_AbilityItem(polymorph);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+        T_ASSERT(!S_AbilityMessage(sorceress, A_EXECUTE, &call));
+    }
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(!found);
+
+    G_SetPlayerTechMaxAllowed(client, sorceress_training, 2);
+    G_SetPlayerTechMaxAllowed(client, priest_training, 2);
     G_SetPlayerTechResearched(client, sorceress_training, 0);
     G_SetPlayerTechResearched(client, priest_training, 0);
     G_SetPlayerTechMaxAllowed(client, sorceress_training, -1);

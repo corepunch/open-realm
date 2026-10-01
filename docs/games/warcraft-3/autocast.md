@@ -44,9 +44,10 @@ default-active rawcode names a supported Repair ability, Repair starts enabled
 and idle acquisition may use it. Otherwise Repair starts disabled and idle
 workers cannot acquire a Repair target until the player or script enables it.
 Missing, placeholder, unsupported, or non-autocast rawcodes are rejected by the
-normal autocast setter. Map-object `UnitAbilities` overrides do not yet have a
-per-map typed-row merge, so custom-unit `uabi` / `uhab` / `udaa` edits remain a
-separate object-data coverage gap.
+normal autocast setter. Map-object `UnitAbilities` overrides merge `uabi`,
+`uhab`, and `udaa` into stable per-map rows, including inheritance by custom
+unit IDs. This lets a map-authored default active ability take effect on the
+custom unit without changing the stock row.
 
 ## Command-card toggle
 

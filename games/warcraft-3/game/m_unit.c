@@ -1629,6 +1629,9 @@ heroSkillState_t G_HeroSkillState(edict_t *ent, uint32_t abilcode, uint32_t *nex
     if (!G_HeroHasCandidateSkill(ent, abilcode)) {
         return HERO_SKILL_ABSENT;
     }
+    if (!G_IsUnitAbilityAvailable(ent, abilcode)) {
+        return HERO_SKILL_DISABLED;
+    }
 
     ability = G_AbilityData(abilcode);
     if (!ability->id || ability->levels <= 0) {

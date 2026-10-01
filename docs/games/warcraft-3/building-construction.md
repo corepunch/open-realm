@@ -383,13 +383,13 @@ Repair now evaluates the high-confidence subset of WC3 `Targets Allowed` needed 
 
 Construction and Repair now share the behavior described above. The following clean-room-spec items remain incomplete:
 
-- `war3map.w3u` now merges registered `UnitUI` fields (including custom models), but other typed rows are not yet fully merged, so map-local edits to `Builds`/requirements may still resolve through the base unit row;
+- `war3map.w3u` merges registered `UnitUI` and `UnitAbilities` fields (including custom models, ability lists, Hero skill lists, and default active ability), but other typed rows are not yet fully merged, so map-local edits to `Builds`/requirements may still resolve through the base unit row;
 - `UpgradeData.slk` research has a shared queue, per-level costs/times,
   requirements, cancellation/refunds, and Blacksmith `ratd`/`rarm` effects;
   unit-type structure upgrading through `uupt` is a separate in-place lifecycle
   documented above. W3I upgrade-availability records are still parsed but are
   not yet applied to the player research state;
-- `SetPlayerAbilityAvailable` now stores per-player disabled rawcodes, hides disabled authored command-card abilities, and rejects their command/order/validation/execute/autocast activation paths. It remains separate from unit/building technology availability; passive/on-tick ability lifecycles still need ability-specific handling where disabling must remove an already-running effect;
+- `SetPlayerAbilityAvailable` stores per-player disabled rawcodes, hides disabled authored command-card abilities, rejects command/order/validation/execute/autocast activation, and blocks disabled Hero skills in Select Skill and `SelectHeroSkill`. It remains separate from unit/building technology availability; passive/on-tick ability lifecycles still need ability-specific handling where disabling must remove an already-running effect;
 - hero training applies the authored `Requirescount`/`Requires1`... tier selected by the owner's completed hero count; custom map unit-object overrides for those fields remain incomplete until all typed `war3map.w3u` rows merge into the normalized profile;
 - training still uses the legacy `player_pay()` gold/lumber payment path, while food reservation is owned by the active queue edict; queued unit icons can now cancel/refund their exact hidden queue edict, and producer death/removal cancels/refunds all queued unit entries;
 - the client does not yet draw a per-cell green/red pathing splat or mirror live-unit obstruction into that splat;
