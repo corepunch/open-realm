@@ -340,6 +340,14 @@ uint32_t pathing_footprint(uint32_t const input[6], uint8_t const *cells) {
 }
 
 #include "games/warcraft-3/common/wc3_pathing_route.h"
+
+void pathing_acc_selection(uint32_t const input[2], uint32_t const *words, uint32_t output[2]) {
+    wc3FineVector_t points[13];
+    for (unsigned i=0;i<13;i++) points[i]=(wc3FineVector_t){wc3_float(words[2*i]),wc3_float(words[2*i+1])};
+    wc3AccSelection_t result=wc3_acc_select((wc3FineRoute_t){points,input[0]},input[1]!=0);
+    output[0]=result.index; output[1]=result.gate;
+}
+
 void pathing_fine_reconstruct(uint32_t const *input, int32_t const *cells, uint32_t *out) {
     wc3FineNode_t nodes[64];
     wc3FineVector_t points[64];

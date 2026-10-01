@@ -12961,6 +12961,94 @@
         "Stock movement profile producers and shared groups",
         "Original rendered unit-presentation timeline and live wall scene"
       ]
+    },
+    {
+      "id": "adaptive-handoff-reference",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_refill.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--adaptive-handoff-reference",
+        "tools/ghidra/fixtures/retail-adaptive-handoff-1.27.json",
+        "--adaptive-handoff-fixture",
+        "{report}.fixture.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-handoff-reference.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "formation_destination_cases": {
+          "minimum": 1
+        },
+        "adaptive_handoff_exact_cases": {
+          "equal": 48
+        },
+        "adaptive_handoff_reference_sha256": {
+          "equal": "649b9c1fe3ca4396c0f211bc65ed6aaec18090e87bb9ca224ea6205b1b3dcdfa"
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original full165ae0 selects coarse intermediate destinations and reconstructs complete fine buffers on48 supplied long-route/class/lane cases. Frozen words are independently consumed by engine G_BuildUnitMoveFineRoute and public Move regressions.",
+      "exclusions": [
+        "Dynamic blockers and yielding",
+        "Primary owner cadence",
+        "Original fine-system index-initialization producer",
+        "Retained multi-tick coarse progress"
+      ]
+    },
+    {
+      "id": "accelerated-selector-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_transition.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "accelerated-selector-engine.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "selector_cases": {
+          "equal": 1456
+        },
+        "engine_selector_cases": {
+          "equal": 1456
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Every complete original167ae0 result and gate marker in the1456-case supplied reverse-route matrix equals the production C selector. Production long-route handoff consumes its ordinary index.",
+      "exclusions": [
+        "Portal execution",
+        "Retained multi-tick coarse progress",
+        "Public map/group producers"
+      ]
     }
   ],
   "fixtures": [
@@ -13267,6 +13355,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-primary-owner-route-1.27.json",
       "sha256": "9b7a1af492ea0e89af51f75665aa85b086ba9166c39b8ddca751ff7b64f5cc20"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-adaptive-handoff-1.27.json",
+      "sha256": "649b9c1fe3ca4396c0f211bc65ed6aaec18090e87bb9ca224ea6205b1b3dcdfa"
     }
   ]
 }

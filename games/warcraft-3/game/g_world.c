@@ -476,15 +476,12 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
         input->geometry.radius >= pathmap_cell_world_size() ? 2 : 1,BZ_WC3_FINE_WORK};
     uint32_t result = wc3_acc_route(&move_acc,&req,move_acc_points), count = result&0x7fffffffu;
     if (count < 2) return false;
-    FOR_LOOP(i,count) { move_acc_points[i].x = wc3_mul(move_acc_points[i].x,2); move_acc_points[i].y = wc3_mul(move_acc_points[i].y,2); }
-    moveFineGraph_t graph = move_foot_shape(&input->geometry); move_query_objects(&graph,input,NULL);
-    wc3FineSegment_t segment = {.start={source.x,source.y},.cls=(unsigned)graph.size-1,.cell=move_cell_ok,.data=&graph};
-    uint32_t chosen = wc3_segment_waypoint(&segment,(wc3FineRoute_t){move_acc_points,count-1});
-    /* Keep the handoff within the fine request's range even when visible coarse points were skipped. */
-    while (chosen < count-2 &&
-        (fabsf(move_acc_points[chosen].x-source.x) > PATH_ACCEL_MAX_DISTANCE ||
-         fabsf(move_acc_points[chosen].y-source.y) > PATH_ACCEL_MAX_DISTANCE)) chosen++;
-    wc3FineVector_t point = move_acc_points[chosen];
+    /* Original165d10 consumes the reverse coarse chain by ten-unit arc length.
+     * Mode-zero refill167d70 selects the current destination at index zero. */
+    wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,count-1},false);
+    assert(!selected.gate); /* Ordinary hierarchy search has no portal producer. */
+    wc3FineVector_t point=selected.index ?
+        (wc3FineVector_t){wc3_mul(move_acc_points[selected.index].x,2),wc3_mul(move_acc_points[selected.index].y,2)} : target;
     vec2_t local = move_world_from_grid(point.x,point.y);
     movePathQuery_t nearby = *input; nearby.geometry.target = &local;
     /* Coarse representatives lie within the next8-base-cell region; refine that local leg with live units. */

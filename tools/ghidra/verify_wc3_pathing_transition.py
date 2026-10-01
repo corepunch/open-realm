@@ -5,6 +5,7 @@ Synthetic preallocated routes; no stubs or shipped retail code. Cardinal
 power-of-two edge lengths isolate control flow from approximate square roots.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -18,7 +19,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine-library',type=Path,help='compare the production coarse selector against executed original results')
     args = parser.parse_args()
+    engine=ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine:engine.pathing_acc_selection.argtypes=[ctypes.POINTER(ctypes.c_uint32)]*3
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -89,6 +93,12 @@ def main():
                 assert read(marker)[0]==hit,(count,step,warp,mode)
                 assert machine.reg_read(UC_X86_REG_EAX)==expected,(count,step,warp,mode)
                 assert read(path+0x78)[0]==count
+                if engine:
+                    inputs=(ctypes.c_uint32*2)(count,mode)
+                    words=(ctypes.c_uint32*26)(*struct.unpack('<26I',struct.pack('<26f',*(v for xy in data for v in xy))))
+                    out=(ctypes.c_uint32*2)()
+                    engine.pathing_acc_selection(inputs,words,out)
+                    assert list(out)==[machine.reg_read(UC_X86_REG_EAX),read(marker)[0]]
                 selectors+=1
                 # Full consumer without a pending gate, or with traversal disabled.
                 if mode==0:
@@ -138,7 +148,7 @@ def main():
                             assert read(goal,2)==read(point,2)
                             fine_advance+=1
     report=dict(binary_sha256=digest,scope=__doc__,passed=True,
-                threshold_acc=threshold,selector_cases=selectors,
+                threshold_acc=threshold,selector_cases=selectors,engine_selector_cases=selectors if engine else 0,
                 consumer_cases=consumers,fine_progress_transition_cases=progress,full_waypoint_acceptance_cases=acceptance,full_fine_transition_cases=fine_advance)
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))

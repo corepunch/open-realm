@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**101 done / 284 tasks; 183 remaining.** Counts describe this backlog,
+**102 done / 285 tasks; 183 remaining.** Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -24,7 +24,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 21 | 14 |
-| ROUTE — Route progression and yielding | 3 | 9 |
+| ROUTE — Route progression and yielding | 4 | 9 |
 | TARGET — Pursuit and arrival policy | 2 | 9 |
 | SCHED — Scheduling and owner updates | 3 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
@@ -119,7 +119,7 @@ correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinati
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
 (NUM-01.8). Ghidra mapping persists456
-names,31 layouts,177 fields,171 x86 prototypes and44 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has214
+names,31 layouts,177 fields,171 x86 prototypes and44 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has216
 declared outcomes, including repeated public order, scalar and angle witnesses. Full retail member
 storage/flags/shared parameters/phase integration remains GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
@@ -128,8 +128,10 @@ ROUTE-02.3 now reproduces the complete controlled wall detour in the engine,
 including turn-stop stepping and saved fine-curve progress. NUM-02.7 keeps that
 trajectory exact at four world origins. SCHED-02.5 now verifies the complete
 primary-clock detour through actual engine RunFrame and saved continuation.
-Next runnable work: adaptive-to-fine refill (BASE-06.5/ROUTE-03), with a concrete
-engine route correction; public admission phase and other clocks remain NUM-02.3.
+ROUTE-02.4 now corrects initial adaptive-to-fine destination selection in the
+engine. Next runnable work: retain coarse progress across fine refills, then
+compose dynamic blockers (ROUTE-03); public admission phase and other clocks
+remain NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
@@ -457,6 +459,8 @@ eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope
 - [ ] **ROUTE-02.2** Hit blocker candidate capacity with ordered objects, then change one obstruction between samples; assert cap/order and the resulting waypoint choice.
 
 - [x] **ROUTE-02.3** Explicitly split ordinary fine-curve initial/progress consumption from the remaining route mode, buffer and yielding tasks. Port count-2 initialization,0.49-cell retention and visible-successor progress into Move; match a complete controlled original34-tick wall detour's position/velocity/heading/index words and22 saved continuation ticks. Evidence: [engine payoff20](retail-pathfinding-engine.md#retained-fine-routes-reproduce-a-complete-retail-detour), frozen trajectory and two fresh original replays. Nonzero origin, real original owner cadence, adaptive refill, dynamic yielding and pooled cleanup remain NUM-02.3/ROUTE-01.2/03..05.
+
+- [x] **ROUTE-02.4** Explicitly split initial adaptive-to-fine destination selection from full refill/yield composition. Replace visibility/distance-clamp coarse selection with original167ae0 ten-accelerator-unit reverse-chain consumption and167d70 index-zero current-destination policy. Reproduce64 engine failures, then match all fine-route words in48 complete original165ae0 cases across three64-cell maps, four classes and four lanes. Public Move consumes the original solid-wall local leg while retaining its final order goal. Evidence: [engine payoff23](retail-pathfinding-engine.md#adaptive-handoff-uses-retail-route-length), two full original buffer replays and1,456 original/C selector cases atO0/O2. Retained coarse progress, owner scheduling, dynamic refills/yielding and portal execution remain ROUTE-03..05/SCHED/GATE.
 
 ### ROUTE-03 — Dynamic route composition
 

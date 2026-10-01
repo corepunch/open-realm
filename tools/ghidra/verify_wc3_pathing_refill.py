@@ -18,6 +18,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--adaptive-handoff-fixture',type=Path,help='export complete original coarse-selected fine routes on 64-cell maps')
+    parser.add_argument('--adaptive-handoff-reference',type=Path,help='compare coarse-selected fine routes with frozen original words')
     args = parser.parse_args()
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
@@ -305,6 +307,7 @@ def main():
     machine.mem_map(0x10800000,0x200000)
     cells,bitmap,nodes,links,heap,route_data=0x10800000,0x10810000,0x10820000,0x10880000,0x10900000,0x10980000
     enabled=[]
+    handoff_cases=[]
     for map_size,name,cls,acc_budget,lane in itertools.product([24,64],['open','wall','gap'],range(4),[0,5,400],range(4)):
         width=height=map_size
         target=(map_size-4.75,map_size-4.25)
@@ -392,6 +395,13 @@ def main():
                             fine_count=read(path+0x50)[0],fine_pops=read(system+0x6c)[0],
                             adjusted=struct.unpack('<2f',struct.pack('<2I',*adjusted)),
                             fine_goal=fine_goal,output=struct.unpack('<2f',actual_output)))
+        if map_size==64 and acc_budget==400:
+            handoff_cases.append(dict(fixture=name,size_class=cls,lane=lane,
+                source_bits=list(struct.unpack('<2I',struct.pack('<2f',*source))),
+                goal_bits=list(struct.unpack('<2I',struct.pack('<2f',*target))),
+                coarse_count=count,coarse_index=acc_index,coarse_words=list(struct.unpack('<'+'I'*(count*2),coarse_bytes)),
+                fine_goal_bits=list(struct.unpack('<2I',struct.pack('<2f',*fine_goal))),
+                fine_count=fine_count,fine_words=list(struct.unpack('<'+'I'*(fine_count*2),actual_fine))))
         # Independently supply the selected intermediate/final destination to
         # the original fine request and compare full bytes, index and work.
         setup()
@@ -502,6 +512,17 @@ def main():
     intermediate_cases=sum(row['acc_index']>0 for row in enabled)
     assert intermediate_cases==96
     report=dict(binary_sha256=digest,scope=__doc__,passed=True,formation_destination_cases=len(formation),formation_destinations=formation,refill_cases=len(records),denied_refill_cases=denied_cases,cached_waypoint_cases=cached_cases,dynamic_refill_cases=len(dynamic),terrain_equivalence_cases=terrain_equivalence,hierarchy_exclusion_cases=len(exclusion),hierarchy_exclusion=exclusion,enabled_advance_cases=len(enabled),intermediate_waypoint_cases=intermediate_cases,enabled_advance=enabled,full_advance_cases=len(full_advance),full_advance=full_advance,dynamic_cases=dynamic,cases=records)
+    if args.adaptive_handoff_fixture or args.adaptive_handoff_reference:
+        payload=dict(version=1,binary_sha256=digest,source_entry='6f165ae0',cell_world=32,map_size=64,cases=handoff_cases,
+            scope='Complete original initial adaptive-to-fine request destination and both reconstructed route buffers on supplied static maps. Four classes/four lanes/open/solid-wall/gapped-wall. Owner cadence, dynamic blockers, fine-system index-init producer and retained multi-tick coarse progress excluded.')
+        if args.adaptive_handoff_reference:
+            frozen=json.loads(args.adaptive_handoff_reference.read_text())
+            assert payload==frozen
+            report['adaptive_handoff_exact_cases']=len(handoff_cases)
+            report['adaptive_handoff_reference_sha256']=hashlib.sha256(args.adaptive_handoff_reference.read_bytes()).hexdigest()
+        if args.adaptive_handoff_fixture:
+            args.adaptive_handoff_fixture.parent.mkdir(parents=True,exist_ok=True)
+            args.adaptive_handoff_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps({k:v for k,v in report.items() if k not in ['formation_destinations','cases','dynamic_cases','full_advance','enabled_advance','hierarchy_exclusion']},indent=2))
 

@@ -24,7 +24,7 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),87)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),89)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),100)
         self.assertEqual(sum(e['id'].startswith('live-') for e in entries),27)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
@@ -64,6 +64,21 @@ class CorpusTests(unittest.TestCase):
         self.assertEqual(frozen['phases_per_owner'],6)
         self.assertEqual(case['ticks'],34)
         self.assertEqual(actual,expected)
+
+    def test_adaptive_handoff_matches_engine_full_route_reference(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-adaptive-handoff-1.27.json').read_text())
+        source=(ROOT/'games/warcraft-3/game/tests/t_movement.c').read_text()
+        table=source.split('handoff_words[]={',1)[1].split('};',1)[0]
+        words=[int(word,16) for word in re.findall(r'0x([0-9a-f]+)u',table)]
+        canonical=[row for row in frozen['cases'] if row['lane']==0]
+        self.assertEqual(len(frozen['cases']),48)
+        self.assertEqual(words,[word for row in canonical for word in row['fine_words']])
+        for row in canonical:
+            self.assertEqual(row['fine_words'][:2],row['fine_goal_bits'])
+            self.assertEqual(row['fine_words'][-2:],row['source_bits'])
+            others=[r for r in frozen['cases'] if (r['fixture'],r['size_class'])==(row['fixture'],row['size_class'])]
+            self.assertEqual(len(others),4)
+            self.assertTrue(all(r['fine_words']==row['fine_words'] for r in others))
 
     def test_inventory_rejects_missing_scripts_changed_fixtures_and_hidden_differences(self):
         with tempfile.TemporaryDirectory() as directory:

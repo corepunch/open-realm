@@ -9,6 +9,25 @@ typedef struct {
     wc3FineVector_t start, goal;
 } wc3FineReconstruct_t;
 
+typedef struct { uint32_t index; bool gate; } wc3AccSelection_t;
+
+/* Original167ae0 walks the reverse coarse route to ten accelerator units.
+ * Index zero is never inspected. A gate sentinel selects its adjoining point;
+ * selection alone does not execute portal traversal. */
+static inline wc3AccSelection_t wc3_acc_select(wc3FineRoute_t route, bool reverse) {
+    float length=0;
+    if (!route.index) return (wc3AccSelection_t){0,false};
+    for (uint32_t i=route.index-1;i;i--) {
+        if (route.points[i].x==wc3_float(0xc7fa0001))
+            return (wc3AccSelection_t){reverse?i-1:i+1,true};
+        float dx=wc3_sub(route.points[i+1].x,route.points[i].x);
+        float dy=wc3_sub(route.points[i+1].y,route.points[i].y);
+        length=wc3_add(length,wc3_sqrt(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))));
+        if (length>=10) return (wc3AccSelection_t){i,false};
+    }
+    return (wc3AccSelection_t){0,false};
+}
+
 static inline bool wc3_route_same_cell(wc3FineVector_t a, wc3FineVector_t b) {
     return wc3_int_bits(wc3_floor_bits(wc3_float_bits(a.x))) == wc3_int_bits(wc3_floor_bits(wc3_float_bits(b.x))) &&
            wc3_int_bits(wc3_floor_bits(wc3_float_bits(a.y))) == wc3_int_bits(wc3_floor_bits(wc3_float_bits(b.y)));

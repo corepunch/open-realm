@@ -3046,3 +3046,48 @@ Validation for payoff22: forced release RoC/TFT suites each pass49,337 assertion
 in2,229 cases. The required release umbrella and production executable build
 pass without C compiler warnings. All139 pathfinding tool tests, corpus hashes,
 backlog counts/IDs, document targets and diff checks pass.
+
+
+## Adaptive handoff uses retail route length
+
+Payoff23 fixes the initial long-route handoff. The engine previously selected
+a visible coarse point, then limited its distance to48 fine cells. Original
+165d10/167ae0 instead starts below the current reverse-chain index and sums
+software scalar edge lengths until ten accelerator units. Index zero is never
+inspected by that scan. Original167d70 mode zero selects the resulting coarse
+point times two when the index is nonzero; index zero selects the path's current
+destination. Visibility is not this initial coarse selection policy.
+
+The production route helper now implements that recovered scan, including its
+sentinel result without executing a portal. The ordinary hierarchy producer
+cannot emit that sentinel. The game handoff consumes its ordinary result before
+calling the existing fine search. A48-case engine regression failed64 assertions
+before the change. It now matches all2,936 original fine-route coordinate words
+across open, solid-wall and gapped-wall64-cell maps, four footprint classes and
+four traversal lanes. It also checks retained fine count and initial index.
+
+The compiled-JASS public Move regression uses the solid wall: the local fine
+destination is native `(15.5,33.5)`, and its first point is `(4.5,5.5)`. The public
+order keeps the final `(59.25,59.75)` destination. An earlier public fixture used
+a clear diagonal through the gap and incorrectly expected the engine to enter
+its obstruction route; that expectation is rejected. It provides no public
+producer or new engine-defect evidence.
+
+Original full165ae0 route buffers are frozen in
+`tools/ghidra/fixtures/retail-adaptive-handoff-1.27.json`. Two independent original
+runs agree exactly. All1,456 complete original167ae0 selector outputs and marker
+flags match production C atO0 andO2. The accepted strict two-entry run is
+`adaptive-handoff-corpus-accepted-261001/corpus-results.json` under the analysis
+root. Its manifest now has216 entries,89 oracles and77 fixtures.
+
+This is the initial ordinary handoff port. Coarse buffer retention across later
+fine refills, dynamic obstruction/yielding, budget admission, primary owner
+composition and portal execution remain required. Save67 and network contracts
+are unchanged. Ghidra records the integrated167ae0/165d10/167d70 contracts so
+that this policy does not need another investigation.
+
+Saved Ghidra readback: `runtime/adaptive-handoff-ghidra-readback-261001.json`.
+Validation for payoff23: forced release RoC/TFT suites each pass52,430 assertions
+in2,231 cases. The required release umbrella and production executable pass
+without C compiler warnings. All140 pathfinding tool tests, ability coverage,
+corpus hashes, backlog counts/IDs, document targets and diff checks pass.
