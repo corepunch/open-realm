@@ -278,7 +278,7 @@ typedef struct {
     int target_cell_x, target_cell_y, radius_cells;
     uint8_t blocked_flags;
     uint32_t pending_cells, pending_jobs, work_done;
-    uint32_t requester_number, requester_rawcode, goal_number, goal_rawcode;
+    uint32_t requester_number, goal_number;
 } cmPathJobStatus_t;
 void CM_GetPathJobStatus(cmPathJobStatus_t *status);
 bool  CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out);

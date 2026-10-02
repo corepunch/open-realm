@@ -116,14 +116,14 @@ static void move_route_wait_diag(edict_t *self, bool waiting, moveDiagState_t re
         if (!move_route_wait_debug_enabled()) return;
         CM_GetPathJobStatus(&job);
         fprintf(stderr,
-            "WC3_ROUTE_WAIT begin t=%u unit=%u rawcode=%08x owner=%u pos=%.1f,%.1f goal=%u@%u goal_rawcode=%08x goal_owner=%u goalpos=%.1f,%.1f collision=%.1f active=%u requester=%u/%08x jobgoal=%u/%08x target=%d,%d pending=%u queued=%u work=%u\n",
+            "WC3_ROUTE_WAIT begin t=%u unit=%u rawcode=%08x owner=%u pos=%.1f,%.1f goal=%u@%u goal_rawcode=%08x goal_owner=%u goalpos=%.1f,%.1f collision=%.1f active=%u requester=%u jobgoal=%u target=%d,%d pending=%u queued=%u work=%u\n",
             (unsigned)level.time, (unsigned)self->s.number, (unsigned)self->class_id,
             (unsigned)self->s.player, self->s.origin2.x, self->s.origin2.y,
             (unsigned)(goal ? goal->s.number : 0), (unsigned)(goal ? goal->spawn_time : 0),
             (unsigned)(goal ? goal->class_id : 0), (unsigned)(goal ? goal->s.player : 0),
             goal ? goal->s.origin2.x : 0.0f, goal ? goal->s.origin2.y : 0.0f,
-            self->collision, job.active, job.requester_number, job.requester_rawcode,
-            job.goal_number, job.goal_rawcode, job.target_cell_x, job.target_cell_y,
+            self->collision, job.active, job.requester_number,
+            job.goal_number, job.target_cell_x, job.target_cell_y,
             (unsigned)job.pending_cells, (unsigned)job.pending_jobs, (unsigned)job.work_done);
         return;
     }
@@ -132,7 +132,7 @@ static void move_route_wait_diag(edict_t *self, bool waiting, moveDiagState_t re
     if (!move_route_wait_debug_enabled()) return;
     CM_GetPathJobStatus(&job);
     fprintf(stderr,
-        "WC3_ROUTE_WAIT end t=%u unit=%u rawcode=%08x duration=%u start_goal=%u@%u goal=%u@%u pos=%.1f,%.1f dpos=%.1f,%.1f result=%s flow=%u direct=%u route=%u active=%u requester=%u/%08x jobgoal=%u/%08x target=%d,%d pending=%u queued=%u work=%u\n",
+        "WC3_ROUTE_WAIT end t=%u unit=%u rawcode=%08x duration=%u start_goal=%u@%u goal=%u@%u pos=%.1f,%.1f dpos=%.1f,%.1f result=%s flow=%u direct=%u route=%u active=%u requester=%u jobgoal=%u target=%d,%d pending=%u queued=%u work=%u\n",
         (unsigned)level.time, (unsigned)self->s.number, (unsigned)self->class_id,
         (unsigned)(level.time - self->movement.path_wait_start),
         (unsigned)self->movement.path_wait_goal_number, (unsigned)self->movement.path_wait_goal_spawn,
@@ -142,8 +142,8 @@ static void move_route_wait_diag(edict_t *self, bool waiting, moveDiagState_t re
         self->s.origin2.y - self->movement.path_wait_origin.y,
         move_diag_state_name(resume_state), (unsigned)self->movement.flow_generation,
         self->movement.flow_direct, self->movement.path.valid,
-        job.active, job.requester_number, job.requester_rawcode,
-        job.goal_number, job.goal_rawcode, job.target_cell_x, job.target_cell_y,
+        job.active, job.requester_number,
+        job.goal_number, job.target_cell_x, job.target_cell_y,
         (unsigned)job.pending_cells, (unsigned)job.pending_jobs, (unsigned)job.work_done);
 }
 
