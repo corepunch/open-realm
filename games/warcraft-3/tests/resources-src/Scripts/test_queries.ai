@@ -24,6 +24,9 @@ function main takes nothing returns nothing
     if GetUnitGoldCost('hbar') != 235 or GetUnitWoodCost('hbar') != 85 then
         call MissingAIAction()
     endif
+    if GetUnitGoldCost('xxxx') != 0 or GetUnitWoodCost('xxxx') != 0 then
+        call MissingAIAction()
+    endif
     if GetUnitBuildTime('hfoo') != 60 or GetUnitBuildTime('xxxx') != 0 then
         call MissingAIAction()
     endif
