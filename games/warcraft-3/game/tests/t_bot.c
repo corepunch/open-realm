@@ -725,6 +725,31 @@ TEST(wc3_bot, attack_move_kill_native_is_registered_for_player_bound_ai) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
+TEST(wc3_bot, captain_retreating_native_is_registered_for_player_bound_ai) {
+    bot_t *bot = level.bots + 2;
+
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_captain_retreating.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, captain_retreating_reports_attack_captain_state_only) {
+    bot_t *bot = level.bots + 2;
+    player_t *player = &game.clients[2].ps;
+
+    bot->player = player;
+    bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
+    bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_RETREATING;
+    T_ASSERT(!G_BotCaptainRetreating(player));
+
+    bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_RETREATING;
+    T_ASSERT(G_BotCaptainRetreating(player));
+
+    bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_IDLE;
+    T_ASSERT(!G_BotCaptainRetreating(player));
+}
+
 TEST(wc3_bot, attack_move_kill_orders_live_assault_members_toward_current_target_position) {
     bot_t *bot = level.bots + 2;
     edict_t *first = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);

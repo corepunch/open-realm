@@ -316,6 +316,7 @@ uint32_t AddAssault(jass_t *j) {
 uint32_t CaptainGroupSize(jass_t *j) { return jass_pushinteger(j, G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }
 uint32_t CaptainIsFull(jass_t *j) { return jass_pushboolean(j, G_BotCaptainIsFull(jass_getcontext(j)->playerState)); }
 uint32_t CaptainIsEmpty(jass_t *j) { return jass_pushboolean(j, !G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }
+uint32_t CaptainRetreating(jass_t *j) { return jass_pushboolean(j, G_BotCaptainRetreating(jass_getcontext(j)->playerState)); }
 uint32_t CaptainReadiness(jass_t *j) { return jass_pushinteger(j, G_BotCaptainReadiness(jass_getcontext(j)->playerState, false)); }
 uint32_t CaptainReadinessHP(jass_t *j) { return jass_pushinteger(j, G_BotCaptainReadiness(jass_getcontext(j)->playerState, false)); }
 uint32_t CaptainReadinessMa(jass_t *j) { return jass_pushinteger(j, G_BotCaptainReadiness(jass_getcontext(j)->playerState, true)); }
