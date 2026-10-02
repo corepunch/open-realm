@@ -2743,6 +2743,7 @@ int32_t G_GetPlayerTechInProgress(gameClient_t *client, uint32_t techid);
 void G_AddPlayerTechInProgress(gameClient_t *client, uint32_t techid, int32_t levels);
 int32_t G_GetPlayerTechCountValue(gameClient_t *client, uint32_t techid);
 void G_InvalidateCommands(gameClient_t *client);
+void G_InvalidateUnitCommands(edict_t *unit);
 bool G_BuildInventoryItem(edict_t *ent, edict_t *item, uint8_t slot, gameInventoryItem_t *out);
 uint8_t G_GetInventory(edict_t *ent, gameInventoryItem_t *items, uint8_t max_items);
 uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue);

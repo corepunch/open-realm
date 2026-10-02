@@ -924,6 +924,15 @@ void G_InvalidateCommands(gameClient_t *client) {
     }
 }
 
+/* Live per-unit button state (Stop's idle glow) changed; rebuild the cards of every viewer selecting it. */
+void G_InvalidateUnitCommands(edict_t *unit) {
+    if (!unit) return;
+    FOR_LOOP(i, game.max_clients) {
+        gameClient_t *client = game.clients + i;
+        if (client->connected && G_IsEntitySelected(client, unit)) client->commands_dirty = true;
+    }
+}
+
 static void G_UpdateClientCommandCards(void) {
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
