@@ -750,6 +750,112 @@ TEST(wc3_bot, captain_retreating_reports_attack_captain_state_only) {
     T_ASSERT(!G_BotCaptainRetreating(player));
 }
 
+TEST(wc3_bot, group_flee_enters_retreat_after_persistent_local_disadvantage_and_returns_home) {
+    static UnitBalance_t const friendly_balance = { .maxHealth = 100, .level = 1 };
+    static UnitBalance_t const enemy_balance = { .maxHealth = 100, .level = 4 };
+    static UnitWeapons_t const enabled_attack = { .attacksEnabled = 1 };
+    bot_t *bot = level.bots + 2;
+    player_t *player = &game.clients[2].ps;
+    botCaptain_t *captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    edict_t *first, *second, *enemy;
+
+    reset_entities();
+    G_BotInitAssault(player);
+    first = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 512, 0, 2, NULL);
+    second = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 544, 0, 2, NULL);
+    enemy = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 600, 0, 1, NULL);
+    first->data.UnitBalance = second->data.UnitBalance = &friendly_balance;
+    enemy->data.UnitBalance = &enemy_balance; enemy->data.UnitWeapons = &enabled_attack;
+    first->health.value = first->health.max_value = 100;
+    second->health.value = second->health.max_value = 100;
+    enemy->health.value = enemy->health.max_value = 100;
+    bot->player = player;
+    bot->flags = BOT_GROUPS_FLEE;
+    captain->state = BOT_CAPTAIN_ACTIVE;
+    captain->home = MAKE(vec2_t, 0, 0);
+    captain->units = gi.MemAlloc(2 * sizeof(edict_t *));
+    ARRAY_COUNT(captain->units) = 2;
+    captain->units[0] = first; captain->units[1] = second;
+    unit_entercombat(first, enemy); unit_entercombat(second, enemy);
+
+    level.time = 1000;
+    G_BotUpdateGroupFlee(player);
+    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
+    T_ASSERT(captain->disadvantage_active);
+
+    level.time = 3499;
+    G_BotUpdateGroupFlee(player);
+    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
+
+    level.time = 3500;
+    G_BotUpdateGroupFlee(player);
+    T_EQ(captain->state, BOT_CAPTAIN_RETREATING);
+    T_ASSERT(G_BotCaptainRetreating(player));
+    T_NULL(first->combatentity); T_NULL(second->combatentity);
+    T_NOT_NULL(first->currentmove); T_EQ(first->currentmove->proc, CAbilityMove);
+    T_NOT_NULL(second->currentmove); T_EQ(second->currentmove->proc, CAbilityMove);
+    T_NOT_NULL(first->goalentity); T_EQ(second->goalentity, first->goalentity);
+    T_FEQ(first->goalentity->s.origin2.x, 0, 0.001f);
+    T_FEQ(first->goalentity->s.origin2.y, 0, 0.001f);
+
+    first->s.origin2 = MAKE(vec2_t, 32, 0);
+    second->s.origin2 = MAKE(vec2_t, 64, 0);
+    level.time = 3600;
+    G_BotUpdateGroupFlee(player);
+    T_EQ(captain->state, BOT_CAPTAIN_IDLE);
+    T_ASSERT(!G_BotCaptainRetreating(player));
+}
+
+TEST(wc3_bot, group_flee_policy_disabled_does_not_enter_retreat) {
+    static UnitBalance_t const friendly_balance = { .maxHealth = 100, .level = 1 };
+    static UnitBalance_t const enemy_balance = { .maxHealth = 100, .level = 10 };
+    static UnitWeapons_t const enabled_attack = { .attacksEnabled = 1 };
+    bot_t *bot = level.bots + 2;
+    player_t *player = &game.clients[2].ps;
+    botCaptain_t *captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    edict_t *member, *enemy;
+
+    reset_entities();
+    G_BotInitAssault(player);
+    member = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 512, 0, 2, NULL);
+    enemy = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 544, 0, 1, NULL);
+    member->data.UnitBalance = &friendly_balance; enemy->data.UnitBalance = &enemy_balance; enemy->data.UnitWeapons = &enabled_attack;
+    member->health.value = member->health.max_value = 100;
+    enemy->health.value = enemy->health.max_value = 100;
+    bot->player = player; bot->flags = 0;
+    captain->state = BOT_CAPTAIN_ACTIVE;
+    captain->units = gi.MemAlloc(sizeof(edict_t *)); ARRAY_COUNT(captain->units) = 1; captain->units[0] = member;
+    unit_entercombat(member, enemy);
+
+    level.time = 1000; G_BotUpdateGroupFlee(player);
+    level.time = 10000; G_BotUpdateGroupFlee(player);
+    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
+    T_ASSERT(!captain->disadvantage_active);
+}
+
+TEST(wc3_bot, retreating_captain_rejects_attack_refresh_until_home) {
+    bot_t *bot = level.bots + 2;
+    player_t *player = &game.clients[2].ps;
+    botCaptain_t *captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    edict_t *member, *target, *retreat_goal;
+
+    reset_entities();
+    G_BotInitAssault(player);
+    member = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 512, 0, 2, NULL);
+    target = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 900, 0, 1, NULL);
+    bot->player = player; captain->state = BOT_CAPTAIN_RETREATING; captain->home = MAKE(vec2_t, 0, 0);
+    captain->units = gi.MemAlloc(sizeof(edict_t *)); ARRAY_COUNT(captain->units) = 1; captain->units[0] = member;
+    G_BotUpdateGroupFlee(player);
+    retreat_goal = member->goalentity;
+    T_NOT_NULL(retreat_goal);
+
+    G_BotAttackMoveKill(player, target);
+    T_EQ(captain->state, BOT_CAPTAIN_RETREATING);
+    T_EQ(member->goalentity, retreat_goal);
+    T_FEQ(captain->goal.x, 0, 0.001f);
+    T_FEQ(captain->goal.y, 0, 0.001f);
+}
+
 TEST(wc3_bot, attack_move_kill_orders_live_assault_members_toward_current_target_position) {
     bot_t *bot = level.bots + 2;
     edict_t *first = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);

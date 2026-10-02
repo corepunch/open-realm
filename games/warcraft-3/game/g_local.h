@@ -1966,6 +1966,8 @@ typedef struct {
     ARRAY(edict_t *, units);
     vec2_t home, goal;
     uint32_t desired;
+    uint32_t disadvantage_since; /* group-flee persistence timer; valid while disadvantage_active */
+    bool disadvantage_active;
     botCaptainState_t state;
 } botCaptain_t;
 
@@ -2291,6 +2293,7 @@ bool G_BotAddAssault(player_t *, int32_t, uint32_t);
 uint32_t G_BotCaptainGroupSize(player_t *);
 bool G_BotCaptainIsFull(player_t *);
 bool G_BotCaptainRetreating(player_t *);
+void G_BotUpdateGroupFlee(player_t *);
 void G_BotRemoveInjuries(player_t *);
 void G_BotRemoveSiege(player_t *);
 int32_t G_BotCaptainReadiness(player_t *, bool);

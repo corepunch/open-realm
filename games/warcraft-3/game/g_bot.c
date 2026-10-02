@@ -12,6 +12,10 @@
 #define BOT_CREEP_CAMP_RADIUS 600.0f // world units; BZ_COMPAT_GUESS: exact retail creep-camp grouping radius is unknown
 #define BOT_ENEMY_BASE_SEARCH_DELAY_MS 1000u // milliseconds; BZ_COMPAT_GUESS: exact retail asynchronous discovery latency is unknown
 #define BOT_DEFAULT_REPLACEMENT_COUNT 3
+#define BOT_GROUP_FLEE_ENEMY_RADIUS 1200.0f // world units; BZ_COMPAT_GUESS: exact retail local-force comparison radius is unknown
+#define BOT_GROUP_FLEE_POWER_RATIO 1.5f // BZ_COMPAT_GUESS: exact retail disadvantage threshold is unknown
+#define BOT_GROUP_FLEE_PERSIST_MS 2500u // milliseconds; BZ_COMPAT_GUESS: exact retail losing-battle persistence is unknown
+#define BOT_GROUP_FLEE_HOME_RADIUS 128.0f // world units; BZ_COMPAT_GUESS: exact captain home-arrival tolerance is unknown
 
 static bot_t *G_BotState(uint32_t player) {
     return player < MAX_PLAYERS ? &level.bots[player] : NULL;
@@ -790,6 +794,128 @@ bool G_BotCaptainInCombat(player_t *player, bool attack) {
     return false;
 }
 
+/* BZ_COMPAT_GUESS: retail exposes the group-flee policy and CaptainRetreating state,
+ * but not the internal battle-strength formula. Use health-weighted unit level as a
+ * deterministic local combat-power proxy; keep it private to the flee evaluator so
+ * direct retail capture can replace the heuristic without changing captain state. */
+static float G_BotRetreatUnitPower(edict_t *unit) {
+    float health_fraction = 1.0f;
+    float level = 1.0f;
+    if (!G_BotUnitAlive(unit)) return 0.0f;
+    if (unit->data.UnitBalance) level = (float)MAX(1, unit->data.UnitBalance->level);
+    if (unit->health.max_value > 0.0f)
+        health_fraction = MIN(1.0f, MAX(0.0f, unit->health.value / unit->health.max_value));
+    return level * health_fraction;
+}
+
+static bool G_BotRetreatEnemyCombatant(edict_t *unit) {
+    if (!G_BotUnitAlive(unit) || !(unit->svflags & SVF_MONSTER)) return false;
+    return (unit->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 0)) ||
+           (unit->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 1));
+}
+
+static bool G_BotRetreatEnemyNearCaptain(botCaptain_t const *captain, edict_t *enemy) {
+    FOR_EACH_ARRAY(edict_t *, member, captain->units)
+        if (G_BotUnitAlive(*member) &&
+            Vector2_distance(&(*member)->s.origin2, &enemy->s.origin2) <= BOT_GROUP_FLEE_ENEMY_RADIUS)
+            return true;
+    return false;
+}
+
+static void G_BotCaptainBeginRetreat(botCaptain_t *captain) {
+    edict_t *waypoint = NULL;
+    if (!captain) return;
+    captain->state = BOT_CAPTAIN_RETREATING;
+    captain->goal = captain->home;
+    captain->disadvantage_active = false;
+    captain->disadvantage_since = 0;
+    FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+        bool already_returning;
+        if (!G_BotUnitAlive(*member)) continue;
+        unit_leavecombat(*member);
+        already_returning = (*member)->currentmove && (*member)->currentmove->proc == CAbilityMove &&
+            (*member)->goalentity && (*member)->goalentity->inuse &&
+            Vector2_distance(&(*member)->goalentity->s.origin2, &captain->home) <= 1.0f;
+        if (already_returning) continue;
+        if (!waypoint) waypoint = Waypoint_add(&captain->home);
+        order_move(*member, waypoint);
+    }
+}
+
+static void G_BotCaptainUpdateRetreat(botCaptain_t *captain) {
+    edict_t *waypoint = NULL;
+    bool any = false, all_home = true;
+    if (!captain) return;
+
+    FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+        edict_t *unit = *member;
+        if (!G_BotUnitAlive(unit)) continue;
+        any = true;
+        unit_leavecombat(unit);
+        if (Vector2_distance(&unit->s.origin2, &captain->home) <= BOT_GROUP_FLEE_HOME_RADIUS) continue;
+        all_home = false;
+        if (!unit->currentmove || unit->currentmove->proc != CAbilityMove ||
+            !unit->goalentity || !unit->goalentity->inuse ||
+            Vector2_distance(&unit->goalentity->s.origin2, &captain->home) > 1.0f) {
+            unit_leavecombat(unit);
+            if (!waypoint) waypoint = Waypoint_add(&captain->home);
+            order_move(unit, waypoint);
+        }
+    }
+
+    if (!any || all_home) {
+        captain->state = BOT_CAPTAIN_IDLE;
+        captain->goal = captain->home;
+        captain->disadvantage_active = false;
+        captain->disadvantage_since = 0;
+    }
+}
+
+/* SetGroupsFlee is engine policy, while stock common.ai only observes the result through
+ * CaptainRetreating(). BZ_COMPAT_GUESS: compare nearby hostile combat power against the
+ * active assault captain and require the disadvantage to persist before retreating.
+ * The threshold, neighborhood, persistence, and home tolerance are isolated constants. */
+void G_BotUpdateGroupFlee(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    float friendly_power = 0.0f, enemy_power = 0.0f;
+    uint32_t now;
+    if (!bot) return;
+    captain = bot->captains + BOT_CAPTAIN_ATTACK;
+
+    if (captain->state == BOT_CAPTAIN_RETREATING) {
+        G_BotCaptainUpdateRetreat(captain);
+        return;
+    }
+    if (!(bot->flags & BOT_GROUPS_FLEE) || captain->state != BOT_CAPTAIN_ACTIVE ||
+        !G_BotCaptainInCombat(player, true)) {
+        captain->disadvantage_active = false;
+        captain->disadvantage_since = 0;
+        return;
+    }
+
+    FOR_EACH_ARRAY(edict_t *, member, captain->units)
+        friendly_power += G_BotRetreatUnitPower(*member);
+    FILTER_EDICTS(enemy, G_BotRetreatEnemyCombatant(enemy) && G_BotIsHostile(player, enemy) &&
+        G_BotRetreatEnemyNearCaptain(captain, enemy))
+        enemy_power += G_BotRetreatUnitPower(enemy);
+
+    if (friendly_power <= 0.0f || enemy_power <= friendly_power * BOT_GROUP_FLEE_POWER_RATIO) {
+        captain->disadvantage_active = false;
+        captain->disadvantage_since = 0;
+        return;
+    }
+
+    now = G_Time();
+    if (!captain->disadvantage_active) {
+        captain->disadvantage_active = true;
+        captain->disadvantage_since = now;
+        return;
+    }
+    if ((uint32_t)(now - captain->disadvantage_since) < BOT_GROUP_FLEE_PERSIST_MS) return;
+    G_BotCaptainBeginRetreat(captain);
+}
+
 /* common.ai repeatedly calls AttackMoveKill while its selected target lives.
  * Issue an attack-move for the current assault captain toward the target's
  * current position; the script's three-second loop refreshes moving targets.
@@ -803,6 +929,7 @@ void G_BotAttackMoveKill(player_t *player, edict_t *target) {
 
     if (!bot || !G_BotUnitAlive(target)) return;
     captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    if (captain->state == BOT_CAPTAIN_RETREATING) return;
     FOR_EACH_ARRAY(edict_t *, member, captain->units)
         if (G_BotUnitAlive(*member)) { any = true; break; }
     if (!any) return;
@@ -1099,6 +1226,7 @@ bool G_BotSuicideUnits(player_t *player, int32_t qty, uint32_t class_id, int32_t
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     bool accepted;
     if (!bot || qty <= 0 || !class_id) return qty <= 0;
+    if (bot->captains[BOT_CAPTAIN_ATTACK].state == BOT_CAPTAIN_RETREATING) return false;
     accepted = G_BotAddAssault(player, qty, class_id);
     FOR_EACH_ARRAY(edict_t *, member, bot->captains[BOT_CAPTAIN_ATTACK].units) {
         edict_t *unit = *member;
@@ -1117,6 +1245,7 @@ bool G_BotSuicidePlayer(player_t *player, uint32_t target, bool check_full) {
     bool any = false;
     if (!bot) return false;
     captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    if (captain->state == BOT_CAPTAIN_RETREATING) return false;
     FOR_EACH_ARRAY(edict_t *, member, captain->units) if (G_BotUnitAlive(*member)) { any = true; break; }
     if (!any) return false;
     if (check_full && !G_BotCaptainIsFull(player)) return false;
@@ -1389,6 +1518,7 @@ void G_BotRunFrame(void) {
         if (bot->stop_requested) { G_BotStop(player); continue; }
         if (bot->paused) continue;
         G_BotApplyRepairPolicy(bot);
+        G_BotUpdateGroupFlee(bot->player);
         jass_runevents(bot->vm);
         if (bot->stop_requested) { G_BotStop(player); continue; }
         if (bot->restart_requested) {
