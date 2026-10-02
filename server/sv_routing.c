@@ -59,7 +59,7 @@ struct {
     uint8_t *approach_mask;    /* reusable footprint-approach proximity/candidate mask */
 } pathmap = { 0 };
 
-#define HEATMAP_CACHE_SLOTS 4
+#define HEATMAP_CACHE_SLOTS 16
 
 typedef struct {
     point2_t target;    /* pathmap cell coordinate of the goal; {-1,-1} = invalid */
@@ -79,11 +79,22 @@ typedef struct {
     bool active;
     bool started;
     point2_t target;
+    edict_t *requester;
+    edict_t *goalentity;
     int radius_cells;
     uint8_t blocked_flags;
     uint32_t head;
     uint32_t tail;
+    uint32_t work_done;
 } heatmapJob_t;
+
+typedef struct {
+    point2_t target;
+    int radius_cells;
+    uint8_t blocked_flags;
+    edict_t *requester;
+    edict_t *goalentity;
+} heatmapRequest_t;
 
 typedef struct {
     pathTex_t const *pathtex;
@@ -97,6 +108,9 @@ typedef struct {
  * steering and stop at trees/buildings.  Keep one resumable build here so the
  * expensive relaxation work is bounded per simulation frame. */
 static heatmapJob_t heatmap_job = { 0 };
+static heatmapRequest_t *heatmap_pending = NULL;
+static uint32_t heatmap_pending_count = 0;
+static uint32_t heatmap_pending_capacity = 0;
 static uint32_t path_search_stamp = 0;
 
 #define PATH_ACCEL_MAX_EXPANSIONS 2048 // nodes/request; bounds immediate point-route work before shared-field fallback
@@ -153,6 +167,7 @@ static void heatmap_cache_invalidate(void) {
     active_heatmap          = NULL;
     memset(heatmap_lru, 0, sizeof(heatmap_lru));
     heatmap_job_cancel();
+    heatmap_pending_count = 0;
 }
 
 void CM_InvalidatePathCache(void) {
@@ -261,6 +276,8 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     SAFE_DELETE(pathmap.obstacle_prefix, MemFree);
     SAFE_DELETE(pathmap.nofly_prefix, MemFree);
     SAFE_DELETE(pathmap.approach_mask, MemFree);
+    SAFE_DELETE(heatmap_pending, MemFree);
+    heatmap_pending_count = heatmap_pending_capacity = 0;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         SAFE_DELETE(heatmap_cache[i].prices, MemFree);
     }
@@ -363,6 +380,7 @@ static void begin_heatmap_build(heatmapJob_t *job, point2_t target, int radius_c
     job->blocked_flags = normalize_blocked_flags(blocked_flags);
     job->head = 0;
     job->tail = 1;
+    job->work_done = 0;
     job->started = true;
     pathmap.heatmap[ti].price = 0;
     pathmap.heatmap[ti].closed = true;
@@ -416,6 +434,7 @@ static bool step_heatmap_build(heatmapJob_t *job, uint32_t work_budget) {
             }
         }
     }
+    job->work_done += work;
     return job->head == job->tail;
 }
 
@@ -1563,6 +1582,88 @@ static int find_cached_heatmap(point2_t target, int radius_cells, uint8_t blocke
     return -1;
 }
 
+static bool heatmap_request_matches(heatmapRequest_t const *request, point2_t target,
+                                    int radius_cells, uint8_t blocked_flags) {
+    return request->target.x == target.x && request->target.y == target.y &&
+        request->radius_cells == radius_cells &&
+        request->blocked_flags == normalize_blocked_flags(blocked_flags);
+}
+
+static void heatmap_job_start(heatmapRequest_t const *request) {
+    heatmap_job = (heatmapJob_t){
+        .active = true,
+        .target = request->target,
+        .requester = request->requester,
+        .goalentity = request->goalentity,
+        .radius_cells = request->radius_cells,
+        .blocked_flags = normalize_blocked_flags(request->blocked_flags),
+    };
+}
+
+/* A miss must remember its place in line. Otherwise the first entity visited
+ * after every completed field can replace the next request forever, starving
+ * later movers that keep retrying the same cache miss. */
+static bool heatmap_request_enqueue(point2_t target, int radius_cells, uint8_t blocked_flags,
+                                   edict_t *requester, edict_t *goalentity) {
+    heatmapRequest_t request = {
+        .target = target,
+        .radius_cells = radius_cells,
+        .blocked_flags = normalize_blocked_flags(blocked_flags),
+        .requester = requester,
+        .goalentity = goalentity,
+    };
+
+    FOR_LOOP(i, heatmap_pending_count) {
+        heatmapRequest_t *pending = heatmap_pending + i;
+        if (heatmap_request_matches(pending, target, radius_cells, blocked_flags))
+            return false;
+        /* Moving targets can change cells while queued. Keep their FIFO place,
+         * but update the destination so we do not later bake an obsolete field. */
+        if (goalentity && pending->goalentity == goalentity &&
+            pending->radius_cells == radius_cells && pending->blocked_flags == request.blocked_flags) {
+            pending->target = target;
+            return false;
+        }
+    }
+
+    if (heatmap_pending_count == heatmap_pending_capacity) {
+        uint32_t const capacity = heatmap_pending_capacity ? heatmap_pending_capacity * 2 : 16;
+        heatmapRequest_t *expanded;
+        if (capacity < heatmap_pending_capacity ||
+            (uint64_t)capacity * sizeof(*expanded) > LONG_MAX) {
+            fprintf(stderr, "CM_RequestHeatmap: pending route queue capacity overflow\n");
+            return false;
+        }
+        expanded = MemAlloc((long)(capacity * sizeof(*expanded)));
+        if (!expanded) {
+            fprintf(stderr, "CM_RequestHeatmap: unable to grow pending route queue to %u entries\n",
+                    (unsigned)capacity);
+            return false;
+        }
+        if (heatmap_pending_count)
+            memcpy(expanded, heatmap_pending, heatmap_pending_count * sizeof(*expanded));
+        SAFE_DELETE(heatmap_pending, MemFree);
+        heatmap_pending = expanded;
+        heatmap_pending_capacity = capacity;
+    }
+    heatmap_pending[heatmap_pending_count++] = request;
+    return true;
+}
+
+static bool heatmap_job_start_next(void) {
+    while (heatmap_pending_count) {
+        heatmapRequest_t request = heatmap_pending[0];
+        memmove(heatmap_pending, heatmap_pending + 1,
+            (heatmap_pending_count - 1) * sizeof(*heatmap_pending));
+        heatmap_pending_count--;
+        if (find_cached_heatmap(request.target, request.radius_cells, request.blocked_flags) >= 0)
+            continue;
+        heatmap_job_start(&request);
+        return true;
+    }
+    return false;
+}
+
 static int choose_heatmap_cache_slot(void) {
     int evict = 0;
 
@@ -1618,6 +1719,7 @@ uint32_t CM_BuildHeatmapForRadius(edict_t *goalentity, float radius) {
      * No production gameplay caller uses this path; cancel a pending job so a
      * direct test/tool build cannot leave its queue state half-valid. */
     heatmap_job_cancel();
+    heatmap_pending_count = 0;
     begin_heatmap_build(&job, target, radius_cells, CM_PATHING_UNWALKABLE);
     while (!step_heatmap_build(&job, UINT_MAX)) {
         /* UINT_MAX is already effectively unbounded for WC3 pathmap sizes. */
@@ -1630,11 +1732,10 @@ uint32_t CM_BuildHeatmap(edict_t *goalentity) {
 }
 
 /* Request a game-routing field without doing a synchronous whole-map flood.
- * A cache hit returns its generation immediately.  A miss starts (or waits for)
- * the single resumable build and returns zero until CM_ProcessPathJobs()
- * finishes it.  Repeated unit thinks naturally retry the same request, so a
- * second destination cannot be lost: it starts after the current job completes. */
-uint32_t CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, float radius, uint8_t blocked_flags) {
+ * Cache misses take a place in the shared FIFO so an earlier entity visited
+ * every frame cannot repeatedly claim the single build slot. */
+uint32_t CM_RequestHeatmapForMoverFlags(edict_t *requester, edict_t *goalentity,
+                                        float radius, uint8_t blocked_flags) {
     point2_t target;
     int radius_cells;
     int cached;
@@ -1649,16 +1750,20 @@ uint32_t CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, float radius, uint
         return heatmap_cache[cached].generation;
     }
 
-    if (heatmap_job.active)
+    if (heatmap_job.active && heatmap_job.target.x == target.x &&
+        heatmap_job.target.y == target.y && heatmap_job.radius_cells == radius_cells &&
+        heatmap_job.blocked_flags == blocked_flags)
         return 0;
 
-    PERF_INC(cache_misses);
-    heatmap_job.active = true;
-    heatmap_job.started = false;
-    heatmap_job.target = target;
-    heatmap_job.radius_cells = radius_cells;
-    heatmap_job.blocked_flags = blocked_flags;
+    if (heatmap_request_enqueue(target, radius_cells, blocked_flags, requester, goalentity))
+        PERF_INC(cache_misses);
+    if (!heatmap_job.active)
+        (void)heatmap_job_start_next();
     return 0;
+}
+
+uint32_t CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, float radius, uint8_t blocked_flags) {
+    return CM_RequestHeatmapForMoverFlags(NULL, goalentity, radius, blocked_flags);
 }
 
 uint32_t CM_RequestHeatmapForRadius(edict_t *goalentity, float radius) {
@@ -1677,6 +1782,33 @@ void CM_ProcessPathJobs(uint32_t work_budget) {
 
     commit_heatmap(heatmap_job.target, heatmap_job.radius_cells, heatmap_job.blocked_flags);
     heatmap_job_cancel();
+    (void)heatmap_job_start_next();
+}
+
+void CM_GetPathJobStatus(cmPathJobStatus_t *status) {
+    uint32_t const cap = pathmap.width * pathmap.height + 1;
+    if (!status) return;
+    memset(status, 0, sizeof(*status));
+    status->active = heatmap_job.active;
+    status->started = heatmap_job.started;
+    status->target_cell_x = heatmap_job.target.x;
+    status->target_cell_y = heatmap_job.target.y;
+    status->radius_cells = heatmap_job.radius_cells;
+    status->blocked_flags = heatmap_job.blocked_flags;
+    status->work_done = heatmap_job.work_done;
+    status->pending_jobs = heatmap_pending_count;
+    if (heatmap_job.requester && heatmap_job.requester->inuse) {
+        status->requester_number = heatmap_job.requester->s.number;
+        status->requester_rawcode = heatmap_job.requester->class_id;
+    }
+    if (heatmap_job.goalentity && heatmap_job.goalentity->inuse) {
+        status->goal_number = heatmap_job.goalentity->s.number;
+        status->goal_rawcode = heatmap_job.goalentity->class_id;
+    }
+    if (heatmap_job.active && cap)
+        status->pending_cells = heatmap_job.tail >= heatmap_job.head
+            ? heatmap_job.tail - heatmap_job.head
+            : cap - heatmap_job.head + heatmap_job.tail;
 }
 
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)

@@ -1333,6 +1333,11 @@ typedef enum {
     MOVE_FALLBACK_APPLIED,
 } moveFallbackState_t;
 
+typedef enum {
+    MOVE_DIAG_NONE,
+    MOVE_DIAG_ROUTE_WAIT,
+} moveDiagState_t;
+
 typedef struct edictArtillery_s {
     uint32_t attack_type, area_targets, targets_allowed;
     float area_full, area_medium, area_small, factor_medium, factor_small;
@@ -1660,6 +1665,16 @@ struct edict_s {
         routePath_t path; /* persistent WC3 accelerator state shared with other server games */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
+        vec2_t route_resume_direction;
+        vec2_t route_resume_goal_origin;
+        edict_t *route_resume_goal;
+        uint32_t route_resume_goal_spawn, route_resume_time;
+        float route_resume_radius;
+        uint8_t route_resume_flags;
+        bool route_resume_valid, route_resume_active;
+        bool path_wait_active;
+        uint32_t path_wait_start, path_wait_goal_number, path_wait_goal_spawn;
+        vec2_t path_wait_origin;
         vec2_t worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
         uint32_t worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */

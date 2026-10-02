@@ -58,13 +58,17 @@ Plain right-click movement is different from an interaction order: `move_selectl
 
 Game routing no longer uses the old lifetime quota of two synchronous whole-map flow-field bakes. That quota avoided repeated handheld stalls, but after it was spent a later uncached move order received generation 0 forever and generic steering fell back toward the raw target. A reachable order behind trees/buildings could therefore stop even though the static router could have found a route.
 
-`CM_RequestHeatmapForRadius()` is the game-facing shared-cache miss path. A cache hit returns its generation immediately; a miss starts one resumable reverse shortest-path job and returns 0 until the job completes. `G_RunFrame()` advances that job after entity simulation through `CM_ProcessPathJobs()`. The default relaxation budget is 32,768 queue pops per frame and is runtime-tunable with:
+`CM_RequestHeatmapForRadius()` is the game-facing shared-cache miss path. A cache hit returns its generation immediately; a miss takes a place in a FIFO of distinct target/radius/pathing-mask requests and returns 0 until its job completes. `G_RunFrame()` advances the active resumable reverse shortest-path job after entity simulation through `CM_ProcessPathJobs()`. On completion, the next queued request is promoted before later entity thinks can claim the slot. Repeated requests for the same field share one queue entry, and a moving goal updates its queued destination without losing its place. This prevents early entities from repeatedly taking the slot after each completion and starving later movers. Static-pathing invalidation clears both the active job and pending requests.
+
+The default relaxation budget is 65,536 queue pops per frame and is runtime-tunable with:
 
 ```sh
-+set wc3_path_work_budget 32768
++set wc3_path_work_budget 65536
 ```
 
-The value is clamped to 256-65,536. This keeps SPFA relaxation bounded without permanently denying later destinations. Only one miss is built at a time; requests for other destinations retry after the active job completes. Static-pathing invalidation cancels the in-progress job along with cached generations.
+The value is clamped to 256-65,536. The doubled Warcraft III default is a trial aimed at shortening the route-wait frames seen when new and moving units add distinct destinations to the shared FIFO. It keeps SPFA relaxation bounded while allowing each queued destination to make more progress per frame. Only one miss is built at a time; later destinations wait in FIFO order. Route-wait diagnostics can report active flood progress and queued destination fields.
+
+For temporary per-mover wait diagnostics, enable `wc3_route_wait_debug 1`. The log emits one `WC3_ROUTE_WAIT begin` and matching `end` line per route-field wait, with mover and goal identities, wait duration, position delta, active job target, and FIFO depth. Set it back to `0` after capturing the behavior.
 
 Nearby detours do not wait for that whole field. `CM_FindPathWaypoint()` runs a bounded point-to-point A* accelerator for endpoints within 48 pathing cells, expands at most 2,048 nodes, and returns the farthest recovered path point with a collision-sized clear line from the mover. The mover retains that waypoint until it reaches it, the target changes, or static pathing invalidates the segment. A failed or out-of-envelope acceleration request falls back to the shared incremental field, so long routes remain frame-budgeted.
 
@@ -74,7 +78,7 @@ Plain Move also keeps the stand presentation while that pair is clear. The order
 
 The stepper rejects a collision-free candidate along a turn-lagged facing when it points more than 90 degrees away from the resolved route heading or increases distance to the active goal. The old stepper accepted the facing candidate first, so a short scripted cinematic move could advance in the wrong direction while the unit was still rotating; Human02Interlude then left Jaina on Antonidas's later ride-off path. Construction displacement uses its temporary exit point as the active progress goal until it is reached, after which the unit resumes its original order. `unit_commit_step()` and the arrival snap keep the network/render `origin` synchronized with authoritative `origin2` for the same reason.
 
-The regression is `wc3_movement.turn_lag_does_not_step_away_from_route_heading` in `games/warcraft-3/game/tests/t_movement.c`. Run both game variants with:
+The route-job fairness regression is `wc3_movement.attack_chase_waits_through_competing_route_jobs_then_resumes`; it keeps distinct route requests arriving while asserting the attacker gets its earlier queued field and resumes before those later requests drain. `wc3_movement.turn_lag_does_not_step_away_from_route_heading` covers turn-lag steering. Both live in `games/warcraft-3/game/tests/t_movement.c`. Run both game variants with:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_movement.*'
