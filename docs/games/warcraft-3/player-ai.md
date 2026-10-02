@@ -317,8 +317,9 @@ This phase is not part of Human02's definition of done.
 Full multiplayer melee AI is tracked by [issue #215](https://github.com/corepunch/open-realm/issues/215). A two-player
 Booty Bay lobby with an Orc computer slot reaches `MeleeStartingAI`, starts the unchanged `Scripts/orc.ai`, and uses the
 same per-player VM as campaign AI. The first confirmed melee-only registration is `SetHeroLevels(function SkillArrays)`:
-the callback is retained as VM-owned bot policy rather than eagerly called during `StandardAI` startup. A level-up
-consumer has not yet been proven/implemented, so the stored callback must not be described as active skill-selection AI.
+the callback is retained as VM-owned bot policy rather than eagerly called during `StandardAI` startup. When an AI-owned
+Hero gains a level, the callback is evaluated synchronously once per crossed level with `GetHeroId()` and
+`GetHeroLevelAI()` set for that Hero/level; its returned ability rawcode enters ordinary `G_HeroLearnSkill` validation.
 
 TFT melee initialization adds `Amic` to each starting town hall and marks it permanent before race AI starts.
 `UnitAddAbility` and `UnitRemoveAbility` therefore maintain per-unit runtime additions and suppressions over immutable
@@ -326,18 +327,16 @@ TFT melee initialization adds `Amic` to each starting town hall and marks it per
 Duplicate adds, absent removes, and permanence requests for absent abilities return false. Runtime skill queries consume
 the same overlay, and entity removal, level shutdown, and test resets release its storage.
 
-The lobby currently exposes no per-slot difficulty selector, so `GetAIDifficulty` returns
-`AI_DIFFICULTY_NORMAL` for valid players. AI-script `MeleeDifficulty()` independently returns the `common.ai` integer
+The lobby currently exposes no per-slot difficulty selector, so `GetAIDifficulty` uses a compatibility mapping from
+active map difficulty: Easy -> `AI_DIFFICULTY_NEWBIE`, Insane -> `AI_DIFFICULTY_INSANE`, and Normal/Hard ->
+`AI_DIFFICULTY_NORMAL`. `BZ_COMPAT_GUESS`: retail AI difficulty may be independent of map difficulty; a future per-slot
+lobby field should replace this fallback. AI-script `MeleeDifficulty()` independently returns the `common.ai` integer
 `MELEE_NORMAL` (`2`); do not return the `aidifficulty` handle payload directly because those enum values are
 `AI_DIFFICULTY_NEWBIE/NORMAL/INSANE = 0/1/2`, while `common.ai` uses `MELEE_NEWBIE/NORMAL/INSANE = 1/2/3`.
-`aidifficulty` is a value-like JASS enum handle and must remain in the VM's payload-comparison type table. Add a lobby
-field before supporting newbie or insane; both APIs should then read the same per-slot setting and map it to their own
-public value scales. Until then, all four race scripts take their normal-difficulty branches: newbie-only opening and
-economy changes stay disabled, and no insane-specific behavior is selected. This is a known script-compatibility gap,
-not a claim that the scripts' full difficulty behavior is implemented. Do not infer difficulty from race, team, or map
-settings.
+`aidifficulty` is a value-like JASS enum handle and must remain in the VM's payload-comparison type table.
+`MeleeDifficulty()` remains normal until AI-slot difficulty is modeled. Do not infer AI difficulty from race or team.
 
-AI policy setters remain state-only unless a concrete runtime consumer is documented. `SetTargetHeroes` now affects
+AI policy setters are state-only unless a concrete runtime consumer is documented. `SetTargetHeroes` now affects
 ordinary automatic acquisition for units owned by a running AI: legal enemy Heroes are a higher-priority category, with
 nearest-target selection preserved inside that category. Explicit attack orders are unchanged. `SetSmartArtillery` uses the
 same bounded policy hook for siege-capable AI units, prioritizing legal structures before ordinary targets; it does not
@@ -346,11 +345,15 @@ autocast path, so authored target categories, alliances, acquisition range, reso
 rules remain authoritative. Existing dirty-policy reconciliation applies changes to current units, and unit-ready handling
 applies the policy to newly trained or created workers.
 
-`SetHeroLevels`, `SetHeroesFlee`, `SetHeroesTakeItems`, and `SetHeroesBuyItems` still store VM-owned policy without a
-proven generic C consumer for skill selection, individual retreat, item pickup, or purchasing. Do not invent those
-behaviors from the flag names; implement them only when the unchanged Blizzard AI scripts and runtime contract establish
-when/how the policy is consumed. `SetDefendPlayer` likewise remains policy state until the defense-player selection and
-retargeting contract is recovered.
+`SetHeroesFlee` and `SetUnitsFlee` return qualifying low-health combat units toward the primary town when a hostile is
+nearby. `SetHeroesTakeItems` uses the ordinary pickup order for non-combat Heroes, ranking nearby legal items by
+`ItemData.prio`; `SetHeroesBuyItems` attempts the highest-priority affordable, stocked item only when its Hero is already
+within an accessible shop's activation range. `SetDefendPlayer` redirects only the defense captain to an actively
+attacked, mutually allied player's position and returns it to its authored home after the threat ends. `BZ_COMPAT_GUESS`:
+flee threshold/radius/cadence, primary-town retreat destination, item scan radius/cadence and `ItemData.prio` ranking,
+purchase cadence/ranking, allied-defense scan cadence, and first-threat selection are isolated in `g_bot.c`; retail engine
+policy for these details is not established. These policies use the normal order, item, and shop systems, preserving their
+target, inventory, stock, access, and resource checks.
 
 With these startup APIs, bounded TFT Booty Bay launches start all four unchanged race scripts without a JASS runtime
 error: `Scripts/human.ai`, `Scripts/orc.ai`, `Scripts/undead.ai`, and `Scripts/elf.ai`. Keep slot type fixed at `2`
@@ -544,8 +547,8 @@ The remaining reachable natives are registered: `AddAssault`, `CaptainInCombat`,
 `UnitAlive`, `GetTownUnitCount`, `UnitInvis`, `GetNextExpansion`, `GetExpansionFoe`, `GetExpansionPeon`,
 `GetExpansionX`, `GetExpansionY`, `SetExpansion`, `GetAllianceTarget`, and `SetAllianceTarget`.
 
-Registration and behavior are separate questions. For example, several melee policy setters and `SetHeroLevels` store
-per-bot policy without a proven consumer; see the policy caveats above. `StartMeleeAI`, `StartCampaignAI`, and
+Registration and behavior are separate questions. Remaining policy gaps and the compatibility guesses used by the
+current consumers are described above. `StartMeleeAI`, `StartCampaignAI`, and
 `GetAIDifficulty` are declared by `common.j` rather than `common.ai`; OpenRealm registers all three, and the startup
 functions load the requested player-bound AI script. `CommandAI` is likewise a `common.j` native and is implemented
 through the ordered per-player command queue. `Player`, `GetRandomInt`, `VersionCompatible`, JASS control flow, and

@@ -1617,4 +1617,59 @@ TEST(wc3_bot, convert_units_rejects_missing_conversion_ability) {
     T_ASSERT(!G_BotConvertUnits(player, 1, MAKEFOURCC('h','p','e','a')));
 }
 
+TEST(wc3_bot, individual_flee_policy_moves_damaged_combat_unit_home) {
+    player_t *player = &game.clients[2].ps;
+    edict_t *hall, *unit, *enemy;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 500, 0, 2, NULL);
+    enemy = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 550, 0, 1, NULL);
+    unit->health.max_value = 100; unit->health.value = 20;
+    level.bots[2].flags = BOT_UNITS_FLEE;
+    level.time = 1000;
+
+    G_BotUpdateIndividualFlee(player);
+
+    T_NOT_NULL(hall);
+    T_NOT_NULL(unit->currentmove);
+    T_EQ(unit->currentmove->proc, CAbilityMove);
+    T_NOT_NULL(unit->goalentity);
+    T_ASSERT(Vector2_distance(&unit->goalentity->s.origin2, &hall->s.origin2) < 1.0f);
+    T_NOT_NULL(enemy);
+}
+
+TEST(wc3_bot, defend_player_redirects_only_defense_captain_and_returns_home) {
+    static umove_t attack_move = { "attack", NULL, NULL, CAbilityAttack };
+    player_t *player = &game.clients[2].ps;
+    player_t *ally = &game.clients[1].ps;
+    edict_t *defender, *ally_unit, *attacker;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    defender = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);
+    ally_unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 400, 0, 1, NULL);
+    attacker = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 450, 0, 0, NULL);
+    G_SetPlayerAlliance(player, ally, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(ally, player, ALLIANCE_PASSIVE, true);
+    G_BotCreateCaptains(player);
+    T_ASSERT(G_BotAddDefenders(player, 1, defender->class_id));
+    G_BotSetCaptainHome(player, 2, 0, 0);
+    level.bots[2].flags = BOT_DEFEND_PLAYER;
+    attacker->goalentity = ally_unit;
+    attacker->currentmove = &attack_move;
+    level.time = 1000;
+
+    G_BotUpdateDefendPlayer(player);
+    T_EQ(level.bots[2].captains[BOT_CAPTAIN_DEFENSE].state, BOT_CAPTAIN_ACTIVE);
+    T_NOT_NULL(defender->currentmove);
+    T_EQ(defender->currentmove->proc, CAbilityAttack);
+
+    attacker->currentmove = NULL;
+    level.time += 600;
+    G_BotUpdateDefendPlayer(player);
+    T_EQ(level.bots[2].captains[BOT_CAPTAIN_DEFENSE].state, BOT_CAPTAIN_IDLE);
+    T_NOT_NULL(defender->currentmove);
+    T_EQ(defender->currentmove->proc, CAbilityMove);
+}
+
 #endif /* BZ_TESTS */

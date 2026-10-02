@@ -2034,6 +2034,11 @@ typedef struct {
     uint32_t hero_id;
     uint32_t hero_level;
     bool repair_policy_dirty;
+    uint32_t item_policy_last_scan; /* BZ_COMPAT_GUESS cadence for autonomous Hero item policy */
+    uint32_t hero_buy_last_scan; /* BZ_COMPAT_GUESS cadence for autonomous Hero shop purchases */
+    uint32_t flee_policy_last_scan; /* BZ_COMPAT_GUESS cadence for individual flee evaluation */
+    uint32_t defend_policy_last_scan; /* BZ_COMPAT_GUESS cadence for allied-defense response */
+    bool defend_player_active; /* engine-owned defense-captain diversion created by SetDefendPlayer */
     bool paused, stop_requested, restart_requested;
     char script[MAX_PATHLEN], pending_script[MAX_PATHLEN];
 } bot_t;
@@ -2295,6 +2300,9 @@ bool G_BotCaptainIsFull(player_t *);
 bool G_BotCaptainRetreating(player_t *);
 void G_BotUpdateGroupFlee(player_t *);
 void G_BotRefreshPeonsRepair(player_t *);
+void G_BotUpdateIndividualFlee(player_t *);
+void G_BotUpdateHeroItems(player_t *);
+void G_BotUpdateDefendPlayer(player_t *);
 void G_BotRemoveInjuries(player_t *);
 void G_BotRemoveSiege(player_t *);
 int32_t G_BotCaptainReadiness(player_t *, bool);

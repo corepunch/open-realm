@@ -514,9 +514,9 @@ This correction preserves the existing RoC-only version-reporting policy (`Versi
 version reporting remains a separate conformance gap.
 
 After the handle correction, the bounded Twisted Meadows lobby reached gameplay. `MeleeDifficulty` is now registered
-for the AI VM and returns `MELEE_NORMAL` (`2`), matching the current Normal-only lobby policy without confusing that
-integer scale with the `aidifficulty` handle payload used by `GetAIDifficulty`. Newbie/insane support remains gated on
-a per-slot lobby difficulty setting.
+for the AI VM and returns `MELEE_NORMAL` (`2`). `GetAIDifficulty` currently maps active map difficulty to the
+`aidifficulty` handle scale as a `BZ_COMPAT_GUESS` because no per-slot AI difficulty is modeled; this must not be
+confused with `MeleeDifficulty`'s integer scale. A per-slot lobby setting should replace this fallback.
 
 ### Shared Galaxy Error Boundaries
 
