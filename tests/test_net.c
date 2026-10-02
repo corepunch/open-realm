@@ -3646,6 +3646,7 @@ TEST(net, minimap_ping_packet_reaches_generic_client_state) {
 
     T_EQ(CL_MinimapPingCount(), 1);
     T_EQ(CL_MinimapRecentCount(), 1);
+    T_EQ(msg.cursize, 22); /* opcode + 21-byte position/lifetime/size/RGBA/flags payload */
 }
 
 /* A truncated marker cannot create partial presentation or history state. */

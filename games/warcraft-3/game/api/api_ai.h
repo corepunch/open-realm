@@ -157,15 +157,18 @@ uint32_t SetUpgrade(jass_t *j) {
 }
 
 uint32_t GetUnitGoldCost(jass_t *j) {
-    return jass_pushinteger(j, MAX(0, G_UnitBalance(jass_checkinteger(j, 1))->goldCost));
+    UnitBalance_t const *balance = G_UnitBalance((uint32_t)jass_checkinteger(j, 1));
+    return jass_pushinteger(j, balance ? MAX(0, balance->goldCost) : 0);
 }
 
 uint32_t GetUnitWoodCost(jass_t *j) {
-    return jass_pushinteger(j, MAX(0, G_UnitBalance(jass_checkinteger(j, 1))->lumberCost));
+    UnitBalance_t const *balance = G_UnitBalance((uint32_t)jass_checkinteger(j, 1));
+    return jass_pushinteger(j, balance ? MAX(0, balance->lumberCost) : 0);
 }
 
 uint32_t GetUnitBuildTime(jass_t *j) {
-    return jass_pushinteger(j, MAX(0, G_UnitBalance(jass_checkinteger(j, 1))->buildTime));
+    UnitBalance_t const *balance = G_UnitBalance((uint32_t)jass_checkinteger(j, 1));
+    return jass_pushinteger(j, balance ? MAX(0, balance->buildTime) : 0);
 }
 
 uint32_t GetUpgradeLevel(jass_t *j) {

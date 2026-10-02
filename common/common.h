@@ -58,7 +58,7 @@ enum svc_ops {
 //    svc_reconnect,
     svc_sound,                    // [byte flags] [short sound] [optional volume/attenuation/offset/entity/position]
     svc_music,                    // [byte musicCommand_t] [command-specific reliable presentation payload]
-    svc_minimap_ping,             // [vec2 position] [float seconds] [rgba] [byte flags]
+    svc_minimap_ping,             // [vec2 position] [float seconds] [float marker size] [rgba] [byte flags]
 //    svc_print,                    // [byte] id [string] null terminated string
 //    svc_stufftext,                // [string] stuffed into client's console buffer, should be \n terminated
 //    svc_serverdata,                // [long] protocol ...
