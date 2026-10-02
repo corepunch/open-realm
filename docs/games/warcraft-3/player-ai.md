@@ -256,6 +256,12 @@ TFT `common.ai` uses JASS `debug call`, `debug set`, and `debug if` statements. 
 
 `DisplayText`, `DisplayTextI`, `DisplayTextII`, and `DisplayTextIII` are AI diagnostics, not client UI messages. They write one player-prefixed line to `stderr`, decode Blizzard's literal `\\n`, and substitute only the native family's zero to three `%d` values into a bounded buffer; unknown format sequences remain literal. With these diagnostics and `GetUnitBuildTime`, a bounded TFT Human02 run starts `h02_red.ai`, reports its authored wave estimates, and completes 6000 frames without a parser, unresolved-native, or JASS runtime error.
 
+For a campaign AI trace, build with `WC3_DEBUG_AI=1` and set `wc3_ai_trace 1`.
+Each Blizzard `DisplayText*` trace then gets a neighboring `WC3_AI_TRACE` record
+with simulation time, player, script, current JASS function, and call chain.
+This instruments the engine-side display native; it does not modify retail map
+or common AI scripts.
+
 Human02's allied Uther patrol is map-trigger driven rather than an engine Patrol order. `Trig_Uther_Patrol_to_01_Actions` and `_02_Actions` issue alternating point `attack` orders; the corresponding region-entry triggers disable themselves, wait 12 seconds with `TriggerSleepAction`, enable the opposite reach/patrol triggers, and execute the next leg. Region conditions identify Uther through `GetEnteringUnit()`, so that native must return `JASSCONTEXT.unit` (the event subject), not `JASSCONTEXT.trigger`. Returning the trigger handle causes the generated `GetEnteringUnit() == <Uther>` condition to fail after the first leg and permanently stops the scripted patrol.
 
 `IgnoredUnits` counts live, matching, bot-owned members across the assault and defense captain rosters. `common.ai` adds this value to desired production because captain members still contribute to `TownCount` after assignment away from town duties. A bounded ROC Human02 run now passes this query and reports `CommandsWaiting` as the next unresolved native.
