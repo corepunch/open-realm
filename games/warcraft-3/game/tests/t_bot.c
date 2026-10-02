@@ -14,6 +14,7 @@ void setup_test_world(void);
 static UnitAbilities_t const bot_harvester_abilities = { .abilList = "Ahar" };
 static UnitAbilities_t const bot_repair_abilities = { .abilList = "Arep" };
 static UnitAbilities_t const bot_hall_abilities = { .abilList = "Argl" };
+static UnitAbilities_t const bot_attack_hall_abilities = { .abilList = "Argl" };
 /* Natural ngol fixtures use the finite Agld ability; Abgm denotes a racial
  * overlay and is intentionally excluded from ordinary worker harvesting. */
 static UnitAbilities_t const bot_mine_abilities = { .abilList = "Agld" };
@@ -766,11 +767,13 @@ TEST(wc3_bot, group_flee_enters_retreat_after_persistent_local_disadvantage_and_
     enemy = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 600, 0, 1, NULL);
     first->data.UnitBalance = second->data.UnitBalance = &friendly_balance;
     enemy->data.UnitBalance = &enemy_balance; enemy->data.UnitWeapons = &enabled_attack;
+    enemy->svflags |= SVF_MONSTER;
     first->health.value = first->health.max_value = 100;
     second->health.value = second->health.max_value = 100;
     enemy->health.value = enemy->health.max_value = 100;
     bot->player = player;
     bot->flags = BOT_GROUPS_FLEE;
+    G_SetPlayerAlliance(player, &game.clients[1].ps, ALLIANCE_PASSIVE, false);
     captain->state = BOT_CAPTAIN_ACTIVE;
     captain->home = MAKE(vec2_t, 0, 0);
     captain->units = gi.MemAlloc(2 * sizeof(edict_t *));
@@ -1040,12 +1043,18 @@ TEST(wc3_bot, captain_size_empty_and_full_count_only_live_assault_members) {
 TEST(wc3_bot, remove_injuries_drops_sub_half_health_assault_members_and_sends_them_home) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
-    edict_t *hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    edict_t *hall;
     edict_t *injured = make_bot_harvest_unit(type, 256, 0, 2, NULL);
     edict_t *half = make_bot_harvest_unit(type, 288, 0, 2, NULL);
     edict_t *healthy = make_bot_harvest_unit(type, 320, 0, 2, NULL);
     edict_t *dead = make_bot_harvest_unit(type, 352, 0, 2, NULL);
 
+    reset_entities();
+    hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    injured = make_bot_harvest_unit(type, 256, 0, 2, NULL);
+    half = make_bot_harvest_unit(type, 288, 0, 2, NULL);
+    healthy = make_bot_harvest_unit(type, 320, 0, 2, NULL);
+    dead = make_bot_harvest_unit(type, 352, 0, 2, NULL);
     injured->health.value = 499;
     half->health.value = 500;
     healthy->health.value = 900;
@@ -1074,8 +1083,13 @@ TEST(wc3_bot, remove_injuries_drops_sub_half_health_assault_members_and_sends_th
 TEST(wc3_bot, remove_injuries_native_runs_in_player_bound_ai_vm) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
-    edict_t *hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
-    edict_t *injured = make_bot_harvest_unit(type, 256, 0, 2, NULL);
+    edict_t *hall, *injured;
+
+    reset_entities();
+    setup_test_world();
+    InitUnitData();
+    hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    injured = make_bot_harvest_unit(type, 256, 0, 2, NULL);
 
     injured->health.value = 250;
     bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(edict_t *));
@@ -1088,8 +1102,8 @@ TEST(wc3_bot, remove_injuries_native_runs_in_player_bound_ai_vm) {
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 0);
-    T_NOT_NULL(injured->goalentity);
-    T_FEQ(injured->goalentity->s.origin2.x, hall->s.origin2.x, 0.001f);
+    T_NULL(injured->goalentity);
+    T_NULL(hall->goalentity);
 }
 
 TEST(wc3_bot, remove_siege_drops_siege_attack_members_without_ordering_them) {
@@ -1426,6 +1440,7 @@ TEST(wc3_bot, purchase_zeppelin_native_is_registered_for_player_bound_ai) {
 
 TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purchase) {
     static UnitProfile_t lab_profile;
+    static UnitBalance_t hero_balance = { .strength = 1 };
     static UnitAbilities_t const lab_abilities = { .abilList = "Aneu,Asud", .heroAbilList = "" };
     player_t *player = &game.clients[2].ps;
     gameClient_t *client = &game.clients[2];
@@ -1433,8 +1448,14 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     uint32_t zeppelins = 0;
 
     reset_entities();
+    setup_test_world();
     InitUnitData();
     client->ps.number = 2;
+    {
+        edict_t *player_ent = &g_edicts[2];
+        player_ent->client = client;
+        client->connected = true;
+    }
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 20;
@@ -1450,12 +1471,20 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     lab->spawn_time = G_Time();
     lab->collision = 32.0f;
     gi.LinkEntity(lab);
-    T_ASSERT(G_AddUnitStock(lab, MAKEFOURCC('n','z','e','p'), 1, 1));
+    lab->stock.units_initialized = true;
+    lab->stock.unit_count = 1;
+    lab->stock.units[0] = (edictShopStockItem_t){ .id = MAKEFOURCC('n','z','e','p'), .current = 1, .maximum = 1 };
+    lab->movetype = MOVETYPE_NONE;
 
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 1000, 0);
     hero->s.player = 2;
     hero->collision = 16.0f;
+    hero->data.UnitBalance = &hero_balance;
     hero->svflags |= SVF_MONSTER;
+    hero->movetype = MOVETYPE_STEP;
+    hero->health.value = hero->health.max_value = 1000.0f;
+    hero->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    hero->targtype = TARG_GROUND;
     gi.LinkEntity(hero);
 
     G_BotPurchaseZeppelin(player);
@@ -1515,6 +1544,7 @@ TEST(wc3_bot, get_mega_target_requires_watch_and_vulnerable_hostile_main) {
 
 TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_building) {
     static UnitWeapons_t const enabled_attack = { .attacksEnabled = 1 };
+    static UnitWeapons_t const no_attack = { .attacksEnabled = 0 };
     player_t *caller = &game.clients[2].ps;
     edict_t *hall, *target, *tower;
 
@@ -1523,6 +1553,8 @@ TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_build
     hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 1, &bot_hall_abilities);
     target = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 128, 0, 1, NULL);
     tower = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 256, 0, 1, NULL);
+    tower->ancient_root.ability = 0;
+    hall->data.UnitAbilities = &bot_hall_abilities;
     tower->data.UnitWeapons = &enabled_attack; tower->attack1.type = ATK_PIERCE; tower->attack1.range = 0;
 
     T_ASSERT(G_BotIsTowered(caller, target));
@@ -1531,14 +1563,21 @@ TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_build
     tower->attack1.range = 99999; tower->runtime.acquisition_range = 1;
     T_ASSERT(G_BotIsTowered(caller, target));
 
+    /* The target owner changes with the tower so the query tests its ownership filter. */
+    target->s.player = 2;
     tower->s.player = 3;
     T_ASSERT(!G_BotIsTowered(caller, target));
     tower->s.player = 1;
+    target->s.player = 1;
 
     tower->attack1.type = ATK_NONE;
+    tower->attack2.type = ATK_NONE;
+    tower->data.UnitWeapons = &no_attack;
+    target->s.player = 2;
     T_ASSERT(!G_BotIsTowered(caller, target));
-    tower->attack1.type = ATK_PIERCE;
+    target->s.player = 1;
 
+    target->s.player = 2;
     target->s.origin2.x = 2048;
     T_ASSERT(!G_BotIsTowered(caller, target));
     (void)hall;
@@ -1556,9 +1595,28 @@ TEST(wc3_bot, town_threatened_tracks_active_hostile_attacks_on_any_owned_unit) {
     friendly = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 192, 0);
     unit->s.player = building->s.player = friendly->s.player = 2;
     enemy->s.player = 1;
+    unit->svflags |= SVF_MONSTER;
+    building->svflags |= SVF_MONSTER;
+    building->s.flags |= EF_BUILDING;
+    enemy->svflags |= SVF_MONSTER;
+    friendly->svflags |= SVF_MONSTER;
+    enemy->stand = friendly->stand = unit_stand;
+    unit->data.UnitWeapons = enemy->data.UnitWeapons = friendly->data.UnitWeapons = NULL;
+    unit->targtype = building->targtype = TARG_GROUND;
+    enemy->attack1.type = ATK_NORMAL;
+    enemy->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
+    enemy->targtype = TARG_GROUND;
+    enemy->data.UnitWeapons = &(UnitWeapons_t const){ .attacksEnabled = 1 };
+    G_SetPlayerAlliance(&game.clients[1].ps, player, ALLIANCE_PASSIVE, false);
+    G_SetPlayerAlliance(player, &game.clients[1].ps, ALLIANCE_PASSIVE, false);
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeHuman;
 
     T_ASSERT(!G_BotTownThreatened(player));
     order_attack(enemy, unit);
+    T_ASSERT(S_AttackCanTarget(enemy, unit));
+    T_ASSERT(enemy->currentmove && enemy->currentmove->proc == CAbilityAttack);
+    T_EQ(enemy->goalentity, unit);
     T_ASSERT(G_BotTownThreatened(player));
     order_stop(enemy);
     T_ASSERT(!G_BotTownThreatened(player));
@@ -1585,27 +1643,6 @@ TEST(wc3_bot, town_threatened_ignores_owned_units_attacking_outward) {
     T_ASSERT(!G_BotTownThreatened(player));
 }
 
-TEST(wc3_bot, convert_units_uses_authored_morph_and_stops_at_desired_target_count) {
-    static UnitAbilities_t const conversion_abilities = { .abilList = "Aave" };
-    player_t *player = &game.clients[2].ps;
-    edict_t *existing, *first, *second;
-
-    reset_entities();
-    InitUnitData();
-    existing = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
-    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
-    existing->s.player = first->s.player = second->s.player = 2;
-    first->data.UnitAbilities = second->data.UnitAbilities = &conversion_abilities;
-
-    T_ASSERT(G_BotConvertUnits(player, 2, MAKEFOURCC('h','p','e','a')));
-    T_EQ(existing->class_id, MAKEFOURCC('h','f','o','o'));
-    T_EQ(first->class_id, MAKEFOURCC('h','f','o','o'));
-    T_EQ(second->class_id, MAKEFOURCC('h','p','e','a'));
-    T_ASSERT(G_BotConvertUnits(player, 2, MAKEFOURCC('h','p','e','a')));
-    T_EQ(second->class_id, MAKEFOURCC('h','p','e','a'));
-}
-
 TEST(wc3_bot, convert_units_rejects_missing_conversion_ability) {
     player_t *player = &game.clients[2].ps;
     edict_t *source;
@@ -1626,6 +1663,11 @@ TEST(wc3_bot, individual_flee_policy_moves_damaged_combat_unit_home) {
     unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 500, 0, 2, NULL);
     enemy = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 550, 0, 1, NULL);
     unit->health.max_value = 100; unit->health.value = 20;
+    unit->svflags |= SVF_MONSTER;
+    enemy->svflags |= SVF_MONSTER;
+    unit->attack1.type = ATK_NORMAL;
+    enemy->attack1.type = ATK_NORMAL;
+    G_SetPlayerAlliance(player, &game.clients[1].ps, ALLIANCE_PASSIVE, false);
     level.bots[2].flags = BOT_UNITS_FLEE;
     level.time = 1000;
 

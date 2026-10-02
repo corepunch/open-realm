@@ -327,10 +327,9 @@ TFT melee initialization adds `Amic` to each starting town hall and marks it per
 Duplicate adds, absent removes, and permanence requests for absent abilities return false. Runtime skill queries consume
 the same overlay, and entity removal, level shutdown, and test resets release its storage.
 
-The lobby currently exposes no per-slot difficulty selector, so `GetAIDifficulty` uses a compatibility mapping from
-active map difficulty: Easy -> `AI_DIFFICULTY_NEWBIE`, Insane -> `AI_DIFFICULTY_INSANE`, and Normal/Hard ->
-`AI_DIFFICULTY_NORMAL`. `BZ_COMPAT_GUESS`: retail AI difficulty may be independent of map difficulty; a future per-slot
-lobby field should replace this fallback. AI-script `MeleeDifficulty()` independently returns the `common.ai` integer
+The lobby currently exposes no per-slot difficulty selector, so `GetAIDifficulty` returns
+`AI_DIFFICULTY_NORMAL` for valid players. AI difficulty is independent from map difficulty; do not derive the former
+from the latter. AI-script `MeleeDifficulty()` independently returns the `common.ai` integer
 `MELEE_NORMAL` (`2`); do not return the `aidifficulty` handle payload directly because those enum values are
 `AI_DIFFICULTY_NEWBIE/NORMAL/INSANE = 0/1/2`, while `common.ai` uses `MELEE_NEWBIE/NORMAL/INSANE = 1/2/3`.
 `aidifficulty` is a value-like JASS enum handle and must remain in the VM's payload-comparison type table.
