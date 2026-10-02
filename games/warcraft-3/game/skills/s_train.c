@@ -363,6 +363,9 @@ static bool CompleteResearch(edict_t *producer, edict_t *item) {
     G_SetPlayerTechResearched(client, upgrade_id, level_value);
     G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_FINISH, NULL, (int32_t)upgrade_id);
     G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_FINISH, NULL, (int32_t)upgrade_id);
+    G_BOT_TRACE(producer->s.player, NULL, "upgrade_completed",
+               "producer=%ld upgrade=%.4s level=%d", (long)(producer - g_edicts),
+               (cstring_t)&upgrade_id, level_value);
     ShowResearchComplete(producer, upgrade_id, level_value);
     G_FreeEdict(item);
 
@@ -451,6 +454,9 @@ void ai_train_build(edict_t *ent) {
             fprintf(stderr, "WC3_DEBUG_AI training complete producer=%ld unit=%ld id=%.4s player=%u\n",
                 (long)(ent - g_edicts), (long)(completed - g_edicts), (cstring_t)&completed->class_id, completed->s.player);
 #endif
+            G_BOT_TRACE(completed->s.player, NULL, "unit_completed",
+                       "producer=%ld unit=%ld type=%.4s", (long)(ent - g_edicts),
+                       (long)(completed - g_edicts), (cstring_t)&completed->class_id);
             if (!ent->build) {
                 ent->stand(ent);
             }
@@ -588,6 +594,10 @@ void unit_build(edict_t *self, uint32_t class_id) {
      * can expose the trainee without changing GetTriggerUnit semantics. */
     G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_TRAIN_START, ent);
     G_PublishEventWithSource(self, EVENT_UNIT_TRAIN_START, ent);
+    G_BOT_TRACE(self->s.player, NULL, "unit_queued",
+               "producer=%ld unit=%ld type=%.4s queue=%u",
+               (long)(self - g_edicts), (long)(ent - g_edicts),
+               (cstring_t)&class_id, ProductionQueueCount(self));
     if (was_empty) {
         /* Queue insertion makes this item active immediately. Food reservation
          * must therefore happen before a later Train command performs its
@@ -648,6 +658,9 @@ bool G_QueueResearch(edict_t *producer, uint32_t upgrade_id) {
      * at command acceptance, matching the existing TRAIN_START queue contract. */
     G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_START, NULL, (int32_t)upgrade_id);
     G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_START, NULL, (int32_t)upgrade_id);
+    G_BOT_TRACE(producer->s.player, NULL, "upgrade_queued",
+               "producer=%ld upgrade=%.4s level=%d", (long)(producer - g_edicts),
+               (cstring_t)&upgrade_id, level_value);
     unit_setmove(producer, &train_move_train);
     if (clent && client->connected) {
         G_RefreshResourceBar(clent);

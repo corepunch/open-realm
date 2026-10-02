@@ -158,12 +158,24 @@ uint32_t SetExpansion(jass_t *j) {
 }
 
 uint32_t SetProduce(jass_t *j) {
-    return jass_pushboolean(j, G_BotProduce(jass_getcontext(j)->playerState, jass_checkinteger(j, 1),
-                                            jass_checkinteger(j, 2), jass_checkinteger(j, 3)));
+    player_t *player = jass_getcontext(j)->playerState;
+    int32_t qty = jass_checkinteger(j, 1), town = jass_checkinteger(j, 3);
+    uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
+    bool accepted = G_BotProduce(player, qty, class_id, town);
+    if (accepted)
+        G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "production_requested",
+                   "qty=%d unit=%.4s town=%d accepted=1", qty, (cstring_t)&class_id, town);
+    return jass_pushboolean(j, accepted);
 }
 
 uint32_t SetUpgrade(jass_t *j) {
-    return jass_pushboolean(j, G_BotUpgrade(jass_getcontext(j)->playerState, (uint32_t)jass_checkinteger(j, 1)));
+    player_t *player = jass_getcontext(j)->playerState;
+    uint32_t upgrade = (uint32_t)jass_checkinteger(j, 1);
+    bool accepted = G_BotUpgrade(player, upgrade);
+    if (accepted)
+        G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "upgrade_requested",
+                   "upgrade=%.4s accepted=1", (cstring_t)&upgrade);
+    return jass_pushboolean(j, accepted);
 }
 
 uint32_t GetUnitGoldCost(jass_t *j) {
@@ -324,13 +336,34 @@ uint32_t CaptainInCombat(jass_t *j) {
 }
 
 uint32_t AttackMoveKill(jass_t *j) {
-    G_BotAttackMoveKill(jass_getcontext(j)->playerState, jass_checkhandle(j, 1, "unit"));
+    player_t *player = jass_getcontext(j)->playerState;
+    edict_t *target = jass_checkhandle(j, 1, "unit");
+    G_BotAttackMoveKill(player, target);
+    if (target)
+        G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "attack_target",
+                   "kind=unit unit=%ld id=%.4s target_player=%u point=(%.1f,%.1f)",
+                   (long)(target - g_edicts), (cstring_t)&target->class_id,
+                   (unsigned)target->s.player, target->s.origin2.x, target->s.origin2.y);
     return 0;
 }
 
-uint32_t InitAssault(jass_t *j) { G_BotInitAssault(jass_getcontext(j)->playerState); return 0; }
+uint32_t InitAssault(jass_t *j) {
+    player_t *player = jass_getcontext(j)->playerState;
+    G_BotInitAssault(player);
+    G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_form_started", "");
+    return 0;
+}
 uint32_t AddAssault(jass_t *j) {
-    return jass_pushboolean(j, G_BotAddAssault(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checkinteger(j, 2)));
+    player_t *player = jass_getcontext(j)->playerState;
+    bot_t *bot = BotState(j);
+    int32_t qty = jass_checkinteger(j, 1);
+    uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
+    bool ready = G_BotAddAssault(player, qty, class_id);
+    G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_form_progress",
+               "qty=%d unit=%.4s ready=%d group_size=%u desired=%u", qty,
+               (cstring_t)&class_id, (int)ready, G_BotCaptainGroupSize(player),
+               bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0);
+    return jass_pushboolean(j, ready);
 }
 uint32_t CaptainGroupSize(jass_t *j) { return jass_pushinteger(j, G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }
 uint32_t CaptainIsFull(jass_t *j) { return jass_pushboolean(j, G_BotCaptainIsFull(jass_getcontext(j)->playerState)); }
@@ -394,6 +427,7 @@ uint32_t SetStagePoint(jass_t *j) {
     player_t *player = jass_getcontext(j)->playerState;
     float x = jass_checknumber(j, 1), y = jass_checknumber(j, 2);
     G_BotSetStagePoint(player, x, y);
+    G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_stage_set", "point=(%.1f,%.1f)", x, y);
     return 0;
 }
 /* SuicideUnit: void in retail; sends qty units of class_id at any hostile enemy. */
@@ -401,7 +435,10 @@ uint32_t SuicideUnit(jass_t *j) {
     player_t *player = jass_getcontext(j)->playerState;
     int32_t qty = jass_checkinteger(j, 1);
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
-    G_BotSuicideUnits(player, qty, class_id, -1);
+    bool accepted = G_BotSuicideUnits(player, qty, class_id, -1);
+    G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
+               "api=SuicideUnit qty=%d unit=%.4s target=any_hostile accepted=%d group_size=%u",
+               qty, (cstring_t)&class_id, (int)accepted, G_BotCaptainGroupSize(player));
     return 0;
 }
 /* SuicideUnitEx: same but targets a specific player's forces. */
@@ -410,15 +447,25 @@ uint32_t SuicideUnitEx(jass_t *j) {
     int32_t qty = jass_checkinteger(j, 1);
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
     int32_t target = jass_checkinteger(j, 3);
-    G_BotSuicideUnits(player, qty, class_id, target);
+    bool accepted = G_BotSuicideUnits(player, qty, class_id, target);
+    G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
+               "api=SuicideUnitEx qty=%d unit=%.4s target_player=%d accepted=%d group_size=%u",
+               qty, (cstring_t)&class_id, target, (int)accepted, G_BotCaptainGroupSize(player));
     return 0;
 }
 /* SuicidePlayer: launches the formed assault captain at target player. */
 uint32_t SuicidePlayer(jass_t *j) {
     player_t *player = jass_getcontext(j)->playerState;
+    bot_t *bot = BotState(j);
     player_t *target = jass_checkhandle(j, 1, "player");
     bool check_full = jass_checkboolean(j, 2);
-    return jass_pushboolean(j, G_BotSuicidePlayer(player, target ? PLAYER_NUM(target) : 0, check_full));
+    bool accepted = G_BotSuicidePlayer(player, target ? PLAYER_NUM(target) : 0, check_full);
+    G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
+               "api=SuicidePlayer target_player=%u check_full=%d accepted=%d group_size=%u desired=%u",
+               target ? PLAYER_NUM(target) : 0, (int)check_full, (int)accepted,
+               G_BotCaptainGroupSize(player),
+               bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0);
+    return jass_pushboolean(j, accepted);
 }
 uint32_t MergeUnits(jass_t *j) {
     player_t *player = jass_getcontext(j)->playerState;
