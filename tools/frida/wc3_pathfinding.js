@@ -34,6 +34,51 @@ function install(module) {
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
     if (config.motionEvents) {
+        for (const rva of [0x6b9f70,0x6baaa0,0x6bb050,0x6bb980]) hook(rva, {onEnter() {
+            const action=this.context.ecx;
+            emit('player-order-variant', {entry:rva,action:action.toString(),
+                words:Array.from({length:16},(_,i)=>action.add(i*4).readU32()),
+                caller:this.returnAddress.sub(base).toUInt32()});
+        }});
+        // NetUnit.cpp point action: public player/flags/order and native world coordinates.
+        for (const rva of [0x6b98f0,0x6b9f70]) hook(rva, {onEnter() {
+            const action=this.context.ecx, owner=base.add(0xd53a48).readPointer();
+            this.row={entry:rva,action:action.toString(), player:action.add(0x15).readU8(),
+                flags:action.add(0x18).readU16(), order:action.add(0x1c).readU32(),
+                point:[action.add(0x28).readU32(),action.add(0x2c).readU32()],
+                clock:[owner.add(0x54).readU32(),owner.add(0x58).readU32()],
+                counter:owner.add(0x538).readU32()};
+            emit('player-point-action-begin',this.row);
+        },onLeave() {emit('player-point-action-end',this.row);}});
+        hook(0x6b8c10, {onEnter() {
+            const ctx=this.context.edx;
+            emit('player-point-attach', {unit:this.context.ecx.toString(),
+                requests:[ctx.readPointer().toString(),ctx.add(4).readPointer().toString(),ctx.add(8).readPointer().toString()]});
+        }});
+        hook(0x6ba800, {onEnter() {
+            this.ctx=this.context.edx; this.before=this.ctx.add(0x38).readU32();
+            this.row={unit:this.context.ecx.toString(),countBefore:this.before};
+            emit('player-point-target-admit-begin',this.row);
+        },onLeave() {
+            const count=this.ctx.add(0x38).readU32();
+            emit('player-point-target-admit-end',{...this.row,countAfter:count,
+                row:count>this.before && count<=12 ? Array.from({length:9},(_,i)=>this.ctx.add(0x3c+(count-1)*36+i*4).readU32()) : null});
+        }});
+        hook(0x6b93a0, {onEnter(args) {
+            emit('player-order-publish',{unit:this.context.ecx.toString(),order:this.context.edx.toString(),
+                flags:args[0].toUInt32()&0xffff,fallback:args[1].toUInt32()});
+        }});
+        hook(0x6ba590, {onEnter() {
+            this.ctx=this.context.edx; this.before=this.ctx.add(0x40).readU32();
+            this.row={unit:this.context.ecx.toString(),countBefore:this.before};
+            emit('player-point-admit-begin',this.row);
+        },onLeave() {
+            const count=this.ctx.add(0x40).readU32();
+            emit('player-point-admit-end',{...this.row,countAfter:count,
+                row:count>this.before && count<=12 ? Array.from({length:9},(_,i)=>this.ctx.add(0x44+(count-1)*36+i*4).readU32()) : null});
+        }});
+
+
         hook(0x2047f0, {onEnter(args) {
             this.row = {handle:args[0].toUInt32(), order:args[1].toUInt32(), point:[args[2].readU32(),args[3].readU32()]};
             emit('group-point-native-begin',this.row);
@@ -1543,12 +1588,13 @@ function install(module) {
             emit('speed-marker', {value});
         }
         if (value.startsWith('PATHHOLD ')) emit('hold-marker', {value});
+        if (value.startsWith('PATHSELECT ')) emit('selected-marker', {value});
         if (value.startsWith('PATHTRACE ')) {
             if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
-            if ((value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve '))) pairScenario = true;
+            if ((value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair '))) pairScenario = true;
             if (value.includes('label=complete ')) pairScenario = false;
             emit('marker', {value});
             if (!value.includes('label=sample ')) snapshotCells(value);

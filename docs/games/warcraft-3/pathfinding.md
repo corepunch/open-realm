@@ -9,8 +9,10 @@ handoff timing and complete retail trajectories remain work in progress.
 Public JASS Move/Smart batches now have a [Move-owned shared physical group](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner):
 a separate group route, retained formation slots and all-member decisions before
 velocity commits. A complete public pair matches115 original commits and87 saved
-continuation commits through normal frames. Selected/AI/queued group producers,
-full eligibility flags and general crowd parity remain open.
+continuation commits through normal frames. Ordinary selected ground Move now uses that owner too: two actual player-input
+journeys match456 engine commits and304 saved suffix commits with supplied input
+clocks. See [selected movement](retail-pathfinding-engine.md#selected-ground-move-uses-the-shared-physical-owner).
+AI, queued/mixed-lane producers, full eligibility flags and general crowd parity remain open.
 
 Authored repulsion now runs through Move after each owner movement pass, so
 eligible idle flyers separate as well as moving units. It uses saved retail

@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**117 done / 303 tasks; 186 remaining.** Payoff40 explicitly splits ordinary fine player-row ownership and saved FIFO continuation from SCHED-03/04's remaining policy queues and traversal mutation. Its player budgets, old-owner cancellation, reclassification and saved FIFO continuation are implemented with exact public motion/Stop evidence. Counts describe this backlog,
+**118 done / 304 tasks; 186 remaining.** Payoff41 explicitly splits ordinary selected ground Move from GROUP-04.6. Player Move now owns a retained physical group; both actual clicked lifetimes match456 engine commits and304 saved continuation commits, with separately supplied input clocks. Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -29,7 +29,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 15 | 6 |
+| GROUP — Shared movement groups | 16 | 6 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -711,6 +711,9 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [x] **GROUP-04.10** Explicitly split ordinary public shared-pair movement from04.6: allocate Move-owned generation-retaining group/member rows, keep the native formation slots and separate all-member decisions/commits, consume exact shared-speed and nearest-route retry/forced-arrival behavior, preserve intermediate owner state and save/load, then compare every clock/pose/velocity/facing commit through both natural arrivals. Evidence: [payoff38](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner), repeated scene47 phases,115 exact engine commits and87 saved continuation commits. Release/debug RoC/TFT, production builds, the normal repository suite and strict corpus validation pass; Save74 and Ghidra annotations are synchronized. Selected/AI producers, queued activation, all eligibility/shared override/cooldown bits, callback mutation, inter-group scheduling, general crowds and scene construction remain04.6/GROUP-01.1/MAP.
 
 - [x] **GROUP-04.11** Explicitly split ordinary public twelve-member class0 movement from04.6: consume formation-offset adaptive adjustment, temporary group-object suppression, committed-pose occupancy, shared fine-work FIFO/interval timing and next-step/partial retry ordering in production Move; compare every normal-frame position/velocity/facing/clock commit through all natural order completions and two saved continuations. Evidence: [payoff39](retail-pathfinding-engine.md#twelve-member-public-group-retains-fine-admission-and-committed-occupancy), two repeated original scene48 captures,1,953 exact engine commits and2,634 saved suffix commits; forced release/debug RoC/TFT, production builds, the normal repository suite,172 Python tests and fresh strict corpus checks pass. Save75 and persistent Ghidra roles/types are synchronized. Other classes/pools, selected/AI producers, queued activation, wider eligibility/override bits, inter-group scheduling, overlapping cell links and arbitrary map/scenery construction remain04.6/SCHED/MAP.
+
+- [x] **GROUP-04.12** Explicitly split ordinary selected ground Move from04.6: recover the live player point producer, reuse Move-owned retained physical cohorts for two through twelve unqueued same-mask ground candidates, and compare actual clicked pair lifetimes through normal engine frames, natural completion and save/load. Evidence: [payoff41](retail-pathfinding-engine.md#selected-ground-move-uses-the-shared-physical-owner), native Win32 input/read-only Frida packet8/attach-before-admit/publication, two separately supplied input clocks,456 exact engine commits and304 saved suffix commits. The unchanged public-pair fixture also matches115 selected-producer commits and87 saved suffix commits. Saved Ghidra roles/types and strict corpus are synchronized. Shift, air/mixed masks, larger selections, wider candidate priority/callback mutation, enabled formation flags and AI producers remain04.6/GROUP-01.1/ORDER; arbitrary scene construction remains BASE/MAP.
+
 
 
 ## FORM — Formation and regrouping

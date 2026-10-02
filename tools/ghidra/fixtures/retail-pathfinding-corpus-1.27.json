@@ -17206,6 +17206,176 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "inputs": {
+        "capture": "runtime/selected-point-final-first-261002.jsonl",
+        "sha256": "153d9555bc5f3b363cdc3504ec6bc7a2c1eebb35ee84ac5bc66b43d94caf9630",
+        "bytes": 5964466,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "545349f45d7384a71a28ba0b9bb6115e436ae96ea1625190bc0a419dff0274a5",
+            "wc3_pathfinding.js": "9e44316e7aeb30340581ba9d5c46423621d16093c50ac70992c42d86aae8abd8",
+            "wc3_pathfinding_probe.j": "cdaedcd8ed5427ac8bd9a352cfb47cbfdd66677e7fc0d38ec5f4b8340686c901",
+            "make_wc3_pathfinding_map.py": "45a22308e798ed6b9888dbd4256fdf004236eb4fbd6ddbbaf949bbf1f884faf2",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "wc3-ui-input.exe": "23bfe32ee26f633bbb73adb43b0942f1c09c5f60775b060d9ba00fcfc3e52920",
+            "wc3-ui-input.exe.so": "47f5f8298ca42728563e200246e0bb30091dbe2e190c2c3dce1b700502d90cc1",
+            "wc3_ui_input.c": "f7fbf02ccbcebf71b44e648ff7d0621fb77ba4302f6174f424113efac7613157",
+            "map": "843d8350234b3af511d4b05c197c6a7f99fc725d22cfceb20cf97140078722b1"
+          },
+          "map": "Maps\\PathingRE-SelectedPoint-261002.w3m",
+          "seconds": 70.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false,
+          "pointInput": {
+            "at": 25.0,
+            "pixel": [
+              512,
+              280
+            ],
+            "api": "external Win32 SendInput"
+          }
+        }
+      },
+      "capture_complete": true,
+      "id": "live-selected-point-repeat-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_selected_point_trace.py",
+        "{archive}/runtime/selected-point-final-first-261002.jsonl",
+        "--repeat",
+        "{archive}/runtime/selected-point-final-repeat-261002.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-selected-point-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_selected_point.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "selected-point-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeated": {
+          "equal": true
+        },
+        "public_selected_members": {
+          "equal": 2
+        },
+        "natural_arrivals": {
+          "equal": 4
+        },
+        "exact_decisions": {
+          "equal": 452
+        },
+        "exact_velocity_commits": {
+          "equal": 456
+        },
+        "relative_motion_sha256": {
+          "equal": "7e6be9b93f5e75f25f58573e0b77830658317507bc3b9a1eba6e4756b250a685"
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Selected ordinary ground Move: actual native Win32 UI input, packet8, two attach-before-admit members, complete owner phases/natural arrivals and exact C arithmetic; engine normal frames reproduce each separately supplied input clock.",
+      "exclusions": [
+        "Wall-clock UI input timing is supplied, not deterministic. Shift, air/mixed masks, larger selections, AI producers and arbitrary scene construction remain open."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/selected-point-final-repeat-261002.jsonl",
+            "sha256": "5ee540d55d5704cf4fe30f157b3115e971062cee3e37760c4a720b727894654c",
+            "bytes": 6179790,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "545349f45d7384a71a28ba0b9bb6115e436ae96ea1625190bc0a419dff0274a5",
+                "wc3_pathfinding.js": "9e44316e7aeb30340581ba9d5c46423621d16093c50ac70992c42d86aae8abd8",
+                "wc3_pathfinding_probe.j": "cdaedcd8ed5427ac8bd9a352cfb47cbfdd66677e7fc0d38ec5f4b8340686c901",
+                "make_wc3_pathfinding_map.py": "45a22308e798ed6b9888dbd4256fdf004236eb4fbd6ddbbaf949bbf1f884faf2",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "wc3-ui-input.exe": "23bfe32ee26f633bbb73adb43b0942f1c09c5f60775b060d9ba00fcfc3e52920",
+                "wc3-ui-input.exe.so": "47f5f8298ca42728563e200246e0bb30091dbe2e190c2c3dce1b700502d90cc1",
+                "wc3_ui_input.c": "f7fbf02ccbcebf71b44e648ff7d0621fb77ba4302f6174f424113efac7613157",
+                "map": "843d8350234b3af511d4b05c197c6a7f99fc725d22cfceb20cf97140078722b1"
+              },
+              "map": "Maps\\PathingRE-SelectedPoint-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "pointInput": {
+                "at": 25.0,
+                "pixel": [
+                  512,
+                  280
+                ],
+                "api": "external Win32 SendInput"
+              }
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -17271,7 +17441,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "2b040ffeaee49868c8e2528298c9fed25f9e8afb344fdc9d73926f5d63b56f0a"
+      "sha256": "9346ce2676c329bc53dc31f7d1712fb16bea2a986f792b79525ae035c97532d6"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -17604,6 +17774,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-owner-change-1.27.json",
       "sha256": "ada8e95ee22f7cd78ab281a9cbe610b63cfc4e4c20b096bd302b10fabbc9919e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-selected-point-1.27.json",
+      "sha256": "66565b6ae651533c7f77a071d2fe48157f3b7713319a2d46fdc53872ced56ecf"
     }
   ]
 }

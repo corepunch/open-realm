@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **497 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **507 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 ordinary public twelve-member movement matches1,953 commits and2,634 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
@@ -40,8 +40,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists35 partial layouts,201 verified
-  fields and223 instruction-established prototypes with explicit register/stack
+  `MapPathfindingTypes.java` also persists38 partial layouts,218 verified
+  fields and230 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -51,7 +51,8 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  497 function names/comments applied and saved. Latest twelve-member readbacks:
+  507 function names/comments applied and saved. Latest selected-input readbacks:
+  `runtime/selected-point-ghidra-readback-261002.json` and `runtime/selected-point-types-261002.json`. Prior twelve-member readbacks:
   `runtime/public-twelve-ghidra-readback-261002.json` and `runtime/public-twelve-interval-types-261002.json`. Prior public pair readbacks:
   `runtime/public-pair-ghidra-readback-261001.json` and `runtime/public-pair-ghidra-types-261001.json`. Prior group admission readbacks:
   `runtime/group-point-ghidra-readback-261001.json` and `runtime/group-point-ghidra-types-261001.json`. Prior spawn type readback:
@@ -289,3 +290,12 @@ before reclassification; Save76 preserves each row and request class. The public
 owner-change motion/Stop journey repeats exactly and has a normal-frame engine
 regression. See [payoff40](retail-pathfinding-engine.md#ordinary-fine-search-belongs-to-the-unit-player).
 Three accelerated policy pools and non-unit class15 producers remain open.
+
+
+Ordinary player-selected ground Move now creates the same retained physical
+owner as public point groups. Two actual native Win32 click lifetimes each match
+all228 engine clock/position/velocity/facing commits and saved continuations.
+Their absolute input timings are explicit; their relative motion repeats exactly.
+The observer stays read-only and the helper uses the public Windows input API.
+See [payoff41](retail-pathfinding-engine.md#selected-ground-move-uses-the-shared-physical-owner).
+Shift, air/mixed candidates, enabled formation options and AI sharing remain open.

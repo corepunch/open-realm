@@ -38,6 +38,9 @@ def main():
     parser.add_argument('--watch-cell', type=int, nargs=2, metavar=('X', 'Y'), help='fine-grid cell and its parents at scenario markers')
     parser.add_argument('--x11-display', help='owned isolated X display for the loading-screen key')
     parser.add_argument('--continue-at', type=float, help='send Space once at this elapsed second; requires --x11-display')
+    parser.add_argument('--point-click-at', type=float, help='issue an explicit player Move using the owned X11 window at this elapsed second')
+    parser.add_argument('--point-click', type=int, nargs=2, metavar=('X','Y'), help='window-relative pixel coordinates for the explicit Move click')
+    parser.add_argument('--point-input-helper', type=Path, help='external Winelib SendInput helper; requires the explicit owned Move click')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if not 0 < args.seconds <= 3600 or not 0 < args.samples <= 10000:
@@ -46,6 +49,12 @@ def main():
         parser.error('watch-cell coordinates must be in [0, 65535]')
     if args.continue_at is not None and (not args.x11_display or not 0 < args.continue_at < args.seconds or args.pid):
         parser.error('--continue-at requires an owned spawn, --x11-display, and a time within the capture')
+    if ((args.point_click_at is None) != (args.point_click is None) or
+            (args.point_click_at is not None and (args.pid or not args.x11_display or
+             not 0 < args.point_click_at < args.seconds or min(args.point_click) < 0))):
+        parser.error('--point-click-at/--point-click require an owned spawn, --x11-display and an in-capture time')
+    if args.point_input_helper and (args.point_click_at is None or not args.point_input_helper.is_file()):
+        parser.error('--point-input-helper requires an existing helper and an explicit owned Move click')
     binary = (args.data / 'game.dll').read_bytes()
     if hashlib.sha256(binary).hexdigest() != HASH:
         parser.error('unsupported game.dll; requires mapped 1.27.1.7085')
@@ -76,6 +85,13 @@ def main():
                     Path(__file__).with_name('wc3_literal_inputs.json'),
                     Path(__file__).with_name('wc3_integer_inputs.json'),
                     Path(__file__).with_name('wc3_byte_inputs.json')]
+    if args.point_input_helper:
+        helper_paths = [args.point_input_helper, Path(str(args.point_input_helper) + '.so'),
+                        args.point_input_helper.with_name('wc3_ui_input.c')]
+        if any(not p.is_file() for p in helper_paths):
+            parser.error('owned Winelib input requires the helper, linked .so and reviewed C source')
+        source_paths.extend(helper_paths)
+        config['pointInput'] = dict(at=args.point_click_at, pixel=args.point_click, api='external Win32 SendInput')
     provenance = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths}
     map_path = args.data / args.map.replace('\\', '/')
     if args.numeric_events and not map_path.is_file():
@@ -113,6 +129,7 @@ def main():
             start = time.monotonic()
             deadline = start + args.seconds
             sent = False
+            clicked = False
             while time.monotonic() < deadline and not errors:
                 if args.continue_at is not None and not sent and time.monotonic() - start >= args.continue_at:
                     subprocess.run(['xdotool', 'search', '--onlyvisible', '--name', 'Warcraft III',
@@ -120,6 +137,24 @@ def main():
                                    env={**os.environ, 'DISPLAY': args.x11_display}, stdout=subprocess.DEVNULL)
                     record({'event': 'loading-key', 'elapsed': time.monotonic() - start, 'key': 'space'})
                     sent = True
+                if args.point_click_at is not None and not clicked and time.monotonic() - start >= args.point_click_at:
+                    env = {**os.environ, 'DISPLAY': args.x11_display}
+                    windows = subprocess.check_output(['xdotool','search','--onlyvisible','--name','Warcraft III'], env=env, timeout=5).decode().splitlines()
+                    if len(windows) != 1:
+                        raise RuntimeError('explicit Move click requires exactly one owned-display Warcraft window')
+                    subprocess.run(['xdotool','windowfocus','--sync',windows[0],'key','m','sleep','0.3'],
+                                   check=True, timeout=5, env=env, stdout=subprocess.DEVNULL)
+                    if args.point_input_helper:
+                        helper_output = subprocess.check_output([str(args.point_input_helper.resolve()), str(pid),
+                            *[str(v) for v in args.point_click]], env=env, timeout=10).decode()
+                        record({'event':'player-input-helper','output':helper_output,
+                                'sha256':hashlib.sha256(args.point_input_helper.read_bytes()).hexdigest()})
+                    else:
+                        subprocess.run(['xdotool','mousemove','--window',windows[0],*[str(v) for v in args.point_click],
+                                        'mousedown','1','sleep','0.2','mouseup','1'], check=True, timeout=5, env=env, stdout=subprocess.DEVNULL)
+                    record({'event':'player-move-click','elapsed':time.monotonic()-start,
+                            'pixel':args.point_click,'key':'m','button':1})
+                    clicked = True
                 time.sleep(0.1)
             record({'event': 'trace-end', **script.exports_sync.status()})
             if errors:

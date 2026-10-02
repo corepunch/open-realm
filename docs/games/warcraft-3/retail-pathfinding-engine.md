@@ -4348,3 +4348,86 @@ normal repository suite,175 Python pathfinding tests, ability registration audit
 and258-entry/99-fixture inventory pass. Strict fresh scheduler/live contracts
 pass. SCHED-03.4 closes; the original wider scheduling/traversal leaves remain
 open. The validation index is `runtime/owner-class-validation-261002.json`.
+
+
+## Selected ground Move uses the shared physical owner
+
+Payoff41 connects ordinary selected-unit Move, including the existing SmartPoint
+movement handoff, to the retained Move-owned group. Previously selection assigned
+matching IDs to independent walkers; the new failing regression found no physical
+group. For two through twelve unqueued ground candidates with the same static
+pathing mask, `move_selectlocation` snapshots unit generations and delegates a
+named Move request through generic ability order admission. Move owns the routes,
+formation slots, all-member decisions, commits and cleanup. Shift, air/mixed
+masks and larger selections retain their explicitly marked existing path pending
+recovery of those producers; this bounded port does not certify their fidelity.
+
+The new selected pair also consumes the unchanged public-pair fixture:115 exact
+normal-frame commits and87 saved continuation commits. Two independently owned
+original scene49 captures then exercise the actual player producer. The map keeps
+the original Human02Interlude bytes except its script, enables its local Player3,
+creates/selects two stock Footmen and waits for external Move input. The Frida
+observer remains read-only. `wc3_ui_input.c`, built with native `winegcc`, uses
+Win32 `SendInput` after requiring one visible Warcraft window belonging to the
+controller-owned PID and verifying foreground ownership. The controller hashes
+the reviewed C source, wrapper and linked Winelib library along with its observer
+and map sources. X11 keyboard input opens Move targeting; diagnostic X11 mouse
+attempts failed to publish an order and remain outside accepted evidence.
+
+Live `6b9f70` receives player3, packet flags8, order851986 and the exact native
+point words `c4f0f91c/c3ea6970`. It allocates ground/air requests, attaches both
+candidates through `6b8c10` before either `6ba800` admission, then sorts its
+nine-word rows and publishes both orders through `6b93a0`. Both members retain
+one ground request. `89caf0(false)` clears the three extended formation flags;
+the enabled-policy/physical-flag mapping remains open. The observed member order
+is the supplied ordinary selection witness, not a claim about every selection
+priority or callback mutation.
+
+Each clicked lifetime has117 decision/commit owner visits,228 commits
+(member counts117/111),226 scalar decisions and two natural order completions.
+Both repeat every fine position, velocity and facing word; relative-motion digest
+is `7e6be9b93f5e75f25f58573e0b77830658317507bc3b9a1eba6e4756b250a685`.
+Absolute input clocks differ, so the frozen cases retain each separately. Normal
+engine frames start at clock zero, create the supplied movement profile and
+static scene, then issue selected Move at each observed admission clock. All456
+clock/position/velocity/facing commits agree without replaying native decisions.
+Saves after commit80 and224 reproduce304 additional suffix commits, preserving
+Player3 fine ownership and the physical member lifecycle. This is deterministic
+simulation with supplied input timing; external wall-clock input timing is not
+claimed deterministic. Scene construction remains an explicit fixture boundary.
+
+Formation tests retain the original frozen layout words through the queued
+producer. Physical destinations follow the current shared coarse point/heading;
+the normal-frame save regression checks their exact continuation. Speed and
+status tests now check the separate physical commit cap. The status scene was
+also corrected to contain both members and the destination inside its route grid
+and to supply the recovered Footman turn/window profile; its single-unit and
+fresh-cohort branches separately check application, actual movement and expiry.
+No tolerance was widened.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-point-final-source-261002/`, including the input helper;
+- `runtime/selected-point-final-{first,repeat}-261002.jsonl`;
+- `runtime/selected-point-strict-final-261002/corpus-results.json`, which reruns selected
+  input, public pair, twelve-member group and owner-change contracts freshly;
+- `runtime/selected-point-types-final-261002.json` and
+  `runtime/selected-point-ghidra-readback-saved-261002.json`:507 saved function roles,
+  38 partial layouts/218 fields and230 verified x86 prototypes; ten new producer
+  roles retain comments and native xrefs. No p-code was needed.
+
+The frozen input/phase hashes and motion rows live in
+`tools/ghidra/fixtures/retail-selected-point-1.27.json`; the strict checker also
+verifies the generated engine header. GROUP-04.12 explicitly splits this ordinary
+selection producer from04.6. Queue activation, air/mixed lanes, wider selection
+priority, callbacks, enabled formation options, AI producers and arbitrary scene
+construction remain required. Next runnable work is GROUP-04.6/ORDER: recover
+Shift activation and retain physical ownership through queued point orders.
+
+Final payoff41 validation: debug (`WC3_DEBUG_BUILD=1`) and forced release RoC/TFT
+each pass200,146 assertions in2316 tests. Production debug/release builds, the
+normal repository suite,179 Python pathfinding tests, ability registration audit
+and259-entry/100-fixture inventory pass. All four strict fresh live contracts
+pass. Save version76 is unchanged. GROUP-04.12 closes; the ledger retains118
+completed tasks and186 open tasks after explicit splits. The validation index
+is `runtime/selected-point-validation-261002.json`.

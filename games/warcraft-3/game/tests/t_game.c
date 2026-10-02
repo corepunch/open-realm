@@ -4768,7 +4768,7 @@ TEST(wc3_save, round_trip_active_move_group) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-move-group-save-test.bin";
     reset_entities(); setup_test_world();
     edict_t *clent = alloc_test_unit(0, 0, 0);
-    clent->client = &game.clients[0];
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
     edict_t *fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
     fast->stand = slow->stand = unit_stand;
@@ -4789,10 +4789,13 @@ TEST(wc3_save, round_trip_active_move_group) {
     T_EQ(fast->current_order_id, G_OrderId("move"));
     T_EQ(slow->current_order_id, G_OrderId("move"));
     T_EQ(level.next_move_group_id, next_id);
-    T_FEQ(unit_movedistance(fast), 10.0f * 100 / FRAMETIME, 0.001f);
+    T_EQ(ARRAY_COUNT(level.move_groups),1); T_EQ(level.move_groups[0]->count,2);
+    S_RunAbilityOwnerUpdates();
+    T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),100,0.001f);
     T_ASSERT(unit_issueimmediateorder(slow, "stop"));
     T_EQ(slow->current_order_id, 0);
-    T_FEQ(unit_movedistance(fast), 10.0f * 300 / FRAMETIME, 0.001f);
+    S_RunAbilityOwnerUpdates(); T_EQ(level.move_groups[0]->count,1);
+    T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),300,0.001f);
     remove(filename);
 }
 

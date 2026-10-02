@@ -721,6 +721,8 @@ function PathProbeTick takes nothing returns nothing
             else
                 call PathProbeRecord("order_rejected")
             endif
+        elseif PATH_PROBE_SCENARIO == 49 then
+            call Preload("PATHSELECT tick=10 ready local=" + I2S(GetPlayerId(GetLocalPlayer())))
         elseif IssuePointOrder(udg_PathProbeUnit, "move", -1936.0, -144.0) then
             call PathProbeRecord("order_accepted")
         else
@@ -848,6 +850,9 @@ function PathProbeTick takes nothing returns nothing
             call Preload("PATHCROWD tick=" + I2S(udg_PathProbeTick) + " id=" + I2S(crowdIndex) + " x=" + R2S(GetUnitX(udg_PathProbeCrowd[crowdIndex])) + " y=" + R2S(GetUnitY(udg_PathProbeCrowd[crowdIndex])) + " order=" + I2S(GetUnitCurrentOrder(udg_PathProbeCrowd[crowdIndex])))
             set crowdIndex = crowdIndex + 1
         endloop
+    endif
+    if PATH_PROBE_SCENARIO == 49 then
+        call Preload("PATHSELECT tick=" + I2S(udg_PathProbeTick) + " peerX=" + R2S(GetUnitX(udg_PathProbeCrowd[1])) + " peerY=" + R2S(GetUnitY(udg_PathProbeCrowd[1])) + " peerOrder=" + I2S(GetUnitCurrentOrder(udg_PathProbeCrowd[1])))
     endif
     call PathProbeRecord("sample")
     if udg_PathProbeTick == 300 then
@@ -997,6 +1002,17 @@ function PathProbeInit takes nothing returns nothing
     call FogMaskEnable(false)
     call SetCameraPosition(-1936.0, -560.0)
     call SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 1800.0, 0.0)
+    if PATH_PROBE_SCENARIO == 49 then
+        call SetPlayerController(GetLocalPlayer(), MAP_CONTROL_USER)
+        call SetUnitOwner(udg_PathProbeUnit, GetLocalPlayer(), false)
+        set udg_PathProbeCrowd[0] = udg_PathProbeUnit
+        set udg_PathProbeCrowd[1] = CreateUnit(GetLocalPlayer(), 'hfoo', -1856.0, -976.0, 90.0)
+        call SetUnitMoveSpeed(udg_PathProbeCrowd[1], 100.0)
+        call EnableUserControl(true)
+        call ShowInterface(true, 0.0)
+        call ClearSelection()
+        call SelectUnit(udg_PathProbeCrowd[1], true)
+    endif
     call SelectUnit(udg_PathProbeUnit, true)
     call PathProbeRecord("start_@NAME@")
     if PATH_PROBE_SCENARIO == 26 then

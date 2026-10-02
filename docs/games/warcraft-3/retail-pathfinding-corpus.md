@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **258 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **41**
+The inventory now has **259 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **42**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -26,7 +26,7 @@ outside the accepted inventory unless given their own rejection contract.
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Thirty public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Thirty-two public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -700,3 +700,17 @@ shared frame. Extra trailing clock rows are checked for observer completeness
 and grant no new numerical-clock claim. The unchanged scheduler oracle is rerun
 fresh alongside this contract. Inventory is258 entries/99 frozen fixtures.
 See [ordinary player queues](retail-pathfinding-engine.md#ordinary-fine-search-belongs-to-the-unit-player).
+
+
+Payoff41 adds `live-selected-point-repeat-261002`: actual externally issued
+Win32 Move input reaches the original player3 packet8 producer, two complete
+attach-before-admit/publication sequences and shared physical lifetimes. Both
+captures repeat all228 relative pose/velocity/facing commits, while retaining
+different supplied absolute input clocks. The fresh checker verifies every
+original phase hash,452 scalar decisions,456 numerical commits and four natural
+completions, plus all helper/observer/map provenance and the engine header.
+Normal engine frames separately reproduce all456 commits and304 saved suffix
+commits; the existing115-commit public pair also passes through selection.
+Inventory is259 entries/100 frozen fixtures. Failed X11 mouse and preliminary
+helper captures remain diagnostic evidence outside this contract. See
+[selected ground Move](retail-pathfinding-engine.md#selected-ground-move-uses-the-shared-physical-owner).

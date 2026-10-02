@@ -29,6 +29,7 @@
 #include "games/warcraft-3/common/wc3_pathing_segment.h"
 #include "retail_public_oblique.h"
 #include "retail_public_pair.h"
+#include "retail_selected_point.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -3284,7 +3285,7 @@ TEST(wc3_movement, periodic_public_twelve_members_match_retail) {
     FOR_LOOP(i,12) { game.clients[i].jass.race_pref=old_prefs[i]; game.clients[i].ps.race=old_races[i]; }
 }
 
-TEST(wc3_movement, periodic_public_shared_pair_matches_retail) {
+static void periodic_shared_pair_matches_retail(bool selected) {
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
     unitModification_t mods[]={
@@ -3307,9 +3308,10 @@ TEST(wc3_movement, periodic_public_shared_pair_matches_retail) {
     level.waypoints=(typeof(level.waypoints)){0};
     level.pathing_clock=(wc3Clock_t){0,0,300};
     level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
-    cstring_t script="globals\nunit array movers\ngroup cohort\ninteger tick=0\nendglobals\n"
+    cstring_t script="globals\nunit array movers\ngroup cohort\ninteger tick=0\nboolean selected=false\nendglobals\n"
         "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
-        "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1936,-720)\nendif\nendfunction\n"
+        "if tick==10 and not selected then\ncall GroupPointOrder(cohort,\"move\",-1936,-720)\nendif\nendfunction\n"
+        "function selectProducer takes nothing returns nothing\nset selected=true\nendfunction\n"
         "function main takes nothing returns nothing\n"
         "set movers[0]=CreateUnit(Player(0),'hPPR',-1936,-976,90)\n"
         "set movers[1]=CreateUnit(Player(0),'hPPR',-1856,-976,90)\n"
@@ -3320,6 +3322,13 @@ TEST(wc3_movement, periodic_public_shared_pair_matches_retail) {
     edict_t *units[2]={0}; unsigned count=0,steps=0; uint32_t clocks[2]={0};
     FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
     T_EQ(count,2);
+    edict_t *clent=NULL;
+    if (selected) {
+        jass_callbyname(level.vm,"selectProducer",false);
+        clent=alloc_test_unit(0,0,0); clent->client=game.clients;
+        clent->client->ps.number=0; clent->client->menu.order_queued=false;
+        FOR_LOOP(i,2) units[i]->selected=1;
+    }
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     cstring_t saves[]={"/tmp/wc3-public-pair-moving.bin","/tmp/wc3-public-pair-retry.bin"};
     unsigned suffixes=0;
@@ -3336,6 +3345,7 @@ TEST(wc3_movement, periodic_public_shared_pair_matches_retail) {
         while (level.time<30000 && count==2) {
             bool committed=false;
             level.time+=5; globals.RunFrame();
+            if (selected && level.time==1000) T_ASSERT(move_selectlocation(clent,&(vec2_t){-1936,-720}));
             FOR_LOOP(i,2) {
                 edict_t *unit=units[i]; uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
                 if (now==clocks[i]) continue;
@@ -3387,6 +3397,15 @@ TEST(wc3_movement, periodic_public_shared_pair_matches_retail) {
     T_ASSERT(!jass_rterror_pending(level.vm));
     game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
     level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+TEST(wc3_movement, periodic_public_shared_pair_matches_retail) {
+    periodic_shared_pair_matches_retail(false);
+}
+
+/* Same frozen native group trajectory, through the actual selected-unit producer. */
+TEST(wc3_movement, selected_shared_pair_matches_retail_and_saved_continuations) {
+    periodic_shared_pair_matches_retail(true);
 }
 
 TEST(wc3_movement, periodic_public_oblique_move_matches_retail_from_zero_clock) {
@@ -8194,7 +8213,7 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
     CM_SetupTestPathmap(128, 128, cells);
     CM_SetupTestWorldBounds(&(box2_t){ .min = {-2048, -2048}, .max = {2048, 2048} });
     edict_t *clent = alloc_test_unit(0, 0, 0);
-    clent->client = &game.clients[0]; clent->client->ps.number = 0;
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false; clent->client->ps.number = 0;
     edict_t *units[3];
     UnitData_t rows[3];
     uint32_t const targets[3][2] = {{0x44845555u, 0xc27fffffu}, {0x44845555u, 0x427fffffu}, {0x445caaaau, 0x0u}};
@@ -8207,14 +8226,31 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
         unit_stand(units[i]); gi.LinkEntity(units[i]);
     }
     vec2_t const destination = {1000, 0};
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=level.pathing_msec=0; level.pathing_phase=0;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,3) T_ASSERT(unit_issueorder(units[i],"move",&(vec2_t){-1000,0}));
+    /* Preserve the frozen16a5b0 world-point layout through the queued producer.
+     * The physical owner instead lays out at its current coarse point/heading. */
+    clent->client->menu.order_queued=true;
+    T_ASSERT(move_selectlocation(clent,&destination));
+    FOR_LOOP(i,3) {
+        T_EQ(units[i]->order_queue.count,1);
+        unitOrder_t const *queued=units[i]->order_queue.entries+units[i]->order_queue.head;
+        T_EQ(wc3_float_bits(queued->point.x),targets[i][0]);
+        T_EQ(wc3_float_bits(queued->point.y),targets[i][1]);
+    }
+    clent->client->menu.order_queued=false;
     T_ASSERT(move_selectlocation(clent, &destination));
+    S_RunAbilityOwnerUpdates();
+    moveGroup_t *group=level.move_groups[0];
+    T_EQ(group->count,3);
     FOR_LOOP(i, 3) {
         T_NOT_NULL(units[i]->goalentity);
-        T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x), targets[i][0]);
-        T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.y), targets[i][1]);
-        T_ASSERT(units[i]->goalentity->secondarygoal == units[0]->goalentity->secondarygoal);
-        T_EQ(units[i]->goalentity->secondarygoal->s.origin2.x, destination.x);
-        T_EQ(units[i]->goalentity->secondarygoal->s.origin2.y, destination.y);
+        T_EQ(units[i]->order_queue.count,0);
+        T_EQ(group->members[i].unit,units[i]);
+        T_EQ(units[i]->goalentity->s.origin2.x, destination.x);
+        T_EQ(units[i]->goalentity->s.origin2.y, destination.y);
     }
     clent->client->menu.order_queued = true;
     T_ASSERT(move_selectlocation(clent, &destination));
@@ -8223,52 +8259,58 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
         unitOrder_t const *queued = units[i]->order_queue.entries + units[i]->order_queue.head;
         T_EQ(wc3_float_bits(queued->point.x), targets[i][0]);
         T_EQ(wc3_float_bits(queued->point.y), targets[i][1]);
-        T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x), targets[i][0]);
+        T_EQ(units[i]->goalentity->s.origin2.x,destination.x);
     }
     clent->client->menu.order_queued = false;
     FOR_LOOP(frame, 8) {
         level.time += FRAMETIME;
-        FOR_LOOP(i, 3) units[i]->currentmove->think(units[i]);
-        CM_ProcessPathJobs(4096);
+        globals.RunFrame();
     }
     FOR_LOOP(i, 3) T_ASSERT(units[i]->s.origin2.x > -640);
     cstring_t file = "/tmp/openwarcraft3-ranked-formation-save.bin";
-    uint32_t expected[8][3][4];
+    uint32_t expected[8][3][8];
     T_ASSERT(WriteGame(file));
     FOR_LOOP(frame, 8) {
         level.time += FRAMETIME;
+        globals.RunFrame();
         FOR_LOOP(i, 3) {
-            units[i]->currentmove->think(units[i]);
             expected[frame][i][0] = wc3_float_bits(units[i]->s.origin2.x);
             expected[frame][i][1] = wc3_float_bits(units[i]->s.origin2.y);
             expected[frame][i][2] = wc3_float_bits(units[i]->movement.velocity.x);
             expected[frame][i][3] = wc3_float_bits(units[i]->movement.velocity.y);
+            expected[frame][i][4] = wc3_float_bits(group->members[i].world_destination.x);
+            expected[frame][i][5] = wc3_float_bits(group->members[i].world_destination.y);
+            expected[frame][i][6] = wc3_float_bits(group->members[i].offset.x);
+            expected[frame][i][7] = wc3_float_bits(group->members[i].offset.y);
         }
-        CM_ProcessPathJobs(4096);
     }
     T_ASSERT(ReadGame(file));
+    group=level.move_groups[0];
     FOR_LOOP(frame, 8) {
         level.time += FRAMETIME;
+        globals.RunFrame();
         FOR_LOOP(i, 3) {
-            units[i]->currentmove->think(units[i]);
             T_EQ(wc3_float_bits(units[i]->s.origin2.x), expected[frame][i][0]);
             T_EQ(wc3_float_bits(units[i]->s.origin2.y), expected[frame][i][1]);
             T_EQ(wc3_float_bits(units[i]->movement.velocity.x), expected[frame][i][2]);
             T_EQ(wc3_float_bits(units[i]->movement.velocity.y), expected[frame][i][3]);
+            T_EQ(wc3_float_bits(group->members[i].world_destination.x),expected[frame][i][4]);
+            T_EQ(wc3_float_bits(group->members[i].world_destination.y),expected[frame][i][5]);
+            T_EQ(wc3_float_bits(group->members[i].offset.x),expected[frame][i][6]);
+            T_EQ(wc3_float_bits(group->members[i].offset.y),expected[frame][i][7]);
         }
-        CM_ProcessPathJobs(4096);
     }
-    FOR_LOOP(i, 3) {
-        T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x), targets[i][0]);
-        T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.y), targets[i][1]);
+    FOR_LOOP(i,3) {
+        T_EQ(units[i]->goalentity->s.origin2.x,destination.x);
+        T_EQ(units[i]->goalentity->s.origin2.y,destination.y);
     }
     remove(file); reset_entities();
 }
 
 TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
-    reset_entities();
+    reset_entities(); setup_test_world();
     edict_t *clent = alloc_test_unit(0, 0.0f, 0.0f);
-    clent->client = &game.clients[0];
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
 
     edict_t *a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     edict_t *b = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
@@ -8285,21 +8327,23 @@ TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
     vec2_t dest = {100.0f, 100.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
-    T_NOT_NULL(a->goalentity);
-    T_NOT_NULL(b->goalentity);
-    T_NOT_NULL(c->goalentity);
-    T_NOT_NULL(a->goalentity->secondarygoal);
-    T_ASSERT(a->goalentity->secondarygoal == b->goalentity->secondarygoal);
-    T_ASSERT(a->goalentity->secondarygoal == c->goalentity->secondarygoal);
-    T_ASSERT(Vector2_distance(&a->goalentity->s.origin2, &b->goalentity->s.origin2) >= 32.0f);
-    T_ASSERT(Vector2_distance(&a->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
-    T_ASSERT(Vector2_distance(&b->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
+    S_RunAbilityOwnerUpdates();
+    moveGroup_t const *group=level.move_groups[0];
+    T_EQ(group->count,3);
+    FOR_LOOP(i,3) {
+        T_NOT_NULL(units[i]->goalentity);
+        T_EQ(units[i]->goalentity->s.origin2.x,dest.x);
+        T_EQ(units[i]->goalentity->s.origin2.y,dest.y);
+    }
+    FOR_LOOP(i,3) for (uint32_t j=i+1;j<3;j++)
+        T_ASSERT(Vector2_distance(&group->members[i].world_destination,&group->members[j].world_destination)>=32);
+    reset_entities(); setup_test_world();
 }
 
 TEST(wc3_movement, group_move_ignores_selected_buildings) {
-    reset_entities();
+    reset_entities(); setup_test_world();
     edict_t *clent = alloc_test_unit(0, 0.0f, 0.0f);
-    clent->client = &game.clients[0];
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
 
     edict_t *building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
     edict_t *peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
@@ -8325,9 +8369,9 @@ TEST(wc3_movement, group_move_ignores_selected_buildings) {
 /* A mixed-speed group travels at its slowest member's speed so it stays
  * together instead of stringing out (WC3 group movement). */
 TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
-    reset_entities();
+    reset_entities(); setup_test_world();
     edict_t *clent = alloc_test_unit(0, 0.0f, 0.0f);
-    clent->client = &game.clients[0];
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
 
     edict_t *fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
@@ -8344,11 +8388,11 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     vec2_t dest = {400.0f, 0.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
-    /* Both units adopt the slowest member's speed for the group move... */
-    T_FEQ(fast->movement.group_speed, 100.0f, 0.01f);
-    T_FEQ(slow->movement.group_speed, 100.0f, 0.01f);
-    /* ...so the fast unit's per-frame travel is capped to the slow speed. */
-    T_FEQ(unit_movedistance(fast), 10.0f * 100.0f / (float)FRAMETIME, 0.01f);
+    S_RunAbilityOwnerUpdates();
+    /* Member decisions keep their own maximum; the separate commit phase shares the cap. */
+    T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),100,0.01f);
+    T_FEQ(sqrtf(Vector2_lengthsq(&slow->movement.velocity)),100,0.01f);
+    T_EQ(fast->movement.group_speed,0); T_EQ(slow->movement.group_speed,0);
 }
 
 /* A selection's cap follows its active members, not the speed captured at
@@ -8357,7 +8401,7 @@ TEST(wc3_movement, group_move_refreshes_survivor_speed) {
     FOR_LOOP(change, 6) {
         reset_entities(); setup_test_world();
         edict_t *clent = alloc_test_unit(0, 0, 0);
-        clent->client = &game.clients[0];
+        clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
         edict_t *fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
         edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
         edict_t *units[] = { fast, slow };
@@ -8368,7 +8412,8 @@ TEST(wc3_movement, group_move_refreshes_survivor_speed) {
         }
         fast->unitinfo.MoveSpeed = 300; slow->unitinfo.MoveSpeed = 100;
         T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
-        T_FEQ(unit_movedistance(fast), 10.0f * 100 / FRAMETIME, 0.001f);
+        S_RunAbilityOwnerUpdates();
+        T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),100,0.001f);
         switch (change) {
         case 0: T_ASSERT(unit_issueimmediateorder(slow, "stop")); break;
         case 1: G_FreeEdict(slow); break;
@@ -8377,14 +8422,15 @@ TEST(wc3_movement, group_move_refreshes_survivor_speed) {
         case 4: G_SetHealth(slow, 0); break;
         case 5: slow->unitinfo.MoveSpeed = 200; break;
         }
-        T_FEQ(unit_movedistance(fast), 10.0f * (change == 5 ? 200 : 300) / FRAMETIME, 0.001f);
+        S_RunAbilityOwnerUpdates();
+        T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),change==5 ? 200 : 300,0.001f);
     }
 }
 
 TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
     reset_entities(); setup_test_world();
     edict_t *clent = alloc_test_unit(0, 0, 0);
-    clent->client = &game.clients[0];
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
     edict_t *a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     edict_t *b = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
     edict_t *c = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 128);
@@ -8404,8 +8450,9 @@ TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
     T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
     T_ASSERT(c->movement.group_id != 0 && c->movement.group_id != first_group);
     T_EQ(c->movement.group_id, d->movement.group_id);
-    T_FEQ(unit_movedistance(a), 10.0f * 100 / FRAMETIME, 0.001f);
-    T_FEQ(unit_movedistance(c), 10.0f * 200 / FRAMETIME, 0.001f);
+    S_RunAbilityOwnerUpdates();
+    T_FEQ(sqrtf(Vector2_lengthsq(&a->movement.velocity)),100,0.001f);
+    T_FEQ(sqrtf(Vector2_lengthsq(&c->movement.velocity)),200,0.001f);
     uint32_t saved_time = level.time;
     G_FreeEdict(b); level.time += 1001;
     edict_t *replacement = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
@@ -8414,8 +8461,9 @@ TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
     replacement->unitinfo.MoveSpeed = 50;
     T_ASSERT(unit_issueorder(replacement, "move", &(vec2_t){400, 0}));
     T_EQ(replacement->movement.group_id, 0);
-    T_FEQ(unit_movedistance(a), 10.0f * 300 / FRAMETIME, 0.001f);
-    T_FEQ(unit_movedistance(c), 10.0f * 200 / FRAMETIME, 0.001f);
+    S_RunAbilityOwnerUpdates();
+    T_FEQ(sqrtf(Vector2_lengthsq(&a->movement.velocity)),300,0.001f);
+    T_FEQ(sqrtf(Vector2_lengthsq(&c->movement.velocity)),200,0.001f);
     level.time = saved_time;
 }
 
@@ -10287,6 +10335,114 @@ TEST(wc3_movement, pending_fine_request_removal_repairs_each_player_fifo) {
         T_ASSERT(S_AdmitUnitMoveFineRequest(units[2])); T_EQ(level.move_fine_budgets[row].count,0);
     }
     reset_entities(); setup_test_world();
+}
+
+/* Player-selected ordinary ground Move must own the same retained cohort as public groups. */
+TEST(wc3_movement, selected_point_move_owns_shared_physical_group) {
+    reset_entities(); setup_test_world();
+    edict_t *clent=alloc_test_unit(0,0,0),*units[2];
+    clent->client=game.clients; clent->client->ps.number=0; clent->client->menu.order_queued=false;
+    FOR_LOOP(i,2) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','R','T','E'),128+80*i,128);
+        units[i]->collision=16; units[i]->selected=1; units[i]->svflags|=SVF_MONSTER;
+        units[i]->stand=unit_stand; units[i]->movetype=MOVETYPE_STEP; unit_stand(units[i]); gi.LinkEntity(units[i]);
+    }
+    vec2_t point={128,512}; T_ASSERT(move_selectlocation(clent,&point));
+    T_EQ(ARRAY_COUNT(level.move_groups),1);
+    if (ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t const *group=level.move_groups[0];
+        T_ASSERT(group->inuse); T_EQ(group->count,2);
+        FOR_LOOP(i,2) {
+            T_EQ(units[i]->movement.group_id,group->id);
+            T_EQ(group->members[i].unit,units[i]);
+            T_EQ(units[i]->current_order_id,G_OrderId("move"));
+        }
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Native player input supplies its absolute admission clock; all owner visits
+ * and motion then come from ordinary engine frames, without replaying decisions. */
+TEST(wc3_movement, selected_player_input_matches_both_original_journeys) {
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','E','L'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(c,2) {
+        reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+        static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+        unsigned offset=0;
+        FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+            memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+            offset+=public_oblique_terrain_runs[i][0];
+        }
+        T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+        level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+        level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+        T_ASSERT(run_test_jass("globals\nunit a\nunit b\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set a=CreateUnit(Player(0),'hSEL',-1936,-976,90)\n"
+            "call SetUnitMoveSpeed(a,100)\ncall SetUnitOwner(a,Player(3),false)\n"
+            "set b=CreateUnit(Player(3),'hSEL',-1856,-976,90)\n"
+            "call SetUnitMoveSpeed(b,100)\nendfunction\n"));
+        edict_t *units[2]={0}; unsigned count=0,steps=0; uint32_t clocks[2]={0};
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
+        T_EQ(count,2); if (count!=2) continue;
+        edict_t *clent=alloc_test_unit(0,0,0); clent->client=game.clients+3;
+        clent->client->ps.number=3; clent->client->menu.order_queued=false;
+        FOR_LOOP(i,2) units[i]->selected=1u<<3;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        bool issued=false,mismatch=false;
+        cstring_t saves[]={"/tmp/wc3-selected-input-moving.bin","/tmp/wc3-selected-input-arrival.bin"};
+        FOR_LOOP(pass,3) {
+            if (pass) {
+                T_ASSERT(ReadGame(saves[pass-1])); steps=pass==1 ? 80 : 224; issued=true; mismatch=false;
+                FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+                T_EQ(units[0]->s.player,3); T_EQ(units[0]->movement.fine_class,3);
+            }
+            while (level.time<30000 && !mismatch) {
+                if (!issued && wc3_float_bits(level.pathing_clock.time)==selected_point_inputs[c][0]) {
+                    T_EQ(level.pathing_counter,selected_point_inputs[c][1]);
+                    vec2_t point={wc3_float(selected_point_inputs[c][2]),wc3_float(selected_point_inputs[c][3])};
+                    T_ASSERT(move_selectlocation(clent,&point)); issued=true;
+                    FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+                }
+                level.time+=5; globals.RunFrame();
+                if (!issued) continue;
+                FOR_LOOP(i,2) {
+                    edict_t *unit=units[i]; uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+                    if (now==clocks[i]) continue;
+                    clocks[i]=now;
+                    T_ASSERT(steps<228); if (steps>=228) { mismatch=true; break; }
+                    uint32_t const *expected=selected_point_motion[c][steps++];
+                    uint32_t actual[]={i,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+                    FOR_LOOP(k,7) { T_EQ(actual[k],expected[k]); if(actual[k]!=expected[k]) mismatch=true; }
+                    if (!pass && (steps==80 || steps==224)) T_ASSERT(WriteGame(saves[steps==80 ? 0 : 1]));
+                    if (mismatch) {
+                        fprintf(stderr,"Selected point case%u commit%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",c,steps-1,
+                            actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+                        break;
+                    }
+                }
+            }
+            T_ASSERT(issued); T_EQ(steps,228);
+            if (!mismatch) {
+                FOR_LOOP(i,2) T_EQ(units[i]->current_order_id,0);
+                FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
+            }
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        remove(saves[0]); remove(saves[1]);
+    }
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
 }
 
 #endif

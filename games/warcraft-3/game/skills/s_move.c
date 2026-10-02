@@ -2662,6 +2662,20 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     if (num_units == 0) {
         return false;
     }
+    /* Native NetUnit.cpp prepares shared requests before ordinary ground point admission.
+     * Reuse the verified cohort owner instead of assigning an ID to independent walkers.
+     * TODO GROUP-04.6: Shift, air/mixed-lane and larger selection request producers remain open. */
+    if (!clent->client->menu.order_queued && num_units>1 && num_units<=BZ_WC3_GROUP_ORDER_UNITS) {
+        bool ground=true; uint8_t mask=M_UnitStaticPathingFlags(units[0]);
+        FOR_LOOP(i,num_units) if ((units[i]->aiflags&AI_FLYING) || M_UnitStaticPathingFlags(units[i])!=mask) ground=false;
+        if (ground) {
+            groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location};
+            FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+            bool accepted=G_IssueGroupPointOrder(&request);
+            if (accepted) G_SendPointConfirmation(clent,location,false);
+            return accepted;
+        }
+    }
     wc3FormationMember_t members[WC3_FORMATION_MEMBERS];
     bool const retail_layout = num_units <= WC3_FORMATION_MEMBERS;
     if (retail_layout) {

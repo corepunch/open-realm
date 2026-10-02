@@ -1421,6 +1421,126 @@
           "evidence": "157610 initial0;15aa80 toggles0/1"
         }
       ]
+    },
+    {
+      "name": "WC3NetPointActionPrefix",
+      "length": 56,
+      "fields": [
+        {
+          "offset": 21,
+          "name": "player",
+          "type": "u8",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 24,
+          "name": "flags",
+          "type": "u16",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 28,
+          "name": "order",
+          "type": "u32",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 32,
+          "name": "source",
+          "type": "WC3PathIdentity",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 40,
+          "name": "point",
+          "type": "WC3PathVector2",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 48,
+          "name": "target",
+          "type": "WC3PathIdentity",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        }
+      ]
+    },
+    {
+      "name": "WC3MoveRequestWrapper",
+      "length": 16,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 4,
+          "name": "references",
+          "type": "u32",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 8,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        }
+      ]
+    },
+    {
+      "name": "WC3NetPointTargetContext",
+      "length": 60,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "action",
+          "type": "ptr:WC3NetPointActionPrefix",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 4,
+          "name": "point",
+          "type": "WC3PathVector2",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 12,
+          "name": "target",
+          "type": "ptr:void",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined. Polymorphic target payload; no canonical-header layout assumed."
+        },
+        {
+          "offset": 16,
+          "name": "ground_request",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 20,
+          "name": "air_request",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 24,
+          "name": "special_request",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 40,
+          "name": "formation_option",
+          "type": "u32",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        },
+        {
+          "offset": 56,
+          "name": "count",
+          "type": "u32",
+          "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+        }
+      ]
     }
   ],
   "methods": [
@@ -5532,6 +5652,139 @@
         }
       ],
       "evidence": "Decoded x86 operands/RET; 1024 original queued class transitions and independently owned public SetUnitOwner captures."
+    },
+    {
+      "address": "6f6b98f0",
+      "name": "NetOrder_DispatchPointSelection",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "ptr:WC3NetPointActionPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+    },
+    {
+      "address": "6f6b9f70",
+      "name": "NetOrder_DispatchPointSelectionWithTarget",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "ptr:WC3NetPointActionPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+    },
+    {
+      "address": "6f6b8c10",
+      "name": "NetOrder_AttachPointCandidates",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "ptr:void",
+          "storage": "EDX"
+        }
+      ],
+      "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+    },
+    {
+      "address": "6f6ba590",
+      "name": "NetOrder_AdmitPointCandidate",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "ptr:void",
+          "storage": "EDX"
+        }
+      ],
+      "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+    },
+    {
+      "address": "6f6ba800",
+      "name": "NetOrder_AdmitPointTargetCandidate",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "ptr:WC3NetPointTargetContext",
+          "storage": "EDX"
+        }
+      ],
+      "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+    },
+    {
+      "address": "6f6b93a0",
+      "name": "NetOrder_PublishUnitOrder",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "order",
+          "type": "ptr:WC3OrderPrefix",
+          "storage": "EDX"
+        },
+        {
+          "name": "flags",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "fallback",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined. flags occupies four-byte stack slot; original consumes low ushort. RET8."
+    },
+    {
+      "address": "6f89caf0",
+      "name": "MoveRequest_SetFormationOptions",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "storage": "ECX"
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
     }
   ],
   "globals": [
