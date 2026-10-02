@@ -490,6 +490,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "attack", 851983, 0 },
     { "attackground", 851984, 0 },
     { "move", 851986, 0 },
+    { "patrol", 851990, 0 },
     { "holdposition", 851993, 0 },
     { "repair", 852024, 0 },
     { "ambush", 852131, MAKEFOURCC('A','h','i','d') },
@@ -842,6 +843,10 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     CM_ClosestPathablePointForRadiusFlags(point, self->collision, M_UnitStaticPathingFlags(self), &target);
     waypoint = Waypoint_add(&target);
     if (!waypoint) return false;
+    if (!strcmp(order, "patrol")) {
+        order_patrol(self, waypoint);
+        return true;
+    }
     self->movement.holding_position = false;
     if (!strcmp(order, "smart") || !strcmp(order, "move")) {
         order_move(self, waypoint);
@@ -954,6 +959,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     }
     if ((self->aiflags & AI_IMMOBILE) && strcmp(order, "attackground")) return false;
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
+        strcmp(order, "patrol") &&
         strcmp(order, "attackground")) return false;
 
     if (queue && G_UnitHasActiveOrder(self)) {
