@@ -1137,7 +1137,8 @@ static void G_BotCaptainAdd(botCaptain_t *captain, edict_t *unit) {
     captain->units = units; ARRAY_COUNT(captain->units) = count + 1; captain->units[count] = unit;
 }
 
-/* Production is requested by common.ai; roster fills never steal units assigned to the other captain. */
+/* Persistent defender requests are totals by type: repeated AddDefenders calls reconcile
+ * the same desired count instead of consuming additional units. */
 static bool G_BotCaptainFill(player_t *player, botCaptainType_t type, int32_t qty, uint32_t class_id) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     botCaptain_t *captain;
@@ -1153,11 +1154,28 @@ static bool G_BotCaptainFill(player_t *player, botCaptainType_t type, int32_t qt
     return have >= qty;
 }
 
+/* AddAssault is additive per common.ai harass entry, not a per-type total. SetAssaultGroup
+ * intentionally allows duplicate entries (Interleave helpers can emit them), and FormGroup
+ * calls AddAssault once for each entry. Each call therefore consumes up to qty additional
+ * eligible units of that type while returning whether the whole entry was satisfied. */
+static bool G_BotCaptainTakeAssault(player_t *player, int32_t qty, uint32_t class_id) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    int32_t added = 0;
+    if (!bot || qty <= 0 || !class_id) return qty <= 0;
+    captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    FILTER_EDICTS(unit, added < qty && G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
+        unit->class_id == class_id && !unit->construction.active && !unit->training && !G_BotCaptainHasUnit(bot, unit)) {
+        G_BotCaptainAdd(captain, unit); added++;
+    }
+    return added >= qty;
+}
+
 bool G_BotAddAssault(player_t *player, int32_t qty, uint32_t class_id) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     bool ready;
     if (bot && qty > 0 && class_id) bot->captains[BOT_CAPTAIN_ATTACK].desired += qty;
-    ready = G_BotCaptainFill(player, BOT_CAPTAIN_ATTACK, qty, class_id);
+    ready = G_BotCaptainTakeAssault(player, qty, class_id);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI assault add player=%u qty=%d id=%.4s ready=%d size=%u desired=%d\n",
         player ? PLAYER_NUM(player) : MAX_PLAYERS, qty, (cstring_t)&class_id, ready,

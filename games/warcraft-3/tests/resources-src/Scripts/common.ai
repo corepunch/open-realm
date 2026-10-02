@@ -93,3 +93,60 @@ native Sleep takes real seconds returns nothing
 native MissingAIAction takes nothing returns nothing
 native MissingAIValue takes nothing returns integer
 native StartCampaignAI takes player num, string script returns nothing
+
+// Stock assault-group bookkeeping subset used by player-AI integration tests.
+globals
+    integer array harass_qty
+    integer array harass_max
+    integer array harass_units
+    integer harass_length = 0
+endglobals
+
+function TownCountDone takes integer unitid returns integer
+    return GetUnitCountDone(unitid)
+endfunction
+
+function InitAssaultGroup takes nothing returns nothing
+    set harass_length = 0
+endfunction
+
+function Conversions takes integer desire, integer unitid returns nothing
+    // The test fixture has no conversion-capable unit definitions; production uses retail common.ai.
+endfunction
+
+function SetAssaultGroup takes integer qty, integer max, integer unitid returns nothing
+    call Conversions(max, unitid)
+    if qty <= 0 and TownCountDone(unitid) == 0 then
+        return
+    endif
+    set harass_qty[harass_length] = qty
+    set harass_max[harass_length] = max
+    set harass_units[harass_length] = unitid
+    set harass_length = harass_length + 1
+endfunction
+
+function FormGroup takes nothing returns nothing
+    local integer index = 0
+    local integer unitid
+    local integer count
+    local integer desire
+
+    call InitAssault()
+    loop
+        exitwhen index == harass_length
+        set unitid = harass_units[index]
+        set count = TownCountDone(unitid)
+        set desire = harass_max[index]
+        if count >= desire then
+            call AddAssault(desire, unitid)
+        else
+            set desire = harass_qty[index]
+            if count < desire then
+                call AddAssault(desire, unitid)
+            else
+                call AddAssault(count, unitid)
+            endif
+        endif
+        set index = index + 1
+    endloop
+endfunction

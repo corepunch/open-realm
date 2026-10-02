@@ -988,6 +988,39 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
     T_ASSERT(first != second && building != enemy);
 }
 
+TEST(wc3_bot, add_assault_consumes_each_duplicate_common_ai_entry_additively) {
+    bot_t *bot = level.bots + 2;
+    uint32_t type = MAKEFOURCC('h','f','o','o');
+
+    reset_entities();
+    FOR_LOOP(i, 5) make_bot_harvest_unit(type, (float)i * 32.0f, 0, 2, NULL);
+    G_BotCreateCaptains(&game.clients[2].ps);
+    G_BotInitAssault(&game.clients[2].ps);
+
+    T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 2, type));
+    T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 3, type));
+    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 5);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 5);
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
+}
+
+TEST(wc3_bot, set_assault_group_form_group_uses_max_then_appends_duplicate_entry) {
+    bot_t *bot = level.bots + 2;
+    uint32_t type = MAKEFOURCC('h','f','o','o');
+
+    reset_entities();
+    FOR_LOOP(i, 6) make_bot_harvest_unit(type, (float)i * 32.0f, 0, 2, NULL);
+
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_set_assault_group.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 6);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 6);
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
+    G_BotStop(2);
+}
+
 TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_target_player) {
     bot_t *bot = level.bots + 2;
     mapInfo_t *mapinfo = (mapInfo_t *)level.mapinfo;
