@@ -111,6 +111,16 @@ Ordinary destination fields remain incremental and frame-budgeted. The mover-com
 
 The current router is now deliberately hybrid. Direct collision-sized lines handle open ground, bounded per-mover A* handles nearby static detours, destination-cached integration fields amortize long routes shared by groups, and local avoidance handles live units. This is closer to retail's split between mover-owned route state and a global pathing system without claiming its unrecovered accelerator implementation.
 
+### Route-wait diagnostics
+
+Route-wait begin/end records are compiled only with `WC3_DEBUG_ROUTING=1`. In
+that build, set `wc3_route_wait_debug 1` to write `WC3_ROUTE_WAIT` records to
+`stderr`; leave it at `0` to keep the diagnostics quiet.
+
+```sh
+make WC3_DEBUG_ROUTING=1 openwarcraft3
+```
+
 ### Retail Game.dll path audit
 
 The ROC demo `data/Warcraft3demo/Game.dll` (build 4486, SHA-256 `286823c37a1083e91f07d040e46a9df7af4c4952e01fcbba460589bd4e297654`) retains RTTI for `CAbilityMove`, `NIpse::CLrPathingSys`, and `NIpse::CLrPathingAcc`. `CAbilityMove` installs its vtable at `Game.dll+0x102898`. The path constructor at `+0x458040` initializes a roughly 0xb0-byte persistent object, including two 32-byte containers at `+0x2c` and `+0x4c`, coordinate/state fields, and a pathing-system pointer. Mover setup at `+0x466aa0` allocates and stores one such object. Submission at `+0x458670` resets route state and copies the requested coordinate into both current and destination fields.

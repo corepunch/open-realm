@@ -92,6 +92,7 @@ static bool move_route_resume(edict_t *self, edict_t *goal, float radius,
     return Vector2_len(direction) > 0.001f;
 }
 
+#ifdef WC3_DEBUG_ROUTING
 static bool move_route_wait_debug_enabled(void) {
     cstring_t value = gi.CvarString ? gi.CvarString("wc3_route_wait_debug", "0") : "0";
     return value && atoi(value) != 0;
@@ -146,6 +147,9 @@ static void move_route_wait_diag(edict_t *self, bool waiting, moveDiagState_t re
         job.goal_number, job.target_cell_x, job.target_cell_y,
         (unsigned)job.pending_cells, (unsigned)job.pending_jobs, (unsigned)job.work_done);
 }
+#else
+#define move_route_wait_diag(self, waiting, resume_state) ((void)0)
+#endif
 
 /* Keep a failed exceptional route search from monopolizing the frame while
  * the same goal remains unreachable; order changes clear this state below. */
