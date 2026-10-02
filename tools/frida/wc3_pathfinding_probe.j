@@ -690,7 +690,7 @@ function PathProbeTick takes nothing returns nothing
     endif
     if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 and PATH_PROBE_SCENARIO != 45 and PATH_PROBE_SCENARIO != 46 and PATH_PROBE_SCENARIO != 47 and PATH_PROBE_SCENARIO != 48 then
         call PathProbeRecord("before_order")
-        if ((PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 55)) then
+        if ((PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 59)) then
             if IssueTargetOrder(udg_PathProbeUnit, "smart", udg_PathProbeTarget) then
                 call PathProbeRecord("order_accepted")
             else
@@ -794,18 +794,28 @@ function PathProbeTick takes nothing returns nothing
         endif
         call Preload("PATHTARGET tick=" + I2S(udg_PathProbeTick) + " x=" + R2S(GetUnitX(udg_PathProbeTarget)) + " y=" + R2S(GetUnitY(udg_PathProbeTarget)) + " visible=" + I2S(targetVisible))
     endif
-    if (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 55) and udg_PathProbeTick == 85 then
+    if (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 59) and udg_PathProbeTick == 85 then
         call PathProbeRecord("before_target_speed")
         call SetUnitMoveSpeed(udg_PathProbeTarget, 300.0)
         call PathProbeRecord("after_target_speed")
     endif
-    if udg_PathProbeTick == 80 and (PATH_PROBE_SCENARIO == 12 or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 55)) then
+    if udg_PathProbeTick == 80 and (PATH_PROBE_SCENARIO == 12 or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 59)) then
         call PathProbeRecord("before_target_move")
         if IssuePointOrder(udg_PathProbeTarget, "move", -1936.0, 112.0) then
             call PathProbeRecord("target_move_accepted")
         else
             call PathProbeRecord("target_move_rejected")
         endif
+    endif
+    if ((PATH_PROBE_SCENARIO == 56 or PATH_PROBE_SCENARIO == 57) and udg_PathProbeTick == 100) or ((PATH_PROBE_SCENARIO == 58 or PATH_PROBE_SCENARIO == 59) and udg_PathProbeTick == 90) then
+        call PathProbeRecord("before_target_teleport")
+        if PATH_PROBE_SCENARIO == 56 or PATH_PROBE_SCENARIO == 58 then
+            call SetUnitX(udg_PathProbeTarget, -1600.0)
+            call SetUnitY(udg_PathProbeTarget, 300.0)
+        else
+            call SetUnitPosition(udg_PathProbeTarget, -1600.0, 300.0)
+        endif
+        call PathProbeRecord("after_target_teleport")
     endif
     if (PATH_PROBE_SCENARIO == 54 or PATH_PROBE_SCENARIO == 55) then
         if udg_PathProbeTick == 100 then
@@ -837,7 +847,7 @@ function PathProbeTick takes nothing returns nothing
             endif
         endif
     endif
-    if (PATH_PROBE_SCENARIO == 12 or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 55)) then
+    if (PATH_PROBE_SCENARIO == 12 or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 59)) then
         call Preload("PATHTARGET tick=" + I2S(udg_PathProbeTick) + " x=" + R2S(GetUnitX(udg_PathProbeTarget)) + " y=" + R2S(GetUnitY(udg_PathProbeTarget)) + " order=" + I2S(GetUnitCurrentOrder(udg_PathProbeTarget)))
     endif
     if udg_PathProbeTick == 80 and PATH_PROBE_SCENARIO == 11 then
@@ -907,7 +917,7 @@ function PathProbeTick takes nothing returns nothing
     endif
     call PathProbeRecord("sample")
     if udg_PathProbeTick == 300 then
-        if (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 55) then
+        if (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 59) then
             call PathProbeRecord("before_follow_stop")
             if IssueImmediateOrder(udg_PathProbeUnit, "stop") then
                 call PathProbeRecord("follow_stop_accepted")
@@ -999,7 +1009,7 @@ function PathProbeInit takes nothing returns nothing
         call SetUnitTurnSpeed(udg_PathProbeUnit, 0.125)
         call SetUnitPropWindow(udg_PathProbeUnit, 0.5)
     endif
-    if ((PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 55)) or PATH_PROBE_SCENARIO == 22 then
+    if ((PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 59)) or PATH_PROBE_SCENARIO == 22 then
         if PATH_PROBE_SCENARIO >= 13 and PATH_PROBE_SCENARIO <= 15 then
             call SetPlayerAlliance(Player(0), Player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_PASSIVE, true)
             call SetPlayerAlliance(Player(PLAYER_NEUTRAL_PASSIVE), Player(0), ALLIANCE_PASSIVE, true)
@@ -1007,7 +1017,7 @@ function PathProbeInit takes nothing returns nothing
         else
             set udg_PathProbeTarget = CreateUnit(Player(0), 'hfoo', -1936.0, -144.0, 90.0)
         endif
-        if (PATH_PROBE_SCENARIO == 12 or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 55)) then
+        if (PATH_PROBE_SCENARIO == 12 or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 59)) then
             call SetUnitMoveSpeed(udg_PathProbeTarget, 100.0)
         endif
     endif

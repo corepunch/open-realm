@@ -17,7 +17,7 @@ def policy(rows):
             for r in rows if r.get('event') in POLICY]
 
 
-def verify_policy(records,markers,target_markers):
+def verify_policy(records,markers,target_markers,marker_count=310,require_same_bucket=True):
     ranges=[r for r in records if r['event']=='arrival-range']
     if [r['value'] for r in ranges]!=[1093992448,1093992448,1056629064]:
         raise ValueError('target arrival range must add both collision radii')
@@ -25,7 +25,7 @@ def verify_policy(records,markers,target_markers):
     if len(refresh)!=58 or any(r['reload']!=max(16,min(132,r['unclamped'])) or r['coefficient']!=0.33000001311302185 for r in refresh):
         raise ValueError('target refresh countdown/reload differs')
     replans=[r for r in records if r['event']=='replan-check']
-    if not any(r['oldDestination']!=r['destination'] and not r['changed'] for r in replans):
+    if require_same_bucket and not any(r['oldDestination']!=r['destination'] and not r['changed'] for r in replans):
         raise ValueError('same-bucket target motion must retain the destination')
     for r in replans:
         import math
@@ -36,7 +36,7 @@ def verify_policy(records,markers,target_markers):
     completion=[r for r in records if r['event']=='group-completion' and r['flags']&1]
     if not completion or any(r['gateOpen'] for r in completion):
         raise ValueError('persistent Follow must retain its user head at range arrival')
-    if (len(markers)!=310 or len(target_markers)!=300 or
+    if (len(markers)!=marker_count or len(target_markers)!=300 or
             not any('tick=299 ' in r and r.endswith('order=851971') for r in markers) or
             not any('tick=300 label=complete ' in r and r.endswith('order=0') for r in markers)):
         raise ValueError('bounded Follow must end by explicit authored Stop')

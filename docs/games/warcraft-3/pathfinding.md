@@ -516,3 +516,11 @@ removal journeys each match948 normal-frame commits and1746 Save80 suffix
 commits, including a save while the replacement exists but Follow is idle.
 [Payoff48 evidence](retail-pathfinding-engine.md#follow-cancels-synchronously-before-target-pool-reuse)
 records the exact scope; save format80 is unchanged.
+
+Public target axis teleport now keeps a retained point Move through turn waits;
+its retail fine arrival/retry policy owns completion instead of legacy near-goal
+settling. Four Follow teleport journeys match4091 normal commits and7872 saved
+suffix commits. A test-only commit observer records movement before same-clock
+JASS writes, and saves use completed-owner boundaries. Save80 is unchanged.
+[Payoff49 scope and evidence](retail-pathfinding-engine.md#follow-tracks-public-target-teleports-without-premature-point-settling)
+leaves collision resizing open.

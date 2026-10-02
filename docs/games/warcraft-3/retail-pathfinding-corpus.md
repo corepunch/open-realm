@@ -796,3 +796,15 @@ The corpus now declares266 entries,107 fixtures and49 strict live entries.
 [Normal engine/save evidence](retail-pathfinding-engine.md#follow-cancels-synchronously-before-target-pool-reuse)
 is separate from these captured-input C checks. Wider queued/combat callbacks
 remain open; bounded Stop is not natural Follow head completion.
+
+Payoff49 adds `live-follow-target-teleport-captures-261002`: eight original
+captures for axis and placement setters at tick90 during target travel and
+tick100 after target arrival. `retail-follow-target-teleport-1.27.json` freezes
+four public journeys and three distinct motion sequences; the verifier checks
+8182 commits/owner passes,2158 scalar decisions and464 target reloads. It also
+checks setter current-order distinctions, preserved Follow heads and cached
+new destination acceptance. Per-capture hashes retain the two immutable source
+archives. Inventory now267 entries/108 fixtures/50 strict live entries.
+[Engine/saved continuations](retail-pathfinding-engine.md#follow-tracks-public-target-teleports-without-premature-point-settling)
+remain separate evidence. Collision resizing and denied delayed replan producers
+remain open.

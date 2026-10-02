@@ -37,6 +37,7 @@
 #include "retail_selected_independent.h"
 #include "retail_follow_velocity.h"
 #include "retail_follow_target_reuse.h"
+#include "retail_follow_target_teleport.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -10712,9 +10713,28 @@ TEST(wc3_movement, selected_independent_shift_inputs_match_original_complete_jou
             selected_independent_cases[c].count,1,SELECTED_START_INDEPENDENT,(unsigned const[]){200,400});
 }
 
-typedef enum { FOLLOW_SPEED, FOLLOW_REMOVE_REUSE, FOLLOW_KILL_REUSE } followScenario_t;
+typedef struct {
+    edict_t *units[2];
+    uint32_t rows[8][7];
+    unsigned count;
+} followCommitTrace_t;
+static followCommitTrace_t *follow_commit_trace;
+
+static void record_follow_commit(edict_t *unit) {
+    followCommitTrace_t *trace=follow_commit_trace;
+    unsigned i=unit==trace->units[0] ? 0 : 1;
+    T_ASSERT(unit==trace->units[i]); T_ASSERT(trace->count<sizeof(trace->rows)/sizeof(*trace->rows));
+    if (unit!=trace->units[i] || trace->count>=sizeof(trace->rows)/sizeof(*trace->rows)) return;
+    uint32_t words[]={i,wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    memcpy(trace->rows[trace->count++],words,sizeof(words));
+}
+
+typedef enum { FOLLOW_SPEED, FOLLOW_REMOVE_REUSE, FOLLOW_KILL_REUSE, FOLLOW_XY, FOLLOW_POSITION, FOLLOW_TRAVEL_XY, FOLLOW_TRAVEL_POSITION } followScenario_t;
 
 static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_count, followScenario_t scenario) {
+    bool reuse=scenario==FOLLOW_REMOVE_REUSE || scenario==FOLLOW_KILL_REUSE;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities(); setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
@@ -10749,7 +10769,11 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
         "set a=CreateUnit(Player(0),'hFLV',-1936,-976,90)\ncall SetUnitMoveSpeed(a,100)\n"
         "set b=CreateUnit(Player(0),'hFLV',-1936,-144,90)\ncall SetUnitMoveSpeed(b,100)\n"
         "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n",
-        scenario==FOLLOW_SPEED ? "" : scenario==FOLLOW_REMOVE_REUSE ?
+        scenario==FOLLOW_SPEED ? "" : scenario==FOLLOW_TRAVEL_XY ?
+        "if tick==90 then\ncall SetUnitX(b,-1600)\ncall SetUnitY(b,300)\nendif\n" : scenario==FOLLOW_TRAVEL_POSITION ?
+        "if tick==90 then\ncall SetUnitPosition(b,-1600,300)\nendif\n" : scenario==FOLLOW_XY ?
+        "if tick==100 then\ncall SetUnitX(b,-1600)\ncall SetUnitY(b,300)\nendif\n" : scenario==FOLLOW_POSITION ?
+        "if tick==100 then\ncall SetUnitPosition(b,-1600,300)\nendif\n" : scenario==FOLLOW_REMOVE_REUSE ?
         "if tick==100 then\ncall RemoveUnit(b)\nset b=null\nendif\n"
         "if tick==110 then\nset b=CreateUnit(Player(0),'hFLV',-1936,112,90)\ncall SetUnitMoveSpeed(b,300)\nendif\n"
         "if tick==120 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n" :
@@ -10764,34 +10788,37 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
     T_EQ(count,2);
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     cstring_t saves[]={"/tmp/wc3-follow-approach.bin","/tmp/wc3-follow-persistent.bin","/tmp/wc3-follow-target.bin"};
-    unsigned save_steps[]={50,scenario==FOLLOW_SPEED ? 150 : 348,scenario==FOLLOW_SPEED ? 250 : 700};
+    unsigned save_steps[]={50,reuse ? 348 : scenario==FOLLOW_SPEED ? 150 : scenario==FOLLOW_TRAVEL_XY ? 351 : 350,scenario==FOLLOW_SPEED ? 251 : 700};
     bool mismatch=count!=2;
+    followCommitTrace_t trace={0}; follow_commit_trace=&trace; move_test_motion_commit=record_follow_commit;
     FOR_LOOP(pass,4) {
         if(mismatch)break;
         if(pass){bool loaded=ReadGame(saves[pass-1]);T_ASSERT(loaded);if(!loaded)break;steps=save_steps[pass-1];}
         while(level.time<31000 && !mismatch) {
-            level.time+=5; globals.RunFrame(); unsigned visited=0;
-            if(scenario!=FOLLOW_SPEED)
+            trace.count=0; trace.units[0]=units[0];
+            if(reuse)
                 FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID && ent!=units[0] && !M_IsDead(ent)) units[1]=ent;
-            if(scenario!=FOLLOW_SPEED && level.time>=10000 && level.time<12000) {
+            trace.units[1]=units[1];
+            level.time+=5; globals.RunFrame();
+            if(reuse)
+                FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID && ent!=units[0] && !M_IsDead(ent)) units[1]=ent;
+            if(reuse && level.time>=10000 && level.time<12000) {
                 T_EQ(units[0]->current_order_id,0);
                 T_NULL(units[0]->movement.follow_target);
                 T_EQ(units[0]->movement.group_id,0);
             }
-            if(!pass && scenario!=FOLLOW_SPEED && level.time==11000) {
+            if(!pass && reuse && level.time==11000) {
                 T_EQ(steps,save_steps[1]); T_ASSERT(WriteGame(saves[1]));
             }
-            while(steps<motion_count) {
-                uint32_t const *expected=motion[steps];unsigned i=expected[0];edict_t *unit=units[i];
-                uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
-                if(now!=expected[1])break;
-                T_ASSERT(!(visited&(1u<<i)));visited|=1u<<i;steps++;
-                uint32_t actual[]={i,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
-                    wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(c,trace.count) {
+                T_ASSERT(steps<motion_count); if(steps>=motion_count){mismatch=true;break;}
+                uint32_t const *expected=motion[steps++],*actual=trace.rows[c];
+                unsigned i=actual[0];edict_t *unit=units[i];
                 FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
                 if(mismatch) {
                     fprintf(stderr,"Follow commit%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,
                         actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+                    fprintf(stderr,"Follow target edict=%u clock=%08x pose=%08x/%08x velocity=%08x/%08x heading=%08x blocked=%u direct=%u path=%u generation=%u request=%u counter=%u fine=%u/%u group=%u/%u\n",units[1]->s.number,wc3_float_bits(units[1]->movement.pose_clock.time),wc3_float_bits(units[1]->movement.fine_pose.x),wc3_float_bits(units[1]->movement.fine_pose.y),wc3_float_bits(units[1]->movement.velocity.x),wc3_float_bits(units[1]->movement.velocity.y),wc3_float_bits(units[1]->movement.heading),units[1]->movement.turn_blocked,units[1]->movement.flow_direct,units[1]->movement.path.valid,units[1]->movement.flow_generation,units[1]->movement.fine_request_time,level.pathing_counter,units[1]->movement.fine_route.count,units[1]->movement.fine_route.index,units[1]->movement.fine_route.group_count,units[1]->movement.fine_route.group_index);
                     moveGroup_t const *group=move_find_group(unit->movement.group_id);
                     moveFineRoute_t const *route=&unit->movement.fine_route;
                     if(group)fprintf(stderr,"Follow group goal=%.9g/%.9g point=%.9g/%.9g member=%.9g/%.9g refresh=%d target=%.9g/%.9g fine=%u/%u adaptive=%u/%u\n",
@@ -10800,7 +10827,7 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
                     FOR_LOOP(p,route->count)fprintf(stderr,"Follow fine[%u]=%.9g/%.9g\n",p,route->points[p].x,route->points[p].y);
                 }
                 if(!pass && !mismatch) FOR_LOOP(s,3)
-                    if(steps==save_steps[s] && (scenario==FOLLOW_SPEED || s!=1))T_ASSERT(WriteGame(saves[s]));
+                    if(steps==save_steps[s] && (!reuse || s!=1)){T_EQ(c+1,trace.count);T_ASSERT(WriteGame(saves[s]));}
             }
         }
         T_EQ(steps,motion_count);
@@ -10808,6 +10835,7 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
         if(!mismatch){FOR_LOOP(i,2)T_EQ(units[i]->current_order_id,0);FOR_LOOP(i,ARRAY_COUNT(level.move_groups))T_ASSERT(!level.move_groups[i]->inuse);}
         T_ASSERT(!jass_rterror_pending(level.vm));
     }
+    move_test_motion_commit=NULL; follow_commit_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     FOR_LOOP(i,3)remove(saves[i]);
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
@@ -10825,6 +10853,22 @@ TEST(wc3_movement, public_smart_follow_matches_original_target_remove_reuse) {
 
 TEST(wc3_movement, public_smart_follow_matches_original_target_kill_reuse) {
     public_follow_journey(follow_target_remove_motion,sizeof(follow_target_remove_motion)/sizeof(*follow_target_remove_motion),FOLLOW_KILL_REUSE);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_xy_teleport) {
+    public_follow_journey(follow_target_idle_motion,sizeof(follow_target_idle_motion)/sizeof(*follow_target_idle_motion),FOLLOW_XY);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_position_teleport) {
+    public_follow_journey(follow_target_idle_motion,sizeof(follow_target_idle_motion)/sizeof(*follow_target_idle_motion),FOLLOW_POSITION);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_travel_xy_teleport) {
+    public_follow_journey(follow_target_travel_xy_motion,sizeof(follow_target_travel_xy_motion)/sizeof(*follow_target_travel_xy_motion),FOLLOW_TRAVEL_XY);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_travel_position_teleport) {
+    public_follow_journey(follow_target_travel_position_motion,sizeof(follow_target_travel_position_motion)/sizeof(*follow_target_travel_position_motion),FOLLOW_TRAVEL_POSITION);
 }
 
 #endif

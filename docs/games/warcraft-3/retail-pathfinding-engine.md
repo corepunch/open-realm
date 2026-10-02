@@ -4921,3 +4921,85 @@ WC3 tests; forced optimized build and normal repository suite pass349,992
 assertions in2367 WC3 tests per variant and the remaining repository suites.
 All215 pathfinding Python checks and the ability audit pass; the fresh strict
 runner completes11/11 contracts with current source hashes.
+
+## Follow tracks public target teleports without premature point settling
+
+Payoff49 explicitly splits public teleportation from TARGET-02.2 into02.5;
+collision resizing stays02.2. Scenes56/57 teleport the target after point
+arrival at tick100; scenes58/59 jump while its Move is active at tick90.
+Each pair uses public SetUnitX/Y or SetUnitPosition to(-1600,300). The axis
+setters retain the target's Move851986, so it returns toward(-1936,112).
+SetUnitPosition stops that target order. The other unit's Smart851971 survives
+both setters, and Follow ends only at the authored Stop300.
+
+All four journeys have complete read-only native repeats. The two stationary
+setter variants share1015 motion commits and digest
+`0b6094b124cb56eb07840ff3c2a1e91622556e0a470ae1c30eb38a624ead8725`.
+Moving-target axis teleport has1060 commits/digest
+`cfe77e9583885789aad3ffb595f735aeab74fe3ec2e7d6ec3243aba452de5845`;
+moving-target placement has1001/digest
+`ad07cb2dcab4aa4a142e934f6b2774bb4cb7ae0b66a43a09987d7a5aabd438d8`.
+Every owner phase, motion word, public marker, range and refresh record repeats.
+Each journey retains58 target-refresh reloads. The new stationary fine target
+174/105.375 is accepted at owner counter1368. Moving-target setters are accepted
+at1334; axis travel already returns to172.2073059/104.8294907 by that sample.
+Member replan timestamps1334/0 are subsequently witnessed at1351, still eligible
+under the ten-tick gate. Denied changed-cell timestamp producers remain02.1.
+
+The engine initially appeared to diverge at the teleport itself because the
+regression read only the final frame state, after its JASS timer. A BZ_TESTS-only
+observer now records scheduled Move commits, including singleton target steps,
+turn stops and arrival stops, before timer writes overwrite them. It changes no
+movement decisions. That stricter comparison exposed a real divergence at
+commit407: after a turn wait, the legacy blocked-progress counter8 and stale
+last-distance28.556 triggered Hold, even though the target was52.028 world units
+from its destination. Native counter1378 resumed the retained point route.
+Move now excludes scheduled retained retail point routes from that legacy settling
+shortcut, leaving termination to its fine arrival and retry policies. Other
+approach behaviors keep the existing settling rule.
+
+All four normal engine journeys match4091 commits total and7872 saved suffix
+commits. The saved checkpoints cover initial approach, the retained route after
+teleportation, and persistent Follow. Axis travel uses completed-owner boundary
+351 instead of350, which falls between two same-clock commits. The preceding
+speed-change regression now also uses boundary251 instead of250: its strict
+commit observer verifies2594 suffix commits. The earlier snapshot regression's
+2595 samples included an already committed row present in the restored save;
+the new boundary avoids counting it as newly executed movement. The preceding
+death/removal cases retain1896 normal commits and3492 saved suffix commits.
+Save format80 is unchanged.
+
+Artifacts under the report root:
+
+- `runtime/follow-target-{xy,position}-{first,repeat}-261002.jsonl` and
+  `runtime/follow-target-travel-{xy,position}-{first,repeat}-261002.jsonl`:
+  eight complete native witnesses,8182 total commits.
+- `runtime/follow-target-mutation-source-261002/` and
+  `runtime/follow-target-travel-mutation-source-261002/`: immutable source
+  archives for the respective map producers. Per-capture metadata retains each
+  exact producer hash; promoted repository sources include all four scenarios.
+- `runtime/follow-target-teleport-cmath-first-261002.json`:2158 scalar decisions,
+  8182 exact motion commits/owner passes,464 target reloads.
+- `runtime/follow-target-travel-xy-hold-correct-gdb-261002.log`: original engine
+  premature Hold breakpoint, distance, progress state and caller locals.
+- `runtime/follow-target-teleport-engine-settle-fixed-261002.log`: seven exact
+  Follow engine journeys and their saves in both variants.
+- `runtime/follow-target-teleport-ghidra-readback-saved-261002.json` and
+  `runtime/follow-target-teleport-types-final-261002.json`: saved setter,
+  destination refresh, replan and point-task roles/signatures/xrefs.528 roles,
+  42 layouts/262 fields/245 prototypes/45 globals remain.
+- `runtime/follow-target-teleport-strict-saved-final-261002/corpus-results.json`:
+  fresh strict contract plus eleven preceding public/owner journeys.
+- `runtime/follow-target-teleport-validation-261002.json`: final checks/current
+  source hashes. Corpus267 entries/108 fixtures/50 strict live entries;
+  222 Python checks.
+
+TARGET-02.5 closes with125 completed/185 open leaves. Next runnable work is
+TARGET-02.2, an authored public collision-resize/morph producer and its range,
+footprint and routing consumers. Visual scale alone cannot close this task.
+
+Payoff49 final checks: debug RoC/TFT each pass487,322 assertions in2334 WC3
+tests; the forced optimized build and normal repository suite pass487,755
+assertions in2371 WC3 tests per variant and all remaining repository suites.
+All222 Python checks, ability audit and267-entry inventory pass; the fresh
+strict runner completes12/12 contracts with current source hashes.

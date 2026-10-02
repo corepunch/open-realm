@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  528 function names/comments applied and saved. Latest death/removal readbacks:
+  528 function names/comments applied and saved. Latest target teleport readbacks:
+  `runtime/follow-target-teleport-ghidra-readback-saved-261002.json` and
+  `runtime/follow-target-teleport-types-final-261002.json`. Prior death/removal readbacks:
   `runtime/follow-target-reuse-ghidra-readback-saved-261002.json` and
   `runtime/follow-target-reuse-types-final-261002.json`. Prior target Follow readbacks:
   `runtime/follow-velocity-ghidra-readback-saved-261002.json` and
@@ -352,3 +354,10 @@ fresh canonical generation; the engine remains idle until explicit new Smart.
 Both normal-frame journeys match948 original commits each plus3492 total saved
 suffix commits. [Engine evidence](retail-pathfinding-engine.md#follow-cancels-synchronously-before-target-pool-reuse)
 and strict capture checks retain the scope; queued/combat parents remain open.
+
+Payoff49 integrates the premature legacy point-route settling fix exposed by
+public moving-target axis teleport. Four native repeated setter journeys match
+4091 normal engine commits and7872 saved suffix commits. The test-only commit
+observer preserves same-clock movement before later timer writes.
+[Teleport evidence](retail-pathfinding-engine.md#follow-tracks-public-target-teleports-without-premature-point-settling)
+closes TARGET-02.5; collision resizing remains02.2.

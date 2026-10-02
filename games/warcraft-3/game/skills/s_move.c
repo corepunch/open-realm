@@ -44,6 +44,11 @@ typedef struct {
     wc3GridPose_t pose;
 } moveStep_t;
 
+#ifdef BZ_TESTS
+/* Read-only observer of scheduled Move commits, before same-clock map timers. */
+static void (*move_test_motion_commit)(edict_t *unit);
+#endif
+
 #define MOVE_SLIDE_STEP BZ_ROUTE_SLIDE_STEP
 #define MOVE_SLIDE_RINGS BZ_ROUTE_SLIDE_RINGS
 #define MOVE_SLIDE_RINGS_YIELD 2                               /* +/- 30 deg: faster unit holds its line */
@@ -749,6 +754,9 @@ static void unit_commit_motion(edict_t *self, moveStep_t const *step) {
     float grid_y = wc3_mul(v->vel[1], wc3_float(0x3d000000));
     self->s.angle = v->speed > 0 ? wc3_velocity_heading(grid_x, grid_y, self->s.angle) : wc3_facing_angle(v->heading);
     unit_commit_pose(self, &step->pose);
+#ifdef BZ_TESTS
+    if (level.scheduled_think && move_test_motion_commit) move_test_motion_commit(self);
+#endif
 }
 
 /* Advance the unit one tick.  Avoidance is decided ONCE per tick in
@@ -776,6 +784,10 @@ static void unit_moveindirection_policy(edict_t *self,
             self->s.angle = wc3_facing_angle(self->s.angle);
         }
         self->movement.velocity = (vec2_t){0};
+#ifdef BZ_TESTS
+        if (level.scheduled_think && self->movement.turn_blocked && !(self->aiflags & AI_IMMOBILE) && move_test_motion_commit)
+            move_test_motion_commit(self);
+#endif
         return;
     }
 
@@ -2226,6 +2238,9 @@ static bool move_point_arrival(edict_t *ent) {
     ent->s.angle = wc3_facing_angle(ent->s.angle);
     ent->movement.velocity = (vec2_t){0};
     unit_commit_pose(ent, &pose);
+#ifdef BZ_TESTS
+    if (level.scheduled_think && move_test_motion_commit) move_test_motion_commit(ent);
+#endif
     if (reached) {
         if (G_AdvanceUnitMoveGroupDestination(route)) {
             ent->movement.path.valid=false;
@@ -2374,7 +2389,11 @@ static void ai_move_walk(edict_t *ent) {
          * the path.  Preserve the old near-goal settle behavior so an occupied
          * final slot does not orbit forever, but do not cancel a distant move
          * merely because local avoidance failed for a short period. */
-        if (blocked && ent->movement.last_distance <= settle_distance) {
+        /* Scheduled retail point routes own arrival and retry. A turn wait
+         * increments the legacy progress counter, but must not terminate
+         * the Move before its fine arrival test accepts the destination. */
+        if (blocked && (!level.scheduled_think || !point_order || !ent->movement.fine_route.group_count) &&
+            ent->movement.last_distance <= settle_distance) {
             move_hold(ent);
             return;
         }
