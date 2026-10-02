@@ -26,6 +26,21 @@ static uint32_t BotDisplayText(jass_t *j, uint32_t count) {
     char message[1024];
     FOR_LOOP(i, count) values[i] = jass_checkinteger(j, 3 + i);
     BotDisplayFormat(message, sizeof(message), format, values, count);
+#ifdef WC3_DEBUG_AI
+    {
+        cstring_t trace = gi.CvarString ? gi.CvarString("wc3_ai_trace", "0") : "0";
+        if (trace && atoi(trace) != 0) {
+            bot_t *bot = player >= 0 && player < MAX_PLAYERS ? level.bots + player : NULL;
+            char callchain[512];
+            jass_formatcallchain(j, callchain, sizeof(callchain));
+            fprintf(stderr,
+                "WC3_AI_TRACE time=%u player=%d script=\"%s\" function=\"%s\" callchain=\"%s\"\n",
+                (unsigned)G_Time(), player, bot ? bot->script : "(unknown)",
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(unknown)",
+                callchain[0] ? callchain : "(empty)");
+        }
+    }
+#endif
     fprintf(stderr, "WC3 AI[%d]: %s", player, message);
     return 0;
 }
