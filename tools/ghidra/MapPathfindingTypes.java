@@ -50,9 +50,15 @@ public class MapPathfindingTypes extends GhidraScript {
             if (replacement == null || replacement.getOffset() != field.getOffset() ||
                 !preservesType(field.getDataType(),replacement.getDataType()) ||
                 !java.util.Objects.equals(field.getFieldName(), replacement.getFieldName()) ||
-                !java.util.Objects.equals(field.getComment(), replacement.getComment())) return false;
+                !preservesComment(field.getComment(), replacement.getComment())) return false;
         }
         return true;
+    }
+
+    // New evidence may append a comment while retaining every prior annotation.
+    private boolean preservesComment(String old, String next) {
+        return java.util.Objects.equals(old,next) ||
+            (old != null && next != null && next.startsWith(old + "\n"));
     }
 
     // Preflight all fields/prototypes before mutating the program database.

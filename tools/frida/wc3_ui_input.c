@@ -18,8 +18,10 @@ static BOOL CALLBACK find_owned_window(HWND window, LPARAM unused) {
 }
 
 int main(int argc, char **argv) {
-    if (argc!=4 && (argc!=5 || lstrcmpA(argv[4],"shift"))) return fprintf(stderr,"usage: wc3-ui-input pid client-x client-y [shift]\n"),2;
-    BOOL shift=argc==5;
+    if (argc<4 || argc>6 || (argc>=5 && lstrcmpA(argv[4],"shift")) ||
+            (argc==6 && lstrcmpA(argv[5],"move")))
+        return fprintf(stderr,"usage: wc3-ui-input pid client-x client-y [shift [move]]\n"),2;
+    BOOL shift=argc>=5,move=argc==6;
     target_pid=strtoul(argv[1],NULL,10);
     POINT point={strtol(argv[2],NULL,10),strtol(argv[3],NULL,10)};
     EnumWindows(find_owned_window,0);
@@ -28,8 +30,15 @@ int main(int argc, char **argv) {
     if (GetForegroundWindow()!=target_window) return fprintf(stderr,"owned window not foreground: %lu\n",(unsigned long)GetLastError()),4;
     if (!ClientToScreen(target_window,&point)) return fprintf(stderr,"owned client transform failed: %lu\n",(unsigned long)GetLastError()),7;
     if (!SetCursorPos(point.x,point.y)) return fprintf(stderr,"owned cursor positioning failed: %lu\n",(unsigned long)GetLastError()),8;
+    INPUT key={0}; key.type=INPUT_KEYBOARD;
+    if (move) {
+        key.ki.wVk='M';
+        if (SendInput(1,&key,sizeof(key))!=1) return fprintf(stderr,"owned Move key down failed\n"),11;
+        Sleep(50); key.ki.dwFlags=KEYEVENTF_KEYUP;
+        if (SendInput(1,&key,sizeof(key))!=1) return fprintf(stderr,"owned Move key up failed\n"),12;
+    }
     Sleep(300);
-    INPUT key={0}; key.type=INPUT_KEYBOARD; key.ki.wVk=VK_LSHIFT;
+    key.ki.wVk=VK_LSHIFT; key.ki.dwFlags=0;
     if (shift && SendInput(1,&key,sizeof(key))!=1) return fprintf(stderr,"owned Shift down failed\n"),9;
     INPUT input={0}; input.type=INPUT_MOUSE; input.mi.dwFlags=MOUSEEVENTF_LEFTDOWN;
     if (SendInput(1,&input,sizeof(input))!=1) return fprintf(stderr,"owned mouse down failed: %lu\n",(unsigned long)GetLastError()),5;

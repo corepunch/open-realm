@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**120 done / 306 tasks; 186 remaining.** Payoff43 explicitly splits selected ground Shift from idle from GROUP-04.6. Empty current heads now start one shared physical owner immediately; both original lifetimes match456 absolute engine commits and304 saved suffix commits. Active Shift retains payoff42’s common queued request and staggered physical ownership. Counts describe this backlog,
+**121 done / 307 tasks; 186 remaining.** Payoff44 explicitly splits two pending selected ground Shift moves from GROUP-04.6. Move retains latest submitted request history independently of FIFO activation, freezes physical owner generations across slot reuse, and seeds the formation origin at cohort creation. Two original journeys match1110 absolute engine commits and864 saved suffix commits. Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -29,7 +29,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 18 | 6 |
+| GROUP — Shared movement groups | 19 | 6 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -717,6 +717,7 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [x] **GROUP-04.13** Explicitly split the first selected ground Shift Move behind an active shared cohort from04.6: retain a common point and one new queued request identity, activate members at their individual natural arrivals, rebuild matching nearby physical membership in original order, preserve normal owner scheduling and save/load, and compare every original absolute clock/pose/velocity/facing word. Evidence: [payoff42](retail-pathfinding-engine.md#selected-shift-move-retains-request-ownership-through-staggered-arrival), two complete external Win32 Shift/read-only Frida captures, singleton then fresh pair,1020 exact normal-frame commits and684 saved suffix commits. Idle/mixed/additional queues, wider spatial neighbor policies, preferred-distance/range90/bypass flags, callbacks and arbitrary scene construction remain04.6/BASE/MAP.
 
 - [x] **GROUP-04.14** Explicitly split selected ground Shift from idle from04.6: verify empty current heads immediately dispatch the newly appended order, start one shared physical Move owner for all idle candidates, and compare complete native packet9 journeys plus saved continuations. Evidence: [payoff43](retail-pathfinding-engine.md#selected-idle-shift-starts-the-shared-physical-owner-immediately), two independent external Win32/read-only captures,456 exact normal-frame commits and304 saved suffix commits; the old independent-walker path fails40 assertions. Additional/mixed queues, other masks, larger selections, full rejection/event/limit graphs, callbacks and arbitrary scene construction remain04.6/ORDER/BASE/MAP.
+- [x] **GROUP-04.15** Explicitly split two pending selected ground Shift moves from04.6: preserve latest submitted unit request history across both FIFO activations, rebuild matching cohorts at staggered arrivals, retain creation-ordered owner generations through slot reuse, and seed formation origin at cohort creation. Evidence: [payoff44](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-history-and-physical-generations), two independent native Win32/read-only captures,1110 exact normal-frame commits,864 saved suffix commits, seven strict fresh contracts and saved Ghidra role/ABI/xref/field readbacks. Save79 retains request history and creation sequences. Mixed active/idle or unrelated orders, repeated identical goals, other masks, larger selections, full rejection/event/limit graphs, wider neighbor policies, callbacks and arbitrary scene construction remain04.6/ORDER/BASE/MAP/SCHED.
 
 
 

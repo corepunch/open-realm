@@ -4582,3 +4582,94 @@ in2361 tests. All189 Python pathfinding tests, ability audit,261-entry/102-fixtu
 inventory, six strict fresh contracts and saved Ghidra readbacks pass. Save78 is
 unchanged. GROUP-04.14 closes;120 completed/186 open backlog leaves are retained.
 The validation index is `runtime/selected-idle-shift-validation-261002.json`.
+
+
+## Two pending Shift moves retain submission history and physical generations
+
+Payoff44 extends selected ground Move to two pending Shift point requests behind
+one active physical cohort. The engine keeps each FIFO entry's owner context,
+but cohort acquisition compares the units' latest submitted request history.
+Submitting another common Move changes that history before issued-order
+publication; activating an older queued entry does not overwrite it. Request
+identity allocation excludes retained history as well as active owners and
+pending entries. Mixed active/idle selections and other producer lanes remain
+separate work.
+
+Two independent native Win32/read-only scene50 captures append current counts
+1 to2 to3 without replacing either current head. Their input clocks differ,
+but all555 absolute clock/fine-position/velocity/facing commits repeat exactly.
+There are549 scalar decisions, six natural arrivals and295 owner passes per
+capture, across five physical cohorts with184/1/76/10/24 passes. All four native
+previous-request searches retain the SECOND submitted ground canonical identity
+`[1305,1331]`, including the two searches that activate the FIRST queued goal.
+Their results are0/1/0/1. Assembly `6b94e3/6b94ec` writes Unit240/244 before
+`693490` appends the order at `6b9545`. Native rejection-side history and the full
+queue-limit/event graph remain open; the engine pending ring remains bounded16.
+
+The full journey also exposes two physical lifecycle errors. Freezing only the
+slot-array extent lets a newly created owner reuse a lower slot and run again
+in its creation tick. Move now freezes owner pointers plus64-bit creation
+sequences, visits newest cohorts first, and excludes replaced generations.
+Second, `16de50` selects and predicts its source during cohort creation and
+stores the formation origin at group54/58 (`16ded2/dedd`). Deferring that seed
+until the next owner pass changes low destination/velocity/heading bits when
+the reused cohort includes a moving singleton. Move now retains the creation
+origin. These fixes preserve the original phase boundary and numerical words.
+
+Normal frames match1110 native commits and864 saved suffix commits. The shared
+input adapter delivers recorded selection, Shift and both points at exact
+primary-clock/owner-counter boundaries through ordinary pose publication. One
+save precedes the later external click; the adapter uses player3's actual client
+slot and restores those external input controls after load. The other save
+follows the first cohort rebuild. No clock is advanced manually, no owner or
+retail decision is replayed, and no comparison tolerance is widened. The old
+additional-queue path fails six assertions; correcting history then exposes the
+owner-generation and creation-origin failures before the complete comparison
+passes.
+
+Save79 retains latest submitted unit history, physical creation sequences and
+the next sequence alongside Save78's queued contexts and group request records.
+Zero, duplicate and out-of-range saved owner sequences are rejected. Prior
+layouts including78 are rejected explicitly; upstream Stop and disabled-ability
+contracts remain present.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-double-shift-buffered-source-261002/`, immutable controller,
+  observer, scenario/map sources and reviewed native Move/Shift input helper;
+- `runtime/selected-double-shift-light-{first,repeat}-261002.jsonl`;
+- `runtime/selected-double-queued-strict-final-261002/corpus-results.json`, seven
+  fresh contracts covering this journey, first Shift, idle Shift, ordinary
+  selection, public pair/twelve and owner changes;
+- `runtime/selected-double-queued-types-final-saved-261002.json` and
+  `runtime/selected-double-queued-ghidra-readback-saved-261002.json`:522 saved
+  roles,42 partial layouts/262 fields/245 explicit x86 prototypes. Six roles,
+  their signatures/native xrefs and two refined fields are read back after save.
+  New field evidence appends to existing annotations; layouts stay unchanged.
+  No p-code was needed.
+
+The controller buffers every JSON record and uses observed sample ticks for
+input deadlines. Separate bulk clock events are explicitly disabled for these
+captures because transport backlog delayed the second click past activation.
+Every producer and movement clock remains frozen; previous clock-kernel
+contracts remain in the corpus. Earlier loading/timing attempts are diagnostic
+captures outside this accepted two-pending-request contract.
+
+`retail-selected-double-queued-1.27.json` and the generated engine header retain
+all words, request/member/phase hashes, five-cohort visit order and input
+provenance. Five additional asset-free tests reject old history, wrong goals,
+categories, self-matches, accepted results and missing searches. GROUP-04.15
+explicitly splits this port from04.6. Mixed active/idle or unrelated current
+orders, other masks, larger selections, broader neighbor/preferred/range90
+policies, callbacks, rejection-side history and arbitrary scene construction
+remain required.
+
+
+Final payoff44 validation: debug (`WC3_DEBUG_BUILD=1`, `wc3_*`) RoC/TFT each
+pass236,027 assertions in2325 tests. Forced release production/test builds and
+the normal repository suite pass; all-test RoC/TFT each pass236,460 assertions
+in2362 tests. All194 Python pathfinding tests, ability audit,262-entry/103-fixture
+inventory, seven fresh strict contracts and saved Ghidra readbacks pass. Save79
+and GROUP-04.15 are synchronized;121 completed/186 open backlog leaves remain.
+The validation index is `runtime/selected-double-queued-validation-261002.json`.
+Next runnable work is04.6's mixed active/idle and unrelated-current-order producers.

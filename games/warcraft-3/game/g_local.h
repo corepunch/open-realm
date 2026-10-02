@@ -52,7 +52,8 @@ typedef struct {
 /* Move owns retained physical groups independently of JASS collection handles. */
 typedef struct {
     uint32_t id, count, flags, age, completion_counter;
-    uint32_t request_id; /* Shared queued request identity for later cohort acquisition. */
+    uint32_t request_id; /* Latest submitted request history for cohort acquisition. */
+    uint64_t sequence; /* Creation order survives slot reuse and save/load. */
     bool inuse, initialized, ticking;
     vec2_t goal, point;
     float heading, radius;
@@ -1746,6 +1747,7 @@ struct edict_s {
         uint32_t retry_count; /* original path98; admitted fine progress clears before blocker collection */
         edict_t *wait_blocker; /* removed actors invalidate references before edict reuse */
         uint32_t group_id; /* Move-owned active selection identity; independent of waypoint ring reuse. */
+        uint32_t previous_request_id; /* Latest submitted shared Move request; independent of FIFO activation. */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float flat_speed_bonus; /* AIms maximum last published by a speed setter/order, independent of live inventory. */
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
@@ -2211,6 +2213,7 @@ struct level_locals {
     ARRAY(moveGroup_t *, move_groups);
     uint32_t move_group_capacity;
     uint32_t next_move_group_id; /* Zero is ungrouped; allocation excludes every live unit identity. */
+    uint64_t next_move_group_sequence;
     quest_t quests[MAX_QUESTS];
     uint16_t alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;

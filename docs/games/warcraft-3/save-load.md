@@ -22,7 +22,15 @@ Quest objects and items are restored in place so the running JASS VM's light han
 
 The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 77 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. The version-59 layout cannot be read by version 77 because its client-record boundary has no list count; version 77 saves are likewise rejected by older exact-version readers.
 
-Version78 retains Move-owned queued request context and active cohort request
+Version79 additionally retains each unit’s latest submitted shared Move request,
+physical owner creation sequences and the next sequence. FIFO activation does
+not overwrite submission history; reused owner slots do not acquire an extra
+visit after loading. Zero, duplicate and out-of-range sequences are rejected.
+The two-pending-Shift regression repeats864 saved motion suffix commits, including
+a future external click after the earlier save. Version78 and all earlier layouts
+are rejected. See [queued group history](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-history-and-physical-generations).
+
+Version78 retained Move-owned queued request context and active cohort request
 identity. Common point orders survive before activation; staggered activation
 creates fresh physical cohorts with deterministic member order. Saves on either
 side of the transition reproduce the original motion suffix. Version77 added

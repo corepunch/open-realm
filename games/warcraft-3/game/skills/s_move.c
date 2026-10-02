@@ -1890,7 +1890,8 @@ static uint32_t move_allocate_group_id(void) {
                 unsigned slot=(unit->order_queue.head+q)%MAX_UNIT_ORDER_QUEUE;
                 if (unit->order_queue.entries[slot].owner_context==level.next_move_group_id) used=true;
             }
-            if (used || unit->movement.group_id == level.next_move_group_id) {
+            if (used || unit->movement.group_id == level.next_move_group_id ||
+                    unit->movement.previous_request_id == level.next_move_group_id) {
                 used = true;
                 break;
             }
@@ -2428,7 +2429,11 @@ void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
 
 /* Individual owners keep stable addresses when callbacks grow the slot array. */
 static moveGroup_t *move_alloc_group(void) {
-    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if (!level.move_groups[i]->inuse) return level.move_groups[i];
+    if (level.next_move_group_sequence==UINT64_MAX) gi.error("Move: physical owner sequence exhausted");
+    uint64_t sequence=++level.next_move_group_sequence;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if (!level.move_groups[i]->inuse) {
+        level.move_groups[i]->sequence=sequence; return level.move_groups[i];
+    }
     if (ARRAY_COUNT(level.move_groups)==level.move_group_capacity) {
         uint32_t capacity=level.move_group_capacity ? level.move_group_capacity*2 : 16;
         moveGroup_t **groups=realloc(level.move_groups,capacity*sizeof(*groups));
@@ -2437,12 +2442,14 @@ static moveGroup_t *move_alloc_group(void) {
     }
     moveGroup_t *group=calloc(1,sizeof(*group));
     if (!group) gi.error("Move: cannot allocate a physical group");
+    group->sequence=sequence;
     level.move_groups[ARRAY_COUNT(level.move_groups)++]=group;
     return group;
 }
 
-/* Native Shift preserves the common point and the previous request identity.
- * Each current-order completion can start alone;5faaf0 rebuilds a matching
+/* Native Shift preserves the common point and publishes the latest submitted
+ * request identity independently of queued activation. Each completion can
+ * start alone;5faaf0 rebuilds a matching
  * nearby cohort when another member starts the same point. */
 static bool move_queue_group_point(groupPointOrder_t const *request) {
     uint32_t context=move_allocate_group_id();
@@ -2459,11 +2466,14 @@ static bool move_queue_group_point(groupPointOrder_t const *request) {
         unitOrderQueue_t *queue=&unit->order_queue;
         unsigned slot=(queue->head+queue->count-1)%MAX_UNIT_ORDER_QUEUE;
         queue->entries[slot].owner_context=context;
+        unit->movement.previous_request_id=context;
         any=true;
         G_PublishIssuedPointOrder(unit,request->order_id,request->point,request->issuer_player,request->order);
     }
     return any;
 }
+
+static void move_group_seed_route(moveGroup_t *group);
 
 static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return false;
@@ -2471,18 +2481,20 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     if (unit->currentmove!=&move_move_walk || !unit->goalentity) return false;
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
-    group->request_id=queued->owner_context; group->goal=queued->point; group->age=UINT32_MAX;
+    group->request_id=unit->movement.previous_request_id; group->goal=queued->point; group->age=UINT32_MAX;
     group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time};
     group->radius=unit->collision; unit->movement.group_id=group->id;
     wc3GridPose_t source; unit_predicted_pose(unit,&source);
     FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
         moveGroup_t *peer=level.move_groups[g];
-        if (peer==group || !peer->inuse || peer->request_id!=group->request_id ||
+        if (peer==group || !peer->inuse ||
             peer->goal.x!=group->goal.x || peer->goal.y!=group->goal.y ||
             group->count+peer->count>BZ_WC3_GROUP_ORDER_UNITS) continue;
         bool nearby=false;
         FOR_LOOP(i,peer->count) {
-            edict_t *other=peer->members[i].unit; wc3GridPose_t pose; unit_predicted_pose(other,&pose);
+            edict_t *other=peer->members[i].unit;
+            if (other->movement.previous_request_id!=unit->movement.previous_request_id) continue;
+            wc3GridPose_t pose; unit_predicted_pose(other,&pose);
             float dx=wc3_sub(source.grid[0],pose.grid[0]),dy=wc3_sub(source.grid[1],pose.grid[1]);
             uint32_t distance=wc3_int_bits(wc3_float_bits(wc3_sqrt(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy)))));
             if (distance<=40 && M_UnitStaticPathingFlags(other)==M_UnitStaticPathingFlags(unit)) nearby=true;
@@ -2498,6 +2510,7 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     }
     /* TODO GROUP-04.6: accelerated preferred-distance, range90 and wider
      * neighbor producer policies need original witnesses before extension. */
+    move_group_seed_route(group);
     group->ticking=false;
     return true;
 }
@@ -2520,8 +2533,10 @@ static bool move_group_point_order(groupPointOrder_t const *request) {
         moveGroupMember_t *member=group->members+group->count++;
         *member=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time};
         unit->movement.group_id=group->id;
+        unit->movement.previous_request_id=group->id;
         if (unit->collision>group->radius) group->radius=unit->collision;
     }
+    if (group->count) move_group_seed_route(group);
     group->ticking=false;
     if (!group->count) move_release_group(group);
     return any;
@@ -2542,13 +2557,21 @@ static edict_t *move_group_source(moveGroup_t const *group) {
     return source;
 }
 
+/* Original16de50 seeds the formation origin when the cohort is created,
+ * before the next owner pass can predict a moving member at a later clock. */
+static void move_group_seed_route(moveGroup_t *group) {
+    edict_t *source=move_group_source(group);
+    if (!source) gi.error("Move: physical group has no route source");
+    wc3GridPose_t pose; unit_predicted_pose(source,&pose);
+    group->point=(vec2_t){pose.grid[0],pose.grid[1]};
+}
+
 static bool move_group_route(moveGroup_t *group) {
     edict_t *source=move_group_source(group); if (!source) return false;
     wc3GridPose_t pose; unit_predicted_pose(source,&pose);
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
     movePathQuery_t query={.geometry={&from,&group->goal,group->radius,M_UnitStaticPathingFlags(source)},
         .mover=source,.units=true,.fine=&fine};
-    if (!group->initialized) group->point=fine;
     uint32_t revision=group->route.group_revision;
     if (!G_UnitMoveGroupDestination(&query,&group->route,&point)) {
         fprintf(stderr,"Move group %u: route unavailable at (%.9g,%.9g) to (%.9g,%.9g)\n",group->id,from.x,from.y,group->goal.x,group->goal.y);
@@ -2668,11 +2691,31 @@ static void move_group_regroup(moveGroup_t *group) {
      * not yet retained; public ordinary groups exercise the default branch. */
 }
 
+typedef struct {
+    moveGroup_t *group;
+    uint64_t sequence;
+} moveGroupVisit_t;
+
+static int move_compare_group_visits(void const *a, void const *b) {
+    uint64_t x=((moveGroupVisit_t const *)a)->sequence,y=((moveGroupVisit_t const *)b)->sequence;
+    return x<y ? 1 : x>y ? -1 : 0;
+}
+
 static void move_run_group_updates(void) {
-    /* Native owner visits newest cohorts first. Callback-created owners enter
-     * the next visit; freeze the initial extent before queued activation grows it. */
-    for (uint32_t g=ARRAY_COUNT(level.move_groups);g;) {
-        moveGroup_t *group=level.move_groups[--g]; if (!group->inuse) continue;
+    /* Freeze physical generations before callbacks can allocate or reuse slots.
+     * Native visits newest cohorts first; newly created owners wait one pass. */
+    uint32_t count=ARRAY_COUNT(level.move_groups),visits=0;
+    if (!count) return;
+    moveGroupVisit_t *owners=malloc(count*sizeof(*owners));
+    if (!owners) gi.error("Move: cannot allocate physical owner visits");
+    FOR_LOOP(g,count) if (level.move_groups[g]->inuse) {
+        moveGroup_t *group=level.move_groups[g];
+        owners[visits++]=(moveGroupVisit_t){group,group->sequence};
+    }
+    qsort(owners,visits,sizeof(*owners),move_compare_group_visits);
+    FOR_LOOP(g,visits) {
+        moveGroup_t *group=owners[g].group;
+        if (!group->inuse || group->sequence!=owners[g].sequence) continue;
         group->ticking=true;
         for (uint32_t i=0;i<group->count;) {
             moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
@@ -2726,6 +2769,7 @@ static void move_run_group_updates(void) {
         group->ticking=false;
         if (!group->count) move_release_group(group);
     }
+    free(owners);
 }
 
 /* Handle a right-click move command from the client.
@@ -2748,7 +2792,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     }
     /* Native NetUnit.cpp prepares shared requests before ordinary ground point admission.
      * Reuse the verified cohort owner instead of assigning an ID to independent walkers.
-     * TODO GROUP-04.6: additional/mixed Shift, air/mixed-lane and larger selection producers remain open. */
+     * TODO GROUP-04.6: mixed active/idle Shift, air/mixed-lane and larger selection producers remain open. */
     if (num_units>1 && num_units<=BZ_WC3_GROUP_ORDER_UNITS) {
         bool ground=true; uint8_t mask=M_UnitStaticPathingFlags(units[0]);
         FOR_LOOP(i,num_units) if ((units[i]->aiflags&AI_FLYING) || M_UnitStaticPathingFlags(units[i])!=mask) ground=false;
@@ -2756,7 +2800,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
         uint32_t source=units[0]->movement.group_id;
         bool shared=source && move_find_group(source),idle=true;
         FOR_LOOP(i,num_units) {
-            if (units[i]->movement.group_id!=source || !G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) shared=false;
+            if (units[i]->movement.group_id!=source || !G_UnitHasActiveOrder(units[i])) shared=false;
             if (G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) idle=false;
         }
         if (ground && (!queued || shared || idle)) {

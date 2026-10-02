@@ -18,7 +18,11 @@ retail journeys match1020 commits and684 saved suffix commits. See
 [queued selection](retail-pathfinding-engine.md#selected-shift-move-retains-request-ownership-through-staggered-arrival).
 Idle selected ground Shift now starts that shared owner immediately and matches
 456 native commits plus304 saved suffix commits. See [idle Shift](retail-pathfinding-engine.md#selected-idle-shift-starts-the-shared-physical-owner-immediately).
-AI, mixed/additional queues, mixed-lane producers, full eligibility flags and
+Two pending selected ground Shift moves now retain submission history independently
+of FIFO activation and match1110 native commits plus864 saved suffix commits.
+Creation-ordered physical visits survive slot reuse and save/load. See [two queued
+moves](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-history-and-physical-generations).
+AI, mixed active/idle queues, mixed-lane producers, full eligibility flags and
 general crowd parity remain open.
 
 Authored repulsion now runs through Move after each owner movement pass, so

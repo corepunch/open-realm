@@ -32,6 +32,7 @@
 #include "retail_selected_point.h"
 #include "retail_selected_idle_shift.h"
 #include "retail_selected_queued.h"
+#include "retail_selected_double_queued.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -10546,24 +10547,29 @@ TEST(wc3_movement, selected_idle_shift_matches_both_original_journeys) {
  * that boundary; the callback does not advance clocks or run movement owners. */
 static struct {
     void (*link)(edict_t *);
-    edict_t *client;
-    uint32_t const *input;
-    bool issued;
+    edict_t *client,*units[2];
+    uint32_t const (*inputs)[4];
+    unsigned count,index;
 } selected_queued_input;
 
 static void selected_queued_input_link(edict_t *unit) {
     selected_queued_input.link(unit);
-    if (selected_queued_input.issued ||
-            wc3_float_bits(level.pathing_clock.time)!=selected_queued_input.input[0]) return;
-    selected_queued_input.issued=true; /* Prevent reentry through order publication. */
-    T_EQ(level.pathing_counter,selected_queued_input.input[1]);
-    vec2_t point={wc3_float(selected_queued_input.input[2]),wc3_float(selected_queued_input.input[3])};
+    if (selected_queued_input.index==selected_queued_input.count) return;
+    uint32_t const *input=selected_queued_input.inputs[selected_queued_input.index];
+    if (wc3_float_bits(level.pathing_clock.time)!=input[0]) return;
+    selected_queued_input.index++; /* Prevent reentry through order publication. */
+    T_EQ(level.pathing_counter,input[1]);
+    /* Selection and Shift are recorded external input, including after load. */
+    FOR_LOOP(i,2) selected_queued_input.units[i]->selected=1u<<3;
+    selected_queued_input.client->client->menu.order_queued=true;
+    vec2_t point={wc3_float(input[2]),wc3_float(input[3])};
     T_ASSERT(move_selectlocation(selected_queued_input.client,&point));
 }
 
 /* Native player input supplies its absolute admission clock; all owner visits
  * and motion then come from ordinary engine frames, without replaying decisions. */
-TEST(wc3_movement, selected_shift_input_matches_original_staggered_activation) {
+static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input_count,
+        uint32_t const (*motion)[7], unsigned commit_count) {
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
     unitModification_t mods[]={
@@ -10598,29 +10604,33 @@ TEST(wc3_movement, selected_shift_input_matches_original_staggered_activation) {
         edict_t *units[2]={0}; unsigned count=0,steps=0; uint32_t clocks[2]={0};
         FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
         T_EQ(count,2); if (count!=2) continue;
-        edict_t *clent=alloc_test_unit(0,0,0); clent->client=game.clients+3;
+        edict_t *clent=g_edicts+3; clent->client=game.clients+3;
         clent->client->ps.number=3; clent->client->menu.order_queued=true;
         FOR_LOOP(i,2) units[i]->selected=1u<<3;
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
-        selected_queued_input=(typeof(selected_queued_input)){gi.LinkEntity,clent,selected_queued_inputs[c],false};
+        selected_queued_input=(typeof(selected_queued_input)){.link=gi.LinkEntity,.client=clent,
+            .units={units[0],units[1]},.inputs=inputs+c*input_count,.count=input_count};
         gi.LinkEntity=selected_queued_input_link;
-        bool mismatch=false;
+        bool mismatch=false; unsigned saved_inputs[2]={0}; uint32_t saved_history[2][2]={{0}};
         cstring_t saves[]={"/tmp/wc3-selected-queued-moving.bin","/tmp/wc3-selected-queued-arrival.bin"};
         FOR_LOOP(pass,3) {
             if (pass) {
                 if (mismatch) break;
-                T_ASSERT(ReadGame(saves[pass-1])); steps=pass==1 ? 310 : 368; selected_queued_input.issued=true; mismatch=false;
-                FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+                T_ASSERT(ReadGame(saves[pass-1])); steps=pass==1 ? 310 : 368; selected_queued_input.index=saved_inputs[pass-1]; mismatch=false;
+                FOR_LOOP(i,2) {
+                    clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+                    T_EQ(units[i]->movement.previous_request_id,saved_history[pass-1][i]);
+                }
                 T_EQ(units[0]->s.player,3); T_EQ(units[0]->movement.fine_class,3);
             }
             while (level.time<30000 && !mismatch) {
                 level.time+=5; globals.RunFrame();
-                if (!selected_queued_input.issued && level.time<1000) continue;
+                if (!selected_queued_input.index && level.time<1000) continue;
                 FOR_LOOP(i,2) if (wc3_float_bits(units[i]->movement.pose_clock.time)==0x3f7ffff0u)
                     clocks[i]=0x3f7ffff0u; /* Initial public admission materializes idle pose. */
                 unsigned visited=0;
-                while (steps<510) {
-                    uint32_t const *expected=selected_queued_motion[steps]; unsigned i=expected[0];
+                while (steps<commit_count) {
+                    uint32_t const *expected=motion[steps]; unsigned i=expected[0];
                     edict_t *unit=units[i]; uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
                     if (now==clocks[i]) break;
                     T_ASSERT(!(visited&(1u<<i))); visited|=1u<<i;
@@ -10628,7 +10638,17 @@ TEST(wc3_movement, selected_shift_input_matches_original_staggered_activation) {
                     uint32_t actual[]={i,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
                         wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
                     FOR_LOOP(k,7) { T_EQ(actual[k],expected[k]); if(actual[k]!=expected[k]) mismatch=true; }
-                    if (!pass && (steps==310 || steps==368)) T_ASSERT(WriteGame(saves[steps==310 ? 0 : 1]));
+                    if (!pass && !mismatch && (steps==310 || steps==368)) {
+                        unsigned slot=steps==310 ? 0 : 1; saved_inputs[slot]=selected_queued_input.index;
+                        FOR_LOOP(j,2) saved_history[slot][j]=units[j]->movement.previous_request_id;
+                        if (input_count==2 && steps==368) {
+                            moveGroup_t const *group=move_find_group(units[0]->movement.group_id);
+                            T_ASSERT(group);
+                            if (group) T_EQ(group->request_id,units[0]->movement.previous_request_id);
+                            T_EQ(units[0]->movement.previous_request_id,units[1]->movement.previous_request_id);
+                        }
+                        T_ASSERT(WriteGame(saves[slot]));
+                    }
                     if (mismatch) {
                         fprintf(stderr,"Selected queued case%u commit%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",c,steps-1,
                             actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
@@ -10636,7 +10656,7 @@ TEST(wc3_movement, selected_shift_input_matches_original_staggered_activation) {
                     }
                 }
             }
-            T_ASSERT(selected_queued_input.issued); T_EQ(steps,510);
+            T_EQ(selected_queued_input.index,input_count); T_EQ(steps,commit_count);
             if (!mismatch) {
                 FOR_LOOP(i,2) T_EQ(units[i]->current_order_id,0);
                 FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
@@ -10648,6 +10668,14 @@ TEST(wc3_movement, selected_shift_input_matches_original_staggered_activation) {
     }
     game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
     level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+TEST(wc3_movement, selected_shift_input_matches_original_staggered_activation) {
+    selected_queued_journeys(selected_queued_inputs,1,selected_queued_motion,510);
+}
+
+TEST(wc3_movement, selected_two_shift_inputs_match_original_three_leg_journey) {
+    selected_queued_journeys(selected_double_queued_inputs[0],2,selected_double_queued_motion,555);
 }
 
 #endif

@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  522 function names/comments applied and saved. Latest idle Shift readbacks:
+  522 function names/comments applied and saved. Latest two-pending Shift readbacks:
+  `runtime/selected-double-queued-ghidra-readback-saved-261002.json` and
+  `runtime/selected-double-queued-types-final-saved-261002.json`. Prior idle Shift readbacks:
   `runtime/selected-idle-shift-ghidra-readback-saved-261002.json` and
   `runtime/selected-idle-shift-types-final-261002.json`. Prior queued-input readbacks:
   `runtime/selected-queued-ghidra-readback-final-saved-261002.json` and
@@ -135,8 +137,9 @@ Counts overlap; do not sum them into a coverage percentage.
 
 [Executable research backlog](retail-pathfinding-todo.md#work-next): numbered
 tasks, acceptance checks, completed evidence and the READY gate. Start with
-**GROUP-04.6** additional/mixed queued producers and generation-safe physical
-owner ordering, then live crowd/routing compositions. Numeric inventory remains
+**GROUP-04.6** mixed active/idle and unrelated-current-order queued producers,
+then live crowd/routing compositions. Two pending shared requests, physical
+generation-safe visits and creation-time formation origin are now integrated. Numeric inventory remains
 required alongside concrete engine consumers; the backlog names dependencies
 and finish artifacts. The areas below describe the sequence, not additional tasks.
 
@@ -311,5 +314,9 @@ journeys match1020 absolute motion commits and684 saved suffix commits. See
 Idle selected ground Shift now also starts the shared physical owner immediately;
 two native journeys match456 engine commits and304 saved suffix commits. See
 [payoff43](retail-pathfinding-engine.md#selected-idle-shift-starts-the-shared-physical-owner-immediately).
-Mixed/additional Shift, air/mixed candidates, enabled formation options and AI
+Two pending selected ground Shift moves retain the latest submitted request
+through both FIFO activations. Creation-ordered owner generations and the
+formation origin survive slot reuse; normal frames match1110 exact native commits
+and864 saved suffix commits. See [payoff44](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-history-and-physical-generations).
+Mixed active/idle Shift, air/mixed candidates, enabled formation options and AI
 sharing remain open.

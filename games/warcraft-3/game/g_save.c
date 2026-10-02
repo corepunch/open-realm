@@ -78,9 +78,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format78 retains queued Move request context in addition to the merged
- * Stop guard, disabled-ability and fine-player ownership contracts. */
-static uint32_t const save_version = 78;
+/* Format79 retains latest submitted shared Move history independently of
+ * active ownership and queued FIFO context, alongside the merged contracts. */
+static uint32_t const save_version = 79;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -501,6 +501,7 @@ static field_t const level_fields[] = {
     F(level_locals, waypoints.cursor, F_INT),
     F(level_locals, waypoints.count, F_INT),
     F(level_locals, next_move_group_id, F_INT),
+    F(level_locals, next_move_group_sequence, F_INT, 2),
     F(level_locals, move_groups, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, move_groups_count, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, move_group_capacity, F_IGNORE, 0, FIELD_RUNTIME),
@@ -742,6 +743,7 @@ static field_t const move_member_fields[] = {
 static field_t const move_group_fields[] = {
     TF(moveGroup_t, id, F_INT),
     TF(moveGroup_t, request_id, F_INT),
+    TF(moveGroup_t, sequence, F_INT, 2),
     TF(moveGroup_t, flags, F_INT),
     TF(moveGroup_t, age, F_INT),
     TF(moveGroup_t, completion_counter, F_INT),
@@ -793,6 +795,7 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, retry_count, F_INT),
     TF(edictMovement_s, wait_blocker, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, group_id, F_INT),
+    TF(edictMovement_s, previous_request_id, F_INT),
     TF(edictMovement_s, waygate_target, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, waygate_goal, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),
@@ -1963,7 +1966,8 @@ static bool ValidMoveFineRequests(void) {
 /* A saved group must own live, generation-matched members exactly once. The
  * JASS collection is independent: destroying it does not cancel this Move. */
 static bool ValidMoveGroup(moveGroup_t const *group) {
-    if (!group->id || !group->count || group->count>BZ_WC3_GROUP_ORDER_UNITS ||
+    if (!group->id || !group->sequence || group->sequence>level.next_move_group_sequence ||
+        !group->count || group->count>BZ_WC3_GROUP_ORDER_UNITS ||
         *(uint8_t const *)&group->inuse!=1 || *(uint8_t const *)&group->initialized>1 || group->ticking ||
         !isfinite(group->goal.x) || !isfinite(group->goal.y) || !isfinite(group->point.x) ||
         !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)
@@ -1995,7 +1999,7 @@ static bool WriteMoveGroups(FILE *f) {
         moveGroup_t const *group=level.move_groups[i];
         if (!group->inuse) continue;
         if (!ValidMoveGroup(group)) return false;
-        FOR_LOOP(j,i) if (level.move_groups[j]->inuse && level.move_groups[j]->id==group->id) return false;
+        FOR_LOOP(j,i) if (level.move_groups[j]->inuse && (level.move_groups[j]->id==group->id || level.move_groups[j]->sequence==group->sequence)) return false;
         moveGroup_t temp=*group;
         ClearRuntimeFields(&temp,move_group_fields,FIELD_RUNTIME);
         if (!WriteMappedFields(f,move_group_fields,(uint8_t *)&temp) || !WriteMoveRouteBuffers(f,&group->route)) return false;
@@ -2021,7 +2025,7 @@ static bool ReadMoveGroups(FILE *f) {
         if (!mapped || !ValidMoveGroup(group) || !ReadMoveRouteBuffers(f,&group->route)) goto failed;
         FOR_LOOP(j,i) {
             moveGroup_t const *other=level.move_groups[j];
-            if (other->id==group->id) goto failed;
+            if (other->id==group->id || other->sequence==group->sequence) goto failed;
             FOR_LOOP(m,group->count) FOR_LOOP(n,other->count)
                 if (group->members[m].unit==other->members[n].unit) goto failed;
         }
@@ -2590,7 +2594,7 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
     T_ASSERT(G_IssueGroupPointOrder(&request)); T_EQ(ARRAY_COUNT(level.move_groups),1);
     moveGroup_t original=*level.move_groups[0];
     S_ClearMoveGroups();
-    FOR_LOOP(i,14) {
+    FOR_LOOP(i,16) {
         FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
         moveGroup_t raw=original; uint32_t count=i==0 ? globals.num_edicts+1 : i==13 ? 2 : 1;
         raw.route.points=raw.route.adaptive_points=raw.route.group_points=(vec2_t *)(uintptr_t)1;
@@ -2600,6 +2604,8 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
         if (i==4) raw.members[1]=raw.members[0];
         if (i==5) raw.id++;
         if (i==6) raw.goal.x=NAN;
+        if (i==14) raw.sequence=0;
+        if (i==15) raw.sequence=level.next_move_group_sequence+1;
         if (i>=7 && i<13) { raw.route.group_count=1; raw.route.group_index=0; }
         if (i==7) raw.route.group_count=BZ_WC3_FINE_NODES+1;
         if (i==8) raw.route.group_index=1;
@@ -2707,8 +2713,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-75.bin",
         "/tmp/openwarcraft3-wc3-save-version-76.bin",
         "/tmp/openwarcraft3-wc3-save-version-77.bin",
+        "/tmp/openwarcraft3-wc3-save-version-78.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78 };
 
     reset_entities();
     setup_test_world();

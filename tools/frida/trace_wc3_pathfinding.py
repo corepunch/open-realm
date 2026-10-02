@@ -7,6 +7,7 @@ import struct
 import os
 import subprocess
 import time
+import threading
 from pathlib import Path
 
 HASH = 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236'
@@ -42,6 +43,10 @@ def main():
     parser.add_argument('--point-click', type=int, nargs=2, metavar=('X','Y'), help='window-relative pixel coordinates for the explicit Move click')
     parser.add_argument('--point-input-helper', type=Path, help='external Winelib SendInput helper; requires the explicit owned Move click')
     parser.add_argument('--point-click-shift', action='store_true', help='hold Shift using the owned Winelib input helper for the Move click')
+    parser.add_argument('--point-click-extra', action='append', type=float, nargs=3, metavar=('AT','X','Y'), help='additional owned Winelib Move click; ordered time and integer client pixels')
+    parser.add_argument('--point-click-from-start', action='store_true', help='time owned Move input from the observed scenario start marker')
+    parser.add_argument('--point-native-key', action='store_true', help='send Move targeting through the reviewed native Shift helper')
+    parser.add_argument('--point-click-sample-ticks', action='store_true', help='interpret click times as observed integer scenario sample ticks')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if not 0 < args.seconds <= 3600 or not 0 < args.samples <= 10000:
@@ -50,14 +55,32 @@ def main():
         parser.error('watch-cell coordinates must be in [0, 65535]')
     if args.continue_at is not None and (not args.x11_display or not 0 < args.continue_at < args.seconds or args.pid):
         parser.error('--continue-at requires an owned spawn, --x11-display, and a time within the capture')
+    point_limit = 301 if args.point_click_sample_ticks else args.seconds
     if ((args.point_click_at is None) != (args.point_click is None) or
             (args.point_click_at is not None and (args.pid or not args.x11_display or
-             not 0 < args.point_click_at < args.seconds or min(args.point_click) < 0))):
+             not 0 < args.point_click_at < point_limit or min(args.point_click) < 0))):
         parser.error('--point-click-at/--point-click require an owned spawn, --x11-display and an in-capture time')
     if args.point_input_helper and (args.point_click_at is None or not args.point_input_helper.is_file()):
         parser.error('--point-input-helper requires an existing helper and an explicit owned Move click')
     if args.point_click_shift and not args.point_input_helper:
         parser.error('--point-click-shift requires the owned Winelib input helper')
+    if args.point_click_sample_ticks and (not args.point_input_helper or args.point_click_from_start):
+        parser.error('--point-click-sample-ticks requires an owned helper and is separate from wall-clock start timing')
+    if args.point_native_key and (not args.point_input_helper or not args.point_click_shift):
+        parser.error('--point-native-key requires the reviewed native Shift helper')
+    if args.point_click_from_start and not args.point_input_helper:
+        parser.error('--point-click-from-start requires an owned helper click')
+    point_plan = []
+    if args.point_click_at is not None:
+        point_plan.append(dict(at=args.point_click_at, pixel=args.point_click))
+    for at, x, y in args.point_click_extra or []:
+        if (not args.point_input_helper or not point_plan or
+                not point_plan[-1]['at'] < at < point_limit or
+                min(x, y) < 0 or not x.is_integer() or not y.is_integer()):
+            parser.error('--point-click-extra requires an ordered owned helper click within capture and integer pixels')
+        point_plan.append(dict(at=at, pixel=[int(x), int(y)]))
+    if args.point_click_sample_ticks and any(not p['at'].is_integer() for p in point_plan):
+        parser.error('sample-tick input deadlines must be integers')
     binary = (args.data / 'game.dll').read_bytes()
     if hashlib.sha256(binary).hexdigest() != HASH:
         parser.error('unsupported game.dll; requires mapped 1.27.1.7085')
@@ -95,6 +118,10 @@ def main():
             parser.error('owned Winelib input requires the helper, linked .so and reviewed C source')
         source_paths.extend(helper_paths)
         config['pointInput'] = dict(at=args.point_click_at, pixel=args.point_click, api='external Win32 SendInput', shift=args.point_click_shift)
+        if len(point_plan)>1: config['pointInput']['extra'] = point_plan[1:]
+        if args.point_click_from_start: config['pointInput']['fromStart'] = True
+        if args.point_native_key: config['pointInput']['nativeKey'] = True
+        if args.point_click_sample_ticks: config['pointInput']['sampleTicks'] = True
     provenance = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths}
     map_path = args.data / args.map.replace('\\', '/')
     if args.numeric_events and not map_path.is_file():
@@ -107,13 +134,31 @@ def main():
     session = None
     pid = None
     errors = []
+    scenario_start = None
+    scenario_tick = 0
     with args.output.open('w') as output:
+        record_lock = threading.Lock()
+        record_count = 0
+
         def record(row):
-            output.write(json.dumps(row) + '\n')
-            output.flush()
+            nonlocal record_count
+            with record_lock:
+                output.write(json.dumps(row) + '\n')
+                record_count += 1
+                # Per-record flushing delays marker-driven input behind the game.
+                # Preserve every record and flush bounded batches and terminal rows.
+                if record_count % 128 == 0 or row.get('event') in ('metadata', 'trace-end', 'trace-failed') or row.get('type') == 'error':
+                    output.flush()
 
         def message(msg, _data):
-            record(msg['payload'] if msg['type'] == 'send' else msg)
+            nonlocal scenario_start, scenario_tick
+            payload = msg['payload'] if msg['type'] == 'send' else msg
+            record(payload)
+            if payload.get('event') == 'marker' and payload.get('value', '').startswith('PATHTRACE tick='):
+                scenario_tick = int(payload['value'].split(' ', 2)[1][5:])
+            if (scenario_start is None and payload.get('event') == 'marker' and
+                    'PATHTRACE tick=0 label=start_' in payload.get('value', '')):
+                scenario_start = time.monotonic()
             if msg['type'] == 'error':
                 errors.append(msg.get('description', str(msg)))
 
@@ -132,7 +177,7 @@ def main():
             start = time.monotonic()
             deadline = start + args.seconds
             sent = False
-            clicked = False
+            clicked = 0
             while time.monotonic() < deadline and not errors:
                 if args.continue_at is not None and not sent and time.monotonic() - start >= args.continue_at:
                     subprocess.run(['xdotool', 'search', '--onlyvisible', '--name', 'Warcraft III',
@@ -140,24 +185,29 @@ def main():
                                    env={**os.environ, 'DISPLAY': args.x11_display}, stdout=subprocess.DEVNULL)
                     record({'event': 'loading-key', 'elapsed': time.monotonic() - start, 'key': 'space'})
                     sent = True
-                if args.point_click_at is not None and not clicked and time.monotonic() - start >= args.point_click_at:
+                point_start = scenario_start if args.point_click_from_start else start
+                if (clicked < len(point_plan) and
+                        ((args.point_click_sample_ticks and scenario_tick >= point_plan[clicked]['at']) or
+                         (not args.point_click_sample_ticks and point_start is not None and
+                          time.monotonic() - point_start >= point_plan[clicked]['at']))):
                     env = {**os.environ, 'DISPLAY': args.x11_display}
                     windows = subprocess.check_output(['xdotool','search','--onlyvisible','--name','Warcraft III'], env=env, timeout=5).decode().splitlines()
                     if len(windows) != 1:
                         raise RuntimeError('explicit Move click requires exactly one owned-display Warcraft window')
-                    subprocess.run(['xdotool','windowfocus','--sync',windows[0],'key','m','sleep','0.3'],
-                                   check=True, timeout=5, env=env, stdout=subprocess.DEVNULL)
+                    if not args.point_native_key:
+                        subprocess.run(['xdotool','windowfocus','--sync',windows[0],'key','m','sleep','0.3'],
+                                       check=True, timeout=5, env=env, stdout=subprocess.DEVNULL)
                     if args.point_input_helper:
                         helper_output = subprocess.check_output([str(args.point_input_helper.resolve()), str(pid),
-                            *[str(v) for v in args.point_click], *(['shift'] if args.point_click_shift else [])], env=env, timeout=10).decode()
+                            *[str(v) for v in point_plan[clicked]['pixel']], *(['shift'] if args.point_click_shift else []), *(['move'] if args.point_native_key else [])], env=env, timeout=10).decode()
                         record({'event':'player-input-helper','output':helper_output,
                                 'sha256':hashlib.sha256(args.point_input_helper.read_bytes()).hexdigest()})
                     else:
-                        subprocess.run(['xdotool','mousemove','--window',windows[0],*[str(v) for v in args.point_click],
+                        subprocess.run(['xdotool','mousemove','--window',windows[0],*[str(v) for v in point_plan[clicked]['pixel']],
                                         'mousedown','1','sleep','0.2','mouseup','1'], check=True, timeout=5, env=env, stdout=subprocess.DEVNULL)
                     record({'event':'player-move-click','elapsed':time.monotonic()-start,
-                            'pixel':args.point_click,'key':'m','button':1,'shift':args.point_click_shift})
-                    clicked = True
+                            'pixel':point_plan[clicked]['pixel'],'key':'m','button':1,'shift':args.point_click_shift})
+                    clicked += 1
                 time.sleep(0.1)
             record({'event': 'trace-end', **script.exports_sync.status()})
             if errors:

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **261 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **44**
+The inventory now has **262 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **45**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -26,7 +26,7 @@ outside the accepted inventory unless given their own rejection contract.
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Thirty-four public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Thirty-five public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -738,3 +738,15 @@ commits and four natural completions. Both independent captures repeat all228
 absolute motion words. Normal engine frames match456 commits and304 saved suffix
 commits; the earlier input clock's distinct position low bits remain frozen.
 Inventory is261 entries/102 fixtures. See [idle Shift movement](retail-pathfinding-engine.md#selected-idle-shift-starts-the-shared-physical-owner-immediately).
+
+
+Payoff44 adds `live-selected-double-queued-repeat-261002`: two native Shift
+requests preserve current heads1 to2 to3 and retain the latest submitted request
+across both FIFO activations. The checker verifies four previous-cohort searches,
+eight candidates, five physical cohorts per capture,1098 scalar decisions,
+1110 exact commits, twelve natural arrivals and590 owner passes. Both captures
+repeat all555 absolute motion words; normal engine frames match1110 commits and
+864 saved suffix commits. Separate bulk clock telemetry is explicitly off;
+producer/commit clocks and retained clock contracts stay exact. Loading/timing
+attempts remain diagnostic evidence outside this accepted contract. Inventory
+is262 entries/103 fixtures. See [two pending Shift moves](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-history-and-physical-generations).
