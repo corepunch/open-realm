@@ -299,6 +299,33 @@ TEST(wc3_bot, production_uses_idle_barracks_at_the_requested_town) {
     T_NOT_NULL(second->build);
 }
 
+TEST(wc3_bot, production_prefers_idle_then_fills_most_available_queue_slots) {
+    player_t *player = &game.clients[2].ps;
+    UnitProfile_t profile = { .trains = "hfoo" };
+    edict_t *busy, *idle;
+    uint32_t i;
+    reset_entities(); setup_test_world(); InitUnitData();
+    busy = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 64, 0, 2, NULL);
+    idle = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), -64, 0, 2, NULL);
+    busy->data.UnitProfile = idle->data.UnitProfile = &profile;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 200;
+    player->stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
+
+    for (i = 0; i < MAX_BUILD_QUEUE - 1; i++)
+        T_ASSERT(SP_TrainUnit(busy, MAKEFOURCC('h','f','o','o')));
+    T_EQ(G_ProductionQueueCount(busy), MAX_BUILD_QUEUE - 1);
+    T_EQ(G_ProductionQueueCount(idle), 0);
+
+    T_ASSERT(G_BotProduce(player, 1, MAKEFOURCC('h','f','o','o'), -1));
+    T_EQ(G_ProductionQueueCount(idle), 1);
+    T_EQ(G_ProductionQueueCount(busy), MAX_BUILD_QUEUE - 1);
+    T_ASSERT(G_BotProduce(player, 7, MAKEFOURCC('h','f','o','o'), -1));
+    T_EQ(G_ProductionQueueCount(idle), MAX_BUILD_QUEUE);
+    T_EQ(G_ProductionQueueCount(busy), MAX_BUILD_QUEUE);
+}
+
 TEST(wc3_bot, guard_post_replacement_trains_once_and_consumes_post_budget) {
     player_t *player = &game.clients[2].ps;
     bot_t *bot = level.bots + 2;
@@ -1009,7 +1036,10 @@ TEST(wc3_bot, set_assault_group_form_group_uses_max_then_appends_duplicate_entry
     uint32_t type = MAKEFOURCC('h','f','o','o');
 
     reset_entities();
-    FOR_LOOP(i, 6) make_bot_harvest_unit(type, (float)i * 32.0f, 0, 2, NULL);
+    FOR_LOOP(i, 6) {
+        edict_t *unit = make_bot_harvest_unit(type, (float)i * 32.0f, 0, 2, NULL);
+        unit->svflags |= SVF_MONSTER;
+    }
 
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_set_assault_group.ai", BOT_CAMPAIGN));
     G_BotRunFrame();

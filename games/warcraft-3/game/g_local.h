@@ -2611,6 +2611,7 @@ bool M_IsDead(edict_t const *);
 void SP_SpawnUnit(edict_t *);
 uint32_t unit_spawn_aiflags(uint32_t);
 bool SP_TrainUnit(edict_t *, uint32_t);
+uint32_t G_ProductionQueueCount(edict_t *);
 bool player_pay(player_t *, uint32_t);
 
 // g_food.c

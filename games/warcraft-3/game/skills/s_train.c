@@ -267,7 +267,7 @@ float G_HeroReviveTime(edict_t const *hero) {
     return value;
 }
 
-static uint32_t ProductionQueueCount(edict_t *producer) {
+uint32_t G_ProductionQueueCount(edict_t *producer) {
     uint32_t count = 0;
     for (edict_t *item = producer ? producer->build : NULL; item && count < MAX_BUILD_QUEUE; item = ProductionNext(item)) {
         count++;
@@ -494,7 +494,7 @@ bool G_QueueHeroRevive(edict_t *altar, edict_t *hero) {
     uint32_t gold, lumber;
     float seconds;
 
-    if (!G_HeroCanBeRevivedAt(altar, hero) || ProductionQueueCount(altar) >= MAX_BUILD_QUEUE) return false;
+    if (!G_HeroCanBeRevivedAt(altar, hero) || G_ProductionQueueCount(altar) >= MAX_BUILD_QUEUE) return false;
     client = G_GetPlayerClientByNumber(altar->s.player);
     if (!client || client->ps.number != altar->s.player ||
         !HeroReviveValues(hero, &gold, &lumber, &seconds) || seconds <= 0.0f) return false;
@@ -597,7 +597,7 @@ void unit_build(edict_t *self, uint32_t class_id) {
     G_BOT_TRACE(self->s.player, NULL, "unit_queued",
                "producer=%ld unit=%ld type=%.4s queue=%u",
                (long)(self - g_edicts), (long)(ent - g_edicts),
-               (cstring_t)&class_id, ProductionQueueCount(self));
+               (cstring_t)&class_id, G_ProductionQueueCount(self));
     if (was_empty) {
         /* Queue insertion makes this item active immediately. Food reservation
          * must therefore happen before a later Train command performs its
@@ -617,7 +617,7 @@ bool G_QueueResearch(edict_t *producer, uint32_t upgrade_id) {
     float duration;
     char reason[128];
 
-    if (!producer || !upgrade_id || ProductionQueueCount(producer) >= MAX_BUILD_QUEUE) return false;
+    if (!producer || !upgrade_id || G_ProductionQueueCount(producer) >= MAX_BUILD_QUEUE) return false;
     client = G_GetPlayerClientByNumber(producer->s.player);
     if (!client || client->ps.number != producer->s.player) return false;
     clent = G_GetPlayerEntityByNumber(producer->s.player);
