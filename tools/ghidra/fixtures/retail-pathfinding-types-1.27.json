@@ -719,6 +719,12 @@
           "evidence": "685da0 authentic CUnit vtableEC: MOV EAX,[ECX+58];695090 category1024 full cases"
         },
         {
+          "offset": 92,
+          "name": "order_admission_flags",
+          "type": "u32",
+          "evidence": "693490 TEST Unit5c bit100 rejects append; remaining bits undefined. Actual idle Shift starts through empty internal head."
+        },
+        {
           "offset": 96,
           "name": "separation_category_flags",
           "type": "u32",
@@ -6348,6 +6354,25 @@
         }
       ],
       "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f693490",
+      "name": "Unit_AppendUserOrder",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "order",
+          "type": "ptr:WC3OrderPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete87-instruction x86 listing: ECX savedESI, stack4 order savedEDI, both return paths RET4; native selected packet9 before/after userheads corroborate immediate idle dispatch."
     }
   ],
   "globals": [

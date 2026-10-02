@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **521 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **522 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 ordinary public twelve-member movement matches1,953 commits and2,634 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
@@ -40,8 +40,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists42 partial layouts,261 verified
-  fields and244 instruction-established prototypes with explicit register/stack
+  `MapPathfindingTypes.java` also persists42 partial layouts,262 verified
+  fields and245 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  521 function names/comments applied and saved. Latest queued-input readbacks:
+  522 function names/comments applied and saved. Latest idle Shift readbacks:
+  `runtime/selected-idle-shift-ghidra-readback-saved-261002.json` and
+  `runtime/selected-idle-shift-types-final-261002.json`. Prior queued-input readbacks:
   `runtime/selected-queued-ghidra-readback-final-saved-261002.json` and
   `runtime/selected-queued-types-final-261002.json`. Prior selected-input readbacks:
   `runtime/selected-point-ghidra-readback-261002.json` and `runtime/selected-point-types-261002.json`. Prior twelve-member readbacks:
@@ -133,8 +135,10 @@ Counts overlap; do not sum them into a coverage percentage.
 
 [Executable research backlog](retail-pathfinding-todo.md#work-next): numbered
 tasks, acceptance checks, completed evidence and the READY gate. Start with
-**NUM-01.2/12**; the backlog names their dependencies and
-finish artifacts. The areas below describe the sequence, not additional tasks.
+**GROUP-04.6** additional/mixed queued producers and generation-safe physical
+owner ordering, then live crowd/routing compositions. Numeric inventory remains
+required alongside concrete engine consumers; the backlog names dependencies
+and finish artifacts. The areas below describe the sequence, not additional tasks.
 
 1. **ORDER + GROUP + MOVE:** join the verified initial-admission/FIFO chain
    (now joined with actual owner updates and map/mover producers, with a
@@ -304,5 +308,8 @@ The first Shift behind an active selected ground cohort now retains a new common
 request and rebuilds physical membership at staggered arrival; two original
 journeys match1020 absolute motion commits and684 saved suffix commits. See
 [payoff42](retail-pathfinding-engine.md#selected-shift-move-retains-request-ownership-through-staggered-arrival).
-Idle/mixed/additional Shift, air/mixed candidates, enabled formation options and
-AI sharing remain open.
+Idle selected ground Shift now also starts the shared physical owner immediately;
+two native journeys match456 engine commits and304 saved suffix commits. See
+[payoff43](retail-pathfinding-engine.md#selected-idle-shift-starts-the-shared-physical-owner-immediately).
+Mixed/additional Shift, air/mixed candidates, enabled formation options and AI
+sharing remain open.

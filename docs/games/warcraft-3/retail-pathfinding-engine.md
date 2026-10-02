@@ -4517,3 +4517,68 @@ and two updated player-producer roles after saving. GROUP-04.13 closes; Save78
 and119 completed/186 open backlog leaves are synchronized. General inter-group
 ordering after physical slot reuse remains separate scheduling work. The
 validation index is `runtime/selected-queued-validation-261002.json`.
+
+
+## Selected idle Shift starts the shared physical owner immediately
+
+Payoff43 extends ordinary selected ground movement to Shift input when every
+selected candidate has no active order or pending entries. The Move batch then
+starts the physical owner immediately. An active shared cohort still follows
+payoff42's deferred common-point request path; mixed/additional queued producers
+remain explicit work. Previously the idle Shift path resolved per-unit slots and
+started independent walkers. The native-word regression failed40 assertions
+before the dispatch correction. Its completed comparison now matches456
+clock/fine-position/velocity/facing commits and304 saved suffix commits through
+normal engine frames and both natural order completions.
+
+Two independent owned captures reuse the original scene49 script/map and send
+actual native Win32 Shift input. Both player3 packet9 producers attach both
+candidates before admission and publish one shared physical pair. Native
+`693490` appends each empty current head (count0 to1); when the internal task
+identity is unresolved it immediately dispatches `67abe0`. With an existing
+internal task it instead publishes `d02a5`. Assembly retains ECX Unit and the
+stack4 order pointer, both returns `RET4`; decompilation alone misattributes the
+identity-setter receivers. The native signed count>500 and Unit5c bit100 gates
+remain documented; the engine's pending ring cap16 remains an explicit bound,
+not a claim about that original limit or the wider rejection/event graph.
+
+Each lifetime has228 exact commits,226 scalar decisions,117 decision/commit
+owner visits and two natural arrivals. Both repeat all absolute motion words;
+relative digest is `1d3d1cccace13249fc2739dd761c6548dc1ab22afd7c12152440591974241703`.
+The supplied input occurs near5 seconds. Low position bits differ from payoff41's
+later unqueued input because software clock subtraction depends on exponent;
+these words are retained separately. No tolerance or clock assertion is widened.
+The existing selected-input engine setup is reused with explicit fixture tables
+and the Shift flag; saved continuations retain Player3 ownership and membership.
+Save78 is unchanged.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-idle-shift-source-261002/` and the two complete
+  `runtime/selected-idle-shift-{first,repeat}-261002.jsonl` captures;
+- `runtime/selected-idle-shift-strict-final-261002/corpus-results.json`, freshly
+  rerunning idle Shift, active Shift, ordinary selection, public pair,
+  twelve-member movement and owner-change contracts;
+- `runtime/selected-idle-shift-types-final-261002.json` and
+  `runtime/selected-idle-shift-ghidra-readback-saved-261002.json`:522 saved roles,
+  42 partial layouts/262 verified fields and245 explicit x86 prototypes. The
+  append role, ABI and rejection flag are persisted alongside both updated
+  player-producer comments and their xrefs. No p-code was needed.
+
+`retail-selected-idle-shift-1.27.json` pins input provenance, producer/phase
+records, empty-head admission and every motion word. The same strict selected
+checker verifies the distinct packet policy and rejects absent Shift or nonempty
+current heads. Five new asset-free tests preserve the independent captures,
+input-clock rounding distinction and exact generated engine header. GROUP-04.14
+explicitly splits this idle producer from04.6. Next runnable work is additional
+queued requests and mixed active/idle cohorts; wider movement masks, rejection
+policies, callbacks and arbitrary scene construction remain required.
+
+
+Final payoff43 validation: debug (`WC3_DEBUG_BUILD=1`, `wc3_*`) RoC/TFT each
+pass220,116 assertions in2324 tests. Forced release production/test builds and
+the normal repository suite pass; all-test RoC/TFT each pass220,549 assertions
+in2361 tests. All189 Python pathfinding tests, ability audit,261-entry/102-fixture
+inventory, six strict fresh contracts and saved Ghidra readbacks pass. Save78 is
+unchanged. GROUP-04.14 closes;120 completed/186 open backlog leaves are retained.
+The validation index is `runtime/selected-idle-shift-validation-261002.json`.

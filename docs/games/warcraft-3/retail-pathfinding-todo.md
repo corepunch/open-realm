@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**119 done / 305 tasks; 186 remaining.** Payoff42 explicitly splits the first selected ground Shift behind an active shared cohort from GROUP-04.6. Common queued request ownership survives staggered arrival and fresh physical membership; both original lifetimes match1020 absolute engine commits and684 saved continuation commits. Counts describe this backlog,
+**120 done / 306 tasks; 186 remaining.** Payoff43 explicitly splits selected ground Shift from idle from GROUP-04.6. Empty current heads now start one shared physical owner immediately; both original lifetimes match456 absolute engine commits and304 saved suffix commits. Active Shift retains payoff42’s common queued request and staggered physical ownership. Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -29,7 +29,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 17 | 6 |
+| GROUP — Shared movement groups | 18 | 6 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -122,8 +122,8 @@ state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
-(NUM-01.8). Ghidra mapping persists521
-names,42 layouts,261 fields,244 x86 prototypes and45 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has260
+(NUM-01.8). Ghidra mapping persists522
+names,42 layouts,262 fields,245 x86 prototypes and45 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has261
 declared outcomes, including repeated public order, scalar, angle and complete
 public shared-pair and twelve-member witnesses. Payoff39 extends ordinary public Move-owned physical
 groups with formation destination adjustment, fine FIFO/interval, committed occupancy and retry ordering. Payoff40 extends ordinary fine queues to16 unit-player rows with old-owner cancellation and Save76; wider retail
@@ -715,6 +715,9 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [x] **GROUP-04.12** Explicitly split ordinary selected ground Move from04.6: recover the live player point producer, reuse Move-owned retained physical cohorts for two through twelve unqueued same-mask ground candidates, and compare actual clicked pair lifetimes through normal engine frames, natural completion and save/load. Evidence: [payoff41](retail-pathfinding-engine.md#selected-ground-move-uses-the-shared-physical-owner), native Win32 input/read-only Frida packet8/attach-before-admit/publication, two separately supplied input clocks,456 exact engine commits and304 saved suffix commits. The unchanged public-pair fixture also matches115 selected-producer commits and87 saved suffix commits. Saved Ghidra roles/types and strict corpus are synchronized. Shift, air/mixed masks, larger selections, wider candidate priority/callback mutation, enabled formation flags and AI producers remain04.6/GROUP-01.1/ORDER; arbitrary scene construction remains BASE/MAP.
 
 - [x] **GROUP-04.13** Explicitly split the first selected ground Shift Move behind an active shared cohort from04.6: retain a common point and one new queued request identity, activate members at their individual natural arrivals, rebuild matching nearby physical membership in original order, preserve normal owner scheduling and save/load, and compare every original absolute clock/pose/velocity/facing word. Evidence: [payoff42](retail-pathfinding-engine.md#selected-shift-move-retains-request-ownership-through-staggered-arrival), two complete external Win32 Shift/read-only Frida captures, singleton then fresh pair,1020 exact normal-frame commits and684 saved suffix commits. Idle/mixed/additional queues, wider spatial neighbor policies, preferred-distance/range90/bypass flags, callbacks and arbitrary scene construction remain04.6/BASE/MAP.
+
+- [x] **GROUP-04.14** Explicitly split selected ground Shift from idle from04.6: verify empty current heads immediately dispatch the newly appended order, start one shared physical Move owner for all idle candidates, and compare complete native packet9 journeys plus saved continuations. Evidence: [payoff43](retail-pathfinding-engine.md#selected-idle-shift-starts-the-shared-physical-owner-immediately), two independent external Win32/read-only captures,456 exact normal-frame commits and304 saved suffix commits; the old independent-walker path fails40 assertions. Additional/mixed queues, other masks, larger selections, full rejection/event/limit graphs, callbacks and arbitrary scene construction remain04.6/ORDER/BASE/MAP.
+
 
 
 

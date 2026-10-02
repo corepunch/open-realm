@@ -16,7 +16,9 @@ The first Shift Move behind an active selected ground cohort now retains the
 common request through staggered arrivals and fresh physical membership; two
 retail journeys match1020 commits and684 saved suffix commits. See
 [queued selection](retail-pathfinding-engine.md#selected-shift-move-retains-request-ownership-through-staggered-arrival).
-AI, idle/mixed/additional queues, mixed-lane producers, full eligibility flags and
+Idle selected ground Shift now starts that shared owner immediately and matches
+456 native commits plus304 saved suffix commits. See [idle Shift](retail-pathfinding-engine.md#selected-idle-shift-starts-the-shared-physical-owner-immediately).
+AI, mixed/additional queues, mixed-lane producers, full eligibility flags and
 general crowd parity remain open.
 
 Authored repulsion now runs through Move after each owner movement pass, so

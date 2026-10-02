@@ -30,6 +30,7 @@
 #include "retail_public_oblique.h"
 #include "retail_public_pair.h"
 #include "retail_selected_point.h"
+#include "retail_selected_idle_shift.h"
 #include "retail_selected_queued.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
@@ -10447,7 +10448,8 @@ TEST(wc3_movement, selected_shift_retains_common_point_and_request_context) {
 
 /* Native player input supplies its absolute admission clock; all owner visits
  * and motion then come from ordinary engine frames, without replaying decisions. */
-TEST(wc3_movement, selected_player_input_matches_both_original_journeys) {
+static void selected_player_input_journeys(uint32_t const inputs[2][4],
+        uint32_t const motion[2][228][7], bool queued) {
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
     unitModification_t mods[]={
@@ -10479,21 +10481,22 @@ TEST(wc3_movement, selected_player_input_matches_both_original_journeys) {
         FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
         T_EQ(count,2); if (count!=2) continue;
         edict_t *clent=alloc_test_unit(0,0,0); clent->client=game.clients+3;
-        clent->client->ps.number=3; clent->client->menu.order_queued=false;
+        clent->client->ps.number=3; clent->client->menu.order_queued=queued;
         FOR_LOOP(i,2) units[i]->selected=1u<<3;
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
         bool issued=false,mismatch=false;
         cstring_t saves[]={"/tmp/wc3-selected-input-moving.bin","/tmp/wc3-selected-input-arrival.bin"};
         FOR_LOOP(pass,3) {
             if (pass) {
+                if (mismatch) break;
                 T_ASSERT(ReadGame(saves[pass-1])); steps=pass==1 ? 80 : 224; issued=true; mismatch=false;
                 FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
                 T_EQ(units[0]->s.player,3); T_EQ(units[0]->movement.fine_class,3);
             }
             while (level.time<30000 && !mismatch) {
-                if (!issued && wc3_float_bits(level.pathing_clock.time)==selected_point_inputs[c][0]) {
-                    T_EQ(level.pathing_counter,selected_point_inputs[c][1]);
-                    vec2_t point={wc3_float(selected_point_inputs[c][2]),wc3_float(selected_point_inputs[c][3])};
+                if (!issued && wc3_float_bits(level.pathing_clock.time)==inputs[c][0]) {
+                    T_EQ(level.pathing_counter,inputs[c][1]);
+                    vec2_t point={wc3_float(inputs[c][2]),wc3_float(inputs[c][3])};
                     T_ASSERT(move_selectlocation(clent,&point)); issued=true;
                     FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
                 }
@@ -10504,7 +10507,7 @@ TEST(wc3_movement, selected_player_input_matches_both_original_journeys) {
                     if (now==clocks[i]) continue;
                     clocks[i]=now;
                     T_ASSERT(steps<228); if (steps>=228) { mismatch=true; break; }
-                    uint32_t const *expected=selected_point_motion[c][steps++];
+                    uint32_t const *expected=motion[c][steps++];
                     uint32_t actual[]={i,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
                         wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
                     FOR_LOOP(k,7) { T_EQ(actual[k],expected[k]); if(actual[k]!=expected[k]) mismatch=true; }
@@ -10529,6 +10532,14 @@ TEST(wc3_movement, selected_player_input_matches_both_original_journeys) {
     level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
 }
 
+
+TEST(wc3_movement, selected_player_input_matches_both_original_journeys) {
+    selected_player_input_journeys(selected_point_inputs,selected_point_motion,false);
+}
+
+TEST(wc3_movement, selected_idle_shift_matches_both_original_journeys) {
+    selected_player_input_journeys(selected_idle_shift_inputs,selected_idle_shift_motion,true);
+}
 
 /* Input can arrive after a primary advance and before its due owner visit.
  * Observe the ordinary engine pose publication to deliver the frozen input at

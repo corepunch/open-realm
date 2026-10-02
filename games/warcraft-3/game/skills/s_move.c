@@ -2748,16 +2748,19 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     }
     /* Native NetUnit.cpp prepares shared requests before ordinary ground point admission.
      * Reuse the verified cohort owner instead of assigning an ID to independent walkers.
-     * TODO GROUP-04.6: additional/idle/mixed Shift, air/mixed-lane and larger selection producers remain open. */
+     * TODO GROUP-04.6: additional/mixed Shift, air/mixed-lane and larger selection producers remain open. */
     if (num_units>1 && num_units<=BZ_WC3_GROUP_ORDER_UNITS) {
         bool ground=true; uint8_t mask=M_UnitStaticPathingFlags(units[0]);
         FOR_LOOP(i,num_units) if ((units[i]->aiflags&AI_FLYING) || M_UnitStaticPathingFlags(units[i])!=mask) ground=false;
         bool queued=clent->client->menu.order_queued;
         uint32_t source=units[0]->movement.group_id;
-        bool shared=source && move_find_group(source);
-        FOR_LOOP(i,num_units) if (units[i]->movement.group_id!=source || !G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) shared=false;
-        if (ground && (!queued || shared)) {
-            groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued,.issuer_player=clent->client->ps.number};
+        bool shared=source && move_find_group(source),idle=true;
+        FOR_LOOP(i,num_units) {
+            if (units[i]->movement.group_id!=source || !G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) shared=false;
+            if (G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) idle=false;
+        }
+        if (ground && (!queued || shared || idle)) {
+            groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.issuer_player=clent->client->ps.number};
             FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
             bool accepted=G_IssueGroupPointOrder(&request);
             if (accepted) G_SendPointConfirmation(clent,location,false);

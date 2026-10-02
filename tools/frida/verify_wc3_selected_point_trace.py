@@ -41,20 +41,29 @@ def producer(rows):
     return result
 
 
-def verify_producer(rows, expected):
+def verify_producer(rows, expected, flags=8):
     actual = producer(rows)
     if actual != expected: raise ValueError('selected point producer/flags/member order differs')
     actions = [r for r in actual if r['event'] == 'player-point-action-begin']
-    if len(actions) != 1 or (actions[0]['entry'], actions[0]['player'], actions[0]['flags'], actions[0]['order']) != (0x6b9f70,3,8,851986):
+    if len(actions) != 1 or (actions[0]['entry'], actions[0]['player'], actions[0]['flags'], actions[0]['order']) != (0x6b9f70,3,flags,851986):
         raise ValueError('selected point witness is not ordinary ground Move')
     attaches = [i for i,r in enumerate(actual) if r['event'] == 'player-point-attach']
     admits = [i for i,r in enumerate(actual) if r['event'] == 'player-point-target-admit-begin']
     publishes = [r for r in actual if r['event'] == 'player-order-publish']
     if len(attaches) != 2 or len(admits) != 2 or max(attaches) >= min(admits) or len(publishes) != 2:
         raise ValueError('selected point attach/admit/publication ordering differs')
-    if any(r['flags'] != 8 or r['fallback'] for r in publishes):
+    if any(r['flags'] != flags or r['fallback'] for r in publishes):
         raise ValueError('selected point publication policy differs')
     return actual
+
+
+def verify_idle_shift(rows, metadata):
+    if not metadata['pointInput'].get('shift'):
+        raise ValueError('idle Shift input omitted its modifier')
+    appended = [r for r in rows if r.get('event') == 'player-order-queued' and r['countAfter']]
+    if len(appended) != 2 or any(r['countBefore'] != 0 or r['countAfter'] != 1 or
+                               r['before'] != [-1,-1] for r in appended):
+        raise ValueError('idle Shift did not start from empty current orders')
 
 
 def verify_lifecycle(rows, case):
@@ -64,7 +73,10 @@ def verify_lifecycle(rows, case):
         raise ValueError('selected point provenance differs')
     if len(ending) != 1 or not ending[0].get('installed') or any(r.get('type') == 'error' or r.get('event') == 'trace-failed' for r in rows):
         raise ValueError('selected point observer incomplete/failed')
-    verify_producer(rows,case['producer'])
+    flags = case.get('packet_flags', 8)
+    if flags not in (8, 9): raise ValueError('unsupported selected point packet policy')
+    verify_producer(rows,case['producer'],flags)
+    if flags == 9: verify_idle_shift(rows,metadata[0])
     for event in ('motion-decision','velocity-commit','arrival-evaluation','task-arrival',
                   'clock-source-begin','clock-source-end','clock-advance-begin','clock-advance-end','clock-owner-begin','clock-owner-end'):
         if not sum(r.get('event') == event for r in rows) or sum(r.get('event') == event for r in rows) != ending[0]['counts'].get(event):
@@ -92,12 +104,13 @@ def verify_lifecycle(rows, case):
 
 
 def render_header(fixture):
+    prefix = fixture.get('engine_prefix', 'selected_point')
     out = '/* Original selected-unit Move; clocks are supplied input timing, not wall-input determinism. */\n'
-    out += 'static uint32_t const selected_point_inputs[2][4] = {\n'
+    out += 'static uint32_t const ' + prefix + '_inputs[2][4] = {\n'
     for c in fixture['cases']:
         a = next(r for r in c['producer'] if r['event']=='player-point-action-begin')
         out += '    {'+', '.join('0x%08xu'%w for w in [a['clock'][0],a['counter'],*a['point']])+'},\n'
-    out += '};\nstatic uint32_t const selected_point_motion[2][228][7] = {\n'
+    out += '};\nstatic uint32_t const ' + prefix + '_motion[2][228][7] = {\n'
     for c in fixture['cases']:
         out += '  {\n'
         for row in c['engine_motion']: out += '    {'+', '.join('0x%08xu'%w for w in row)+'},\n'
