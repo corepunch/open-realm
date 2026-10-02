@@ -4673,3 +4673,69 @@ inventory, seven fresh strict contracts and saved Ghidra readbacks pass. Save79
 and GROUP-04.15 are synchronized;121 completed/186 open backlog leaves remain.
 The validation index is `runtime/selected-double-queued-validation-261002.json`.
 Next runnable work is04.6's mixed active/idle and unrelated-current-order producers.
+
+## Mixed active and idle Shift share one submitted request
+
+Payoff45 extends selected ground Move admission to heterogeneous current state.
+`move_queue_group_point` appends the same destination/context to each eligible
+unit, records latest submission history, and starts an idle unit through the
+ordinary FIFO activation hook before issued-order publication. An active unit
+keeps its current head. Selection no longer requires all current physical owners
+to match. Formation destinations are assigned at physical activation, not when
+queuing the common point. Move owns these changes; the universal client is unchanged.
+
+Four complete original scene51 captures use reviewed native Win32 Move/Shift
+input and a read-only observer. Two early clicks give361 commits each: the idle
+peer finishes before the original mover, and the later cohort search returns0.
+Two later clicks give418 and370 commits: the still-moving peer joins the later
+cohort, and its search returns1. All1510 absolute clock, fine-position, velocity
+and facing commits match ordinary engine frames;1498 scalar decisions, twelve
+arrivals and1365 owner visits are retained. Input clocks differ and the four
+motion tables remain separate; no cross-input numerical equality is claimed.
+Save79 reproduces1020 suffix commits across saves at commit200 and300.
+
+The adapter samples recorded movement clocks because order admission also
+publishes a pose. It still advances only ordinary5ms frames and supplies input
+through the normal pose-publication boundary. No owner, clock advancement or
+retail decision is replayed. Earlier shared/idle/two-pending input regressions
+remain exact. The older queued-formation test now checks common points and
+request history while retaining physical formation and saved continuation checks.
+The broad suite exposed a scene-adapter lifetime bug: resetting entities did
+not retire periodic timers before replacing the JASS VM. The adapter now destroys
+its scene timers at boundaries; production timer semantics are unchanged. The
+failed run and debugger backtrace are retained as diagnostic artifacts.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-mixed-shift-source-261002/`: immutable scenario, observer,
+  controller, map and reviewed native input helper;
+- `runtime/selected-mixed-shift-complete-{first,repeat}-261002.jsonl`;
+- `runtime/selected-mixed-shift-late-first-261002.jsonl` and
+  `runtime/selected-mixed-shift-late-confirmed-repeat-261002.jsonl`;
+- `runtime/selected-mixed-shift-strict-final-261002/corpus-results.json`: eight
+  fresh contracts, including all four mixed journeys and prior input/owner cases;
+- `runtime/selected-mixed-shift-types-final-261002.json` and
+  `runtime/selected-mixed-shift-ghidra-readback-saved-261002.json`:522 saved
+  roles,42 partial layouts,262 fields and245 explicit x86 prototypes. Four
+  heterogeneous-admission roles, signatures and native xrefs are read back.
+
+One earlier capture lacks a valid trace-end and remains diagnostic. Another
+late click hit the moving unit: its packet carries target identity[1108,1108],
+so it is target Move evidence outside this ground-point contract. The strict
+checker requires target[-1,-1] and rejects that substitution. It also rejects
+non-Shift input, replacement of an active head, failure to start an idle unit,
+wrong previous-request matching, self-candidates and incorrect join results.
+
+`retail-selected-mixed-1.27.json` and `retail_selected_mixed.h` retain all four
+journeys and provenance. Full unrelated-current-order, rejection/callback,
+other-mask/air/larger-selection and arbitrary-scene contracts remain open.
+
+
+Final payoff45 validation: debug RoC/TFT each pass256,436 assertions in2326
+tests. Forced release production/test builds and the normal repository suite
+pass; all-test RoC/TFT each pass256,869 assertions in2363 tests. All199 Python
+pathfinding tests, ability audit,263-entry/104-fixture inventory, eight fresh
+strict contracts and saved Ghidra readbacks pass. GROUP-04.16 closes with Save79
+unchanged;122 completed/186 open backlog leaves remain. The validation index is
+`runtime/selected-mixed-shift-validation-261002.json`. Next runnable work is
+04.6's independent active owners, then its wider producer/eligibility contracts.

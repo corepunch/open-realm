@@ -13,8 +13,11 @@ PHASES = ('pair-group-phase-begin', 'pair-group-phase-end')
 
 
 def canonical(rows):
-    first = next(r for r in rows if r.get('event') == 'pair-group-phase-begin')
-    movers = [m['mover'] for m in first['members']]
+    movers = []
+    for row in rows:
+        if row.get('event') == 'pair-group-phase-begin':
+            for member in row['members']:
+                if member['mover'] not in movers: movers.append(member['mover'])
     result = []
     for row in rows:
         event = row.get('event')

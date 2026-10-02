@@ -17926,6 +17926,303 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "inputs": {
+        "capture": "runtime/selected-mixed-shift-complete-first-261002.jsonl",
+        "sha256": "36ec77664bd0f0fdce5cb8a7690d1f905deacb9a07f96aa99185c5f8adf050bd",
+        "bytes": 1575663,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+            "wc3_pathfinding.js": "7e2e71192471853bc53ec888e8c1ada0759a8f5c6187992fed752d061bc6ab89",
+            "wc3_pathfinding_probe.j": "f20241a54228c3f5dd1a4e12166b7764b65a9e34cd9c693b15ea3f93a717eb49",
+            "make_wc3_pathfinding_map.py": "c9035c8e9311858ac72bc647714ead58c71142e7d29c13e47f2ac5bb59d479ba",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "wc3-ui-input.exe": "23bfe32ee26f633bbb73adb43b0942f1c09c5f60775b060d9ba00fcfc3e52920",
+            "wc3-ui-input.exe.so": "4ba96c4cdc946095f1ec22fdabb8af046ddb7836452867d2f41cfd745cecf112",
+            "wc3_ui_input.c": "aa67196c22b5e251f36e06a5db291a28be9ca27a4d4eec2e01c37c32f49a2855",
+            "map": "83852ba140e2c21c66d2f78fae326d044170c5b343671220716e7fd2751cf19c"
+          },
+          "map": "Maps\\PathingRE-SelectedMixedCorridor-261002.w3m",
+          "seconds": 70.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false,
+          "pointInput": {
+            "at": 20.0,
+            "pixel": [
+              512,
+              280
+            ],
+            "api": "external Win32 SendInput",
+            "shift": true,
+            "nativeKey": true,
+            "sampleTicks": true
+          }
+        }
+      },
+      "capture_complete": true,
+      "id": "live-selected-mixed-captures-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_selected_mixed_trace.py",
+        "{archive}/runtime/selected-mixed-shift-complete-first-261002.jsonl",
+        "{archive}/runtime/selected-mixed-shift-complete-repeat-261002.jsonl",
+        "{archive}/runtime/selected-mixed-shift-late-first-261002.jsonl",
+        "{archive}/runtime/selected-mixed-shift-late-confirmed-repeat-261002.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-selected-mixed-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_selected_mixed.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "selected-mixed-captures.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 4
+        },
+        "joined_cases": {
+          "equal": 2
+        },
+        "exact_decisions": {
+          "equal": 1498
+        },
+        "exact_velocity_commits": {
+          "equal": 1510
+        },
+        "natural_arrivals": {
+          "equal": 12
+        },
+        "group_owner_passes": {
+          "equal": 1365
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Selected ground Shift with one moving member and one idle member. Each complete native capture retains its supplied admission clock and exact motion; different input clocks may change the trajectories.",
+      "exclusions": [
+        "Four explicit input clocks with two early independent completions and two later cohort joins. Inputs differ, so motion tables are compared per capture; equality across different input times is not claimed. Unit-target clicks, other masks, larger selections, unrelated-order/full rejection graphs, callback mutation and arbitrary maps remain open."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/selected-mixed-shift-complete-repeat-261002.jsonl",
+            "sha256": "47b369b2b8d6151addc21ca8cff55caec6b99acdaa0b24f0580a0239e1260d74",
+            "bytes": 1575678,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "7e2e71192471853bc53ec888e8c1ada0759a8f5c6187992fed752d061bc6ab89",
+                "wc3_pathfinding_probe.j": "f20241a54228c3f5dd1a4e12166b7764b65a9e34cd9c693b15ea3f93a717eb49",
+                "make_wc3_pathfinding_map.py": "c9035c8e9311858ac72bc647714ead58c71142e7d29c13e47f2ac5bb59d479ba",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "wc3-ui-input.exe": "23bfe32ee26f633bbb73adb43b0942f1c09c5f60775b060d9ba00fcfc3e52920",
+                "wc3-ui-input.exe.so": "4ba96c4cdc946095f1ec22fdabb8af046ddb7836452867d2f41cfd745cecf112",
+                "wc3_ui_input.c": "aa67196c22b5e251f36e06a5db291a28be9ca27a4d4eec2e01c37c32f49a2855",
+                "map": "83852ba140e2c21c66d2f78fae326d044170c5b343671220716e7fd2751cf19c"
+              },
+              "map": "Maps\\PathingRE-SelectedMixedCorridor-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "pointInput": {
+                "at": 20.0,
+                "pixel": [
+                  512,
+                  280
+                ],
+                "api": "external Win32 SendInput",
+                "shift": true,
+                "nativeKey": true,
+                "sampleTicks": true
+              }
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/selected-mixed-shift-late-first-261002.jsonl",
+            "sha256": "7cf952ee32c8cf5b043f742c68368e66f9c626231134ca2de72731971f202e8b",
+            "bytes": 1731110,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "7e2e71192471853bc53ec888e8c1ada0759a8f5c6187992fed752d061bc6ab89",
+                "wc3_pathfinding_probe.j": "f20241a54228c3f5dd1a4e12166b7764b65a9e34cd9c693b15ea3f93a717eb49",
+                "make_wc3_pathfinding_map.py": "c9035c8e9311858ac72bc647714ead58c71142e7d29c13e47f2ac5bb59d479ba",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "wc3-ui-input.exe": "23bfe32ee26f633bbb73adb43b0942f1c09c5f60775b060d9ba00fcfc3e52920",
+                "wc3-ui-input.exe.so": "4ba96c4cdc946095f1ec22fdabb8af046ddb7836452867d2f41cfd745cecf112",
+                "wc3_ui_input.c": "aa67196c22b5e251f36e06a5db291a28be9ca27a4d4eec2e01c37c32f49a2855",
+                "map": "83852ba140e2c21c66d2f78fae326d044170c5b343671220716e7fd2751cf19c"
+              },
+              "map": "Maps\\PathingRE-SelectedMixedCorridor-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "pointInput": {
+                "at": 40.0,
+                "pixel": [
+                  512,
+                  280
+                ],
+                "api": "external Win32 SendInput",
+                "shift": true,
+                "nativeKey": true,
+                "sampleTicks": true
+              }
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/selected-mixed-shift-late-confirmed-repeat-261002.jsonl",
+            "sha256": "fa89c64e8669329fbdc29a475009d099c96eb43869782f98783840d91dfc9bd0",
+            "bytes": 1549554,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "7e2e71192471853bc53ec888e8c1ada0759a8f5c6187992fed752d061bc6ab89",
+                "wc3_pathfinding_probe.j": "f20241a54228c3f5dd1a4e12166b7764b65a9e34cd9c693b15ea3f93a717eb49",
+                "make_wc3_pathfinding_map.py": "c9035c8e9311858ac72bc647714ead58c71142e7d29c13e47f2ac5bb59d479ba",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "wc3-ui-input.exe": "23bfe32ee26f633bbb73adb43b0942f1c09c5f60775b060d9ba00fcfc3e52920",
+                "wc3-ui-input.exe.so": "4ba96c4cdc946095f1ec22fdabb8af046ddb7836452867d2f41cfd745cecf112",
+                "wc3_ui_input.c": "aa67196c22b5e251f36e06a5db291a28be9ca27a4d4eec2e01c37c32f49a2855",
+                "map": "83852ba140e2c21c66d2f78fae326d044170c5b343671220716e7fd2751cf19c"
+              },
+              "map": "Maps\\PathingRE-SelectedMixedCorridor-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "pointInput": {
+                "at": 45.0,
+                "pixel": [
+                  512,
+                  280
+                ],
+                "api": "external Win32 SendInput",
+                "shift": true,
+                "nativeKey": true,
+                "sampleTicks": true
+              }
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -18341,6 +18638,10 @@
       "path": "tools/ghidra/fixtures/retail-selected-double-queued-1.27.json",
       "sha256": "6388729645762bd0349e433ae89f8cb33cce2c302befc1245575548c9c0cc3f0",
       "bytes": 188828
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-selected-mixed-1.27.json",
+      "sha256": "c5ac035fe7a57fb9584c00ed553182a88f6012f4dcf19004e5bfd6ba6ba76ea9"
     }
   ]
 }

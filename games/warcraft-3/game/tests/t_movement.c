@@ -33,6 +33,7 @@
 #include "retail_selected_idle_shift.h"
 #include "retail_selected_queued.h"
 #include "retail_selected_double_queued.h"
+#include "retail_selected_mixed.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -8267,7 +8268,6 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
     clent->client = &game.clients[0]; clent->client->menu.order_queued=false; clent->client->ps.number = 0;
     edict_t *units[3];
     UnitData_t rows[3];
-    uint32_t const targets[3][2] = {{0x44845555u, 0xc27fffffu}, {0x44845555u, 0x427fffffu}, {0x445caaaau, 0x0u}};
     FOR_LOOP(i, 3) {
         units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -640, (int)i * 200 - 200);
         rows[i] = *units[i]->data.UnitData; rows[i].formationRank = i == 2 ? 1 : 0;
@@ -8281,15 +8281,18 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
     level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=level.pathing_msec=0; level.pathing_phase=0;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     FOR_LOOP(i,3) T_ASSERT(unit_issueorder(units[i],"move",&(vec2_t){-1000,0}));
-    /* Preserve the frozen16a5b0 world-point layout through the queued producer.
-     * The physical owner instead lays out at its current coarse point/heading. */
+    /* Pending selected ground requests retain the common point even when
+     * current orders have independent owners. Formation belongs to activation. */
     clent->client->menu.order_queued=true;
     T_ASSERT(move_selectlocation(clent,&destination));
     FOR_LOOP(i,3) {
         T_EQ(units[i]->order_queue.count,1);
         unitOrder_t const *queued=units[i]->order_queue.entries+units[i]->order_queue.head;
-        T_EQ(wc3_float_bits(queued->point.x),targets[i][0]);
-        T_EQ(wc3_float_bits(queued->point.y),targets[i][1]);
+        T_EQ(wc3_float_bits(queued->point.x),wc3_float_bits(destination.x));
+        T_EQ(wc3_float_bits(queued->point.y),wc3_float_bits(destination.y));
+        T_NE(queued->owner_context,0);
+        T_EQ(queued->owner_context,units[0]->order_queue.entries[units[0]->order_queue.head].owner_context);
+        T_EQ(units[i]->movement.previous_request_id,queued->owner_context);
     }
     clent->client->menu.order_queued=false;
     T_ASSERT(move_selectlocation(clent, &destination));
@@ -8308,8 +8311,7 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
     FOR_LOOP(i, 3) {
         T_EQ(units[i]->order_queue.count, 1);
         unitOrder_t const *queued = units[i]->order_queue.entries + units[i]->order_queue.head;
-        /* Active physical cohorts append the common native request point;
-         * the earlier independent-order branch retains its supplied layout. */
+        /* Current shared owners retain the same common-point admission. */
         T_EQ(wc3_float_bits(queued->point.x),wc3_float_bits(destination.x));
         T_EQ(wc3_float_bits(queued->point.y),wc3_float_bits(destination.y));
         T_EQ(queued->owner_context,units[0]->order_queue.entries[units[0]->order_queue.head].owner_context);
@@ -10569,7 +10571,8 @@ static void selected_queued_input_link(edict_t *unit) {
 /* Native player input supplies its absolute admission clock; all owner visits
  * and motion then come from ordinary engine frames, without replaying decisions. */
 static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input_count,
-        uint32_t const (*motion)[7], unsigned commit_count) {
+        uint32_t const (*motion)[7], unsigned commit_count, unsigned cases, bool initial_peer,
+        unsigned const save_steps[2]) {
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
     unitModification_t mods[]={
@@ -10580,7 +10583,10 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
         .numbeOfModifications=2,.modifications=mods};
     mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
     mapInfo_t const *oldinfo=level.mapinfo;
-    FOR_LOOP(c,2) {
+    FOR_LOOP(c,cases) {
+        /* Each scene replaces the VM. Retire callbacks before freeing its
+         * program; reset_entities alone does not reset the timer registry. */
+        FOR_LOOP(i,level.num_timers) G_TimerDestroy(level.timers+i);
         reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
         static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
         unsigned offset=0;
@@ -10591,7 +10597,8 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
         T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
         level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
         level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
-        T_ASSERT(run_test_jass("globals\nunit a\nunit b\ngroup cohort\ninteger tick=0\nendglobals\n"
+        char script[2048];
+        int length=snprintf(script,sizeof(script),"globals\nunit a\nunit b\ngroup cohort\ninteger tick=0\nendglobals\n"
             "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
             "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1936,-144)\nendif\nendfunction\n"
             "function main takes nothing returns nothing\n"
@@ -10599,9 +10606,12 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
             "call SetUnitMoveSpeed(a,100)\ncall SetUnitOwner(a,Player(3),false)\n"
             "set b=CreateUnit(Player(3),'hSQE',-1856,-976,90)\n"
             "call SetUnitMoveSpeed(b,100)\nset cohort=CreateGroup()\n"
-            "call GroupAddUnit(cohort,a)\ncall GroupAddUnit(cohort,b)\n"
-            "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
-        edict_t *units[2]={0}; unsigned count=0,steps=0; uint32_t clocks[2]={0};
+            "call GroupAddUnit(cohort,a)\n%s"
+            "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n",
+            initial_peer ? "call GroupAddUnit(cohort,b)\n" : "");
+        T_ASSERT(length>0 && length<sizeof(script));
+        T_ASSERT(run_test_jass(script));
+        edict_t *units[2]={0}; unsigned count=0,steps=0;
         FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
         T_EQ(count,2); if (count!=2) continue;
         edict_t *clent=g_edicts+3; clent->client=game.clients+3;
@@ -10616,9 +10626,8 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
         FOR_LOOP(pass,3) {
             if (pass) {
                 if (mismatch) break;
-                T_ASSERT(ReadGame(saves[pass-1])); steps=pass==1 ? 310 : 368; selected_queued_input.index=saved_inputs[pass-1]; mismatch=false;
+                T_ASSERT(ReadGame(saves[pass-1])); steps=save_steps[pass-1]; selected_queued_input.index=saved_inputs[pass-1]; mismatch=false;
                 FOR_LOOP(i,2) {
-                    clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
                     T_EQ(units[i]->movement.previous_request_id,saved_history[pass-1][i]);
                 }
                 T_EQ(units[0]->s.player,3); T_EQ(units[0]->movement.fine_class,3);
@@ -10626,22 +10635,22 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
             while (level.time<30000 && !mismatch) {
                 level.time+=5; globals.RunFrame();
                 if (!selected_queued_input.index && level.time<1000) continue;
-                FOR_LOOP(i,2) if (wc3_float_bits(units[i]->movement.pose_clock.time)==0x3f7ffff0u)
-                    clocks[i]=0x3f7ffff0u; /* Initial public admission materializes idle pose. */
                 unsigned visited=0;
                 while (steps<commit_count) {
                     uint32_t const *expected=motion[steps]; unsigned i=expected[0];
                     edict_t *unit=units[i]; uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
-                    if (now==clocks[i]) break;
+                    /* Admission publishes a pose too. Only sample the next
+                     * recorded commit clock; ordinary frames perform the step. */
+                    if (now!=expected[1]) break;
                     T_ASSERT(!(visited&(1u<<i))); visited|=1u<<i;
-                    clocks[i]=now; steps++;
+                    steps++;
                     uint32_t actual[]={i,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
                         wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
                     FOR_LOOP(k,7) { T_EQ(actual[k],expected[k]); if(actual[k]!=expected[k]) mismatch=true; }
-                    if (!pass && !mismatch && (steps==310 || steps==368)) {
-                        unsigned slot=steps==310 ? 0 : 1; saved_inputs[slot]=selected_queued_input.index;
+                    if (!pass && !mismatch && (steps==save_steps[0] || steps==save_steps[1])) {
+                        unsigned slot=steps==save_steps[0] ? 0 : 1; saved_inputs[slot]=selected_queued_input.index;
                         FOR_LOOP(j,2) saved_history[slot][j]=units[j]->movement.previous_request_id;
-                        if (input_count==2 && steps==368) {
+                        if (input_count==2 && steps==save_steps[1]) {
                             moveGroup_t const *group=move_find_group(units[0]->movement.group_id);
                             T_ASSERT(group);
                             if (group) T_EQ(group->request_id,units[0]->movement.previous_request_id);
@@ -10664,6 +10673,7 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
             T_ASSERT(!jass_rterror_pending(level.vm));
         }
         gi.LinkEntity=selected_queued_input.link;
+        FOR_LOOP(i,level.num_timers) G_TimerDestroy(level.timers+i);
         remove(saves[0]); remove(saves[1]);
     }
     game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
@@ -10671,11 +10681,17 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
 }
 
 TEST(wc3_movement, selected_shift_input_matches_original_staggered_activation) {
-    selected_queued_journeys(selected_queued_inputs,1,selected_queued_motion,510);
+    selected_queued_journeys(selected_queued_inputs,1,selected_queued_motion,510,2,true,(unsigned const[]){310,368});
 }
 
 TEST(wc3_movement, selected_two_shift_inputs_match_original_three_leg_journey) {
-    selected_queued_journeys(selected_double_queued_inputs[0],2,selected_double_queued_motion,555);
+    selected_queued_journeys(selected_double_queued_inputs[0],2,selected_double_queued_motion,555,2,true,(unsigned const[]){310,368});
+}
+
+TEST(wc3_movement, selected_mixed_shift_inputs_match_original_complete_journeys) {
+    FOR_LOOP(c,sizeof(selected_mixed_cases)/sizeof(*selected_mixed_cases))
+        selected_queued_journeys(selected_mixed_inputs+c,1,selected_mixed_cases[c].motion,
+            selected_mixed_cases[c].count,1,false,(unsigned const[]){200,300});
 }
 
 #endif

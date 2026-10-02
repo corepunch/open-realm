@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **262 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **45**
+The inventory now has **263 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **46**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -750,3 +750,16 @@ repeat all555 absolute motion words; normal engine frames match1110 commits and
 producer/commit clocks and retained clock contracts stay exact. Loading/timing
 attempts remain diagnostic evidence outside this accepted contract. Inventory
 is262 entries/103 fixtures. See [two pending Shift moves](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-history-and-physical-generations).
+
+
+Payoff45 adds `live-selected-mixed-captures-261002`: four complete native ground
+Shift journeys with one active and one idle selected unit. Earlier clicks let
+the idle peer finish before cohort acquisition; later clicks retain a moving
+peer that joins. The strict checker requires null target identity, appends
+without replacing the active head, and starts the idle head immediately. Four
+separate input clocks retain separate motion tables:1498 scalar decisions,1510
+exact commits, twelve arrivals and1365 owner visits. Normal engine frames match
+all1510 commits and1020 saved suffix commits. A missing trace-end attempt and a
+click that actually targeted a moving unit remain diagnostic, outside acceptance.
+Inventory is263 entries/104 fixtures; eight fresh strict contracts retain all
+earlier selected/public/owner witnesses. See [mixed Shift movement](retail-pathfinding-engine.md#mixed-active-and-idle-shift-share-one-submitted-request).

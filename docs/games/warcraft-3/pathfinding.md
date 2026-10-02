@@ -480,6 +480,15 @@ quantized fine footprints. See [the verified peer retry and remaining scope](ret
 Public JASS group point orders now share a bounded twelve-member snapshot
 dispatch across string, numeric ID, Loc and numeric ID Loc forms. Numeric forms
 previously returned false; string forms exceeded retail's twelve-member limit.
-The original shared CMoveReq is captured, but persistent shared physical group
-movement and separate decision/commit phases remain open. See [retail group
+The original shared CMoveReq and complete twelve-member physical movement now
+have engine comparisons; wider eligibility and producer lanes remain open. See [retail group
 admission](retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members).
+
+Selected ground Move now uses retained physical cohorts for ordinary input,
+idle Shift, pending Shift and mixed active/idle Shift. Mixed admission preserves
+an active head while starting the idle peer immediately under one common
+request. Formation is assigned during physical activation. Four complete native
+journeys match1510 normal-frame clock/position/velocity/facing commits and1020
+saved suffix commits; early-finished peers and later cohort joining are both
+covered. Save79 retains the existing histories and owner generations. See
+[mixed Shift integration](retail-pathfinding-engine.md#mixed-active-and-idle-shift-share-one-submitted-request).

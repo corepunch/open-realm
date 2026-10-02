@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  522 function names/comments applied and saved. Latest two-pending Shift readbacks:
+  522 function names/comments applied and saved. Latest mixed active/idle Shift readbacks:
+  `runtime/selected-mixed-shift-ghidra-readback-saved-261002.json` and
+  `runtime/selected-mixed-shift-types-final-261002.json`. Prior two-pending Shift readbacks:
   `runtime/selected-double-queued-ghidra-readback-saved-261002.json` and
   `runtime/selected-double-queued-types-final-saved-261002.json`. Prior idle Shift readbacks:
   `runtime/selected-idle-shift-ghidra-readback-saved-261002.json` and
@@ -318,5 +320,9 @@ Two pending selected ground Shift moves retain the latest submitted request
 through both FIFO activations. Creation-ordered owner generations and the
 formation origin survive slot reuse; normal frames match1110 exact native commits
 and864 saved suffix commits. See [payoff44](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-history-and-physical-generations).
-Mixed active/idle Shift, air/mixed candidates, enabled formation options and AI
+Mixed active/idle selected ground Shift now preserves active heads and starts
+idle peers immediately. Four native journeys match1510 engine commits and1020
+saved suffix commits, including both later cohort rejection and joining. See
+[payoff45](retail-pathfinding-engine.md#mixed-active-and-idle-shift-share-one-submitted-request).
+Unrelated current orders, air/mixed candidates, enabled formation options and AI
 sharing remain open.

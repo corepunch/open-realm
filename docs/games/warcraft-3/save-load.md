@@ -30,6 +30,11 @@ The two-pending-Shift regression repeats864 saved motion suffix commits, includi
 a future external click after the earlier save. Version78 and all earlier layouts
 are rejected. See [queued group history](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-history-and-physical-generations).
 
+The mixed active/idle Shift regression also reproduces1020 saved suffix commits
+under version79. No layout change is needed: common queued contexts, immediate
+idle activation and later cohort joining use the existing retained records. See
+[mixed Shift](retail-pathfinding-engine.md#mixed-active-and-idle-shift-share-one-submitted-request).
+
 Version78 retained Move-owned queued request context and active cohort request
 identity. Common point orders survive before activation; staggered activation
 creates fresh physical cohorts with deterministic member order. Saves on either

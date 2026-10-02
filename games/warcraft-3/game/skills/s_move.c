@@ -2458,15 +2458,15 @@ static bool move_queue_group_point(groupPointOrder_t const *request) {
         edict_t *unit=request->units[i].unit;
         if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit) ||
             M_IsDead(unit) || (unit->aiflags&AI_IMMOBILE) || G_BuildingUpgradeActive(unit) ||
-            !S_AncientCanReceiveOrder(unit) || !G_UnitHasActiveOrder(unit)) continue;
-        moveGroup_t const *source=move_find_group(unit->movement.group_id);
-        if (!source) continue;
+            !S_AncientCanReceiveOrder(unit)) continue;
+        bool active=G_UnitHasActiveOrder(unit);
         if (!G_QueueUnitOrder(unit,request->order,UNIT_ORDER_TARGET_POINT,request->point,NULL,
                 request->issuer_player,0,0)) continue;
         unitOrderQueue_t *queue=&unit->order_queue;
         unsigned slot=(queue->head+queue->count-1)%MAX_UNIT_ORDER_QUEUE;
         queue->entries[slot].owner_context=context;
         unit->movement.previous_request_id=context;
+        if (!active) G_UnitStartNextQueuedOrder(unit);
         any=true;
         G_PublishIssuedPointOrder(unit,request->order_id,request->point,request->issuer_player,request->order);
     }
@@ -2792,18 +2792,16 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     }
     /* Native NetUnit.cpp prepares shared requests before ordinary ground point admission.
      * Reuse the verified cohort owner instead of assigning an ID to independent walkers.
-     * TODO GROUP-04.6: mixed active/idle Shift, air/mixed-lane and larger selection producers remain open. */
+     * TODO GROUP-04.6: air/mixed-lane and larger selection producers remain open. */
     if (num_units>1 && num_units<=BZ_WC3_GROUP_ORDER_UNITS) {
         bool ground=true; uint8_t mask=M_UnitStaticPathingFlags(units[0]);
         FOR_LOOP(i,num_units) if ((units[i]->aiflags&AI_FLYING) || M_UnitStaticPathingFlags(units[i])!=mask) ground=false;
         bool queued=clent->client->menu.order_queued;
-        uint32_t source=units[0]->movement.group_id;
-        bool shared=source && move_find_group(source),idle=true;
+        bool idle=true;
         FOR_LOOP(i,num_units) {
-            if (units[i]->movement.group_id!=source || !G_UnitHasActiveOrder(units[i])) shared=false;
             if (G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) idle=false;
         }
-        if (ground && (!queued || shared || idle)) {
+        if (ground) {
             groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.issuer_player=clent->client->ps.number};
             FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
             bool accepted=G_IssueGroupPointOrder(&request);
