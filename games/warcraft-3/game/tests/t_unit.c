@@ -1587,7 +1587,7 @@ TEST(wc3_unit, issueorder_unknown_returns_false) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
     vec2_t dest = {100.0f, 0.0f};
-    bool result = unit_issueorder(ent, "patrol", &dest);
+    bool result = unit_issueorder(ent, "notarealorder", &dest);
     T_ASSERT(!result);
 }
 
