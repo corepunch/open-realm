@@ -415,6 +415,10 @@ void build_build(edict_t *ent) {
         ent->stand(ent);
         return;
     }
+    G_BOT_TRACE(building->s.player, NULL, "building_started",
+               "worker=%ld building=%ld type=%.4s point=(%.1f,%.1f)",
+               (long)(ent - g_edicts), (long)(building - g_edicts),
+               (cstring_t)&building_id, snapped.x, snapped.y);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI build started worker=%ld building=%ld id=%.4s\n",
         (long)(ent - g_edicts), (long)(building - g_edicts), (cstring_t)&ent->build_project);

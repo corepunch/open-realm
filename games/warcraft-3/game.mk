@@ -41,6 +41,9 @@ endif
 ifeq ($(WC3_DEBUG_AI),1)
 	WC3_CFLAGS += -DWC3_DEBUG_AI
 endif
+ifeq ($(WC3_TRACE_AI),1)
+	WC3_CFLAGS += -DWC3_TRACE_AI
+endif
 ifeq ($(WC3_DEBUG_BUILD),1)
 	WC3_CFLAGS += -DWC3_DEBUG_BUILD
 endif

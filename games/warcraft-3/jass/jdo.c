@@ -946,6 +946,12 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
             !jass_host.TimerCoroutineValid(co->state->context.timer,
                                            co->state->context.timer_generation)) {
             co->done = true;
+            if (jass_host.CoroutineTrace) {
+                jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
+                jass_host.CoroutineTrace(root, co, co->state->context.trigger,
+                                        frame && frame->func ? jass_functionname(frame->func) : NULL,
+                                        "done", now, co->wake_time, false, true);
+            }
             return false;
         }
     }
@@ -966,7 +972,7 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
     currentunit = co->state->context.unit;
     if (jass_host.CoroutineTrace) {
         jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
-        jass_host.CoroutineTrace(co->state->context.trigger,
+        jass_host.CoroutineTrace(root, co, co->state->context.trigger,
                                 frame && frame->func ? jass_functionname(frame->func) : NULL,
                                 "resume", now, co->wake_time,
                                 co->yielded, co->done);
@@ -974,7 +980,7 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
     jass_resumecoroutine(co);
     if (jass_host.CoroutineTrace) {
         jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
-        jass_host.CoroutineTrace(co->state->context.trigger,
+        jass_host.CoroutineTrace(root, co, co->state->context.trigger,
                                 frame && frame->func ? jass_functionname(frame->func) : NULL,
                                 co->done ? "done" : (co->yielded ? "yield" : "return"),
                                 jass_gettime(), co->wake_time,

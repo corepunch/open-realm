@@ -262,6 +262,16 @@ with simulation time, player, script, current JASS function, and call chain.
 This instruments the engine-side display native; it does not modify retail map
 or common AI scripts.
 
+For low volume gameplay tracing, build with `WC3_TRACE_AI=1`. It logs accepted
+unit production requests and unit queue/completion, upgrade queue/completion,
+building start/completion, assault formation progress, scripted wave targets,
+explicit attack targets, and when the AI script's `main` coroutine returns. If an
+AI coroutine remains yielded, one wait summary per coroutine is printed every 10
+simulation seconds with its function, call chain, elapsed wait, and scheduled
+wake time. These traces include the simulation timestamp, AI player, and script
+path; they do not trace every JASS native or modify retail scripts.
+`WC3_TRACE_AI` is separate from the broader `WC3_DEBUG_AI` diagnostics.
+
 Human02's allied Uther patrol is map-trigger driven rather than an engine Patrol order. `Trig_Uther_Patrol_to_01_Actions` and `_02_Actions` issue alternating point `attack` orders; the corresponding region-entry triggers disable themselves, wait 12 seconds with `TriggerSleepAction`, enable the opposite reach/patrol triggers, and execute the next leg. Region conditions identify Uther through `GetEnteringUnit()`, so that native must return `JASSCONTEXT.unit` (the event subject), not `JASSCONTEXT.trigger`. Returning the trigger handle causes the generated `GetEnteringUnit() == <Uther>` condition to fail after the first leg and permanently stops the scripted patrol.
 
 `IgnoredUnits` counts live, matching, bot-owned members across the assault and defense captain rosters. `common.ai` adds this value to desired production because captain members still contribute to `TownCount` after assignment away from town duties. A bounded ROC Human02 run now passes this query and reports `CommandsWaiting` as the next unresolved native.

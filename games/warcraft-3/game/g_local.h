@@ -2275,6 +2275,20 @@ void G_BotRequestStop(uint32_t);
 void G_BotShutdown(void);
 void G_BotPause(uint32_t, bool);
 void G_BotRunFrame(void);
+void G_BotTrace(uint32_t player, jass_t *vm, cstring_t event, cstring_t format, ...);
+void G_BotTraceCoroutine(jass_t *vm, handle_t coroutine, cstring_t function,
+                         cstring_t phase, uint32_t now, uint32_t wake_time,
+                         bool yielded, bool done);
+void G_BotTraceWaits(uint32_t player);
+#ifdef WC3_TRACE_AI
+#define G_BOT_TRACE(...) G_BotTrace(__VA_ARGS__)
+#define G_BOT_TRACE_COROUTINE(...) G_BotTraceCoroutine(__VA_ARGS__)
+#define G_BOT_TRACE_WAITS(...) G_BotTraceWaits(__VA_ARGS__)
+#else
+#define G_BOT_TRACE(...) ((void)0)
+#define G_BOT_TRACE_COROUTINE(...) ((void)0)
+#define G_BOT_TRACE_WAITS(...) ((void)0)
+#endif
 bool G_BotUnitAlive(edict_t *);
 bool G_BotTownThreatened(player_t *);
 bool G_BotIsTowered(player_t *, edict_t *);

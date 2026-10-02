@@ -1,6 +1,7 @@
 #include "g_local.h"
 #include "jass/jass.h"
 #include "skills/s_skills.h"
+#include <stdarg.h>
 
 #define BOT_GUARD_RETURN_RANGE 82.006f // world units; avoid resetting movement for guards already standing near their post
 #define BOT_BUILD_GRID 32.0f // world units; WC3 structures snap to this placement-cell interval
@@ -24,8 +25,159 @@
 #define BOT_HERO_BUY_SCAN_MS 2000u // BZ_COMPAT_GUESS: retail shop-purchase cadence is unknown
 #define BOT_DEFEND_PLAYER_SCAN_MS 500u // BZ_COMPAT_GUESS: retail defense response cadence is unknown
 
+#ifdef WC3_TRACE_AI
+#define BOT_TRACE_WAIT_INTERVAL_MS 10000u
+
+typedef struct botTraceWait_s {
+    struct botTraceWait_s *next;
+    handle_t coroutine;
+    uint32_t yielded_at, last_report, wake_time;
+    bool waiting;
+    char initial_function[96], function[96], callchain[512];
+} botTraceWait_t;
+
+static botTraceWait_t *bot_trace_waits[MAX_PLAYERS];
+#endif
+
 static bot_t *G_BotState(uint32_t player) {
     return player < MAX_PLAYERS ? &level.bots[player] : NULL;
+}
+
+#ifdef WC3_TRACE_AI
+static int32_t G_BotTracePlayer(jass_t *vm) {
+    jass_t *root;
+    if (!vm) return -1;
+    root = jass_getroot(vm);
+    FOR_LOOP(player, MAX_PLAYERS)
+        if (level.bots[player].vm == root) return (int32_t)player;
+    return -1;
+}
+#endif
+
+void G_BotTrace(uint32_t player, jass_t *vm, cstring_t event, cstring_t format, ...) {
+#ifdef WC3_TRACE_AI
+    bot_t *bot = G_BotState(player);
+    char detail[512] = "", callchain[512] = "(unavailable)";
+    cstring_t function = "(engine)";
+    va_list args;
+
+    if (!bot || !bot->vm || (vm && jass_getroot(vm) != bot->vm)) return;
+    if (format) {
+        va_start(args, format);
+        vsnprintf(detail, sizeof(detail), format, args);
+        va_end(args);
+    }
+    if (vm) {
+        cstring_t current = jass_currentfunctionname(vm);
+        function = current && *current ? current : "(unknown)";
+        jass_formatcallchain(vm, callchain, sizeof(callchain));
+        if (!callchain[0]) strlcpy(callchain, "(empty)", sizeof(callchain));
+    }
+    fprintf(stderr,
+            "WC3_AI_TRACE time=%u player=%u script=\"%s\" event=%s function=\"%s\" callchain=\"%s\"%s%s\n",
+            (unsigned)G_Time(), player, bot->script, event ? event : "event", function,
+            callchain, detail[0] ? " " : "", detail);
+#else
+    (void)player; (void)vm; (void)event; (void)format;
+#endif
+}
+
+void G_BotTraceCoroutine(jass_t *vm, handle_t coroutine, cstring_t function,
+                         cstring_t phase, uint32_t now, uint32_t wake_time,
+                         bool yielded, bool done) {
+#ifdef WC3_TRACE_AI
+    int32_t player = G_BotTracePlayer(vm);
+    botTraceWait_t **link, *wait;
+    if (player < 0 || !coroutine) return;
+    link = bot_trace_waits + player;
+    while (*link && (*link)->coroutine != coroutine) link = &(*link)->next;
+    wait = *link;
+
+    if (phase && !strcmp(phase, "resume")) {
+        char callchain[512];
+        if (!wait) {
+            wait = gi.MemAlloc(sizeof(*wait));
+            if (!wait) return;
+            memset(wait, 0, sizeof(*wait));
+            wait->coroutine = coroutine;
+            wait->next = bot_trace_waits[player];
+            bot_trace_waits[player] = wait;
+        }
+        if (!wait->initial_function[0])
+            strlcpy(wait->initial_function, function && *function ? function : "(unknown)",
+                    sizeof(wait->initial_function));
+        strlcpy(wait->function, function && *function ? function : "(unknown)", sizeof(wait->function));
+        jass_formatcallchain(vm, callchain, sizeof(callchain));
+        strlcpy(wait->callchain, callchain[0] ? callchain : "(empty)", sizeof(wait->callchain));
+        wait->waiting = false;
+        return;
+    }
+    if (phase && !strcmp(phase, "yield") && yielded && !done) {
+        char callchain[512];
+        if (!wait) {
+            wait = gi.MemAlloc(sizeof(*wait));
+            if (!wait) return;
+            memset(wait, 0, sizeof(*wait));
+            wait->coroutine = coroutine;
+            wait->next = bot_trace_waits[player];
+            bot_trace_waits[player] = wait;
+        }
+        wait->waiting = true;
+        wait->yielded_at = wait->last_report = now;
+        wait->wake_time = wake_time;
+        strlcpy(wait->function, function && *function ? function : "(unknown)", sizeof(wait->function));
+        jass_formatcallchain(vm, callchain, sizeof(callchain));
+        strlcpy(wait->callchain, callchain[0] ? callchain : "(empty)", sizeof(wait->callchain));
+        return;
+    }
+    if (done || (phase && !strcmp(phase, "done"))) {
+        if (wait && !strcmp(wait->initial_function, "main"))
+            fprintf(stderr,
+                    "WC3_AI_TRACE time=%u player=%d script=\"%s\" event=script_main_done function=\"%s\" callchain=\"%s\"\n",
+                    (unsigned)now, player, level.bots[player].script, wait->function, wait->callchain);
+        if (wait) { *link = wait->next; gi.MemFree(wait); }
+    } else if (!yielded || (phase && !strcmp(phase, "return"))) {
+        if (wait) { *link = wait->next; gi.MemFree(wait); }
+    }
+#else
+    (void)vm; (void)coroutine; (void)function; (void)phase;
+    (void)now; (void)wake_time; (void)yielded; (void)done;
+#endif
+}
+
+void G_BotTraceWaits(uint32_t player) {
+#ifdef WC3_TRACE_AI
+    bot_t *bot = G_BotState(player);
+    uint32_t now = G_Time();
+    if (!bot || !bot->vm || bot->paused) return;
+    for (botTraceWait_t *wait = bot_trace_waits[player]; wait; wait = wait->next) {
+        uint32_t remaining;
+        if (!wait->waiting) continue;
+        if ((uint32_t)(now - wait->last_report) < BOT_TRACE_WAIT_INTERVAL_MS) continue;
+        wait->last_report = now;
+        remaining = wait->wake_time > now ? wait->wake_time - now : 0;
+        fprintf(stderr,
+                "WC3_AI_TRACE time=%u player=%u script=\"%s\" event=waiting coroutine=%p function=\"%s\" callchain=\"%s\" waited_ms=%u wake_in_ms=%u\n",
+                (unsigned)now, player, bot->script, wait->coroutine, wait->function, wait->callchain,
+                (unsigned)(now - wait->yielded_at), (unsigned)remaining);
+    }
+#else
+    (void)player;
+#endif
+}
+
+static void G_BotTraceClearWaits(uint32_t player) {
+#ifdef WC3_TRACE_AI
+    botTraceWait_t *wait = bot_trace_waits[player];
+    while (wait) {
+        botTraceWait_t *next = wait->next;
+        gi.MemFree(wait);
+        wait = next;
+    }
+    bot_trace_waits[player] = NULL;
+#else
+    (void)player;
+#endif
 }
 
 static bool G_BotBuildSiteReachable(edict_t *, vec2_t const *);
@@ -1644,6 +1796,7 @@ static bool G_BotScriptPath(cstring_t script, string_t path, size_t size) {
 void G_BotStop(uint32_t player) {
     bot_t *bot = G_BotState(player);
     if (!bot) return;
+    G_BotTraceClearWaits(player);
     if (bot->vm) jass_close(bot->vm);
     G_BotClearCaptains(bot);
     if (bot->commands) gi.MemFree(bot->commands);
@@ -1714,6 +1867,7 @@ bool G_BotStart(player_t *player, cstring_t script, botMode_t mode) {
         G_BotStop(playernum);
         return false;
     }
+    G_BOT_TRACE(playernum, NULL, "script_main_started", "entry=main");
     fprintf(stderr, "WC3 AI: player %u started %s\n", playernum, path);
     return true;
 }
@@ -1732,6 +1886,7 @@ void G_BotRunFrame(void) {
         G_BotApplyRepairPolicy(bot);
         G_BotUpdateGroupFlee(bot->player);
         jass_runevents(bot->vm);
+        G_BOT_TRACE_WAITS(player);
         if (bot->stop_requested) { G_BotStop(player); continue; }
         if (bot->restart_requested) {
             player_t *owner = bot->player;
