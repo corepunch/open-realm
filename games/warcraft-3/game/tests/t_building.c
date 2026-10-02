@@ -2624,6 +2624,30 @@ TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
     T_ASSERT(!G_IssueBuildOrder(builder, MAKEFOURCC('h','f','o','o'), &point));
 }
 
+/* Build orders install their own walk without G_IssueUnitPointOrder; they must still retire a Stop guard point. */
+TEST(wc3_building, build_order_clears_stop_guard) {
+    gameClient_t *client = &game.clients[0];
+    edict_t *builder;
+    UnitProfile_t profile = { .builds = "hbar" };
+    vec2_t point = { 64.0f, 64.0f };
+    uint32_t const barracks = MAKEFOURCC('h','b','a','r');
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
+    builder->s.player = client->ps.number; builder->data.UnitProfile = &profile;
+    builder->stand = unit_stand;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    order_stop(builder);
+    T_ASSERT(builder->movement.guard_state == GUARD_IDLE);
+
+    T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
+
+    T_EQ(builder->build_project, barracks);
+    T_ASSERT(builder->movement.guard_state == GUARD_NONE);
+}
+
 /* Human04's opening sends these three preplaced Peasants to the centres of
  * BuildFarm (-1360,-4608), BuildBarracks (-1744,-3536), and BuildTownHall
  * (-2208,-4048).  Keep the authored starts, region-entry order, and build
