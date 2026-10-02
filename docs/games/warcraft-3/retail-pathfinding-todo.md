@@ -8,13 +8,14 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**129 done / 313 tasks; 184 remaining.** Payoff52 closes FOOT-01.3.1:
-public largest-peer growth/shrink/removal preserves the distinction between live
-group maximum and retained route footprint. Three native journeys match831
-ordinary engine commits/730 owner states and2207 Save81 suffix commits/2193
-owner states per variant. The owner begin phase publishes counter and scheduler
-state before any individual movement callback. Counts describe this backlog,
-not a percentage of retail fidelity or an estimate of remaining effort.
+**130 done / 314 tasks; 184 remaining.** Payoff53 closes FOOT-04.7:
+one public blocked-terrain point Move matches207 complete retail motion commits
+and46 Save82 suffix commits per variant. Move retains the click, admits partial
+fine searches, defers retry refill and preserves forced range plus the final
+angular gate. Native retry/task cleanup repeats; full debug/release/repository
+checks,274 Python checks,27 fresh capture contracts and saved Ghidra readback
+pass. Counts describe this backlog, not a percentage of retail fidelity or an
+estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
 Completed evidence now sits next to its specific remaining extension.
@@ -25,7 +26,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
 | MAP — Map construction and lifetime | 7 | 15 |
-| FOOT — Footprints and query policy | 9 | 7 |
+| FOOT — Footprints and query policy | 10 | 7 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 23 | 13 |
@@ -152,7 +153,7 @@ NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | FOOT-04.2 | Public point Move, partial-route/retry helpers and blocked-goal producer | Original blocked-goal lifecycle, normal engine frames and saved continuation |
+| 1 | FOOT-04.2 | Public outside-goal point task and world/fine bridge bounds clipping | Repeated clipped routing operands, complete normal/saved engine travel |
 | 2 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Live AI producer plus Move-owned shared publication and saved travel |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
@@ -329,13 +330,15 @@ Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers,
 ### FOOT-04 — Start and goal policy
 
 - [ ] **FOOT-04.1** Test start inside self, target and unrelated blocker; assert the public caller's clamping, exclusion and first accepted route point.
-- [ ] **FOOT-04.2** Test blocked/outside/overlapping goals and target removal; assert perimeter choice, rejection or fallback with original result codes.
+- [ ] **FOOT-04.2** Test blocked/outside/overlapping goals and target removal; assert perimeter choice, rejection or fallback with original result codes. Ordinary ground point-Move static blocked-goal lifetime is split into04.7; outside/overlap/target and wider mask/class domains remain here.
 - [x] **FOOT-04.3** Split ordinary in-map blocked ground SetUnitPosition/Loc point admission from04.2: recover policy2 cell rings, initial attempt budget and first-cell tie order; port32-ring admission and authored nearest-vertex terrain level. Evidence: [blocked placement reaches the engine](retail-pathfinding-engine.md#blocked-placement-reaches-the-engine),2304 complete original point calls/1152 endpoints across four masks/classes, two repeated public captures with seven searches/six placements,26 actual public engine assertions with all six retail destinations exact. Bridge overlays, outside-map clipping, rejected-level live controls, broader object categories and terrain-writer native implementation remain04.2/BASE-02/MAP.
 - [x] **FOOT-04.4** Port the ordinary embedded-start Stop recovery observed inside public blocked placement. Actual171340 stack14 limit5 invokes170080 with current query,654060/level6 and policy2. Two complete public Stop repeats retain eight calls, three complete searches and24 exact getter words: clear and disabled stay put, embedded recovers, exhausted five-attempt search stays put. Reproduce two engine destination failures, then apply a native-fine recovery point through Move; public Stop/save/load/exhaustion/map-release regression passes29 assertions. Evidence: [engine payoff27](retail-pathfinding-engine.md#stop-recovers-an-embedded-mover-with-a-bounded-query). Outside-map, bridge/rejected-level/other-actor and broader caller composition remain04.2/BASE-02/E2E; helper result1 is blocked-source status, not success.
 
 - [x] **FOOT-04.5** Explicitly split ordinary in-map SetUnitPathing/SetUnitPosition queryzero from04.2. Recover current-query getter05ac30/685ef0 and radius getter6742f0; false accepts blocked requested coordinates while preserving footprint bounds and level callback. Two complete five-placement repeats match65 public queries, five commits and seven placement searches;576 original zero-mask calls across288 inputs match C against nonzero authored terrain. Reproduce six engine raw destination failures, then pass65 public-native/Loc/save assertions with all five observed destinations. Evidence: [engine payoff26](retail-pathfinding-engine.md#disabled-query-reaches-public-placement). Other actor forms, outside clipping, rejected-level/bridge controls and full live clock parity remain04.2/BASE-02/E2E.
 
 - [x] **FOOT-04.6** Explicitly split ordinary in-map ground public CreateUnit admission from04.1. Two complete eight-spawn captures recover policy2/32 rings,31-unit footprint/self exclusion and fresh mover sentinel cancellation; all eight endpoints, sixteen writes,104 queries and239 motion decisions replay exactly and repeat. Replace public spawn's64-unit circle spiral through Move-owned admission/initial pose; public CreateUnit/AtLoc, native destinations and saved scheduler continuation pass. Evidence: [engine payoff33](retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose). Original Loc, other actors/factory flags, bridge/rejected-level/outside controls and full physical crowd cadence remain04.1/02/BASE-02/MAP/E2E.
+
+- [x] **FOOT-04.7** Split the ordinary ground point-Move static blocked-goal lifetime from04.2: repeat the public five-by-five terrain blocker producer, retain the requested click through intermediate routes, partial endpoint, two retries and natural can't-path task cleanup, and port complete motion plus saved continuations in the engine. Evidence: [payoff53](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival), two fresh originals repeat207 commits; engine mismatch prefixes4/177/203 become207 exact commits plus46 Save82 suffix commits per variant. Stop/replacement clear naturally saved force. Full debug/release/repository checks,274 Python checks,27 fresh capture contracts and saved Ghidra readback pass. Wider masks/classes, outside/overlap and target categories remain their parent tasks.
 
 ## FINE — Fine search
 

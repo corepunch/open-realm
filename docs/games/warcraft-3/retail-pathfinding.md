@@ -399,3 +399,12 @@ variant. The generic owner begin phase publishes counter and player-row budget
 before standalone movement callbacks. Ghidra now retains path+b4 and the complete
 168be0 setter ABI. Bound shared7c and wider target/task families remain open.
 See [the engine/capture evidence](retail-pathfinding-engine.md#local-group-maximum-and-retained-route-footprint-have-separate-lifetimes).
+
+Payoff53 completes the ordinary public blocked-terrain point Move lifetime.
+Preserving the clicked waypoint, submitting the selected fine goal unchanged,
+and carrying retry/forced-arrival state through the angular gate makes207
+normal engine commits exact against two retail captures. Four Save82
+continuations match46 suffix commits. Ghidra's existing route/retry/step/cleanup
+roles carry the observed1261..1264 owner sequence; saved readback verifies all
+546 roles and the existing44 partial layouts/247 ABIs. See [engine payoff53](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival).
+Outside/overlap and other task/mask/class domains remain open.

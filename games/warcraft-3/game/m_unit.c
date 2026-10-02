@@ -842,17 +842,23 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     if (self->aiflags & AI_IMMOBILE) return false;
     if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) return false;
 
+    if (!strcmp(order, "smart") || !strcmp(order, "move")) {
+        /* A point Move retains the public click. Its owning path/formation
+         * code admits intermediate and adjusted destinations; correcting the
+         * user head here erases retail's blocked-goal retry lifetime. */
+        waypoint = Waypoint_add(point);
+        if (!waypoint) return false;
+        self->movement.holding_position = false;
+        S_IssueMoveOrder(self, waypoint, G_OrderId(order));
+        self->movement.group_speed = group_speed;
+        return true;
+    }
     target = *point;
     pathAccelParams_t query = { point, NULL, self->collision, M_UnitStaticPathingFlags(self) };
     G_ClosestMovePathPoint(&query, &target);
     waypoint = Waypoint_add(&target);
     if (!waypoint) return false;
     self->movement.holding_position = false;
-    if (!strcmp(order, "smart") || !strcmp(order, "move")) {
-        S_IssueMoveOrder(self, waypoint, G_OrderId(order));
-        self->movement.group_speed = group_speed;
-        return true;
-    }
     if (!strcmp(order, "attack")) {
         order_attackmove(self, waypoint);
         return true;

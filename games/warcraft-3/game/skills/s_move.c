@@ -660,6 +660,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
 
 /* A different behavior must not inherit the previous Move's prediction velocity. */
 static void move_leave(edict_t *self) {
+    self->movement.point_forced_arrival=false;
     if (!self->movement.clock_valid) return;
     unit_commit_current_pose(self);
     self->movement.velocity = (vec2_t){0};
@@ -1023,7 +1024,38 @@ static void move_retry_fine(edict_t *self) {
     move_hold_goal_heading(self);
 }
 
+/* Original165c60 consumes a reached partial endpoint before the next refill;
+ *167290 preserves every buffer on terminal4 and resets only fine on retry1. */
+static uint32_t move_retry_endpoint(edict_t *unit, wc3GridPose_t const *pose, vec2_t goal, uint32_t members) {
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    if (!route->partial || !route->count || route->index) return 0;
+    float x=wc3_sub(route->points[0].x,pose->grid[0]),y=wc3_sub(route->points[0].y,pose->grid[1]);
+    float range=wc3_float(0x3efae148);
+    if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))>wc3_mul(range,range)) return 0;
+    /* Failed adaptive reconstruction publishes its retained endpoint to the
+     * adjusted fine goal used by1689d0, independently of the user click. */
+    if (route->adaptive_count && !route->adaptive_index)
+        goal=(vec2_t){wc3_mul(route->adaptive_points[0].x,2),wc3_mul(route->adaptive_points[0].y,2)};
+    wc3RetryInput_t in={{pose->grid[0],pose->grid[1]},{goal.x,goal.y},members};
+    uint32_t result=wc3_retry_advance(&unit->movement.retry_count,&in,&level.pathing_random);
+    if (result!=4) {route->count=0;route->index=UINT32_MAX;unit->movement.path.valid=false;}
+    return result;
+}
+
+static bool move_point_retry_endpoint(edict_t *unit) {
+    if (!level.scheduled_think || move_find_member(unit) || !unit->movement.fine_route.group_count ||
+        (unit->current_order_id!=G_OrderId("move") && unit->current_order_id!=G_OrderId("smart"))) return false;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    vec2_t goal=unit->movement.fine_route.group_goal;
+    uint32_t result=move_retry_endpoint(unit,&pose,goal,1);
+    if (!result) return false;
+    if (result==4) unit->movement.point_forced_arrival=true;
+    move_hold_goal_heading(unit);
+    return true;
+}
+
 static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy_t policy) {
+    if (policy==MOVE_AVOID_GENERIC && move_point_retry_endpoint(self)) return;
     self->movement.turn_blocked = false;
     float const dirlen = Vector2_len(dir);
     if (dirlen <= 0.001f)
@@ -1155,12 +1187,16 @@ static bool unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *
     movePathQuery_t query = move_route_query(self, point);
     routePath_t *path = &self->movement.path;
     moveFineRoute_t *curve = &self->movement.fine_route;
-    vec2_t local;
+    vec2_t local,fine_destination;
     if (query.units && curve->group_count && curve->group_index<curve->group_count) {
         vec2_t fine=curve->group_index ? (vec2_t){wc3_mul(curve->group_points[curve->group_index].x,2),wc3_mul(curve->group_points[curve->group_index].y,2)} : curve->group_goal;
         box2_t bounds=CM_GetWorldBounds();
         local=(vec2_t){wc3_add(bounds.min.x,wc3_mul(fine.x,CM_PathCellWorldSize())),wc3_add(bounds.min.y,wc3_mul(fine.y,CM_PathCellWorldSize()))};
         query.geometry.target=&local;
+        /* Original16a790 submits the selected fine destination unchanged.
+         * A blocked final leg must admit a partial route and its retries,
+         * rather than becoming a successful nearest-point Move. */
+        fine_destination=fine;query.fine_target=&fine_destination;
     }
     moveRoutePoint_t turn = { &path->waypoint, point.radius, point.policy };
     if (query.units) {
@@ -1751,6 +1787,7 @@ void move_reset_progress(edict_t *self) {
     self->movement.worker_avoid_active = false;
     self->movement.wait_delay=0;
     self->movement.retry_count=0;
+    self->movement.point_forced_arrival=false;
     self->movement.wait_blocker=NULL;
     move_detach_group(self);
     self->movement.group_id = 0;
@@ -2218,7 +2255,8 @@ static bool move_point_arrival(edict_t *ent) {
     vec2_t forecast = {pose.world[0], pose.world[1]};
     float cell = CM_PathCellWorldSize();
     float target[2] = {ent->goalentity->s.origin2.x, ent->goalentity->s.origin2.y};
-    wc3Arrival_t a = { .heading = ent->s.angle, .range = wc3_float(0x3efae148) };
+    wc3Arrival_t a = { .heading = ent->s.angle, .range = wc3_float(0x3efae148),
+        .flags = ent->movement.point_forced_arrival ? 0x10000u : 0 };
     /* Stock WPM cells are32. Preserve authoritative cell geometry for synthetic maps,
      * while the native retained pose remains in32-unit scalar coordinates. */
     FOR_LOOP(k, 2) {
@@ -2245,6 +2283,7 @@ static bool move_point_arrival(edict_t *ent) {
     if (level.scheduled_think && move_test_motion_commit) move_test_motion_commit(ent);
 #endif
     if (reached) {
+        ent->movement.point_forced_arrival=false;
         if (G_AdvanceUnitMoveGroupDestination(route)) {
             ent->movement.path.valid=false;
             return true;
@@ -2309,6 +2348,7 @@ static void ai_move_walk(edict_t *ent) {
 #endif
     }
     if (point_order && move_point_arrival(ent)) return;
+    if (point_order && move_point_retry_endpoint(ent)) {unit_moveindirection(ent);return;}
 
     if (!point_order && move_should_arrive(ent, move_distance)) {
         /* A point inside the step budget still requires facing inside the propagation window;
@@ -2695,15 +2735,10 @@ static bool move_group_route(moveGroup_t *group) {
  * buffer. Refilling belongs to the next owner visit, including one-point legs. */
 static bool move_group_retry_endpoint(moveGroup_t *group, moveGroupMember_t *member, wc3GridPose_t const *pose) {
     edict_t *unit=member->unit;
-    moveFineRoute_t *route=&unit->movement.fine_route;
-    if (!route->partial || !route->count || route->index) return false;
-    float x=wc3_sub(route->points[0].x,pose->grid[0]),y=wc3_sub(route->points[0].y,pose->grid[1]);
-    float range=wc3_float(0x3efae148);
-    if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))>wc3_mul(range,range)) return false;
-    wc3RetryInput_t in={{pose->grid[0],pose->grid[1]},{member->destination.x,member->destination.y},group->count};
-    uint32_t result=wc3_retry_advance(&unit->movement.retry_count,&in,&level.pathing_random);
-    if (result==4) { member->forced_arrival=true; member->flags|=0x20000; }
-    else { route->count=0; route->index=UINT32_MAX; unit->movement.path.valid=false; }
+    uint32_t result=move_retry_endpoint(unit,pose,member->destination,group->count);
+    if (!result) return false;
+    if (result==4) {member->forced_arrival=true;member->flags|=0x20000;}
+
     return true;
 }
 

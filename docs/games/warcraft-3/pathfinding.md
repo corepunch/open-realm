@@ -553,3 +553,10 @@ match original absolute motion, including the90-second scalar timer/owner drift
 and Save81 continuations. See [moving radius and owner deadlines](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines).
 Other task/locomotion families and shared-group maximum-radius mutation remain
 open; this does not establish full retail search or movement parity.
+
+Ordinary point Move preserves the clicked destination even when terrain blocks
+it. The group/member routes retain their own intermediate and adjusted goals;
+fine search can finish with a partial route, retry on the next owner, and force
+range acceptance while still requiring the final turn. The captured blocked
+5x5 goal matches all207 production engine commits and46 Save82 suffix commits
+per variant. See [blocked point goals](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival).

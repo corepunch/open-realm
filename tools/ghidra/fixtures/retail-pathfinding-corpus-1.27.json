@@ -20769,6 +20769,162 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "inputs": {
+        "capture": "runtime/blocked-goal-v2-first-retry-261002.jsonl",
+        "sha256": "2695dbc18b56f790ec2741f224aa16e2acb5d0a6a7ac8328973562e039531d25",
+        "bytes": 6519878,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+            "wc3_pathfinding.js": "daa98a08c08ae08efcaa7bd24bc45ba0d435edd4f6d2d1d2249907933dd89f63",
+            "wc3_pathfinding_probe.j": "51d168716d17794765049c61a8094b8da53be8d26c7ea10e1d5bf47a9d2c8ec2",
+            "make_wc3_pathfinding_map.py": "59d9b3fffa6a03088e2d2fa832f57b89c47c76f35b2e6a7d36b78fa391d510e6",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "f80159718e978a54c53eb52a8921aed29c21cc4ba11969e0e7390da02c368daf"
+          },
+          "map": "Maps\\PathingRE-BlockedGoalV2-261002.w3m",
+          "seconds": 70.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true,
+      "id": "live-blocked-goal-captures-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_blocked_goal_trace.py",
+        "{archive}/runtime/blocked-goal-v2-first-retry-261002.jsonl",
+        "{archive}/runtime/blocked-goal-v2-repeat-261002.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-blocked-goal-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_blocked_goal.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "blocked-goal-captures.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "exact_decisions": {
+          "equal": 410
+        },
+        "exact_velocity_commits": {
+          "equal": 414
+        },
+        "group_owner_passes": {
+          "equal": 414
+        },
+        "searches": {
+          "equal": 12
+        },
+        "retries": {
+          "equal": 4
+        },
+        "forced_arrivals": {
+          "equal": 2
+        },
+        "natural_task_cleanups": {
+          "equal": 2
+        },
+        "owner_callbacks": {
+          "equal": 2000
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "One public ordinary ground Move into a 5x5 blocked terrain goal: unmodified original route/retry/forced-arrival/task cleanup and primary clock. Supplied scene/profile; outside-map, overlap goals, other masks/classes, combat and queued recovery remain open.",
+      "exclusions": [
+        "Outside-map and unit-overlap goals, other locomotion/masks, combat and queued cant-path recovery."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/blocked-goal-v2-repeat-261002.jsonl",
+            "sha256": "89dc23915c3920f7cfb616dcecc7c4cd0bc34be3cdb9d3b3c4787b1e24640fd3",
+            "bytes": 6678609,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "daa98a08c08ae08efcaa7bd24bc45ba0d435edd4f6d2d1d2249907933dd89f63",
+                "wc3_pathfinding_probe.j": "51d168716d17794765049c61a8094b8da53be8d26c7ea10e1d5bf47a9d2c8ec2",
+                "make_wc3_pathfinding_map.py": "59d9b3fffa6a03088e2d2fa832f57b89c47c76f35b2e6a7d36b78fa391d510e6",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "f80159718e978a54c53eb52a8921aed29c21cc4ba11969e0e7390da02c368daf"
+              },
+              "map": "Maps\\PathingRE-BlockedGoalV2-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -21216,6 +21372,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-group-radius-1.27.json",
       "sha256": "8b1071b8867a5bae69fa0e309067e143bf4ff094b4594a32cb091f7f1c8435b5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-blocked-goal-1.27.json",
+      "sha256": "5fcfca356ac49b8935652f1e8793e76be5d0a361d03fbe43dd8125d2b3e2d15d"
     }
   ]
 }

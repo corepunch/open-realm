@@ -41,6 +41,7 @@
 #include "retail_follow_target_resize.h"
 #include "retail_moving_radius.h"
 #include "retail_group_radius.h"
+#include "retail_blocked_goal.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -2519,6 +2520,11 @@ TEST(wc3_movement, primary_clock_public_move_save_pause_and_stop) {
     cstring_t file = "/tmp/openwarcraft3-primary-clock-move.bin";
     FOR_LOOP(phase, 3) {
         reset_entities(); setup_test_world();
+        /* This tests clock/Stop/region entry, so keep its1800-unit click inside
+         * the synthetic world instead of relying on destination correction. */
+        static uint8_t cells[128*128];
+        CM_SetupTestWorldBounds(&MAKE(box2_t,.min={-2048,-2048},.max={2048,2048}));
+        CM_SetupTestPathmap(128,128,cells);
         level.waypoints = (typeof(level.waypoints)){0};
         /* These phases create independent VMs: retire their native registries
          * before run_test_jass closes the previous VM and its trigger code. */
@@ -4314,6 +4320,9 @@ done:
  * keeps the largest nonnegative flat bonus before multiplication and clamps. */
 TEST(wc3_movement, public_boots_pickup_and_removal_reach_current_speed_and_steps) {
     reset_entities(); setup_test_world();
+    static uint8_t cells[128*128];
+    CM_SetupTestWorldBounds(&MAKE(box2_t,.min={-2048,-2048},.max={2048,2048}));
+    CM_SetupTestPathmap(128,128,cells);
     const char ability_slk[] =
         "ID;PWXL;N;EBB;Y3;X6\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
@@ -11095,6 +11104,78 @@ static void public_group_radius_journey(unsigned scenario, uint32_t const (*moti
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);
     level.mapinfo=old_info;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256];box2_t bounds={{-7168,-3072},{5120,5120}};unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)){memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);offset+=public_oblique_terrain_runs[i][0];}
+    T_EQ(offset,sizeof(cells));CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass(
+        "globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall IssuePointOrder(mover,\"move\",-1936,-144)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal integer gx=0\nlocal integer gy=0\n"
+        "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,100)\n"
+        "loop\nexitwhen gx==5\nset gy=0\nloop\nexitwhen gy==5\n"
+        "call SetTerrainPathable(-2000+I2R(gx)*32,-208+I2R(gy)*32,PATHING_TYPE_WALKABILITY,false)\n"
+        "set gy=gy+1\nendloop\nset gx=gx+1\nendloop\n"
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n"));
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)unit=ent;
+    T_NOT_NULL(unit);level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0,count=sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion);bool mismatch=!unit;
+    cstring_t files[]={"/tmp/wc3-blocked-goal-before-partial.bin","/tmp/wc3-blocked-goal-retry.bin","/tmp/wc3-blocked-goal-forced.bin","/tmp/wc3-blocked-goal-final-turn.bin"};
+    unsigned save_times[]={6000,7110,7140,7170},saved_steps[4]={0},suffix_steps=0;
+    FOR_LOOP(pass,5) {
+    if(pass) {
+        bool loaded=ReadGame(files[pass-1]);T_ASSERT(loaded);if(!loaded)break;
+        steps=saved_steps[pass-1];
+    }
+    while(level.time<31000 && !mismatch) {
+        trace.count=0;level.time+=5;globals.RunFrame();
+        FOR_LOOP(i,trace.count) {
+            T_ASSERT(steps<count);if(steps>=count){mismatch=true;break;}
+            uint32_t const *actual=trace.rows[i],*expected=blocked_goal_motion[steps++];
+            FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+            if(mismatch)fprintf(stderr,"Blocked goal commit%u time%d actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x retry%u wait%u fine%u/%u coarse%u/%u goal%.9g,%.9g\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6],unit->movement.retry_count,unit->movement.wait_delay,unit->movement.fine_route.count,unit->movement.fine_route.index,unit->movement.fine_route.group_count,unit->movement.fine_route.group_index,unit->goalentity?unit->goalentity->s.origin2.x:0,unit->goalentity?unit->goalentity->s.origin2.y:0);
+        }
+        if(!pass && !mismatch)FOR_LOOP(i,4)if(level.time==save_times[i]) {
+            saved_steps[i]=steps;
+            if(i==1){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);T_ASSERT(!unit->movement.point_forced_arrival);}
+            if(i>=2){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,1);T_ASSERT(unit->movement.point_forced_arrival);}
+            T_ASSERT(WriteGame(files[i]));
+        }
+    }
+    T_EQ(steps,count);T_ASSERT(!jass_rterror_pending(level.vm));
+    if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->movement.point_forced_arrival);T_ASSERT(!unit->movement.clock_valid);}
+    if(pass)suffix_steps+=steps-saved_steps[pass-1];
+    }
+    fprintf(stderr,"Blocked goal ordinary commits=%u Save82 suffix commits=%u\n",count,suffix_steps);
+    /* Author a separate cancellation/replacement from the naturally forced
+     * saved state; a new command must not inherit its range override. */
+    if(!mismatch)FOR_LOOP(i,2) {
+        T_ASSERT(ReadGame(files[2]));T_ASSERT(unit->movement.point_forced_arrival);
+        if(i)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
+        else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        T_ASSERT(!unit->movement.point_forced_arrival);
+    }
+    FOR_LOOP(i,4)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 

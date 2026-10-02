@@ -5244,3 +5244,82 @@ checks, ability audit,270-entry inventory and26 fresh capture contracts pass.
 The extra broad WC3 Python discovery report retains two unavailable external
 ability-binary fixtures; the required pathfinding suite and repository tests are
 green. Backlog129 completed/184 open leaves.
+
+## Blocked point goals retain the click through retry and forced arrival
+
+Payoff53 integrates FOOT-04.7 through an ordinary public ground Move. A Footman
+at(-1936,-976), with authored31-unit collision and public speed100 clamped to150,
+receives one Move to(-1936,-144). Twenty-five public terrain mutations block
+that destination. Two independent unmodified retail journeys repeat all207
+velocity/position/facing commits and205 motion decisions, including the final
+stopped turns and natural order cleanup. The production engine now reproduces
+all207 commits through normal five-millisecond frames without injecting poses,
+routes, clocks, retry results or completion events.
+
+The first engine mismatch was commit4: `unit_issueorder_now` corrected the user
+waypoint to a nearby reachable point before Move admitted its route. Move now
+retains the requested click. Its coarse group route, member adaptive route and
+fine leg own their separate intermediate/adjusted destinations. This change
+extended the exact prefix to177 commits. Passing the selected native fine goal
+unchanged to fine search extended it to203; nearest-point correction had turned
+the final failed search into a successful route.
+
+Retail's group/member adaptive searches use5000/400 work, and fine searches use
+700. The six complete captured searches produce5/4/25/2/6/1 route points. Both
+failed final fine searches consume701 pops. Original166c30 publishes the failed
+adaptive endpoint83.5/45.5 multiplied by2 as adjusted167/91, while retaining
+requested163.5/91.5 separately. This is the retry operand, not a replacement
+public click.
+
+At owner1261, the reached partial fine endpoint consumes the null-target retry:
+nearby singleton initializes2 without changing PRNG, returns1 with count1,
+clears the fine index, retains the adaptive/group plan and defers refill until
+the next owner. At1262, the rebuilt one-point fine route returns4 with count1
+and its buffers retained. Original171060 sets mover D8 bit10000. The engine's
+Move-owned `point_forced_arrival` preserves this state: it overrides range, while
+the angular gate still turns at1263 and completes at1264. Translation remains
+zero; neither endpoint nor destination receives a snap. Retail's can't-path
+fallback clears both task/order heads and publishes ability flags16/unit flags513.
+The engine ends the plain Move at the same final commit and stands normally.
+Queued/target-specific recovery branches remain open.
+
+Four Save82 checkpoints at6000/7110/7140/7170 milliseconds restore before the
+partial leg, after retry1, after force, and during the final turn. All46 suffix
+commits match the retail literal words per RoC/TFT variant. Save82 serializes
+standalone point force; replacement and leaving Move clear it. Old versions,
+including81, are rejected. The Hero save diagnostic now validates its own
+reachable walking candidate rather than relying on the public waypoint being
+rewritten. The existing speed/clock tests use larger synthetic worlds so their
+1800-unit goals remain in-map; they exercise speed/clock rather than outside-map
+policy.
+
+Evidence is frozen in `retail-blocked-goal-1.27.json` and
+`tests/retail_blocked_goal.h`. Reports under the external retail archive include:
+
+- `runtime/blocked-goal-v2-first-retry-261002.jsonl` and
+  `runtime/blocked-goal-v2-repeat-261002.jsonl`: full native trajectories, six
+  searches each, retry/force/task cleanup and1000 primary owner callbacks.
+- `runtime/blocked-goal-source-v2-261002` and
+  `runtime/blocked-goal-source-provenance-final-261002.json`: immutable producer
+  sources and exact archived source/map hashes. The initial Python-without-Frida
+  setup failure remains a separate diagnostic.
+- `runtime/blocked-goal-strict-final-261002/corpus-results.json`:27 fresh capture
+  contracts pass against production numeric C; inventory271 entries/112
+  fixtures/54 strict live entries. Secondary host/presentation subdivisions
+  differ between captures; primary clock digest and canonical movement agree.
+- `runtime/blocked-goal-ghidra-readback-saved-261002.json`:546 saved role comments,
+  44 layouts/271 fields/247 explicit ABIs/46 globals, with no unsaved changes.
+- `runtime/blocked-goal-save-engine-261002.log`:2575 passing assertions for the
+  complete journey and four saved continuations.
+
+This closes the bounded static blocked-goal producer only. Outside/overlapping
+goals, target removal, other masks/classes, combat and queued fallback remain
+FOOT-04.2 and their owning leaves. Full faithful pathfinding is still open.
+
+Payoff53 final checks: forced debug full WC3 runs pass740971 assertions/2348
+tests per variant; the subsequently added Stop/replacement inverse controls
+pass2583 assertions per variant in forced debug. Forced release and full `make test`
+pass741412 assertions/2385 WC3 tests per variant and the remaining repository
+suites. All274 pathfinding Python checks, ability coverage audit,271-entry
+inventory and27 fresh capture contracts pass. Backlog130 completed/184 open
+leaves. The next runnable comparison is outside-goal bridge clipping.

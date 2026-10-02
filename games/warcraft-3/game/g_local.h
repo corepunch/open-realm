@@ -1759,6 +1759,7 @@ struct edict_s {
         uint32_t fine_request_time; /* owner visits, original path+7c interval timestamp */
         uint32_t wait_delay; /* eligible ordinary path advances; original requester4/peer20 */
         uint32_t retry_count; /* original path98; admitted fine progress clears before blocker collection */
+        bool point_forced_arrival; /* Original moverD8.10000; range override still requires arrival heading. */
         edict_t *wait_blocker; /* removed actors invalidate references before edict reuse */
         uint32_t group_id; /* Move-owned active selection identity; independent of waypoint ring reuse. */
         uint32_t previous_request_id; /* Latest submitted shared Move request; independent of FIFO activation. */

@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 81, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 82, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -883,3 +883,13 @@ Save81 checkpoints, including before/after pending Chaos rebind or member
 removal. Owner counters and player-row budgets publish before any standalone
 movement callback after restoration, through the generic A_OWNER_BEGIN phase.
 No format change is required. See [payoff52](retail-pathfinding-engine.md#local-group-maximum-and-retained-route-footprint-have-separate-lifetimes).
+
+### Standalone point forced arrival (version82)
+
+Save82 adds Move-owned `point_forced_arrival`, corresponding to original mover
+D8 bit10000 after terminal point retry4. It overrides the distance test while
+retaining the final angular gate; replacing/leaving Move clears it. Four
+checkpoints before partial search, after retry1, after force and during the
+final turn reproduce all46 retail suffix commits and normal order completion
+per RoC/TFT variant. Old versions including81 are rejected. See [blocked point
+goals](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival).

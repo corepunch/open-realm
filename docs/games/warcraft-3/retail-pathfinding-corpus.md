@@ -857,3 +857,22 @@ Inventory270 entries/111 fixtures/53 strict live entries;26 fresh capture
 contracts pass. [Normal engine and Save81 journeys](retail-pathfinding-engine.md#local-group-maximum-and-retained-route-footprint-have-separate-lifetimes)
 provide independent lifecycle regressions. Bound shared7c maximum publication,
 other movement/target families and arbitrary terrain remain open.
+
+## Public blocked-terrain point Move
+
+Payoff53 adds `live-blocked-goal-captures-261002`, two independent unmodified
+public Move captures through a5x5 blocked terrain destination. The frozen fixture
+contains all207 motion commits, canonical owner phases, six complete searches
+and routes, actual retry initialization/results, forced arrival, and natural
+can't-path task/order cleanup. Both primary clock sequences and canonical
+motion digests agree. Host/presentation subdivisions vary; the verifier checks
+each capture's own closing counts rather than claiming those counts repeat.
+
+The strict verifier replays414 velocity commits/410 decisions and2000 primary
+owner callbacks against production numerical C. Eleven negative/regeneration
+checks reject wrong adjusted retry goals, random draws, premature refill,
+terminal buffer clearing, skipped final angular gate and retained order heads.
+All27 fresh capture contracts pass. Inventory271 entries/112 fixtures/54 strict
+live entries. [Normal engine and Save82 continuations](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival)
+are separate complete production-entry regressions. Wider outside/overlap,
+classes/masks and queued/combat recovery remain open.
