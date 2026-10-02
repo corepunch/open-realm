@@ -1799,11 +1799,9 @@ void CM_GetPathJobStatus(cmPathJobStatus_t *status) {
     status->pending_jobs = heatmap_pending_count;
     if (heatmap_job.requester && heatmap_job.requester->inuse) {
         status->requester_number = heatmap_job.requester->s.number;
-        status->requester_rawcode = heatmap_job.requester->class_id;
     }
     if (heatmap_job.goalentity && heatmap_job.goalentity->inuse) {
         status->goal_number = heatmap_job.goalentity->s.number;
-        status->goal_rawcode = heatmap_job.goalentity->class_id;
     }
     if (heatmap_job.active && cap)
         status->pending_cells = heatmap_job.tail >= heatmap_job.head
