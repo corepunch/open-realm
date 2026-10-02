@@ -123,4 +123,4 @@ classic and TFT modes.
 `wc3_spell.meat_wagon_corpse_hold_rejects_living_unit_boarding` covers the
 corpse-only gate; the existing Exhume/corpse tests cover accepted dead cargo.
 
-Pending point-unload state uses the normal format-57 entity record. The unload waypoint is relocated through the ordinary `F_EDICT` field schema, and the rawcode and spawn identity persist with the pending flag. Mismatched save versions or layouts are rejected. See [save-load.md](save-load.md).
+Pending point-unload state uses the normal entity record. The unload waypoint is relocated through the ordinary `F_EDICT` field schema, and the rawcode and spawn identity persist with the pending flag. Mismatched save versions or layouts are rejected. See [save-load.md](save-load.md).
