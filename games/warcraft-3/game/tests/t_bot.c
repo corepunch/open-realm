@@ -1085,6 +1085,35 @@ TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_targe
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
 }
 
+TEST(wc3_bot, suicide_player_skips_nearest_hidden_target_for_visible_enemy) {
+    bot_t *bot = level.bots + 2;
+    mapInfo_t *mapinfo = (mapInfo_t *)level.mapinfo;
+    uint32_t const type = MAKEFOURCC('h','f','o','o');
+    edict_t *unit = make_bot_harvest_unit(type, 0, 0, 2, NULL);
+    edict_t *hidden = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 64, 0, 1, NULL);
+    edict_t *visible = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 256, 0, 1, NULL);
+
+    hidden->svflags |= SVF_MONSTER;
+    visible->svflags |= SVF_MONSTER;
+    hidden->s.renderfx |= RF_HIDDEN;
+    mapinfo->players[1].used = true;
+    mapinfo->players[1].startingPosition = visible->s.origin2;
+    bot->player = &game.clients[2].ps;
+    G_BotSetStagePoint(&game.clients[2].ps, visible->s.origin2.x, visible->s.origin2.y);
+    G_BotCreateCaptains(&game.clients[2].ps);
+    G_BotInitAssault(&game.clients[2].ps);
+    T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 1, type));
+
+    T_ASSERT(S_UnitIsHiddenFromPlayer(hidden, 2));
+    /* Keep the hidden unit nearer so the regression fails if selection ignores visibility. */
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &hidden->s.origin2) <
+             Vector2_distance(&unit->s.origin2, &visible->s.origin2));
+    T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, 1, false));
+
+    T_EQ(unit->goalentity, visible);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttack);
+}
+
 TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     bot_t *bot = level.bots + 2;
     mapInfo_t *mapinfo = (mapInfo_t *)level.mapinfo;

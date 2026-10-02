@@ -42,7 +42,7 @@ Automatic normal-weapon attack alerts are also produced by the WC3 game module. 
 - presents advisor text through the ordinary transient gameplay-message layer, not the command-error HUD and not the persistent Message Log;
 - uses the recipient's race/map skin `UnderAttackSound` or `TownAttackSound`;
 - uses `AllyUnderAttackSound` / `AllyTownUnderAttackSound` for passive allies for whom the attacked owner has `ALLIANCE_HELP_REQUEST`;
-- emits a transient red minimap attention signal with `MINIMAP_PING_REMEMBER`, so only notifications which survive range/cooldown filtering enter the existing eight-entry Space history;
+- emits a transient opaque-red minimap attention signal with `MINIMAP_PING_REMEMBER`, using the recipient's `MinimapIndicator` model, so only notifications which survive range/cooldown filtering enter the existing eight-entry Space history;
 - never changes the ordinary minimap contact, fog, selection, or camera position.
 
 The following compatibility choices are deliberately marked in code with `BZ_COMPAT_GUESS` because the available retail-facing data names the feature but does not fully specify the runtime rule:
@@ -50,11 +50,11 @@ The following compatibility choices are deliberately marked in code with `BZ_COM
 1. `AttackNotifyRange` is currently interpreted as Euclidean world distance from the recipient's authoritative camera target position to the victim.
 2. All attack-alert classes for a recipient share one `AttackNotifyDelay` cooldown.
 3. An authored building (`G_UnitIsBuilding`) is classified as a town alert; other units use the forces alert.
-4. The attacked signal currently uses opaque red, forces the generic packet-colour marker instead of the normally authored `MinimapIndicator`, and uses the existing one-second alert lifetime. Warcraft exposes a dedicated attacked-signal color, but the underlying raw Misc field and exact retail lifetime/animation have not yet been recovered in-tree.
+4. The attacked signal currently uses opaque red and the recipient's normally authored `MinimapIndicator`, with the existing one-second alert lifetime. Warcraft exposes a dedicated attacked-signal color, but the underlying raw Misc field and exact retail lifetime/animation have not yet been recovered in-tree.
 5. The automatic alarm is currently produced on a resolved primary normal-weapon hit. This intentionally excludes direct spell/DoT/script damage, but direct retail capture is still needed to decide whether a missed/evaded attack should alarm earlier at swing or projectile-launch time.
 6. Advisor text uses the existing gameplay-message overlay's automatic duration rule (message length / 6 + 5 seconds) and no dedicated fade. The retail `[AdvisorStrings]` keys/wording are data-backed; the exact retail advisor position, lifetime, and fade curve still need direct capture.
 
-These guesses are confined to the attack-alert call site and `g_minimap.c`; replacing any of them after direct retail capture must not require changes to generic damage or ordinary minimap contact rendering. Attack alerts use the generic transient marker presentation; matching a unit, building, or Hero alert to its WC3 contact footprint would require an approved wire-format change. Hero-revive and building-morph completion alerts remain separate work.
+These guesses are confined to the attack-alert call site and `g_minimap.c`; replacing any of them after direct retail capture must not require changes to generic damage or ordinary minimap contact rendering. The generic ping packet intentionally retains its stable position/lifetime/RGBA/flags layout; matching a unit, building, or Hero alert to its WC3 contact footprint would require an approved wire-format change. Hero-revive and building-morph completion alerts remain separate work.
 
 ## JASS Minimap Pings
 
@@ -70,7 +70,7 @@ For rectangular Warcraft maps, world-space minimap content must **not** be stret
 
 `client/cl_minimap.c` stores up to 16 simultaneously active visual pings. Sixteen is an OpenRealm implementation cap, not a retail Warcraft constant. When all slots are occupied, the oldest active visual ping is replaced. Lifetime uses the normal advancing `cl.time` clock.
 
-`FT_MINIMAP` invokes `CL_LayoutDrawMinimap()`, which first asks the game renderer to draw terrain, fog, entities, and camera bounds, then draws active attention markers. A nonzero model index uses the registered authored model. Model zero, or an unavailable model after a logged warning, uses the generic colored cross/pulse. Forced-color alerts bypass that model and use a 0.002 UI-canvas-unit square, matching the ordinary WC3 unit marker footprint.
+`FT_MINIMAP` invokes `CL_LayoutDrawMinimap()`, which first asks the game renderer to draw terrain, fog, entities, and camera bounds, then draws active attention markers. A nonzero model index uses the registered authored model. Model zero, or an unavailable model after a logged warning, uses the generic colored cross/pulse. The stable packet carries no marker-size field, so pings use the authored model or the generic fallback size.
 
 `MDLX_DrawSpriteTinted()` temporarily replaces `tr.viewDef`. Because minimap pings are drawn after the world, it must restore the previous `tr.viewDef` after its sprite pass; otherwise a post-world sprite can corrupt renderer state expected by subsequent HUD/overlay work.
 
