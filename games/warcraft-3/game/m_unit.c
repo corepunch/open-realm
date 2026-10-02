@@ -988,6 +988,13 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
 
     if (!self || M_IsDead(self) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
+        if (queued.owner_context) {
+            if (S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START)) {
+                S_UnitAbilityOrderAccepted(self,queued.order);
+                return true;
+            }
+            continue;
+        }
         if (queued.target_type == UNIT_ORDER_TARGET_POINT) {
             if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed)) {
                 S_UnitAbilityOrderAccepted(self, queued.order);

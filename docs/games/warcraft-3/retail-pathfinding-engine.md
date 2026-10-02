@@ -4431,3 +4431,89 @@ and259-entry/100-fixture inventory pass. All four strict fresh live contracts
 pass. Save version76 is unchanged. GROUP-04.12 closes; the ledger retains118
 completed tasks and186 open tasks after explicit splits. The validation index
 is `runtime/selected-point-validation-261002.json`.
+
+
+## Selected Shift Move retains request ownership through staggered arrival
+
+Payoff42 ports the first selected ground Shift Move behind an active shared
+cohort. Move now queues the common destination with one new request identity,
+keeping the current physical group and order intact. Each member activates its
+queued request only when its preceding leg completes. It first creates a
+singleton; a later member with the same request, destination and movement mask
+rebuilds a fresh cohort with the activating member first. Generation-retaining
+member rows, the default truncated fine-distance40 admission and separate
+all-member decisions/commits remain Move-owned. The ranked-formation regression retains its frozen world-point expectations
+for independent current orders; its active-cohort branch now asserts the native
+common point and shared new request identity instead of legacy per-unit offsets.
+No numerical tolerance changes. The owner visits newer groups
+first and freezes each pass's initial extent, so callback-created owners wait
+until the next pass. Generic queue dispatch carries an owner-interpreted context
+and delegates activation through the ability procedure.
+
+Two complete owned scene50 captures use external Win32 Shift input and read-only
+Frida instrumentation. The original Human02Interlude bytes are retained except
+its script. The public timer issues the first pair Move at1 second; actual
+selected player3 packet9 appends the common point without replacing either
+current order. Both movers retain the new request in Unit240/244. The first
+neighbor search returns no active match; the second returns the first mover's
+new wrapper. Four callback candidates contain exactly one accepted nonself
+match. `89c890/169620/16bdb0/16b7b0` distinguish canonical request candidates,
+ready slots and active physical members; attachment alone does not activate a
+member. The first peer finishes at6.479768, its singleton ticks at6.509766 before
+the old main member finishes, and the rebuilt pair first ticks at6.539764.
+
+Both journeys repeat every one of510 absolute clock/fine-position/velocity/facing
+commits (250 main,260 peer),506 scalar decisions, four natural arrivals and261
+owner passes. The three physical cohorts visit184,1 and76 times. Their common
+motion digest is `a8020af581b9aa7fa0d83d1474baffae9e2ae9d73166306c3e6ededc32f03c14`.
+The input clocks differ while the motion repeats exactly. A boundary input in
+the first capture arrives after primary clock advance but before the due owner
+counter increment; the engine test delivers that input through the ordinary
+pose-publication import callback. It does not advance clocks or replay native
+movement decisions. Both original clock and owner counter are asserted exactly.
+Normal engine frames reproduce all1020 commits, with684 saved suffix commits
+from saves before activation and immediately after cohort rebuilding.
+
+Save78 records queued request contexts and physical group request identities.
+The upstream merge's Save77 already combines retained player fine queues with
+Stop guards and per-player disabled abilities; their behavior and serialization
+remain present. New ability flags use separate symbolic bits, and queued Move
+activation retains the upstream accepted-order cleanup hook. Earlier layouts
+are explicitly rejected.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-queued-final-source-261002/`, with immutable observer,
+  controller, script, map tool and reviewed Winelib Shift helper;
+- `runtime/selected-queued-final-{first,repeat}-261002.jsonl`;
+- `runtime/selected-queued-strict-confirmed-261002/corpus-results.json`, freshly
+  rerunning queued selection, ordinary selection, public pair, twelve-member
+  movement and owner-change contracts;
+- `runtime/selected-queued-types-final-261002.json` and
+  `runtime/selected-queued-ghidra-readback-final-saved-261002.json`:521 saved roles,
+  42 partial layouts/261 fields and244 instruction-established x86 prototypes.
+  Fourteen new roles retain comments and native xrefs. No p-code was needed.
+
+`retail-selected-queued-1.27.json` freezes every phase/request hash, neighbor
+record, owner order and motion word. The checker verifies the engine header,
+complete provenance, numerical decisions and natural order cleanup. Five
+asset-free tests reject neighbor identity, category, destination, wrapper,
+self-match, accepted-result and missing-search mutations.
+
+GROUP-04.13 explicitly splits this active-cohort first-Shift port from04.6.
+Idle or mixed current groups, additional queued requests, other movement masks,
+larger selections, wider spatial neighbor predicates, preferred-path/range90/
+bypass policies, callback mutation and arbitrary scene construction remain
+required. Next runnable work is04.6's additional/idle/mixed queued producers.
+
+
+Final payoff42 validation: debug (`WC3_DEBUG_BUILD=1`, `wc3_*`) RoC/TFT each
+pass213,974 assertions in2323 tests. The forced release production/test build
+and normal repository suite pass; its all-test RoC/TFT runs each pass214,407
+assertions in2360 tests, including the additional generic/client tests. All184
+Python pathfinding tests, ability audit,260-entry/101-fixture inventory and five
+fresh strict contracts pass. The Ghidra readback verifies fourteen new roles
+and two updated player-producer roles after saving. GROUP-04.13 closes; Save78
+and119 completed/186 open backlog leaves are synchronized. General inter-group
+ordering after physical slot reuse remains separate scheduling work. The
+validation index is `runtime/selected-queued-validation-261002.json`.

@@ -30,6 +30,7 @@
 #include "retail_public_oblique.h"
 #include "retail_public_pair.h"
 #include "retail_selected_point.h"
+#include "retail_selected_queued.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -8305,8 +8306,13 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
     FOR_LOOP(i, 3) {
         T_EQ(units[i]->order_queue.count, 1);
         unitOrder_t const *queued = units[i]->order_queue.entries + units[i]->order_queue.head;
-        T_EQ(wc3_float_bits(queued->point.x), targets[i][0]);
-        T_EQ(wc3_float_bits(queued->point.y), targets[i][1]);
+        /* Active physical cohorts append the common native request point;
+         * the earlier independent-order branch retains its supplied layout. */
+        T_EQ(wc3_float_bits(queued->point.x),wc3_float_bits(destination.x));
+        T_EQ(wc3_float_bits(queued->point.y),wc3_float_bits(destination.y));
+        T_EQ(queued->owner_context,units[0]->order_queue.entries[units[0]->order_queue.head].owner_context);
+        T_NE(queued->owner_context,0); T_NE(queued->owner_context,group->id);
+        T_EQ(queued->group_speed,0);
         T_EQ(units[i]->goalentity->s.origin2.x,destination.x);
     }
     clent->client->menu.order_queued = false;
@@ -10409,6 +10415,36 @@ TEST(wc3_movement, selected_point_move_owns_shared_physical_group) {
     reset_entities(); setup_test_world();
 }
 
+/* Pending selected requests retain common coordinates and survive independent cancellation. */
+TEST(wc3_movement, selected_shift_retains_common_point_and_request_context) {
+    reset_entities(); setup_test_world();
+    edict_t *clent=alloc_test_unit(0,0,0),*units[2];
+    clent->client=game.clients; clent->client->ps.number=0; clent->client->menu.order_queued=false;
+    FOR_LOOP(i,2) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','R','T','E'),128+80*i,128);
+        units[i]->collision=16; units[i]->selected=1; units[i]->svflags|=SVF_MONSTER;
+        units[i]->stand=unit_stand; units[i]->movetype=MOVETYPE_STEP; unit_stand(units[i]); gi.LinkEntity(units[i]);
+    }
+    vec2_t first={128,512},next={384,256}; T_ASSERT(move_selectlocation(clent,&first));
+    uint32_t old=units[0]->movement.group_id;
+    clent->client->menu.order_queued=true; T_ASSERT(move_selectlocation(clent,&next));
+    T_EQ(ARRAY_COUNT(level.move_groups),1); uint32_t context=units[0]->order_queue.entries[0].owner_context;
+    T_ASSERT(context!=0 && context!=old);
+    FOR_LOOP(i,2) {
+        T_EQ(units[i]->movement.group_id,old); T_EQ(units[i]->order_queue.count,1);
+        unitOrder_t const *queued=units[i]->order_queue.entries;
+        T_EQ(queued->owner_context,context);
+        T_EQ(wc3_float_bits(queued->point.x),wc3_float_bits(next.x));
+        T_EQ(wc3_float_bits(queued->point.y),wc3_float_bits(next.y));
+        T_EQ(queued->group_speed,0); T_EQ(units[i]->current_order_id,G_OrderId("move"));
+    }
+    G_ClearUnitOrderQueue(units[0]); T_EQ(units[0]->order_queue.count,0);
+    T_EQ(units[1]->order_queue.count,1); T_EQ(units[1]->order_queue.entries[0].owner_context,context);
+    clent->client->menu.order_queued=false; T_ASSERT(move_selectlocation(clent,&first));
+    FOR_LOOP(i,2) { T_EQ(units[i]->order_queue.count,0); T_ASSERT(units[i]->movement.group_id!=old); }
+    reset_entities(); setup_test_world();
+}
+
 /* Native player input supplies its absolute admission clock; all owner visits
  * and motion then come from ordinary engine frames, without replaying decisions. */
 TEST(wc3_movement, selected_player_input_matches_both_original_journeys) {
@@ -10487,6 +10523,116 @@ TEST(wc3_movement, selected_player_input_matches_both_original_journeys) {
             }
             T_ASSERT(!jass_rterror_pending(level.vm));
         }
+        remove(saves[0]); remove(saves[1]);
+    }
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+
+/* Input can arrive after a primary advance and before its due owner visit.
+ * Observe the ordinary engine pose publication to deliver the frozen input at
+ * that boundary; the callback does not advance clocks or run movement owners. */
+static struct {
+    void (*link)(edict_t *);
+    edict_t *client;
+    uint32_t const *input;
+    bool issued;
+} selected_queued_input;
+
+static void selected_queued_input_link(edict_t *unit) {
+    selected_queued_input.link(unit);
+    if (selected_queued_input.issued ||
+            wc3_float_bits(level.pathing_clock.time)!=selected_queued_input.input[0]) return;
+    selected_queued_input.issued=true; /* Prevent reentry through order publication. */
+    T_EQ(level.pathing_counter,selected_queued_input.input[1]);
+    vec2_t point={wc3_float(selected_queued_input.input[2]),wc3_float(selected_queued_input.input[3])};
+    T_ASSERT(move_selectlocation(selected_queued_input.client,&point));
+}
+
+/* Native player input supplies its absolute admission clock; all owner visits
+ * and motion then come from ordinary engine frames, without replaying decisions. */
+TEST(wc3_movement, selected_shift_input_matches_original_staggered_activation) {
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','Q','E'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(c,2) {
+        reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+        static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+        unsigned offset=0;
+        FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+            memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+            offset+=public_oblique_terrain_runs[i][0];
+        }
+        T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+        level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+        level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+        T_ASSERT(run_test_jass("globals\nunit a\nunit b\ngroup cohort\ninteger tick=0\nendglobals\n"
+            "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+            "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1936,-144)\nendif\nendfunction\n"
+            "function main takes nothing returns nothing\n"
+            "set a=CreateUnit(Player(0),'hSQE',-1936,-976,90)\n"
+            "call SetUnitMoveSpeed(a,100)\ncall SetUnitOwner(a,Player(3),false)\n"
+            "set b=CreateUnit(Player(3),'hSQE',-1856,-976,90)\n"
+            "call SetUnitMoveSpeed(b,100)\nset cohort=CreateGroup()\n"
+            "call GroupAddUnit(cohort,a)\ncall GroupAddUnit(cohort,b)\n"
+            "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+        edict_t *units[2]={0}; unsigned count=0,steps=0; uint32_t clocks[2]={0};
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
+        T_EQ(count,2); if (count!=2) continue;
+        edict_t *clent=alloc_test_unit(0,0,0); clent->client=game.clients+3;
+        clent->client->ps.number=3; clent->client->menu.order_queued=true;
+        FOR_LOOP(i,2) units[i]->selected=1u<<3;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        selected_queued_input=(typeof(selected_queued_input)){gi.LinkEntity,clent,selected_queued_inputs[c],false};
+        gi.LinkEntity=selected_queued_input_link;
+        bool mismatch=false;
+        cstring_t saves[]={"/tmp/wc3-selected-queued-moving.bin","/tmp/wc3-selected-queued-arrival.bin"};
+        FOR_LOOP(pass,3) {
+            if (pass) {
+                if (mismatch) break;
+                T_ASSERT(ReadGame(saves[pass-1])); steps=pass==1 ? 310 : 368; selected_queued_input.issued=true; mismatch=false;
+                FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+                T_EQ(units[0]->s.player,3); T_EQ(units[0]->movement.fine_class,3);
+            }
+            while (level.time<30000 && !mismatch) {
+                level.time+=5; globals.RunFrame();
+                if (!selected_queued_input.issued && level.time<1000) continue;
+                FOR_LOOP(i,2) if (wc3_float_bits(units[i]->movement.pose_clock.time)==0x3f7ffff0u)
+                    clocks[i]=0x3f7ffff0u; /* Initial public admission materializes idle pose. */
+                unsigned visited=0;
+                while (steps<510) {
+                    uint32_t const *expected=selected_queued_motion[steps]; unsigned i=expected[0];
+                    edict_t *unit=units[i]; uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+                    if (now==clocks[i]) break;
+                    T_ASSERT(!(visited&(1u<<i))); visited|=1u<<i;
+                    clocks[i]=now; steps++;
+                    uint32_t actual[]={i,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+                    FOR_LOOP(k,7) { T_EQ(actual[k],expected[k]); if(actual[k]!=expected[k]) mismatch=true; }
+                    if (!pass && (steps==310 || steps==368)) T_ASSERT(WriteGame(saves[steps==310 ? 0 : 1]));
+                    if (mismatch) {
+                        fprintf(stderr,"Selected queued case%u commit%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",c,steps-1,
+                            actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+                        break;
+                    }
+                }
+            }
+            T_ASSERT(selected_queued_input.issued); T_EQ(steps,510);
+            if (!mismatch) {
+                FOR_LOOP(i,2) T_EQ(units[i]->current_order_id,0);
+                FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
+            }
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        gi.LinkEntity=selected_queued_input.link;
         remove(saves[0]); remove(saves[1]);
     }
     game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;

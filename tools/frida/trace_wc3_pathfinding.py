@@ -41,6 +41,7 @@ def main():
     parser.add_argument('--point-click-at', type=float, help='issue an explicit player Move using the owned X11 window at this elapsed second')
     parser.add_argument('--point-click', type=int, nargs=2, metavar=('X','Y'), help='window-relative pixel coordinates for the explicit Move click')
     parser.add_argument('--point-input-helper', type=Path, help='external Winelib SendInput helper; requires the explicit owned Move click')
+    parser.add_argument('--point-click-shift', action='store_true', help='hold Shift using the owned Winelib input helper for the Move click')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if not 0 < args.seconds <= 3600 or not 0 < args.samples <= 10000:
@@ -55,6 +56,8 @@ def main():
         parser.error('--point-click-at/--point-click require an owned spawn, --x11-display and an in-capture time')
     if args.point_input_helper and (args.point_click_at is None or not args.point_input_helper.is_file()):
         parser.error('--point-input-helper requires an existing helper and an explicit owned Move click')
+    if args.point_click_shift and not args.point_input_helper:
+        parser.error('--point-click-shift requires the owned Winelib input helper')
     binary = (args.data / 'game.dll').read_bytes()
     if hashlib.sha256(binary).hexdigest() != HASH:
         parser.error('unsupported game.dll; requires mapped 1.27.1.7085')
@@ -91,7 +94,7 @@ def main():
         if any(not p.is_file() for p in helper_paths):
             parser.error('owned Winelib input requires the helper, linked .so and reviewed C source')
         source_paths.extend(helper_paths)
-        config['pointInput'] = dict(at=args.point_click_at, pixel=args.point_click, api='external Win32 SendInput')
+        config['pointInput'] = dict(at=args.point_click_at, pixel=args.point_click, api='external Win32 SendInput', shift=args.point_click_shift)
     provenance = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths}
     map_path = args.data / args.map.replace('\\', '/')
     if args.numeric_events and not map_path.is_file():
@@ -146,14 +149,14 @@ def main():
                                    check=True, timeout=5, env=env, stdout=subprocess.DEVNULL)
                     if args.point_input_helper:
                         helper_output = subprocess.check_output([str(args.point_input_helper.resolve()), str(pid),
-                            *[str(v) for v in args.point_click]], env=env, timeout=10).decode()
+                            *[str(v) for v in args.point_click], *(['shift'] if args.point_click_shift else [])], env=env, timeout=10).decode()
                         record({'event':'player-input-helper','output':helper_output,
                                 'sha256':hashlib.sha256(args.point_input_helper.read_bytes()).hexdigest()})
                     else:
                         subprocess.run(['xdotool','mousemove','--window',windows[0],*[str(v) for v in args.point_click],
                                         'mousedown','1','sleep','0.2','mouseup','1'], check=True, timeout=5, env=env, stdout=subprocess.DEVNULL)
                     record({'event':'player-move-click','elapsed':time.monotonic()-start,
-                            'pixel':args.point_click,'key':'m','button':1})
+                            'pixel':args.point_click,'key':'m','button':1,'shift':args.point_click_shift})
                     clicked = True
                 time.sleep(0.1)
             record({'event': 'trace-end', **script.exports_sync.status()})

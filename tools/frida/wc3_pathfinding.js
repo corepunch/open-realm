@@ -79,6 +79,57 @@ function install(module) {
         }});
 
 
+        const previousRequestState = unit => ({unit:unit.toString(),
+            previous:ints(unit.add(0x240),2),category:unit.add(0x1fc).readU32(),
+            mover:ints(unit.add(0x16c),2)});
+        hook(0x5fa950,{onEnter(args) {
+            this.unit=this.context.ecx;this.output=args[1];
+            const owner=base.add(0xd53a48).readPointer();
+            this.row={before:previousRequestState(this.unit),point:[this.context.edx.readU32(),args[0].readU32()],
+                clock:owner.add(0x54).readU32(),counter:owner.add(0x538).readU32()};
+        },onLeave(ret) {emit('move-previous-cohort-search',{...this.row,result:ret.toUInt32(),
+            output:this.output.readPointer().toString(),after:previousRequestState(this.unit)});}});
+        hook(0x5faaf0,{onEnter() {
+            this.ctx=this.context.edx;
+            this.row={candidate:previousRequestState(this.context.ecx),
+                source:previousRequestState(this.ctx.readPointer()),context:ints(this.ctx,10)};
+        },onLeave(ret) {emit('move-previous-cohort-candidate',{...this.row,result:ret.toUInt32(),
+            accepted:this.ctx.add(0x20).readU32(),request:this.ctx.add(0x1c).readPointer().toString()});}});
+        // Pending CMoveReq candidates are distinct from active physical group rows.
+        const requestState = request => ({request:request.toString(),
+            identity:ints(request.add(0x14),2),flags:request.add(0x100).readU32(),
+            wrapper:request.add(0xf0).readPointer().toString(),
+            candidates:Array.from({length:12},(_,i)=>ints(request.add(0x1c+i*12),3)),
+            overrides:ints(request.add(0xac),12)});
+        hook(0x16bdb0,{onEnter(args) {
+            this.request=this.context.ecx;
+            const owner=base.add(0xd53a48).readPointer();
+            this.row={before:requestState(this.request),index:args[0].toUInt32(),
+                point:ints(args[1],2),clock:owner.add(0x54).readU32(),counter:owner.add(0x538).readU32()};
+        },onLeave(ret) {emit('move-request-activate',{...this.row,result:ret.toUInt32(),after:requestState(this.request)});}});
+        hook(0x16b7b0,{onEnter(args) {
+            this.request=this.context.ecx;
+            this.row={before:requestState(this.request),group:args[0].toString(),index:args[1].toUInt32()};
+        },onLeave() {emit('move-request-bind-candidate',{...this.row,after:requestState(this.request)});}});
+        hook(0x169620,{onEnter(args) {
+            this.request=this.context.ecx; this.mover=args[0];
+            this.row={mover:this.mover.toString(),override:args[1].toUInt32(),
+                before:requestState(this.request),caller:this.returnAddress.sub(base).toUInt32()};
+        },onLeave() {emit('move-request-candidate',{...this.row,after:requestState(this.request)});}});
+        hook(0x16de20,{onEnter(args) {
+            this.request=this.context.ecx;this.wrapper=args[0];
+        },onLeave() {emit('move-request-created',{...requestState(this.request),suppliedWrapper:this.wrapper.toString()});}});
+        hook(0x170fa0,{onEnter(args) {
+            this.mover=this.context.ecx;
+            this.row={mover:this.mover.toString(),group:args[0].toString(),
+                before:ints(this.mover.add(0x9c),2),caller:this.returnAddress.sub(base).toUInt32()};
+        },onLeave() {emit('move-group-bind',{...this.row,after:ints(this.mover.add(0x9c),2)});}});
+        hook(0x693490,{onEnter(args) {
+            this.unit=this.context.ecx;
+            this.row={unit:this.unit.toString(),order:args[0].toString(),
+                before:ints(this.unit.add(0x19c),2),countBefore:this.unit.add(0x1b4).readU32()};
+        },onLeave() {emit('player-order-queued',{...this.row,after:ints(this.unit.add(0x19c),2),countAfter:this.unit.add(0x1b4).readU32()});}});
+
         hook(0x2047f0, {onEnter(args) {
             this.row = {handle:args[0].toUInt32(), order:args[1].toUInt32(), point:[args[2].readU32(),args[3].readU32()]};
             emit('group-point-native-begin',this.row);
@@ -1594,7 +1645,7 @@ function install(module) {
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
-            if ((value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair '))) pairScenario = true;
+            if ((value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair '))) pairScenario = true;
             if (value.includes('label=complete ')) pairScenario = false;
             emit('marker', {value});
             if (!value.includes('label=sample ')) snapshotCells(value);

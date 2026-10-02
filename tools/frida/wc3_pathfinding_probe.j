@@ -721,8 +721,16 @@ function PathProbeTick takes nothing returns nothing
             else
                 call PathProbeRecord("order_rejected")
             endif
-        elseif PATH_PROBE_SCENARIO == 49 then
+        elseif PATH_PROBE_SCENARIO == 49 or PATH_PROBE_SCENARIO == 50 then
             call Preload("PATHSELECT tick=10 ready local=" + I2S(GetPlayerId(GetLocalPlayer())))
+            if PATH_PROBE_SCENARIO == 50 then
+                call PathProbeRecord("before_queued_first_group")
+                if GroupPointOrder(udg_PathProbeGroup, "move", -1936.0, -144.0) then
+                    call PathProbeRecord("queued_first_group_accepted")
+                else
+                    call PathProbeRecord("queued_first_group_rejected")
+                endif
+            endif
         elseif IssuePointOrder(udg_PathProbeUnit, "move", -1936.0, -144.0) then
             call PathProbeRecord("order_accepted")
         else
@@ -851,7 +859,7 @@ function PathProbeTick takes nothing returns nothing
             set crowdIndex = crowdIndex + 1
         endloop
     endif
-    if PATH_PROBE_SCENARIO == 49 then
+    if PATH_PROBE_SCENARIO == 49 or PATH_PROBE_SCENARIO == 50 then
         call Preload("PATHSELECT tick=" + I2S(udg_PathProbeTick) + " peerX=" + R2S(GetUnitX(udg_PathProbeCrowd[1])) + " peerY=" + R2S(GetUnitY(udg_PathProbeCrowd[1])) + " peerOrder=" + I2S(GetUnitCurrentOrder(udg_PathProbeCrowd[1])))
     endif
     call PathProbeRecord("sample")
@@ -1002,7 +1010,7 @@ function PathProbeInit takes nothing returns nothing
     call FogMaskEnable(false)
     call SetCameraPosition(-1936.0, -560.0)
     call SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 1800.0, 0.0)
-    if PATH_PROBE_SCENARIO == 49 then
+    if PATH_PROBE_SCENARIO == 49 or PATH_PROBE_SCENARIO == 50 then
         call SetPlayerController(GetLocalPlayer(), MAP_CONTROL_USER)
         call SetUnitOwner(udg_PathProbeUnit, GetLocalPlayer(), false)
         set udg_PathProbeCrowd[0] = udg_PathProbeUnit
@@ -1012,6 +1020,11 @@ function PathProbeInit takes nothing returns nothing
         call ShowInterface(true, 0.0)
         call ClearSelection()
         call SelectUnit(udg_PathProbeCrowd[1], true)
+        if PATH_PROBE_SCENARIO == 50 then
+            set udg_PathProbeGroup = CreateGroup()
+            call GroupAddUnit(udg_PathProbeGroup, udg_PathProbeCrowd[0])
+            call GroupAddUnit(udg_PathProbeGroup, udg_PathProbeCrowd[1])
+        endif
     endif
     call SelectUnit(udg_PathProbeUnit, true)
     call PathProbeRecord("start_@NAME@")

@@ -52,6 +52,7 @@ typedef struct {
 /* Move owns retained physical groups independently of JASS collection handles. */
 typedef struct {
     uint32_t id, count, flags, age, completion_counter;
+    uint32_t request_id; /* Shared queued request identity for later cohort acquisition. */
     bool inuse, initialized, ticking;
     vec2_t goal, point;
     float heading, radius;
@@ -715,6 +716,7 @@ typedef struct {
     uint32_t issuer_player;
     uint32_t order_id; /* rawcode payload for delayed orders such as construction */
     float group_speed;
+    uint32_t owner_context; /* Owning ability interprets this retained queue payload. */
 } unitOrder_t;
 
 typedef struct {
@@ -788,7 +790,8 @@ typedef enum {
 /* The producer retains insertion order and generations before any order callbacks. */
 typedef struct {
     struct { edict_t *unit; uint32_t spawn; } units[BZ_WC3_GROUP_ORDER_UNITS];
-    uint32_t count, order_id;
+    uint32_t count, order_id, issuer_player;
+    bool queued;
     cstring_t order;
     vec2_t const *point;
 } groupPointOrder_t;

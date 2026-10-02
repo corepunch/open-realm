@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **259 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **42**
+The inventory now has **260 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **43**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -26,7 +26,7 @@ outside the accepted inventory unless given their own rejection contract.
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Thirty-two public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Thirty-three public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -714,3 +714,17 @@ commits; the existing115-commit public pair also passes through selection.
 Inventory is259 entries/100 frozen fixtures. Failed X11 mouse and preliminary
 helper captures remain diagnostic evidence outside this contract. See
 [selected ground Move](retail-pathfinding-engine.md#selected-ground-move-uses-the-shared-physical-owner).
+
+
+Payoff42 adds `live-selected-queued-repeat-261002`: external native Shift Move
+packet9 retains both current heads, appends one common request and naturally
+activates a singleton before rebuilding the matching pair. The strict checker
+verifies two previous-request neighbor searches (no match, then match), four
+callback candidates, all request/ready/member and owner-phase words,1012 scalar
+decisions,1020 exact numerical commits, eight natural arrivals and522 owner
+passes across six cohorts. Both captures repeat all510 absolute motion words.
+Normal engine frames match the same1020 commits and684 saved suffix commits.
+The boundary input retains its exact primary clock and pre-owner counter.
+Inventory is260 entries/101 frozen fixtures. Preliminary detour and earlier
+observer captures remain diagnostic evidence outside the accepted final
+contract. See [selected Shift ownership](retail-pathfinding-engine.md#selected-shift-move-retains-request-ownership-through-staggered-arrival).

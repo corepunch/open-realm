@@ -1541,6 +1541,288 @@
           "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
         }
       ]
+    },
+    {
+      "name": "WC3MoveRequestCandidate",
+      "length": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        }
+      ]
+    },
+    {
+      "name": "WC3MoveRequestCanonical",
+      "length": 260,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 28,
+          "name": "candidate0",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 40,
+          "name": "candidate1",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 52,
+          "name": "candidate2",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 64,
+          "name": "candidate3",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 76,
+          "name": "candidate4",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 88,
+          "name": "candidate5",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 100,
+          "name": "candidate6",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 112,
+          "name": "candidate7",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 124,
+          "name": "candidate8",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 136,
+          "name": "candidate9",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 148,
+          "name": "candidate10",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 160,
+          "name": "candidate11",
+          "type": "WC3MoveRequestCandidate",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 172,
+          "name": "ready0",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 176,
+          "name": "ready1",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 180,
+          "name": "ready2",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 184,
+          "name": "ready3",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 188,
+          "name": "ready4",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 192,
+          "name": "ready5",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 196,
+          "name": "ready6",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 200,
+          "name": "ready7",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 204,
+          "name": "ready8",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 208,
+          "name": "ready9",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 212,
+          "name": "ready10",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 216,
+          "name": "ready11",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 220,
+          "name": "target",
+          "type": "WC3PathIdentity",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 232,
+          "name": "point",
+          "type": "WC3PathVector2",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 240,
+          "name": "wrapper",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 248,
+          "name": "shared_parameters",
+          "type": "ptr:void",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 252,
+          "name": "copied_parameter",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 256,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+        }
+      ]
+    },
+    {
+      "name": "WC3UnitMoveRequestHistory",
+      "length": 584,
+      "fields": [
+        {
+          "offset": 364,
+          "name": "mover_identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 508,
+          "name": "movement_category",
+          "type": "u32",
+          "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 576,
+          "name": "previous_request",
+          "type": "WC3PathIdentity",
+          "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+        }
+      ]
+    },
+    {
+      "name": "WC3MoveRequestNeighborContext",
+      "length": 40,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "source",
+          "type": "ptr:WC3UnitMoveRequestHistory",
+          "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 4,
+          "name": "world_point",
+          "type": "WC3PathVector2",
+          "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 12,
+          "name": "fine_point",
+          "type": "WC3PathVector2",
+          "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 20,
+          "name": "previous_request",
+          "type": "WC3PathIdentity",
+          "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 28,
+          "name": "request",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 32,
+          "name": "accepted",
+          "type": "u32",
+          "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+        },
+        {
+          "offset": 36,
+          "name": "movement_category",
+          "type": "u32",
+          "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+        }
+      ]
     }
   ],
   "methods": [
@@ -5785,6 +6067,287 @@
         }
       ],
       "evidence": "Original NetUnit.cpp decoded operands and native selected-unit Move observer; undefined bytes remain undefined."
+    },
+    {
+      "address": "6f89c890",
+      "name": "MoveRequest_CreateCanonical",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f89c7c0",
+      "name": "MoveRequest_AttachMoverBridge",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "storage": "ECX"
+        },
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": 4
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f89c7f0",
+      "name": "MoveRequest_AttachCanonicalMover",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "storage": "ECX"
+        },
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f169620",
+      "name": "MoveRequest_RetainCandidate",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        },
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": 4
+        },
+        {
+          "name": "ready",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f16b700",
+      "name": "MoveRequest_FindCandidate",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        },
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f16bab0",
+      "name": "MoveRequest_FindFreeCandidate",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f16de20",
+      "name": "MoveRequest_SetWrapper",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        },
+        {
+          "name": "wrapper",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "storage": 4
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f16bdb0",
+      "name": "MoveRequest_ActivateCandidateCohort",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        },
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f16b7b0",
+      "name": "MoveRequest_BindCandidateCohort",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        },
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": 4
+        },
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f16bcf0",
+      "name": "MoveRequest_PublishReadyCohorts",
+      "returns": "i32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f6bcc40",
+      "name": "NetOrder_ComparePointCandidates",
+      "returns": "i32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "first",
+          "type": "ptr:u32",
+          "storage": 4
+        },
+        {
+          "name": "second",
+          "type": "ptr:u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f5fa950",
+      "name": "Move_FindPreviousRequestCohort",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitMoveRequestHistory",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": "EDX"
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "output",
+          "type": "ptr:ptr:WC3MoveRequestWrapper",
+          "storage": 8
+        }
+      ],
+      "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f5faaf0",
+      "name": "Move_TryPreviousRequestCohort",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "candidate",
+          "type": "ptr:WC3UnitMoveRequestHistory",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "ptr:WC3MoveRequestNeighborContext",
+          "storage": "EDX"
+        }
+      ],
+      "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
+    },
+    {
+      "address": "6f16d850",
+      "name": "MoveRequest_SetCandidateReady",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        },
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": 4
+        },
+        {
+          "name": "ready",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
     }
   ],
   "globals": [

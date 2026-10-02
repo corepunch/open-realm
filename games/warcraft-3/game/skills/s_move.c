@@ -1884,11 +1884,19 @@ static uint32_t move_allocate_group_id(void) {
         if (++level.next_move_group_id == 0) ++level.next_move_group_id;
         used = false;
         FOR_LOOP(i, globals.num_edicts) {
-            if (g_edicts[i].inuse && g_edicts[i].movement.group_id == level.next_move_group_id) {
+            edict_t const *unit=g_edicts+i;
+            if (!unit->inuse) continue;
+            FOR_LOOP(q,unit->order_queue.count) {
+                unsigned slot=(unit->order_queue.head+q)%MAX_UNIT_ORDER_QUEUE;
+                if (unit->order_queue.entries[slot].owner_context==level.next_move_group_id) used=true;
+            }
+            if (used || unit->movement.group_id == level.next_move_group_id) {
                 used = true;
                 break;
             }
         }
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups))
+            if (level.move_groups[i]->inuse && level.move_groups[i]->request_id==level.next_move_group_id) used=true;
     } while (used);
     return level.next_move_group_id;
 }
@@ -2433,10 +2441,72 @@ static moveGroup_t *move_alloc_group(void) {
     return group;
 }
 
+/* Native Shift preserves the common point and the previous request identity.
+ * Each current-order completion can start alone;5faaf0 rebuilds a matching
+ * nearby cohort when another member starts the same point. */
+static bool move_queue_group_point(groupPointOrder_t const *request) {
+    uint32_t context=move_allocate_group_id();
+    bool any=false;
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=request->units[i].unit;
+        if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit) ||
+            M_IsDead(unit) || (unit->aiflags&AI_IMMOBILE) || G_BuildingUpgradeActive(unit) ||
+            !S_AncientCanReceiveOrder(unit) || !G_UnitHasActiveOrder(unit)) continue;
+        moveGroup_t const *source=move_find_group(unit->movement.group_id);
+        if (!source) continue;
+        if (!G_QueueUnitOrder(unit,request->order,UNIT_ORDER_TARGET_POINT,request->point,NULL,
+                request->issuer_player,0,0)) continue;
+        unitOrderQueue_t *queue=&unit->order_queue;
+        unsigned slot=(queue->head+queue->count-1)%MAX_UNIT_ORDER_QUEUE;
+        queue->entries[slot].owner_context=context;
+        any=true;
+        G_PublishIssuedPointOrder(unit,request->order_id,request->point,request->issuer_player,request->order);
+    }
+    return any;
+}
+
+static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
+    if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return false;
+    S_IssueMoveOrder(unit,Waypoint_add(&queued->point),G_OrderId(queued->order));
+    if (unit->currentmove!=&move_move_walk || !unit->goalentity) return false;
+    moveGroup_t *group=move_alloc_group();
+    group->inuse=group->ticking=true; group->id=move_allocate_group_id();
+    group->request_id=queued->owner_context; group->goal=queued->point; group->age=UINT32_MAX;
+    group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time};
+    group->radius=unit->collision; unit->movement.group_id=group->id;
+    wc3GridPose_t source; unit_predicted_pose(unit,&source);
+    FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t *peer=level.move_groups[g];
+        if (peer==group || !peer->inuse || peer->request_id!=group->request_id ||
+            peer->goal.x!=group->goal.x || peer->goal.y!=group->goal.y ||
+            group->count+peer->count>BZ_WC3_GROUP_ORDER_UNITS) continue;
+        bool nearby=false;
+        FOR_LOOP(i,peer->count) {
+            edict_t *other=peer->members[i].unit; wc3GridPose_t pose; unit_predicted_pose(other,&pose);
+            float dx=wc3_sub(source.grid[0],pose.grid[0]),dy=wc3_sub(source.grid[1],pose.grid[1]);
+            uint32_t distance=wc3_int_bits(wc3_float_bits(wc3_sqrt(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy)))));
+            if (distance<=40 && M_UnitStaticPathingFlags(other)==M_UnitStaticPathingFlags(unit)) nearby=true;
+        }
+        if (!nearby) continue;
+        FOR_LOOP(i,peer->count) {
+            edict_t *other=peer->members[i].unit;
+            group->members[group->count++]=(moveGroupMember_t){.unit=other,.spawn=other->spawn_time};
+            other->movement.group_id=group->id;
+            if (other->collision>group->radius) group->radius=other->collision;
+        }
+        move_release_group(peer);
+    }
+    /* TODO GROUP-04.6: accelerated preferred-distance, range90 and wider
+     * neighbor producer policies need original witnesses before extension. */
+    group->ticking=false;
+    return true;
+}
+
 /* Move owns the shared request; generic order admission still handles each
  * candidate's validation, Smart rally behavior and issued-order callbacks. */
 static bool move_group_point_order(groupPointOrder_t const *request) {
     if (!request->count) return false;
+    if (request->queued) return move_queue_group_point(request);
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->goal=*request->point; group->age=UINT32_MAX;
@@ -2599,8 +2669,10 @@ static void move_group_regroup(moveGroup_t *group) {
 }
 
 static void move_run_group_updates(void) {
-    FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
-        moveGroup_t *group=level.move_groups[g]; if (!group->inuse) continue;
+    /* Native owner visits newest cohorts first. Callback-created owners enter
+     * the next visit; freeze the initial extent before queued activation grows it. */
+    for (uint32_t g=ARRAY_COUNT(level.move_groups);g;) {
+        moveGroup_t *group=level.move_groups[--g]; if (!group->inuse) continue;
         group->ticking=true;
         for (uint32_t i=0;i<group->count;) {
             moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
@@ -2676,12 +2748,16 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     }
     /* Native NetUnit.cpp prepares shared requests before ordinary ground point admission.
      * Reuse the verified cohort owner instead of assigning an ID to independent walkers.
-     * TODO GROUP-04.6: Shift, air/mixed-lane and larger selection request producers remain open. */
-    if (!clent->client->menu.order_queued && num_units>1 && num_units<=BZ_WC3_GROUP_ORDER_UNITS) {
+     * TODO GROUP-04.6: additional/idle/mixed Shift, air/mixed-lane and larger selection producers remain open. */
+    if (num_units>1 && num_units<=BZ_WC3_GROUP_ORDER_UNITS) {
         bool ground=true; uint8_t mask=M_UnitStaticPathingFlags(units[0]);
         FOR_LOOP(i,num_units) if ((units[i]->aiflags&AI_FLYING) || M_UnitStaticPathingFlags(units[i])!=mask) ground=false;
-        if (ground) {
-            groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location};
+        bool queued=clent->client->menu.order_queued;
+        uint32_t source=units[0]->movement.group_id;
+        bool shared=source && move_find_group(source);
+        FOR_LOOP(i,num_units) if (units[i]->movement.group_id!=source || !G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) shared=false;
+        if (ground && (!queued || shared)) {
+            groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued,.issuer_player=clent->client->ps.number};
             FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
             bool accepted=G_IssueGroupPointOrder(&request);
             if (accepted) G_SendPointConfirmation(clent,location,false);
@@ -2776,6 +2852,8 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 /* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
 BZ_ABILITY_PROC(CAbilityMove) {
     switch (msg) {
+    case A_QUEUE_ORDER_START:
+        return move_start_queued_group(ent,call->queued_order);
     case A_GROUP_POINT_ORDER:
         return move_group_point_order(call->group_order) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     case A_OWNER_UPDATE: move_update_fine_budget(); move_run_group_updates(); move_repulse_owner_update(); return true;

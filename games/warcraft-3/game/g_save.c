@@ -78,9 +78,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format77 adds Stop guard state and per-client disabled-ability lists to the
- * retained Move/player-queue contract. Earlier layouts are rejected. */
-static uint32_t const save_version = 77;
+/* Format78 retains queued Move request context in addition to the merged
+ * Stop guard, disabled-ability and fine-player ownership contracts. */
+static uint32_t const save_version = 78;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -698,6 +698,11 @@ static field_t const repulse_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const queued_order_fields[] = {
+    TF(unitOrder_t, owner_context, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const move_route_fields[] = {
     TF(moveFineRoute_t, points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, count, F_INT),
@@ -736,6 +741,7 @@ static field_t const move_member_fields[] = {
 
 static field_t const move_group_fields[] = {
     TF(moveGroup_t, id, F_INT),
+    TF(moveGroup_t, request_id, F_INT),
     TF(moveGroup_t, flags, F_INT),
     TF(moveGroup_t, age, F_INT),
     TF(moveGroup_t, completion_counter, F_INT),
@@ -880,6 +886,7 @@ static field_t const stock_fields[] = {
 
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
 field_t edict_fields[] = {
+    F(edict_s, order_queue.entries, F_STRUCT, MAX_UNIT_ORDER_QUEUE, queued_order_fields),
     F(edict_s, scheduled_think_frame, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, class_id, F_INT),
     F(edict_s, variation, F_INT),
@@ -2699,8 +2706,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-74.bin",
         "/tmp/openwarcraft3-wc3-save-version-75.bin",
         "/tmp/openwarcraft3-wc3-save-version-76.bin",
+        "/tmp/openwarcraft3-wc3-save-version-77.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77 };
 
     reset_entities();
     setup_test_world();
