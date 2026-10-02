@@ -40,6 +40,7 @@
 #include "retail_follow_target_teleport.h"
 #include "retail_follow_target_resize.h"
 #include "retail_moving_radius.h"
+#include "retail_group_radius.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -8309,7 +8310,7 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
     }
     clent->client->menu.order_queued=false;
     T_ASSERT(move_selectlocation(clent, &destination));
-    S_RunAbilityOwnerUpdates();
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
     moveGroup_t *group=level.move_groups[0];
     T_EQ(group->count,3);
     FOR_LOOP(i, 3) {
@@ -8398,7 +8399,7 @@ TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
     vec2_t dest = {100.0f, 100.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
-    S_RunAbilityOwnerUpdates();
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
     moveGroup_t const *group=level.move_groups[0];
     T_EQ(group->count,3);
     FOR_LOOP(i,3) {
@@ -8459,7 +8460,7 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     vec2_t dest = {400.0f, 0.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
-    S_RunAbilityOwnerUpdates();
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
     /* Member decisions keep their own maximum; the separate commit phase shares the cap. */
     T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),100,0.01f);
     T_FEQ(sqrtf(Vector2_lengthsq(&slow->movement.velocity)),100,0.01f);
@@ -8483,7 +8484,7 @@ TEST(wc3_movement, group_move_refreshes_survivor_speed) {
         }
         fast->unitinfo.MoveSpeed = 300; slow->unitinfo.MoveSpeed = 100;
         T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
-        S_RunAbilityOwnerUpdates();
+        S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
         T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),100,0.001f);
         switch (change) {
         case 0: T_ASSERT(unit_issueimmediateorder(slow, "stop")); break;
@@ -8493,7 +8494,7 @@ TEST(wc3_movement, group_move_refreshes_survivor_speed) {
         case 4: G_SetHealth(slow, 0); break;
         case 5: slow->unitinfo.MoveSpeed = 200; break;
         }
-        S_RunAbilityOwnerUpdates();
+        S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
         T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),change==5 ? 200 : 300,0.001f);
     }
 }
@@ -8521,7 +8522,7 @@ TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
     T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
     T_ASSERT(c->movement.group_id != 0 && c->movement.group_id != first_group);
     T_EQ(c->movement.group_id, d->movement.group_id);
-    S_RunAbilityOwnerUpdates();
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
     T_FEQ(sqrtf(Vector2_lengthsq(&a->movement.velocity)),100,0.001f);
     T_FEQ(sqrtf(Vector2_lengthsq(&c->movement.velocity)),200,0.001f);
     uint32_t saved_time = level.time;
@@ -8532,7 +8533,7 @@ TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
     replacement->unitinfo.MoveSpeed = 50;
     T_ASSERT(unit_issueorder(replacement, "move", &(vec2_t){400, 0}));
     T_EQ(replacement->movement.group_id, 0);
-    S_RunAbilityOwnerUpdates();
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
     T_FEQ(sqrtf(Vector2_lengthsq(&a->movement.velocity)),300,0.001f);
     T_FEQ(sqrtf(Vector2_lengthsq(&c->movement.velocity)),200,0.001f);
     level.time = saved_time;
@@ -10987,6 +10988,129 @@ TEST(wc3_movement, public_move_matches_original_mover_resize) {
 
 TEST(wc3_movement, public_move_matches_original_radius_boundary_matrix) {
     public_moving_radius_journey(true);
+}
+
+typedef struct {
+    uint32_t rows[8][4];
+    unsigned count;
+} groupRadiusTrace_t;
+static groupRadiusTrace_t *group_radius_trace;
+
+static void record_group_radius(moveGroup_t const *group, edict_t *singleton) {
+    groupRadiusTrace_t *trace=group_radius_trace;unsigned mask=0;
+    if(group) FOR_LOOP(i,group->count) mask|=group->members[i].unit==follow_commit_trace->units[0] ? 1 : 2;
+    else mask=singleton==follow_commit_trace->units[0] ? 1 : 2;
+    T_ASSERT(trace->count<sizeof(trace->rows)/sizeof(*trace->rows));
+    if(trace->count>=sizeof(trace->rows)/sizeof(*trace->rows))return;
+    uint32_t words[]={level.pathing_counter,mask,wc3_float_bits(wc3_div(group ? group->radius : singleton->collision,32)),
+        wc3_float_bits(wc3_div(group ? group->route.group_radius : singleton->movement.fine_route.group_radius,32))};
+    memcpy(trace->rows[trace->count++],words,sizeof(words));
+}
+
+static void public_group_radius_journey(unsigned scenario, uint32_t const (*motion)[7], unsigned motion_count,
+        uint32_t const (*footprints)[4], unsigned footprint_count) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities(); setup_test_world();
+    float radii[]={31,63,7},speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    uint32_t types[]={MAKEFOURCC('h','G','R','A'),MAKEFOURCC('h','C','L','G'),MAKEFOURCC('h','C','L','S')};
+    unitModification_t mods[3][2];unitData_t units[3];
+    FOR_LOOP(i,3) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radii+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        units[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=types[i],.numbeOfModifications=2,.modifications=mods[i]};
+    }
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    unitModification_t ability_mods[2][2];unitData_t abilities[2];
+    FOR_LOOP(i,2) {
+        ability_mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=i ? "hCLS" : "hCLG"};
+        ability_mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""};
+        abilities[i]=(unitData_t){.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=i ? MAKEFOURCC('A','C','S','h') : MAKEFOURCC('A','C','G','b'),.numbeOfModifications=2,.modifications=ability_mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=3,.userCreatedUnits=units,.num_userCreatedAbilities=2,.userCreatedAbilities=abilities};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);G_SetMapAbilityOverrides(&info);
+    static uint8_t cells[384*256];box2_t bounds={{-7168,-3072},{5120,5120}};unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);offset+=public_oblique_terrain_runs[i][0];}
+    T_EQ(offset,sizeof(cells));CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    char script[4096];snprintf(script,sizeof(script),
+        "globals\nunit first\nunit peer\ngroup cohort\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1936,-144)\nendif\n"
+        "if tick==20 then\n%s\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset first=CreateUnit(Player(0),'hGRA',-1936,-976,90)\n"
+        "set peer=CreateUnit(Player(0),'%s',-1840,-976,90)\n"
+        "call SetUnitMoveSpeed(first,100)\ncall SetUnitMoveSpeed(peer,100)\n"
+        "set cohort=CreateGroup()\ncall GroupAddUnit(cohort,first)\ncall GroupAddUnit(cohort,peer)\n"
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",
+        scenario==0 ? "call UnitAddAbility(peer,'ACGb')" : scenario==1 ? "call UnitAddAbility(peer,'ACSh')" : "call RemoveUnit(peer)",scenario ? "hCLG" : "hGRA");
+    T_ASSERT(run_test_jass(script));
+    followCommitTrace_t trace={0};unsigned actors=0;
+    FILTER_EDICTS(ent,ent->inuse && (ent->class_id==types[0] || ent->class_id==types[1])) {
+        if(actors<2)trace.units[actors]=ent;
+        actors++;
+    }
+    T_EQ(actors,2);level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    groupRadiusTrace_t radii_trace={0};group_radius_trace=&radii_trace;move_test_group_route=record_group_radius;
+    unsigned steps=0,states=0;bool mismatch=actors!=2;
+    cstring_t files[]={"/tmp/wc3-group-before-radius.bin","/tmp/wc3-group-enabled-radius.bin","/tmp/wc3-group-rebound-radius.bin","/tmp/wc3-group-late-radius.bin"};
+    unsigned save_times[]={1900,scenario==2 ? 1950 : 2000,2050,4000};
+    unsigned saved_steps[4]={0},saved_states[4]={0},suffix_steps=0,suffix_states=0;
+    FOR_LOOP(pass,5) {
+    if(pass) {
+        bool loaded=ReadGame(files[pass-1]);T_ASSERT(loaded);if(!loaded)break;
+        steps=saved_steps[pass-1];states=saved_states[pass-1];
+    }
+    while(level.time<31000 && !mismatch) {
+        trace.count=radii_trace.count=0;level.time+=5;globals.RunFrame();
+        if(footprints)FOR_LOOP(i,radii_trace.count) {
+            T_ASSERT(states<footprint_count);if(states>=footprint_count){mismatch=true;break;}
+            uint32_t const *expected=footprints[states++],*actual=radii_trace.rows[i];
+            FOR_LOOP(k,4){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+            if(mismatch)fprintf(stderr,"Group radius state scenario%u counter%u/%u mask%u/%u maximum%08x/%08x retained%08x/%08x\n",scenario,actual[0],expected[0],actual[1],expected[1],actual[2],expected[2],actual[3],expected[3]);
+        }
+        FOR_LOOP(i,trace.count) {
+            T_ASSERT(steps<motion_count);if(steps>=motion_count){mismatch=true;break;}
+            uint32_t const *expected=motion[steps++],*actual=trace.rows[i];
+            FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+            if(mismatch)fprintf(stderr,"Group radius scenario%u commit%u actor%u/%u clock%08x/%08x position%08x,%08x/%08x,%08x velocity%08x,%08x/%08x,%08x group%u time%d\n",scenario,steps-1,actual[0],expected[0],actual[1],expected[1],actual[2],actual[3],expected[2],expected[3],actual[4],actual[5],expected[4],expected[5],trace.units[actual[0]]->movement.group_id,level.time);
+        }
+        if(!pass && !mismatch)FOR_LOOP(i,4)if(level.time==save_times[i]) {
+            saved_steps[i]=steps;saved_states[i]=states;T_ASSERT(WriteGame(files[i]));
+        }
+    }
+    T_EQ(steps,motion_count);T_ASSERT(!jass_rterror_pending(level.vm));
+    if(footprints)T_EQ(states,footprint_count);
+    if(!mismatch){T_EQ(trace.units[0]->current_order_id,0);if(scenario!=2)T_EQ(trace.units[1]->current_order_id,0);}
+    if(pass){suffix_steps+=steps-saved_steps[pass-1];suffix_states+=states-saved_states[pass-1];}
+    }
+    fprintf(stderr,"Group radius scenario%u ordinary commits=%u states=%u Save81 suffix commits=%u states=%u\n",scenario,motion_count,footprint_count,suffix_steps,suffix_states);
+    FOR_LOOP(i,4)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    move_test_group_route=NULL;group_radius_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);
+    level.mapinfo=old_info;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_group_move_matches_original_member_growth) {
+    public_group_radius_journey(0,group_radius_grow_motion,sizeof(group_radius_grow_motion)/sizeof(*group_radius_grow_motion),
+        group_radius_grow_footprints,sizeof(group_radius_grow_footprints)/sizeof(*group_radius_grow_footprints));
+}
+
+TEST(wc3_movement, public_group_move_matches_original_member_shrink) {
+    public_group_radius_journey(1,group_radius_shrink_motion,sizeof(group_radius_shrink_motion)/sizeof(*group_radius_shrink_motion),
+        group_radius_shrink_footprints,sizeof(group_radius_shrink_footprints)/sizeof(*group_radius_shrink_footprints));
+}
+
+TEST(wc3_movement, public_group_move_matches_original_largest_member_removal) {
+    public_group_radius_journey(2,group_radius_remove_motion,sizeof(group_radius_remove_motion)/sizeof(*group_radius_remove_motion),
+        group_radius_remove_footprints,sizeof(group_radius_remove_footprints)/sizeof(*group_radius_remove_footprints));
 }
 
 TEST(wc3_movement, public_smart_follow_matches_original_target_grow_retained) {

@@ -25,6 +25,14 @@ moves](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-hi
 AI, mixed active/idle queues, mixed-lane producers, full eligibility flags and
 general crowd parity remain open.
 
+Public group Move also keeps [live maximum and cached route footprint separate](retail-pathfinding-engine.md#local-group-maximum-and-retained-route-footprint-have-separate-lifetimes)
+when its largest peer grows, shrinks or disappears. Three complete journeys
+match831 motion commits/730 owner states and2207 saved continuation commits.
+A retained coarse route keeps its original sampled footprint; a fresh route uses
+the current live maximum. Owner counter/budget publication precedes all individual
+movement callbacks through the generic ability begin phase. Bound shared-radius
+and other movement families remain open.
+
 Authored repulsion now runs through Move after each owner movement pass, so
 eligible idle flyers separate as well as moving units. It uses saved retail
 random state, exact scalar pair/tail arithmetic and collision-sized endpoint

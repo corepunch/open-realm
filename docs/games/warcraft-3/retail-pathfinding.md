@@ -40,8 +40,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists44 partial layouts,270 verified
-  fields and246 instruction-established prototypes with explicit register/stack
+  `MapPathfindingTypes.java` also persists44 partial layouts,271 verified
+  fields and247 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  546 function names/comments applied and saved. Latest moving-radius readbacks:
+  546 function names/comments applied and saved. Latest group-radius readbacks:
+  `runtime/group-radius-ghidra-readback-saved-261002.json` and
+  `runtime/group-radius-types-final-261002.json`. Prior moving-radius readbacks:
   `runtime/moving-radius-ghidra-readback-saved-261002.json` and
   `runtime/moving-radius-types-final-261002.json`. Prior target resize readbacks:
   `runtime/follow-target-resize-ghidra-readback-saved-261002.json` and
@@ -388,3 +390,12 @@ cursors and deferred Move handoff through Save81. See [payoff51](retail-pathfind
 This closes bounded runtime footprint publication and positive periodic producer
 integration; general timer domains, shared maximum-radius mutation, passages and
 other task/locomotion families remain open.
+
+
+Payoff52 separates unbound group live maximum from retained path footprint after
+public largest-peer growth/shrink/removal. The complete three journeys match831
+engine motion commits,730 owner states and2207 Save81 suffix commits per
+variant. The generic owner begin phase publishes counter and player-row budget
+before standalone movement callbacks. Ghidra now retains path+b4 and the complete
+168be0 setter ABI. Bound shared7c and wider target/task families remain open.
+See [the engine/capture evidence](retail-pathfinding-engine.md#local-group-maximum-and-retained-route-footprint-have-separate-lifetimes).

@@ -1336,6 +1336,20 @@ function install(module) {
         },
         onLeave(){if(this.observe)emit('public-timer-rearm',{...this.row,after:ints(this.request,7).map(v=>v>>>0)});}
     });
+    const radiusGroupSnapshot=group=>{
+        const count=group.add(0x38).readU32(),data=group.add(0x28).readPointer(),shared=group.add(0x7c).readPointer();
+        if(count>12)throw new Error('radius observer group extent differs');
+        return {group:group.toString(),identity:ints(group.add(0x14),2),shared:shared.toString(),
+            sharedIdentity:shared.isNull()?null:ints(shared.add(0x14),2),
+            sharedRadius:shared.isNull()?null:shared.add(0x28).readU32(),
+            counter:base.add(0xd53a48).readPointer().add(0x538).readU32(),
+            members:Array.from({length:count},(_,i)=>{
+                const p=data.add(i*0x2c),mover=p.add(0x14).readPointer();
+                return {identity:ints(p,2),resolved:mover.toString(),radius:mover.isNull()?null:mover.add(0x90).readU32(),owner:mover.isNull()?null:ints(mover.add(0x9c),2)};
+            })};
+    };
+    hook(0x16e1f0,{onEnter(){this.observe=pairScenario;if(this.observe){this.group=this.context.ecx;this.before=radiusGroupSnapshot(this.group);}},onLeave(){if(this.observe)emit('group-radius-accumulate',{before:this.before,after:radiusGroupSnapshot(this.group)});}});
+    hook(0x16c940,{onEnter(args){this.observe=pairScenario;if(this.observe){this.group=this.context.ecx;this.out=args[0];this.before=radiusGroupSnapshot(this.group);}},onLeave(){if(this.observe)emit('group-routing-radius',{...this.before,result:this.out.readU32()});}});
     const snapshotPairGroup = group => {
         const count = group.add(0x38).readU32(), data = group.add(0x28).readPointer();
         if (count > 12) throw new Error('Public pair observer found an oversized group');
@@ -1350,6 +1364,8 @@ function install(module) {
         this.group = pairScenario ? this.context.ecx : null;
         if (this.group) emit('pair-group-phase-begin',{phase,...snapshotPairGroup(this.group)});
         if(this.group && phase==='decide') {
+            const path=this.group.add(0x3c).readPointer();
+            emit('group-footprint-state',{...radiusGroupSnapshot(this.group),path:path.toString(),pathIdentity:ints(path.add(0x14),2),footprint:path.add(0xb4).readU32()});
             const count=this.group.add(0x38).readU32(),data=this.group.add(0x28).readPointer();
             for(let i=0;i<count;i++) {
                 const mover=data.add(i*0x2c+0x14).readPointer(),fine=mover.add(0x98).readPointer(),proximity=mover.add(0x94).readPointer();
@@ -1670,6 +1686,7 @@ function install(module) {
             emit('speed-marker', {value});
         }
         if (value.startsWith('PATHHOLD ')) emit('hold-marker', {value});
+        if (value.startsWith('PATHGROUPRADIUS ')) emit('group-radius-marker',{value});
         if (value.startsWith('PATHMORPH ')) emit('morph-marker',{value});
         if (value.startsWith('PATHSELECT ')) emit('selected-marker', {value});
         if (value.startsWith('PATHTRACE ')) {
@@ -1677,7 +1694,7 @@ function install(module) {
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
-            if ((value.includes('label=start_moving_radius_matrix ') || value.includes('label=start_moving_radius ') || value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position ') || value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate '))) pairScenario = true;
+            if ((value.includes('label=start_group_radius_grow ') || value.includes('label=start_group_radius_shrink ') || value.includes('label=start_group_radius_remove ') || value.includes('label=start_moving_radius_matrix ') || value.includes('label=start_moving_radius ') || value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position ') || value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate '))) pairScenario = true;
             if (value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate ')) resizeScenario = true;
             if (value.includes('label=complete ')) pairScenario = false;
             emit('marker', {value});

@@ -47,6 +47,7 @@ typedef struct {
 #ifdef BZ_TESTS
 /* Read-only observer of scheduled Move commits, before same-clock map timers. */
 static void (*move_test_motion_commit)(edict_t *unit);
+static void (*move_test_group_route)(moveGroup_t const *group, edict_t *singleton);
 #endif
 
 #define MOVE_SLIDE_STEP BZ_ROUTE_SLIDE_STEP
@@ -2302,6 +2303,10 @@ static void ai_move_walk(edict_t *ent) {
         if (ent->movement.fine_route.group_count && (revision!=ent->movement.fine_route.group_revision ||
             previous.x!=ent->movement.fine_route.group_goal.x || previous.y!=ent->movement.fine_route.group_goal.y))
             ent->movement.path.valid=false;
+#ifdef BZ_TESTS
+        if (level.scheduled_think && ent->movement.fine_route.group_count && move_test_group_route)
+            move_test_group_route(NULL,ent);
+#endif
     }
     if (point_order && move_point_arrival(ent)) return;
 
@@ -2646,6 +2651,11 @@ static void move_group_seed_route(moveGroup_t *group) {
 
 static bool move_group_route(moveGroup_t *group) {
     edict_t *source=move_group_source(group); if (!source) return false;
+    /* Original16c940 scans the live resolved members when routing samples a
+     * local group. Membership pruning has already removed departed owners. */
+    group->radius=0;
+    FOR_LOOP(i,group->count) if (group->members[i].unit->collision>group->radius)
+        group->radius=group->members[i].unit->collision;
     wc3GridPose_t pose; unit_predicted_pose(source,&pose);
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
     movePathQuery_t query={.geometry={&from,&group->goal,group->radius,M_UnitStaticPathingFlags(source)},
@@ -2834,6 +2844,9 @@ static void move_run_group_updates(void) {
             group->target_refresh=-1;
         }
         if (!move_group_route(group)) { group->ticking=false; continue; }
+#ifdef BZ_TESTS
+        if (move_test_group_route) move_test_group_route(group,NULL);
+#endif
         FOR_LOOP(i,group->count) group->members[i].flags&=~0x200000u;
         move_deciding_group=group; move_deciding_excluded=0;
         if (group->count>1 && !(group->flags&0x200)) FOR_LOOP(i,group->count)
@@ -3025,7 +3038,8 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return move_start_queued_group(ent,call->queued_order);
     case A_GROUP_POINT_ORDER:
         return move_group_point_order(call->group_order) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
-    case A_OWNER_UPDATE: move_update_fine_budget(); move_run_group_updates(); move_repulse_owner_update(); return true;
+    case A_OWNER_BEGIN: move_update_fine_budget(); return true;
+    case A_OWNER_UPDATE: move_run_group_updates(); move_repulse_owner_update(); return true;
     case A_UNIT_TYPE_CHANGING:
         if (ent->currentmove==&move_move_walk) {
             unit_commit_current_pose(ent);

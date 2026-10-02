@@ -841,3 +841,19 @@ capture contracts pass. [Production journeys and Save81 continuations](retail-pa
 provide separate engine evidence. General scalar timeout/getter boundaries,
 paused remainder, epoch crossings, heap ordering and other movement families
 remain open.
+
+
+Payoff52 adds `live-group-radius-captures-261002`: twelve complete original
+captures repeat public group Move with a peer growing, shrinking or disappearing.
+The base observer and read-only footprint observer preserve identical canonical
+motion and owner phases. The verifier checks3324 commits,3304 decisions,2920
+owner passes,20 real routing-radius queries and1460 observed path+b4 words.
+It separately derives the unbound live maximum from actual resolved members;
+that value may decrease while the old route retains its sampled footprint.
+Wrong cached footprint, stale owner, singleton reissue and incomplete extent
+controls reject the evidence. Each scene publishes one group order.
+
+Inventory270 entries/111 fixtures/53 strict live entries;26 fresh capture
+contracts pass. [Normal engine and Save81 journeys](retail-pathfinding-engine.md#local-group-maximum-and-retained-route-footprint-have-separate-lifetimes)
+provide independent lifecycle regressions. Bound shared7c maximum publication,
+other movement/target families and arbitrary terrain remain open.

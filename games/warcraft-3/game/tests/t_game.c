@@ -4858,11 +4858,11 @@ TEST(wc3_save, round_trip_active_move_group) {
     T_EQ(slow->current_order_id, G_OrderId("move"));
     T_EQ(level.next_move_group_id, next_id);
     T_EQ(ARRAY_COUNT(level.move_groups),1); T_EQ(level.move_groups[0]->count,2);
-    S_RunAbilityOwnerUpdates();
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
     T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),100,0.001f);
     T_ASSERT(unit_issueimmediateorder(slow, "stop"));
     T_EQ(slow->current_order_id, 0);
-    S_RunAbilityOwnerUpdates(); T_EQ(level.move_groups[0]->count,1);
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates(); T_EQ(level.move_groups[0]->count,1);
     T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),300,0.001f);
     remove(filename);
 }

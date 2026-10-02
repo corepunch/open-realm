@@ -749,7 +749,7 @@ typedef enum {
 #define AB_INNATE       (1u << 9)  // bit 9; unit-data behavior; receives lifecycle messages without a command-card slot
 #define AB_COOLDOWN_ON_STATUS_REMOVE (1u << 10) // bit 10; defer spell cooldown until its owned status ends
 #define AB_STATUS_EVENTS (1u << 11) // bit 11; active statuses from this ability accept generic status policy events
-#define AB_OWNER_UPDATE (1u << 12) // bit 12; persistent owner-clock behavior; receives one update after scheduled moves
+#define AB_OWNER_UPDATE (1u << 12) // bit 12; receives begin/update around scheduled owner-clock moves
 #define AB_ENGINE_EVENTS (1u << 13) // bit 13; engine-wide lifecycle/order notifications reach this ability
 #define AB_QUEUEABLE    (1u << 14) // bit 14; the command button accepts the generic Shift queue modifier
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
@@ -868,6 +868,7 @@ typedef enum {
     A_ATTACK_DAMAGE_BONUS, /* Active status ability query: return additive attack damage. */
     A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
     A_TARGET_REMOVED,    /* Active move owner: call->removed_target is semantically removed, still allocated. */
+    A_OWNER_BEGIN,      /* Before owner-clock movement callbacks: publish the owning scheduler state. */
     A_OWNER_UPDATE,     /* After owner-clock movement callbacks: update persistent ability-owned lists. */
     A_UNIT_OWNER_CHANGING, /* Old owner remains published while behaviors cancel their orders/requests. */
     A_UNIT_OWNER_CHANGED, /* Ownership changes refresh behavior-owned policies after publishing the new player. */
@@ -2804,6 +2805,7 @@ bool G_ActivateMovePathField(uint32_t generation, float radius, uint8_t flags);
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);
 void S_RunAbilityOwnerUpdates(void);
+void S_BeginAbilityOwnerUpdates(void);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
 void S_UnitTargetRemoved(edict_t *);
 bool S_UnitAbilityMoveArrive(edict_t *);

@@ -477,6 +477,14 @@ function PathProbeTick takes nothing returns nothing
             call Preload("PATHDOZEN tick=" + I2S(udg_PathProbeTick) + " member=" + I2S(crowdIndex) + " x=" + R2S(GetUnitX(udg_PathProbeCrowd[crowdIndex])) + " y=" + R2S(GetUnitY(udg_PathProbeCrowd[crowdIndex])) + " order=" + I2S(GetUnitCurrentOrder(udg_PathProbeCrowd[crowdIndex])))
             set crowdIndex = crowdIndex + 1
         endloop
+    elseif PATH_PROBE_SCENARIO>=65 and PATH_PROBE_SCENARIO<=67 then
+        if udg_PathProbeTick==10 then
+            if GroupPointOrder(udg_PathProbeGroup,"move",-1936.0,-144.0) then
+                call PathProbeRecord("group_radius_order_accepted")
+            else
+                call PathProbeRecord("group_radius_order_rejected")
+            endif
+        endif
     elseif PATH_PROBE_SCENARIO == 47 then
         if udg_PathProbeTick == 10 then
             if GroupPointOrder(udg_PathProbeGroup, "move", -1936.0, -720.0) then
@@ -690,7 +698,7 @@ function PathProbeTick takes nothing returns nothing
         set udg_PathProbeBuilding = null
         call PathProbeRecord("after_widget_remove")
     endif
-    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 and PATH_PROBE_SCENARIO != 45 and PATH_PROBE_SCENARIO != 46 and PATH_PROBE_SCENARIO != 47 and PATH_PROBE_SCENARIO != 48 then
+    if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 and PATH_PROBE_SCENARIO != 45 and PATH_PROBE_SCENARIO != 46 and PATH_PROBE_SCENARIO != 47 and PATH_PROBE_SCENARIO != 48 and PATH_PROBE_SCENARIO < 65 then
         call PathProbeRecord("before_order")
         if ((PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 62)) then
             if IssueTargetOrder(udg_PathProbeUnit, "smart", udg_PathProbeTarget) then
@@ -958,6 +966,20 @@ function PathProbeTick takes nothing returns nothing
     if PATH_PROBE_SCENARIO == 49 or PATH_PROBE_SCENARIO == 50 or (PATH_PROBE_SCENARIO == 51 or PATH_PROBE_SCENARIO == 52) then
         call Preload("PATHSELECT tick=" + I2S(udg_PathProbeTick) + " peerX=" + R2S(GetUnitX(udg_PathProbeCrowd[1])) + " peerY=" + R2S(GetUnitY(udg_PathProbeCrowd[1])) + " peerOrder=" + I2S(GetUnitCurrentOrder(udg_PathProbeCrowd[1])))
     endif
+    if PATH_PROBE_SCENARIO>=65 and PATH_PROBE_SCENARIO<=67 then
+        if udg_PathProbeTick==20 then
+            call PathProbeRecord("before_group_radius_change")
+            if PATH_PROBE_SCENARIO==65 then
+                call UnitAddAbility(udg_PathProbeCrowd[1],'ACGb')
+            elseif PATH_PROBE_SCENARIO==66 then
+                call UnitAddAbility(udg_PathProbeCrowd[1],'ACSh')
+            else
+                call RemoveUnit(udg_PathProbeCrowd[1])
+            endif
+            call PathProbeRecord("after_group_radius_change")
+        endif
+        call Preload("PATHGROUPRADIUS tick="+I2S(udg_PathProbeTick)+" peerType="+I2S(GetUnitTypeId(udg_PathProbeCrowd[1]))+" peerHandle="+I2S(GetHandleId(udg_PathProbeCrowd[1]))+" peerOrder="+I2S(GetUnitCurrentOrder(udg_PathProbeCrowd[1]))+" peerX="+R2S(GetUnitX(udg_PathProbeCrowd[1]))+" peerY="+R2S(GetUnitY(udg_PathProbeCrowd[1]))+" grow="+I2S(GetUnitAbilityLevel(udg_PathProbeCrowd[1],'ACGb'))+" shrink="+I2S(GetUnitAbilityLevel(udg_PathProbeCrowd[1],'ACSh')))
+    endif
     if PATH_PROBE_SCENARIO == 63 then
         if udg_PathProbeTick == 20 then
             call PathProbeRecord("before_mover_resize")
@@ -1085,6 +1107,18 @@ function PathProbeInit takes nothing returns nothing
         set udg_PathProbeGroup = CreateGroup()
         call GroupAddUnit(udg_PathProbeGroup, udg_PathProbeCrowd[0])
         call GroupAddUnit(udg_PathProbeGroup, udg_PathProbeCrowd[1])
+    endif
+    if PATH_PROBE_SCENARIO>=65 and PATH_PROBE_SCENARIO<=67 then
+        set udg_PathProbeCrowd[0]=udg_PathProbeUnit
+        if PATH_PROBE_SCENARIO==65 then
+            set udg_PathProbeCrowd[1]=CreateUnit(Player(0),'hfoo',-1840.0,-976.0,90.0)
+        else
+            set udg_PathProbeCrowd[1]=CreateUnit(Player(0),'hCLG',-1840.0,-976.0,90.0)
+        endif
+        call SetUnitMoveSpeed(udg_PathProbeCrowd[1],100.0)
+        set udg_PathProbeGroup=CreateGroup()
+        call GroupAddUnit(udg_PathProbeGroup,udg_PathProbeCrowd[0])
+        call GroupAddUnit(udg_PathProbeGroup,udg_PathProbeCrowd[1])
     endif
     if PATH_PROBE_SCENARIO == 48 then
         set udg_PathProbeCrowd[0] = udg_PathProbeUnit

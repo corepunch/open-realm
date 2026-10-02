@@ -622,9 +622,12 @@ bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec
 bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *fine) {
     if (!input || !route || !fine || !input->geometry.target || !pathmap.width || !pathmap.height) return false;
     vec2_t goal=move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
+    /* Original16ce10 resamples16c940 and writes path+b4 only when it admits a
+     * route. A surviving cached route keeps its footprint after a peer leaves;
+     * the current live maximum is used when the destination/map/mask changes. */
     bool retained=route->group_points && route->group_count && route->group_index<route->group_count &&
         route->group_revision==pathmap.revision && route->mask==input->geometry.blocked_flags &&
-        route->group_radius==input->geometry.radius && route->group_goal.x==goal.x && route->group_goal.y==goal.y;
+        route->group_goal.x==goal.x && route->group_goal.y==goal.y;
     if (!retained) {
         unsigned lane=0;
         while (lane<4 && move_acc_masks[lane]!=input->geometry.blocked_flags) lane++;

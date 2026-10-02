@@ -174,6 +174,7 @@ void monster_think(edict_t *self) {
 /* Callback cadence is data on the owning move; the snapshot frame still owns animation. */
 void M_RunScheduledThinks(void) {
     level.scheduled_think = true;
+    S_BeginAbilityOwnerUpdates();
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *self = g_edicts + i;
         if (!self->inuse || !G_UnitIsWorldActive(self) || self->paused || self->stunned ||

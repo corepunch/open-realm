@@ -28,6 +28,12 @@ class ResizeMapTests(unittest.TestCase):
         for scenario,code,target in [('follow_target_grow',b'ACGb',b'hCLG'),('follow_target_shrink',b'ACSh',b'hCLS')]:
             expected=struct.pack('<III',2,0,1)+b'Sca1'+code+struct.pack('<I',2)+b'Cha1'+struct.pack('<III',3,1,0)+target+b'\0'+code+b'areq'+struct.pack('<III',3,0,0)+b'\0'+code
             self.assertEqual(resize_ability(scenario),expected)
+    def test_group_radius_scenes_preserve_both_chaos_aliases(self):
+        expected=struct.pack('<III',2,0,2)
+        for code,target in [(b'ACGb',b'hCLG'),(b'ACSh',b'hCLS')]:
+            expected+=b'Sca1'+code+struct.pack('<I',2)+b'Cha1'+struct.pack('<III',3,1,0)+target+b'\0'+code+b'areq'+struct.pack('<III',3,0,0)+b'\0'+code
+        for scenario in ['group_radius_grow','group_radius_shrink','group_radius_remove']:
+            self.assertEqual(resize_ability(scenario),expected)
     def test_research_control_inherits_original_requires(self):
         expected=struct.pack('<III',2,0,1)+b'Sca1ACGb'+struct.pack('<I',1)+b'Cha1'+struct.pack('<III',3,1,0)+b'hCLG\0ACGb'
         self.assertEqual(resize_ability('follow_target_resize_gate'),expected)

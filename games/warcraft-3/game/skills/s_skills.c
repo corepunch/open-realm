@@ -760,6 +760,10 @@ ability_t const *FindAbilityByOrder(cstring_t order) {
 }
 
 /* Owner lists are ability-owned; keep the scheduler independent of concrete movement rules. */
+void S_BeginAbilityOwnerUpdates(void) {
+    FOR_LOOP(i, num_owner_updates) owner_updates[i](NULL, A_OWNER_BEGIN, NULL);
+}
+
 void S_RunAbilityOwnerUpdates(void) {
     FOR_LOOP(i, num_owner_updates) owner_updates[i](NULL, A_OWNER_UPDATE, NULL);
 }

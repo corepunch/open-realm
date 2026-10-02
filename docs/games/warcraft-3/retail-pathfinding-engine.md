@@ -5175,3 +5175,72 @@ in2381 WC3 tests per variant plus the remaining repository suites. Ability audit
 269-entry inventory,252 Python checks and25 fresh capture contracts pass. The
 backlog now has128 completed/184 open leaves, including the explicit split of
 positive periodic scheduling from the remaining timeout/getter domains.
+
+
+### Local group maximum and retained route footprint have separate lifetimes
+
+Payoff52 ports FOOT-01.3.1 through actual public GroupPointOrder Move. Three
+journeys grow the moving peer from31 to63, shrink the largest peer from63 to7,
+or remove it. All831 complete normal-frame motion commits and730 owner footprint
+states match original words per RoC/TFT variant. Four completed-frame Save81
+checkpoints per journey resume2207 motion commits and2193 footprint states:
+growth816/811, shrink832/827, removal559/555. Saved state includes the pending
+Chaos stage, membership, live group maximum, retained route footprint and owner
+counter. The save format is unchanged.
+
+The initial local physical group has two members. Chaos preserves the peer's
+public handle and canonical mover, then hands it to a new physical owner. The
+surviving old group now has a lower live maximum; removal also leaves one member.
+Original16c940 scans resolved live members when the group is unbound. However,
+16ce10 only calls that getter and168be0 Path_SetFootprint when admitting a new
+route. Existing path+b4 remains31 for the growth survivor and63 for the shrink
+and removal survivors. The newly rebound peer samples63 or7. Recalculating a
+live maximum must not invalidate a retained route solely because that maximum
+changed. Move now updates the group maximum after membership pruning, while
+G_UnitMoveGroupDestination retains the footprint until actual route admission.
+
+Comparing owner states also exposed a counter/scheduler phase mismatch hidden
+by the already matching motion words. Standalone point movers ran before the
+counter advanced; retained cohorts ran after it. The generic ability owner
+scheduler now dispatches A_OWNER_BEGIN before individual movement callbacks and
+A_OWNER_UPDATE after them. Move publishes its counter and player-row budget in
+the begin phase, then visits physical groups and repulsion in the update phase.
+No movement rule enters the universal client or general lifecycle dispatch.
+
+Twelve complete original captures use immutable v3 base and v4 read-only
+footprint observers. All versions/repeats retain identical canonical phases:
+3324 motion commits,3304 scalar decisions,2920 owner passes,20 actual routing
+radius queries and1460 observed path+b4 samples. The fixture separates observed
+cached footprint from the live maximum derived by the verified16c940 member
+scan. Bound shared7c accumulation and other target/task families remain
+FOOT-01.3; these unbound journeys do not certify them.
+
+Artifacts under the report root:
+
+- `runtime/group-radius-source-v{3,4}-261002/` and
+  `group-radius-{grow,shrink,remove}-v{3,4}-{first,repeat}-261002.jsonl`:
+  immutable accepted producers and full300-marker journeys. Earlier v1/v2
+  setups accidentally issued a second singleton Move after the group order;
+  interrupted/empty captures and all setup sources remain diagnostic archives.
+- `runtime/group-radius-strict-final-261002/corpus-results.json`:26 fresh
+  capture contracts pass with current production numeric sources. Inventory270
+  entries/111 fixtures/53 strict live entries.
+- `runtime/group-radius-types-final-261002.json` and
+  `runtime/group-radius-ghidra-readback-saved-261002.json`:546 saved roles,
+  44 partial layouts/271 verified fields/247 explicit x86 ABIs/46 globals.
+  WC3PathPrefix extends monotonically to b8 to record scalar footprint+b4;
+  all existing fields/types remain verified and unassigned bytes undefined.
+- `runtime/group-radius-save-engine-first-261002.log`:48021 passing assertions
+  per variant for the three complete journeys and twelve saved continuations.
+
+FOOT-01.3's bound shared7c producer runs through Captain AI batching and requires
+its own Move-owned shared publication layer; it remains open. The next runnable
+engine comparison is FOOT-04.2's public blocked-goal lifecycle.
+
+Payoff52 final checks: forced debug passes738393 assertions/2347 WC3 tests per
+variant. Forced release and full `make test` pass738826 assertions/2384 WC3 tests
+per variant plus the remaining repository suites. All263 pathfinding Python
+checks, ability audit,270-entry inventory and26 fresh capture contracts pass.
+The extra broad WC3 Python discovery report retains two unavailable external
+ability-binary fixtures; the required pathfinding suite and repository tests are
+green. Backlog129 completed/184 open leaves.

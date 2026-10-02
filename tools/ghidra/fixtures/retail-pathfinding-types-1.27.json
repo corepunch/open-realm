@@ -326,7 +326,7 @@
     },
     {
       "name": "WC3PathPrefix",
-      "length": 160,
+      "length": 184,
       "fields": [
         {
           "offset": 0,
@@ -447,6 +447,12 @@
           "name": "query_mask",
           "type": "u32",
           "evidence": "168c40/05c7e0 stock mask publication"
+        },
+        {
+          "offset": 180,
+          "name": "footprint",
+          "type": "WC3PathScalar",
+          "evidence": "168be0 seven-instruction body writespath+b4; repeated scene65/66/67 read-only group-footprint-state retains the sampled old coarse footprint after largest-member Chaos/removal."
         }
       ]
     },
@@ -6452,6 +6458,25 @@
         }
       ],
       "evidence": "Complete24-instruction listing: ECX savedEDI,stack4 savedESI, Math_Add(clock40,request8) writesrequest4, flags10, heapinsert, RET4; repeated original periodic rearm witness."
+    },
+    {
+      "address": "6f168be0",
+      "name": "Path_SetFootprint",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "radius",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete seven instructions, ECX path, stack4 scalar pointer, RET4. Copies pointed raw scalar to+b4; no returned value promised."
     }
   ],
   "globals": [

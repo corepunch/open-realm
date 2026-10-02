@@ -28,6 +28,9 @@ public class MapPathfindingTypes extends GhidraScript {
     // every existing field, type, offset and comment before allowing refinement.
     private boolean preservesType(DataType existing, DataType desired) {
         if (existing.isEquivalent(desired)) return true;
+        if (existing instanceof Structure && desired instanceof Structure &&
+            existing.getPathName().equals(desired.getPathName()))
+            return preservesFields(existing,desired);
         if (existing.getLength() != desired.getLength()) return false;
         if (existing instanceof Pointer && desired instanceof Pointer) {
             DataType old = ((Pointer)existing).getDataType(), next = ((Pointer)desired).getDataType();
@@ -36,13 +39,12 @@ public class MapPathfindingTypes extends GhidraScript {
             return old != null && next != null && old.getPathName().equals(next.getPathName()) &&
                 old.getCategoryPath().equals(CATEGORY) && types.containsKey(old.getName());
         }
-        return existing instanceof Structure && desired instanceof Structure &&
-            existing.getPathName().equals(desired.getPathName()) && preservesFields(existing,desired);
+        return false;
     }
 
     private boolean preservesFields(DataType existing, DataType desired) {
         if (!(existing instanceof Structure) || !(desired instanceof Structure) ||
-            existing.getLength() != desired.getLength()) return false;
+            existing.getLength() > desired.getLength()) return false;
         Structure old = (Structure)existing, next = (Structure)desired;
         for (DataTypeComponent field : old.getDefinedComponents()) {
             if (Undefined.isUndefined(field.getDataType())) continue;

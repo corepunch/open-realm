@@ -8,11 +8,12 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**128 done / 312 tasks; 184 remaining.** Payoff51 closes FOOT-01.2 and
-NUM-02.9.1 with moving Chaos collision publication at nine boundary radii and
-retained scalar public/owner timer deadlines. Native journeys match1179 new
-ordinary engine commits and4280 Save81 suffix commits per variant; the complete
-90-second matrix includes the former41-second timing drift. Counts describe this backlog,
+**129 done / 313 tasks; 184 remaining.** Payoff52 closes FOOT-01.3.1:
+public largest-peer growth/shrink/removal preserves the distinction between live
+group maximum and retained route footprint. Three native journeys match831
+ordinary engine commits/730 owner states and2207 Save81 suffix commits/2193
+owner states per variant. The owner begin phase publishes counter and scheduler
+state before any individual movement callback. Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -24,7 +25,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
 | MAP — Map construction and lifetime | 7 | 15 |
-| FOOT — Footprints and query policy | 8 | 7 |
+| FOOT — Footprints and query policy | 9 | 7 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 23 | 13 |
@@ -50,8 +51,9 @@ MAP-03.7 explicitly adds the inside-footprint engine failure discovered while au
 FOOT-01.4/05 explicitly split engine class-footprint integration into completed
 nearby/direct/endpoint consumers and the now completed long/shared field geometry.
 The shared field algorithm is still not retail hierarchy parity.
-Moving point-Move runtime radius publication is completed FOOT-01.2; shared
-maximum-radius mutation and full passage matrices remain FOOT-01.3/02.
+Moving point-Move radius publication is completed FOOT-01.2; local group
+maximum/cache mutation is completed01.3.1. Bound shared7c publication through
+Captain AI request batching and full passage matrices remain FOOT-01.3/02.
 FINE-01.4 explicitly owns incremental engine integration of the completed static
 search policy; it does not replace FINE-01.2/03 dynamic composition or FINE-02
 termination requirements. FINE-01.6 explicitly splits the overlapping target link producer from01.3's completed supplied-chain matrix and separate-target engine port. FINE-01.5 explicitly adds the independently reviewable engine idle-object port; ground/flight original composition is completed within01.2, while its other public lanes remain required.
@@ -150,8 +152,8 @@ NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | FOOT-01.3 | Public moving Chaos and saved scalar owner deadlines | Shared maximum-radius publication after largest-member/target mutation |
-| 2 | FOOT-04 | Verified static and idle-object geometry | Public placement/teleport admission contracts and engine consumers |
+| 1 | FOOT-04.2 | Public point Move, partial-route/retry helpers and blocked-goal producer | Original blocked-goal lifecycle, normal engine frames and saved continuation |
+| 2 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Live AI producer plus Move-owned shared publication and saved travel |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
 decimal CRT grammar/locale, source lexer domains and original nonreturning VM
@@ -308,7 +310,8 @@ Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers,
 
 - [x] **FOOT-01.1** Authored collision conversion and the four fine-class thresholds are recovered and covered by the footprint oracle. Evidence: [footprints][footprints]; runtime producer coverage is not complete.
 - [x] **FOOT-01.2** Change collision radius through a runtime producer; test below/equal/above each class boundary and assert geometry/class changes. Evidence: [payoff51](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines), repeated public Chaos point-Move growth and nine boundary radii, retained canonical mover with new physical owner, exact geometry/class words,1179 ordinary engine commits and4280 Save81 suffix commits. Engine commits old pose, refreshes occupancy/routing, publishes authored speed and defers preserved-task reissue. Other task/locomotion families and group maximum remain their own leaves.
-- [ ] **FOOT-01.3** Trace group maximum and target-radius producers; assert updates after the largest member/target changes size or disappears.
+- [ ] **FOOT-01.3** Trace group maximum and target-radius producers; assert updates after the largest member/target changes size or disappears. Local unbound group sampling/cache integration is explicitly split into01.3.1; bound shared7c accumulation, target families and their live lifetime compositions remain here.
+- [x] **FOOT-01.3.1** Port the local physical group maximum and retained coarse footprint as distinct producers. Repeat public group Move through largest-member Chaos growth/shrink/removal, compare complete motion plus original path+b4 at every owner, correct the pre-movement owner counter/scheduler phase, and restore both live maximum and cached footprint through Save81. The remaining shared7c/target producer scope stays01.3. Evidence: [payoff52](retail-pathfinding-engine.md#local-group-maximum-and-retained-route-footprint-have-separate-lifetimes), twelve repeated base/read-only footprint captures,831 complete engine commits/730 owner states and2207 motion/2193 owner Save81 suffix states per variant; full debug/release/repository checks,263 Python checks,26 fresh capture contracts and saved Ghidra readback pass.
 
 - [x] **FOOT-01.4** Apply the proven static 1/2/3/4-cell classes to engine fine routing, direct/step endpoint checks and point/group destination correction. Original24 cardinal corridor requests and1,184 complete endpoint validations pass; C endpoint geometry matches at O0/O2. The engine first reproduced16 class/corridor failures, then actual Move orders advance with exact destinations in14 fitting cases. Nearest-ring and Bresenham/corner adapters remain explicit partial policies. Evidence: [engine collision classes](retail-pathfinding-engine.md#retail-collision-classes-reach-routing-and-stepping).
 - [x] **FOOT-01.5** Synchronize long/shared routing fields with the same game-owned class geometry. A two-cell winding passage beyond48 cells now admits class1, actual Move ticks advance legally, a one-cell pinch invalidates the generation and separates class0/class1 fields and fallbacks. Correct pending-job scratch lifetime after a synchronous source flood. Existing group/worker/save regressions and both full fixture suites pass. Shared SPFA/interpolation remains the engine algorithm, not retail adaptive hierarchy parity. Evidence: [long field geometry](retail-pathfinding-engine.md#long-fields-use-the-same-class-geometry-as-move).

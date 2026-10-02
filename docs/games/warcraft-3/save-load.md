@@ -874,3 +874,12 @@ matches254 growth and4026 nine-case matrix suffix commits per RoC/TFT variant.
 These tests include future births and radius changes after restoration. General
 timer getters, paused scalar remainder, heap ties and epoch-crossing inputs remain
 open. See [the motion and deadline evidence](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines).
+
+
+Group-radius mutation now retains the live group maximum separately from its
+cached coarse-route footprint. Public group growth/shrink/removal journeys
+resume2207 exact motion commits and2193 owner footprint states from twelve
+Save81 checkpoints, including before/after pending Chaos rebind or member
+removal. Owner counters and player-row budgets publish before any standalone
+movement callback after restoration, through the generic A_OWNER_BEGIN phase.
+No format change is required. See [payoff52](retail-pathfinding-engine.md#local-group-maximum-and-retained-route-footprint-have-separate-lifetimes).
