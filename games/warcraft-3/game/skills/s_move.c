@@ -2978,6 +2978,10 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 /* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
 BZ_ABILITY_PROC(CAbilityMove) {
     switch (msg) {
+    case A_DEATH:
+        /* Native death retires active Follow heads synchronously, before the
+         * next physical-owner update or a replacement target can be created. */
+        S_UnitTargetRemoved(ent); return true;
     case A_QUEUE_ORDER_START:
         return move_start_queued_group(ent,call->queued_order);
     case A_GROUP_POINT_ORDER:
@@ -3012,6 +3016,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_TARGET_REMOVED:
         if (!call || !move_is_following(ent) || ent->movement.follow_target != call->removed_target)
             return false;
+        move_detach_group(ent); ent->movement.group_id=0;
         ent->movement.follow_target = NULL;
         if (ent->goalentity == call->removed_target) ent->goalentity = NULL;
         unit_stand(ent);

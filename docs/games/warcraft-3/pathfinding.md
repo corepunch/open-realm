@@ -508,3 +508,11 @@ speed-change journey matches1015 absolute commits plus2595 saved suffix commits.
 Save80 retains target generation, range and refresh state. Structures, flight,
 visibility/loss and delayed replan producers remain explicitly open. See
 [Smart Follow integration](retail-pathfinding-engine.md#smart-follow-tracks-a-moving-target-through-a-speed-change).
+
+Ground Follow now cancels synchronously when its target dies or is removed,
+detaching its physical owner before stand. Actual original target pool/public
+handle reuse never silently adopts the replacement. The public death and
+removal journeys each match948 normal-frame commits and1746 Save80 suffix
+commits, including a save while the replacement exists but Follow is idle.
+[Payoff48 evidence](retail-pathfinding-engine.md#follow-cancels-synchronously-before-target-pool-reuse)
+records the exact scope; save format80 is unchanged.

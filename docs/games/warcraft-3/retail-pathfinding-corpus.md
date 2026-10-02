@@ -783,3 +783,16 @@ completion. Normal engine frames and three Save80 continuations independently
 match1015 plus2595 suffix commits. Inventory is265 entries/106 fixtures with48
 strict live contracts; ten fresh selected/public/owner/Follow contracts preserve
 the earlier witnesses. See [moving-target integration](retail-pathfinding-engine.md#smart-follow-tracks-a-moving-target-through-a-speed-change).
+
+Payoff48 adds `live-follow-target-reuse-captures-261002`, covering four complete
+original death/removal and actual pool/public-handle reuse captures. The strict
+verifier checks fresh canonical generation, immediate head cancellation,
+no implicit replacement adoption, explicit Smart reacquisition, every owner
+phase and948 full motion rows per capture. Main/target markers are frozen
+per retirement mode because KillUnit retains a dead target until removal.
+`retail-follow-target-reuse-1.27.json` supplies the frozen expectations;
+`verify_wc3_follow_target_reuse_trace.py` performs independent C scalar checks.
+The corpus now declares266 entries,107 fixtures and49 strict live entries.
+[Normal engine/save evidence](retail-pathfinding-engine.md#follow-cancels-synchronously-before-target-pool-reuse)
+is separate from these captured-input C checks. Wider queued/combat callbacks
+remain open; bounded Stop is not natural Follow head completion.

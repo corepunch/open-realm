@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "96 executable original oracle contracts,121 archive audits and48 strict live contracts;265 total entries.",
+  "scope": "96 executable original oracle contracts,121 archive audits and49 strict live contracts;266 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -18542,6 +18542,244 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "inputs": {
+        "capture": "runtime/follow-target-remove-reuse-first-261002.jsonl",
+        "sha256": "46c357105beb5d1eb71ea268cdb2900862a593c1d7bc1b9108de3318e1b1e608",
+        "bytes": 3320072,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+            "wc3_pathfinding.js": "b38f1615d5ed39d8a0bac25f247426166468e1dade2663e8347757cf99e4fb34",
+            "wc3_pathfinding_probe.j": "1eff308515022f22f74432b09786b6754cc8d9b1d8475ba1be1ecf4f3ac2ef08",
+            "make_wc3_pathfinding_map.py": "4f9beeb417f2988ab58c0699e5d7a9e144c257ad1187ef37b66c85dbc26286cf",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "ef370dd31de4ab9ad25b733edba647ac46cc8cb2017d09bc8a218937d8c7c848"
+          },
+          "map": "Maps\\PathingRE-FollowTargetRemoveReuse-261002.w3m",
+          "seconds": 70.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true,
+      "id": "live-follow-target-reuse-captures-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_follow_target_reuse_trace.py",
+        "{archive}/runtime/follow-target-remove-reuse-first-261002.jsonl",
+        "{archive}/runtime/follow-target-remove-reuse-repeat-261002.jsonl",
+        "{archive}/runtime/follow-target-kill-reuse-first-261002.jsonl",
+        "{archive}/runtime/follow-target-kill-reuse-repeat-261002.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-follow-target-reuse-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_follow_target_reuse.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "follow-target-reuse-captures.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 4
+        },
+        "exact_decisions": {
+          "equal": 844
+        },
+        "exact_velocity_commits": {
+          "equal": 3792
+        },
+        "group_owner_passes": {
+          "equal": 3792
+        },
+        "native_mover_reuses": {
+          "equal": 4
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Public friendly ground Smart Follow; synchronous target RemoveUnit/KillUnit, actual original mover/public-handle reuse with fresh canonical generation, no implicit reacquisition, explicit new Smart and bounded Stop. Whole-engine cadence and saved continuations are independent C regressions. Wider callbacks, queued/combat parents, masks/structures and arbitrary scenes remain open.",
+      "exclusions": [
+        "Friendly visible ground Smart with target death/removal and a replacement, public Smart reacquisition and bounded Stop. Combat/queued parents, callback reentrancy, structures/air, wider masks and arbitrary maps remain open."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-remove-reuse-repeat-261002.jsonl",
+            "sha256": "469deb9109cc7fa099f6710d9855437f14ad685a57e6d542e8c4fd9ae7f1653f",
+            "bytes": 3320211,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "b38f1615d5ed39d8a0bac25f247426166468e1dade2663e8347757cf99e4fb34",
+                "wc3_pathfinding_probe.j": "1eff308515022f22f74432b09786b6754cc8d9b1d8475ba1be1ecf4f3ac2ef08",
+                "make_wc3_pathfinding_map.py": "4f9beeb417f2988ab58c0699e5d7a9e144c257ad1187ef37b66c85dbc26286cf",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "ef370dd31de4ab9ad25b733edba647ac46cc8cb2017d09bc8a218937d8c7c848"
+              },
+              "map": "Maps\\PathingRE-FollowTargetRemoveReuse-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-kill-reuse-first-261002.jsonl",
+            "sha256": "9aa052b3706ed997b684f4968b33226416528381f1b9f7f049210b7714bc932e",
+            "bytes": 3322545,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "b38f1615d5ed39d8a0bac25f247426166468e1dade2663e8347757cf99e4fb34",
+                "wc3_pathfinding_probe.j": "1eff308515022f22f74432b09786b6754cc8d9b1d8475ba1be1ecf4f3ac2ef08",
+                "make_wc3_pathfinding_map.py": "4f9beeb417f2988ab58c0699e5d7a9e144c257ad1187ef37b66c85dbc26286cf",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "a549f7aebf63579778635e55c3e0922e935f7946fd444c5c05169c2512356531"
+              },
+              "map": "Maps\\PathingRE-FollowTargetKillReuse-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-kill-reuse-repeat-261002.jsonl",
+            "sha256": "bf682bfc4b5bc09ce6987ec3ebbb40a2db5b50892d03ae48703d617b5c0e879d",
+            "bytes": 3322545,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "b38f1615d5ed39d8a0bac25f247426166468e1dade2663e8347757cf99e4fb34",
+                "wc3_pathfinding_probe.j": "1eff308515022f22f74432b09786b6754cc8d9b1d8475ba1be1ecf4f3ac2ef08",
+                "make_wc3_pathfinding_map.py": "4f9beeb417f2988ab58c0699e5d7a9e144c257ad1187ef37b66c85dbc26286cf",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "a549f7aebf63579778635e55c3e0922e935f7946fd444c5c05169c2512356531"
+              },
+              "map": "Maps\\PathingRE-FollowTargetKillReuse-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -18969,6 +19207,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-follow-velocity-1.27.json",
       "sha256": "497858fcf159ef8a205a4ff703257cdf6b7753fe97bb72b6c434d96afa684d60"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-follow-target-reuse-1.27.json",
+      "sha256": "5a9e14c2defb6b129230af679757a8617008971fab2d5cb694b9f538d2869dbd"
     }
   ]
 }

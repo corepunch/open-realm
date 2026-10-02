@@ -21,7 +21,7 @@ static cstring_t const entangle_orders[] = {
 
 static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Stop command policy
-    { STR_CmdMove, CAbilityMove, AB_COMMAND },  // Move — engine command
+    { STR_CmdMove, CAbilityMove, AB_COMMAND | AB_ENGINE_EVENTS },  // Move — engine command and target death policy
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND },  // Attack — engine command
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
@@ -903,13 +903,13 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     bool handled = false;
 
     if (!ent) return false;
-    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND)
+    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, NULL);
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false,
-                                                 msg != A_DEATH, msg == A_MOVE_LEAVE) != 0;
+                                                 msg != A_DEATH, msg == A_MOVE_LEAVE) != 0 || handled;
     if (msg == A_NATURAL_MANA_REGEN_BLOCKED)
         return unit_dispatch_authored_abilities(ent, msg, NULL, true, false, false) != 0;
 

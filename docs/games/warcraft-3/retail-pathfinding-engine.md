@@ -4861,3 +4861,63 @@ contracts and saved Ghidra readbacks pass. The final strict reports are
 validation index is `runtime/follow-velocity-validation-261002.json`.
 TARGET-02.4 closes with123 completed/186 open leaves. Next runnable work is
 TARGET-02.3 public target removal/death and reuse under the physical Follow port.
+
+## Follow cancels synchronously before target pool reuse
+
+Payoff48 closes TARGET-02.3. Scenes54/55 extend the preceding ground Smart
+Follow scene: target Move at tick80, speed change85, public RemoveUnit or
+KillUnit100, removal of the dead target105, replacement CreateUnit110,
+explicit new Smart120 and bounded Stop300. Four complete read-only captures
+(two per retirement mode) share948 absolute clock/position/velocity/cap/facing
+commits and the digest
+`cbb14147556d5f198adebba685a232c5de78400185c585d9236ddd80e8b9f696`.
+They show actual reuse of the target mover address and public GetHandleId,
+with a fresh canonical generation. The follower's user head clears before the
+public retirement call returns, stays zero during ticks100..119, and changes
+only on explicit Smart120. Per-case markers preserve the distinction between
+a dead target awaiting removal and immediate RemoveUnit.
+
+The baseline engine did not cancel Follow synchronously on death. Its resumed
+journey diverged at commit348 despite matching clock, velocity and facing.
+Move now receives the generic engine-owned death event and notifies its target
+subscribers itself. Its target-removal handler detaches the physical group
+before entering stand; merely clearing the target and waiting for the next
+30ms owner pass left a stale physical owner. Gameplay behavior remains in Move;
+the universal client and general Unit death machinery are unchanged.
+
+`t_movement.c` drives both journeys through ordinary RunFrame and public JASS,
+without injected owner counters or decisions:948 exact commits each, plus
+1746 saved suffix commits each (3492 total). Saves cover early approach, the
+idle interval after the replacement exists, and reacquired persistent Follow.
+Save80 is unchanged. The preceding speed-change fixture retains1015 exact
+commits and2595 saved suffix commits. Native Follow still ends by authored
+Stop; natural user-head completion is not claimed. Other orders, queued/combat
+parents, simultaneous reentrant callbacks, flight/structures and arbitrary
+maps remain separately open.
+
+Artifacts under the report root:
+
+- `runtime/follow-target-{remove,kill}-reuse-{first,repeat}-261002.jsonl`:
+  four complete original captures,948 commits each.
+- `runtime/follow-target-reuse-source-261002/`: immutable13-input source archive.
+- `runtime/follow-target-reuse-cmath-first-261002.json`:844 scalar decisions,
+  3792 exact commits/owner passes and four actual native reuse witnesses.
+- `runtime/follow-target-reuse-ghidra-readback-saved-261002.json`:
+  saved death/loss/cleanup roles, signatures and xrefs. New death producer
+  `679bb0` reaches `651010`, Move dispatch `5fda10`, target-loss `5ff490`,
+  recovery `5fb190` and arrival cleanup `5fa7a0` before KillUnit returns.
+  528 roles are saved;42 layouts/262 fields/245 prototypes/45 globals remain.
+- `runtime/follow-target-reuse-strict-saved-final-261002/corpus-results.json`:
+  fresh strict reruns of this contract and ten preceding public/owner journeys.
+- `runtime/follow-target-reuse-validation-261002.json`: validation and current
+  source fingerprints. Corpus inventory266 entries/107 fixtures/49 strict live
+  entries;215 Python checks.
+
+TARGET-02.3 closes with124 completed/185 open leaves. Next runnable work is
+TARGET-02.2, public target teleport/resize through physical Follow owners.
+
+Payoff48 final checks: forced debug RoC/TFT each pass349,559 assertions in2330
+WC3 tests; forced optimized build and normal repository suite pass349,992
+assertions in2367 WC3 tests per variant and the remaining repository suites.
+All215 pathfinding Python checks and the ability audit pass; the fresh strict
+runner completes11/11 contracts with current source hashes.

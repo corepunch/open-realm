@@ -36,6 +36,7 @@
 #include "retail_selected_mixed.h"
 #include "retail_selected_independent.h"
 #include "retail_follow_velocity.h"
+#include "retail_follow_target_reuse.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -10711,7 +10712,10 @@ TEST(wc3_movement, selected_independent_shift_inputs_match_original_complete_jou
             selected_independent_cases[c].count,1,SELECTED_START_INDEPENDENT,(unsigned const[]){200,400});
 }
 
-TEST(wc3_movement, public_smart_follow_matches_original_target_speed_journey) {
+typedef enum { FOLLOW_SPEED, FOLLOW_REMOVE_REUSE, FOLLOW_KILL_REUSE } followScenario_t;
+
+static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_count, followScenario_t scenario) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities(); setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     float old_follow=game.constants.followRange;
@@ -10733,29 +10737,52 @@ TEST(wc3_movement, public_smart_follow_matches_original_target_speed_journey) {
     T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
     level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
     level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
-    T_ASSERT(run_test_jass("globals\nunit a\nunit b\ninteger tick=0\nendglobals\n"
+    char script[4096];
+    int length=snprintf(script,sizeof(script),"globals\nunit a\nunit b\ninteger tick=0\nendglobals\n"
         "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
         "if tick==10 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n"
         "if tick==80 then\ncall IssuePointOrder(b,\"move\",-1936,112)\nendif\n"
         "if tick==85 then\ncall SetUnitMoveSpeed(b,300)\nendif\n"
+        "%s"
         "if tick==300 then\ncall IssueImmediateOrder(a,\"stop\")\nendif\nendfunction\n"
         "function main takes nothing returns nothing\n"
         "set a=CreateUnit(Player(0),'hFLV',-1936,-976,90)\ncall SetUnitMoveSpeed(a,100)\n"
         "set b=CreateUnit(Player(0),'hFLV',-1936,-144,90)\ncall SetUnitMoveSpeed(b,100)\n"
-        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n",
+        scenario==FOLLOW_SPEED ? "" : scenario==FOLLOW_REMOVE_REUSE ?
+        "if tick==100 then\ncall RemoveUnit(b)\nset b=null\nendif\n"
+        "if tick==110 then\nset b=CreateUnit(Player(0),'hFLV',-1936,112,90)\ncall SetUnitMoveSpeed(b,300)\nendif\n"
+        "if tick==120 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n" :
+        "if tick==100 then\ncall KillUnit(b)\nendif\n"
+        "if tick==105 then\ncall RemoveUnit(b)\nset b=null\nendif\n"
+        "if tick==110 then\nset b=CreateUnit(Player(0),'hFLV',-1936,112,90)\ncall SetUnitMoveSpeed(b,300)\nendif\n"
+        "if tick==120 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n");
+    T_ASSERT(length>0 && length<sizeof(script));
+    T_ASSERT(run_test_jass(script));
     edict_t *units[2]={0}; unsigned count=0,steps=0;
     FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if(count<2)units[count]=ent; count++; }
     T_EQ(count,2);
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     cstring_t saves[]={"/tmp/wc3-follow-approach.bin","/tmp/wc3-follow-persistent.bin","/tmp/wc3-follow-target.bin"};
-    unsigned save_steps[]={50,150,250}; bool mismatch=count!=2;
+    unsigned save_steps[]={50,scenario==FOLLOW_SPEED ? 150 : 348,scenario==FOLLOW_SPEED ? 250 : 700};
+    bool mismatch=count!=2;
     FOR_LOOP(pass,4) {
         if(mismatch)break;
-        if(pass){T_ASSERT(ReadGame(saves[pass-1]));steps=save_steps[pass-1];}
+        if(pass){bool loaded=ReadGame(saves[pass-1]);T_ASSERT(loaded);if(!loaded)break;steps=save_steps[pass-1];}
         while(level.time<31000 && !mismatch) {
             level.time+=5; globals.RunFrame(); unsigned visited=0;
-            while(steps<sizeof(follow_velocity_motion)/sizeof(*follow_velocity_motion)) {
-                uint32_t const *expected=follow_velocity_motion[steps];unsigned i=expected[0];edict_t *unit=units[i];
+            if(scenario!=FOLLOW_SPEED)
+                FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID && ent!=units[0] && !M_IsDead(ent)) units[1]=ent;
+            if(scenario!=FOLLOW_SPEED && level.time>=10000 && level.time<12000) {
+                T_EQ(units[0]->current_order_id,0);
+                T_NULL(units[0]->movement.follow_target);
+                T_EQ(units[0]->movement.group_id,0);
+            }
+            if(!pass && scenario!=FOLLOW_SPEED && level.time==11000) {
+                T_EQ(steps,save_steps[1]); T_ASSERT(WriteGame(saves[1]));
+            }
+            while(steps<motion_count) {
+                uint32_t const *expected=motion[steps];unsigned i=expected[0];edict_t *unit=units[i];
                 uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
                 if(now!=expected[1])break;
                 T_ASSERT(!(visited&(1u<<i)));visited|=1u<<i;steps++;
@@ -10772,11 +10799,12 @@ TEST(wc3_movement, public_smart_follow_matches_original_target_speed_journey) {
                         group->target_refresh,units[1]->s.origin2.x,units[1]->s.origin2.y,route->count,route->index,route->adaptive_count,route->adaptive_index);
                     FOR_LOOP(p,route->count)fprintf(stderr,"Follow fine[%u]=%.9g/%.9g\n",p,route->points[p].x,route->points[p].y);
                 }
-                if(!pass && !mismatch) FOR_LOOP(s,3) if(steps==save_steps[s])T_ASSERT(WriteGame(saves[s]));
+                if(!pass && !mismatch) FOR_LOOP(s,3)
+                    if(steps==save_steps[s] && (scenario==FOLLOW_SPEED || s!=1))T_ASSERT(WriteGame(saves[s]));
             }
         }
-        T_EQ(steps,sizeof(follow_velocity_motion)/sizeof(*follow_velocity_motion));
-        if(steps!=sizeof(follow_velocity_motion)/sizeof(*follow_velocity_motion))mismatch=true;
+        T_EQ(steps,motion_count);
+        if(steps!=motion_count)mismatch=true;
         if(!mismatch){FOR_LOOP(i,2)T_EQ(units[i]->current_order_id,0);FOR_LOOP(i,ARRAY_COUNT(level.move_groups))T_ASSERT(!level.move_groups[i]->inuse);}
         T_ASSERT(!jass_rterror_pending(level.vm));
     }
@@ -10784,6 +10812,19 @@ TEST(wc3_movement, public_smart_follow_matches_original_target_speed_journey) {
     FOR_LOOP(i,3)remove(saves[i]);
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+}
+
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_speed_journey) {
+    public_follow_journey(follow_velocity_motion,sizeof(follow_velocity_motion)/sizeof(*follow_velocity_motion),FOLLOW_SPEED);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_remove_reuse) {
+    public_follow_journey(follow_target_remove_motion,sizeof(follow_target_remove_motion)/sizeof(*follow_target_remove_motion),FOLLOW_REMOVE_REUSE);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_kill_reuse) {
+    public_follow_journey(follow_target_remove_motion,sizeof(follow_target_remove_motion)/sizeof(*follow_target_remove_motion),FOLLOW_KILL_REUSE);
 }
 
 #endif

@@ -830,3 +830,11 @@ travel. Destroyed timers release their JASS callback so retired slots cannot
 serialize a pointer into a replaced VM program. Unknown saved function names
 identify the field and name in the load diagnostic. See
 [Smart Follow parity](retail-pathfinding-engine.md#smart-follow-tracks-a-moving-target-through-a-speed-change).
+
+Ground Follow now cancels synchronously when its target dies or is removed,
+detaching its physical owner before stand. Actual original target pool/public
+handle reuse never silently adopts the replacement. The public death and
+removal journeys each match948 normal-frame commits and1746 Save80 suffix
+commits, including a save while the replacement exists but Follow is idle.
+[Payoff48 evidence](retail-pathfinding-engine.md#follow-cancels-synchronously-before-target-pool-reuse)
+records the exact scope; save format80 is unchanged.
