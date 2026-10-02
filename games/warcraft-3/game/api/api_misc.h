@@ -387,7 +387,7 @@ uint32_t TimerStart(jass_t *j) {
     bool periodic = jass_checkboolean(j, 3);
     /* Warcraft accepts null to start/reset a timer without an expiration callback. */
     jassFunc_t const *handlerFunc = jass_toboolean(j, 4) ? jass_checkcode(j, 4) : NULL;
-    if (whichTimer) G_TimerStart(whichTimer, (uint32_t)(MAX(0.0f, timeout) * 1000.0f), periodic, handlerFunc);
+    if (whichTimer) G_TimerStartScalar(whichTimer, timeout, periodic, handlerFunc);
     return 0;
 }
 uint32_t TimerGetElapsed(jass_t *j) {

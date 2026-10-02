@@ -1085,6 +1085,21 @@ void G_RequestCampaignSelect(void) {
  * Skipped until the first map has been started; on the very first frame after
  * a map loads, the JASS "main" function is invoked to run map initialization
  * triggers. */
+/* PathOwner uses its own periodic scalar timer, not an integer six-phase
+ * counter. The two cadences diverge beyond32 seconds as the source truncates. */
+static bool G_PathOwnerDue(void) {
+    wc3Clock_t next=level.pathing_clock;
+    wc3_clock_advance(&next,wc3_float(0x3ba3d70a),0);
+    wc3Clock_t const *due=&level.pathing_owner_deadline;
+    return next.epoch==due->epoch ? next.time>=due->time : (int32_t)(next.epoch-due->epoch)>0;
+}
+
+static void G_RunPathOwner(void) {
+    M_RunScheduledThinks();
+    wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3cf5c290),0);
+    level.pathing_due=false;
+}
+
 static void G_RunFrame(void) {
     int path_work_budget = BZ_PATH_WORK_BUDGET;
     cstring_t path_work_value;
@@ -1092,6 +1107,14 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
+    if (!level.pathing_owner_clock_valid) {
+        level.pathing_owner_deadline=level.pathing_clock;
+        if (!level.pathing_clock.time && !level.pathing_phase)
+            wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3cf5c290),0);
+        else FOR_LOOP(i,6-level.pathing_phase)
+            wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3ba3d70a),0);
+        level.pathing_owner_clock_valid=true;
+    }
     level.framenum++;
     uint32_t end_time = gi.GetTime();
     G_BeginEntityFrame();
@@ -1104,19 +1127,19 @@ static void G_RunFrame(void) {
         /* Observed public spawns at phases0/2/4 see the due owner before
          * authored map-timer callbacks in the same primary quantum. */
         if (level.pathing_due) {
-            M_RunScheduledThinks(); level.pathing_due = false;
+            G_RunPathOwner();
         }
         G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
         wc3_clock_advance(&level.pathing_clock, wc3_float(0x3ba3d70a), 0);
         level.pathing_phase = (level.pathing_phase + 1) % 6;
-        level.pathing_due = !level.pathing_phase;
+        level.pathing_due = G_PathOwnerDue();
         level.pathing_msec += 5; level.time = level.pathing_msec;
         M_SamplePoses();
     }
     level.time = end_time;
     G_UpdateTimeOfDay();
     if (level.pathing_due) {
-        M_RunScheduledThinks(); level.pathing_due = false;
+        G_RunPathOwner();
         M_SamplePoses();
     }
     G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);

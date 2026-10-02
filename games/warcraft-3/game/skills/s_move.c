@@ -168,6 +168,7 @@ void S_ClearMoveFineRequests(void) {
         g_edicts[i].movement.fine_queued=false;
     }
     memset(level.move_fine_budgets,0,sizeof(level.move_fine_budgets));
+    level.pathing_owner_clock_valid=false;
     level.pathing_counter=BZ_WC3_PATH_OWNER_START;
 }
 
@@ -1728,6 +1729,7 @@ static uint32_t move_collect_selected(gameClient_t *client,
 }
 
 void move_reset_progress(edict_t *self) {
+    self->movement.type_rebind_pending=false;
     move_unlink_fine_request(self);
     /* Replacement/internal approaches own a new group plan. Reusing the last
      * point Move's destination can strand an ability at its previous endpoint. */
@@ -2252,6 +2254,7 @@ static bool move_point_arrival(edict_t *ent) {
 }
 
 static void ai_move_walk(edict_t *ent) {
+    if (ent->movement.type_rebind_pending) return;
     if (move_find_member(ent)) return; /* Shared owner stages all members before any commit. */
     float distance = M_DistanceToGoal(ent);
     float move_distance = unit_movedistance(ent);
@@ -3023,6 +3026,36 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_GROUP_POINT_ORDER:
         return move_group_point_order(call->group_order) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     case A_OWNER_UPDATE: move_update_fine_budget(); move_run_group_updates(); move_repulse_owner_update(); return true;
+    case A_UNIT_TYPE_CHANGING:
+        if (ent->currentmove==&move_move_walk) {
+            unit_commit_current_pose(ent);
+            move_reset_progress(ent);
+            ent->movement.pose_clock=level.pathing_clock;
+        }
+        return true;
+    case A_UPDATE:
+        if (ent->movement.type_rebind_pending) {
+            wc3Clock_t const *due=&ent->movement.type_rebind_deadline;
+            bool ready=level.pathing_clock.epoch==due->epoch ? level.pathing_clock.time>=due->time :
+                (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
+            if (ready) {
+                ent->movement.type_rebind_pending=false;
+                if (ent->currentmove==&move_move_walk && ent->goalentity)
+                    S_IssueMoveOrder(ent,ent->goalentity,ent->current_order_id);
+            }
+        }
+        return true;
+    case A_UNIT_TYPE_CHANGED:
+        /* Original670950 retires the physical task and reissues the retained
+         * point head after binding the replacement speed/radius. */
+        if (ent->currentmove==&move_move_walk && ent->goalentity) {
+            /* Scene64 original5fd270/5ffb60 run ten ms after670950, after
+             * any due movement owner. Generic timer arithmetic remains NUM-02.9. */
+            ent->movement.type_rebind_pending=true;
+            ent->movement.type_rebind_deadline=level.pathing_clock;
+            FOR_LOOP(i,2) wc3_clock_advance(&ent->movement.type_rebind_deadline,wc3_float(0x3ba3d70a),0);
+        }
+        return true;
     case A_UNIT_INIT:
         ent->movement.fine_class=ent->s.player;
         move_repulse_init(ent); return true;

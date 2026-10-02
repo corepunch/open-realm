@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **264 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **47**
+The inventory now has **269 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **52**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -26,7 +26,7 @@ outside the accepted inventory unless given their own rejection contract.
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
 | Six numerical replays and four profile replays | `live-exact-replay` / `live-profile-replay` | Stronger checker verifies original raw decisions/commits or profile words |
-| Thirty-five public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
+| Forty public/native/compiler/heading/arrival/speed/pose/clock/placement/random/yield/spawn repeat contracts | `live-*-repeat` | Order lifecycle, scalar, angle, power, compiled real/integer and byte inputs retain their own strict producer/word/provenance checks |
 
 The latest long-route entry repeats32 full original128-cell initial routes and
 160 admitted refills, preserving nonzero coarse indices and complete buffers.
@@ -824,3 +824,20 @@ rebuilds production C and passes the new contract plus13 previous public/owner
 contracts. [Engine and saved trajectories](retail-pathfinding-engine.md#follow-retains-active-range-and-admits-resized-targets-with-half-edge-approaches)
 remain independent regressions. Moving-unit occupancy and exact automatic
 morph timing remain open.
+
+
+Payoff51 adds `live-moving-radius-captures-261002`: eight complete original
+captures for moving Chaos growth, nine below/equal/above radius boundaries,
+research delivery and read-only type-task/timer handoff witnesses. The verifier
+checks6510 commits/owner passes,4858 scalar decisions and40 public resizes.
+The two extended witnesses retain7798 scalar periodic rearms, partitioned into
+6000 owner and1798 public timer requests, proving retained-deadline addition.
+The fixture pins full canonical phases, public type/order markers, mover identity,
+changed physical owner, fine geometry and primary clock words. Secondary clock
+wall cadence remains outside the deterministic comparison.
+
+Inventory269 entries/110 fixtures/52 strict live entries;25 freshly executed
+capture contracts pass. [Production journeys and Save81 continuations](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines)
+provide separate engine evidence. General scalar timeout/getter boundaries,
+paused remainder, epoch crossings, heap ordering and other movement families
+remain open.

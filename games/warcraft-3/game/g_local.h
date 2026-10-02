@@ -829,12 +829,15 @@ typedef enum {
     A_ENABLE,           /* UnitAddAbility: notify the procedure that this ability was added to ent. */
     A_DISABLE,          /* UnitRemoveAbility: notify the procedure that this ability was removed from ent. */
     A_LEVEL,            /* Level refresh: return ent's current behavior-specific ability level. */
+    A_REQUIREMENTS_CHANGED, /* Player research state changed; authored owners recheck pending work. */
     A_LEVEL_CHANGED,    /* Level refresh: apply the new call->level to behavior-owned state. */
     A_ORDER,            /* Immediate-order dispatch: handle call->order; return whether it was accepted. */
     A_GROUP_POINT_ORDER, /* Batch producer: call->group_order; return abilityOrderResult_t. */
     A_TARGET_ORDER,     /* Target-owned interaction: handle call->target_order for an order aimed at this unit. */
     A_ORDER_ACCEPTED,   /* Accepted non-queued order that may not install a new move; call->order identifies it. */
     A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
+    A_UNIT_TYPE_CHANGING, /* Old type is still bound; behaviors retire physical movement state. */
+    A_UNIT_TYPE_CHANGED, /* New type is bound; behaviors resume retained orders with the new profile. */
     A_UNIT_INIT,        /* Spawn/type rebind: initialize behavior from the unit's authored data. */
     A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
     A_AUTO_COMBAT_START, /* Generic AI acquired/retaliated against a target; persistent behaviors may mark a detour. */
@@ -1150,6 +1153,9 @@ struct gtimer_s {
     struct jass_function const *handler;
     uint32_t duration, remaining, updated;
     uint32_t generation;
+    float scalar_timeout;
+    wc3Clock_t scalar_deadline;
+    bool scalar_timing;
     bool periodic, paused, running;
 };
 
@@ -1702,6 +1708,10 @@ struct edict_s {
         bool can_sleep; /* mutable natural/night sleep eligibility; seeded from UnitData.canSleep */
         bool sleeping;  /* natural creep sleep only; intentionally excludes spell-induced BUsL */
     } sleep;
+    struct edictChaos_s {
+        uint32_t code, phase; /* Owning alias and enabled/commit timer stage. */
+        wc3Clock_t deadline; /* Retail primary-clock deadline, including epoch wrap. */
+    } chaos;
     struct edictChannel_s {
         uint32_t code;     // ability code being channeled (0 = none)
         uint32_t serial;   // cast identity; old thinkers cannot continue or cancel a replacement cast
@@ -1761,6 +1771,8 @@ struct edict_s {
         vec2_t pose_world; /* last published world pair; detects explicit external position writes */
         wc3Clock_t pose_clock; /* time origin of the retained fine pose */
         bool clock_valid;
+        bool type_rebind_pending; /* Retained point head waits for the next type-rebind task pass. */
+        wc3Clock_t type_rebind_deadline;
         bool turn_blocked;  /* translation decision from the heading error before this tick's turn */
         vec2_t worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
@@ -2225,13 +2237,15 @@ struct level_locals {
     uint32_t framenum;
     uint32_t time;
     wc3Clock_t pathing_clock;
+    wc3Clock_t pathing_owner_deadline;
+    bool pathing_owner_clock_valid;
     wc3Random_t pathing_random;
     uint32_t pathing_counter; /* original owner+538, initialized to0x400 */
     moveFineBudget_t move_fine_budgets[MAX_PLAYERS];
     edict_t *repulse_head;
     uint32_t repulse_phase;
     uint32_t pathing_msec;
-    uint32_t pathing_phase; /* six primary advances per owner update */
+    uint32_t pathing_phase; /* primary advance phase retained for diagnostics */
     bool pathing_due; /* owner request due at the next timer dispatch */
     bool scheduled_frame, scheduled_think; /* transient callback dispatch context */
     bool script_paused;
@@ -2574,6 +2588,7 @@ void G_FormatHeroSaveSnap(edict_t const *hero, string_t out, uint32_t out_size);
 void G_RunTimers(void);
 void G_StartProjectilePresentation(edict_t *ent);
 void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, struct jass_function const *handler);
+void G_TimerStartScalar(gtimer_t *timer, float timeout, bool periodic, struct jass_function const *handler);
 void G_TimerPause(gtimer_t *timer);
 void G_TimerResume(gtimer_t *timer);
 void G_TimerDestroy(gtimer_t *timer);

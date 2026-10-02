@@ -1322,6 +1322,20 @@ function install(module) {
                 requestedAfter:Array.from({length:2}, (_,i) => this.mover.add(0xc0+i*4).readU32())});
         }
     });
+    for(const [name,rva] of [['chaos-enabled',0x4d8dc0],['chaos-research',0x4d8d40],['chaos-commit',0x4d8850],['unit-type-rebind',0x670950],['move-task-reissue',0x5fd270],['move-point-task',0x5ffb60],['radius-publication',0x15fef0]])hook(rva,{onEnter(){
+        const owner=base.add(0xd53a48).readPointer();
+        emit('chaos-clock',{phase:name,context:this.context.ecx.toString(),primary:ints(owner.add(0x54),4).map(v=>v>>>0),secondary:ints(owner.add(0xa8),4).map(v=>v>>>0),counter:owner.add(0x538).readU32()});
+    }});
+    hook(0x053630,{
+        onEnter(args){
+            this.clock=this.context.ecx;this.request=args[0];
+            this.observe=pairScenario && [0x3dcccccc,0x3dcccccd,0x3cf5c28e,0x3cf5c28f,0x3cf5c290].includes(this.request.add(8).readU32());
+            if(!this.observe)return;
+            const owner=base.add(0xd53a48).readPointer();
+            this.row={request:ints(this.request,7).map(v=>v>>>0),timerClock:ints(this.clock.add(0x40),4).map(v=>v>>>0),primary:ints(owner.add(0x54),4).map(v=>v>>>0),counter:owner.add(0x538).readU32()};
+        },
+        onLeave(){if(this.observe)emit('public-timer-rearm',{...this.row,after:ints(this.request,7).map(v=>v>>>0)});}
+    });
     const snapshotPairGroup = group => {
         const count = group.add(0x38).readU32(), data = group.add(0x28).readPointer();
         if (count > 12) throw new Error('Public pair observer found an oversized group');
@@ -1335,6 +1349,13 @@ function install(module) {
     for (const [phase,rva] of [['decide',0x16c250],['commit',0x16c570]]) hook(rva,{onEnter() {
         this.group = pairScenario ? this.context.ecx : null;
         if (this.group) emit('pair-group-phase-begin',{phase,...snapshotPairGroup(this.group)});
+        if(this.group && phase==='decide') {
+            const count=this.group.add(0x38).readU32(),data=this.group.add(0x28).readPointer();
+            for(let i=0;i<count;i++) {
+                const mover=data.add(i*0x2c+0x14).readPointer(),fine=mover.add(0x98).readPointer(),proximity=mover.add(0x94).readPointer();
+                emit('mover-radius-state',{mover:mover.toString(),identity:ints(mover.add(0x14),2),radius:mover.add(0x90).readU32(),fine:fine.toString(),fineRect:ints(fine.add(0x1c),4),fineFlags:fine.add(0x40).readU32(),proximity:proximity.toString(),proximityRect:ints(proximity.add(0x1c),4),group:ints(mover.add(0x9c),2),pose:ints(mover.add(0x70),8).map(v=>v>>>0),counter:base.add(0xd53a48).readPointer().add(0x538).readU32()});
+            }
+        }
         if (this.group && resizeScenario && phase === 'decide') {
             const target=resizeTargets.get(this.group.toString());
             if (target && !target.isNull()) {
@@ -1649,13 +1670,14 @@ function install(module) {
             emit('speed-marker', {value});
         }
         if (value.startsWith('PATHHOLD ')) emit('hold-marker', {value});
+        if (value.startsWith('PATHMORPH ')) emit('morph-marker',{value});
         if (value.startsWith('PATHSELECT ')) emit('selected-marker', {value});
         if (value.startsWith('PATHTRACE ')) {
             if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
-            if ((value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position ') || value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate '))) pairScenario = true;
+            if ((value.includes('label=start_moving_radius_matrix ') || value.includes('label=start_moving_radius ') || value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position ') || value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate '))) pairScenario = true;
             if (value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate ')) resizeScenario = true;
             if (value.includes('label=complete ')) pairScenario = false;
             emit('marker', {value});

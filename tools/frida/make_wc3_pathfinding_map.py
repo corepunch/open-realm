@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 
 SCENARIOS = {'open': 0, 'wall': 1, 'insert': 2, 'remove': 3, 'remove_reorder': 4,
-             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29, 'numeric_bytes': 30, 'profiles': 31, 'speed_inputs': 32, 'speed_drop': 33, 'item_speed': 34, 'item_speed_publish': 35, 'axis_position': 36, 'clock_oblique': 37, 'forced_position': 38, 'blocked_position': 39, 'random_owner': 40, 'pathing_toggle': 41, 'pathing_position': 42, 'stop_recovery': 43, 'spawn_admission': 44, 'public_oblique': 45, 'group_orders': 46, 'group_pair': 47, 'group_twelve': 48, 'selected_point_pair': 49, 'selected_point_queued_pair': 50, 'selected_point_mixed_pair': 51, 'selected_point_independent_pair': 52, 'follow_velocity': 53, 'follow_target_remove_reuse': 54, 'follow_target_kill_reuse': 55, 'follow_target_xy': 56, 'follow_target_position': 57, 'follow_target_travel_xy': 58, 'follow_target_travel_position': 59, 'follow_target_grow': 60, 'follow_target_shrink': 61, 'follow_target_resize_gate': 62}
+             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29, 'numeric_bytes': 30, 'profiles': 31, 'speed_inputs': 32, 'speed_drop': 33, 'item_speed': 34, 'item_speed_publish': 35, 'axis_position': 36, 'clock_oblique': 37, 'forced_position': 38, 'blocked_position': 39, 'random_owner': 40, 'pathing_toggle': 41, 'pathing_position': 42, 'stop_recovery': 43, 'spawn_admission': 44, 'public_oblique': 45, 'group_orders': 46, 'group_pair': 47, 'group_twelve': 48, 'selected_point_pair': 49, 'selected_point_queued_pair': 50, 'selected_point_mixed_pair': 51, 'selected_point_independent_pair': 52, 'follow_velocity': 53, 'follow_target_remove_reuse': 54, 'follow_target_kill_reuse': 55, 'follow_target_xy': 56, 'follow_target_position': 57, 'follow_target_travel_xy': 58, 'follow_target_travel_position': 59, 'follow_target_grow': 60, 'follow_target_shrink': 61, 'follow_target_resize_gate': 62, 'moving_radius': 63, 'moving_radius_matrix': 64}
 
 
 def byte_unit_name(data):
@@ -179,7 +179,7 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
     return script.replace('\nendglobals', '\nendglobals\n' + probe[block.end():], 1)
 
 
-def resize_units(data):
+def resize_units(data, matrix=False):
     version=struct.unpack_from('<I',data)[0]
     if version != 1: raise ValueError('resize requires version1 unit modifications')
     cursor=4
@@ -195,12 +195,19 @@ def resize_units(data):
                 else:raise ValueError('unsupported unit modification type')
                 cursor+=4
     if cursor != len(data):raise ValueError('trailing unit modification data')
-    out=data[:count_at]+struct.pack('<I',count+2)+data[count_at+4:]
-    for code,radius in ((b'hCLG',63.0),(b'hCLS',7.0)):
+    clones=[(('hc%02d'%i).encode(),radius) for i,radius in enumerate([15.9921875,16,16.0078125,31.9921875,32,32.0078125,47.9921875,48,48.0078125],1)] if matrix else [(b'hCLG',63.0),(b'hCLS',7.0)]
+    out=data[:count_at]+struct.pack('<I',count+len(clones))+data[count_at+4:]
+    for code,radius in clones:
         out+=b'hfoo'+code+struct.pack('<I',1)+b'ucol'+struct.pack('<I',2)+struct.pack('<f',radius)+code
     return out
 
 def resize_ability(scenario):
+    if scenario=='moving_radius_matrix':
+        out=struct.pack('<III',2,0,9)
+        for i in range(1,10):
+            code=('Ag%02d'%i).encode();target=('hc%02d'%i).encode()
+            out+=b'Sca1'+code+struct.pack('<I',2)+b'Cha1'+struct.pack('<III',3,1,0)+target+b'\0'+code+b'areq'+struct.pack('<III',3,0,0)+b'\0'+code
+        return out
     code,target=(b'ACSh',b'hCLS') if scenario=='follow_target_shrink' else (b'ACGb',b'hCLG')
     out=struct.pack('<III',2,0,1)+b'Sca1'+code+struct.pack('<I',1 if scenario=='follow_target_resize_gate' else 2)+b'Cha1'+struct.pack('<III',3,1,0)+target+b'\0'+code
     if scenario!='follow_target_resize_gate':out+=b'areq'+struct.pack('<III',3,0,0)+b'\0'+code
@@ -246,13 +253,13 @@ def main():
             if member == 'war3map.w3u' and args.scenario == 'speed_inputs':
                 data = speed_unit_limits(data)
                 args.output.with_suffix('.w3u').write_bytes(data)
-            if member == 'war3map.w3u' and args.scenario in ('follow_target_grow','follow_target_shrink','follow_target_resize_gate'):
-                data=resize_units(data)
+            if member == 'war3map.w3u' and args.scenario in ('follow_target_grow','follow_target_shrink','follow_target_resize_gate','moving_radius','moving_radius_matrix'):
+                data=resize_units(data,args.scenario=='moving_radius_matrix')
                 args.output.with_suffix('.w3u').write_bytes(data)
             path = root / str(i)
             path.write_bytes(data)
             command.extend([str(path), member])
-        if args.scenario in ('follow_target_grow','follow_target_shrink','follow_target_resize_gate'):
+        if args.scenario in ('follow_target_grow','follow_target_shrink','follow_target_resize_gate','moving_radius','moving_radius_matrix'):
             if 'war3map.w3a' in members: raise ValueError('resize ability table already exists')
             ability=root/'resize.w3a'; ability.write_bytes(resize_ability(args.scenario))
             command.extend([str(ability),'war3map.w3a'])
@@ -263,7 +270,7 @@ def main():
               'remove_tick': args.remove_tick,
               'gate_y': args.gate_y, 'gate_exit_y': args.gate_exit_y,
               'map_sha256': hashlib.sha256(args.output.read_bytes()).hexdigest(), 'members': members,
-              'changed_members': ['war3map.j','war3map.w3u','war3map.w3a'] if args.scenario in ('follow_target_grow','follow_target_shrink','follow_target_resize_gate') else ['war3map.j', 'war3map.w3u'] if args.scenario in ('numeric_bytes', 'speed_inputs') else ['war3map.j'],
+              'changed_members': ['war3map.j','war3map.w3u','war3map.w3a'] if args.scenario in ('follow_target_grow','follow_target_shrink','follow_target_resize_gate','moving_radius','moving_radius_matrix') else ['war3map.j', 'war3map.w3u'] if args.scenario in ('numeric_bytes', 'speed_inputs') else ['war3map.j'],
               'script_encoding': 'UTF-8',
               'byte_string_source': 'hfoo unam object field, GetUnitName, raw bytes 80..ff' if args.scenario == 'numeric_bytes' else None,
               'container': 'rebuilt MPQ with original HM3W header; signature not retained'}

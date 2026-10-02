@@ -104,7 +104,7 @@ static ability_t abilitylist[] = {
     { "Afir", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire */
     { "Afiu", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire (Undead) */
     { "Aloc", CAbilityPassive, AB_PASSIVE },  /* Locust */
-    { "Amov", CAbilityMove, AB_COMMAND | AB_INNATE | AB_OWNER_UPDATE, SPELL_TARGET_NONE, move_orders },  /* Move */
+    { "Amov", CAbilityMove, AB_COMMAND | AB_INNATE | AB_OWNER_UPDATE | AB_UPDATE, SPELL_TARGET_NONE, move_orders },  /* Move */
     { "Atdp", CAbilityCargoDrop, AB_COMMAND },  /* Drop Pilot */
     { "Atlp", CAbilityCargoLoad, AB_COMMAND },  /* Load Pilot */
     { "Attu", CAbilityPassive, AB_PASSIVE },  /* Turret */
@@ -903,8 +903,12 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     bool handled = false;
 
     if (!ent) return false;
+    if (msg == A_UNIT_TYPE_CHANGING || msg == A_UNIT_TYPE_CHANGED)
+        return unit_dispatch_engine_event_abilities(ent, msg, NULL);
     if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, NULL);
+    if (msg == A_REQUIREMENTS_CHANGED)
+        return unit_dispatch_authored_abilities(ent, msg, NULL, false, false, false) != 0;
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)

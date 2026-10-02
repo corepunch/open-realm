@@ -78,9 +78,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format80 retains target-generation, arrival-range and refresh state for
- * physical Follow owners alongside submitted request history and sequences. */
-static uint32_t const save_version = 80;
+/* Format81 retains deferred type-rebind work and scalar timer/owner deadlines
+ * alongside physical Follow state, request history and owner sequences. */
+static uint32_t const save_version = 81;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -318,6 +318,11 @@ static field_t const trigger_fields[] = {
 };
 
 static field_t const timer_fields[] = {
+    F(gtimer_s, scalar_timeout, F_FLOAT),
+    F(gtimer_s, scalar_timing, F_INT),
+    F(gtimer_s, scalar_deadline.time, F_FLOAT),
+    F(gtimer_s, scalar_deadline.epoch, F_INT),
+    F(gtimer_s, scalar_deadline.span, F_FLOAT),
     F(gtimer_s, duration, F_INT),
     F(gtimer_s, remaining, F_INT),
     F(gtimer_s, updated, F_INT),
@@ -466,6 +471,10 @@ static field_t const level_fields[] = {
     F(level_locals, pathing_clock.epoch, F_INT),
     F(level_locals, pathing_clock.span, F_FLOAT),
     F(level_locals, pathing_msec, F_INT),
+    F(level_locals, pathing_owner_deadline.time, F_FLOAT),
+    F(level_locals, pathing_owner_deadline.epoch, F_INT),
+    F(level_locals, pathing_owner_deadline.span, F_FLOAT),
+    F(level_locals, pathing_owner_clock_valid, F_INT),
     F(level_locals, pathing_phase, F_INT),
     F(level_locals, pathing_due, F_INT),
     F(level_locals, scheduled_frame, F_IGNORE, 0, FIELD_RUNTIME),
@@ -922,6 +931,15 @@ field_t edict_fields[] = {
     F(edict_s, attack_cooldown_end_time, F_INT),
     F(edict_s, attack_backswing_end_time, F_INT),
     F(edict_s, unitinfo, F_STRUCT, 1, unit_info_fields),
+    F(edict_s, movement.type_rebind_pending, F_INT),
+    F(edict_s, movement.type_rebind_deadline.time, F_FLOAT),
+    F(edict_s, movement.type_rebind_deadline.epoch, F_INT),
+    F(edict_s, movement.type_rebind_deadline.span, F_FLOAT),
+    F(edict_s, chaos.code, F_INT),
+    F(edict_s, chaos.phase, F_INT),
+    F(edict_s, chaos.deadline.time, F_FLOAT),
+    F(edict_s, chaos.deadline.epoch, F_INT),
+    F(edict_s, chaos.deadline.span, F_FLOAT),
     F(edict_s, attack1, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, attack2, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
@@ -2749,8 +2767,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-77.bin",
         "/tmp/openwarcraft3-wc3-save-version-78.bin",
         "/tmp/openwarcraft3-wc3-save-version-79.bin",
+        "/tmp/openwarcraft3-wc3-save-version-80.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80 };
 
     reset_entities();
     setup_test_world();

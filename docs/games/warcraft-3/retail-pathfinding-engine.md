@@ -5086,3 +5086,92 @@ WC3 tests; forced release and normal `make test` pass636,086 assertions in2379
 WC3 tests per variant and the remaining repository suites. All238 pathfinding
 Python checks, ability audit and268-entry inventory pass. Fresh strict execution
 passes14/14 contracts with current source hashes and saved Ghidra readbacks.
+
+## Moving radius changes retain point motion and scalar owner deadlines
+
+Payoff51 closes FOOT-01.2 and NUM-02.9.1. A public point Move now survives
+Chaos replacing its own moving unit type, updates collision-sized routing and
+physical ownership, publishes the replacement's authored speed, and completes
+with the original absolute motion words. This adds1179 ordinary engine commits
+and4280 Save81 continuation commits per RoC/TFT variant. The bounded producer is
+ground point Move; other locomotion and task families remain separate work.
+
+Scene63 changes hfoo collision31 to63 during travel. Scene64 creates nine fresh
+hfoo movers, changing each through a distinct authored Chaos alias to world radii
+15.9921875/16/16.0078125,31.9921875/32/32.0078125 and
+47.9921875/48/48.0078125. Native fine footprints become1/2/2,2/3/3 and3/4/4 cells.
+Equality enters the next class. Each public handle and canonical mover generation
+survives; the physical group changes. Scripted speed100 (retail minimum150) is
+replaced by the new type's authored270. These are real public type changes,
+not supplied expected poses or visual scale.
+
+Original enabled delivery schedules a0.01 Chaos commit timer. The type commit
+publishes radius through15fef0, then the retained point task is reissued after
+another0.01 delay through5fd270/5ffb60. The engine retains both pending stages in
+ability-owned state, commits the old velocity pose before rebinding, clears old
+routing/occupancy, and reissues the preserved goal only after the task handoff.
+Research notification is synchronous with the public tech publisher and schedules
+the same commit delay. Pending state survives save/load. The observed delivery
+is two primary5ms advances: adding0.01 once differs by one ulp at eight matrix
+clocks. General delay arithmetic remains NUM-02.9, rather than being inferred
+from this bounded delivery rule.
+
+The90-second matrix exposed another production mismatch. Integer100ms public
+timer countdowns and a fixed six-update movement-owner cadence eventually
+separated from retail's scalar clocks. The owner first differed after41seconds.
+Read-only053630 witnesses show periodic rearm uses the retained due deadline,
+not the callback's primary clock. The public source token0.10 produces raw
+3dcccccd; the owner's period is3cf5c290. The lower adjacent owner word is wrong.
+Timer processing drains against the next primary quantum before publishing that
+primary clock. Both engine cursors now use software scalar addition, retaining
+the original domains and rearm words across load. Existing C timer callers keep
+their millisecond API. Public getters, pause remainder, nonpositive/long inputs,
+general heap tie order, catch-up and epoch-crossing producers remain open.
+
+The complete native matrix has1061 commits (118 per case except equality48,
+which has117), identical across two base captures and two read-only handoff
+witness captures. The growth control has118 commits twice. A repeated research
+control retains1015 commits. The accepted eight captures certify6510 commits,
+4858 scalar decisions and40 public resizes. Each handoff capture also retains
+3000 owner and899 public timer rearms. Secondary presentation clocks and spatial
+cleanup counts remain archived but are outside the frozen deterministic domain.
+
+Production regressions run the public JASS producer and ordinary engine frames.
+Save81 checkpoints exercise pending enabled delivery, pending commit, the first
+resized owner and late travel:254 saved growth commits and4026 matrix suffix
+commits. The original supplied-clock spawn regression now also supplies the
+corresponding original owner deadline; its old six-phase-only setup was no longer
+a complete clock input. Its failing full-suite report is retained.
+
+Artifacts under the report root:
+
+- `runtime/moving-radius-source-v2-261002/`: immutable growth/research producers;
+  `moving-radius-grow-v2-{first,repeat}-261002.jsonl` and
+  `chaos-research-clock-v2-{first,repeat}-261002.jsonl` retain complete journeys.
+- `runtime/moving-radius-matrix-source-v1-261002/` and `...-v4-261002/`:
+  identical map inputs; v4 adds only read-only task/radius/timer witnesses.
+  `moving-radius-matrix-v{1,4}-{first,repeat}-261002.jsonl` repeat the complete
+  canonical motion digest
+  `f420aeb7a123fc239627099a0a13c3f5135a4aeb8b76b95e588d2907c750411e`.
+- `runtime/moving-radius-strict-final-261002/corpus-results.json`:25 fresh
+  capture contracts pass with current production numeric sources, including all
+  eight new captures. Inventory269 entries/110 fixtures/52 strict live entries.
+- `runtime/moving-radius-ghidra-readback-saved-261002.json` and
+  `runtime/moving-radius-types-final-261002.json`:546 saved roles,44 partial
+  layouts/270 verified fields/246 explicit x86 ABIs/46 globals. Timer request
+  deadline4, period8, clockc, flags10 and receiver18 have observed meanings;
+  unassigned bytes and wider type-rebind ABI remain unclaimed.
+- `runtime/moving-radius-full-debug-first-261002.log`: retained failing old
+  supplied-owner-clock setup. `...-full-debug-v2-261002.log` passes690,372
+  assertions in2344 WC3 tests per variant. `...-python-final-261002.log` passes
+  all252 pathfinding checks, including dropped rearm/wrong period controls.
+
+The next runnable task is FOOT-01.3: trace and port shared group maximum-radius
+publication when the largest member changes size or disappears. Passage geometry
+and the full reimplementation acceptance gates remain open.
+
+Payoff51 final checks: forced release and full `make test` pass690,805 assertions
+in2381 WC3 tests per variant plus the remaining repository suites. Ability audit,
+269-entry inventory,252 Python checks and25 fresh capture contracts pass. The
+backlog now has128 completed/184 open leaves, including the explicit split of
+positive periodic scheduling from the remaining timeout/getter domains.

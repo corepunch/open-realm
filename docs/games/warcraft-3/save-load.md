@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 80, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 81, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -857,3 +857,20 @@ resolution consumes it. Save format80 is unchanged.
 [Payoff50 scope and evidence](retail-pathfinding-engine.md#follow-retains-active-range-and-admits-resized-targets-with-half-edge-approaches)
 leaves moving-unit occupancy, other locomotion/body families and exact automatic
 morph timing open.
+
+
+### Deferred type rebind and scalar timer owners (version81)
+
+Save81 retains the Chaos rawcode, pending phase and primary deadline; Move's
+pending type-rebind handoff and deadline; public timer raw timeout, scalar timing
+flag and deadline; and the separate path-owner scalar deadline/validity flag.
+Each deadline preserves time, epoch and span. Restoring these cursors avoids
+restarting the delayed type change or reconstructing a periodic deadline from
+integer server time. Version80 and all earlier exact layouts are rejected.
+
+Four saves during each public moving-radius journey cover enabled delivery,
+commit waiting, first resized motion and late travel. Ordinary continuation
+matches254 growth and4026 nine-case matrix suffix commits per RoC/TFT variant.
+These tests include future births and radius changes after restoration. General
+timer getters, paused scalar remainder, heap ties and epoch-crossing inputs remain
+open. See [the motion and deadline evidence](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines).

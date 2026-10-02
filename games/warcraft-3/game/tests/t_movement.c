@@ -39,6 +39,7 @@
 #include "retail_follow_target_reuse.h"
 #include "retail_follow_target_teleport.h"
 #include "retail_follow_target_resize.h"
+#include "retail_moving_radius.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -3014,6 +3015,13 @@ TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes)
         level.waypoints=(typeof(level.waypoints)){0};
         level.pathing_clock=(wc3Clock_t){wc3_float(spawn_motion_cases[c][2]),0,300};
         level.time=level.pathing_msec=0; level.pathing_phase=spawn_motion_cases[c][4]; level.pathing_due=false;
+        /* This older fixture supplies an already-running primary clock. Seed
+         * its actual periodic owner deadline as well; phase alone is no longer
+         * the scheduler state. Native births occur after20+400*c advances. */
+        level.pathing_owner_deadline=(wc3Clock_t){0,0,300};
+        FOR_LOOP(i,(20+400*c)/6+1)
+            wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3cf5c290),0);
+        level.pathing_owner_clock_valid=true;
         char script[800];
         snprintf(script,sizeof(script),"globals\nunit source\nunit mover\nendglobals\n"
             "function main takes nothing returns nothing\n"
@@ -10878,6 +10886,108 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
     level.mapinfo=oldinfo;
 }
 
+
+
+/* Chaos replaces the physical owner while retaining the public point order. */
+static void public_moving_radius_journey(bool matrix) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities(); setup_test_world();
+    float radii[]={31,63,15.9921875,16,16.0078125,31.9921875,32,32.0078125,47.9921875,48,48.0078125},speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unsigned count=matrix ? 10 : 2;
+    uint32_t targets[]={MAKEFOURCC('h','C','L','G'),MAKEFOURCC('h','c','0','1'),MAKEFOURCC('h','c','0','2'),MAKEFOURCC('h','c','0','3'),MAKEFOURCC('h','c','0','4'),MAKEFOURCC('h','c','0','5'),MAKEFOURCC('h','c','0','6'),MAKEFOURCC('h','c','0','7'),MAKEFOURCC('h','c','0','8'),MAKEFOURCC('h','c','0','9')};
+    unitModification_t mods[10][2];unitData_t units[10];
+    FOR_LOOP(i,count) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radii+(i && matrix ? i+1 : i)};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        units[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=i ? targets[matrix ? i : 0] : MAKEFOURCC('h','M','R','A'),.numbeOfModifications=2,.modifications=mods[i]};
+    }
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    cstring_t target_names[]={"hCLG","hc01","hc02","hc03","hc04","hc05","hc06","hc07","hc08","hc09"};
+    unitModification_t ability_mods[9][2];unitData_t abilities[9];
+    unsigned ability_count=matrix ? 9 : 1;
+    FOR_LOOP(i,ability_count) {
+        ability_mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=(void *)target_names[matrix ? i+1 : 0]};
+        ability_mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""};
+        abilities[i]=(unitData_t){.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=matrix ? MAKEFOURCC('A','g','0','1'+i) : MAKEFOURCC('A','C','G','b'),.numbeOfModifications=2,.modifications=ability_mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=count,.userCreatedUnits=units,.num_userCreatedAbilities=ability_count,.userCreatedAbilities=abilities};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);G_SetMapAbilityOverrides(&info);
+    static uint8_t cells[384*256];box2_t bounds={{-7168,-3072},{5120,5120}};unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);offset+=public_oblique_terrain_runs[i][0];}
+    T_EQ(offset,sizeof(cells));CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    cstring_t script=matrix ?
+        "globals\nunit mover\ninteger tick=0\ninteger case=0\ninteger morph='Ag01'\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==(case+1)*100 and tick<900 then\ncall RemoveUnit(mover)\n"
+        "set mover=CreateUnit(Player(0),'hMRA',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,100)\nset case=case+1\nendif\n"
+        "if tick==case*100+10 then\ncall IssuePointOrder(mover,\"move\",-1936,-144)\nendif\n"
+        "if tick==case*100+20 then\n"
+        "if case==0 then\nset morph='Ag01'\nelseif case==1 then\nset morph='Ag02'\n"
+        "elseif case==2 then\nset morph='Ag03'\nelseif case==3 then\nset morph='Ag04'\n"
+        "elseif case==4 then\nset morph='Ag05'\nelseif case==5 then\nset morph='Ag06'\n"
+        "elseif case==6 then\nset morph='Ag07'\nelseif case==7 then\nset morph='Ag08'\n"
+        "elseif case==8 then\nset morph='Ag09'\nendif\ncall UnitAddAbility(mover,morph)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hMRA',-1936,-976,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n" :
+        "globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall IssuePointOrder(mover,\"move\",-1936,-144)\nendif\n"
+        "if tick==20 then\ncall UnitAddAbility(mover,'ACGb')\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hMRA',-1936,-976,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    uint32_t const (*motion)[7]=matrix ? moving_radius_matrix_motion : moving_radius_grow_motion;
+    unsigned motion_count=matrix ? sizeof(moving_radius_matrix_motion)/sizeof(*moving_radius_matrix_motion) : sizeof(moving_radius_grow_motion)/sizeof(*moving_radius_grow_motion);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==units[0].newUnitID)unit=ent;
+    T_NOT_NULL(unit);level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    cstring_t files[]={"/tmp/wc3-chaos-enabled.bin","/tmp/wc3-chaos-commit.bin","/tmp/wc3-chaos-resized.bin","/tmp/wc3-chaos-arrival.bin"};
+    unsigned save_steps[]={33,34,35,116},save_times[]={2000,2010,2040,0};
+    FOR_LOOP(pass,5) {
+    if(pass) {
+        bool loaded=ReadGame(files[pass-1]);T_ASSERT(loaded);if(!loaded)break;
+        steps=save_steps[pass-1];
+        T_EQ(unit->current_order_id,G_OrderId("move"));
+        if(pass<3) {T_EQ(unit->class_id,units[0].newUnitID);T_EQ(unit->chaos.phase,pass);T_EQ(unit->chaos.code,abilities[0].newUnitID);}
+    }
+    while(level.time<(matrix ? 91000 : 31000) && !mismatch) {
+        if(matrix) FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==units[0].newUnitID) unit=ent;
+        trace.count=0;trace.units[0]=unit;level.time+=5;globals.RunFrame();
+        FOR_LOOP(i,trace.count) {
+            T_ASSERT(steps<motion_count);
+            if(steps>=motion_count){mismatch=true;break;}
+            uint32_t const *expected=motion[steps++],*actual=trace.rows[i];
+            FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+            if(mismatch)fprintf(stderr,"Mover resize commit%u clock%08x/%08x position%08x,%08x/%08x,%08x velocity%08x,%08x/%08x,%08x group%u time%d\n",steps-1,actual[1],expected[1],actual[2],actual[3],expected[2],expected[3],actual[4],actual[5],expected[4],expected[5],unit->movement.group_id,level.time);
+        }
+        if(!pass && !mismatch)FOR_LOOP(i,4)if(save_times[i] ? level.time==save_times[i] : steps==save_steps[i]) {
+            T_EQ(steps,save_steps[i]);T_ASSERT(WriteGame(files[i]));
+        }
+    }
+    T_EQ(steps,motion_count);T_ASSERT(!jass_rterror_pending(level.vm));
+    if(!mismatch){T_EQ(unit->current_order_id,0);T_EQ(unit->class_id,units[count-1].newUnitID);T_FEQ(unit->collision,matrix ? radii[10] : 63,0);}
+    }
+    FOR_LOOP(i,4)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);
+    level.mapinfo=old_info;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_move_matches_original_mover_resize) {
+    public_moving_radius_journey(false);
+}
+
+TEST(wc3_movement, public_move_matches_original_radius_boundary_matrix) {
+    public_moving_radius_journey(true);
+}
 
 TEST(wc3_movement, public_smart_follow_matches_original_target_grow_retained) {
     public_follow_journey(follow_target_resize_grow_control_motion,sizeof(follow_target_resize_grow_control_motion)/sizeof(*follow_target_resize_grow_control_motion),FOLLOW_GROW_CONTROL);

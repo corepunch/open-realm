@@ -15,6 +15,11 @@ class ResizeMapTests(unittest.TestCase):
         prefix=struct.pack('<II',1,1)+original+struct.pack('<I',3)+custom
         self.assertEqual(result[:len(prefix)],prefix)
         self.assertEqual(result[len(prefix):],b''.join(b'hfoo'+code+struct.pack('<I',1)+b'ucol'+struct.pack('<If',2,radius)+code for code,radius in [(b'hCLG',63.0),(b'hCLS',7.0)]))
+    def test_runtime_matrix_has_all_nine_authored_collision_boundaries(self):
+        source=struct.pack('<III',1,0,0)
+        radii=[15.9921875,16,16.0078125,31.9921875,32,32.0078125,47.9921875,48,48.0078125]
+        expected=struct.pack('<III',1,0,9)+b''.join(b'hfoo'+('hc0'+str(i+1)).encode()+struct.pack('<I',1)+b'ucol'+struct.pack('<If',2,r)+('hc0'+str(i+1)).encode() for i,r in enumerate(radii))
+        self.assertEqual(resize_units(source,matrix=True),expected)
     def test_existing_clone_and_trailing_data_are_rejected(self):
         source=struct.pack('<III',1,0,0)
         with self.assertRaises(ValueError):resize_units(source+b'bad')

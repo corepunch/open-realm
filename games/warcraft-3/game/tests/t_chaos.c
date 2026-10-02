@@ -7,6 +7,7 @@ static void chaos_ability_lifecycle(bool cancel, bool same_type) {
     reset_entities(); setup_test_world();
     char const *columns[]={"UnitID","UnitID1"};
     FOR_LOOP(schema,2) {
+        level.pathing_clock=(wc3Clock_t){0,0,300};
         char slk[512];
         snprintf(slk,sizeof(slk),"ID;PWXL;N;EBB;Y2;X5\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"%s\"\nC;X5;K\"DataA1\"\n"
             "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nC;X5;K37\nE\n",columns[schema]);
@@ -47,14 +48,18 @@ static void chaos_ability_lifecycle(bool cancel, bool same_type) {
         G_RunEntities();T_EQ(unit->class_id,unit_row.originalUnitID);
         if(cancel)T_ASSERT(G_ActorRemoveSkill(unit,code));
         G_SetPlayerTechResearched(client,MAKEFOURCC('R','o','c','h'),2);
-        G_RunEntities();
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3c23d70a),0);G_RunEntities();
+        T_EQ(unit->class_id,unit_row.originalUnitID);
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3c23d70a),0);G_RunEntities();
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3c23d70a),0);G_RunEntities();
         T_EQ(unit->class_id,cancel || same_type ? unit_row.originalUnitID : unit_row.newUnitID);
         T_EQ(unit->s.number,identity);T_EQ(unit->spawn_time,spawn);
         T_EQ(G_UnitAbilityLevel(unit,code),0);
         if(!cancel && !same_type)T_FEQ(unit->collision,radius,0);
         T_ASSERT(G_ActorAddSkill(unit,abilities[1].newUnitID));
         G_SetPlayerTechResearched(client,MAKEFOURCC('R','o','c','h'),0);
-        G_RunEntities();T_EQ(unit->class_id,same_type ? unit_row.originalUnitID : unit_row.newUnitID);
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3c23d70a),0);G_RunEntities();
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3c23d70a),0);G_RunEntities();T_EQ(unit->class_id,same_type ? unit_row.originalUnitID : unit_row.newUnitID);
         T_EQ(G_UnitAbilityLevel(unit,abilities[1].newUnitID),0);
         reset_entities();G_SetMapAbilityOverrides(NULL);G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
         G_SetSLKRows("AbilityData",old);free_slk_rows(rows);

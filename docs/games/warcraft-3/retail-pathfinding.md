@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **539 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **546 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 ordinary public twelve-member movement matches1,953 commits and2,634 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
@@ -40,8 +40,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists43 partial layouts,265 verified
-  fields and245 instruction-established prototypes with explicit register/stack
+  `MapPathfindingTypes.java` also persists44 partial layouts,270 verified
+  fields and246 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  539 function names/comments applied and saved. Latest target resize readbacks:
+  546 function names/comments applied and saved. Latest moving-radius readbacks:
+  `runtime/moving-radius-ghidra-readback-saved-261002.json` and
+  `runtime/moving-radius-types-final-261002.json`. Prior target resize readbacks:
   `runtime/follow-target-resize-ghidra-readback-saved-261002.json` and
   `runtime/follow-target-resize-types-final-261002.json`. Prior target teleport readbacks:
   `runtime/follow-target-teleport-ghidra-readback-saved-261002.json` and
@@ -372,3 +374,17 @@ journeys match5075 ordinary engine commits and9725 saved suffix commits. Chaos
 is implemented in its owning ability with authored UnitID and requirement gates.
 [Resize evidence](retail-pathfinding-engine.md#follow-retains-active-range-and-admits-resized-targets-with-half-edge-approaches)
 retains failed setup controls and the boundary to moving-unit footprint work.
+
+
+Moving Chaos now has an independently repeated ground point-Move contract across
+all nine radius boundaries.15fef0 writes mover90 and immediately refreshes fine
+and proximity geometry;670950 retains the public unit while rebinding type,
+stats and preserved task head.4d8dc0/4d8d40 schedule the0.01 Chaos commit from
+enabled/research delivery;4d8b40 owns subscription refresh and4c8aa0 cancels the
+two pending timers.053630 rearms periodic requests from the temporary due timer
+clock: request4 deadline,8 period,c clock,10 flags and18 receiver. The owner period
+is3cf5c290, public0.10 period3dcccccd. The engine now retains both scalar deadline
+cursors and deferred Move handoff through Save81. See [payoff51](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines).
+This closes bounded runtime footprint publication and positive periodic producer
+integration; general timer domains, shared maximum-radius mutation, passages and
+other task/locomotion families remain open.

@@ -1,5 +1,7 @@
 // Injected into a COPY of Human02Interlude. Tokens are filled by the map builder.
 globals
+    integer udg_MorphCase=0
+    integer udg_MorphAbility='Ag01'
     unit udg_PathProbeUnit = null
     unit udg_PathProbeGate = null
     group udg_PathProbeGroup = null
@@ -956,8 +958,71 @@ function PathProbeTick takes nothing returns nothing
     if PATH_PROBE_SCENARIO == 49 or PATH_PROBE_SCENARIO == 50 or (PATH_PROBE_SCENARIO == 51 or PATH_PROBE_SCENARIO == 52) then
         call Preload("PATHSELECT tick=" + I2S(udg_PathProbeTick) + " peerX=" + R2S(GetUnitX(udg_PathProbeCrowd[1])) + " peerY=" + R2S(GetUnitY(udg_PathProbeCrowd[1])) + " peerOrder=" + I2S(GetUnitCurrentOrder(udg_PathProbeCrowd[1])))
     endif
+    if PATH_PROBE_SCENARIO == 63 then
+        if udg_PathProbeTick == 20 then
+            call PathProbeRecord("before_mover_resize")
+            call Preload("PATHMORPH tick=20 label=before type=" + I2S(GetUnitTypeId(udg_PathProbeUnit)) + " handle=" + I2S(GetHandleId(udg_PathProbeUnit)))
+            if UnitAddAbility(udg_PathProbeUnit, 'ACGb') then
+                call PathProbeRecord("mover_resize_accepted")
+            else
+                call PathProbeRecord("mover_resize_rejected")
+            endif
+            call Preload("PATHMORPH tick=20 label=after type=" + I2S(GetUnitTypeId(udg_PathProbeUnit)) + " handle=" + I2S(GetHandleId(udg_PathProbeUnit)))
+            call PathProbeRecord("after_mover_resize")
+        endif
+        call Preload("PATHMORPH tick=" + I2S(udg_PathProbeTick) + " type=" + I2S(GetUnitTypeId(udg_PathProbeUnit)) + " handle=" + I2S(GetHandleId(udg_PathProbeUnit)) + " chaos=" + I2S(GetUnitAbilityLevel(udg_PathProbeUnit, 'ACGb')))
+    endif
+    if PATH_PROBE_SCENARIO==64 then
+        if ModuloInteger(udg_PathProbeTick,100)==0 and udg_PathProbeTick<900 then
+            call PathProbeRecord("before_matrix_birth")
+            call RemoveUnit(udg_PathProbeUnit)
+            set udg_PathProbeUnit=CreateUnit(Player(0),'hfoo',-1936.0,-976.0,90.0)
+            call SetUnitMoveSpeed(udg_PathProbeUnit,100.0)
+            set udg_MorphCase=udg_MorphCase+1
+            call PathProbeRecord("after_matrix_birth")
+            if udg_MorphCase==0 then
+                set udg_MorphAbility='Ag01'
+            elseif udg_MorphCase==1 then
+                set udg_MorphAbility='Ag02'
+            elseif udg_MorphCase==2 then
+                set udg_MorphAbility='Ag03'
+            elseif udg_MorphCase==3 then
+                set udg_MorphAbility='Ag04'
+            elseif udg_MorphCase==4 then
+                set udg_MorphAbility='Ag05'
+            elseif udg_MorphCase==5 then
+                set udg_MorphAbility='Ag06'
+            elseif udg_MorphCase==6 then
+                set udg_MorphAbility='Ag07'
+            elseif udg_MorphCase==7 then
+                set udg_MorphAbility='Ag08'
+            elseif udg_MorphCase==8 then
+                set udg_MorphAbility='Ag09'
+            endif
+        endif
+        if ModuloInteger(udg_PathProbeTick,100)==10 and udg_PathProbeTick>10 then
+            call PathProbeRecord("before_matrix_order")
+            if IssuePointOrder(udg_PathProbeUnit,"move",-1936.0,-144.0) then
+                call PathProbeRecord("matrix_order_accepted")
+            else
+                call PathProbeRecord("matrix_order_rejected")
+            endif
+        endif
+        if ModuloInteger(udg_PathProbeTick,100)==20 then
+            call PathProbeRecord("before_mover_resize")
+            call Preload("PATHMORPH case="+I2S(udg_MorphCase)+" tick="+I2S(udg_PathProbeTick)+" label=before type="+I2S(GetUnitTypeId(udg_PathProbeUnit))+" handle="+I2S(GetHandleId(udg_PathProbeUnit)))
+            if UnitAddAbility(udg_PathProbeUnit,udg_MorphAbility) then
+                call PathProbeRecord("mover_resize_accepted")
+            else
+                call PathProbeRecord("mover_resize_rejected")
+            endif
+            call Preload("PATHMORPH case="+I2S(udg_MorphCase)+" tick="+I2S(udg_PathProbeTick)+" label=after type="+I2S(GetUnitTypeId(udg_PathProbeUnit))+" handle="+I2S(GetHandleId(udg_PathProbeUnit)))
+            call PathProbeRecord("after_mover_resize")
+        endif
+        call Preload("PATHMORPH case="+I2S(udg_MorphCase)+" tick="+I2S(udg_PathProbeTick)+" type="+I2S(GetUnitTypeId(udg_PathProbeUnit))+" handle="+I2S(GetHandleId(udg_PathProbeUnit))+" chaos="+I2S(GetUnitAbilityLevel(udg_PathProbeUnit,udg_MorphAbility)))
+    endif
     call PathProbeRecord("sample")
-    if udg_PathProbeTick == 300 then
+    if (udg_PathProbeTick == 300 and PATH_PROBE_SCENARIO!=64) or (udg_PathProbeTick==900 and PATH_PROBE_SCENARIO==64) then
         if (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 62) then
             call PathProbeRecord("before_follow_stop")
             if IssueImmediateOrder(udg_PathProbeUnit, "stop") then

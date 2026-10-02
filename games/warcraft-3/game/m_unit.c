@@ -1074,6 +1074,7 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     /* Keep pathing/lifecycle ownership coherent: morphs may stay within the
      * mobile-unit family or within the building family, but never cross it. */
     if (source_building != target_building) return false;
+    S_UnitAbilityEvent(unit, A_UNIT_TYPE_CHANGING);
     health_ratio = unit->health.max_value > 0.0f ? unit->health.value / unit->health.max_value : 1.0f;
     mana_ratio = unit->mana.max_value > 0.0f ? unit->mana.value / unit->mana.max_value : 0.0f;
     temporary_armor = unit->temporary_armor_bonus;
@@ -1118,6 +1119,7 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     G_InvalidateUnitInfoPanel(unit);
     G_InvalidateUnitPortrait(unit);
     G_InvalidateUnitShortcutsForUnit(unit);
+    S_UnitAbilityEvent(unit, A_UNIT_TYPE_CHANGED);
     return true;
 }
 

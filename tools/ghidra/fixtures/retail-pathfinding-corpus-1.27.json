@@ -19726,6 +19726,432 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "inputs": {
+        "capture": "runtime/moving-radius-grow-v2-first-261002.jsonl",
+        "sha256": "9b70709903ce00f94ac7ff2174e3251a5549b244eed8324bcc54838a7a0ec451",
+        "bytes": 636323,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+            "wc3_pathfinding.js": "7d66cc39e3850dd54c0974dd20fe6127eabfb356dbb79eaaa625f7d1d9c1a57b",
+            "wc3_pathfinding_probe.j": "992541ea62569e8be85c4a33acf307715f0d5ad442b956dbc9ed6b4bcc078d7a",
+            "make_wc3_pathfinding_map.py": "3652d22f0b1a79c14600b4a13ebaa064fce0c61daac458503c47167259d8e4b3",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "d6c34c82eea55bffa55daa3f0aa2e7276dd0a84e6e4d7b6ba1d8c4d7cde06bc8"
+          },
+          "map": "Maps\\PathingRE-MovingRadiusGrowV2-261002.w3m",
+          "seconds": 70.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true,
+      "id": "live-moving-radius-captures-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_moving_radius_trace.py",
+        "{archive}/runtime/moving-radius-grow-v2-first-261002.jsonl",
+        "{archive}/runtime/moving-radius-grow-v2-repeat-261002.jsonl",
+        "{archive}/runtime/moving-radius-matrix-v1-first-261002.jsonl",
+        "{archive}/runtime/moving-radius-matrix-v1-repeat-261002.jsonl",
+        "{archive}/runtime/chaos-research-clock-v2-first-261002.jsonl",
+        "{archive}/runtime/chaos-research-clock-v2-repeat-261002.jsonl",
+        "{archive}/runtime/moving-radius-matrix-v4-first-261002.jsonl",
+        "{archive}/runtime/moving-radius-matrix-v4-repeat-261002.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-moving-radius-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_moving_radius.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "moving-radius-captures.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 8
+        },
+        "exact_decisions": {
+          "equal": 4858
+        },
+        "exact_velocity_commits": {
+          "equal": 6510
+        },
+        "group_owner_passes": {
+          "equal": 6510
+        },
+        "public_resizes": {
+          "equal": 40
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Public point Move through same-unit Chaos radius/type/speed rebind, nine below/equal/above footprint boundaries, and synchronous research-to-ten-ms primary commit. Exact stage words are frozen; generic timer deadline arithmetic remains NUM-02.9. Secondary presentation time and other order/locomotion families excluded. Engine normal-frame and Save81 suffix checks are separate production regressions.",
+      "exclusions": [
+        "General timer deadlines, secondary presentation clocks, other orders/locomotion families and arbitrary scenes remain open."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/moving-radius-grow-v2-repeat-261002.jsonl",
+            "sha256": "ee02389528d12f1bff4bf6cc8f1e0c90e045bf6c3d9d13fb8a04cbe4f8d2b8a8",
+            "bytes": 636324,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "7d66cc39e3850dd54c0974dd20fe6127eabfb356dbb79eaaa625f7d1d9c1a57b",
+                "wc3_pathfinding_probe.j": "992541ea62569e8be85c4a33acf307715f0d5ad442b956dbc9ed6b4bcc078d7a",
+                "make_wc3_pathfinding_map.py": "3652d22f0b1a79c14600b4a13ebaa064fce0c61daac458503c47167259d8e4b3",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "d6c34c82eea55bffa55daa3f0aa2e7276dd0a84e6e4d7b6ba1d8c4d7cde06bc8"
+              },
+              "map": "Maps\\PathingRE-MovingRadiusGrowV2-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/moving-radius-matrix-v1-first-261002.jsonl",
+            "sha256": "e4380cf1c4c1e1feb65ff9cda24f3d86fbb3a0661ad3f2f4b1d79a38854cedad",
+            "bytes": 5308833,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "025da1e83e338dac33b4911e282f8ebe183cc0a28fa9b211425d4b60f54512ef",
+                "wc3_pathfinding_probe.j": "86187acb9ebbd63c682ab53c4f2b1976dd0c8045ef204872145d64b69139abff",
+                "make_wc3_pathfinding_map.py": "12f66ddc949b855c550dc955d303b068bdc783471a0bbcd51330cbda78dc0531",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "44deff10060b4bc042ae959ca209adf3ad90e63a3ecf0b0a40f40fe8f154ab1c"
+              },
+              "map": "Maps\\PathingRE-MovingRadiusMatrixV1-261002.w3m",
+              "seconds": 125.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/moving-radius-matrix-v1-repeat-261002.jsonl",
+            "sha256": "ef074f1ee771434c218f6aeb1f2460e70dd9242040a666fb68c8bc54e4e85259",
+            "bytes": 5308831,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "025da1e83e338dac33b4911e282f8ebe183cc0a28fa9b211425d4b60f54512ef",
+                "wc3_pathfinding_probe.j": "86187acb9ebbd63c682ab53c4f2b1976dd0c8045ef204872145d64b69139abff",
+                "make_wc3_pathfinding_map.py": "12f66ddc949b855c550dc955d303b068bdc783471a0bbcd51330cbda78dc0531",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "44deff10060b4bc042ae959ca209adf3ad90e63a3ecf0b0a40f40fe8f154ab1c"
+              },
+              "map": "Maps\\PathingRE-MovingRadiusMatrixV1-261002.w3m",
+              "seconds": 125.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/chaos-research-clock-v2-first-261002.jsonl",
+            "sha256": "f8143595085f05626504116e6d727cb0178c692720b61ee5b84f42484355c0b0",
+            "bytes": 4145857,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "7d66cc39e3850dd54c0974dd20fe6127eabfb356dbb79eaaa625f7d1d9c1a57b",
+                "wc3_pathfinding_probe.j": "992541ea62569e8be85c4a33acf307715f0d5ad442b956dbc9ed6b4bcc078d7a",
+                "make_wc3_pathfinding_map.py": "3652d22f0b1a79c14600b4a13ebaa064fce0c61daac458503c47167259d8e4b3",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "ea498418c3b53e8d6f7bd65e089a9fb751be0ad8af5cd1316ff6c815fca2cf6b"
+              },
+              "map": "Maps\\PathingRE-ChaosResearchClockV2-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/chaos-research-clock-v2-repeat-261002.jsonl",
+            "sha256": "5f159267584f8770654777a2bdadd67334014d243c2086ea94feabea30784c1f",
+            "bytes": 4145856,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "7d66cc39e3850dd54c0974dd20fe6127eabfb356dbb79eaaa625f7d1d9c1a57b",
+                "wc3_pathfinding_probe.j": "992541ea62569e8be85c4a33acf307715f0d5ad442b956dbc9ed6b4bcc078d7a",
+                "make_wc3_pathfinding_map.py": "3652d22f0b1a79c14600b4a13ebaa064fce0c61daac458503c47167259d8e4b3",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "ea498418c3b53e8d6f7bd65e089a9fb751be0ad8af5cd1316ff6c815fca2cf6b"
+              },
+              "map": "Maps\\PathingRE-ChaosResearchClockV2-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/moving-radius-matrix-v4-first-261002.jsonl",
+            "sha256": "98333ffac1e3a10cfe29b9ab1e9870079bfa6c18c6e8755f3d6e0c60aa46ca40",
+            "bytes": 6499416,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "0f1c17cac103611aad3fdd121f03dbaafb1f62532787a06e436d1449a5f848d2",
+                "wc3_pathfinding_probe.j": "86187acb9ebbd63c682ab53c4f2b1976dd0c8045ef204872145d64b69139abff",
+                "make_wc3_pathfinding_map.py": "12f66ddc949b855c550dc955d303b068bdc783471a0bbcd51330cbda78dc0531",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "44deff10060b4bc042ae959ca209adf3ad90e63a3ecf0b0a40f40fe8f154ab1c"
+              },
+              "map": "Maps\\PathingRE-MovingRadiusMatrixV1-261002.w3m",
+              "seconds": 125.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/moving-radius-matrix-v4-repeat-261002.jsonl",
+            "sha256": "9f43bc2416522242ee3b43403b33b9fef30fb2532524bb3ed8b6d3d8c21ba2a7",
+            "bytes": 6499418,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "0f1c17cac103611aad3fdd121f03dbaafb1f62532787a06e436d1449a5f848d2",
+                "wc3_pathfinding_probe.j": "86187acb9ebbd63c682ab53c4f2b1976dd0c8045ef204872145d64b69139abff",
+                "make_wc3_pathfinding_map.py": "12f66ddc949b855c550dc955d303b068bdc783471a0bbcd51330cbda78dc0531",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "44deff10060b4bc042ae959ca209adf3ad90e63a3ecf0b0a40f40fe8f154ab1c"
+              },
+              "map": "Maps\\PathingRE-MovingRadiusMatrixV1-261002.w3m",
+              "seconds": 125.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -19791,7 +20217,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "6b98806f7808c2154cb85800a1c68637675f9080c44346903a32bb2558c40dcc"
+      "sha256": "877a46c87edc32da010d703b3b278c004301d74ceadc80770c944a5633eed8a6"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -20165,6 +20591,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-follow-target-resize-1.27.json",
       "sha256": "009fc82bc2c37b70f61b7429c99769095b125bf31b0c13292e4739b377a0223e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-moving-radius-1.27.json",
+      "sha256": "8b37abeefb480e1ca1371123796c9c869c42ff4f993779c998bc631fcdc1c645"
     }
   ]
 }

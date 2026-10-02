@@ -434,10 +434,11 @@ static void G_ApplyTechLevelToOwnedUnits(gameClient_t *client, uint32_t techid,
 
     if (!client || !techid || old_level == new_level) return;
     upgrade = G_UpgradeData(techid);
-    if (!upgrade || upgrade->id != techid) return;
     player = client->ps.number;
     FILTER_EDICTS(unit, unit->inuse && unit->s.player == player && unit->data.UnitBalance) {
-        G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
+        if (upgrade && upgrade->id == techid)
+            G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
+        S_UnitAbilityEvent(unit, A_REQUIREMENTS_CHANGED);
     }
 }
 

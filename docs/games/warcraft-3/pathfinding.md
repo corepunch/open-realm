@@ -535,3 +535,13 @@ resolution consumes it. Save format80 is unchanged.
 [Payoff50 scope and evidence](retail-pathfinding-engine.md#follow-retains-active-range-and-admits-resized-targets-with-half-edge-approaches)
 leaves moving-unit occupancy, other locomotion/body families and exact automatic
 morph timing open.
+
+
+Public point Move now retains its goal across a moving Chaos type rebind. Move
+commits the old pose, refreshes collision-sized routing and occupancy, then
+reissues the retained point task after the observed handoff delay. The new type's
+authored speed replaces the scripted old speed. All nine boundary-radius journeys
+match original absolute motion, including the90-second scalar timer/owner drift
+and Save81 continuations. See [moving radius and owner deadlines](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines).
+Other task/locomotion families and shared-group maximum-radius mutation remain
+open; this does not establish full retail search or movement parity.

@@ -8,12 +8,11 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**126 done / 310 tasks; 184 remaining.** Payoff50 closes TARGET-02.2 with
-original public Chaos collision growth/shrink, retained-range controls, fresh
-Follow admission and delayed original research unlock. Five native journeys
-match5075 ordinary engine commits and9725 saved suffix commits. Chaos now changes
-type/collision in place; fresh nearby Follow uses retail's half-edge approach,
-while active groups retain their range. Counts describe this backlog,
+**128 done / 312 tasks; 184 remaining.** Payoff51 closes FOOT-01.2 and
+NUM-02.9.1 with moving Chaos collision publication at nine boundary radii and
+retained scalar public/owner timer deadlines. Native journeys match1179 new
+ordinary engine commits and4280 Save81 suffix commits per variant; the complete
+90-second matrix includes the former41-second timing drift. Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -25,10 +24,10 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
 | MAP — Map construction and lifetime | 7 | 15 |
-| FOOT — Footprints and query policy | 7 | 8 |
+| FOOT — Footprints and query policy | 8 | 7 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
-| NUM — Numbers and random state | 22 | 14 |
+| NUM — Numbers and random state | 23 | 13 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
 | SCHED — Scheduling and owner updates | 4 | 9 |
@@ -51,8 +50,8 @@ MAP-03.7 explicitly adds the inside-footprint engine failure discovered while au
 FOOT-01.4/05 explicitly split engine class-footprint integration into completed
 nearby/direct/endpoint consumers and the now completed long/shared field geometry.
 The shared field algorithm is still not retail hierarchy parity.
-Runtime radius producers and the full passage matrices remain FOOT-01.2/03 and
-FOOT-02; the bounded cardinal witnesses do not close them.
+Moving point-Move runtime radius publication is completed FOOT-01.2; shared
+maximum-radius mutation and full passage matrices remain FOOT-01.3/02.
 FINE-01.4 explicitly owns incremental engine integration of the completed static
 search policy; it does not replace FINE-01.2/03 dynamic composition or FINE-02
 termination requirements. FINE-01.6 explicitly splits the overlapping target link producer from01.3's completed supplied-chain matrix and separate-target engine port. FINE-01.5 explicitly adds the independently reviewable engine idle-object port; ground/flight original composition is completed within01.2, while its other public lanes remain required.
@@ -151,7 +150,7 @@ NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | FOOT-01.2 | Public Chaos resize and same-mover evidence from TARGET-02.2 | Moving-unit radius publication, route/occupancy refresh and exact engine motion |
+| 1 | FOOT-01.3 | Public moving Chaos and saved scalar owner deadlines | Shared maximum-radius publication after largest-member/target mutation |
 | 2 | FOOT-04 | Verified static and idle-object geometry | Public placement/teleport admission contracts and engine consumers |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
@@ -308,7 +307,7 @@ Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers,
 ### FOOT-01 — Radius production
 
 - [x] **FOOT-01.1** Authored collision conversion and the four fine-class thresholds are recovered and covered by the footprint oracle. Evidence: [footprints][footprints]; runtime producer coverage is not complete.
-- [ ] **FOOT-01.2** Change collision radius through a runtime producer; test below/equal/above each class boundary and assert geometry/class changes.
+- [x] **FOOT-01.2** Change collision radius through a runtime producer; test below/equal/above each class boundary and assert geometry/class changes. Evidence: [payoff51](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines), repeated public Chaos point-Move growth and nine boundary radii, retained canonical mover with new physical owner, exact geometry/class words,1179 ordinary engine commits and4280 Save81 suffix commits. Engine commits old pose, refreshes occupancy/routing, publishes authored speed and defers preserved-task reissue. Other task/locomotion families and group maximum remain their own leaves.
 - [ ] **FOOT-01.3** Trace group maximum and target-radius producers; assert updates after the largest member/target changes size or disappears.
 
 - [x] **FOOT-01.4** Apply the proven static 1/2/3/4-cell classes to engine fine routing, direct/step endpoint checks and point/group destination correction. Original24 cardinal corridor requests and1,184 complete endpoint validations pass; C endpoint geometry matches at O0/O2. The engine first reproduced16 class/corridor failures, then actual Move orders advance with exact destinations in14 fitting cases. Nearest-ring and Bresenham/corner adapters remain explicit partial policies. Evidence: [engine collision classes](retail-pathfinding-engine.md#retail-collision-classes-reach-routing-and-stepping).
@@ -453,6 +452,8 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 
 - [x] **NUM-02.8** Explicitly split ordinary periodic public admission from02.3: start the engine clock/phase at zero, drive eight public RemoveUnit/CreateUnit/Move lifetimes through normal TimerStart, compare all247 original clock/position/velocity/facing commits and preserve the timer across saved fractional travel and later births. Evidence: [payoff35](retail-pathfinding-engine.md#public-timer-admission-reaches-move-from-zero), two repeated6000-primary-advance/1000-owner captures; engine elapsed-time cursor and owner-before-authored-timer primary-quantum fixes;76 exact saved continuation commits. Save72 and persisted TimerStart ABI/comments are synchronized. General scalar timer deadlines, other profiles and long small/large trajectories remain02.3/9..11.
 - [ ] **NUM-02.9** Split the newly exposed timer timeout producer: recover TimerStart's scalar scheduling path and TimerGetElapsed/Remaining/Timeout domains, retain timeout words instead of integer-millisecond truncation, compare short/negative/large input boundaries and port the verified deadlines/getters through actual timer-issued Move.
+- [x] **NUM-02.9.1** Split the long runtime-radius matrix's positive periodic timer dependency: recover scalar rearm from the due timer clock, preserve the authored0.10 timeout word and the separate owner3cf5c290 period, port both deadline cursors with save/load, and compare the complete90-second public Move/radius matrix. Ghidra053630 and new read-only rearm witnesses establish the producer; engine prefix previously diverged after41seconds with integer cadence. Evidence: [payoff51](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines), two repeated read-only original witnesses each retain3000 owner plus899 public scalar rearms; complete1061-commit engine matrix and4026 saved suffix commits per variant now match. General timeout/getter, pause, heap and epoch domains remain02.9.2/10/11.
+- [ ] **NUM-02.9.2** Split remaining scalar timeout/getter boundaries from02.9.1: short, zero, negative, large and adjacent timeout words, TimerGetElapsed/Remaining/Timeout domains, paused remainder and epoch-crossing producers. The positive0.10/owner0.03 matrix does not close these domains or general heap tie/catch-up mutation in02.10.
 - [ ] **NUM-02.10** Split periodic rearm and shared-deadline mutation: recover registration/tie order, overdue catch-up, zero/subquantum periods, restart/pause/destroy inside callbacks and queued generation invalidation; compose original controls, bounded live public Move and saved engine continuation. Ordinary owner-before-map-timer order is02.8, not a full heap-order proof.
 - [ ] **NUM-02.11** Split timer-clock epoch/rebase integration: recover timer deadline/remaining adjustments at span boundaries and paused domains, port the scalar clock ownership with Save/Load and compare public timer-issued trajectories crossing a wrap. The existing5ms primary source oracle and integer countdown cursor do not establish general timer heap parity.
 

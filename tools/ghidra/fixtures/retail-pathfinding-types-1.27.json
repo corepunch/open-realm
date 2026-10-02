@@ -1853,6 +1853,42 @@
           "evidence": "4184b0 lazy6ac530 cache producer; UnitID at per-level44"
         }
       ]
+    },
+    {
+      "name": "WC3TimerRequestPrefix",
+      "length": 28,
+      "fields": [
+        {
+          "offset": 4,
+          "name": "deadline",
+          "type": "WC3PathScalar",
+          "evidence": "0522e0 due comparison/temporaryclock; repeated3899 rearm captures"
+        },
+        {
+          "offset": 8,
+          "name": "period",
+          "type": "WC3PathScalar",
+          "evidence": "053640 request8 pointer to scalar Math_Add operand; actual0.10 and owner0.03 words"
+        },
+        {
+          "offset": 12,
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "evidence": "0542d0 free list at requestc clock38/3c;053630 ECX clock"
+        },
+        {
+          "offset": 16,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "0542d0 periodic1/cancel10000;053630 clears10000 and sets queued20000"
+        },
+        {
+          "offset": 24,
+          "name": "receiver",
+          "type": "ptr:void",
+          "evidence": "0542d0 invokes receiver vtablec(request); live request snapshots"
+        }
+      ]
     }
   ],
   "methods": [
@@ -6397,6 +6433,25 @@
         }
       ],
       "evidence": "Complete87-instruction x86 listing: ECX savedESI, stack4 order savedEDI, both return paths RET4; native selected packet9 before/after userheads corroborate immediate idle dispatch."
+    },
+    {
+      "address": "6f053630",
+      "name": "SimClock_RearmPeriodicTimer",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete24-instruction listing: ECX savedEDI,stack4 savedESI, Math_Add(clock40,request8) writesrequest4, flags10, heapinsert, RET4; repeated original periodic rearm witness."
     }
   ],
   "globals": [
@@ -6669,6 +6724,12 @@
       "name": "Mover_InitialFinePosition",
       "type": "WC3PathScalar",
       "evidence": "15ed40 reads raw c7fa0040 (-128000.5) into mover78/7c; two repeated public CreateUnit first commits retain exact sentinel cancellation."
+    },
+    {
+      "address": "6fcd53a4",
+      "name": "Chaos_CommitDelay",
+      "type": "WC3PathScalar",
+      "evidence": "4d8dc0/4d8d40 embedded timer argument; saved direct read raw3c23d70a=0.01."
     }
   ]
 }
