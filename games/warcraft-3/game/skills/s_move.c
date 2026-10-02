@@ -200,6 +200,7 @@ static void move_detach_group(edict_t *unit) {
 }
 
 static void move_run_group_updates(void);
+static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent);
 
 static edict_t *trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
 static edict_t *trymove_colliders[MAX_MOVE_COLLIDERS];
@@ -2022,6 +2023,10 @@ float G_FollowStopRange(edict_t const *follower, edict_t const *target) {
         : game.constants.followRange;
     /* A pathing-footprint distance already includes the building extent, so
      * only the follower radius remains as its no-overlap lower bound. */
+    if (!G_UnitIsStructure(target))
+        return wc3_mul(MAX(wc3_float(0x3efae148),wc3_div(wc3_add(wc3_add(configured,follower->collision),target->collision),32)),32);
+    /* TODO TARGET-01.2: retain the existing footprint-edge structure policy
+     * until its complete native approach producer is captured. */
     collision_range = follower->collision;
     if (!G_UnitIsStructure(target) || !target->pathtex)
         collision_range += target->collision;
@@ -2077,6 +2082,8 @@ static void ai_follow_walk(edict_t *ent) {
         }
     }
 
+    if (move_find_group(ent->movement.group_id)) return;
+
     distance = M_DistanceToGoal(ent);
     follow_range = G_FollowStopRange(ent, target);
     follow_footprint_distance(ent, target, &distance);
@@ -2098,7 +2105,13 @@ static void ai_follow_walk(edict_t *ent) {
     unit_moveindirection(ent);
 }
 
-static umove_t follow_move_walk = { "walk", ai_follow_walk, NULL, CAbilityMove };
+static umove_t follow_move_walk = { .animation="walk", .think=ai_follow_walk, .proc=CAbilityMove,
+    .scheduled_think=true, .sample_pose=S_PublishMovement, .leave=move_leave };
+static umove_t follow_move_legacy = { .animation="walk", .think=ai_follow_walk, .proc=CAbilityMove };
+
+static bool move_is_following(edict_t const *unit) {
+    return unit && (unit->currentmove==&follow_move_walk || unit->currentmove==&follow_move_legacy);
+}
 
 void order_follow_resume(edict_t *self) {
     edict_t *target;
@@ -2116,7 +2129,17 @@ void order_follow_resume(edict_t *self) {
     self->goalentity = target;
     self->movement.holding_position = false;
     move_reset_progress(self);
-    unit_setmove(self, &follow_move_walk);
+    bool physical=!(self->aiflags&AI_FLYING) && !(target->aiflags&AI_FLYING) && !G_UnitIsStructure(target);
+    unit_setmove(self, physical ? &follow_move_walk : &follow_move_legacy);
+    if (physical) {
+        self->movement.flat_speed_bonus=S_MoveSpeedBonus(self);
+        unit_commit_current_pose(self); self->movement.pose_clock=level.pathing_clock;
+        self->movement.clock_valid=true;
+        move_start_follow_group(self,target,false);
+        unit_setanimation(self,"stand");
+    }
+    /* TODO TARGET-02.1: flight and structure-footprint approach producers retain
+     * their existing traversal pending full native physical-owner evidence. */
 }
 
 void order_follow(edict_t *self, edict_t *target) {
@@ -2135,7 +2158,7 @@ void order_follow(edict_t *self, edict_t *target) {
 
 bool S_IssueFollowOrder(edict_t *self, edict_t *target, uint32_t order_id) {
     order_follow(self, target);
-    if (!self || self->goalentity != target || self->currentmove != &follow_move_walk)
+    if (!self || self->goalentity != target || !move_is_following(self))
         return false;
     self->current_order_id = order_id;
     return true;
@@ -2475,6 +2498,22 @@ static bool move_queue_group_point(groupPointOrder_t const *request) {
 
 static void move_group_seed_route(moveGroup_t *group);
 
+/* Native target Move approaches once, then a persistent Follow task creates
+ * another physical owner while the public Smart/Move head remains retained. */
+static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent) {
+    moveGroup_t *group=move_alloc_group();
+    group->inuse=group->ticking=true; group->id=move_allocate_group_id();
+    group->target=target; group->target_spawn=target->spawn_time;
+    group->flags=0x1000u|(persistent ? 0x801u : 0); group->age=UINT32_MAX;
+    group->radius=unit->collision; group->request_id=unit->movement.previous_request_id;
+    wc3GridPose_t pose; unit_predicted_pose(target,&pose);
+    group->goal=(vec2_t){pose.world[0],pose.world[1]};
+    group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
+        .arrival_range=wc3_div(G_FollowStopRange(unit,target),32)};
+    unit->movement.group_id=group->id;
+    move_group_seed_route(group); group->ticking=false;
+}
+
 static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return false;
     S_IssueMoveOrder(unit,Waypoint_add(&queued->point),G_OrderId(queued->order));
@@ -2623,7 +2662,8 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
     edict_t *unit=member->unit;
     wc3GridPose_t pose; unit_predicted_pose(unit,&pose);
     wc3Arrival_t arrival={.source={pose.grid[0],pose.grid[1]},.target={member->destination.x,member->destination.y},
-        .heading=unit->s.angle,.range=wc3_float(0x3efae148),.flags=member->forced_arrival ? 0x10000 : 0};
+        .heading=unit->s.angle,.range=member->arrival_range ? member->arrival_range : wc3_float(0x3efae148),
+        .flags=member->forced_arrival ? 0x10000 : 0};
     if (unit->paused || unit->stunned) {
         member->arrived=member->in_range=false; member->speed=0; member->heading=unit->s.angle;
         return;
@@ -2720,7 +2760,9 @@ static void move_run_group_updates(void) {
         for (uint32_t i=0;i<group->count;) {
             moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
             if (!unit->inuse || unit->spawn_time!=member->spawn || G_IsDeferredFree(unit) || M_IsDead(unit) ||
-                unit->movement.group_id!=group->id || unit->currentmove!=&move_move_walk || !unit->goalentity) {
+                unit->movement.group_id!=group->id ||
+                (unit->currentmove!=&move_move_walk && (!group->target || unit->currentmove!=&follow_move_walk)) ||
+                !unit->goalentity) {
                 if (unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
                     unit->movement.group_id=0;
                 group->members[i]=group->members[--group->count]; continue;
@@ -2729,7 +2771,29 @@ static void move_run_group_updates(void) {
             i++;
         }
         if (!group->count) { move_release_group(group); continue; }
+        if (group->target && (!group->target->inuse || group->target->spawn_time!=group->target_spawn ||
+                G_IsDeferredFree(group->target) || M_IsDead(group->target))) {
+            while(group->count) {
+                edict_t *unit=group->members[group->count-1].unit;
+                unit->movement.follow_target=NULL; unit->goalentity=NULL; unit_stand(unit);
+            }
+            move_release_group(group); continue;
+        }
         group->age++;
+        if (group->target && !group->target_refresh) {
+            wc3GridPose_t pose; unit_predicted_pose(group->target,&pose);
+            vec2_t old=group->route.group_goal;
+            /* Original167e40 compares floor(fine)>>1 before replacing the
+             * cached destination. Sub-cell target motion must not reset a
+             * retained route, even when the refresh countdown reaches zero.
+             * TODO TARGET-02.1: delayed destination changes also require both
+             * native path timestamps to be at least ten owner ticks old;
+             * their producers remain unported (scene53 retains zeroes). */
+            if (!group->initialized || ((int32_t)floorf(old.x)>>1)!=((int32_t)floorf(pose.grid[0])>>1) ||
+                    ((int32_t)floorf(old.y)>>1)!=((int32_t)floorf(pose.grid[1])>>1))
+                group->goal=(vec2_t){pose.world[0],pose.world[1]};
+            group->target_refresh=-1;
+        }
         if (!move_group_route(group)) { group->ticking=false; continue; }
         FOR_LOOP(i,group->count) group->members[i].flags&=~0x200000u;
         move_deciding_group=group; move_deciding_excluded=0;
@@ -2756,15 +2820,32 @@ static void move_run_group_updates(void) {
             float old[2]={unit->movement.velocity.x,unit->movement.velocity.y};
             wc3_grid_step(&step.pose,old,unit->movement.clock_valid ? wc3_elapsed(&level.pathing_clock,&unit->movement.pose_clock) : 0);
             wc3_velocity_update_world(&step.velocity); unit_commit_motion(unit,&step);
-            if (member->arrived && !group->route.group_index) finished[count++]=unit;
+            if (member->arrived && !group->route.group_index && !(group->flags&1)) finished[count++]=unit;
         }
         group->flags&=~0x10000u;
-        if (!group->route.group_index) group->completion_counter++;
-        else move_group_regroup(group);
+        if (group->target) {
+            if (group->target_refresh==-1) {
+                wc3GridPose_t pose; unit_predicted_pose(group->members[0].unit,&pose);
+                vec2_t goal=group->route.group_goal;
+                float x=wc3_sub(goal.x,pose.grid[0]),y=wc3_sub(goal.y,pose.grid[1]);
+                float distance=wc3_sqrt(wc3_add(wc3_mul(x,x),wc3_mul(y,y)));
+                int32_t reload=(int32_t)wc3_int_bits(wc3_float_bits(wc3_add(wc3_mul(distance,wc3_float(0x3ea8f5c3)),.5f)));
+                group->target_refresh=reload<16 ? 16 : reload>132 ? 132 : reload;
+                if (group->flags&0x400) group->target_refresh+=165;
+            } else if (group->target_refresh) group->target_refresh--;
+        }
+        if (!group->route.group_index) {
+            if (!(group->flags&1)) group->completion_counter++;
+        } else move_group_regroup(group);
         if (count) group->completion_counter=0;
         while (count) {
             edict_t *unit=finished[--count];
-            if (unit->movement.group_id==group->id) { move_detach_group(unit); unit->movement.group_id=0; unit->stand(unit); }
+            if (unit->movement.group_id==group->id) {
+                edict_t *target=group->target;
+                move_detach_group(unit); unit->movement.group_id=0;
+                if (target) move_start_follow_group(unit,target,true);
+                else unit->stand(unit);
+            }
         }
         group->ticking=false;
         if (!group->count) move_release_group(group);
@@ -2929,7 +3010,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return true;
     }
     case A_TARGET_REMOVED:
-        if (!call || ent->currentmove != &follow_move_walk || ent->movement.follow_target != call->removed_target)
+        if (!call || !move_is_following(ent) || ent->movement.follow_target != call->removed_target)
             return false;
         ent->movement.follow_target = NULL;
         if (ent->goalentity == call->removed_target) ent->goalentity = NULL;

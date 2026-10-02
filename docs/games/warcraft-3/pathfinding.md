@@ -498,3 +498,13 @@ when queuing one common selected ground request. Later physical acquisition
 creates and joins one cohort;1022 original motion commits and844 saved suffix
 commits match exactly. This strengthens the same engine admission port. See
 [independent active owners](retail-pathfinding-engine.md#independent-active-owners-accept-the-same-pending-ground-request).
+
+
+Ground-unit Smart Follow now uses Move-owned target cohorts. It approaches,
+retains its user head during persistent following, refreshes cached destinations
+on the recovered countdown and retains same-bucket sub-cell changes. Target
+arrival adds both collision radii to Misc.FollowRange. The original moving-target
+speed-change journey matches1015 absolute commits plus2595 saved suffix commits.
+Save80 retains target generation, range and refresh state. Structures, flight,
+visibility/loss and delayed replan producers remain explicitly open. See
+[Smart Follow integration](retail-pathfinding-engine.md#smart-follow-tracks-a-moving-target-through-a-speed-change).

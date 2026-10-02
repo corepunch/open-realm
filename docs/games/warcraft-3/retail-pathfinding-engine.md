@@ -4791,3 +4791,73 @@ no new task is added, and122 completed/186 open leaves remain. Save79 is unchang
 The validation index is `runtime/selected-independent-shift-validation-261002.json`.
 Next runnable work is TARGET-02.1 moving-target refresh and numerical pursuit,
 with a live target-speed transition; wider GROUP-04.6 contracts remain required.
+
+
+## Smart Follow tracks a moving target through a speed change
+
+Payoff47 splits the bounded ground-unit producer from TARGET-02.1 into
+TARGET-02.4. Original scene53 creates two friendly Footmen, issues public Smart
+at tick10, starts the target's point Move at80, changes its speed at85, and
+explicitly Stops the follower at300. Two independently owned, read-only Frida
+captures contain the same1015 absolute position/velocity/facing/clock commits:
+106 initial approach owner visits,861 persistent Follow visits and48 target
+point-Move visits. The Smart user head survives the internal approach arrival.
+The final Stop is authored input; this is not natural Follow order completion.
+
+Move now owns the physical target cohorts, per-member arrival range, generation
+checks, cached target destination and countdown. Normal engine frames match all
+1015 commits without injecting native decisions or owner clocks. Save80 loads
+at commits50/150/250 reproduce2595 suffix commits, including later ordinary
+JASS point/speed/Stop callbacks. Structures and flight retain their existing
+explicitly marked traversal pending the corresponding native producer evidence.
+
+Two recovered policies have direct engine payoff. Target arrival is
+`max(.49,(FollowRange+followerRadius+targetRadius)/32)` in fine coordinates:
+scene53 publishes11.3125, or362 world units. Countdown reload uses the first
+member's committed pose and cached destination, software scalar distance times
+0.33 plus0.5, wrapped integer conversion, then clamps16..132 (flag400 adds165).
+Destination replacement compares `floor(fine)>>1`: sampled target motion within
+that bucket retains the old destination. Unconditional replacement originally
+failed at commit341; retaining the bucket restores the entire journey. The
+captured destination-delay timestamps are zero. Their wider delayed-change
+producers remain TARGET-02.1 rather than being claimed by this witness.
+
+The broad suite exposed a retired timer callback lifetime bug. Destroy stopped
+the timer but retained a pointer into a freed VM program when the next scene
+replaced that program. Save/load serializes retired allocated timer slots;
+GDB with the standard JUnit environment found an invalid serialized handler.
+`G_TimerDestroy` now clears the callback while cancelling its generation. The
+loader also names an unresolved function field instead of only reporting a
+level-state failure. The failing standard-run and GDB reports remain diagnostic
+artifacts; passing reruns alone were not treated as proof.
+
+Accepted capture/provenance inputs live under the standard report root:
+
+- `runtime/follow-velocity-complete-source-261002/` and
+  `runtime/follow-velocity-complete-{first,repeat}-261002.jsonl`;
+- `runtime/follow-velocity-types-final-261002.json` and
+  `runtime/follow-velocity-ghidra-readback-saved-261002.json`:527 saved function
+  roles,42 partial layouts,262 verified fields and245 explicit prototypes;
+- `retail-follow-velocity-1.27.json` and `retail_follow_velocity.h` freeze every
+  motion word plus range/refresh/replan/completion policies and sampled markers.
+
+The strict checker verifies complete observer extents, source hashes, repeated
+absolute phases/owners/motion and explicit Stop. Six asset-free tests reject
+missing collision radii, wrong countdown/clamp, same-bucket replacement,
+persistent completion and lost bounded Stop, and compare every header word.
+No p-code, prototype guesses, tolerance widening or game calls from the observer
+were needed. An earlier experiment let Follow continue beyond the completion
+marker; those extra commits remain diagnostic, outside the bounded fixture.
+Target teleport/resize, visibility, kill/remove/reuse, wider timestamp producers,
+combat chase and arbitrary map/mask composition remain open.
+
+
+Payoff47 final validation: debug RoC/TFT each pass300,392 assertions in2328
+WC3 tests. Forced release production/test builds and the normal repository suite
+pass; all-test RoC/TFT each pass300,825 assertions in2365 tests. All209 Python
+pathfinding tests, ability audit,265-entry/106-fixture inventory, ten fresh strict
+contracts and saved Ghidra readbacks pass. The final strict reports are
+`runtime/follow-velocity-strict-saved-final-261002/corpus-results.json`; the
+validation index is `runtime/follow-velocity-validation-261002.json`.
+TARGET-02.4 closes with123 completed/186 open leaves. Next runnable work is
+TARGET-02.3 public target removal/death and reuse under the physical Follow port.

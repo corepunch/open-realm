@@ -45,7 +45,7 @@ typedef struct {
     edict_t *unit;
     uint32_t spawn, flags;
     vec2_t offset, destination, world_destination;
-    float speed, heading;
+    float speed, heading, arrival_range;
     bool arrived, in_range, forced_arrival;
 } moveGroupMember_t;
 
@@ -56,6 +56,9 @@ typedef struct {
     uint64_t sequence; /* Creation order survives slot reuse and save/load. */
     bool inuse, initialized, ticking;
     vec2_t goal, point;
+    edict_t *target;
+    uint32_t target_spawn;
+    int32_t target_refresh;
     float heading, radius;
     moveFineRoute_t route;
     moveGroupMember_t members[BZ_WC3_GROUP_ORDER_UNITS];

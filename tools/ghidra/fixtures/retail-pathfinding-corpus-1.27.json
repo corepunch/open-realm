@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "95 executable original oracle contracts,121 archive audits and38 strict live contracts;254 total entries. Archive audits and stronger live contracts are distinct evidence levels.",
+  "scope": "96 executable original oracle contracts,121 archive audits and48 strict live contracts;265 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -18398,6 +18398,150 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "inputs": {
+        "capture": "runtime/follow-velocity-complete-first-261002.jsonl",
+        "sha256": "acf23e0d528ae0315a24a9f8b2e840fd76ab52827caf5a37d82ccd617f441e70",
+        "bytes": 3477602,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+            "wc3_pathfinding.js": "d6b400b05c00f0d6a90d618419b5ae2487d7bc0a3bcc5b7fd206e0fdd1023fd8",
+            "wc3_pathfinding_probe.j": "860f66d6030ab2d7f8d4dc12a4ab6bc4e92fbcec049d4227e8b6b329aa18b933",
+            "make_wc3_pathfinding_map.py": "872a90c9923d09b5fe1b126391da570a8379863cf4100cc1f8c908e5f035c6e1",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "aa9563f48f518f372ead4dd1e299d7193766da4d75f6ad965132db1f23c27ac9"
+          },
+          "map": "Maps\\PathingRE-FollowVelocityComplete-261002.w3m",
+          "seconds": 70.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true,
+      "id": "live-follow-velocity-repeat-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_follow_velocity_trace.py",
+        "{archive}/runtime/follow-velocity-complete-first-261002.jsonl",
+        "{archive}/runtime/follow-velocity-complete-repeat-261002.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-follow-velocity-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_follow_velocity.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "follow-velocity-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "exact_decisions": {
+          "equal": 416
+        },
+        "exact_velocity_commits": {
+          "equal": 2030
+        },
+        "target_reloads": {
+          "equal": 116
+        },
+        "group_owner_passes": {
+          "equal": 2030
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Public Smart on a friendly ground target; complete bounded approach/persistent Follow with target point Move, authored speed change and explicit Stop. Exact full engine cadence/save continuations are separate C regressions. Other masks, target visibility/loss, structures, destination-delay timestamp producers and combat chase remain open.",
+      "exclusions": [
+        "Ground Footman pair, visible friendly target, public Smart/point Move/speed change/Stop and supplied static geometry. Follow natural termination is not claimed. Wider target lifetime, timestamps, combat, structures, air/masks remain open."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/follow-velocity-complete-repeat-261002.jsonl",
+            "sha256": "9d8673644344b15105bb39f0b39fad0a4635fa62629789964961a43771602169",
+            "bytes": 3477601,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "d6b400b05c00f0d6a90d618419b5ae2487d7bc0a3bcc5b7fd206e0fdd1023fd8",
+                "wc3_pathfinding_probe.j": "860f66d6030ab2d7f8d4dc12a4ab6bc4e92fbcec049d4227e8b6b329aa18b933",
+                "make_wc3_pathfinding_map.py": "872a90c9923d09b5fe1b126391da570a8379863cf4100cc1f8c908e5f035c6e1",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "aa9563f48f518f372ead4dd1e299d7193766da4d75f6ad965132db1f23c27ac9"
+              },
+              "map": "Maps\\PathingRE-FollowVelocityComplete-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -18821,6 +18965,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-selected-independent-1.27.json",
       "sha256": "d751fbb3f08a19c79fe7898b4559b36c3dfe38bdcda0e1164eca2b4ad7717aba"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-follow-velocity-1.27.json",
+      "sha256": "497858fcf159ef8a205a4ff703257cdf6b7753fe97bb72b6c434d96afa684d60"
     }
   ]
 }

@@ -772,3 +772,14 @@ frames match1022 commits and844 saved suffix commits. The existing mixed-input
 checker handles this explicit admission mode without relaxing its earlier
 contract. Inventory is264 entries/105 fixtures; nine fresh contracts retain all
 selected/public/owner witnesses. See [independent active owners](retail-pathfinding-engine.md#independent-active-owners-accept-the-same-pending-ground-request).
+
+
+Payoff47 adds `live-follow-velocity-repeat-261002`: two complete bounded Smart
+Follow witnesses repeat1015 absolute commits each. The visible friendly target
+walks and changes speed; the user head persists until authored Stop. The checker
+requires416 scalar decisions,2030 exact commits,116 target reloads and2030 owner
+visits across both captures. Native task arrival is distinct from user-head
+completion. Normal engine frames and three Save80 continuations independently
+match1015 plus2595 suffix commits. Inventory is265 entries/106 fixtures with48
+strict live contracts; ten fresh selected/public/owner/Follow contracts preserve
+the earlier witnesses. See [moving-target integration](retail-pathfinding-engine.md#smart-follow-tracks-a-moving-target-through-a-speed-change).

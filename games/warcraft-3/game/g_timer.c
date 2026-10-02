@@ -131,6 +131,9 @@ void G_TimerDestroy(gtimer_t *timer) {
     timer->generation++;
     timer->running = false;
     timer->paused = true;
+    /* Destroy releases the callback as well as cancelling its generation.
+     * Save/load serializes every allocated timer slot, including retired ones. */
+    timer->handler = NULL;
 }
 
 bool G_TimerCoroutineValid(handle_t handle, uint32_t generation) {

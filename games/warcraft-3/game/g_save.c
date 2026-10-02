@@ -78,9 +78,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format79 retains latest submitted shared Move history independently of
- * active ownership and queued FIFO context, alongside the merged contracts. */
-static uint32_t const save_version = 79;
+/* Format80 retains target-generation, arrival-range and refresh state for
+ * physical Follow owners alongside submitted request history and sequences. */
+static uint32_t const save_version = 80;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -734,6 +734,7 @@ static field_t const move_member_fields[] = {
     TF(moveGroupMember_t, world_destination, F_VECTOR),
     TF(moveGroupMember_t, speed, F_FLOAT),
     TF(moveGroupMember_t, heading, F_FLOAT),
+    TF(moveGroupMember_t, arrival_range, F_FLOAT),
     TF(moveGroupMember_t, arrived, F_INT),
     TF(moveGroupMember_t, in_range, F_INT),
     TF(moveGroupMember_t, forced_arrival, F_INT),
@@ -752,6 +753,9 @@ static field_t const move_group_fields[] = {
     TF(moveGroup_t, ticking, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveGroup_t, goal, F_VECTOR),
     TF(moveGroup_t, point, F_VECTOR),
+    TF(moveGroup_t, target, F_EDICT, 0, FIELD_NONE),
+    TF(moveGroup_t, target_spawn, F_INT),
+    TF(moveGroup_t, target_refresh, F_INT),
     TF(moveGroup_t, heading, F_FLOAT),
     TF(moveGroup_t, radius, F_FLOAT),
     TF(moveGroup_t, route, F_STRUCT, 1, move_route_fields),
@@ -1694,7 +1698,10 @@ static bool ReadMappedFields(FILE *f, field_t const *fields, uint8_t *base) {
             string_t name = NULL;
             if (!ReadString(f, &name)) return false;
             *(jassFunc_t const * *)(base + fields->ofs) = name ? jass_functionbyname(level.vm, name) : NULL;
-            if (name && !*(jassFunc_t const * *)(base + fields->ofs)) { free(name); return false; }
+            if (name && !*(jassFunc_t const * *)(base + fields->ofs)) {
+                fprintf(stderr,"WC3 LoadGame: unresolved function field %s name='%s'\n",fields->name,name);
+                free(name); return false;
+            }
             free(name);
             break;
         }
@@ -1972,6 +1979,13 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
         !isfinite(group->goal.x) || !isfinite(group->goal.y) || !isfinite(group->point.x) ||
         !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)
         return false;
+    if (group->target) {
+        uintptr_t ptr=(uintptr_t)group->target,base=(uintptr_t)g_edicts;
+        if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts) ||
+            !group->target->inuse || G_IsDeferredFree(group->target) ||
+            group->target->spawn_time!=group->target_spawn || !(group->flags&0x1000) ||
+            group->target_refresh<0 || group->target_refresh>297) return false;
+    } else if (group->target_spawn || group->target_refresh || (group->flags&0x1000)) return false;
     FOR_LOOP(i,group->count) {
         moveGroupMember_t const *member=group->members+i;
         uintptr_t ptr=(uintptr_t)member->unit,base=(uintptr_t)g_edicts;
@@ -1983,8 +1997,10 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
             !isfinite(member->destination.x) || !isfinite(member->destination.y) ||
             !isfinite(member->world_destination.x) || !isfinite(member->world_destination.y) ||
             !isfinite(member->speed) || member->speed<0 || !isfinite(member->heading) ||
+            !isfinite(member->arrival_range) || member->arrival_range<0 ||
             *(uint8_t const *)&member->arrived>1 || *(uint8_t const *)&member->in_range>1 ||
             *(uint8_t const *)&member->forced_arrival>1) return false;
+        if (group->target && (unit->movement.follow_target!=group->target || unit->goalentity!=group->target)) return false;
         FOR_LOOP(j,i) if (group->members[j].unit==unit) return false;
     }
     return true;
@@ -2594,7 +2610,7 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
     T_ASSERT(G_IssueGroupPointOrder(&request)); T_EQ(ARRAY_COUNT(level.move_groups),1);
     moveGroup_t original=*level.move_groups[0];
     S_ClearMoveGroups();
-    FOR_LOOP(i,16) {
+    FOR_LOOP(i,20) {
         FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
         moveGroup_t raw=original; uint32_t count=i==0 ? globals.num_edicts+1 : i==13 ? 2 : 1;
         raw.route.points=raw.route.adaptive_points=raw.route.group_points=(vec2_t *)(uintptr_t)1;
@@ -2606,6 +2622,10 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
         if (i==6) raw.goal.x=NAN;
         if (i==14) raw.sequence=0;
         if (i==15) raw.sequence=level.next_move_group_sequence+1;
+        if (i==16) raw.members[0].arrival_range=NAN;
+        if (i==17) raw.members[0].arrival_range=-1;
+        if (i==18) raw.target_refresh=16;
+        if (i==19) raw.flags|=0x1000;
         if (i>=7 && i<13) { raw.route.group_count=1; raw.route.group_index=0; }
         if (i==7) raw.route.group_count=BZ_WC3_FINE_NODES+1;
         if (i==8) raw.route.group_index=1;
@@ -2632,6 +2652,20 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
         rewind(file); T_ASSERT(!ReadMoveGroups(file));
         T_NULL(level.move_groups); T_EQ(ARRAY_COUNT(level.move_groups),0); T_EQ(level.move_group_capacity,0);
         fclose(file);
+    }
+    moveGroup_t follow=original;
+    follow.count=1; follow.target=second; follow.target_spawn=second->spawn_time;
+    follow.target_refresh=16; follow.flags|=0x1000;
+    first->movement.follow_target=first->goalentity=second;
+    T_ASSERT(ValidMoveGroup(&follow));
+    FOR_LOOP(i,5) {
+        moveGroup_t invalid=follow;
+        if(i==0)invalid.target_spawn++;
+        if(i==1)invalid.target_refresh=-1;
+        if(i==2)invalid.target_refresh=298;
+        if(i==3)invalid.flags&=~0x1000u;
+        if(i==4)first->movement.follow_target=NULL;
+        T_ASSERT(!ValidMoveGroup(&invalid));
     }
     reset_entities(); setup_test_world();
 }
@@ -2714,8 +2748,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-76.bin",
         "/tmp/openwarcraft3-wc3-save-version-77.bin",
         "/tmp/openwarcraft3-wc3-save-version-78.bin",
+        "/tmp/openwarcraft3-wc3-save-version-79.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 };
 
     reset_entities();
     setup_test_world();

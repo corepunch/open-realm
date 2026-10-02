@@ -911,7 +911,7 @@ TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
     game.constants.structureFollowRange = 100.0f;
 
     T_FEQ(G_AcquisitionRange(follower), 600.0f, 0.001f);
-    T_FEQ(G_FollowStopRange(follower, target), 300.0f, 0.001f);
+    T_FEQ(G_FollowStopRange(follower, target), 332.0f, 0.001f);
 
     target->s.flags |= EF_BUILDING;
     T_FEQ(G_FollowStopRange(follower, target), 100.0f, 0.001f);

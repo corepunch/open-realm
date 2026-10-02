@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **522 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **527 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 ordinary public twelve-member movement matches1,953 commits and2,634 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  522 function names/comments applied and saved. Latest independent-active Shift readbacks:
+  527 function names/comments applied and saved. Latest target Follow readbacks:
+  `runtime/follow-velocity-ghidra-readback-saved-261002.json` and
+  `runtime/follow-velocity-types-final-261002.json`. Prior independent-active Shift readbacks:
   `runtime/selected-independent-shift-ghidra-readback-saved-261002.json` and
   `runtime/selected-independent-shift-types-final-261002.json`. Prior mixed active/idle Shift readbacks:
   `runtime/selected-mixed-shift-ghidra-readback-saved-261002.json` and
@@ -331,3 +333,13 @@ request: two native repeats match1022 engine commits and844 saved suffix commits
 See [payoff46](retail-pathfinding-engine.md#independent-active-owners-accept-the-same-pending-ground-request).
 Other current-order families, air/mixed candidates, enabled formation options
 and AI sharing remain open.
+
+
+Payoff47 brings the recovered target range, countdown, destination bucket and
+approach-to-persistent-Follow lifecycle into the Move ability. Two complete
+public moving-target/speed-change captures repeat1015 absolute commits; ordinary
+engine frames and Save80 continuations match1015 plus2595 suffix commits. Five
+new descriptive roles are saved in Ghidra; layouts and explicit prototypes
+remain unchanged. TARGET-02.4 closes this bounded ground producer; wider target
+mutation and delayed readiness producers remain required. See
+[the engine evidence](retail-pathfinding-engine.md#smart-follow-tracks-a-moving-target-through-a-speed-change).

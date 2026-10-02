@@ -35,6 +35,7 @@
 #include "retail_selected_double_queued.h"
 #include "retail_selected_mixed.h"
 #include "retail_selected_independent.h"
+#include "retail_follow_velocity.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -10708,6 +10709,81 @@ TEST(wc3_movement, selected_independent_shift_inputs_match_original_complete_jou
     FOR_LOOP(c,sizeof(selected_independent_cases)/sizeof(*selected_independent_cases))
         selected_queued_journeys(selected_independent_inputs+c,1,selected_independent_cases[c].motion,
             selected_independent_cases[c].count,1,SELECTED_START_INDEPENDENT,(unsigned const[]){200,400});
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_speed_journey) {
+    reset_entities(); setup_test_world();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    float old_follow=game.constants.followRange;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400; game.constants.followRange=300;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','L','V'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit a\nunit b\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n"
+        "if tick==80 then\ncall IssuePointOrder(b,\"move\",-1936,112)\nendif\n"
+        "if tick==85 then\ncall SetUnitMoveSpeed(b,300)\nendif\n"
+        "if tick==300 then\ncall IssueImmediateOrder(a,\"stop\")\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hFLV',-1936,-976,90)\ncall SetUnitMoveSpeed(a,100)\n"
+        "set b=CreateUnit(Player(0),'hFLV',-1936,-144,90)\ncall SetUnitMoveSpeed(b,100)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+    edict_t *units[2]={0}; unsigned count=0,steps=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if(count<2)units[count]=ent; count++; }
+    T_EQ(count,2);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t saves[]={"/tmp/wc3-follow-approach.bin","/tmp/wc3-follow-persistent.bin","/tmp/wc3-follow-target.bin"};
+    unsigned save_steps[]={50,150,250}; bool mismatch=count!=2;
+    FOR_LOOP(pass,4) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(saves[pass-1]));steps=save_steps[pass-1];}
+        while(level.time<31000 && !mismatch) {
+            level.time+=5; globals.RunFrame(); unsigned visited=0;
+            while(steps<sizeof(follow_velocity_motion)/sizeof(*follow_velocity_motion)) {
+                uint32_t const *expected=follow_velocity_motion[steps];unsigned i=expected[0];edict_t *unit=units[i];
+                uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+                if(now!=expected[1])break;
+                T_ASSERT(!(visited&(1u<<i)));visited|=1u<<i;steps++;
+                uint32_t actual[]={i,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                    wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch) {
+                    fprintf(stderr,"Follow commit%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,
+                        actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+                    moveGroup_t const *group=move_find_group(unit->movement.group_id);
+                    moveFineRoute_t const *route=&unit->movement.fine_route;
+                    if(group)fprintf(stderr,"Follow group goal=%.9g/%.9g point=%.9g/%.9g member=%.9g/%.9g refresh=%d target=%.9g/%.9g fine=%u/%u adaptive=%u/%u\n",
+                        group->goal.x,group->goal.y,group->point.x,group->point.y,group->members[0].destination.x,group->members[0].destination.y,
+                        group->target_refresh,units[1]->s.origin2.x,units[1]->s.origin2.y,route->count,route->index,route->adaptive_count,route->adaptive_index);
+                    FOR_LOOP(p,route->count)fprintf(stderr,"Follow fine[%u]=%.9g/%.9g\n",p,route->points[p].x,route->points[p].y);
+                }
+                if(!pass && !mismatch) FOR_LOOP(s,3) if(steps==save_steps[s])T_ASSERT(WriteGame(saves[s]));
+            }
+        }
+        T_EQ(steps,sizeof(follow_velocity_motion)/sizeof(*follow_velocity_motion));
+        if(steps!=sizeof(follow_velocity_motion)/sizeof(*follow_velocity_motion))mismatch=true;
+        if(!mismatch){FOR_LOOP(i,2)T_EQ(units[i]->current_order_id,0);FOR_LOOP(i,ARRAY_COUNT(level.move_groups))T_ASSERT(!level.move_groups[i]->inuse);}
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    FOR_LOOP(i,3)remove(saves[i]);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
 }
 
 #endif
