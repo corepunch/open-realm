@@ -363,13 +363,7 @@ natives than these four scripts use. `StartMeleeAI` is a separate map-facing JAS
 is not declared in `common.ai`.
 
 The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
-functions, but their reachable native surface is the same. Seventy-one of those names are registered in OpenRealm's JASS
-module; the following native is still unresolved and will cause a native lookup/runtime failure when its call path is
-reached:
-
-| Unregistered native | Reachable role in `common.ai` |
-|---|---|
-| `CaptainRetreating` | Poll whether an attack captain is retreating; the state enum exists, but no runtime transition currently initiates or completes retreat |
+functions, but their reachable native surface is the same. All 72 names are registered in OpenRealm's JASS module.
 
 ### Alliance Assault Target
 
@@ -533,6 +527,7 @@ independent of which player can see or detect the unit. Stock `common.ai` checks
 placeholders. See [Warcraft III Invisibility](invisibility.md#ai-and-jass-queries).
 
 The remaining reachable natives are registered: `AddAssault`, `CaptainInCombat`, `CaptainIsEmpty`, `CaptainIsFull`,
+`CaptainRetreating`,
 `CaptainReadiness`, `CaptainReadinessHP`, `ClearHarvestAI`, `CommandsWaiting`, `CreateCaptains`, `DisplayText`,
 `DisplayTextI`, `GetAiPlayer`, `GetGoldOwned`, `GetHeroId`, `GetHeroLevelAI`, `GetMinesOwned`, `GetUnitCount`,
 `GetUnitCountDone`, `GetUnitGoldCost`, `GetUnitWoodCost`, `GetUpgradeGoldCost`, `GetUpgradeLevel`,
@@ -576,6 +571,23 @@ Rivercross proved the following runtime contracts:
 With these rules, a bounded Human ROC Rivercross run repeatedly returns gold and completes five queued Peasants, a
 Barracks, and a Farm without a JASS runtime error. Use `WC3_DEBUG_AI` builds for requested/accepted/completed production
 and captain milestones; detailed traces remain disabled in normal builds.
+
+### Captain Retreat State Query
+
+`CaptainRetreating()` is now registered and reports whether the **attack captain** is in `BOT_CAPTAIN_RETREATING`.
+Stock `common.ai` uses this as an engine-state query in `SleepUntilAtGoal` and `CommonSleepUntilTargetDead`; it does not
+request a retreat itself. The defense captain's state does not affect this native.
+
+This closes the reachable native lookup gap without fabricating the separate flee policy. `SetGroupsFlee(true)` is still
+stored as `BOT_GROUPS_FLEE`, but OpenRealm does not yet implement retail's engine-side transition that decides a group is
+losing/at a disadvantage, issues the return-home behavior, enters `BOT_CAPTAIN_RETREATING`, and later completes that
+retreat. Community/AI Editor documentation ties `SetGroupsFlee` to whole-group retreat, but does not establish the exact
+power/health thresholds. Do not turn `CaptainRetreating()` into a health-threshold heuristic: stock `common.ai` separately
+checks `CaptainReadinessHP() <= 40`, proving that the two conditions are distinct.
+
+With this registration, every `common.ai` native in the previously inventoried stock melee-AI reachable set has a callback.
+Registration is not full behavior parity: the flee transition above and other policy consumers documented in this file remain
+separate runtime work.
 
 ### Assault Captain Target Orders
 

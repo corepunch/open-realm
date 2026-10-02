@@ -884,6 +884,15 @@ bool G_BotCaptainIsFull(player_t *player) {
     return bot && G_BotCaptainGroupSize(player) >= bot->captains[BOT_CAPTAIN_ATTACK].desired;
 }
 
+/* CaptainRetreating is a query over the assault captain's engine-owned state.
+ * Stock common.ai uses it to stop waiting on an attack wave once the engine has
+ * begun a group retreat. Do not infer or initiate retreat here: SetGroupsFlee's
+ * retail disadvantage/losing-battle transition remains separate behavior work. */
+bool G_BotCaptainRetreating(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    return bot && bot->captains[BOT_CAPTAIN_ATTACK].state == BOT_CAPTAIN_RETREATING;
+}
+
 static bool G_BotUnitInjured(edict_t const *unit) {
     return unit && unit->health.max_value > 0.0f &&
         unit->health.value < unit->health.max_value * BOT_INJURED_HEALTH_FRACTION;

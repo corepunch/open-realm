@@ -98,6 +98,7 @@ jassModule_t jass_funcs[] = {
     { "CaptainGroupSize", CaptainGroupSize },
     { "CaptainIsFull", CaptainIsFull },
     { "CaptainIsEmpty", CaptainIsEmpty },
+    { "CaptainRetreating", CaptainRetreating },
     { "CaptainReadiness", CaptainReadiness },
     { "CaptainReadinessHP", CaptainReadinessHP },
     { "CaptainReadinessMa", CaptainReadinessMa },
