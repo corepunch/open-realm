@@ -208,6 +208,8 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *l
     builder->build_project = building_id;
     move_reset_progress(builder);
     unit_setmove(builder, &build_move_walk);
+    /* Every build entry (player, JASS, queued) retires a previous Stop guard point. */
+    S_UnitAbilityOrderAccepted(builder, "build");
     return true;
 }
 

@@ -3220,6 +3220,43 @@ TEST(wc3_spell, holy_light_flag_dispatch_validates_and_heals) {
     free_slk_rows(rows);
 }
 
+/* A command-card cast bypasses G_IssueUnitTargetOrder; it must still retire a Stop guard point. */
+TEST(wc3_spell, command_card_cast_clears_stop_guard) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AHhb\"\nC;Y2;X2;K\"AHhb\"\nC;Y2;X3;K\"air,ground,friend,self\"\n"
+        "C;Y2;X4;K\"65\"\nC;Y2;X5;K\"5\"\nC;Y2;X6;K\"600\"\nC;Y2;X7;K\"200\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AHhb" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0), *clent = &g_edicts[0];
+    gameClient_t *client = &game.clients[0];
+    char number[16];
+    cstring_t button[] = { "button", "AHhb" }, select[] = { "select", number };
+
+    old = G_SetSLKRows("AbilityData", rows);
+    clent->client = client;
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = target->s.player = client->ps.number;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.value = 100; target->health.max_value = 500;
+    G_SelectEntity(client, caster);
+    order_stop(caster);
+    T_ASSERT(caster->movement.guard_state == GUARD_IDLE);
+
+    G_ClientCommand(clent, 2, button);
+    snprintf(number, sizeof(number), "%u", (unsigned)target->s.number);
+    G_ClientCommand(clent, 2, select);
+
+    T_FEQ(target->health.value, 300, 0.001f);
+    T_ASSERT(caster->movement.guard_state == GUARD_NONE);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, unavailable_spell_button_does_not_arm_targeting) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X7\n"
