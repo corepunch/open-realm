@@ -21,6 +21,7 @@ static bool unit_is_active_repair_move(edict_t *self) {
 
 void unit_setmove(edict_t *self, umove_t *move) {
     bool was_idle = G_UnitIsIdleWorker(self);
+    bool const was_standing = self->currentmove && self->currentmove->think == ai_stand;
 
     if (self->currentmove != move) move_cancel_displacement(self);
     self->animation_override = false;
@@ -83,6 +84,9 @@ void unit_setmove(edict_t *self, umove_t *move) {
     if (was_idle != G_UnitIsIdleWorker(self)) {
         G_InvalidateUnitShortcutsForUnit(self);
     }
+    /* Stop's engaged glow is derived from the idle stand move; moves and
+     * auto-acquired combat change it without any command-card click. */
+    if (was_standing != (move->think == ai_stand)) G_InvalidateUnitCommands(self);
 }
 
 void unit_runwait(edict_t *self, void (*callback)(edict_t * )) {

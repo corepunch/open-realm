@@ -360,6 +360,43 @@ TEST(wc3_order_lifecycle, hold_button_command_refresh_publishes_new_engaged_stat
     T_ASSERT(lifecycle_hold_frame_flags & UIFLAG_ORDER_QUEUEABLE);
     T_ASSERT(!(lifecycle_move_frame_flags & UIFLAG_ORDER_QUEUEABLE));
 }
+/* A right-click move and the later return to idle change Stop's glow without a command-card click. */
+TEST(wc3_order_lifecycle, move_and_idle_transitions_refresh_stop_glow) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    edict_t *clent, *unit;
+    vec2_t point = {500, 0};
+
+    setup_test_world();
+    clent = &g_edicts[0];
+    clent->inuse = true;
+    clent->client->connected = true;
+    clent->client->ps.number = 0;
+    unit = review_order_unit(0, 0);
+    G_SelectEntity(clent->client, unit);
+    order_stop(unit);
+    clent->client->commands_dirty = false;
+
+    T_ASSERT(G_IssueUnitPointOrder(unit, "smart", &point, false, 0, 0.0f));
+    T_ASSERT(clent->client->commands_dirty);
+    lifecycle_stop_frame_seen = false;
+    lifecycle_stop_frame_flags = 0;
+    gi.Write = lifecycle_capture_command_frame;
+    Get_Commands_f(clent);
+    gi.Write = old_write;
+    T_ASSERT(lifecycle_stop_frame_seen);
+    T_ASSERT(!(lifecycle_stop_frame_flags & UIFLAG_ABILITY_ENGAGED));
+
+    clent->client->commands_dirty = false;
+    unit_stand(unit);
+    T_ASSERT(clent->client->commands_dirty);
+    lifecycle_stop_frame_seen = false;
+    gi.Write = lifecycle_capture_command_frame;
+    Get_Commands_f(clent);
+    gi.Write = old_write;
+    T_ASSERT(lifecycle_stop_frame_seen);
+    T_ASSERT(lifecycle_stop_frame_flags & UIFLAG_ABILITY_ENGAGED);
+}
+
 TEST(wc3_order_lifecycle, stop_records_guard_position_and_returns_after_auto_combat) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
