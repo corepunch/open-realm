@@ -2276,6 +2276,7 @@ void G_BotShutdown(void);
 void G_BotPause(uint32_t, bool);
 void G_BotRunFrame(void);
 void G_BotTrace(uint32_t player, jass_t *vm, cstring_t event, cstring_t format, ...);
+void G_BotTraceAssaultUnit(edict_t *, cstring_t event, cstring_t format, ...);
 void G_BotTraceCoroutine(jass_t *vm, handle_t coroutine, cstring_t function,
                          cstring_t phase, uint32_t now, uint32_t wake_time,
                          bool yielded, bool done);

@@ -27,6 +27,17 @@
 
 #ifdef WC3_TRACE_AI
 #define BOT_TRACE_WAIT_INTERVAL_MS 10000u
+#define BOT_TRACE_ASSAULT_MOVE_INTERVAL_MS 10000u
+#define BOT_TRACE_ASSAULT_MOVE_EPSILON 8.0f
+
+typedef struct botTraceAssaultMove_s {
+    edict_t *unit;
+    uint32_t player, last_report;
+    vec2_t last_position, start_position;
+    bool terminal_reported;
+} botTraceAssaultMove_t;
+
+static botTraceAssaultMove_t bot_trace_assault_moves[MAX_ENTITIES];
 
 typedef struct botTraceWait_s {
     struct botTraceWait_s *next;
@@ -79,6 +90,26 @@ void G_BotTrace(uint32_t player, jass_t *vm, cstring_t event, cstring_t format, 
             callchain, detail[0] ? " " : "", detail);
 #else
     (void)player; (void)vm; (void)event; (void)format;
+#endif
+}
+
+void G_BotTraceAssaultUnit(edict_t *unit, cstring_t event, cstring_t format, ...) {
+#ifdef WC3_TRACE_AI
+    botTraceAssaultMove_t *trace;
+    char detail[512];
+    va_list args;
+    if (!unit || unit->s.number >= MAX_ENTITIES) return;
+    trace = bot_trace_assault_moves + unit->s.number;
+    if (trace->unit != unit || trace->player >= MAX_PLAYERS) return;
+    detail[0] = '\0';
+    if (format) {
+        va_start(args, format);
+        vsnprintf(detail, sizeof(detail), format, args);
+        va_end(args);
+    }
+    G_BotTrace(trace->player, NULL, event, "%s", detail);
+#else
+    (void)unit; (void)event; (void)format;
 #endif
 }
 
@@ -1455,16 +1486,18 @@ static bool G_BotIsHostile(player_t *player, edict_t *ent) {
     return !G_GetPlayerAlliance(player, owner, ALLIANCE_PASSIVE);
 }
 
-/* Assault targeting stays inside ordinary combat validity: live units and
- * buildings, so waves never order attacks on items, waypoints, corpses, or
- * the attackers themselves. A negative target suicides against any hostile
- * owner; otherwise only the named player's forces qualify. */
+/* Assault targeting stays inside ordinary combat validity: visible, live
+ * units and buildings, so waves never issue rejected attacks at hidden units,
+ * items, waypoints, corpses, or the attackers themselves. A negative target
+ * suicides against any hostile owner; otherwise only the named player's
+ * forces qualify. */
 static edict_t *G_BotAssaultTarget(player_t *player, edict_t *self, int32_t target) {
     edict_t *best = NULL;
     float best_dist = 0;
     if (!player || !G_BotUnitAlive(self)) return NULL;
     FILTER_EDICTS(ent, ent != self && ent->inuse && !(ent->svflags & (SVF_DEADMONSTER | SVF_NOCLIENT)) &&
         ent->health.value > 0 && ((ent->svflags & SVF_MONSTER) || G_UnitIsStructure(ent)) &&
+        !S_UnitIsHiddenFromPlayer(ent, PLAYER_NUM(player)) &&
         (target >= 0 ? ent->s.player == (uint32_t)target : G_BotIsHostile(player, ent))) {
         float dist = Vector2_distance(&self->s.origin2, &ent->s.origin2);
         if (!best || dist < best_dist) { best = ent; best_dist = dist; }
@@ -1475,10 +1508,106 @@ static edict_t *G_BotAssaultTarget(player_t *player, edict_t *self, int32_t targ
 /* Send one assault member at the enemy, falling back to an attack-move toward
  * the staged point so waves keep moving when no target is visible yet. */
 static void G_BotOrderAssaultMember(bot_t *bot, edict_t *unit, int32_t target) {
+    if (!bot || !unit) return;
     edict_t *enemy = bot ? G_BotAssaultTarget(bot->player, unit, target) : NULL;
-    if (enemy) { order_attack(unit, enemy); return; }
-    if (bot && bot->stage_valid) order_attackmove(unit, Waypoint_add(&bot->stage));
+#ifdef WC3_TRACE_AI
+    botTraceAssaultMove_t *trace = unit && unit->s.number < MAX_ENTITIES ? bot_trace_assault_moves + unit->s.number : NULL;
+#endif
+    if (enemy) {
+        order_attack(unit, enemy);
+#ifdef WC3_TRACE_AI
+        if (trace) {
+            trace->unit = unit;
+            trace->player = PLAYER_NUM(bot->player);
+            trace->last_report = G_Time();
+            trace->last_position = trace->start_position = unit->s.origin2;
+            trace->terminal_reported = false;
+            G_BotTraceAssaultUnit(unit, "assault_order_result",
+                "target=%u target_inuse=%d target_alive=%d target_deadflag=%d target_health=%.1f target_type=%d target_flag=0x%x target_cycloned=%d target_hidden=%d can_target=%d attacker_cycloned=%d mine_worker_inside=%d attacker_attack1_type=%d attack1_mask=0x%x attacker_attack2_type=%d attack2_mask=0x%x installed=%d goal_matches=%d attack_move=%d attack1_enabled=%d attack2_enabled=%d",
+                enemy->s.number, enemy->inuse, G_BotUnitAlive(enemy), !!(enemy->svflags & SVF_DEADMONSTER),
+                enemy->health.value, G_UnitTargetType(enemy), G_TargetFlagForType(G_UnitTargetType(enemy)),
+                S_UnitIsCycloned(enemy), S_UnitIsHiddenFromPlayer(enemy, PLAYER_NUM(bot->player)),
+                S_AttackCanTarget(unit, enemy),
+                S_UnitIsCycloned(unit), S_GoldMineWorkerIsInside(unit),
+                unit->attack1.type, unit->attack1.targetsAllowed,
+                unit->attack2.type, unit->attack2.targetsAllowed,
+                unit->goalentity == enemy && unit->currentmove && unit->currentmove->proc == CAbilityAttack,
+                unit->goalentity == enemy, unit->currentmove && unit->currentmove->proc == CAbilityAttack,
+                S_UnitAttackSlotEnabled(unit, 0), S_UnitAttackSlotEnabled(unit, 1));
+        }
+#endif
+        G_BOT_TRACE(PLAYER_NUM(bot->player), NULL, "assault_member_order",
+                    "unit=%u type=%c%c%c%c mode=attack target=%u target_type=%c%c%c%c from=(%.1f,%.1f) to=(%.1f,%.1f)",
+                    unit->s.number, (char)(unit->class_id & 255), (char)((unit->class_id >> 8) & 255),
+                    (char)((unit->class_id >> 16) & 255), (char)((unit->class_id >> 24) & 255),
+                    enemy->s.number, (char)(enemy->class_id & 255), (char)((enemy->class_id >> 8) & 255),
+                    (char)((enemy->class_id >> 16) & 255), (char)((enemy->class_id >> 24) & 255),
+                    unit->s.origin2.x, unit->s.origin2.y, enemy->s.origin2.x, enemy->s.origin2.y);
+        return;
+    }
+    if (bot && bot->stage_valid) {
+        order_attackmove(unit, Waypoint_add(&bot->stage));
+#ifdef WC3_TRACE_AI
+        if (trace) {
+            trace->unit = unit;
+            trace->player = PLAYER_NUM(bot->player);
+            trace->last_report = G_Time();
+            trace->last_position = trace->start_position = unit->s.origin2;
+            trace->terminal_reported = false;
+        }
+#endif
+        G_BOT_TRACE(PLAYER_NUM(bot->player), NULL, "assault_member_order",
+                    "unit=%u type=%c%c%c%c mode=attackmove target_player=%d from=(%.1f,%.1f) stage=(%.1f,%.1f)",
+                    unit->s.number, (char)(unit->class_id & 255), (char)((unit->class_id >> 8) & 255),
+                    (char)((unit->class_id >> 16) & 255), (char)((unit->class_id >> 24) & 255), target,
+                    unit->s.origin2.x, unit->s.origin2.y, bot->stage.x, bot->stage.y);
+    } else {
+        G_BOT_TRACE(PLAYER_NUM(bot->player), NULL, "assault_member_no_target",
+                    "unit=%u type=%c%c%c%c target_player=%d stage_valid=%d",
+                    unit->s.number, (char)(unit->class_id & 255), (char)((unit->class_id >> 8) & 255),
+                    (char)((unit->class_id >> 16) & 255), (char)((unit->class_id >> 24) & 255),
+                    target, bot ? bot->stage_valid : 0);
+    }
 }
+
+#ifdef WC3_TRACE_AI
+static void G_BotTraceAssaultMovement(bot_t *bot) {
+    botCaptain_t *captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    if (captain->state != BOT_CAPTAIN_ACTIVE) return;
+    FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+        edict_t *unit = *member;
+        botTraceAssaultMove_t *trace;
+        uint32_t now;
+        float interval_distance, total_distance;
+        edict_t *goal;
+        if (!unit || unit->s.number >= MAX_ENTITIES) continue;
+        trace = bot_trace_assault_moves + unit->s.number;
+        if (trace->unit != unit || trace->player != PLAYER_NUM(bot->player)) continue;
+        if (!G_BotUnitAlive(unit) && trace->terminal_reported) continue;
+        now = G_Time();
+        if (now - trace->last_report < BOT_TRACE_ASSAULT_MOVE_INTERVAL_MS) continue;
+        interval_distance = Vector2_distance(&trace->last_position, &unit->s.origin2);
+        total_distance = Vector2_distance(&trace->start_position, &unit->s.origin2);
+        goal = unit->goalentity;
+        G_BOT_TRACE(PLAYER_NUM(bot->player), NULL, "assault_member_movement",
+                    "unit=%u type=%c%c%c%c alive=%d moved_interval=%d interval_distance=%.1f total_distance=%.1f position=(%.1f,%.1f) goal=%u goal_type=%c%c%c%c goal_position=(%.1f,%.1f)",
+                    unit->s.number, (char)(unit->class_id & 255), (char)((unit->class_id >> 8) & 255),
+                    (char)((unit->class_id >> 16) & 255), (char)((unit->class_id >> 24) & 255),
+                    G_BotUnitAlive(unit), interval_distance >= BOT_TRACE_ASSAULT_MOVE_EPSILON,
+                    interval_distance, total_distance, unit->s.origin2.x, unit->s.origin2.y,
+                    goal && goal->inuse ? goal->s.number : UINT32_MAX,
+                    goal && goal->inuse ? (char)(goal->class_id & 255) : '-',
+                    goal && goal->inuse ? (char)((goal->class_id >> 8) & 255) : '-',
+                    goal && goal->inuse ? (char)((goal->class_id >> 16) & 255) : '-',
+                    goal && goal->inuse ? (char)((goal->class_id >> 24) & 255) : '-',
+                    goal && goal->inuse ? goal->s.origin2.x : 0.0f,
+                    goal && goal->inuse ? goal->s.origin2.y : 0.0f);
+        trace->last_report = now;
+        trace->last_position = unit->s.origin2;
+        trace->terminal_reported = !G_BotUnitAlive(unit);
+    }
+}
+#endif
 
 /* SuicideUnit/SuicideUnitEx share one backend: fill the assault roster through
  * the ordinary AddAssault path, then send the requested type at the enemy.
@@ -1978,6 +2107,9 @@ void G_BotRunFrame(void) {
         G_BotApplyRepairPolicy(bot);
         G_BotUpdateGroupFlee(bot->player);
         jass_runevents(bot->vm);
+#ifdef WC3_TRACE_AI
+        G_BotTraceAssaultMovement(bot);
+#endif
         G_BOT_TRACE_WAITS(player);
         if (bot->stop_requested) { G_BotStop(player); continue; }
         if (bot->restart_requested) {
