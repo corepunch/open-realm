@@ -270,7 +270,17 @@ uint32_t CM_BuildHeatmap(struct edict_s *goalentity);
 uint32_t CM_BuildHeatmapForRadius(struct edict_s *goalentity, float radius);
 uint32_t CM_RequestHeatmapForRadius(struct edict_s *goalentity, float radius);
 uint32_t CM_RequestHeatmapForRadiusFlags(struct edict_s *goalentity, float radius, uint8_t blocked_flags);
+uint32_t CM_RequestHeatmapForMoverFlags(struct edict_s *requester, struct edict_s *goalentity,
+                                        float radius, uint8_t blocked_flags);
 void  CM_ProcessPathJobs(uint32_t work_budget);
+typedef struct {
+    bool active, started;
+    int target_cell_x, target_cell_y, radius_cells;
+    uint8_t blocked_flags;
+    uint32_t pending_cells, pending_jobs, work_done;
+    uint32_t requester_number, requester_rawcode, goal_number, goal_rawcode;
+} cmPathJobStatus_t;
+void CM_GetPathJobStatus(cmPathJobStatus_t *status);
 bool  CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out);
 bool  CM_ActivateCachedFlow(uint32_t generation);
 bool  CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags);
