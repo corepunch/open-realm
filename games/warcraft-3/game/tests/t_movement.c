@@ -38,6 +38,7 @@
 #include "retail_follow_velocity.h"
 #include "retail_follow_target_reuse.h"
 #include "retail_follow_target_teleport.h"
+#include "retail_follow_target_resize.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -10731,10 +10732,12 @@ static void record_follow_commit(edict_t *unit) {
     memcpy(trace->rows[trace->count++],words,sizeof(words));
 }
 
-typedef enum { FOLLOW_SPEED, FOLLOW_REMOVE_REUSE, FOLLOW_KILL_REUSE, FOLLOW_XY, FOLLOW_POSITION, FOLLOW_TRAVEL_XY, FOLLOW_TRAVEL_POSITION } followScenario_t;
+typedef enum { FOLLOW_SPEED, FOLLOW_REMOVE_REUSE, FOLLOW_KILL_REUSE, FOLLOW_XY, FOLLOW_POSITION, FOLLOW_TRAVEL_XY, FOLLOW_TRAVEL_POSITION, FOLLOW_GROW, FOLLOW_SHRINK, FOLLOW_RESEARCH, FOLLOW_GROW_CONTROL, FOLLOW_SHRINK_CONTROL } followScenario_t;
 
 static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_count, followScenario_t scenario) {
     bool reuse=scenario==FOLLOW_REMOVE_REUSE || scenario==FOLLOW_KILL_REUSE;
+    bool resize=scenario>=FOLLOW_GROW;
+    bool fresh=scenario==FOLLOW_GROW || scenario==FOLLOW_SHRINK;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities(); setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
@@ -10746,8 +10749,28 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
     };
     unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','L','V'),
         .numbeOfModifications=2,.modifications=mods};
-    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    float changed_radius=scenario==FOLLOW_SHRINK || scenario==FOLLOW_SHRINK_CONTROL ? 7 : 63;
+    unitModification_t changed_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&changed_radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom_units[]={custom,{.originalUnitID=custom.originalUnitID,
+        .newUnitID=MAKEFOURCC('h','C','L','G'),.numbeOfModifications=2,.modifications=changed_mods}};
+    char target_type[]="hCLG";
+    unitModification_t ability_mods[]={{.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=target_type},
+        {.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=scenario==FOLLOW_RESEARCH ? "Roch" : ""}};
+    unitData_t custom_ability={.originalUnitID=MAKEFOURCC('S','c','a','1'),
+        .newUnitID=MAKEFOURCC('A','C','G','b'),.numbeOfModifications=2,.modifications=ability_mods};
+    mapInfo_t info={.num_userCreatedUnits=resize ? 2 : 1,.userCreatedUnits=custom_units,
+        .num_userCreatedAbilities=resize ? 1 : 0,.userCreatedAbilities=&custom_ability};
+    slkTestData_t *chaos_rows=NULL,*old_ability_rows=NULL;
+    if(resize) {
+        chaos_rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\n"
+            "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+        old_ability_rows=G_SetSLKRows("AbilityData",chaos_rows);
+    }
     mapInfo_t const *oldinfo=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    if(resize) G_SetMapAbilityOverrides(&info);
     static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
     unsigned offset=0;
     FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
@@ -10769,7 +10792,9 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
         "set a=CreateUnit(Player(0),'hFLV',-1936,-976,90)\ncall SetUnitMoveSpeed(a,100)\n"
         "set b=CreateUnit(Player(0),'hFLV',-1936,-144,90)\ncall SetUnitMoveSpeed(b,100)\n"
         "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n",
-        scenario==FOLLOW_SPEED ? "" : scenario==FOLLOW_TRAVEL_XY ?
+        scenario==FOLLOW_RESEARCH ? "if tick==100 then\ncall UnitAddAbility(b,'ACGb')\nendif\nif tick==150 then\ncall SetPlayerTechResearched(Player(0),'Roch',1)\nendif\n" :
+        resize && !fresh ? "if tick==100 then\ncall UnitAddAbility(b,'ACGb')\nendif\n" :
+        resize ? "if tick==100 then\ncall UnitAddAbility(b,'ACGb')\nendif\nif tick==150 then\ncall IssueTargetOrder(a,\"smart\",b)\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n" : scenario==FOLLOW_SPEED ? "" : scenario==FOLLOW_TRAVEL_XY ?
         "if tick==90 then\ncall SetUnitX(b,-1600)\ncall SetUnitY(b,300)\nendif\n" : scenario==FOLLOW_TRAVEL_POSITION ?
         "if tick==90 then\ncall SetUnitPosition(b,-1600,300)\nendif\n" : scenario==FOLLOW_XY ?
         "if tick==100 then\ncall SetUnitX(b,-1600)\ncall SetUnitY(b,300)\nendif\n" : scenario==FOLLOW_POSITION ?
@@ -10800,8 +10825,17 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
                 FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID && ent!=units[0] && !M_IsDead(ent)) units[1]=ent;
             trace.units[1]=units[1];
             level.time+=5; globals.RunFrame();
+            if(resize && level.time==(scenario==FOLLOW_RESEARCH ? 15100 : 10100)) { T_EQ(units[1]->class_id,custom_units[1].newUnitID); T_FEQ(units[1]->collision,changed_radius,0); }
+            if(fresh && level.time==15000) {
+                moveGroup_t const *group=move_find_group(units[0]->movement.group_id);
+                T_NOT_NULL(group);
+                if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),scenario==FOLLOW_GROW ? 0x40e520f2u : 0x41290000u);
+            }
             if(reuse)
                 FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID && ent!=units[0] && !M_IsDead(ent)) units[1]=ent;
+            if(scenario==FOLLOW_RESEARCH && level.time==14900) {
+                T_EQ(units[1]->class_id,custom.newUnitID); T_FEQ(units[1]->collision,radius,0);
+            }
             if(reuse && level.time>=10000 && level.time<12000) {
                 T_EQ(units[0]->current_order_id,0);
                 T_NULL(units[0]->movement.follow_target);
@@ -10839,9 +10873,31 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     FOR_LOOP(i,3)remove(saves[i]);
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
-    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);
+    if(resize){G_SetMapAbilityOverrides(NULL);G_SetSLKRows("AbilityData",old_ability_rows);free_slk_rows(chaos_rows);}
+    level.mapinfo=oldinfo;
 }
 
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_grow_retained) {
+    public_follow_journey(follow_target_resize_grow_control_motion,sizeof(follow_target_resize_grow_control_motion)/sizeof(*follow_target_resize_grow_control_motion),FOLLOW_GROW_CONTROL);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_shrink_retained) {
+    public_follow_journey(follow_target_resize_shrink_control_motion,sizeof(follow_target_resize_shrink_control_motion)/sizeof(*follow_target_resize_shrink_control_motion),FOLLOW_SHRINK_CONTROL);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_research_resize) {
+    public_follow_journey(follow_target_resize_grow_research_motion,sizeof(follow_target_resize_grow_research_motion)/sizeof(*follow_target_resize_grow_research_motion),FOLLOW_RESEARCH);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_grow) {
+    public_follow_journey(follow_target_resize_grow_fresh_motion,sizeof(follow_target_resize_grow_fresh_motion)/sizeof(*follow_target_resize_grow_fresh_motion),FOLLOW_GROW);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_shrink) {
+    public_follow_journey(follow_target_resize_shrink_fresh_motion,sizeof(follow_target_resize_shrink_fresh_motion)/sizeof(*follow_target_resize_shrink_fresh_motion),FOLLOW_SHRINK);
+}
 
 TEST(wc3_movement, public_smart_follow_matches_original_target_speed_journey) {
     public_follow_journey(follow_velocity_motion,sizeof(follow_velocity_motion)/sizeof(*follow_velocity_motion),FOLLOW_SPEED);

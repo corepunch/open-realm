@@ -19206,6 +19206,526 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "inputs": {
+        "capture": "runtime/follow-target-grow-v3-first-261002.jsonl",
+        "sha256": "a8395f7b3d133012f7c8d9dc06222bedba5bbd56c9ed9dabb4ee3f1145bfcab9",
+        "bytes": 3759581,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+            "wc3_pathfinding.js": "4e9da46d886c69f41f833af9601aaa8e77bb7bcba74209ae8c3dbe1e32a472ad",
+            "wc3_pathfinding_probe.j": "ff0e70a08c09dbca4a8a9f803b336aff8938e8436022a20b00b2c792cb715e74",
+            "make_wc3_pathfinding_map.py": "cceec0284066530d6d2e70bbe5b0a1d8051fa2f4fd06b285d78f4867cad709de",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "1af235b5fa2be313d40ea6725b55918e4b46cd00fd361682a5a8e53ba924ffc4"
+          },
+          "map": "Maps\\PathingRE-FollowTargetGrowV3-261002.w3m",
+          "seconds": 70.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": false,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true,
+      "id": "live-follow-target-resize-captures-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_follow_target_resize_trace.py",
+        "{archive}/runtime/follow-target-grow-v3-first-261002.jsonl",
+        "{archive}/runtime/follow-target-grow-v3-repeat-261002.jsonl",
+        "{archive}/runtime/follow-target-shrink-v3-first-261002.jsonl",
+        "{archive}/runtime/follow-target-shrink-v3-repeat-261002.jsonl",
+        "{archive}/runtime/follow-target-grow-v5-first-261002.jsonl",
+        "{archive}/runtime/follow-target-grow-v5-repeat-261002.jsonl",
+        "{archive}/runtime/follow-target-shrink-v5-first-261002.jsonl",
+        "{archive}/runtime/follow-target-shrink-v5-repeat-261002.jsonl",
+        "{archive}/runtime/follow-target-resize-gate-v3-first-261002.jsonl",
+        "{archive}/runtime/follow-target-resize-gate-v3-repeat-261002.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-follow-target-resize-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_follow_target_resize.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "follow-target-resize-captures.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 10
+        },
+        "exact_decisions": {
+          "equal": 2160
+        },
+        "exact_velocity_commits": {
+          "equal": 10150
+        },
+        "group_owner_passes": {
+          "equal": 10150
+        },
+        "target_reloads": {
+          "equal": 584
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Public friendly ground Smart Follow target Chaos growth/shrink, retained-range controls, two same-tick fresh reissues, and original Requires=Roch unlock. Five repeated native journeys retain type/mover identity and match normal/saved engine continuations; moving-target morph, other locomotion/structure families and combat/queued parents remain open.",
+      "exclusions": [
+        "Moving-target morph, other locomotion/structure families, combat/queued parents, arbitrary scenes and exact automatic morph clock remain open."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-grow-v3-repeat-261002.jsonl",
+            "sha256": "553252237ec994211cc85117e2955cd478f757b50fc11167936d79c5ff507fb4",
+            "bytes": 3759580,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "4e9da46d886c69f41f833af9601aaa8e77bb7bcba74209ae8c3dbe1e32a472ad",
+                "wc3_pathfinding_probe.j": "ff0e70a08c09dbca4a8a9f803b336aff8938e8436022a20b00b2c792cb715e74",
+                "make_wc3_pathfinding_map.py": "cceec0284066530d6d2e70bbe5b0a1d8051fa2f4fd06b285d78f4867cad709de",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "1af235b5fa2be313d40ea6725b55918e4b46cd00fd361682a5a8e53ba924ffc4"
+              },
+              "map": "Maps\\PathingRE-FollowTargetGrowV3-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-shrink-v3-first-261002.jsonl",
+            "sha256": "a09eb58ae2350edc925e26489e592a5a97d3a9cd80c176b190804781d8edb535",
+            "bytes": 3759586,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "4e9da46d886c69f41f833af9601aaa8e77bb7bcba74209ae8c3dbe1e32a472ad",
+                "wc3_pathfinding_probe.j": "ff0e70a08c09dbca4a8a9f803b336aff8938e8436022a20b00b2c792cb715e74",
+                "make_wc3_pathfinding_map.py": "cceec0284066530d6d2e70bbe5b0a1d8051fa2f4fd06b285d78f4867cad709de",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "7af64ff4e764890ea40c613cc0bc22350a0bb53352b4c55edb3d89eeaec4e83a"
+              },
+              "map": "Maps\\PathingRE-FollowTargetShrinkV3-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-shrink-v3-repeat-261002.jsonl",
+            "sha256": "7ff351b6982af365573ce0a509cca8bade5b5a8f19cdaa22f53e22b58e99486c",
+            "bytes": 3759586,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "4e9da46d886c69f41f833af9601aaa8e77bb7bcba74209ae8c3dbe1e32a472ad",
+                "wc3_pathfinding_probe.j": "ff0e70a08c09dbca4a8a9f803b336aff8938e8436022a20b00b2c792cb715e74",
+                "make_wc3_pathfinding_map.py": "cceec0284066530d6d2e70bbe5b0a1d8051fa2f4fd06b285d78f4867cad709de",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "7af64ff4e764890ea40c613cc0bc22350a0bb53352b4c55edb3d89eeaec4e83a"
+              },
+              "map": "Maps\\PathingRE-FollowTargetShrinkV3-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-grow-v5-first-261002.jsonl",
+            "sha256": "37000f58628367ffa008960f9f0b3320874d51b6e306f9dbd17fb30ae1f0c931",
+            "bytes": 3846261,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "4e9da46d886c69f41f833af9601aaa8e77bb7bcba74209ae8c3dbe1e32a472ad",
+                "wc3_pathfinding_probe.j": "2feea5bee4c1841515ed6f368f15f1261f77c67cc7cd1dc2f04f2e3bb24a0c8e",
+                "make_wc3_pathfinding_map.py": "cceec0284066530d6d2e70bbe5b0a1d8051fa2f4fd06b285d78f4867cad709de",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "12f5680cf89abb7c551e38e6ce3a5b08a965206e65e93c2a53a0aefb847b48c5"
+              },
+              "map": "Maps\\PathingRE-FollowTargetGrowV5-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-grow-v5-repeat-261002.jsonl",
+            "sha256": "bc318e510543fdad0d9438db9eb311f2e16cdb5ba895028559e29e8aaf952598",
+            "bytes": 3846259,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "4e9da46d886c69f41f833af9601aaa8e77bb7bcba74209ae8c3dbe1e32a472ad",
+                "wc3_pathfinding_probe.j": "2feea5bee4c1841515ed6f368f15f1261f77c67cc7cd1dc2f04f2e3bb24a0c8e",
+                "make_wc3_pathfinding_map.py": "cceec0284066530d6d2e70bbe5b0a1d8051fa2f4fd06b285d78f4867cad709de",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "12f5680cf89abb7c551e38e6ce3a5b08a965206e65e93c2a53a0aefb847b48c5"
+              },
+              "map": "Maps\\PathingRE-FollowTargetGrowV5-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-shrink-v5-first-261002.jsonl",
+            "sha256": "90c92d48ac09685c50df8a244cf7c265714ac08f6f29927aa7d50932d34e2bba",
+            "bytes": 3825801,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "4e9da46d886c69f41f833af9601aaa8e77bb7bcba74209ae8c3dbe1e32a472ad",
+                "wc3_pathfinding_probe.j": "2feea5bee4c1841515ed6f368f15f1261f77c67cc7cd1dc2f04f2e3bb24a0c8e",
+                "make_wc3_pathfinding_map.py": "cceec0284066530d6d2e70bbe5b0a1d8051fa2f4fd06b285d78f4867cad709de",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "7342da0e9ca7d605328decd695ae3dc683fd7f129ad72c9c3311a493423f143e"
+              },
+              "map": "Maps\\PathingRE-FollowTargetShrinkV5-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-shrink-v5-repeat-261002.jsonl",
+            "sha256": "4e747dc73cd0c18ab60cd2b937044e390812056c78ce86f2815b8a90a8428348",
+            "bytes": 3825801,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "4e9da46d886c69f41f833af9601aaa8e77bb7bcba74209ae8c3dbe1e32a472ad",
+                "wc3_pathfinding_probe.j": "2feea5bee4c1841515ed6f368f15f1261f77c67cc7cd1dc2f04f2e3bb24a0c8e",
+                "make_wc3_pathfinding_map.py": "cceec0284066530d6d2e70bbe5b0a1d8051fa2f4fd06b285d78f4867cad709de",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "7342da0e9ca7d605328decd695ae3dc683fd7f129ad72c9c3311a493423f143e"
+              },
+              "map": "Maps\\PathingRE-FollowTargetShrinkV5-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-resize-gate-v3-first-261002.jsonl",
+            "sha256": "e4a111ae94f880c4b78639ad658ef97c23e15d1c46233d1b34ed1edcd926f962",
+            "bytes": 3759730,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "d1fc0cb0c7dc78ab95e2b358d69421b867fe91aca5f4ca7096667b52bcfb73ae",
+                "wc3_pathfinding_probe.j": "c725c690b337cf5885ffb2f57bcd6b480e78d76295e48708b631d2fa1cd6d7bf",
+                "make_wc3_pathfinding_map.py": "cebd963fe677908c7e27e883d29a1e45579e052621ce138d8fb6118333d7da7c",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "e8a43e92ea9af64261a398bedb96be446329ebb05e4b19fe74b76c843573a646"
+              },
+              "map": "Maps\\PathingRE-FollowTargetResizeGate-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/follow-target-resize-gate-v3-repeat-261002.jsonl",
+            "sha256": "d99fd77264b1f3fe61699302cdaaedefe5869598c9e8882183425131b66b8996",
+            "bytes": 3759730,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "d1fc0cb0c7dc78ab95e2b358d69421b867fe91aca5f4ca7096667b52bcfb73ae",
+                "wc3_pathfinding_probe.j": "c725c690b337cf5885ffb2f57bcd6b480e78d76295e48708b631d2fa1cd6d7bf",
+                "make_wc3_pathfinding_map.py": "cebd963fe677908c7e27e883d29a1e45579e052621ce138d8fb6118333d7da7c",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "e8a43e92ea9af64261a398bedb96be446329ebb05e4b19fe74b76c843573a646"
+              },
+              "map": "Maps\\PathingRE-FollowTargetResizeGate-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -19271,7 +19791,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "c331e8ec39eea92868dedb34f7e2d9cc443c284f12841395946ab4d91a342f50"
+      "sha256": "6b98806f7808c2154cb85800a1c68637675f9080c44346903a32bb2558c40dcc"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -19641,6 +20161,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-follow-target-teleport-1.27.json",
       "sha256": "6478e9fd64db0d487b08d2737cdf9876fd59a1eee55ae90107d8a38a315778a7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-follow-target-resize-1.27.json",
+      "sha256": "009fc82bc2c37b70f61b7429c99769095b125bf31b0c13292e4739b377a0223e"
     }
   ]
 }

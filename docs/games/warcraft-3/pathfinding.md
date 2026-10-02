@@ -524,3 +524,14 @@ suffix commits. A test-only commit observer records movement before same-clock
 JASS writes, and saves use completed-owner boundaries. Save80 is unchanged.
 [Payoff49 scope and evidence](retail-pathfinding-engine.md#follow-tracks-public-target-teleports-without-premature-point-settling)
 leaves collision resizing open.
+
+Public Chaos now changes unit type and collision in place after its authored
+requirements are met. Existing Follow groups retain their range; new nearby
+approaches use retail's half predicted edge distance and persistent Follow uses
+the resized radii. Five normal journeys match5075 commits and9725 saved suffix
+commits, including saves before deferred/research-gated morph. The retained
+ability itself owns pending work; removing it cancels the morph, and successful
+resolution consumes it. Save format80 is unchanged.
+[Payoff50 scope and evidence](retail-pathfinding-engine.md#follow-retains-active-range-and-admits-resized-targets-with-half-edge-approaches)
+leaves moving-unit occupancy, other locomotion/body families and exact automatic
+morph timing open.

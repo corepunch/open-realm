@@ -812,6 +812,14 @@ static bool G_RequirementsListSatisfied(gameClient_t *client, uint32_t type_id, 
     return true;
 }
 
+bool G_AbilityRequirementsSatisfied(edict_t const *unit, uint32_t code) {
+    cstring_t requirements = G_AbilityRequirementField(code, false);
+    if (!requirements || !*requirements || !strcmp(requirements, "_") || !strcmp(requirements, "-")) return true;
+    if (!unit) return false;
+    return G_RequirementsListSatisfied(G_GetPlayerClientByNumber(unit->s.player), code,
+                                      requirements, G_AbilityRequirementField(code, true), NULL, 0);
+}
+
 static bool G_RequirementsSatisfied(gameClient_t *client, uint32_t type_id, string_t reason, uint32_t reason_size) {
     UnitProfile_t const *profile = G_UnitProfile(type_id);
     uint32_t hero_count, tier_count, tier;

@@ -1829,6 +1829,30 @@
           "evidence": "Decoded original x86 operands; previous-request cohort acquisition in actual selected Shift scene50. Undefined bytes remain undefined."
         }
       ]
+    },
+    {
+      "name": "WC3ChaosAbilityPrefix",
+      "length": 88,
+      "fields": [
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "ptr:void",
+          "evidence": "4c9af0 owner load; class factory/4a8390 ChaosBase constructor"
+        },
+        {
+          "offset": 80,
+          "name": "rank_index",
+          "type": "u32",
+          "evidence": "4c9af0 passes rank50 to4184b0; zero-based68-byte records"
+        },
+        {
+          "offset": 84,
+          "name": "cache",
+          "type": "ptr:void",
+          "evidence": "4184b0 lazy6ac530 cache producer; UnitID at per-level44"
+        }
+      ]
     }
   ],
   "methods": [

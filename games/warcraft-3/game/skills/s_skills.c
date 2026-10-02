@@ -490,7 +490,7 @@ static ability_t abilitylist[] = {
     { "Aspl", CAbilitySpiritLink, AB_SPELL, SPELL_TARGET_UNIT },  /* Spirit Link */
     { "Aliq", CAbilityLiquidFire, AB_PASSIVE },  /* Liquid Fire */
     { "Auco", CAbilityUnstableConcoction, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Unstable Concoction */
-    { "Acha", CAbilityChaos, AB_PASSIVE },  /* Chaos */
+    { "Acha", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos */
     { "Achl", CAbilityCargoLoad, AB_COMMAND },  /* Chaos Cargo Load */
     { "Awar", CAbilityPulverize, AB_PASSIVE },  /* Pulverize */
     { "Aens", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
@@ -687,12 +687,12 @@ static ability_t abilitylist[] = {
     { "Awrg", CAbilityStomp, AB_SPELL },  /* War Stomp (sea giant) */
     { "Awrh", CAbilityStomp, AB_SPELL },  /* War Stomp (hydra) */
     { "Awrs", CAbilityStomp, AB_SPELL },  /* War Stomp (creep) */
-    { "Sca1", CAbilityPassive, AB_PASSIVE },  /* Chaos (Grunt) */
-    { "Sca2", CAbilityPassive, AB_PASSIVE },  /* Chaos (Raider) */
-    { "Sca3", CAbilityPassive, AB_PASSIVE },  /* Chaos (Shaman) */
-    { "Sca4", CAbilityPassive, AB_PASSIVE },  /* Chaos (Kodo) */
-    { "Sca5", CAbilityPassive, AB_PASSIVE },  /* Chaos (Peon) */
-    { "Sca6", CAbilityPassive, AB_PASSIVE },  /* Chaos (Grom) */
+    { "Sca1", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Grunt) */
+    { "Sca2", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Raider) */
+    { "Sca3", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Shaman) */
+    { "Sca4", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Kodo) */
+    { "Sca5", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Peon) */
+    { "Sca6", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Grom) */
     { "Sch2", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Meat Wagon) */
     { "Sch3", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Transport) */
     { "Sch4", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Tank) */

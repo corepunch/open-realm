@@ -808,3 +808,19 @@ archives. Inventory now267 entries/108 fixtures/50 strict live entries.
 [Engine/saved continuations](retail-pathfinding-engine.md#follow-tracks-public-target-teleports-without-premature-point-settling)
 remain separate evidence. Collision resizing and denied delayed replan producers
 remain open.
+
+Payoff50 adds `live-follow-target-resize-captures-261002`: ten complete native
+captures for five public Chaos growth/shrink, retained-range control, fresh
+admission and research-gated journeys. `retail-follow-target-resize-1.27.json`
+freezes every radius/type marker, canonical target generation, motion/owner phase,
+range, refresh and replan result. The verifier checks10150 commits/owner passes,
+2160 scalar decisions and584 reloads. Fresh admission deliberately contains two
+same-clock Smart150 calls, both retained as public inputs. The research control
+inherits original Sca1 Requires=Roch and observes type/radius commit at151.
+Three immutable source archives retain each capture's actual producer hashes;
+incorrect W3A level, research and collision-type setups remain rejected controls.
+Inventory now268 entries/109 fixtures/51 strict live entries. The fresh runner
+rebuilds production C and passes the new contract plus13 previous public/owner
+contracts. [Engine and saved trajectories](retail-pathfinding-engine.md#follow-retains-active-range-and-admits-resized-targets-with-half-edge-approaches)
+remain independent regressions. Moving-unit occupancy and exact automatic
+morph timing remain open.

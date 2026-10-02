@@ -897,6 +897,7 @@ typedef struct {
     uint32_t id, num_levels;
     AbilityData_t row;
     abilityLevel_t *extra_levels;
+    cstring_t requires, requires_amount;
 } mapAbilityOverride_t;
 
 typedef struct {
@@ -1594,6 +1595,14 @@ static mapAbilityOverride_t const *FindMapAbilityOverride(uint32_t id) {
     return NULL;
 }
 
+/* W3A requirement profiles inherit the actual parent rawcode; an authored
+ * empty Requires list must not fall back to the stock research gate. */
+cstring_t G_AbilityRequirementField(uint32_t code, bool amounts) {
+    mapAbilityOverride_t const *row = FindMapAbilityOverride(code);
+    if (row) return amounts ? row->requires_amount : row->requires;
+    return FindConfigValue(GetClassName(code), amounts ? "Requiresamount" : "Requires");
+}
+
 static abilityLevel_t *MapAbilityOverrideLevel(mapAbilityOverride_t *override, uint32_t level) {
     if (!override || level < 1 || level > override->num_levels) return NULL;
     return level <= 4 ? &override->row.level[level - 1] : override->extra_levels + level - 5;
@@ -1724,6 +1733,16 @@ static void ApplyMapAbilityMod(mapAbilityOverride_t *override, unitModification_
     case MAKEFOURCC('a','p','r','i'):
         if (mod->type == mod_int) override->row.priority = (int32_t)*(uint32_t const *)mod->data;
         return;
+    case MAKEFOURCC('a','r','e','q'):
+        if (UnitModificationString(mod)) override->requires = mod->data;
+        return;
+    case MAKEFOURCC('a','r','q','a'):
+        if (UnitModificationString(mod)) override->requires_amount = mod->data;
+        return;
+    case MAKEFOURCC('C','h','a','1'):
+        if (UnitModificationString(mod) && (slot = MapAbilityOverrideLevel(override, mod->level)))
+            slot->unitID = FS_SLKKey(mod->data);
+        return;
     case MAKEFOURCC('a','t','a','r'):
         if (UnitModificationString(mod) && (slot = MapAbilityOverrideLevel(override, mod->level)))
             slot->targs = (cstring_t)mod->data;
@@ -1812,6 +1831,8 @@ static void AddMapAbilityOverride(unitData_t const *ability, uint32_t target_id,
             : SLKAbilityLevelForInheritance(base, i + 5);
         if (level) override->extra_levels[i] = *level;
     }
+    override->requires = base_override ? base_override->requires : FindConfigValue(GetClassName(base_id), "Requires");
+    override->requires_amount = base_override ? base_override->requires_amount : FindConfigValue(GetClassName(base_id), "Requiresamount");
     override->row.id = target_id;
 
     FOR_LOOP(i, ability->numbeOfModifications)

@@ -2883,6 +2883,8 @@ void G_RunBuildingUpgradeFrame(edict_t *building);
 void G_UpdateBuildingUpgradeAnimation(edict_t *building);
 void G_ApplyPlayerUpgradesToUnit(edict_t *unit);
 bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id);
+cstring_t G_AbilityRequirementField(uint32_t code, bool amounts);
+bool G_AbilityRequirementsSatisfied(edict_t const *unit, uint32_t code);
 bool G_UnitAbilityResearchVisible(edict_t const *unit, uint32_t ability_id);
 uint32_t G_GetUnitUpgradeForClass(edict_t const *unit, cstring_t wanted_class);
 bool G_ChargeBuilding(gameClient_t *client, uint32_t building_id);

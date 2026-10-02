@@ -6,6 +6,8 @@ let randomCase = null;
 let speedCase = null;
 let positionCase = null;
 let pairScenario = false;
+let resizeScenario = false;
+const resizeTargets = new Map();
 let clockScenario = false, clockSerial = 0;
 const counts = {}, active = new Map();
 const headingActive = new Map();
@@ -1333,6 +1335,13 @@ function install(module) {
     for (const [phase,rva] of [['decide',0x16c250],['commit',0x16c570]]) hook(rva,{onEnter() {
         this.group = pairScenario ? this.context.ecx : null;
         if (this.group) emit('pair-group-phase-begin',{phase,...snapshotPairGroup(this.group)});
+        if (this.group && resizeScenario && phase === 'decide') {
+            const target=resizeTargets.get(this.group.toString());
+            if (target && !target.isNull()) {
+                bump('resize-target-state');
+                emit('resize-target-state',{group:this.group.toString(),target:target.toString(),groupHandle:ints(this.group.add(0x40),2),moverHandle:ints(target.add(0x14),2),radius:target.add(0x90).readU32(),pose:ints(target.add(0x70),8).map(v=>v>>>0),counter:base.add(0xd53a48).readPointer().add(0x538).readU32()});
+            }
+        }
     },onLeave() {if (this.group) emit('pair-group-phase-end',{phase,...snapshotPairGroup(this.group)});}});
     const completionStates = new Map();
     hook(0x16c390, {onEnter() {
@@ -1479,6 +1488,7 @@ function install(module) {
     hook(0x16d9d0, {onEnter(args) {
         completionStates.delete(this.context.ecx.toString());
         visibilityStates.delete(this.context.ecx.toString());
+        if (resizeScenario) resizeTargets.set(this.context.ecx.toString(),args[0]);
         bump('group-target');
         if (counts['group-target'] <= config.samples)
             emit('group-target', {group: this.context.ecx.toString(),
@@ -1645,7 +1655,8 @@ function install(module) {
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
-            if ((value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position '))) pairScenario = true;
+            if ((value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position ') || value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate '))) pairScenario = true;
+            if (value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate ')) resizeScenario = true;
             if (value.includes('label=complete ')) pairScenario = false;
             emit('marker', {value});
             if (!value.includes('label=sample ')) snapshotCells(value);

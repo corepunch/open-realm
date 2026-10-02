@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **528 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **539 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 ordinary public twelve-member movement matches1,953 commits and2,634 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
@@ -40,7 +40,7 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists42 partial layouts,262 verified
+  `MapPathfindingTypes.java` also persists43 partial layouts,265 verified
   fields and245 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  528 function names/comments applied and saved. Latest target teleport readbacks:
+  539 function names/comments applied and saved. Latest target resize readbacks:
+  `runtime/follow-target-resize-ghidra-readback-saved-261002.json` and
+  `runtime/follow-target-resize-types-final-261002.json`. Prior target teleport readbacks:
   `runtime/follow-target-teleport-ghidra-readback-saved-261002.json` and
   `runtime/follow-target-teleport-types-final-261002.json`. Prior death/removal readbacks:
   `runtime/follow-target-reuse-ghidra-readback-saved-261002.json` and
@@ -361,3 +363,12 @@ public moving-target axis teleport. Four native repeated setter journeys match
 observer preserves same-clock movement before later timer writes.
 [Teleport evidence](retail-pathfinding-engine.md#follow-tracks-public-target-teleports-without-premature-point-settling)
 closes TARGET-02.5; collision resizing remains02.2.
+
+Payoff50 closes TARGET-02.2 with public Chaos collision resizing while ground
+Follow is active. The same target/mover identity changes radius31 to63 or7;
+active range is retained, and a new nearby approach uses half predicted edge
+distance before restoring authored persistent FollowRange. Five repeated native
+journeys match5075 ordinary engine commits and9725 saved suffix commits. Chaos
+is implemented in its owning ability with authored UnitID and requirement gates.
+[Resize evidence](retail-pathfinding-engine.md#follow-retains-active-range-and-admits-resized-targets-with-half-edge-approaches)
+retains failed setup controls and the boundary to moving-unit footprint work.

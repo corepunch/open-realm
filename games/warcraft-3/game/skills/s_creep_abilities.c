@@ -205,7 +205,6 @@ BZ_ABILITY_PROC(CAbilityReincarnation) { return CAbilityPassive(ent, msg, call);
 BZ_ABILITY_PROC(CAbilityOrbAnnihilation) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityTrueSight) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityAbsorb) { return CAbilityPassive(ent, msg, call); }
-BZ_ABILITY_PROC(CAbilityChaos) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilitySpiderAttack) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityWander) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityMagicImmunity) { return CAbilityPassive(ent, msg, call); }

@@ -5003,3 +5003,86 @@ tests; the forced optimized build and normal repository suite pass487,755
 assertions in2371 WC3 tests per variant and all remaining repository suites.
 All222 Python checks, ability audit and267-entry inventory pass; the fresh
 strict runner completes12/12 contracts with current source hashes.
+
+## Follow retains active range and admits resized targets with half-edge approaches
+
+Payoff50 closes TARGET-02.2 through original UnitAddAbility/Chaos, rather than
+visual scale. Scenes60/61 clone hfoo with only collision `ucol` changed31 to63
+or7. Original Chaos resolves replacement type from level-one `Cha1`/UnitID,
+not DataA; `ucol` is unreal, not real. Wrong metadata produced either unchanged
+type or a one-world-unit minimum mover footprint and is preserved as rejected
+setup evidence. Public UnitAddAbility returns with the original type, and the
+next authored tick observes the replacement. Target public handle1048700 and
+canonical mover identity remain unchanged; radius words become1.96875 or.21875
+fine cells. Active Follow keeps11.3125 fine arrival range and its original full
+1015-commit motion, rather than forcing a radius/range recomputation.
+
+Two fresh Smart150 requests are deliberate frozen same-clock inputs in each
+fresh journey. Growth uses initial approach range `40e520f2` (7.1602716446 fine)
+then persistent `41450000` (12.3125); shrink uses `41290000` (10.5625) for both.
+Original Move_CreateTasksFromOrder5fd270 first calls05b580 to test predicted
+center distance against the configured range including both radii. If already
+near,05ae70 computes software sqrt(dx²+dy²), subtracts target then source radius,
+clamps the edge distance to zero and converts it to world units. Initial task
+range is half that edge distance; the later persistent task retains authored
+FollowRange. The engine initially stopped at growth commit515 with the fully
+configured range. The recovered approach rule restores every motion word.
+
+The fifth journey retains Sca1's original Requires=Roch. Ability addition100
+remains pending through149; public research unlock150 retains original type
+inside that callback and151 observes63-world radius. Its full Follow motion
+matches the unchanged-range control. Engine Chaos now owns the deferred work
+through A_UPDATE, uses actual authored UnitID, research and requirement amounts,
+rebinds the existing edict, and consumes the ability even for a same-type morph.
+Removing the pending ability cancels resolution. Custom W3A requirements inherit
+the actual parent profile; an explicit empty list clears that gate. RoC UnitID
+and TFT UnitID1 fixtures cover non-stock radius59.25, inherited amount2 and
+unchanged DataA37. No timer entity or new saved field is introduced.
+
+All five ordinary engine journeys match5075 native absolute motion commits.
+Save80 checkpoints50/350/700 restore9725 suffix commits, including pending and
+research-gated ability state and both retained/fresh Follow owners. This verifies
+the bounded stationary-target mutation during active pursuit; moving-unit radius
+publication/occupancy, other body/locomotion families, combat/queued parents and
+exact automatic Chaos callback-clock timing remain their owning tasks.
+
+Artifacts under the report root:
+
+- `runtime/follow-target-{grow,shrink}-v3-{first,repeat}-261002.jsonl`: retained
+  range controls; each1015 commits and unchanged baseline motion digest
+  `e85f0a94e7b22a0411d248dae105bd8f7ee96c14c9391c12108171a4e22c3869`.
+- `runtime/follow-target-{grow,shrink}-v5-{first,repeat}-261002.jsonl`: two fresh
+  reissues; growth digest `1e171ae90d8d4ae5b5224ae6712bc80bc264d2c61cd5eff0a4e22b69cacc8c11`,
+  shrink `a1f1b632eb4c658810efab9d59b39a2f4d6c0f5ac43e579dfc5a43f87c87626c`.
+- `runtime/follow-target-resize-gate-v3-{first,repeat}-261002.jsonl`: original
+  Roch requirement and delayed same-identity radius change, each1015 commits.
+- `runtime/follow-target-resize-source-v3-261002/`, `...-v5-261002/` and
+  `runtime/follow-target-resize-gate-source-v3-261002/`: immutable producers.
+  The retained control has an irrelevant Tcha research input; it is not the
+  valid Roch gate experiment. Rejected earlier source/capture versions remain
+  archived and are excluded from the strict accepted fixture.
+- `runtime/follow-target-resize-fresh-engine-first-261002.log`: failing full-range
+  initial approach; `runtime/follow-target-resize-chaos-lifecycle-first-261002.log`
+  verifies consumption, requirements and cancellation (106 assertions/3 tests
+  per variant). These lifecycle tests are engine regressions, not native pending
+  removal captures.
+- `runtime/follow-target-resize-ghidra-readback-saved-261002.json` and
+  `runtime/follow-target-resize-types-final-261002.json`:539 saved roles,43 partial
+  layouts/265 fields/245 explicit x86 prototypes/45 globals. Chaos prefix only
+  assigns observed owner30, zero-based rank50 and cache54; no full-class size or
+  new unverified ABI is asserted.
+- `runtime/follow-target-resize-strict-final-261002/corpus-results.json`: fresh
+  new contract plus13 preceding public/owner journeys;10150 exact motion commits,
+  2160 scalar decisions and584 target reloads in the resize contract.
+- `runtime/follow-target-resize-validation-261002.json`: final checks and current
+  source hashes; inventory268 entries/109 fixtures/51 strict live entries.
+
+TARGET-02.2 closes with126 completed/184 open leaves. Next runnable work is
+FOOT-01.2: use the recovered public Chaos producer to resize a moving unit and
+verify its own mover/routing/occupancy updates in parallel with engine behavior.
+
+Payoff50 final checks: forced debug RoC/TFT each pass635,653 assertions in2342
+WC3 tests; forced release and normal `make test` pass636,086 assertions in2379
+WC3 tests per variant and the remaining repository suites. All238 pathfinding
+Python checks, ability audit and268-entry inventory pass. Fresh strict execution
+passes14/14 contracts with current source hashes and saved Ghidra readbacks.

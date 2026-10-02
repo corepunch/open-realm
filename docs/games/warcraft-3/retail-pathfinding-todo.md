@@ -8,7 +8,12 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**125 done / 310 tasks; 185 remaining.** Payoff49 explicitly splits public target teleportation from TARGET-02.2 into02.5, leaving collision resizing open. Four native teleport journeys now match4091 ordinary-frame engine commits and7872 saved suffix commits. A legacy near-goal Hold could terminate a retained point route after turn waits; Move now leaves completion to its retail arrival/retry policy. Earlier Follow and selected/public/owner journeys remain covered. Counts describe this backlog,
+**126 done / 310 tasks; 184 remaining.** Payoff50 closes TARGET-02.2 with
+original public Chaos collision growth/shrink, retained-range controls, fresh
+Follow admission and delayed original research unlock. Five native journeys
+match5075 ordinary engine commits and9725 saved suffix commits. Chaos now changes
+type/collision in place; fresh nearby Follow uses retail's half-edge approach,
+while active groups retain their range. Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -25,7 +30,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 22 | 14 |
 | ROUTE — Route progression and yielding | 7 | 9 |
-| TARGET — Pursuit and arrival policy | 5 | 8 |
+| TARGET — Pursuit and arrival policy | 6 | 7 |
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
@@ -146,7 +151,7 @@ NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | TARGET-02.2 | Ground Follow target mutation and authored morph producers | Public collision resize trajectory and engine range/footprint refresh |
+| 1 | FOOT-01.2 | Public Chaos resize and same-mover evidence from TARGET-02.2 | Moving-unit radius publication, route/occupancy refresh and exact engine motion |
 | 2 | FOOT-04 | Verified static and idle-object geometry | Public placement/teleport admission contracts and engine consumers |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
@@ -526,7 +531,7 @@ Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh,
 ### TARGET-02 — Target mutations
 
 - [ ] **TARGET-02.1** Extend the bounded ground Smart Follow producer closed02.4 to delayed changed-cell timestamp producers, target visibility/loss, other target-order families, masks and arbitrary scenes; assert cached destination, refresh cadence and admission/replan timing per tick.
-- [ ] **TARGET-02.2** Resize a target mid-route through an original public ability/morph producer; assert updated range, footprint and route acceptance in the engine. Public axis/placement teleportation is explicitly split into completed02.5; visual SetUnitScale is not collision resizing.
+- [x] **TARGET-02.2** Resize a target during an active Follow route through original public Chaos; verify changed canonical mover radius, retained group range and fresh route acceptance. Evidence: [payoff50](retail-pathfinding-engine.md#follow-retains-active-range-and-admits-resized-targets-with-half-edge-approaches), five twice-captured growth/shrink/control/research journeys,5075 exact normal engine commits and9725 Save80 suffix commits. Ability-owned deferred type rebind consumes authored Cha1/UnitID, inherits or explicitly clears requirements, preserves public/edict identity and updates collision. Fresh growth approach uses half predicted edge distance; persistent range uses the new radii. Moving-unit radius/occupancy and other body/locomotion families remain FOOT-01.2/03; this stationary-target mutation does not close those domains. Teleports are completed02.5.
 - [x] **TARGET-02.3** Kill/remove and then reuse the target handle; assert cancellation/revalidation without adopting the replacement entity. Evidence: [payoff48](retail-pathfinding-engine.md#follow-cancels-synchronously-before-target-pool-reuse), four complete read-only native captures (two per public retirement mode), actual same mover address/public handle with fresh canonical generation,948 exact normal-frame commits per engine journey and3492 total Save80 suffix commits. Move owns death notification and physical-group detachment; replacement stays unadopted until explicit Smart. Wider queued/combat parents and reentrant callbacks remain their owning tasks.
 - [x] **TARGET-02.4** Explicitly split visible friendly ground Smart Follow with target point travel and mid-route speed change from02.1. Integrate physical approach/persistent owners, radius-sum range, cached destination bucket and countdown into Move. Evidence: [payoff47](retail-pathfinding-engine.md#smart-follow-tracks-a-moving-target-through-a-speed-change), two complete read-only native witnesses with identical1015 absolute commits,1015 exact normal-frame engine commits and2595 Save80 suffix commits; ten strict fresh contracts, corrupted-state controls and saved Ghidra role/signature/xref readbacks. Authored Stop bounds Follow; natural user-head completion is not claimed. Delayed timestamps, visibility/loss, structures/flight, combat, wider masks and maps remain02.1/02.2/02.3 and their owning tasks.
 - [x] **TARGET-02.5** Explicitly split public target SetUnitX/Y and SetUnitPosition teleportation from02.2. Exercise jumps during target point travel and after target arrival while Smart Follow remains active; verify accepted cached destinations, retained radius-sum range and setter order policy. Evidence: [payoff49](retail-pathfinding-engine.md#follow-tracks-public-target-teleports-without-premature-point-settling), eight complete read-only native captures,4091 exact engine commits/7872 saved suffix commits, and a reproduced/fixed legacy near-goal Hold after a turn wait. Same-clock movement commits are now observed before JASS timer writes; saved checkpoints end at owner-quantum boundaries. Collision resizing, denied delayed replans, structures/flight and wider queued/combat domains remain their owning tasks.

@@ -2519,6 +2519,23 @@ static void move_group_seed_route(moveGroup_t *group);
 
 /* Native target Move approaches once, then a persistent Follow task creates
  * another physical owner while the public Smart/Move head remains retained. */
+/* Original5fd270 admits a nearby target with half its current edge distance;
+ * its later persistent task restores the authored FollowRange. */
+static float move_follow_approach_range(edict_t *unit, edict_t *target, bool persistent) {
+    float range=wc3_div(G_FollowStopRange(unit,target),32);
+    if (persistent) return range;
+    wc3GridPose_t source,point;
+    unit_predicted_pose(unit,&source); unit_predicted_pose(target,&point);
+    float x=wc3_sub(point.grid[0],source.grid[0]),y=wc3_sub(point.grid[1],source.grid[1]);
+    float distance2=wc3_add(wc3_mul(x,x),wc3_mul(y,y));
+    float range2=wc3_mul(range,range);
+    if (distance2>=range2 && wc3_float(wc3_float_bits(wc3_sub(distance2,range2))&0x7fffffffu)>=wc3_float(0x3a83126f)) return range;
+    float target_radius=wc3_div(MAX(1,target->collision),32),source_radius=wc3_div(MAX(1,unit->collision),32);
+    float edge=wc3_sub(wc3_sub(wc3_sqrt(distance2),target_radius),source_radius);
+    float world=wc3_mul(MAX(0,edge),32);
+    return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(wc3_add(wc3_div(world,2),wc3_mul(source_radius,32)),wc3_mul(target_radius,32)),32));
+}
+
 static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent) {
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
@@ -2528,7 +2545,7 @@ static void move_start_follow_group(edict_t *unit, edict_t *target, bool persist
     wc3GridPose_t pose; unit_predicted_pose(target,&pose);
     group->goal=(vec2_t){pose.world[0],pose.world[1]};
     group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
-        .arrival_range=wc3_div(G_FollowStopRange(unit,target),32)};
+        .arrival_range=move_follow_approach_range(unit,target,persistent)};
     unit->movement.group_id=group->id;
     move_group_seed_route(group); group->ticking=false;
 }
