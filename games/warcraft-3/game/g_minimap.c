@@ -6,8 +6,7 @@
 #define WC3_ATTACK_ADVISOR_AUTOMATIC_DURATION (-1.0f)
 
 /* Serialize transient minimap presentation for one connected client. */
-static void G_SendMinimapPingSized(gameClient_t *client, vec2_t const *position, float duration,
-                                   color32_t color, uint32_t flags, float marker_size) {
+void G_SendMinimapPing(gameClient_t *client, vec2_t const *position, float duration, color32_t color, uint32_t flags) {
     edict_t *clent;
     cstring_t model;
 
@@ -17,11 +16,7 @@ static void G_SendMinimapPingSized(gameClient_t *client, vec2_t const *position,
 
     model = Theme_PlayerString(client, "MinimapIndicator", WC3_DEFAULT_MINIMAP_INDICATOR);
     gi.configstring(CS_MINIMAP, model && model[0] ? model : WC3_DEFAULT_MINIMAP_INDICATOR);
-    gi.MinimapPing(clent, position, duration, color.a ? color : COLOR32_WHITE, flags, marker_size);
-}
-
-void G_SendMinimapPing(gameClient_t *client, vec2_t const *position, float duration, color32_t color, uint32_t flags) {
-    G_SendMinimapPingSized(client, position, duration, color, flags, MINIMAP_PING_DEFAULT_SIZE);
+    gi.MinimapPing(clent, position, duration, color.a ? color : COLOR32_WHITE, flags);
 }
 
 /* Derive owner alerts from the completed entity so no alert state enters save/load. */
@@ -149,18 +144,10 @@ static void G_AttackAlertNotify(gameClient_t *recipient, edict_t *victim, bool a
      * contacts, combat, or the generic minimap wire contract. */
     color32_t const attacked_signal = MAKE(color32_t, 255, 0, 0, 255);
     if (!recipient || !victim || !G_AttackAlertCanNotify(recipient, &victim->s.origin2)) return;
-    entityState_t marker_state = victim->s;
-    /* Match G_CustomizeEntity's recipient-specific visibility adjustment before
-     * classifying the marker, so a true-sight Hero keeps its larger footprint. */
-    if ((marker_state.renderfx & RF_HIDDEN) && S_UnitUsesInvisibilityRenderFlag(victim) &&
-        !S_UnitIsInvisibleToPlayer(victim, recipient->ps.number))
-        marker_state.renderfx &= ~RF_HIDDEN;
-    wc3MinimapContact_t const contact = G_WC3_MinimapMarkerForEntity(victim, &marker_state);
-    float const marker_size = wc3_minimap_contact_size(contact != WC3_MINIMAP_CONTACT_NONE ? contact : WC3_MINIMAP_CONTACT_UNIT);
     G_AttackAlertPlaySound(recipient, allied, town);
     G_AttackAlertShowAdvisor(recipient, G_GetPlayerClientByNumber(victim->s.player), allied, town);
-    G_SendMinimapPingSized(recipient, &victim->s.origin2, WC3_DEFAULT_ALERT_PING_DURATION,
-                           attacked_signal, MINIMAP_PING_REMEMBER | MINIMAP_PING_FORCE_COLOR, marker_size);
+    G_SendMinimapPing(recipient, &victim->s.origin2, WC3_DEFAULT_ALERT_PING_DURATION,
+                      attacked_signal, MINIMAP_PING_REMEMBER);
     G_AttackAlertCommitCooldown(recipient);
 }
 

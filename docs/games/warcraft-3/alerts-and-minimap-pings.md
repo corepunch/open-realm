@@ -16,7 +16,7 @@ simulation event / JASS native
 
 The server does not move the camera when an alert is emitted, and a ping does not change fog or selection. Recent-alert state is client-local and is not added to `playerState_t`/`entityState_t`.
 
-The wire contract is the generic `svc_minimap_ping` message: world position, lifetime, UI-canvas marker size, RGBA color, and behavior flags. A zero marker size selects the client's default sizing behavior. The authored alert model name is the server-owned `CS_MINIMAP` configstring, following Quake's `CS_SKY` pattern; `client/cl_minimap.c` loads it through the normal configstring lifecycle. No minimap state belongs to a game UI library.
+The wire contract is the existing generic `svc_minimap_ping` message: world position, lifetime, RGBA color, and behavior flags. The packet keeps its existing layout and uses the client's generic marker sizing. The authored alert model name is the server-owned `CS_MINIMAP` configstring, following Quake's `CS_SKY` pattern; `client/cl_minimap.c` loads it through the normal configstring lifecycle. No minimap state belongs to a game UI library.
 
 Ordinary minimap unit/building contacts are not pings. Warcraft III assigns its contact classes to the generic three-bit `EFX_GAME_VARIANT_*` payload in `entityState_t.effect_flags`; shared/client code carries that payload opaquely and the WC3 renderer interprets it. See [minimap markers](minimap-markers.md). A ping is a transient attention event, analogous to `svc_sound`, and therefore does not use the automatic-contact variant or survive save/load.
 
@@ -54,13 +54,13 @@ The following compatibility choices are deliberately marked in code with `BZ_COM
 5. The automatic alarm is currently produced on a resolved primary normal-weapon hit. This intentionally excludes direct spell/DoT/script damage, but direct retail capture is still needed to decide whether a missed/evaded attack should alarm earlier at swing or projectile-launch time.
 6. Advisor text uses the existing gameplay-message overlay's automatic duration rule (message length / 6 + 5 seconds) and no dedicated fade. The retail `[AdvisorStrings]` keys/wording are data-backed; the exact retail advisor position, lifetime, and fade curve still need direct capture.
 
-These guesses are confined to the attack-alert call site and `g_minimap.c`; replacing any of them after direct retail capture must not require changes to generic damage or ordinary minimap contact rendering. The alert packet carries the attacked entity's WC3 contact marker size, so a unit, building, or Hero alert overlays a square matching that entity's minimap footprint. Hero-revive and building-morph completion alerts remain separate work.
+These guesses are confined to the attack-alert call site and `g_minimap.c`; replacing any of them after direct retail capture must not require changes to generic damage or ordinary minimap contact rendering. Attack alerts use the generic transient marker presentation; matching a unit, building, or Hero alert to its WC3 contact footprint would require an approved wire-format change. Hero-revive and building-morph completion alerts remain separate work.
 
 ## JASS Minimap Pings
 
 `PingMinimap(x, y, duration)` sends the generic packet but does **not** add an automatic recent-alert entry. In a `GetLocalPlayer()` context OpenRealm targets that represented player; with no local-player context it sends the presentation to all connected game clients, matching a native invoked on every retail client.
 
-`PingMinimapEx(x, y, duration, red, green, blue, extraEffects)` transports clamped RGB values and `MINIMAP_PING_EXTRA_EFFECTS`. The generic marker uses the color and adds an outer pulse for extra effects. An authored model draws its own materials and animation, so packet tint does not override that model. WC3 automatic attack alerts additionally set the generic `MINIMAP_PING_FORCE_COLOR` behavior flag: that tells the universal client to skip the authored model for that marker and render the packet RGBA, allowing the game module to request an attacked-signal color without changing ordinary minimap contacts or adding WC3 attack semantics to the client.
+`PingMinimapEx(x, y, duration, red, green, blue, extraEffects)` transports clamped RGB values and `MINIMAP_PING_EXTRA_EFFECTS`. The generic marker uses the color and adds an outer pulse for extra effects. An authored model draws its own materials and animation, so packet tint does not override that model.
 
 ## Minimap Projection And Drawing
 
