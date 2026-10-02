@@ -572,22 +572,30 @@ With these rules, a bounded Human ROC Rivercross run repeatedly returns gold and
 Barracks, and a Farm without a JASS runtime error. Use `WC3_DEBUG_AI` builds for requested/accepted/completed production
 and captain milestones; detailed traces remain disabled in normal builds.
 
-### Captain Retreat State Query
+### Captain Group-Flee Lifecycle
 
-`CaptainRetreating()` is now registered and reports whether the **attack captain** is in `BOT_CAPTAIN_RETREATING`.
-Stock `common.ai` uses this as an engine-state query in `SleepUntilAtGoal` and `CommonSleepUntilTargetDead`; it does not
-request a retreat itself. The defense captain's state does not affect this native.
+`CaptainRetreating()` reports whether the **attack captain** is in `BOT_CAPTAIN_RETREATING`. Stock `common.ai` uses this
+as an engine-state query in `SleepUntilAtGoal` and `CommonSleepUntilTargetDead`; the defense captain's state does not affect
+this native. `SetGroupsFlee(true)` now has an engine-side consumer rather than remaining registration-only state.
 
-This closes the reachable native lookup gap without fabricating the separate flee policy. `SetGroupsFlee(true)` is still
-stored as `BOT_GROUPS_FLEE`, but OpenRealm does not yet implement retail's engine-side transition that decides a group is
-losing/at a disadvantage, issues the return-home behavior, enters `BOT_CAPTAIN_RETREATING`, and later completes that
-retreat. Community/AI Editor documentation ties `SetGroupsFlee` to whole-group retreat, but does not establish the exact
-power/health thresholds. Do not turn `CaptainRetreating()` into a health-threshold heuristic: stock `common.ai` separately
-checks `CaptainReadinessHP() <= 40`, proving that the two conditions are distinct.
+The runtime only evaluates automatic group retreat while the assault captain is `BOT_CAPTAIN_ACTIVE`, `BOT_GROUPS_FLEE`
+is enabled, and at least one live captain member is actually in combat. It compares health-weighted combat power for the
+captain roster with hostile attack-capable units near any captain member. If the disadvantage persists, the captain enters
+`BOT_CAPTAIN_RETREATING` before homeward orders are issued, so the next JASS event pass observes the state. Retreat clears
+live members' combat targets, sends them toward the authored attack-captain `home`, suppresses
+`AttackMoveKill`/`SuicidePlayer`/`SuicideUnit` assault refreshes, and returns the captain to `BOT_CAPTAIN_IDLE` once every
+surviving member is home (or the roster is empty).
 
-With this registration, every `common.ai` native in the previously inventoried stock melee-AI reachable set has a callback.
-Registration is not full behavior parity: the flee transition above and other policy consumers documented in this file remain
-separate runtime work.
+The following values are deliberately `BZ_COMPAT_GUESS` because retail exposes the policy/state but not its internal
+battle-strength formula: nearby enemies are collected within 1200 world units of a captain member; unit power is authored
+unit level multiplied by current health fraction; hostile power must exceed captain power by 1.5x for 2.5 seconds; and home
+arrival uses a 128-world-unit tolerance. These constants are isolated in `g_bot.c`. Do not replace the comparison with
+`CaptainReadinessHP() <= 40`: stock `common.ai` checks the readiness threshold separately from `CaptainRetreating()`, proving
+they are distinct escape conditions.
+
+With this lifecycle, every `common.ai` native in the previously inventoried stock melee-AI reachable set has a callback and
+the captain-retreat query has a real state producer. Exact retail disadvantage scoring and retreat-home tolerance still need
+direct capture; the state-machine boundary no longer depends on those guesses.
 
 ### Assault Captain Target Orders
 
@@ -598,9 +606,10 @@ script rather than by a second C-side pursuit scheduler. Null/dead targets and e
 does not form the captain; `InitAssault`/`AddAssault`/`FormGroup` remain responsible for roster formation.
 
 Retail-facing documentation also describes an attack-location minimap signal and the surviving group returning after the
-target dies. Those presentation/retreat details are not implemented here: OpenRealm currently has no captain retreat
-transition consuming `home`, and the exact native-specific signal policy has not been recovered. Do not emulate either by
-changing generic attack-move behavior; add them when the captain/presentation contracts are established.
+target dies. The generic `SetGroupsFlee` retreat lifecycle now consumes captain `home`, but a target simply dying does not
+automatically trigger retreat/return-home unless the flee policy has already entered `BOT_CAPTAIN_RETREATING`. The exact
+`AttackMoveKill`-specific post-kill return and minimap-signal policy remain unrecovered; do not emulate either by changing
+generic attack-move behavior.
 
 #### Multiplayer Test Map
 
