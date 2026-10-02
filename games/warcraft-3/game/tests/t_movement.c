@@ -42,6 +42,7 @@
 #include "retail_moving_radius.h"
 #include "retail_group_radius.h"
 #include "retail_blocked_goal.h"
+#include "retail_outside_goal.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -273,7 +274,10 @@ TEST(wc3_movement, retail_adaptive_long_move_reaches_engine) {
         continued[i][2]=wc3_float_bits(unit->s.angle); continued[i][3]=wc3_float_bits(unit->movement.velocity.x);
         continued[i][4]=wc3_float_bits(unit->movement.velocity.y); continued[i][5]=unit->current_order_id;
     }
-    T_EQ(unit->current_order_id,0); T_ASSERT(Vector2_distance(&unit->s.origin2,&target)<=32*wc3_float(0x3efae148));
+    /* Public task stays1936; original05b970 clips the route to max-128. */
+    vec2_t clipped={1920,1776};
+    T_EQ(unit->current_order_id,0);T_EQ(unit->goalentity->s.origin2.x,target.x);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&clipped)<=32*wc3_float(0x3efae148));
     T_ASSERT(ReadGame(file));
     T_NOT_NULL(unit->movement.fine_route.adaptive_points);
     T_EQ(unit->movement.fine_route.adaptive_count,coarse_count);
@@ -3982,11 +3986,13 @@ TEST(wc3_movement, blocked_position_matches_original_ring_endpoints) {
 
 TEST(wc3_movement, terrain_native_edits_redirect_active_move_and_invalidate_cached_route) {
     edict_t *unit = make_moving_unit(80,176);
-    uint8_t cells[16*16] = {0};
+    uint8_t cells[32*32] = {0};
     vec2_t target = {400,176};
     unit->svflags |= SVF_MONSTER; unit->unitinfo.MoveSpeed = 256;
-    CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});
-    CM_SetupTestPathmap(16,16,cells); G_BlightInit(); gi.LinkEntity(unit);
+    /* Leave sufficient coarse/fine clearance above the authored wall and
+     * keep400/176 inside the original four-cell point routing bounds. */
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{1024,1024}});
+    CM_SetupTestPathmap(32,32,cells); G_BlightInit(); gi.LinkEntity(unit);
     T_ASSERT(unit_issueorder(unit,"move",&target));
     uint32_t generation = CM_BuildHeatmap(unit->goalentity);
     CM_ProcessPathJobs(4096);
@@ -4018,7 +4024,7 @@ TEST(wc3_movement, terrain_native_edits_redirect_active_move_and_invalidate_cach
     reset_entities(); setup_test_world();
 }
 
-/* Natural point completion must integrate the same retained fine pose before publishing zero velocity. */
+/* The point-arrival consumer integrates its retained fine pose before publishing zero velocity. */
 TEST(wc3_movement, native_fine_pose_reaches_final_point_commit) {
     edict_t *unit = make_moving_unit(-2012, 568);
     uint8_t cells[16 * 16] = {0};
@@ -4029,10 +4035,12 @@ TEST(wc3_movement, native_fine_pose_reaches_final_point_commit) {
     T_ASSERT(unit_issueorder(unit, "move", &target));
     unit->movement.flow_direct = true;
     FOR_LOOP(i, 2) { unit->s.angle = .125f; unit_moveindirection(unit); }
-    /* Third constant-heading commit in retail-native-pose-1.27.json, with a nearby accepted goal. */
+    /* Third controlled constant-heading commit in retail-native-pose-1.27.json.
+     * Exercise its arrival consumer directly; public world-bound admission is
+     * covered by the complete blocked/outside point-order journeys. */
     target = (vec2_t){wc3_float(0xc4f7c77e) + 5, wc3_float(0x440eef5f)};
     unit->goalentity->s.origin2 = target;
-    unit->currentmove->think(unit);
+    T_ASSERT(move_point_arrival(unit));
     T_EQ(wc3_float_bits(unit->s.origin2.x), 0xc4f7c77eu);
     T_EQ(wc3_float_bits(unit->s.origin2.y), 0x440eef5fu);
     T_EQ(wc3_float_bits(unit->movement.fine_pose.x), 0x40038827u);
@@ -8640,14 +8648,19 @@ TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
         .max = { 1024.0f,  1024.0f}));
 
     T_ASSERT(unit_issueorder(unit, "move", &dest));
-    unit->currentmove->think(unit); /* queues the resumable radius field */
+    unit->currentmove->think(unit); /* admits the collision-sized route */
     CM_ProcessPathJobs(65536);
-    unit->currentmove->think(unit); /* completed field retargets the private waypoint */
+    unit->currentmove->think(unit); /* keeps the public click and follows its partial route */
 
     T_STREQ(unit->currentmove->animation, "walk");
     T_ASSERT(!unit->movement.flow_unreachable);
     T_ASSERT(unit->goalentity->s.origin2.x > unit->s.origin2.x);
-    T_ASSERT(unit->goalentity->s.origin2.x < 0.0f);
+    T_FEQ(unit->goalentity->s.origin2.x, dest.x, 0);
+    T_FEQ(unit->goalentity->s.origin2.y, dest.y, 0);
+    moveFineRoute_t *route = &unit->movement.fine_route;
+    T_ASSERT(route->partial);
+    T_ASSERT(route->count > 0);
+    T_ASSERT(route->points[0].x < 32.0f); /* retained endpoint stays west of the wall */
 }
 
 TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
@@ -11107,7 +11120,7 @@ static void public_group_radius_journey(unsigned scenario, uint32_t const (*moti
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 
-TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
+static void public_point_goal_journey(bool blocked, uint32_t const (*motion)[7], unsigned count) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities();setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
@@ -11123,22 +11136,24 @@ TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
     T_EQ(offset,sizeof(cells));CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(384,256,cells);
     level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
     level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
-    T_ASSERT(run_test_jass(
+    char script[2400];
+    snprintf(script,sizeof(script),
         "globals\nunit mover\ninteger tick=0\nendglobals\n"
         "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
-        "if tick==10 then\ncall IssuePointOrder(mover,\"move\",-1936,-144)\nendif\nendfunction\n"
+        "if tick==10 then\ncall IssuePointOrder(mover,\"move\",%g,%g)\nendif\nendfunction\n"
         "function main takes nothing returns nothing\nlocal integer gx=0\nlocal integer gy=0\n"
-        "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,100)\n"
-        "loop\nexitwhen gx==5\nset gy=0\nloop\nexitwhen gy==5\n"
+        "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,%g)\n"
+        "loop\nexitwhen gx==%u\nset gy=0\nloop\nexitwhen gy==5\n"
         "call SetTerrainPathable(-2000+I2R(gx)*32,-208+I2R(gy)*32,PATHING_TYPE_WALKABILITY,false)\n"
         "set gy=gy+1\nendloop\nset gx=gx+1\nendloop\n"
-        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n"));
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",blocked ? -1936. : -7400.,blocked ? -144. : -976.,blocked ? 100. : 522.,blocked ? 5u : 0u);
+    T_ASSERT(run_test_jass(script));
     edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)unit=ent;
     T_NOT_NULL(unit);level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
-    unsigned steps=0,count=sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion);bool mismatch=!unit;
+    unsigned steps=0;bool mismatch=!unit;
     cstring_t files[]={"/tmp/wc3-blocked-goal-before-partial.bin","/tmp/wc3-blocked-goal-retry.bin","/tmp/wc3-blocked-goal-forced.bin","/tmp/wc3-blocked-goal-final-turn.bin"};
-    unsigned save_times[]={6000,7110,7140,7170},saved_steps[4]={0},suffix_steps=0;
+    unsigned save_times[]={blocked ? 6000 : 5500,blocked ? 7110 : 6630,blocked ? 7140 : 6660,blocked ? 7170 : 6690},saved_steps[4]={0},suffix_steps=0;
     FOR_LOOP(pass,5) {
     if(pass) {
         bool loaded=ReadGame(files[pass-1]);T_ASSERT(loaded);if(!loaded)break;
@@ -11148,14 +11163,14 @@ TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
         trace.count=0;level.time+=5;globals.RunFrame();
         FOR_LOOP(i,trace.count) {
             T_ASSERT(steps<count);if(steps>=count){mismatch=true;break;}
-            uint32_t const *actual=trace.rows[i],*expected=blocked_goal_motion[steps++];
+            uint32_t const *actual=trace.rows[i],*expected=motion[steps++];
             FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
             if(mismatch)fprintf(stderr,"Blocked goal commit%u time%d actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x retry%u wait%u fine%u/%u coarse%u/%u goal%.9g,%.9g\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6],unit->movement.retry_count,unit->movement.wait_delay,unit->movement.fine_route.count,unit->movement.fine_route.index,unit->movement.fine_route.group_count,unit->movement.fine_route.group_index,unit->goalentity?unit->goalentity->s.origin2.x:0,unit->goalentity?unit->goalentity->s.origin2.y:0);
         }
         if(!pass && !mismatch)FOR_LOOP(i,4)if(level.time==save_times[i]) {
             saved_steps[i]=steps;
-            if(i==1){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);T_ASSERT(!unit->movement.point_forced_arrival);}
-            if(i>=2){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,1);T_ASSERT(unit->movement.point_forced_arrival);}
+            if(i==(blocked ? 1 : 2)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);T_ASSERT(!unit->movement.point_forced_arrival);}
+            if(i>=(blocked ? 2 : 3)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,1);T_ASSERT(unit->movement.point_forced_arrival);}
             T_ASSERT(WriteGame(files[i]));
         }
     }
@@ -11163,11 +11178,11 @@ TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
     if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->movement.point_forced_arrival);T_ASSERT(!unit->movement.clock_valid);}
     if(pass)suffix_steps+=steps-saved_steps[pass-1];
     }
-    fprintf(stderr,"Blocked goal ordinary commits=%u Save82 suffix commits=%u\n",count,suffix_steps);
+    fprintf(stderr,"Point goal blocked=%d ordinary commits=%u Save82 suffix commits=%u\n",blocked,count,suffix_steps);
     /* Author a separate cancellation/replacement from the naturally forced
      * saved state; a new command must not inherit its range override. */
     if(!mismatch)FOR_LOOP(i,2) {
-        T_ASSERT(ReadGame(files[2]));T_ASSERT(unit->movement.point_forced_arrival);
+        T_ASSERT(ReadGame(files[blocked ? 2 : 3]));T_ASSERT(unit->movement.point_forced_arrival);
         if(i)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
         else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
         T_ASSERT(!unit->movement.point_forced_arrival);
@@ -11177,6 +11192,14 @@ TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
+    public_point_goal_journey(true,blocked_goal_motion,sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion));
+}
+
+TEST(wc3_movement, public_move_matches_original_outside_west_goal) {
+    public_point_goal_journey(false,outside_west_motion,sizeof(outside_west_motion)/sizeof(*outside_west_motion));
 }
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {

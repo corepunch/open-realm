@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "96 executable original oracle contracts,121 archive audits and49 strict live contracts;266 total entries.",
+  "scope": "96 executable original oracle contracts,121 archive audits and55 strict live contracts;272 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -313,7 +313,9 @@
         "--binary",
         "{binary}",
         "--report",
-        "{report}"
+        "{report}",
+        "--engine-library",
+        "{engine}"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -327,13 +329,19 @@
         },
         "world_grid_boundary_cases": {
           "equal": 576
+        },
+        "point_order_clip_cases": {
+          "equal": 108
+        },
+        "point_order_clip_engine_cases": {
+          "equal": 108
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Complete original calls; exact dyadic world inputs; terrain high-bit set/clear, cell selection, no implicit hierarchy mutation; clipped base/parent updates and metadata preservation against independent model. Synthetic maps; constructors, actual origin producers, objects and non-dyadic rounding excluded. Additional576 complete world-to-fine edits record exact boundary words/cell admission and separate original scalar inverse composition.",
+      "scope": "Complete original calls; exact dyadic world inputs; terrain high-bit set/clear, cell selection, no implicit hierarchy mutation; clipped base/parent updates and metadata preservation against independent model. Synthetic maps; constructors, actual origin producers, objects and non-dyadic rounding excluded. Additional576 complete world-to-fine edits record exact boundary words/cell admission and separate original scalar inverse composition. Additional108 original05b986..05ba9e point-bridge clipping prefixes retain user words and compare production C across three origins/cell sizes, four edges and adjacent values; request allocation/completion certified by public captures separately.",
       "exclusions": [
         "Original public coordinate/metadata producers, full domain rejection and fine/proximity/adaptive padding remain MAP-01.2/3."
       ]
@@ -20925,6 +20933,244 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "inputs": {
+        "capture": "runtime/outside-west-v2-first-261002.jsonl",
+        "sha256": "e18980e102a24112295565bf9f3e552ceea6966a8db127f5d18d14ce980821ea",
+        "bytes": 6357540,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+            "wc3_pathfinding.js": "cf2965750dc2d1c67746f22fa4019241629d76cd06c3def7df8642d61fbdb9b2",
+            "wc3_pathfinding_probe.j": "5a9a20a44980d0137c1d1fb53a2a7a29280487c069acb896b041e467ebf6e73a",
+            "make_wc3_pathfinding_map.py": "b100ea36131f30de48cbd5723e9096a9d1088d31690836ee27ab86d206b8777a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "19a200a49fd3db2b95e5d1edc7c337084a02319477e725fb70277bd7b522f057"
+          },
+          "map": "Maps\\PathingRE-OutsideWestV2-261002.w3m",
+          "seconds": 70.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true,
+      "id": "live-outside-goal-captures-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_outside_goal_trace.py",
+        "{archive}/runtime/outside-west-v2-first-261002.jsonl",
+        "{archive}/runtime/outside-west-v2-repeat-261002.jsonl",
+        "{archive}/runtime/point-bound-matrix-v2-first-261002.jsonl",
+        "{archive}/runtime/point-bound-matrix-v2-repeat-261002.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-outside-goal-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_outside_goal.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "outside-goal-captures.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 4
+        },
+        "public_point_admissions": {
+          "equal": 26
+        },
+        "exact_velocity_commits": {
+          "equal": 382
+        },
+        "exact_decisions": {
+          "equal": 376
+        },
+        "owner_callbacks": {
+          "equal": 2000
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Ordinary ground public point Move world-bound clipping. Four-edge public input neighbors and raw routing operands; whole repeated outside-west trajectory and saved engine continuation. Outside placement, other classes/masks, overlap targets and generic task families excluded.",
+      "exclusions": [
+        "Outside placement, non-ground classes/masks, overlap/target removal and other task families."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/outside-west-v2-repeat-261002.jsonl",
+            "sha256": "e2d9cb578659944c09f39c1e686b0779b61541204c70faa66fe517bb520af7bc",
+            "bytes": 6426594,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "cf2965750dc2d1c67746f22fa4019241629d76cd06c3def7df8642d61fbdb9b2",
+                "wc3_pathfinding_probe.j": "5a9a20a44980d0137c1d1fb53a2a7a29280487c069acb896b041e467ebf6e73a",
+                "make_wc3_pathfinding_map.py": "b100ea36131f30de48cbd5723e9096a9d1088d31690836ee27ab86d206b8777a",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "19a200a49fd3db2b95e5d1edc7c337084a02319477e725fb70277bd7b522f057"
+              },
+              "map": "Maps\\PathingRE-OutsideWestV2-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/point-bound-matrix-v2-first-261002.jsonl",
+            "sha256": "d485ceee83db58b23a19f780d3b2967f82f4f1a86839ffe5262e87d03a5c8157",
+            "bytes": 682489,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "b4f48b6ffd193aae5771acd1ed167906bef14f53481aeee0e278a4cde2c16518",
+                "wc3_pathfinding_probe.j": "543d92e239d2f4a9b31a085947028365150d6a866cbc9251b2703fd238476d8f",
+                "make_wc3_pathfinding_map.py": "400b7b5f4d0aa839f33a93bc66a54e81085ad766fb9933128e0c0414965d3ac4",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "8f91b27f12887bd8d5c81bf5a04ef332b77870ea6c0e43fb54cb7dfe171bad24"
+              },
+              "map": "Maps\\PathingRE-PointBoundMatrixV2-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/point-bound-matrix-v2-repeat-261002.jsonl",
+            "sha256": "b59afaa799a7cc600714b803f25fa54b01c04cfe11a83c9ca1b949ab77fc6f0c",
+            "bytes": 682488,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8acebb0e2b2390dbdfd1c1265d1dc541366ed9ce80c7321380c9ba39f2d22730",
+                "wc3_pathfinding.js": "b4f48b6ffd193aae5771acd1ed167906bef14f53481aeee0e278a4cde2c16518",
+                "wc3_pathfinding_probe.j": "543d92e239d2f4a9b31a085947028365150d6a866cbc9251b2703fd238476d8f",
+                "make_wc3_pathfinding_map.py": "400b7b5f4d0aa839f33a93bc66a54e81085ad766fb9933128e0c0414965d3ac4",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "8f91b27f12887bd8d5c81bf5a04ef332b77870ea6c0e43fb54cb7dfe171bad24"
+              },
+              "map": "Maps\\PathingRE-PointBoundMatrixV2-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -20990,7 +21236,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "0fbbf16e2e1f6e69a5b43d367980c7ab5cacc4212830c7d07bd933376822ba75"
+      "sha256": "fde7ff48bd928003becc0704c74f7af9a8f812c5368ac314ecc662a70d633e36"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -21376,6 +21622,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-blocked-goal-1.27.json",
       "sha256": "5fcfca356ac49b8935652f1e8793e76be5d0a361d03fbe43dd8125d2b3e2d15d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-point-order-clip-1.27.json",
+      "sha256": "e7c892a956d0e7ada0a63a90751b7bbfeb39000804c2193c6eb4346a31e714db"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-outside-goal-1.27.json",
+      "sha256": "232e0843c05bbc5510768ea7dfb1d93e330a3c72036f741b2d076ba334bc76b5"
     }
   ]
 }

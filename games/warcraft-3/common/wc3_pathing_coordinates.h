@@ -14,6 +14,17 @@ static inline float wc3_world_coordinate(float value, float origin, float cell) 
     return wc3_add(wc3_mul(value, cell), origin);
 }
 
+/* Original05b970 clips the routing point inside four fine cells of each
+ * world edge before subtracting the origin. Public task coordinates remain
+ * unchanged. Preserve its ordered lower/upper comparisons and scalar math. */
+static inline float wc3_point_order_coordinate(float value, float minimum, float maximum, float cell) {
+    float margin=wc3_mul(cell,4);
+    float lower=wc3_add(minimum,margin),upper=wc3_sub(maximum,margin);
+    if (lower>value) return lower;
+    if (value>upper) return upper;
+    return value;
+}
+
 typedef struct {
     float grid[2], origin[2], world[2];
 } wc3GridPose_t;

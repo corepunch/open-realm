@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **269 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **52**
+The inventory now has **272 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **55**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -876,3 +876,20 @@ All27 fresh capture contracts pass. Inventory271 entries/112 fixtures/54 strict
 live entries. [Normal engine and Save82 continuations](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival)
 are separate complete production-entry regressions. Wider outside/overlap,
 classes/masks and queued/combat recovery remain open.
+
+
+## Public outside point Move and coordinate clipping
+
+Payoff54 adds `live-outside-goal-captures-261002`: two complete outside-west
+journeys and two12-input public edge matrices. The strict contract verifies
+26 public admissions,382 exact movement commits,376 decisions and2000 primary
+owner callbacks across the repeats. Raw task coordinates remain separate from
+clipped routing operands. Original `oracle-maps` additionally compares108
+coordinate prefixes with production C, while retaining its576 world-to-grid
+boundary cases and existing map assertions.
+
+The corpus now contains272 entries,114 pinned repository fixtures and55 strict
+live contracts. `runtime/outside-goal-strict-final-261002/corpus-results.json`
+runs28 fresh capture contracts plus the map oracle. Four immutable source/map
+provenance checks and284 pathfinding Python checks pass. The complete engine
+journey and four Save82 continuations are described in [outside point goals](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click).

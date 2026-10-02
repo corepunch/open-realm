@@ -8,13 +8,13 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**130 done / 314 tasks; 184 remaining.** Payoff53 closes FOOT-04.7:
-one public blocked-terrain point Move matches207 complete retail motion commits
-and46 Save82 suffix commits per variant. Move retains the click, admits partial
-fine searches, defers retry refill and preserves forced range plus the final
-angular gate. Native retry/task cleanup repeats; full debug/release/repository
-checks,274 Python checks,27 fresh capture contracts and saved Ghidra readback
-pass. Counts describe this backlog, not a percentage of retail fidelity or an
+**131 done / 315 tasks; 184 remaining.** Payoff54 closes FOOT-04.8:
+ordinary ground point Move retains outside clicks while clipping routing by
+the original four-cell world margin. Repeated public edge neighbors and108
+original coordinate-prefix cases match C; the complete outside-west journey
+matches191 normal engine commits and47 Save82 suffix commits per variant.
+Full debug/release/repository checks,284 Python checks,28 fresh capture
+contracts plus the map oracle, and saved Ghidra readback pass. Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -26,7 +26,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
 | MAP — Map construction and lifetime | 7 | 15 |
-| FOOT — Footprints and query policy | 10 | 7 |
+| FOOT — Footprints and query policy | 11 | 7 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 23 | 13 |
@@ -153,8 +153,8 @@ NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | FOOT-04.2 | Public outside-goal point task and world/fine bridge bounds clipping | Repeated clipped routing operands, complete normal/saved engine travel |
-| 2 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Live AI producer plus Move-owned shared publication and saved travel |
+| 1 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Live AI producer plus Move-owned shared publication and saved travel |
+| 2 | ROUTE-03.1 | Successive long refills with a dynamic blocker | Repeated original refill buffers and complete engine travel/save |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
 decimal CRT grammar/locale, source lexer domains and original nonreturning VM
@@ -339,6 +339,8 @@ Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers,
 - [x] **FOOT-04.6** Explicitly split ordinary in-map ground public CreateUnit admission from04.1. Two complete eight-spawn captures recover policy2/32 rings,31-unit footprint/self exclusion and fresh mover sentinel cancellation; all eight endpoints, sixteen writes,104 queries and239 motion decisions replay exactly and repeat. Replace public spawn's64-unit circle spiral through Move-owned admission/initial pose; public CreateUnit/AtLoc, native destinations and saved scheduler continuation pass. Evidence: [engine payoff33](retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose). Original Loc, other actors/factory flags, bridge/rejected-level/outside controls and full physical crowd cadence remain04.1/02/BASE-02/MAP/E2E.
 
 - [x] **FOOT-04.7** Split the ordinary ground point-Move static blocked-goal lifetime from04.2: repeat the public five-by-five terrain blocker producer, retain the requested click through intermediate routes, partial endpoint, two retries and natural can't-path task cleanup, and port complete motion plus saved continuations in the engine. Evidence: [payoff53](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival), two fresh originals repeat207 commits; engine mismatch prefixes4/177/203 become207 exact commits plus46 Save82 suffix commits per variant. Stop/replacement clear naturally saved force. Full debug/release/repository checks,274 Python checks,27 fresh capture contracts and saved Ghidra readback pass. Wider masks/classes, outside/overlap and target categories remain their parent tasks.
+
+- [x] **FOOT-04.8** Split the ordinary ground point-Move world-bound clip from04.2: recover05b970's cell-size-times-four margin and ordered scalar bounds, witness before/after near each edge, retain the public click while clipping only routing, and compare original public outside-west full travel plus saved continuations. Evidence: [payoff54](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click), two fresh original journeys match191 normal engine commits/47 saved suffix commits per variant; two12-input public edge matrices retain raw task versus clipped routing words;108 original prefix/C cases pass. Full debug/release/repository checks,284 Python checks,28 fresh capture contracts plus map oracle and saved553-role/251-ABI Ghidra readback pass. Outside placement, other masks/classes, overlaps and target removal remain04.2.
 
 ## FINE — Fine search
 

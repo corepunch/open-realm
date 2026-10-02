@@ -998,6 +998,11 @@ static void move_hold_goal_heading(edict_t *self) {
     moveGroupMember_t const *member=move_find_member(self);
     float x=member ? member->destination.x : wc3_grid_coordinate(self->goalentity->s.origin2.x,pose.origin[0],32);
     float y=member ? member->destination.y : wc3_grid_coordinate(self->goalentity->s.origin2.y,pose.origin[1],32);
+    moveFineRoute_t const *route=&self->movement.fine_route;
+    if (!member && route->group_count && route->group_index<route->group_count) {
+        vec2_t point=route->group_index ? (vec2_t){wc3_mul(route->group_points[route->group_index].x,2),wc3_mul(route->group_points[route->group_index].y,2)} : route->group_goal;
+        x=point.x;y=point.y;
+    }
     float heading=wc3_vector_heading(wc3_sub(x,pose.grid[0]),wc3_sub(y,pose.grid[1]));
     self->movement.heading=heading; unit_turn_toward(self,heading);
     self->movement.turn_blocked=true;
@@ -1289,6 +1294,16 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     self->movement.flow_goal_reached = false;
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
+
+    /* An admitted retail point cohort owns partial routing too. A generic
+     * static field for the raw click must not replace its task destination
+     * or skip the current fine leg when that click lies outside the world. */
+    if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) && !self->no_pathing &&
+        self->movement.fine_route.group_count &&
+        unit_accel_direction(self,(moveRoutePoint_t){&self->goalentity->s.origin2,radius,policy},&dir)) {
+        unit_apply_heading(self,&dir,policy);
+        return;
+    }
 
     /* Generic interaction movement keeps the original point-route contract.
      * Attack, mine entry, resource return, repair, and other ranged behaviors

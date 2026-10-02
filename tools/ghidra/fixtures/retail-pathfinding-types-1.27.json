@@ -6477,6 +6477,112 @@
         }
       ],
       "evidence": "Complete seven instructions, ECX path, stack4 scalar pointer, RET4. Copies pointed raw scalar to+b4; no returned value promised."
+    },
+    {
+      "address": "6f206ea0",
+      "name": "Jass_IssuePointOrder",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "order_string",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        }
+      ],
+      "evidence": "Instruction-checked206ea0/ec0,207060/70a0 and registration209f2e/42/ff6,20a00a: EBP stack offsets, tail rewrite/call cleanup, plainRET and rawEAX. Raw requested coordinates retained into original Move point task; bounds clipping in05b970."
+    },
+    {
+      "address": "6f206ec0",
+      "name": "Jass_IssuePointOrderById",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "order_id",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        }
+      ],
+      "evidence": "Instruction-checked206ea0/ec0,207060/70a0 and registration209f2e/42/ff6,20a00a: EBP stack offsets, tail rewrite/call cleanup, plainRET and rawEAX. Raw requested coordinates retained into original Move point task; bounds clipping in05b970."
+    },
+    {
+      "address": "6f207060",
+      "name": "Jass_IssuePointOrderByIdLoc",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "order_id",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "location_handle",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Instruction-checked206ea0/ec0,207060/70a0 and registration209f2e/42/ff6,20a00a: EBP stack offsets, tail rewrite/call cleanup, plainRET and rawEAX. Raw requested coordinates retained into original Move point task; bounds clipping in05b970."
+    },
+    {
+      "address": "6f2070a0",
+      "name": "Jass_IssuePointOrderLoc",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "order_string",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "location_handle",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Instruction-checked206ea0/ec0,207060/70a0 and registration209f2e/42/ff6,20a00a: EBP stack offsets, tail rewrite/call cleanup, plainRET and rawEAX. Raw requested coordinates retained into original Move point task; bounds clipping in05b970."
     }
   ],
   "globals": [

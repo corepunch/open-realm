@@ -621,7 +621,10 @@ bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec
  * zero offset. Shared cohort storage/formation admission remains GROUP-04.6. */
 bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *fine) {
     if (!input || !route || !fine || !input->geometry.target || !pathmap.width || !pathmap.height) return false;
-    vec2_t goal=move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
+    box2_t bounds=CM_GetWorldBounds();float cell=pathmap_cell_world_size();
+    vec2_t clipped={wc3_point_order_coordinate(input->geometry.target->x,bounds.min.x,bounds.max.x,cell),
+        wc3_point_order_coordinate(input->geometry.target->y,bounds.min.y,bounds.max.y,cell)};
+    vec2_t goal=move_grid_from_world(clipped.x,clipped.y);
     /* Original16ce10 resamples16c940 and writes path+b4 only when it admits a
      * route. A surviving cached route keeps its footprint after a peer leaves;
      * the current live maximum is used when the destination/map/mask changes. */

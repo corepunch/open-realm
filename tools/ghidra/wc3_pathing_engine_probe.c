@@ -12,6 +12,15 @@
 #include "games/warcraft-3/common/wc3_pathing_yield.h"
 #include "games/warcraft-3/common/wc3_pathing_retry.h"
 
+/* Original05b970 world bounds clipping and subsequent fixed32-cell input. */
+void pathing_point_order_clip(uint32_t const input[7], uint32_t output[4]) {
+    for (unsigned k=0;k<2;k++) {
+        float point=wc3_point_order_coordinate(wc3_float(input[k]),wc3_float(input[2+k]),wc3_float(input[4+k]),wc3_float(input[6]));
+        output[k]=wc3_float_bits(point);
+        output[2+k]=wc3_float_bits(wc3_grid_coordinate(point,wc3_float(input[2+k]),32));
+    }
+}
+
 /* Complete retry inputs retain native source/adjusted goal and owner words. */
 void pathing_retry_init(uint32_t const input[7], uint32_t output[3]) {
     wc3RetryInput_t in={{wc3_float(input[0]),wc3_float(input[1])},

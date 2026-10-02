@@ -893,3 +893,10 @@ checkpoints before partial search, after retry1, after force and during the
 final turn reproduce all46 retail suffix commits and normal order completion
 per RoC/TFT variant. Old versions including81 are rejected. See [blocked point
 goals](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival).
+
+
+Ordinary outside-map point Move reuses Save82's retained public waypoint,
+clipped group routing goal, route buffers and forced-arrival flag. Four
+checkpoints reproduce47 original outside-west suffix commits per variant,
+with Stop and replacement clearing force after restoration. No serialized
+layout changes are introduced. See [outside point goals](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click).

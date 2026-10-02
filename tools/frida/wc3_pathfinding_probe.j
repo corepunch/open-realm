@@ -698,6 +698,90 @@ function PathProbeTick takes nothing returns nothing
         set udg_PathProbeBuilding = null
         call PathProbeRecord("after_widget_remove")
     endif
+    if PATH_PROBE_SCENARIO == 69 and udg_PathProbeTick == 5 then
+        call Preload("PATHBOUND case=0 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",-7040.00048828,-976.00000000) then
+            call Preload("PATHBOUND case=0 accepted")
+        else
+            call Preload("PATHBOUND case=0 rejected")
+        endif
+        call Preload("PATHBOUND case=1 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",-7040.00000000,-976.00000000) then
+            call Preload("PATHBOUND case=1 accepted")
+        else
+            call Preload("PATHBOUND case=1 rejected")
+        endif
+        call Preload("PATHBOUND case=2 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",-7039.99951172,-976.00000000) then
+            call Preload("PATHBOUND case=2 accepted")
+        else
+            call Preload("PATHBOUND case=2 rejected")
+        endif
+        call Preload("PATHBOUND case=3 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",4991.99951172,-976.00000000) then
+            call Preload("PATHBOUND case=3 accepted")
+        else
+            call Preload("PATHBOUND case=3 rejected")
+        endif
+        call Preload("PATHBOUND case=4 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",4992.00000000,-976.00000000) then
+            call Preload("PATHBOUND case=4 accepted")
+        else
+            call Preload("PATHBOUND case=4 rejected")
+        endif
+        call Preload("PATHBOUND case=5 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",4992.00048828,-976.00000000) then
+            call Preload("PATHBOUND case=5 accepted")
+        else
+            call Preload("PATHBOUND case=5 rejected")
+        endif
+        call Preload("PATHBOUND case=6 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",-1936.00000000,-2944.00048828) then
+            call Preload("PATHBOUND case=6 accepted")
+        else
+            call Preload("PATHBOUND case=6 rejected")
+        endif
+        call Preload("PATHBOUND case=7 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",-1936.00000000,-2944.00000000) then
+            call Preload("PATHBOUND case=7 accepted")
+        else
+            call Preload("PATHBOUND case=7 rejected")
+        endif
+        call Preload("PATHBOUND case=8 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",-1936.00000000,-2943.99951172) then
+            call Preload("PATHBOUND case=8 accepted")
+        else
+            call Preload("PATHBOUND case=8 rejected")
+        endif
+        call Preload("PATHBOUND case=9 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",-1936.00000000,4991.99951172) then
+            call Preload("PATHBOUND case=9 accepted")
+        else
+            call Preload("PATHBOUND case=9 rejected")
+        endif
+        call Preload("PATHBOUND case=10 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",-1936.00000000,4992.00000000) then
+            call Preload("PATHBOUND case=10 accepted")
+        else
+            call Preload("PATHBOUND case=10 rejected")
+        endif
+        call Preload("PATHBOUND case=11 before")
+        if IssuePointOrder(udg_PathProbeUnit,"move",-1936.00000000,4992.00048828) then
+            call Preload("PATHBOUND case=11 accepted")
+        else
+            call Preload("PATHBOUND case=11 rejected")
+        endif
+        call IssueImmediateOrder(udg_PathProbeUnit,"stop")
+        call PathProbeRecord("bounds_complete")
+    endif
+    if PATH_PROBE_SCENARIO == 68 and udg_PathProbeTick == 10 then
+        call PathProbeRecord("before_outside_order")
+        if IssuePointOrder(udg_PathProbeUnit,"move",-7400.0,-976.0) then
+            call PathProbeRecord("outside_order_accepted")
+        else
+            call PathProbeRecord("outside_order_rejected")
+        endif
+    endif
     if udg_PathProbeTick == 10 and PATH_PROBE_SCENARIO != 22 and PATH_PROBE_SCENARIO != 25 and PATH_PROBE_SCENARIO != 26 and PATH_PROBE_SCENARIO != 44 and PATH_PROBE_SCENARIO != 45 and PATH_PROBE_SCENARIO != 46 and PATH_PROBE_SCENARIO != 47 and PATH_PROBE_SCENARIO != 48 and PATH_PROBE_SCENARIO < 65 then
         call PathProbeRecord("before_order")
         if ((PATH_PROBE_SCENARIO >= 10 and PATH_PROBE_SCENARIO <= 15) or (PATH_PROBE_SCENARIO >= 53 and PATH_PROBE_SCENARIO <= 62)) then
@@ -1234,6 +1318,9 @@ function PathProbeInit takes nothing returns nothing
         endif
     endif
     call SelectUnit(udg_PathProbeUnit, true)
+    if PATH_PROBE_SCENARIO == 68 then
+        call SetUnitMoveSpeed(udg_PathProbeUnit,522.0)
+    endif
     call PathProbeRecord("start_@NAME@")
     if PATH_PROBE_SCENARIO == 26 then
         call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 100000)

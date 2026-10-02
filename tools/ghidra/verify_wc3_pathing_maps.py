@@ -19,15 +19,18 @@ SHA256 = 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236'
 
 def main():
     from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE
-    from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EDX, UC_X86_REG_EAX
+    from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EDX, UC_X86_REG_EAX, UC_X86_REG_EBP
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--coordinate-fixture', type=Path, help='freeze complete original world-to-grid boundary words')
+    parser.add_argument('--point-order-fixture',type=Path,help='freeze original05b986..05ba9e point-bound clipping words')
     parser.add_argument('--engine-library', type=Path, help='compare production coordinate arithmetic')
     args = parser.parse_args()
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
-    if engine: engine.pathing_world_grid.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+    if engine:
+        engine.pathing_world_grid.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+        engine.pathing_point_order_clip.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != SHA256:
@@ -277,7 +280,32 @@ def main():
     if args.coordinate_fixture:
         args.coordinate_fixture.write_text(json.dumps(dict(binary_sha256=digest,cases=raw_cases,
             scope='Complete04d870 fine inputs/cell admission and scalar inverse composition; origin/map producers and full Move caller excluded'),separators=(',',':'))+'\n')
-    report = dict(world_grid_boundary_cases=len(raw_cases),world_grid_boundary_engine_cases=len(raw_cases) if engine else 0,
+    # Original point bridge's complete coordinate prefix, without replacing
+    # any math callees. Stop before request allocation; full caller/route/task
+    # composition is independently witnessed by public original captures.
+    point_cases=[]
+    clip_bounds=[(-7168,-3072,5120,5120),(-512.25,1024.5,4096.75,8192.5),(0,0,1024,2048)]
+    for bounds,cell,axis,side,step in itertools.product(clip_bounds,[16,32,64],range(2),range(2),[-1,0,1]):
+        edge=bounds[axis]+4*cell if side==0 else bounds[axis+2]-4*cell
+        position=[word((bounds[0]+bounds[2])*.5),word((bounds[1]+bounds[3])*.5)]
+        position[axis]=adjacent(edge,step)
+        inputs=position+list(map(word,bounds))+[word(cell)]
+        floats(game+0x6c,*bounds);floats(0x6fd3c7a8,cell);floats(0x6fd3c754,4)
+        write(xptr,position[0]);write(yptr,position[1]);write(stack+8,xptr,yptr)
+        uc.reg_write(UC_X86_REG_EBP,stack);uc.reg_write(UC_X86_REG_ESP,stack-0x40)
+        uc.emu_start(0x6f05b986,0x6f05ba9e,count=200000)
+        assert uc.reg_read(UC_X86_REG_EIP)==0x6f05ba9e
+        outputs=[words(stack-0x14)[0],words(stack-0x10)[0],words(stack-0x1c)[0],words(stack-0x18)[0]]
+        assert words(xptr)[0]==position[0] and words(yptr)[0]==position[1]
+        if engine:
+            actual=(ctypes.c_uint32*4)();engine.pathing_point_order_clip((ctypes.c_uint32*7)(*inputs),actual)
+            assert list(actual)==outputs,(inputs,list(actual),outputs)
+        point_cases.append(dict(input=inputs,output=outputs,axis=axis,side=side,step=step))
+    assert len(point_cases)==108
+    if args.point_order_fixture:
+        args.point_order_fixture.write_text(json.dumps(dict(binary_sha256=digest,cases=point_cases,
+            scope='Original05b986..05ba9e clipping/conversion prefix with actual math calls; controlled world bounds and cell size; request allocation/task/owner composition certified separately by public traces'),indent=2)+'\n')
+    report = dict(point_order_clip_cases=len(point_cases),point_order_clip_engine_cases=len(point_cases) if engine else 0,world_grid_boundary_cases=len(raw_cases),world_grid_boundary_engine_cases=len(raw_cases) if engine else 0,
                   binary_sha256=digest, terrain_entry='6f04d870', cell_edit='6f054000',
                   hierarchy_entry='6f15d360', coordinate_cases=coordinate_cases,
                   composed_edit_rebuild_restore_cases=composed_cases,

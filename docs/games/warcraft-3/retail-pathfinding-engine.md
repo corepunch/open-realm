@@ -5323,3 +5323,79 @@ pass741412 assertions/2385 WC3 tests per variant and the remaining repository
 suites. All274 pathfinding Python checks, ability coverage audit,271-entry
 inventory and27 fresh capture contracts pass. Backlog130 completed/184 open
 leaves. The next runnable comparison is outside-goal bridge clipping.
+
+
+## Outside point goals clip routing while retaining the public click
+
+Payoff54 closes FOOT-04.8 for ordinary ground point Move. Public
+`IssuePointOrder`/`IssuePointOrderById` admit the requested coordinates unchanged
+into the point task. Original05b970 clips the routing coordinates to world
+minimum plus four path cells and maximum minus four path cells before
+subtracting the origin and dividing by32. In the captured world the bounds
+are(-7168,-3072)..(5120,5120), cell32 and margin4, so the requested
+(-7400,-976) remains the public click while the fine routing destination
+is(4,65.5), world(-7040,-976). Instruction comparisons are strict: equality
+retains the input word. The decompiler's unordered comparison spelling was
+checked against COMISS/JA/CMOVA before implementing the helper.
+
+Move now clips only its implicit group's routing goal. An admitted point route
+owns its steering before generic flow-field reachability can replace the
+public destination. The engine previously substituted(-3408,-976) and first
+moved at1080ms, while retail started at1050ms. Clipping alone did not fix that
+mismatch; preserving the admitted route's ownership does. Both original
+outside-west captures now match all191 production position, fine pose, facing
+and velocity commits through normal five-millisecond frames. No route, pose,
+clock, retry or completion is injected. The eight captured searches retain
+11/5/21/6/33/2/11/1 route points. Retry1 at owner1246 defers refill, retry4 at
+1247 forces range acceptance, and1248 completes naturally.
+
+Four Save82 checkpoints at5500/6630/6660/6690ms match47 saved suffix commits
+per variant, including replacement and Stop inverse controls. The clipped
+group goal and standalone forced-arrival flag already belong to the serialized
+Move records, so this change needs no new field or save-format version.
+
+The four-edge public matrix repeats12 lower/exact/upper neighboring inputs at
+X=-7040/4992 and Y=-2944/4992. Each public order reports acceptance and retains
+its raw task words while original routing operands match production C. The
+original coordinate prefix additionally matches108 finite cases across three
+origins, cell sizes16/32/64, both axes, both bounds and adjacent float words.
+These prefix calls are separate from the complete32-cell public journey.
+Outside placement, overlapping/removed targets, other masks/classes and
+non-point task policies remain open.
+
+The regression suite now distinguishes public click ownership from controlled
+arrival-consumer arithmetic. Its retained native-pose test calls the actual
+arrival consumer and preserves every frozen expected position/velocity word;
+the new public journeys cover admission. Synthetic detour worlds leave room
+for the recovered boundary margin, and the collision-sized blocked passage
+asserts a partial route endpoint west of the wall while retaining the click.
+
+Evidence under the external retail archive:
+
+- `runtime/outside-west-v2-first-261002.jsonl` and
+  `runtime/outside-west-v2-repeat-261002.jsonl`: complete motion, primary clocks,
+  route/retry/cleanup and read-only original bound operands.
+- `runtime/point-bound-matrix-v2-first-261002.jsonl` and
+  `runtime/point-bound-matrix-v2-repeat-261002.jsonl`:12 accepted public edge
+  inputs each. The earlier matrix without acceptance markers remains diagnostic.
+- `runtime/outside-goal-source-provenance-final-261002.json`: exact immutable
+  observer, script and map hashes for all four accepted captures.
+- `runtime/outside-goal-strict-final-261002/corpus-results.json`:28 fresh live
+  contracts plus the expanded original map oracle pass against current C.
+- `runtime/outside-goal-ghidra-readback-saved-261002.json`:553 saved roles,
+  44 layouts/271 fields/251 explicit ABIs/46 globals, with no unsaved changes.
+
+`retail-outside-goal-1.27.json` and `tests/retail_outside_goal.h` freeze the
+complete journey; `retail-point-order-clip-1.27.json` freezes the original
+prefix cases. Seven new Ghidra roles connect public wrappers, dispatch and
+raw point-task construction to the existing routing producer.
+
+Payoff54 final checks: forced debug full WC3 runs pass743415 assertions/2349
+tests per variant. Forced release binaries and full `make test` pass743848
+assertions/2386 WC3 tests per variant plus the remaining repository suites.
+The first forced recursive invocation inherited `-B` into the JASS dependency
+check, whose required up-to-date assertion consequently failed; the normal
+full invocation against rebuilt release binaries passes. All284 pathfinding
+Python checks, ability coverage audit,272-entry inventory and29 fresh corpus
+outcomes pass. Backlog131 completed/184 open leaves. Next runnable work is
+the Captain AI shared-radius producer and its Move-owned engine consumer.

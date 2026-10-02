@@ -560,3 +560,10 @@ fine search can finish with a partial route, retry on the next owner, and force
 range acceptance while still requiring the final turn. The captured blocked
 5x5 goal matches all207 production engine commits and46 Save82 suffix commits
 per variant. See [blocked point goals](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival).
+
+
+Ordinary ground point Move also retains outside-map clicks. Routing clamps
+to the world bounds inset by four path cells, while the public waypoint stays
+unchanged. The admitted route owns steering and arrival; a generic unreachable
+field cannot rewrite it. The complete outside-west journey matches191 retail
+commits and47 Save82 suffix commits per variant. See [outside point goals](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click).

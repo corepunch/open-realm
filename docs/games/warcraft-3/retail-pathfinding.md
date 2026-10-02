@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **546 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **553 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 ordinary public twelve-member movement matches1,953 commits and2,634 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
@@ -41,7 +41,7 @@ composition closes a gap.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
   `MapPathfindingTypes.java` also persists44 partial layouts,271 verified
-  fields and247 instruction-established prototypes with explicit register/stack
+  fields and251 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -408,3 +408,13 @@ continuations match46 suffix commits. Ghidra's existing route/retry/step/cleanup
 roles carry the observed1261..1264 owner sequence; saved readback verifies all
 546 roles and the existing44 partial layouts/247 ABIs. See [engine payoff53](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival).
 Outside/overlap and other task/mask/class domains remain open.
+
+
+Payoff54 completes ordinary ground outside point-Move clipping. Public tasks
+retain the raw click; original routing uses world bounds inset by cell-size
+times four. Repeated public edge neighbors,108 original prefix/C cases and
+all191 outside-west engine commits agree, including47 saved suffix commits.
+Seven additional saved roles connect four public wrappers, dispatch and point
+construction; four explicit stack ABIs raise the persisted total to251. See
+[engine payoff54](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click).
+Other placement, target, class and mask domains remain open.
