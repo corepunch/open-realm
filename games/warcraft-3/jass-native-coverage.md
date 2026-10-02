@@ -514,9 +514,10 @@ This correction preserves the existing RoC-only version-reporting policy (`Versi
 version reporting remains a separate conformance gap.
 
 After the handle correction, the bounded Twisted Meadows lobby reached gameplay. `MeleeDifficulty` is now registered
-for the AI VM and returns `MELEE_NORMAL` (`2`). `GetAIDifficulty` currently maps active map difficulty to the
-`aidifficulty` handle scale as a `BZ_COMPAT_GUESS` because no per-slot AI difficulty is modeled; this must not be
-confused with `MeleeDifficulty`'s integer scale. A per-slot lobby setting should replace this fallback.
+for the AI VM and returns `MELEE_NORMAL` (`2`). The lobby does not model per-slot AI difficulty, so `GetAIDifficulty`
+returns `AI_DIFFICULTY_NORMAL` for valid players rather than deriving AI difficulty from map difficulty. Its
+`aidifficulty` enum-handle scale remains distinct from `MeleeDifficulty`'s integer scale. See
+[Player AI documentation](../../docs/games/warcraft-3/player-ai.md).
 
 ### Shared Galaxy Error Boundaries
 
