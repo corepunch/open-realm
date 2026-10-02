@@ -27,6 +27,9 @@
 #include "../g_local.h"
 #include "games/warcraft-3/common/terrain.h"
 #include "games/warcraft-3/common/wc3_pathing_segment.h"
+#include "retail_public_oblique.h"
+#include "retail_public_pair.h"
+#include "retail_public_twelve.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -520,6 +523,8 @@ TEST(wc3_movement, retail_adaptive_progress_refills_before_fine_endpoint) {
         vec2_t source={wc3_float(cases[c][4]),wc3_float(cases[c][5])};
         unit->s.origin2=(vec2_t){wc3_mul(source.x,32),wc3_mul(source.y,32)};
         query.fine=&source;
+        /* The original controlled refill advances its owner counter ten visits and resets work. */
+        level.pathing_counter+=10; level.move_fine_budget.work=0;
         if (!G_AdvanceUnitMoveFineRoute(&query,route,&waypoint))
             T_ASSERT(G_BuildUnitMoveFineRoute(&query,route,&waypoint));
         T_EQ(route->adaptive_index,0);
@@ -893,6 +898,8 @@ TEST(wc3_movement, retail_long_adaptive_refill_words_and_indices) {
             uint32_t const *row=long_legs[long_cases[c][4]+leg];
             vec2_t source={wc3_float(row[0]),wc3_float(row[1])};
             unit->s.origin2=(vec2_t){wc3_mul(source.x,32),wc3_mul(source.y,32)}; query.fine=&source;
+            /* Match the frozen original supplied counter/work controls for each local leg. */
+            level.pathing_counter+=10; level.move_fine_budget.work=0;
             if (!leg || !G_AdvanceUnitMoveFineRoute(&query,route,&waypoint))
                 T_ASSERT(G_BuildUnitMoveFineRoute(&query,route,&waypoint));
             T_EQ(route->adaptive_count,long_cases[c][3]); T_EQ(route->adaptive_index,row[2]);
@@ -1333,20 +1340,25 @@ TEST(wc3_movement, retail_adaptive_lanes_sizes_and_terrain_edits) {
     uint8_t masks[4]={2,4,0x40,0x80};
     FOR_LOOP(round,2) FOR_LOOP(lane,4) FOR_LOOP(size,2) {
         movePathQuery_t query={{&unit->s.origin2,&target,size?32:31,masks[lane]},unit,NULL,true};
+        /* Geometry cases use independent admitted searches; owner timing has separate public coverage. */
+        level.pathing_counter+=10; level.move_fine_budget.work=0;
         T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
         movePathQuery_t leg=query; leg.geometry.target=&waypoint;
         T_ASSERT(G_UnitMovePathLineIsPathable(&leg));
     }
     movePathQuery_t query={{&unit->s.origin2,&target,31,2},unit,NULL,true};
+    level.pathing_counter+=10; level.move_fine_budget.work=0;
     T_ASSERT(G_FindUnitMovePathWaypoint(&query,&before));
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nlocal integer y=0\n"
         "loop\nexitwhen y==64\ncall SetTerrainPathable(1040,y*32+16,ConvertPathingType(1),y>=12 and y<20)\n"
         "call SetTerrainPathable(1072,y*32+16,ConvertPathingType(1),y>=12 and y<20)\nset y=y+1\nendloop\nendfunction\n"));
+    level.pathing_counter+=10; level.move_fine_budget.work=0;
     T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
     T_ASSERT(waypoint.y<before.y);
     movePathQuery_t leg=query; leg.geometry.target=&waypoint;
     T_ASSERT(G_UnitMovePathLineIsPathable(&leg));
     query.geometry.blocked_flags=4;
+    level.pathing_counter+=10; level.move_fine_budget.work=0;
     T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
     T_EQ(wc3_float_bits(waypoint.x),wc3_float_bits(before.x));
     T_EQ(wc3_float_bits(waypoint.y),wc3_float_bits(before.y));
@@ -3029,7 +3041,6 @@ TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes)
 /* Same eight public orders, now admitted by normal periodic JASS callbacks.
  * Start at zero; no captured per-actor clock or primary phase is supplied. */
 /* Actual scene37: retained original owner-clock and oblique route, no phase seed. */
-#include "retail_public_oblique.h"
 
 TEST(wc3_movement, periodic_public_oblique_three_lifetimes_match_retail) {
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
@@ -3125,7 +3136,6 @@ TEST(wc3_movement, periodic_public_oblique_three_lifetimes_match_retail) {
     level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
 }
 
-#include "retail_public_pair.h"
 
 /* Original public scene47: supplied observed static geometry, stock profile,
  * two public creations and a timer-admitted group Move from clock/phase zero. */
@@ -3180,6 +3190,97 @@ TEST(wc3_movement, public_group_long_route_regroups_and_respects_pause) {
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
     T_ASSERT(!jass_rterror_pending(level.vm));
     level.started=false; reset_entities(); setup_test_world();
+}
+
+
+TEST(wc3_movement, periodic_public_twelve_members_match_retail) {
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
+    FOR_LOOP(i,12) { old_prefs[i]=game.clients[i].jass.race_pref; old_races[i]=game.clients[i].ps.race; }
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','D','Z','N'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells));
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit array movers\ngroup cohort\ninteger tick=0\nboolean armed=false\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1872,-528)\nendif\nendfunction\n"
+        "function arm takes nothing returns nothing\nset armed=true\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\nif not armed then\nreturn\nendif\nset cohort=CreateGroup()\n"
+        "loop\nexitwhen i==12\n"
+        "set movers[i]=CreateUnit(Player(0),'hDZN',-1936+I2R((i-(i/4)*4))*80,-976+I2R(i/4)*80,90)\n"
+        "call SetUnitMoveSpeed(movers[i],100+I2R((i-(i/3)*3))*100)\n"
+        "call GroupAddUnit(cohort,movers[i])\nset i=i+1\nendloop\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    level.setup.map_flags|=0x8000u;
+    FOR_LOOP(i,12) game.clients[i].jass.race_pref=i<4 ? 1 : 32;
+    jass_callbyname(level.vm,"arm",true);
+    level.started=level.scriptsConfigured=true; level.scriptsStarted=false;
+    globals.RunFrame();
+    T_EQ(level.pathing_random.sum,4273436052u); T_EQ(level.pathing_random.index,209508436u);
+    edict_t *units[12]={0}; unsigned count=0,steps=0; uint32_t clocks[12]={0}; bool mismatch=false;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<12) units[count]=ent; count++; }
+    T_EQ(count,12); level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t saves[]={"/tmp/wc3-public-twelve-pending.bin","/tmp/wc3-public-twelve-partial.bin"};
+    unsigned resume[2]={0},suffixes=0;
+    FOR_LOOP(pass,3) {
+        if (pass) {
+            T_ASSERT(ReadGame(saves[pass-1])); steps=resume[pass-1]; mismatch=false;
+            FOR_LOOP(i,12) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+            if (pass==1) { T_EQ(level.move_fine_budget.count,1); T_EQ(level.move_fine_budget.head,units[11]); }
+        }
+        while (level.time<30000 && count==12 && !mismatch) {
+            /* Preserve the actual pre-visit member order, including swap removal. */
+            edict_t *visiting[12]; unsigned n=0;
+            FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) if (level.move_groups[g]->inuse)
+                FOR_LOOP(i,level.move_groups[g]->count) visiting[n++]=level.move_groups[g]->members[i].unit;
+            level.time+=5; globals.RunFrame();
+            FOR_LOOP(v,n) {
+                edict_t *unit=visiting[v]; unsigned member=0;
+                while (member<12 && units[member]!=unit) member++;
+                T_ASSERT(member<12); if (member>=12) continue;
+                uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+                if (now==clocks[member]) continue;
+                clocks[member]=now;
+                if (now==0x3f7ffff0u) continue;
+                T_ASSERT(steps<1953); if (steps>=1953) { mismatch=true; break; }
+                uint32_t actual[]={member,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                    wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+                uint32_t const *expected=public_twelve_motion[steps++];
+                if (pass) suffixes++;
+                FOR_LOOP(k,7) { T_EQ(actual[k],expected[k]); if (actual[k]!=expected[k]) mismatch=true; }
+                if (mismatch) break;
+            }
+            if (!pass && !mismatch) FOR_LOOP(i,2) if (!resume[i] && steps>=(i ? 1260u : 12u)) {
+                resume[i]=steps; T_ASSERT(WriteGame(saves[i]));
+                if (!i) { T_EQ(steps,12); T_ASSERT(units[11]->movement.fine_queued); }
+            }
+        }
+        T_EQ(steps,1953); FOR_LOOP(i,12) if (units[i]) T_EQ(units[i]->current_order_id,0);
+    }
+    T_EQ(suffixes,3906-resume[0]-resume[1]); remove(saves[0]); remove(saves[1]);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+    level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12) { game.clients[i].jass.race_pref=old_prefs[i]; game.clients[i].ps.race=old_races[i]; }
 }
 
 TEST(wc3_movement, periodic_public_shared_pair_matches_retail) {

@@ -11,20 +11,24 @@ sys.path.insert(0,str(ROOT/'tools/frida'))
 from verify_wc3_public_pair_trace import verify_pair, canonical
 
 
+def capture_rows(fixture,movers,marker):
+    rows=[]
+    for row in copy.deepcopy(fixture['phases']):
+        if row['event'].startswith('pair-group-phase-'):
+            for member in row['members']:
+                member['mover']=movers[member.pop('member')]
+                member['row'][5]=int(member['mover'],16)
+        else:
+            row['mover']=movers[row.pop('member')]
+        rows.append(row)
+    rows.extend(dict(event=marker,value=s) for s in fixture['markers'])
+    return rows
+
+
 class PublicPairTests(unittest.TestCase):
     def setUp(self):
         self.fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-pair-1.27.json').read_text())
-        self.rows=[]
-        movers=['0x1000','0x2000']
-        for row in copy.deepcopy(self.fixture['phases']):
-            if row['event'].startswith('pair-group-phase-'):
-                for member in row['members']:
-                    member['mover']=movers[member.pop('member')]
-                    member['row'][5]=int(member['mover'],16)
-            else:
-                row['mover']=movers[row.pop('member')]
-            self.rows.append(row)
-        self.rows.extend(dict(event='pair-marker',value=s) for s in self.fixture['markers'])
+        self.rows=capture_rows(self.fixture,['0x1000','0x2000'],'pair-marker')
 
     def test_complete_original_phases_and_public_samples(self):
         result=verify_pair(self.rows,self.fixture)

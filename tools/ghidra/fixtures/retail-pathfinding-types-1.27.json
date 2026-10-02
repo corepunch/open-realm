@@ -389,6 +389,18 @@
           "evidence": "168870 route progression oracle"
         },
         {
+          "offset": 124,
+          "name": "fine_request_time",
+          "type": "u32",
+          "evidence": "168910 separate timestamp;166e90 denial/low-work reset; original scheduler162 boundary cases"
+        },
+        {
+          "offset": 128,
+          "name": "adaptive_request_time",
+          "type": "u32",
+          "evidence": "168910 mode1 timestamp independent from fine requests"
+        },
+        {
           "offset": 132,
           "name": "fine_limit",
           "type": "u16",
@@ -1311,6 +1323,102 @@
           "name": "any_accepted",
           "type": "u32",
           "evidence": "Decoded2047d0/7f0/820/860,23acd0,22ed70,233da0/4160 stack/register operands; scene46 repeated public12of14 two-pass request."
+        }
+      ]
+    },
+    {
+      "name": "WC3PathSchedulerBucket",
+      "length": 28,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "search_limit",
+          "type": "u16",
+          "evidence": "1656d0/167fa0/168310/165ea0/1686a0 complete original scheduler oracle; scene48 shared fine admission."
+        },
+        {
+          "offset": 2,
+          "name": "reload",
+          "type": "u16",
+          "evidence": "1656d0/167fa0/168310/165ea0/1686a0 complete original scheduler oracle; scene48 shared fine admission."
+        },
+        {
+          "offset": 4,
+          "name": "work_limit",
+          "type": "u32",
+          "evidence": "1656d0/167fa0/168310/165ea0/1686a0 complete original scheduler oracle; scene48 shared fine admission."
+        },
+        {
+          "offset": 8,
+          "name": "work",
+          "type": "u32",
+          "evidence": "1656d0/167fa0/168310/165ea0/1686a0 complete original scheduler oracle; scene48 shared fine admission."
+        },
+        {
+          "offset": 12,
+          "name": "countdown",
+          "type": "u32",
+          "evidence": "1656d0/167fa0/168310/165ea0/1686a0 complete original scheduler oracle; scene48 shared fine admission."
+        },
+        {
+          "offset": 16,
+          "name": "queued",
+          "type": "u32",
+          "evidence": "1656d0/167fa0/168310/165ea0/1686a0 complete original scheduler oracle; scene48 shared fine admission."
+        },
+        {
+          "offset": 20,
+          "name": "head",
+          "type": "ptr:WC3PathPrefix",
+          "evidence": "1656d0/167fa0/168310/165ea0/1686a0 complete original scheduler oracle; scene48 shared fine admission."
+        },
+        {
+          "offset": 24,
+          "name": "tail",
+          "type": "ptr:WC3PathPrefix",
+          "evidence": "1656d0/167fa0/168310/165ea0/1686a0 complete original scheduler oracle; scene48 shared fine admission."
+        }
+      ]
+    },
+    {
+      "name": "WC3PlayerRacePrefix",
+      "length": 612,
+      "fields": [
+        {
+          "offset": 604,
+          "name": "race_preferences",
+          "type": "u32",
+          "evidence": "1e9dd0 preference selection and a93c84 five-row table."
+        },
+        {
+          "offset": 608,
+          "name": "resolved_race",
+          "type": "u32",
+          "evidence": "1e9dd0 reset/random/table assignment; two live scene48 owner draw chains."
+        }
+      ]
+    },
+    {
+      "name": "WC3PathOwnerCounterPrefix",
+      "length": 1344,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "random",
+          "type": "WC3PathRandomState",
+          "evidence": "157610 invokes1cc4e0 owner seed"
+        },
+        {
+          "offset": 1336,
+          "name": "update_counter",
+          "type": "u32",
+          "evidence": "157610 initial400;15aa80 increment/wrap400;168910 interval consumer"
+        },
+        {
+          "offset": 1340,
+          "name": "separation_phase",
+          "type": "u32",
+          "evidence": "157610 initial0;15aa80 toggles0/1"
         }
       ]
     }
@@ -5247,6 +5355,131 @@
         }
       ],
       "evidence": "Decoded16d6a0 MOV EAX,ECX group / no stack operands / plain RET;168740 member path reset and member28 flags store. Original648 composed regroup controls; engine ordinary shared route."
+    },
+    {
+      "address": "6f167fa0",
+      "name": "PathScheduler_UpdateBucket",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "bucket",
+          "type": "ptr:WC3PathSchedulerBucket",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Decoded x86 operands/return; complete scheduler oracle or repeated locked-seed player-resolution owner draws."
+    },
+    {
+      "address": "6f168310",
+      "name": "PathScheduler_Admit",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "bucket",
+          "type": "ptr:WC3PathSchedulerBucket",
+          "storage": "ECX"
+        },
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Decoded x86 operands/return; complete scheduler oracle or repeated locked-seed player-resolution owner draws."
+    },
+    {
+      "address": "6f1686a0",
+      "name": "PathScheduler_Unlink",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "bucket",
+          "type": "ptr:WC3PathSchedulerBucket",
+          "storage": "ECX"
+        },
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Decoded x86 operands/return; complete scheduler oracle or repeated locked-seed player-resolution owner draws."
+    },
+    {
+      "address": "6f165ea0",
+      "name": "PathScheduler_Append",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "bucket",
+          "type": "ptr:WC3PathSchedulerBucket",
+          "storage": "ECX"
+        },
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Decoded x86 operands/return; complete scheduler oracle or repeated locked-seed player-resolution owner draws."
+    },
+    {
+      "address": "6f1e9dd0",
+      "name": "PlayerSetup_ResolveRaces",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [],
+      "evidence": "Decoded x86 operands/return; complete scheduler oracle or repeated locked-seed player-resolution owner draws."
+    },
+    {
+      "address": "6f157610",
+      "name": "PathOwner_Construct",
+      "returns": "ptr:WC3PathOwnerCounterPrefix",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3PathOwnerCounterPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "seed",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f168910",
+      "name": "Path_CheckRequestInterval",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "mode",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "current",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "elapsed",
+          "type": "ptr:u32",
+          "storage": 12
+        }
+      ]
     }
   ],
   "globals": [

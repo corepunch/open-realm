@@ -575,10 +575,24 @@ def main():
         actual=struct.unpack('<2f',machine.mem_read(formation_member+0x18,8))
         assert actual==wanted,(name,cls,lane,offset,query,query_point,actual,wanted)
         assert read(formation_member+0x28)[0]==(0xfff8ffff|(0x40000 if query>20 else 0))
+        if engine:
+            classes=[]
+            for lev in range(4):
+                side=acc_side>>lev
+                classes.extend((machine.mem_read(storage[lev]+(y*side+x)*8+7,1)[0]>>(lane*2))&3 for y in range(side) for x in range(side))
+            q=(ctypes.c_uint32*8)(acc_side,acc_side,cls//2,30,*struct.unpack('<4I',struct.pack('<4f',4,4,target[0]/2,target[1]/2)))
+            out=(ctypes.c_uint32*3)(); data=(ctypes.c_uint8*len(classes))(*classes)
+            engine.pathing_adaptive_distance(q,data,out)
+            assert out[0]==query,(name,cls,lane,offset,'distance',out[0],query)
+            point=struct.unpack('<2f',struct.pack('<2I',*out[1:]))
+            endpoint=target if out[0]<=20 else tuple(v*2 for v in point) if out[0]==0xffffffff else source
+            assert endpoint==actual,(name,cls,lane,offset,'endpoint',endpoint,actual)
         formation.append(dict(fixture=name,size_class=cls,lane=lane,offset=offset,query_result=query,destination=actual))
+    if engine: engine_formation_cases=len(formation)
     intermediate_cases=sum(row['acc_index']>0 for row in enabled if row['map_size']!=128)
     assert intermediate_cases==96
     report=dict(binary_sha256=digest,scope=__doc__,passed=True,formation_destination_cases=len(formation),formation_destinations=formation,refill_cases=len(records),denied_refill_cases=denied_cases,cached_waypoint_cases=cached_cases,dynamic_refill_cases=len(dynamic),terrain_equivalence_cases=terrain_equivalence,hierarchy_exclusion_cases=len(exclusion),hierarchy_exclusion=exclusion,enabled_advance_cases=len(enabled),intermediate_waypoint_cases=intermediate_cases,enabled_advance=enabled,full_advance_cases=len(full_advance),full_advance=full_advance,dynamic_cases=dynamic,cases=records)
+    if engine: report['engine_exact_formation_destination_cases']=engine_formation_cases
     if args.unit_budget_fixture or args.unit_budget_reference:
         unit_budget_cases=[]
         width=height=64; source=(4.25,4.75); target=(47.25,43.75)

@@ -984,6 +984,10 @@ TEST(wc3_pathfinding, nearby_move_passes_idle_units_for_all_fine_classes) {
         reset_entities();
         setup_test_world();
         setup_test_pathmap(24, 24, cells);
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        level.time=level.pathing_msec=level.pathing_phase=0; level.pathing_due=false;
+        level.pathing_clock=(wc3Clock_t){0,0,300};
         edict_t *unit = make_unit_at(4.5f, 4.5f), *idle = make_unit_at(12.5f, 4.5f);
         unit->collision = idle->collision = radii[i];
         unit->unitinfo.MoveSpeed = 2.f;
@@ -995,7 +999,7 @@ TEST(wc3_pathfinding, nearby_move_passes_idle_units_for_all_fine_classes) {
         T_ASSERT(unit->movement.path.valid);
         for (int tick = 0; tick < 140; tick++) {
             level.time += FRAMETIME;
-            if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+            globals.RunFrame();
         }
         T_ASSERT(unit->s.origin2.x > idle->s.origin2.x + 2.f);
         T_ASSERT(Vector2_distance(&unit->s.origin2, &target) <= 4.1f);
@@ -1003,12 +1007,14 @@ TEST(wc3_pathfinding, nearby_move_passes_idle_units_for_all_fine_classes) {
         T_FEQ(idle->s.origin2.y, 4.5f, 0.00001f);
     }
     level.time = old_time;
+    level.started=false;
     reset_entities();
     setup_test_world();
 }
 
-/* A retained turn is rechecked against current live occupancy each tick. */
-TEST(wc3_pathfinding, nearby_move_replans_when_idle_object_enters_retained_segment) {
+/* Original165ae0 retains the leg;166140 admits blockers at the next native
+ * step. An object farther along the segment must not trigger eager replanning. */
+TEST(wc3_pathfinding, nearby_move_retains_segment_until_next_step_is_blocked) {
     uint8_t cells[24 * 24] = {0};
     vec2_t target = {19.5f, 4.5f};
     reset_entities();
@@ -1034,7 +1040,17 @@ TEST(wc3_pathfinding, nearby_move_replans_when_idle_object_enters_retained_segme
     T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
     unit_changeangle(unit);
     T_ASSERT(unit->movement.path.valid);
-    T_ASSERT(Vector2_distance(&old, &unit->movement.path.waypoint) > 0.01f);
+    T_FEQ(Vector2_distance(&old, &unit->movement.path.waypoint),0,0.00001f);
+    /* Move the same peer into the entering cell and exercise the real step
+     * collector/Move retry path rather than the old whole-leg invalidation. */
+    vec2_t dir=Vector2_sub(&old,&unit->s.origin2); Vector2_normalize(&dir);
+    other->s.origin2=(vec2_t){unit->s.origin2.x+dir.x,unit->s.origin2.y+dir.y};
+    gi.LinkEntity(other);
+    edict_t *blockers[32]; float fine[]={old.x,old.y};
+    T_ASSERT(G_CollectUnitMoveStepBlockers(&query,fine,blockers)>0);
+    unit_changeangle(unit);
+    T_ASSERT(!unit->movement.path.valid);
+    T_ASSERT(unit->movement.turn_blocked);
     reset_entities();
     setup_test_world();
 }

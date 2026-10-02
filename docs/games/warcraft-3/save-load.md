@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 74, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 75, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -744,7 +744,7 @@ adaptive/fine buffers. Points, count/index, final native destination and radius
 survive; the process-local bake revision is rebound after terrain/entity
 restoration. Two public oblique saves resume260 original movement commits,
 including a save immediately after intermediate arrival with both member
-buffers empty and the final public order still active. Version73 initially rejected version72 and earlier; the current version74
+buffers empty and the final public order still active. Version73 initially rejected version72 and earlier; the current version75
 reader also rejects version73; there is no migration. Group tail
 extent/index, finite coordinates and complete bytes are checked before use.
 See [retail group-destination payoff](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination).
@@ -767,3 +767,21 @@ travel and the final partial-route retry. Invalid group counts, owner identity,
 references, generation, duplicate members, nonfinite destinations/points,
 route extents/indices and truncated tails are covered in RoC/TFT. There is no
 compatibility path for version73. See [shared Move payoff](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner).
+
+
+### Pending fine searches (version75)
+
+Move retains the ordinary fine-search FIFO as edict links, with its shared
+work/countdown, owner visit counter and each unit's fine-request timestamp.
+The owner counter follows original157610/15aa80: starts at0x400, increments
+once per owner update and reloads0x400 after unsigned wrap. Fine retries
+use original168910's ten-visit gate; denied FIFO requests clear their timestamp.
+
+The serializer maps head/tail and per-unit previous/next links through
+`F_EDICT`, validates pointer bounds before traversal, and rejects inconsistent
+counts, cycles, disconnected queued units, dead records and malformed boolean
+values. Validation runs before writing and after all edicts are restored.
+The Save suite verifies FIFO order and interval continuation through actual
+`WriteGame`/`ReadGame`, twelve invalid graphs, and rejection of version74.
+Broader scheduler pools and accelerated request timestamps remain separate
+retail pathfinding work.

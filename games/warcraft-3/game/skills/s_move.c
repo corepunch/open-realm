@@ -75,6 +75,8 @@ static cstring_t const move_type_names[] = { "foot", "horse", "fly", "hover", "f
 typedef struct { edict_t *self; wc3RepulsePair_t pair; uint32_t category, rank; } moveRepulseQuery_t;
 static moveRepulseQuery_t *repulse_query;
 static edict_t *trymove_self = NULL;
+static moveGroup_t const *move_deciding_group;
+static uint32_t move_deciding_excluded;
 /* Registry identity survives callback-driven pool growth and save relocation. */
 static moveGroup_t *move_find_group(uint32_t id) {
     if (!id) return NULL;
@@ -92,6 +94,66 @@ static moveGroupMember_t *move_find_member(edict_t const *unit) {
     FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time)
         return group->members+i;
     return NULL;
+}
+
+/* Original16c250 temporarily marks eligible cohort objects40000000 around all decisions.
+ * Capture eligibility before any member step changes flags; endpoint queries still see the objects. */
+uint32_t S_UnitMoveFineObjectFlags(edict_t const *unit) {
+    uint32_t flags=unit->movement.velocity.x || unit->movement.velocity.y ? 0x20000000 : 0;
+    if (move_deciding_group) FOR_LOOP(i,move_deciding_group->count) {
+        moveGroupMember_t const *member=move_deciding_group->members+i;
+        if (member->unit==unit && member->spawn==unit->spawn_time && (move_deciding_excluded&(1u<<i)))
+            flags|=0x40000000;
+    }
+    return flags;
+}
+
+/* Ordinary fine policy has its own shared1100-work FIFO; equality still admits one full request.
+ * TODO SCHED-03/04: other player classes and accelerated policy buckets remain separate. */
+static void move_unlink_fine_request(edict_t *unit) {
+    if (!unit->movement.fine_queued) return;
+    edict_t *prev=unit->movement.fine_prev,*next=unit->movement.fine_next;
+    if (prev) prev->movement.fine_next=next;
+    else level.move_fine_budget.head=next;
+    if (next) next->movement.fine_prev=prev;
+    else level.move_fine_budget.tail=prev;
+    assert(level.move_fine_budget.count); level.move_fine_budget.count--;
+    unit->movement.fine_prev=unit->movement.fine_next=NULL; unit->movement.fine_queued=false;
+}
+
+bool S_AdmitUnitMoveFineRequest(edict_t *unit) {
+    uint32_t now=level.pathing_counter;
+    if (now<unit->movement.fine_request_time) unit->movement.fine_request_time=now-BZ_WC3_FINE_REQUEST_INTERVAL;
+    if (now-unit->movement.fine_request_time<BZ_WC3_FINE_REQUEST_INTERVAL) return false;
+    unit->movement.fine_request_time=now;
+    if (level.move_fine_budget.work<=BZ_WC3_FINE_OWNER_WORK &&
+        (!level.move_fine_budget.head || level.move_fine_budget.head==unit)) {
+        move_unlink_fine_request(unit); return true;
+    }
+    if (!unit->movement.fine_queued) {
+        unit->movement.fine_prev=level.move_fine_budget.tail; unit->movement.fine_next=NULL;
+        if (level.move_fine_budget.tail) level.move_fine_budget.tail->movement.fine_next=unit;
+        else level.move_fine_budget.head=unit;
+        level.move_fine_budget.tail=unit; level.move_fine_budget.count++; unit->movement.fine_queued=true;
+    }
+    unit->movement.fine_request_time=0;
+    return false;
+}
+
+void S_ClearMoveFineRequests(void) {
+    FOR_LOOP(i,globals.num_edicts) {
+        g_edicts[i].movement.fine_prev=g_edicts[i].movement.fine_next=NULL;
+        g_edicts[i].movement.fine_queued=false;
+    }
+    level.move_fine_budget=(typeof(level.move_fine_budget)){0};
+    level.pathing_counter=BZ_WC3_PATH_OWNER_START;
+}
+
+/* Original167fa0 clears work on countdown0, reloads1, then decrements on the next owner visit. */
+static void move_update_fine_budget(void) {
+    if (!++level.pathing_counter) level.pathing_counter=BZ_WC3_PATH_OWNER_START;
+    if (!level.move_fine_budget.countdown) level.move_fine_budget.work=0,level.move_fine_budget.countdown=1;
+    else level.move_fine_budget.countdown--;
 }
 
 /* Retire route allocations independently of the originating JASS collection. */
@@ -897,8 +959,9 @@ static float unit_desired_heading(edict_t *self, float goal_angle, float dist,
  * turning. Keep subtraction in native coordinates, before world publication. */
 static void move_hold_goal_heading(edict_t *self) {
     wc3GridPose_t pose; unit_predicted_pose(self,&pose);
-    float x=wc3_grid_coordinate(self->goalentity->s.origin2.x,pose.origin[0],32);
-    float y=wc3_grid_coordinate(self->goalentity->s.origin2.y,pose.origin[1],32);
+    moveGroupMember_t const *member=move_find_member(self);
+    float x=member ? member->destination.x : wc3_grid_coordinate(self->goalentity->s.origin2.x,pose.origin[0],32);
+    float y=member ? member->destination.y : wc3_grid_coordinate(self->goalentity->s.origin2.y,pose.origin[1],32);
     float heading=wc3_vector_heading(wc3_sub(x,pose.grid[0]),wc3_sub(y,pose.grid[1]));
     self->movement.heading=heading; unit_turn_toward(self,heading);
     self->movement.turn_blocked=true;
@@ -909,8 +972,9 @@ static void move_hold_goal_heading(edict_t *self) {
 static void move_retry_fine(edict_t *self) {
     moveFineRoute_t *route=&self->movement.fine_route;
     wc3GridPose_t pose; unit_predicted_pose(self,&pose);
+    moveGroupMember_t const *member=move_find_member(self);
     wc3RetryInput_t in={{pose.grid[0],pose.grid[1]},
-        {route->points[0].x,route->points[0].y},1};
+        {member ? member->destination.x : route->points[0].x,member ? member->destination.y : route->points[0].y},1};
     /* TODO GROUP: engine cohorts supply members until the original group
      * activation/membership producer replaces the current selection owner. */
     if (self->movement.group_id) {
@@ -935,12 +999,14 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
      * aligned (no second, disagreeing search). */
     float const goal_angle = wc3_vector_heading(dir->x, dir->y);
     bool wait=false;
+    bool fine_heading=false;
     if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) && !self->no_pathing) {
         movePathQuery_t query=move_route_query(self,(moveRoutePoint_t){&self->goalentity->s.origin2,self->collision,policy});
         moveFineRoute_t const *route=&self->movement.fine_route;
         float point[2]; float const *fine=NULL;
         if (self->movement.path.valid && route->count && route->index<route->count) {
             point[0]=route->points[route->index].x; point[1]=route->points[route->index].y; fine=point;
+            fine_heading=true;
         }
         /* 167070/1687e0 clear retry and delay before collection, including
          * empty vectors. TODO ROUTE: index0 arrival/perimeter and direct-flow
@@ -955,27 +1021,29 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
         if (progress) self->movement.retry_count=self->movement.wait_delay=0;
         edict_t *blockers[32];
         uint32_t count=G_CollectUnitMoveStepBlockers(&query,fine,blockers);
+        /* Original168360 clears the previous blocker even for an empty vector.
+         * A stale identity would suppress another requester's later yield. */
+        wc3YieldDecision_t choice=S_ResolveMoveBlockers(self,blockers,count);
         if (count) {
-            wc3YieldDecision_t choice=S_ResolveMoveBlockers(self,blockers,count);
             wait=choice==WC3_YIELD_SELF || self->movement.wait_delay;
-            if (progress && !wait && choice==WC3_YIELD_PEER) {
+            /* Original165ae0 retries every nonempty admitted blocker vector,
+             * including a stationary peer for which168360 chooses neither yield side. */
+            if (progress && !wait) {
                 move_retry_fine(self);
                 return;
             }
-            /* TODO ROUTE-03: other nonempty vectors also retry in retail.
-             * Their owner/source admission is not ported: the current circle
-             * validator can admit a source overlapping an idle fine footprint,
-             * so its refill repeats forever. Keep that owner's existing steering
-             * until footprint admission/recovery supplies a legal fine source. */
         }
     }
     if (wait) {
-        self->movement.heading=goal_angle; unit_turn_toward(self,goal_angle);
+        self->movement.heading=goal_angle;
+        unit_turn_toward(self,goal_angle);
         self->movement.turn_blocked=true;
         return;
     }
-    float const desired = unit_desired_heading(self, goal_angle,
-                                                unit_movedistance(self), policy);
+    /* The admitted fine path already owns terrain and next-step obstruction.
+     * A second world-space slide search changes the original native heading. */
+    float const desired = fine_heading ? goal_angle :
+        unit_desired_heading(self,goal_angle,unit_movedistance(self),policy);
     self->movement.heading = desired;
     unit_turn_toward(self, desired);
 }
@@ -1067,7 +1135,6 @@ static bool unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *
          * Advance checks terrain epoch/mask; the step collector handles peers. */
         if (path->valid && (Vector2_distance(&path->target,point.point) >= 1.f ||
             fabsf(path->radius-point.radius) >= .01f ||
-            !G_UnitMoveFineRouteIsUnoccupied(&query,curve) ||
             !G_AdvanceUnitMoveFineRoute(&query,curve,&path->waypoint))) path->valid = false;
         if (!path->valid) {
             if (!G_BuildUnitMoveFineRoute(&query,curve,&path->waypoint)) return false;
@@ -1628,6 +1695,7 @@ static uint32_t move_collect_selected(gameClient_t *client,
 }
 
 void move_reset_progress(edict_t *self) {
+    move_unlink_fine_request(self);
     /* Replacement/internal approaches own a new group plan. Reusing the last
      * point Move's destination can strand an ability at its previous endpoint. */
     self->movement.fine_route.group_count=0;
@@ -1657,6 +1725,8 @@ void move_reset_progress(edict_t *self) {
 
 void move_cancel_displacement(edict_t *self) {
     if (!self) return;
+    /* A behavior transition cancels its pending local-route request as well as displacement. */
+    move_unlink_fine_request(self);
     self->movement.displacement_active = false;
 }
 
@@ -1839,8 +1909,13 @@ bool move_is_blocked(edict_t *ent, float distance, float move_distance) {
          * lateral motion resetting it every frame and walking forever. */
         float const improvement = ent->movement.last_distance - distance;
         float const moved = Vector2_distance(&ent->s.origin2, &ent->movement.last_origin);
-        float const min_progress = MAX(1.0f, move_distance * 0.05f);
-        float const min_moved = MAX(1.0f, move_distance * 0.25f);
+        /* A valid slow step must beat the watermark before the settle window
+         * expires. The old1-world-unit floor stopped speed2 walkers when the
+         * owner cadence changed from100ms to30ms, despite continued motion.
+         * TODO: replace this legacy guard with the full retail retry/task policy. */
+        float const floor_step=move_distance>0 ? MIN(1.f,move_distance) : 1.f;
+        float const min_progress = MAX(floor_step, move_distance * 0.05f);
+        float const min_moved = MAX(floor_step, move_distance * 0.25f);
 
         /* "Near goal" is judged by the watermark (the closest the unit has
          * ever come), not the current position: once a unit has reached its
@@ -2394,9 +2469,28 @@ static bool move_group_route(moveGroup_t *group) {
         moveGroupMember_t *member=group->members+i;
         member->offset=(vec2_t){members[i].offset[0],members[i].offset[1]};
         member->destination=(vec2_t){wc3_add(point.x,member->offset.x),wc3_add(point.y,member->offset.y)};
+        member->flags&=~0x70000u;
+        if ((member->offset.x!=0 || member->offset.y!=0) &&
+            G_AdjustUnitMoveFormationDestination(member->unit,point,&member->destination)) member->flags|=0x40000;
         member->world_destination=(vec2_t){wc3_add(bounds.min.x,wc3_mul(member->destination.x,32)),wc3_add(bounds.min.y,wc3_mul(member->destination.y,32))};
         member->unit->movement.path.valid=false;
     }
+    return true;
+}
+
+/* Original165c60 consumes a reached partial endpoint and resets only its fine
+ * buffer. Refilling belongs to the next owner visit, including one-point legs. */
+static bool move_group_retry_endpoint(moveGroup_t *group, moveGroupMember_t *member, wc3GridPose_t const *pose) {
+    edict_t *unit=member->unit;
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    if (!route->partial || !route->count || route->index) return false;
+    float x=wc3_sub(route->points[0].x,pose->grid[0]),y=wc3_sub(route->points[0].y,pose->grid[1]);
+    float range=wc3_float(0x3efae148);
+    if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))>wc3_mul(range,range)) return false;
+    wc3RetryInput_t in={{pose->grid[0],pose->grid[1]},{member->destination.x,member->destination.y},group->count};
+    uint32_t result=wc3_retry_advance(&unit->movement.retry_count,&in,&level.pathing_random);
+    if (result==4) { member->forced_arrival=true; member->flags|=0x20000; }
+    else { route->count=0; route->index=UINT32_MAX; unit->movement.path.valid=false; }
     return true;
 }
 
@@ -2417,33 +2511,21 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
         member->speed=0; member->heading=old_angle;
         return;
     }
-    moveFineRoute_t *route=&unit->movement.fine_route;
-    float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
-    bool denied=false;
-    if (route->partial && route->count && !route->index) {
-        float rx=wc3_sub(route->points[0].x,pose.grid[0]),ry=wc3_sub(route->points[0].y,pose.grid[1]);
-        float range=wc3_float(0x3efae148);
-        if (wc3_add(wc3_mul(rx,rx),wc3_mul(ry,ry))<=wc3_mul(range,range)) {
-            wc3RetryInput_t in={{pose.grid[0],pose.grid[1]},{member->destination.x,member->destination.y},group->count};
-            uint32_t result=wc3_retry_advance(&unit->movement.retry_count,&in,&level.pathing_random);
-            if (result==4) { member->forced_arrival=true; member->flags|=0x20000; }
-            else {
-                route->count=0; route->index=UINT32_MAX; unit->movement.path.valid=false;
-                vec2_t waypoint; movePathQuery_t query=move_route_query(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC});
-                if (G_BuildUnitMoveFineRoute(&query,route,&waypoint)) {
-                    unit->movement.path.waypoint=waypoint; unit->movement.path.target=group->goal;
-                    unit->movement.path.radius=unit->collision; unit->movement.path.valid=true;
-                }
-            }
-            denied=true;
-        }
+    if (wc3_yield_advance(&unit->movement.wait_delay,false)) {
+        move_hold_goal_heading(unit);
+        member->speed=0; member->heading=unit->s.angle; unit->s.angle=old_angle;
+        return;
     }
+    float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
+    bool denied=move_group_retry_endpoint(group,member,&pose);
     if (arrival.in_range || denied) {
         unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true;
     } else {
         vec2_t direction;
-        if (unit_accel_direction(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC},&direction))
-            unit_apply_heading(unit,&direction,MOVE_AVOID_GENERIC);
+        if (unit_accel_direction(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC},&direction)) {
+            if (move_group_retry_endpoint(group,member,&pose)) move_hold_goal_heading(unit);
+            else unit_apply_heading(unit,&direction,MOVE_AVOID_GENERIC);
+        }
         else { unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true; }
     }
     member->speed=unit->movement.turn_blocked ? 0 : unit_effective_speed(unit);
@@ -2502,7 +2584,12 @@ static void move_run_group_updates(void) {
         if (!group->count) { move_release_group(group); continue; }
         group->age++;
         if (!move_group_route(group)) { group->ticking=false; continue; }
+        FOR_LOOP(i,group->count) group->members[i].flags&=~0x200000u;
+        move_deciding_group=group; move_deciding_excluded=0;
+        if (group->count>1 && !(group->flags&0x200)) FOR_LOOP(i,group->count)
+            if (!(group->members[i].flags&0x300000)) move_deciding_excluded|=1u<<i;
         FOR_LOOP(i,group->count) move_group_decide(group,group->members+i);
+        move_deciding_group=NULL; move_deciding_excluded=0;
         float cap=0; bool share=!(group->flags&8);
         FOR_LOOP(i,group->count) {
             moveGroupMember_t const *member=group->members+i;
@@ -2644,10 +2731,11 @@ BZ_ABILITY_PROC(CAbilityMove) {
     switch (msg) {
     case A_GROUP_POINT_ORDER:
         return move_group_point_order(call->group_order) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
-    case A_OWNER_UPDATE: move_run_group_updates(); move_repulse_owner_update(); return true;
+    case A_OWNER_UPDATE: move_update_fine_budget(); move_run_group_updates(); move_repulse_owner_update(); return true;
     case A_UNIT_INIT:
     case A_UNIT_OWNER_CHANGED: move_repulse_init(ent); return true;
     case A_UNIT_REMOVE:
+        move_unlink_fine_request(ent);
         move_detach_group(ent);
         FILTER_EDICTS(other,other->inuse && other->movement.wait_blocker==ent)
             other->movement.wait_blocker=NULL;

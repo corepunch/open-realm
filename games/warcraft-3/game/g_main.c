@@ -553,6 +553,7 @@ static void G_ShutdownGame(void) {
     G_BlightShutdown();
     G_FreeModels();
     S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
     FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     gi.MemFree(g_edicts);
     g_edicts = NULL;
@@ -963,6 +964,7 @@ static void G_StartScripts(void) {
     if (level.scriptsStarted) {
         return;
     }
+    G_InitLockedMapRandom();
 
     /*
      * war3map.doo objects already exist in OpenRealm before generated

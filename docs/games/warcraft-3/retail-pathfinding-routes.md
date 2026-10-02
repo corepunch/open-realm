@@ -95,7 +95,13 @@ shared work counters and a waiting list. `6f15aa80` increments that counter once
 bucket has budget at `+4`, accumulated pops at `+8`, reset countdown at `+0xc`,
 queue count/head/tail at `+0x10/+0x14/+0x18`. `6f167fa0` resets accumulated work
 when countdown is zero and reloads countdown from ushort `+2`; otherwise it
-decrements the countdown. Both request interval constants are 10 counter ticks.
+decrements the countdown. Both request interval constants are 10 counter ticks. Original owner constructor `157610` initializes
+counter538 to0x400, and `15aa80` reloads0x400 after unsigned wrap. Engine
+[payoff39](retail-pathfinding-engine.md#twelve-member-public-group-retains-fine-admission-and-committed-occupancy)
+now consumes the ordinary class0 fine bucket:1100 accumulated pops, reload1,
+FIFO and ten-visit timestamps, all retained in Save75. Cumulative fine work<64
+and FIFO denial clear the fine timestamp. Other player classes and the remaining
+three policy pools are still explicit production gaps.
 
 `6f165ea0` and `6f1686a0` append/unlink persistent paths using links at
 `path+0x8c/+0x90`, with -1 endpoint sentinels and zero for unqueued paths.

@@ -662,6 +662,22 @@ static uint32_t G_MapControl(mapPlayer_t const *player) {
     }
 }
 
+/* Original29e300 locked-seed branch precedes1e9dd0 race resolution and main().
+ * TODO NUM-04.5: unlocked/lobby seed and observer payload78 production are still unverified. */
+void G_InitLockedMapRandom(void) {
+    if (!(level.setup.map_flags&0x8000u)) return; /* MAP_LOCK_RANDOM_SEED, original common.j value. */
+    wc3_random_seed(&level.pathing_random,0x77617233u);
+    static uint32_t const prefs[]={0,1,2,8,4,16}; /* a93c84/a93c88; preference bits by resolved race. */
+    FOR_LOOP(i,PLAYER_NEUTRAL_AGGRESSIVE) {
+        gameClient_t *client=game.clients+i;
+        uint32_t pref=client->jass.race_pref&~0x40u;
+        client->ps.race=0;
+        if (pref&0x20) client->ps.race=(wc3_random_next(&level.pathing_random)>>30)+1;
+        else for (unsigned race=1;race<sizeof(prefs)/sizeof(prefs[0]);race++)
+            if (pref==prefs[race]) { client->ps.race=race; break; }
+    }
+}
+
 /* Race preferences are bit flags, unlike the sequential W3I race enum. */
 static uint32_t G_RacePreference(mapPlayer_t const *player) {
     if (!player) return 0;
@@ -746,6 +762,7 @@ void G_SpawnEntities(void) {
     G_FowShutdown();
     G_BlightShutdown();
     S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
     memset(&level, 0, sizeof(level));
     G_ResetSelectionSoundState();
     G_CommandErrorReset();
@@ -755,6 +772,7 @@ void G_SpawnEntities(void) {
     level.time = gi.GetTime();
     level.pathing_msec = level.time;
     level.pathing_clock.span = 300;
+    level.pathing_counter = BZ_WC3_PATH_OWNER_START;
 
     level.mapinfo = mapinfo;
     G_BlightInit();

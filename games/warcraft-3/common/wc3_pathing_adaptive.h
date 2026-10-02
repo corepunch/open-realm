@@ -193,8 +193,8 @@ static void wc3_acc_coarse(wc3AccSearch_t *search, int parent) {
         wc3_acc_corner(search,(wc3AccEdge_t){parent,level,side,corners[side]});
 }
 
-/* Full ordinary setup/search/reconstruction over supplied four-level classifications; no warp producer. */
-static uint32_t wc3_acc_route(wc3AccSearch_t *search, wc3AccRequest_t const *req, wc3FineVector_t *points) {
+/* Shared ordinary setup/search; -2 is the original direct setup result, -1 is a partial search. */
+static int wc3_acc_search(wc3AccSearch_t *search, wc3AccRequest_t const *req) {
     wc3FineSearch_t *work = &search->work;
     work->count = work->queued = work->pops = work->reopens = work->stale = 0;
     for (unsigned level = 0; level < 4; level++) {
@@ -207,10 +207,10 @@ static uint32_t wc3_acc_route(wc3AccSearch_t *search, wc3AccRequest_t const *req
     search->goal = (wc3FinePoint_t){(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(req->goal.x))),
         (int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(req->goal.y)))};
     int first = -1, goal = -1;
-    if (start.x == search->goal.x && start.y == search->goal.y) { points[0] = req->goal; return 1; }
+    if (start.x == search->goal.x && start.y == search->goal.y) return -2;
     first = wc3_acc_find(search,0,start);
     if (first >= 0) goal = wc3_acc_find(search,0,search->goal);
-    if (first == goal) { points[0] = req->goal; return 1; }
+    if (first == goal) return -2;
     work->nearest = (uint32_t)first; work->dist2 = wc3_fine_dist2(start,search->goal);
     work->nodes[first].h = wc3_acc_cost(start,search->goal); wc3_fine_enqueue(work,(uint32_t)first);
     int at = -1;
@@ -225,9 +225,17 @@ static uint32_t wc3_acc_route(wc3AccSearch_t *search, wc3AccRequest_t const *req
         else wc3_acc_base(search,(int)entry.node);
         node->state = WC3_FINE_CLOSED; node->gen++;
     }
+    return at;
+}
+
+/* Full ordinary reconstruction over supplied four-level classifications; no warp producer. */
+static uint32_t wc3_acc_route(wc3AccSearch_t *search, wc3AccRequest_t const *req, wc3FineVector_t *points) {
+    int at = wc3_acc_search(search,req);
+    wc3FineSearch_t *work = &search->work;
+    if (at == -2) { points[0] = req->goal; return 1; }
     bool complete = at >= 0;
     if (!complete) at = (int)work->nearest;
-    if (!complete && at == first) { points[0] = req->start; return 0x80000001u; }
+    if (!complete && work->nodes[at].parent < 0) { points[0] = req->start; return 0x80000001u; }
     uint32_t count = 0;
     for (int cur = at; cur >= 0; cur = work->nodes[cur].parent) {
         wc3FinePoint_t p = work->nodes[cur].pos; int level = search->levels[cur], span = 1 << level;
@@ -243,4 +251,29 @@ static uint32_t wc3_acc_route(wc3AccSearch_t *search, wc3AccRequest_t const *req
     points[0] = complete ? req->goal : wc3_route_center(work->nodes[at].pos);
     return count | (complete ? 0 : 0x80000000u);
 }
+/* Original1627e0/163440 sums integer lengths per parent edge, not the A* cost divided by12. */
+static uint32_t wc3_acc_query_distance(wc3AccSearch_t *search, wc3AccRequest_t const *req, wc3FineVector_t *out) {
+    int at = wc3_acc_search(search,req);
+    wc3FineSearch_t *work = &search->work;
+    *out = req->goal;
+    if (at == -2) {
+        wc3FinePoint_t start = {(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(req->start.x))),
+            (int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(req->start.y)))};
+        return wc3_acc_sqrt(4u * wc3_fine_dist2(start,search->goal));
+    }
+    if (at < 0) {
+        wc3FineNode_t const *node = work->nodes + work->nearest;
+        *out = node->parent < 0 ? req->start : wc3_route_center(node->pos);
+        return UINT32_MAX;
+    }
+    uint32_t length = 0;
+    while (work->nodes[at].parent >= 0) {
+        int parent = work->nodes[at].parent;
+        length += wc3_acc_sqrt(4u * wc3_fine_dist2(work->nodes[at].pos,work->nodes[parent].pos));
+        at = parent;
+    }
+    /* TODO: warp-tagged edges contribute2 and update the owner's warp count; no engine portal producer yet. */
+    return length;
+}
+
 #endif

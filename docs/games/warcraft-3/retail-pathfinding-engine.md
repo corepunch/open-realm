@@ -4161,3 +4161,126 @@ payload cases pass. Both production builds, the normal release repository suite,
 inventory pass. Fresh strict pair replay and nine saved Ghidra readbacks pass.
 The validation index is `runtime/public-pair-validation-261001.json`.
 GROUP-04.10 closes; next runnable work remains GROUP-04.6's wider physical groups.
+
+
+## Twelve-member public group retains fine admission and committed occupancy
+
+Scene48 creates twelve stock Footmen in a4×3 arrangement with authored move
+speeds100/200/300 (the first clamps to150), then issues one public point group
+at timer tick10. Two corrected, independently owned retail captures repeat
+all7,035 canonical phase/motion records and3,601 public samples exactly.
+There are297 complete owner passes,1,941 decisions and1,953 velocity commits;
+per-member commit counts are297/138/190/102/135/126/88/243/158/111/160/205.
+All twelve public orders finish naturally, including retail partial-route
+forced arrivals; these final positions are not proof that every member reached
+the group centre.
+
+The strict fixture and verifier are
+`tools/ghidra/fixtures/retail-public-twelve-1.27.json` and
+`tools/frida/verify_wc3_public_twelve_trace.py`. The production arithmetic replay
+matches every captured commit and the6,000 primary advances/1,000 owner
+callbacks. Separately, the whole-engine regression
+`wc3_movement.periodic_public_twelve_members_match_retail` now matches all1,953
+seven-word member/clock/native-position/native-velocity/facing records through
+normal5ms server frames. Saves after the first12 commits (member11 queued) and
+commit1,260 (partial-route recovery) replay2,634 further original commits.
+Every member's public order ends at0 in each run. Frozen expectations were not
+changed to accommodate any engine mismatch.
+
+Production Move now consumes these original contracts:
+
+- `16e250` adjusts formation offsets using a separate30-attempt adaptive
+  distance query. `1627e0`/`163440` sum integer parent-edge lengths; this is not
+  A* cost divided by12. Query size is an exponent. Four classes/four lanes and
+  eight offsets on three supplied64-cell maps give384 exact original/C cases.
+- Eligible group members acquire temporary fine-object40000000 before all
+  decisions. Fine search suppresses these objects; endpoint queries retain
+  them. Fine occupancy uses peers' last committed native poses, while published
+  world positions may already contain predicted presentation samples.
+- Ordinary class0 fine requests share an1100-work FIFO. Equality admits a full
+  request; node pops charge the work, including the denied701st pop. Original
+  `167fa0` resets work on countdown0 and reloads1. The first eleven requests
+  charge1723 pops, leaving member11 queued for the next owner visit.
+- `157610` initializes the owner visit counter to0x400; `15aa80` increments once
+  per30ms owner update and reloads0x400 on unsigned wrap. `168910` requires ten
+  visits between searches. FIFO denial and cumulative work below64 clear the
+  fine request timestamp. These are owner visits, not elapsed milliseconds.
+- Empty next-step candidate vectors still call `168360`, clearing stale blocker
+  identity. Any nonempty admitted vector can trigger retry, including a
+  stationary peer. A self-yield retains the fine waypoint on acquisition;
+  later countdown visits retain the assigned destination.
+- Reached partial endpoints consume retry, clear fine count/index and defer
+  refill until the next owner visit. Refilling immediately shifted the request
+  timestamp by one visit and first diverged at commit1,263. Whole-leg dynamic
+  resampling and a second world-space slide search also changed original
+  headings; retained fine routes now own their next-step steering.
+
+Save75 persists owner counter, work/countdown, FIFO head/tail/count, intrusive
+member links and request timestamps through the ordinary DDX `F_EDICT` fixups.
+The real saved trajectory covers a pending queue and later recovery. Twelve
+invalid FIFO graphs fail visibly; old Save74 is rejected. Map teardown,
+replacement and unit reclamation clear links through Move. Spell approach and
+all-class tiny-cell detour regressions now advance normal server frames, so
+fine retry admission sees the real owner clock. This exposed the legacy stuck
+guard's one-world-unit progress floor: speed2 steps at30ms could not beat it
+within eight visits. The floor is now bounded by the actual step budget; the
+full original retry/task replacement remains required.
+
+The locked startup branch is also a production producer: original `29e300`
+seeds owner random with0x77617233 before `1e9dd0` resolves twelve race
+preferences. Four fixed Human/eight random preferences in this capture consume
+eight owner draws, producing4273436052/209508436 before path retries. The engine
+executes that preference loop; it does not burn a fixed number of draws or
+install the captured final state. Independent seed captures repeat this chain.
+Unlocked/lobby seed, the default lock-flag producer and canonical player
+payload78 remain NUM-04.5; this witness explicitly supplies the observed locked
+setup.
+
+The claim remains bounded to an ordinary class0 public twelve-member group and
+supplied scene terrain/static geometry. Other player classes and policy pools,
+selected/AI producers, queued physical activation, all eligibility/override
+bits, overlapping cell-link insertion order, arbitrary scenery/map construction,
+inter-group scheduling and general crowd scenarios remain open. Matching forced
+partial arrivals does not imply that all units reach the common centre.
+
+Artifacts under the standard report root:
+
+- `runtime/public-twelve-fixed-{first,repeat}-261001.jsonl`, immutable sources
+  `runtime/public-twelve-source-261001/`, and `public-twelve-arithmetic-261001.json`;
+- `runtime/public-twelve-seed-{first,repeat}-261001.jsonl` and
+  `public-twelve-startup-evidence-261001.json`;
+- `runtime/public-twelve-step-{first,repeat}-261002.jsonl` and
+  `public-twelve-step-evidence-261002.json`: a read-only `16fbd0` route-step hook
+  repeats all1,953 inputs/results and7,035 canonical rows. Extra trailing clock
+  samples from capture duration are outside this separate step witness; the
+  fixed capture's strict6,000-primary-advance contract is unchanged;
+- `runtime/formation-adjust-engine-size-261002.json` and fresh
+  `runtime/public-twelve-strict-fixed-261002/corpus-results.json`;
+- `runtime/public-twelve-types-final-261002.json` and
+  `public-twelve-ghidra-readback-261002.json`:493 persisted roles,35 partial
+  layouts/201 fields,220 explicit x86 prototypes and45 globals, including11
+  saved role/prototype/comment readbacks for this payoff.
+
+The first strict formation runner attempt passed the twelve-member replay but
+rejected an incorrect `--engine-library` argument; the actual refill tool uses
+`--engine`. Its failed directory is retained separately; only the fresh fixed
+runner's two verified outcomes certify this change.
+
+The corrected scene excludes the inherited tick10 singleton order. Its first
+attempt accidentally issued that order too, replacing member0 and creating
+two physical groups; that capture is retained as
+`runtime/public-twelve-mixed-order-diagnostic-261001.jsonl` with a separately
+pinned source archive and is excluded from the parity fixture.
+
+Final payoff39 validation: forced release and forced debug with
+`WC3_DEBUG_BUILD=1` RoC/TFT each pass172,645 assertions in2,305 tests. Both
+production builds, the normal repository suite,172 Python pathfinding tests,
+ability registration audit and257-entry/98-fixture corpus inventory pass.
+Fresh strict twelve-member and formation-distance outcomes pass. Eleven saved
+Ghidra role/prototype/comment readbacks and all35 layouts/201 fields/220 explicit
+prototypes pass. Test fixture declarations were moved before test functions;
+the subsequent release RoC/TFT matrix retains the same exact result.
+The validation index is `runtime/public-twelve-validation-261002.json`.
+GROUP-04.11 closes. Next runnable work is SCHED-03/04: partition the ordinary
+fine admission FIFO/work by player class and preserve class changes/reclamation;
+GROUP-04.6 retains the wider physical group requirements.

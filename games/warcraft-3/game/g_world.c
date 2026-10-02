@@ -180,6 +180,19 @@ static int move_object_compare(void const *a, void const *b) {
     return (left->min.x > right->min.x) - (left->min.x < right->min.x);
 }
 
+/* Original1603d0/160590 publish occupancy only when the native pose commits.
+ * Presentation samples predict ahead without moving the fine object. */
+static vec2_t move_object_point(edict_t const *ent) {
+    if (!ent->movement.pose_valid ||
+        wc3_float_bits(ent->movement.pose_world.x)!=wc3_float_bits(ent->s.origin2.x) ||
+        wc3_float_bits(ent->movement.pose_world.y)!=wc3_float_bits(ent->s.origin2.y))
+        return move_grid_from_world(ent->s.origin2.x,ent->s.origin2.y);
+    box2_t bounds=CM_GetWorldBounds();
+    float cx=(bounds.max.x-bounds.min.x)/pathmap.width,cy=(bounds.max.y-bounds.min.y)/pathmap.height;
+    return (vec2_t){wc3_mul(ent->movement.fine_pose.x,wc3_div(32,cx)),
+        wc3_mul(ent->movement.fine_pose.y,wc3_div(32,cy))};
+}
+
 /* TODO: the complete authored category table is BASE-02. This game adapter
  * uses the observed foot/horse/hover/float/amph categoryca;
  * flyers and disabled rows publish0. Buildings/destructables already own static footprints. */
@@ -188,11 +201,11 @@ static bool move_object_collect(edict_t const *ent) {
     movePathQuery_t const *query = move_scan->query;
     if (ent == query->mover || ent == query->target || IS_HOLLOW(ent) || !ent->data.UnitData ||
         G_UnitIsStructure(ent) || M_UnitMoveDisabled(ent) || ent->collision <= 0 || (ent->aiflags & AI_FLYING)) return false;
-    uint32_t flags = ent->movement.velocity.x || ent->movement.velocity.y ? 0x20000000 : 0;
+    uint32_t flags = S_UnitMoveFineObjectFlags(ent);
     uint32_t mask = graph->flags;
     mask |= mask << 24;
     if (!wc3_fine_object_blocks((wc3FineObject_t){0x010000ca, flags, true}, mask, graph->endpoint)) return false;
-    vec2_t n = move_grid_from_world(ent->s.origin2.x, ent->s.origin2.y);
+    vec2_t n = move_object_point(ent);
     wc3FinePoint_t point = { (int)floorf(n.x), (int)floorf(n.y) };
     assert(graph->objects < MAX_ENTITIES);
     move_objects[graph->objects++] = wc3_fine_cover(wc3_fine_class(ent->collision / pathmap_cell_world_size()), point);
@@ -484,15 +497,6 @@ bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query) {
     return query && move_query_line(query,NULL,false);
 }
 
-/* Retained terrain is validated by its bake epoch. Preserve the existing live
- * occupancy check without resampling static cells along an already admitted
- * fine turn. TODO ROUTE-03: replace this full peer segment with the original
- * next-step nonempty-vector retry once its source admission is complete. */
-bool G_UnitMoveFineRouteIsUnoccupied(movePathQuery_t const *query, moveFineRoute_t const *route) {
-    if (!query || !route || !route->points || route->index>=route->count) return false;
-    return move_query_line(query,&route->points[route->index],true);
-}
-
 /* Original fine expansion tests entering strips, including both diagonal sides. */
 static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
     moveFineGraph_t const *graph = data;
@@ -514,7 +518,7 @@ static bool move_collect_blocker_cell(void const *data, wc3FinePoint_t pos) {
     }
     FILTER_EDICTS(ent,ent->inuse && ent!=scan->query->mover && !IS_HOLLOW(ent) && ent->data.UnitData &&
         !G_UnitIsStructure(ent) && ent->collision>0 && (entity_dynamic_pathing_flags(ent)&mask)) {
-        vec2_t point=move_grid_from_world(ent->s.origin2.x,ent->s.origin2.y);
+        vec2_t point=move_object_point(ent);
         wc3FineBox_t box=wc3_fine_cover(wc3_fine_class(ent->collision/pathmap_cell_world_size()),
             (wc3FinePoint_t){(int)floorf(point.x),(int)floorf(point.y)});
         if (pos.x>=box.min.x && pos.x<box.max.x && pos.y>=box.min.y && pos.y<box.max.y) {
@@ -587,8 +591,28 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
     }
     vec2_t local = move_world_from_grid(point.x,point.y);
     movePathQuery_t nearby = *input; nearby.geometry.target = &local;
+    /* The local leg targets the selected coarse point; retaining the formation
+     * endpoint here bypassed the accelerator whenever a member had an offset. */
+    vec2_t fine={point.x,point.y};
+    if (input->fine_target) nearby.fine_target=&fine;
     /* Coarse representatives lie within the next8-base-cell region; refine that local leg with live units. */
     if (!G_BuildUnitMoveLocalRoute(&nearby,query->route,out)) return false;
+    return true;
+}
+
+/* Original16e250 validates an offset with a separate30-attempt distance query, not a member fine route. */
+bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec2_t *dest) {
+    unsigned lane=0; uint32_t mask=M_UnitStaticPathingFlags(unit);
+    while (lane<4 && move_acc_masks[lane]!=mask) lane++;
+    if (lane==4) gi.error("Move formation: unsupported movement mask %02x",mask);
+    move_acc_prepare();
+    FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
+    wc3AccRequest_t req={{wc3_mul(point.x,.5f),wc3_mul(point.y,.5f)},
+        {wc3_mul(dest->x,.5f),wc3_mul(dest->y,.5f)},1u<<(wc3_fine_class(unit->collision/pathmap_cell_world_size())>>1),30};
+    wc3FineVector_t endpoint;
+    uint32_t distance=wc3_acc_query_distance(&move_acc,&req,&endpoint);
+    if (distance<=20) return false;
+    *dest=distance==UINT32_MAX ? (vec2_t){wc3_mul(endpoint.x,2),wc3_mul(endpoint.y,2)} : point;
     return true;
 }
 
@@ -677,7 +701,11 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         .width = pathmap.width, .height = pathmap.height,
         .budget = input->mover ? BZ_WC3_UNIT_FINE_WORK : BZ_WC3_FINE_WORK,
         .edges = move_fine_edges, .data = &graph, .target_hit = &target_hit };
+    if (input->units && input->mover && !S_AdmitUnitMoveFineRequest((edict_t *)input->mover)) return false;
     int at = wc3_fine_search(&move_fine, &req);
+    if (input->units && input->mover) level.move_fine_budget.work+=move_fine.pops;
+    if (input->units && input->mover && level.move_fine_budget.work<BZ_WC3_FINE_FAST_WORK)
+        ((edict_t *)input->mover)->movement.fine_request_time=0;
     bool complete = at >= 0;
     /* Original148100 retains the nearest admitted chain after exhaustion.
      * Location Move can approach that endpoint without replacing its order. */

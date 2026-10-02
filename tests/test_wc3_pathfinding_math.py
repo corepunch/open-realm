@@ -4,6 +4,7 @@ import copy
 import json
 from pathlib import Path
 import random
+import struct
 import subprocess
 import sys
 import tempfile
@@ -64,6 +65,31 @@ class PathingMathTests(unittest.TestCase):
                 proc.argtypes = [ctypes.c_uint32] * (2 if name in ('add', 'subtract', 'multiply','modulo') else 1)
                 proc.restype = ctypes.c_uint32
             cls.engines.append(engine)
+
+    def test_original_formation_destination_distance_and_partial_endpoints(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-formation-destination-1.27.json').read_text())
+        maps={}
+        for name in ('open','wall','gap'):
+            fine=[[int(name!='open' and x==32 and (name=='wall' or not 29<=y<=34)) for x in range(64)] for y in range(64)]
+            coarse=[]
+            for level in range(4):
+                side=32>>level; cells=[]
+                for y in range(side):
+                    for x in range(side):
+                        children=[fine[2*y+dy][2*x+dx] for dy in range(2) for dx in range(2)]
+                        if not level: cells.append(1 if all(children) else 2 if any(children) else 0)
+                        else: cells.append(children[0] if len(set(children))==1 and children[0]<2 else 2)
+                fine=[cells[y*side:(y+1)*side] for y in range(side)]; coarse.extend(cells)
+            maps[name]=(ctypes.c_uint8*len(coarse))(*coarse)
+        for engine in self.engines:
+            for row in fixture['cases']:
+                with self.subTest(opt=engine._name,row=row):
+                    goal=[8+row['offset'],8]
+                    q=(ctypes.c_uint32*8)(32,32,row['size_class']//2,30,*[bits(v) for v in [4,4,goal[0]/2,goal[1]/2]])
+                    out=(ctypes.c_uint32*3)(); engine.pathing_adaptive_distance(q,maps[row['fixture']],out)
+                    self.assertEqual(out[0],row['query_result'])
+                    dest=goal if out[0]<=20 else [struct.unpack('<f',struct.pack('<I',v))[0]*2 for v in out[1:]] if out[0]==0xffffffff else [8,8]
+                    self.assertEqual(dest,row['destination'])
 
     def test_public_oblique_geometry_requires_complete_fine_and_hierarchy_snapshot(self):
         fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-oblique-1.27.json').read_text())

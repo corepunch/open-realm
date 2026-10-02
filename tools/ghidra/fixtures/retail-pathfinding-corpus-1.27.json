@@ -16824,6 +16824,231 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-public-twelve-repeat-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_public_twelve_trace.py",
+        "{archive}/runtime/public-twelve-fixed-first-261001.jsonl",
+        "--repeat",
+        "{archive}/runtime/public-twelve-fixed-repeat-261001.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-public-twelve-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/public-twelve-fixed-first-261001.jsonl",
+        "sha256": "9237fd2afcad6a80306da7e4aee78993a439e88f92e474eca156e9dd357e7f16",
+        "bytes": 10506644,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "c1fcd168a3ff947b1f51494727e259e36f50e7ff76e15cbe6e64cfa7f39f5f7d",
+            "wc3_pathfinding_probe.j": "a0f2405076eece8a5eec042fbc2f550477b073e490fc5df36921b587bd8cb80c",
+            "make_wc3_pathfinding_map.py": "05398d605f666119de7196fa20e1375f86c21f59dea7732b5589d9d5c83146c7",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "4cc8b4c2def55344292dd36e6a48583aefbf96d691da06eae7189fb0e7796b99"
+          },
+          "map": "Maps\\PathingRE-PublicTwelve2-261001.w3m",
+          "seconds": 170.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "public-twelve-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeated": {
+          "equal": true
+        },
+        "exact_decisions": {
+          "equal": 1941
+        },
+        "exact_velocity_commits": {
+          "equal": 1953
+        },
+        "exact_position_commits": {
+          "equal": 1953
+        },
+        "exact_facing_commits": {
+          "equal": 1953
+        },
+        "primary_advances": {
+          "equal": 6000
+        },
+        "owner_callbacks": {
+          "equal": 1000
+        },
+        "group_owner_passes": {
+          "equal": 297
+        },
+        "public_group_members": {
+          "equal": 12
+        },
+        "natural_arrivals": {
+          "equal": 12
+        },
+        "member_commits": {
+          "equal": [
+            297,
+            138,
+            190,
+            102,
+            135,
+            126,
+            88,
+            243,
+            158,
+            111,
+            160,
+            205
+          ]
+        },
+        "decision_sha256": {
+          "equal": "009e3fe9ff080c91c821dc78dea8fd80604fbc583e719d9b36d518f6bc20b6ed"
+        },
+        "velocity_sha256": {
+          "equal": "dda045a0159e492d3040d4e2773fede4e9da51d52dc3c5a7b6d1fb93e3cd87ec"
+        },
+        "phase_sha256": {
+          "equal": "2c763518948c55afb9c0f0bed25c3eec69f5a2763626ff5e48a0aeb1f2bcf977"
+        },
+        "primary_sha256": {
+          "equal": "c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Original public twelve-member group:1953 exact commits,297 all-member passes,3601 public samples. Production normal-frame regression covers shared fine work/FIFO and owner-visit interval, formation adjustment, yielding, partial completion and locked startup. Supplied static geometry and class0 policies are explicit.",
+      "exclusions": [
+        "Supplied combined static geometry; full arbitrary map/scenery hierarchy producer remains MAP.",
+        "Unlocked/default-lock and canonical player payload78 startup producers remain NUM-04.5.",
+        "Other scheduler pools/classes, selected/AI producers, broader group flags, queues and callback mutation remain SCHED/GROUP."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/public-twelve-fixed-repeat-261001.jsonl",
+            "sha256": "a56898b162dc3dcaf22a687a319c4773782ae962aff1536764840a1916d683be",
+            "bytes": 10623784,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "c1fcd168a3ff947b1f51494727e259e36f50e7ff76e15cbe6e64cfa7f39f5f7d",
+                "wc3_pathfinding_probe.j": "a0f2405076eece8a5eec042fbc2f550477b073e490fc5df36921b587bd8cb80c",
+                "make_wc3_pathfinding_map.py": "05398d605f666119de7196fa20e1375f86c21f59dea7732b5589d9d5c83146c7",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "4cc8b4c2def55344292dd36e6a48583aefbf96d691da06eae7189fb0e7796b99"
+              },
+              "map": "Maps\\PathingRE-PublicTwelve2-261001.w3m",
+              "seconds": 170.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
+    },
+    {
+      "id": "formation-destination-engine-exact",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_refill.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "formation-destination-engine.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "formation_destination_cases": {
+          "equal": 384
+        },
+        "engine_exact_formation_destination_cases": {
+          "equal": 384
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "384 unmodified original16e250 formation destination adjustments and1627e0 distance searches agree with production query/partial-endpoint composition on supplied64-cell maps, four classes/four lanes/eight offsets.",
+      "exclusions": [
+        "Negative endpoints, portals, irregular global hierarchy padding and map producers remain open."
+      ]
     }
   ],
   "fixtures": [
@@ -16889,7 +17114,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "9254612468af0981e4b3d30381fd609a2aa007fedcf64332fbd83f860e73d4ba"
+      "sha256": "074c8dc14af7d90c231ce1dd80d6d9542edfa5c0b7bbb5435e8b3093d023c540"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -17210,6 +17435,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-public-pair-1.27.json",
       "sha256": "22c52c596e38ace78d380086c40e7c953212651a71a10ae8d1c6eb30f299df6c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-public-twelve-1.27.json",
+      "sha256": "60d6436511aed04c61fca299f0c812c65ba14dafcd8bb6ec4776a57caced307b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-formation-destination-1.27.json",
+      "sha256": "968093682e6b0e1ed27006c1eca5e434533f826751fbf6cb9d4f6e46512d83c8"
     }
   ]
 }

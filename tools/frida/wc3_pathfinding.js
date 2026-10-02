@@ -1025,6 +1025,26 @@ function install(module) {
     const waitingSteps = new Map();
     if (config.yieldEvents) {
         let waitSerial = 0;
+        hook(0x16fbd0, {
+            onEnter(args) {
+                this.mover=this.context.ecx; this.path=this.mover.add(0xa8).readPointer();
+                this.args=Array.from({length:7},(_,i)=>args[i]);
+                const raw=(p,n)=>Array.from({length:n},(_,i)=>p.add(i*4).readU32());
+                this.row={mover:this.mover.toString(),path:this.path.toString(),
+                    source:raw(args[0],2),destination:raw(args[1],2),
+                    before:this.path.isNull()?null:raw(this.path.add(0x74),10),
+                    counter:base.add(0xd53a48).readPointer().add(0x538).readU32()};
+            },
+            onLeave() {
+                const raw=(p,n)=>Array.from({length:n},(_,i)=>p.add(i*4).readU32());
+                const row=this.row;
+                row.sourceAfter=raw(this.args[0],2); row.destinationAfter=raw(this.args[1],2);
+                row.outputs=this.args.slice(2).map(p=>p.readU32());
+                row.after=this.path.isNull()?null:raw(this.path.add(0x74),10);
+                bump('route-step');
+                if(counts['route-step']<=config.samples) emit('route-step',row);
+            }
+        });
         const raw = (p,n) => Array.from({length:n},(_,i)=>p.add(i*4).readU32());
         hook(0x16fbd0, {
             onEnter(args) {
@@ -1489,6 +1509,7 @@ function install(module) {
             emit('numeric-marker', {value});
         }
         if (value.startsWith('PATHPAIR ')) emit('pair-marker',{value});
+        if (value.startsWith('PATHDOZEN ')) emit('twelve-marker',{value});
         if (value.startsWith('PATHGROUP ')) emit('group-order-marker',{value});
         if (value.startsWith('PATHCROWD ')) emit('crowd-marker', {value});
         if (value.startsWith('PATHTARGET ')) emit('target-marker', {value});
@@ -1515,7 +1536,7 @@ function install(module) {
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
-            if (value.includes('label=start_group_pair ')) pairScenario = true;
+            if ((value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve '))) pairScenario = true;
             if (value.includes('label=complete ')) pairScenario = false;
             emit('marker', {value});
             if (!value.includes('label=sample ')) snapshotCells(value);

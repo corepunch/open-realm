@@ -48,6 +48,22 @@ void pathing_adaptive_route(uint32_t const input[8], uint8_t const *classes, uin
     for (unsigned level=0; level<4; level++) free(search.maps[level].indices);
 }
 
+/* Supplied ordinary hierarchy, query size/budget and exact coarse endpoints. */
+void pathing_adaptive_distance(uint32_t const input[8], uint8_t const *classes, uint32_t output[3]) {
+    static wc3AccSearch_t search;
+    uint32_t offset=0;
+    for (unsigned level=0; level<4; level++) {
+        uint32_t width=input[0]>>level, height=input[1]>>level;
+        search.maps[level]=(wc3AccMap_t){width,height,classes+offset,malloc(width*height*sizeof(int))};
+        assert(search.maps[level].indices); offset+=width*height;
+    }
+    wc3AccRequest_t req={{wc3_float(input[4]),wc3_float(input[5])},{wc3_float(input[6]),wc3_float(input[7])},1u<<input[2],input[3]};
+    wc3FineVector_t endpoint;
+    output[0]=wc3_acc_query_distance(&search,&req,&endpoint);
+    output[1]=wc3_float_bits(endpoint.x); output[2]=wc3_float_bits(endpoint.y);
+    for (unsigned level=0; level<4; level++) free(search.maps[level].indices);
+}
+
 /* Complete public terrain native inputs: XY/origin words, type, seed, passable. */
 void pathing_terrain_native(uint32_t const input[7], uint32_t output[4]) {
     uint32_t x = wc3_int_bits(wc3_floor_bits(wc3_float_bits(

@@ -77,9 +77,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format74 retains Move-owned physical groups and partial fine-route state.
+/* Format75 adds the ordinary fine admission FIFO, work/countdown and request timestamps.
  * Earlier streams lack this ownership/layout contract and are rejected. */
-static uint32_t const save_version = 74;
+static uint32_t const save_version = 75;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -450,6 +450,12 @@ static field_t const level_fields[] = {
     F(level_locals, repulse_phase, F_INT),
     F(level_locals, pathing_random.sum, F_INT),
     F(level_locals, pathing_random.index, F_INT),
+    F(level_locals, move_fine_budget.work, F_INT),
+    F(level_locals, pathing_counter, F_INT),
+    F(level_locals, move_fine_budget.countdown, F_INT),
+    F(level_locals, move_fine_budget.count, F_INT),
+    F(level_locals, move_fine_budget.head, F_EDICT, 0, FIELD_NONE),
+    F(level_locals, move_fine_budget.tail, F_EDICT, 0, FIELD_NONE),
     F(level_locals, pathing_clock.time, F_FLOAT),
     F(level_locals, pathing_clock.epoch, F_INT),
     F(level_locals, pathing_clock.span, F_FLOAT),
@@ -740,6 +746,10 @@ static field_t const move_group_fields[] = {
 };
 
 static field_t const movement_fields[] = {
+    TF(edictMovement_s, fine_prev, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, fine_next, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, fine_queued, F_INT),
+    TF(edictMovement_s, fine_request_time, F_INT),
     TF(struct edictMovement_s, fine_route.points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.count, F_INT),
     TF(struct edictMovement_s, fine_route.index, F_INT),
@@ -1896,6 +1906,29 @@ static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
     return true;
 }
 
+/* Verify the intrusive admission graph before following any saved pointer.
+ * Counts bound traversal, including cycles and disconnected queued edicts. */
+static bool ValidMoveFineRequests(void) {
+    if (level.move_fine_budget.count>globals.num_edicts || level.move_fine_budget.countdown>1) return false;
+    edict_t const *prev=NULL,*unit=level.move_fine_budget.head;
+    uint32_t count=0,queued=0;
+    while (unit) {
+        uintptr_t ptr=(uintptr_t)unit,base=(uintptr_t)g_edicts;
+        if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
+        if (++count>level.move_fine_budget.count || !unit->inuse || G_IsDeferredFree(unit) ||
+            *(uint8_t const *)&unit->movement.fine_queued!=1 || unit->movement.fine_prev!=prev) return false;
+        prev=unit; unit=unit->movement.fine_next;
+    }
+    if (count!=level.move_fine_budget.count || prev!=level.move_fine_budget.tail) return false;
+    FOR_LOOP(i,globals.num_edicts) {
+        unit=g_edicts+i;
+        if (*(uint8_t const *)&unit->movement.fine_queued>1) return false;
+        if (unit->movement.fine_queued) queued++;
+        else if (unit->movement.fine_prev || unit->movement.fine_next) return false;
+    }
+    return queued==count;
+}
+
 /* A saved group must own live, generation-matched members exactly once. The
  * JASS collection is independent: destroying it does not cancel this Move. */
 static bool ValidMoveGroup(moveGroup_t const *group) {
@@ -2107,6 +2140,7 @@ bool WriteGame(cstring_t filename) {
     }
     bool ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
+    if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 SaveGame: invalid fine-request FIFO\n"); goto done; }
     if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
     if (!WriteMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
@@ -2191,6 +2225,7 @@ bool ReadGame(cstring_t filename) {
             event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION;
     }
     S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
     if (!ReadMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
@@ -2243,6 +2278,7 @@ bool ReadGame(cstring_t filename) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
         }
     }
+    if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
     if (!ReadMoveGroups(f)) { fprintf(stderr,"WC3 LoadGame: failed at physical Move groups\n"); fclose(f); return false; }
     /* Nested hashtable unit/item handles resolve here, after edict inuse is restored. */
     if (!ReadHashtables(f)) { fprintf(stderr, "WC3 LoadGame: failed at hashtables\n"); fclose(f); return false; }
@@ -2375,6 +2411,78 @@ TEST(wc3_save, rejects_invalid_fine_route_payloads) {
     }
 }
 
+/* A pending fine FIFO and its independent interval clock must survive a real save. */
+TEST(wc3_save, fine_request_fifo_and_interval_continue_after_restore) {
+    reset_entities(); setup_test_world();
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
+    cstring_t file="/tmp/openwarcraft3-fine-request-fifo.bin";
+    level.pathing_counter=2000;
+    level.move_fine_budget.work=BZ_WC3_FINE_OWNER_WORK+1;
+    level.move_fine_budget.countdown=1;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    T_EQ(level.move_fine_budget.count,2);
+    T_EQ(first->movement.fine_request_time,0);
+    T_ASSERT(WriteGame(file));
+    S_ClearMoveFineRequests();
+    T_ASSERT(ReadGame(file));
+    T_ASSERT(ValidMoveFineRequests());
+    T_EQ(level.pathing_counter,2000); T_EQ(level.move_fine_budget.countdown,1);
+    T_EQ(level.move_fine_budget.work,BZ_WC3_FINE_OWNER_WORK+1);
+    T_EQ(level.move_fine_budget.head,first); T_EQ(level.move_fine_budget.tail,second);
+    T_EQ(first->movement.fine_next,second); T_EQ(second->movement.fine_prev,first);
+    level.move_fine_budget.work=BZ_WC3_FINE_OWNER_WORK;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
+    T_ASSERT(S_AdmitUnitMoveFineRequest(first));
+    T_EQ(first->movement.fine_request_time,2000);
+    T_ASSERT(WriteGame(file));
+    first->movement.fine_request_time=0; level.pathing_counter=0;
+    T_ASSERT(ReadGame(file));
+    T_EQ(first->movement.fine_request_time,2000); T_EQ(level.pathing_counter,2000);
+    T_EQ(level.move_fine_budget.head,second); T_EQ(level.move_fine_budget.count,1);
+    T_ASSERT(S_AdmitUnitMoveFineRequest(second));
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    level.pathing_counter=2009; T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    level.pathing_counter=2010; T_ASSERT(S_AdmitUnitMoveFineRequest(first));
+    T_EQ(first->movement.fine_request_time,2010);
+    level.pathing_counter=5; T_ASSERT(S_AdmitUnitMoveFineRequest(first));
+    T_EQ(first->movement.fine_request_time,5);
+    T_ASSERT(ValidMoveFineRequests());
+    remove(file); reset_entities(); setup_test_world();
+}
+
+TEST(wc3_save, rejects_invalid_fine_request_graphs) {
+    reset_entities(); setup_test_world();
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
+    level.move_fine_budget.work=BZ_WC3_FINE_OWNER_WORK+1;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first)); T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
+    typeof(level.move_fine_budget) original=level.move_fine_budget;
+    FOR_LOOP(i,12) {
+        level.move_fine_budget=original;
+        first->movement.fine_prev=NULL; first->movement.fine_next=second; first->movement.fine_queued=true;
+        second->movement.fine_prev=first; second->movement.fine_next=NULL; second->movement.fine_queued=true;
+        if (i==0) level.move_fine_budget.count=1;
+        if (i==1) level.move_fine_budget.tail=first;
+        if (i==2) level.move_fine_budget.head=(edict_t *)(uintptr_t)1;
+        if (i==3) first->movement.fine_next=(edict_t *)(uintptr_t)1;
+        if (i==4) second->movement.fine_prev=NULL;
+        if (i==5) second->movement.fine_next=first;
+        if (i==6) first->movement.fine_next=NULL;
+        if (i==7) second->movement.fine_queued=false;
+        if (i==8) *(uint8_t *)&second->movement.fine_queued=2;
+        if (i==9) level.move_fine_budget.countdown=2;
+        if (i==10) level.move_fine_budget.count=globals.num_edicts+1;
+        if (i==11) second->inuse=false;
+        T_ASSERT(!ValidMoveFineRequests());
+        T_ASSERT(!WriteGame("/tmp/openwarcraft3-invalid-fine-request.bin"));
+        second->inuse=true;
+    }
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
 /* Current mapped group records reject bad ownership, generations and curve
  * tails even when their outer container can be read successfully. */
 TEST(wc3_save, rejects_invalid_physical_group_payloads) {
@@ -2500,8 +2608,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-71.bin",
         "/tmp/openwarcraft3-wc3-save-version-72.bin",
         "/tmp/openwarcraft3-wc3-save-version-73.bin",
+        "/tmp/openwarcraft3-wc3-save-version-74.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74 };
 
     reset_entities();
     setup_test_world();

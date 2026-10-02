@@ -1714,6 +1714,9 @@ struct edict_s {
         moveFallbackState_t flow_fallback_state;
         routePath_t path; /* mover-owned waypoint cache; geometry contract shared with other server games */
         moveFineRoute_t fine_route;
+        edict_t *fine_prev, *fine_next; /* Move-owned ordinary fine admission FIFO. */
+        bool fine_queued;
+        uint32_t fine_request_time; /* owner visits, original path+7c interval timestamp */
         uint32_t wait_delay; /* eligible ordinary path advances; original requester4/peer20 */
         uint32_t retry_count; /* original path98; admitted fine progress clears before blocker collection */
         edict_t *wait_blocker; /* removed actors invalidate references before edict reuse */
@@ -2188,6 +2191,9 @@ struct level_locals {
     uint32_t time;
     wc3Clock_t pathing_clock;
     wc3Random_t pathing_random;
+    uint32_t pathing_counter; /* original owner+538, initialized to0x400 */
+    /* TODO SCHED-03/04: this is the verified ordinary class0 bucket; retain all16 player rows next. */
+    struct { uint32_t work, countdown, count; edict_t *head, *tail; } move_fine_budget;
     edict_t *repulse_head;
     uint32_t repulse_phase;
     uint32_t pathing_msec;
@@ -2423,6 +2429,7 @@ void SP_CallSpawn(edict_t *);
 void G_BindEntityData(edict_t *);
 void G_BindEntityRuntime(edict_t *);
 void G_SpawnEntities(void);
+void G_InitLockedMapRandom(void);
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif
@@ -2720,6 +2727,9 @@ void G_RebindSavedMoveRoutes(void);
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 void S_FreeMoveRoute(edict_t *self);
 void S_ClearMoveGroups(void);
+uint32_t S_UnitMoveFineObjectFlags(edict_t const *unit);
+bool S_AdmitUnitMoveFineRequest(edict_t *unit);
+void S_ClearMoveFineRequests(void);
 bool G_IssueGroupPointOrder(groupPointOrder_t const *request);
 vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);
 uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *query, float const fine_goal[2], edict_t **out);
@@ -2727,11 +2737,11 @@ wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers
 bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_UnitMoveGroupDestination(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *fine);
+bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec2_t *dest);
 bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route);
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 void G_FreeMovePathCache(void);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
-bool G_UnitMoveFineRouteIsUnoccupied(movePathQuery_t const *query, moveFineRoute_t const *route);
 bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *query, float const fine[2]);
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params);
 bool G_MovePathLineIsPathable(pathAccelParams_t const *params);
