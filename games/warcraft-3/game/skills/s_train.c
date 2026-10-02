@@ -459,7 +459,7 @@ void ai_train_build(edict_t *ent) {
     }
 }
 
-static umove_t train_move_train = { "stand", ai_train_build, NULL, CAbilityTrain };
+static umove_t train_move_train = { "stand work", ai_train_build, NULL, CAbilityTrain };
 
 /* Train-owned queue mechanisms shared with sacrifice queue creation. */
 void TrainSetBuildMove(edict_t *producer) {
