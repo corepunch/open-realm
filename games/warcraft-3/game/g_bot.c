@@ -95,6 +95,8 @@ void G_BotTraceCoroutine(jass_t *vm, handle_t coroutine, cstring_t function,
 
     if (phase && !strcmp(phase, "resume")) {
         char callchain[512];
+        uint32_t slept_ms = wait && wait->waiting && now >= wait->yielded_at ? now - wait->yielded_at : 0;
+        uint32_t requested_ms = wait && wait->waiting ? wait->wake_time - wait->yielded_at : 0;
         if (!wait) {
             wait = gi.MemAlloc(sizeof(*wait));
             if (!wait) return;
@@ -109,6 +111,11 @@ void G_BotTraceCoroutine(jass_t *vm, handle_t coroutine, cstring_t function,
         strlcpy(wait->function, function && *function ? function : "(unknown)", sizeof(wait->function));
         jass_formatcallchain(vm, callchain, sizeof(callchain));
         strlcpy(wait->callchain, callchain[0] ? callchain : "(empty)", sizeof(wait->callchain));
+        if (requested_ms)
+            fprintf(stderr,
+                    "WC3_AI_TRACE time=%u player=%d script=\"%s\" event=coroutine_resumed function=\"%s\" callchain=\"%s\" requested_ms=%u actual_ms=%u deadline=%u\n",
+                    (unsigned)now, player, level.bots[player].script, wait->function,
+                    wait->callchain, requested_ms, slept_ms, (unsigned)wait->wake_time);
         wait->waiting = false;
         return;
     }
@@ -128,6 +135,10 @@ void G_BotTraceCoroutine(jass_t *vm, handle_t coroutine, cstring_t function,
         strlcpy(wait->function, function && *function ? function : "(unknown)", sizeof(wait->function));
         jass_formatcallchain(vm, callchain, sizeof(callchain));
         strlcpy(wait->callchain, callchain[0] ? callchain : "(empty)", sizeof(wait->callchain));
+        fprintf(stderr,
+                "WC3_AI_TRACE time=%u player=%d script=\"%s\" event=coroutine_yield function=\"%s\" callchain=\"%s\" requested_ms=%u deadline=%u\n",
+                (unsigned)now, player, level.bots[player].script, wait->function,
+                wait->callchain, (unsigned)(wake_time - now), (unsigned)wake_time);
         return;
     }
     if (done || (phase && !strcmp(phase, "done"))) {

@@ -10,6 +10,8 @@ KNOWN_AS(jass_module, jassModule_t);
 
 typedef uint32_t (*jassCFunction_t)(jass_t *);
 typedef bool (*jassSnapshotIo_t)(void *context, void *data, uint32_t size);
+typedef void (*jassFunctionTrace_t)(jass_t *vm, handle_t coroutine, cstring_t function,
+                                   cstring_t phase);
 
 typedef struct {
     void *context;
@@ -48,6 +50,7 @@ typedef struct {
                            uint32_t wake_time, bool yielded, bool done);
     bool (*TimerCoroutineValid)(handle_t timer, uint32_t generation);
     void (*VariableChanged)(cstring_t name, float before, float after);
+    jassFunctionTrace_t FunctionTrace;
 } jassHost_t;
 
 /* VM lifecycle */
