@@ -3,14 +3,12 @@
 
 #define CL_MINIMAP_PING_COUNT 16 // markers; bounds simultaneous transient minimap attention effects
 #define CL_MINIMAP_RECENT_COUNT 8 // positions; bounds Warcraft-style recent-alert Space recall
-#define CL_MINIMAP_PACKET_SIZE 21 // bytes; fixed svc_minimap_ping payload size used for bounds validation
-#define CL_MINIMAP_DEFAULT_ALERT_SIZE 0.002f // UI-canvas units; ordinary WC3 unit footprint
+#define CL_MINIMAP_PACKET_SIZE 17 // bytes; fixed svc_minimap_ping payload size used for bounds validation
 
 typedef struct {
     bool active;
     vec2_t position;
     color32_t color;
-    float marker_size;
     uint32_t start_time, end_time;
     uint32_t flags;
 } minimapPing_t;
@@ -72,12 +70,11 @@ void CL_ParseMinimapPing(sizeBuf_t *msg) {
     }
     ping.position.x = MSG_ReadFloat(msg); ping.position.y = MSG_ReadFloat(msg);
     duration = MSG_ReadFloat(msg);
-    ping.marker_size = MSG_ReadFloat(msg);
     ping.color = MAKE(color32_t, MSG_ReadByte(msg), MSG_ReadByte(msg), MSG_ReadByte(msg), MSG_ReadByte(msg));
     ping.flags = (uint32_t)MSG_ReadByte(msg);
     if (!isfinite(ping.position.x) || !isfinite(ping.position.y) || !isfinite(duration) || duration <= 0.0f ||
-        duration > MINIMAP_PING_DURATION_MAX || !isfinite(ping.marker_size) || ping.marker_size < 0.0f || ping.marker_size > 1.0f) {
-        fprintf(stderr, "CL_ParseMinimapPing: invalid duration=%.3f marker_size=%.4f\n", duration, ping.marker_size);
+        duration > MINIMAP_PING_DURATION_MAX) {
+        fprintf(stderr, "CL_ParseMinimapPing: invalid duration=%.3f\n", duration);
         return;
     }
     ping.end_time = cl.time + (uint32_t)MAX(1.0f, duration * 1000.0f);
@@ -102,14 +99,8 @@ static void CL_DrawMinimapPings(void) {
         if (!ping->active) continue;
         if ((int32_t)(cl.time - ping->end_time) >= 0) { ping->active = false; continue; }
         if (!re.WorldToMinimap(&ping->position, &screen)) continue;
-        if (cl.minimap_model && !(ping->flags & MINIMAP_PING_FORCE_COLOR)) {
+        if (cl.minimap_model) {
             re.DrawSprite(&MAKE(drawSprite_t, .model = cl.minimap_model, .anim = "Stand", .x = screen.x, .y = screen.y, .id = &cl.minimap_model));
-            continue;
-        }
-        if (ping->flags & MINIMAP_PING_FORCE_COLOR) {
-            float const size = ping->marker_size > 0.0f ? ping->marker_size : CL_MINIMAP_DEFAULT_ALERT_SIZE;
-            marker = MAKE(rect_t, screen.x - size * 0.5f, screen.y - size * 0.5f, size, size);
-            re.DrawFill(&marker, ping->color);
             continue;
         }
         pulse = 3.0f + (float)((cl.time - ping->start_time) % 500) / 250.0f;
