@@ -61,13 +61,8 @@ uint32_t MeleeDifficulty(jass_t *j) {
 uint32_t GetAIDifficulty(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
     uint32_t *difficulty = jass_newhandle(j, sizeof(*difficulty), "aidifficulty");
-    /* BZ_COMPAT_GUESS: lobby metadata currently has no per-computer-slot AI
-     * difficulty. Derive the fallback from the active WC3 game difficulty:
-     * Easy->Newbie, Insane->Insane, and Normal/Hard->Normal. */
-    if (!player) *difficulty = 0;
-    else if (level.setup.difficulty == 0) *difficulty = 0;
-    else if (level.setup.difficulty >= 3) *difficulty = 2;
-    else *difficulty = 1;
+    /* The lobby does not expose per-player AI difficulty; do not conflate it with map difficulty. */
+    *difficulty = player ? 1 : 0;
     return 1;
 }
 

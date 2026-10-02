@@ -1050,9 +1050,10 @@ void G_BotRemoveInjuries(player_t *player) {
         if (!G_BotUnitAlive(unit)) continue;
         if (G_BotUnitInjured(unit)) {
             /* BZ_COMPAT_GUESS: retail may prefer a nearby Fountain of Health or a
-             * captain-home point. Until that selector exists, returning to the main
-             * town preserves the documented "send injured units back to base" rule. */
-            if (town) order_move(unit, Waypoint_add(&town->s.origin2));
+             * captain-home point. Until that selector exists, return to the main
+             * town, falling back to the captain home when no town exists. */
+            if (town || captain->home.x != 0.0f || captain->home.y != 0.0f)
+                order_move(unit, Waypoint_add(town ? &town->s.origin2 : &captain->home));
             continue;
         }
         captain->units[write++] = unit;
