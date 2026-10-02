@@ -662,6 +662,23 @@ static field_t const ancient_root_fields[] = {
 };
 
 static field_t const movement_fields[] = {
+    /* Shared route jobs and resumable movement directions are process-local
+     * caches. In particular route_resume_goal is an edict pointer, so clear
+     * the complete route-resume/wait record on save and rebuild it after load. */
+    TF(edictMovement_s, route_resume_direction, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_goal_origin, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_goal, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_time, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_radius, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_flags, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_valid, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_active, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, path_wait_active, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, path_wait_start, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, path_wait_goal_number, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, path_wait_goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, path_wait_origin, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictMovement_s, waygate_target, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, waygate_goal, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),
