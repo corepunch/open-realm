@@ -274,6 +274,27 @@ TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
     T_ASSERT(!G_BotProduce(player, 1, MAKEFOURCC('u','n','k','n'), -1));
 }
 
+TEST(wc3_bot, production_uses_idle_barracks_at_the_requested_town) {
+    player_t *player = &game.clients[2].ps;
+    UnitProfile_t profile = { .trains = "hfoo" };
+    edict_t *hall, *first, *second;
+    reset_entities(); setup_test_world();
+    hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    first = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 64, 0, 2, NULL);
+    second = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), -64, 0, 2, NULL);
+    first->data.UnitProfile = second->data.UnitProfile = &profile;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    player->stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
+
+    T_NOT_NULL(hall);
+    first->build = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    first->build->training = true;
+    T_ASSERT(G_BotProduce(player, 1, MAKEFOURCC('h','f','o','o'), 0));
+    T_NOT_NULL(second->build);
+}
+
 TEST(wc3_bot, guard_post_replacement_trains_once_and_consumes_post_budget) {
     player_t *player = &game.clients[2].ps;
     bot_t *bot = level.bots + 2;
