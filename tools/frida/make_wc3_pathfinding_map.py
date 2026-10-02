@@ -146,14 +146,23 @@ def random_calls():
     return '\n'.join(lines)
 
 
-def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit_y=-240.0, captain_source_y=-976.0):
+def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit_y=-240.0, captain_source_y=-976.0, captain_peer=False):
     if not 11 <= remove_tick < 300:
         raise ValueError('removal tick must follow the order and precede completion')
     if not all(math.isfinite(v) and -3072 <= v <= 5120 for v in (gate_y, gate_exit_y)):
         raise ValueError('gate Y coordinates must be finite and inside the source map')
     if not math.isfinite(captain_source_y) or not -3072 <= captain_source_y <= 5120:
         raise ValueError('captain source Y must be finite and inside the source map')
+    if captain_peer and scenario != 'captain_home':
+        raise ValueError('captain peer requires captain_home')
     if scenario == 'captain_home':
+        if captain_peer:
+            create='    set udg_PathProbeUnit = CreateUnit(Player(0), crowdType, -1936.0, -976.0, 90.0)'
+            if probe.count(create)!=1:raise ValueError('Captain recruit creation differs')
+            probe=probe.replace(create,create+'\n    if PATH_PROBE_SCENARIO==71 then\n'
+                '        set udg_PathProbeCrowd[0]=udg_PathProbeUnit\n'
+                f'        set udg_PathProbeCrowd[1]=CreateUnit(Player(0),crowdType,-1856.0,{captain_source_y:.1f},90.0)\n'
+                '        call SetUnitMoveSpeed(udg_PathProbeCrowd[1],100.0)\n    endif')
         probe=probe.replace('CreateUnit(Player(0), crowdType, -1936.0, -976.0, 90.0)',f'CreateUnit(Player(0), crowdType, -1936.0, {captain_source_y:.1f}, 90.0)')
         original_controller='call SetPlayerController( Player(0), MAP_CONTROL_NEUTRAL )'
         if script.count(original_controller)!=1:raise ValueError('Captain player config differs')
@@ -236,11 +245,12 @@ def main():
     parser.add_argument('--gate-y', type=float, default=-800.0)
     parser.add_argument('--gate-exit-y', type=float, default=-240.0)
     parser.add_argument('--captain-source-y',type=float,default=-976.0,help='captain_home recruit start Y; preserves captain creation phase')
+    parser.add_argument('--captain-peer',action='store_true',help='add the second ground recruit and default to the two-recruit AI probe')
     parser.add_argument('--captain-ai', type=Path, help='explicit captain_home AI script; default is the stationary home probe')
     args = parser.parse_args()
-    if args.captain_ai and args.scenario != 'captain_home':
-        parser.error('--captain-ai requires captain_home')
-    captain_ai = args.captain_ai or Path(__file__).with_name('wc3_captain_probe.ai')
+    if (args.captain_ai or args.captain_peer) and args.scenario != 'captain_home':
+        parser.error('--captain-ai/--captain-peer require captain_home')
+    captain_ai = args.captain_ai or Path(__file__).with_name('wc3_captain_pair_probe.ai' if args.captain_peer else 'wc3_captain_probe.ai')
     if args.scenario == 'captain_home' and not captain_ai.is_file():
         parser.error('captain AI source is missing')
     if args.base.resolve() == args.output.resolve() or args.output.exists():
@@ -264,7 +274,7 @@ def main():
             data = subprocess.check_output([tool, '-mpq', str(args.base), 'cat', member])
             if member == 'war3map.j':
                 source = data.decode('utf-8').replace('\r\n', '\n')
-                data = instrument(source, probe, args.scenario, args.remove_tick, args.gate_y, args.gate_exit_y, args.captain_source_y).encode('utf-8')
+                data = instrument(source, probe, args.scenario, args.remove_tick, args.gate_y, args.gate_exit_y, args.captain_source_y, args.captain_peer).encode('utf-8')
                 args.output.with_suffix('.j').write_bytes(data)
             if member == 'war3map.w3u' and args.scenario == 'numeric_bytes':
                 data = byte_unit_name(data)
@@ -296,6 +306,7 @@ def main():
               'script_encoding': 'UTF-8',
               'byte_string_source': 'hfoo unam object field, GetUnitName, raw bytes 80..ff' if args.scenario == 'numeric_bytes' else None,
               'added_members': ['Scripts\\wc3_captain_probe.ai'] if args.scenario == 'captain_home' else [],
+              'captain_peer': args.captain_peer if args.scenario == 'captain_home' else None,
               'captain_source_y': args.captain_source_y if args.scenario == 'captain_home' else None,
               'captain_ai_sha256': hashlib.sha256(captain_ai.read_bytes()).hexdigest() if args.scenario == 'captain_home' else None,
               'container': 'rebuilt MPQ with original HM3W header; signature not retained'}

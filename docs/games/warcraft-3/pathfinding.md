@@ -576,3 +576,12 @@ to the world bounds inset by four path cells, while the public waypoint stays
 unchanged. The admitted route owns steering and arrival; a generic unreachable
 field cannot rewrite it. The complete outside-west journey matches191 retail
 commits and47 Save82 suffix commits per variant. See [outside point goals](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click).
+
+
+The [stationary captain pair](retail-pathfinding-engine.md#stationary-captain-pair-private-followers-to-shared-arrival)
+now matches369 complete native physical commits: independent target followers
+transition into one shared home formation only after both range callbacks enter.
+Move retains the virtual target's one-cell search region, exact callback clock,
+roster order and saved entry state. Save84 continuations cover both private
+owners, shared admission, final survivor, cancellation and bot-free restoration.
+Larger/mixed-radius rosters, moving captains and native owned-pool reuse remain open.

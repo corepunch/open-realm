@@ -455,3 +455,14 @@ layouts/307 fields,260 explicit ABIs and50 globals. Complete production movement
 and save/lifetime payoff is recorded in [engine integration](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy).
 Larger rosters, moving actors, default town-home producers and general bot
 restoration remain separate tasks; this stationary motion contract is bounded.
+
+
+Payoff57 [ports the stationary two-recruit captain journey](retail-pathfinding-engine.md#stationary-captain-pair-private-followers-to-shared-arrival):
+369 literal physical commits, repeated full native phase hash, actual850-world
+membership circle, two callbacks before one shared batch, and152 shared7c/pathb4
+footprint publications. Native AI pool admission is newest first and captain
+roster attachment prepends. The virtual actor is excluded as a blocker but stays
+a fine-search target region; restoring that distinction fixes the first divergent
+heading at1170ms. Save84 retains roster/entry state; Stop synchronously detaches
+physical owners. Ghidra591 roles preserve these findings. Larger/mixed cohorts,
+forced pair retries, owned-list reuse and moving/default-home captains remain open.

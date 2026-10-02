@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 83, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 84, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -910,3 +910,15 @@ These records do not serialize the bot JASS VM or its wider AI roster policy.
 Both178/250 native journeys have eight saved continuations each, including
 private point admission, final retry and forced arrival. Older versions are
 rejected. See [stationary captain callbacks](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy).
+
+
+Version84 adds stationary captain roster cardinality, per-member recruitment
+index and entered-state fields. Two independent target-follow owners can
+restore before their all-entered shared point handoff; group validation accepts
+a model-free captain target only through the member's active retained reference.
+Eight pair checkpoints reproduce1648 native suffix commits, including a saved
+one-member survivor after the peer completes; bot-free restore adds355 commits.
+Stop detaches physical owners synchronously so immediate saves are valid.
+Duplicate/out-of-range member indices, invalid roster/entry state and previous
+format83 are rejected. The bot VM and wider logical roster remain process-owned.
+See [stationary pair integration](retail-pathfinding-engine.md#stationary-captain-pair-private-followers-to-shared-arrival).

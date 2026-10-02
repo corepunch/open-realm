@@ -21808,6 +21808,148 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-captain-pair-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_captain_pair_trace.py",
+        "{archive}/runtime/captain-pair-v1-late-key-first-261003.jsonl",
+        "{archive}/runtime/captain-pair-v1-complete-first-261003.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-captain-pair-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_captain_pair.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "captain-pair-captures.json",
+      "inputs": {
+        "capture": "runtime/captain-pair-v1-late-key-first-261003.jsonl",
+        "sha256": "41bd2e157d0e2bfa7064f3b5bca4b221e9abd5407f1552ec5023e258bdd4def4",
+        "bytes": 7159163,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "28a7e644adbb1142b9e0d252517da083f446d13c32fca72f9c12c05b5ca13473",
+            "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+            "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+            "wc3_pathfinding_probe.j": "fb9b6f6e9ff924b6e416de91c013b92d5ac18ab7bb6eba460470ec1f0d530e97",
+            "make_wc3_pathfinding_map.py": "1a5481a9c86968e293115ef9477a49f94f206113d3768b3dd0d4ba6557819150",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "captain_ai": "28a7e644adbb1142b9e0d252517da083f446d13c32fca72f9c12c05b5ca13473",
+            "map": "9284ffb3510b6f93df723b2e6ab1e421b61907239c60a9b13f127974f2763c44"
+          },
+          "map": "Maps\\PathingRE-CaptainPairV1-261003.w3m",
+          "seconds": 80.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "expected_exit": 0,
+      "expected_status": "pass",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "recruit_commits": {
+          "equal": 738
+        },
+        "range_enters": {
+          "equal": 4
+        },
+        "shared_point_batches": {
+          "equal": 2
+        },
+        "owner_callbacks": {
+          "equal": 2000
+        },
+        "shared_footprint_updates": {
+          "equal": 304
+        }
+      },
+      "scope": "Complete stationary authored-home two-ground-recruit AI journey. Fresh source-map terrain is explicit; larger/mixed rosters, town-pool reuse, moving captains and broader listener lifetimes remain open.",
+      "evidence": "SOCL",
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-pair-v1-complete-first-261003.jsonl",
+            "sha256": "2b54fcb6d61a8324f7b64312751bace70d2a596ad30cfc3bfa69dd2b5f21161f",
+            "bytes": 7380860,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "28a7e644adbb1142b9e0d252517da083f446d13c32fca72f9c12c05b5ca13473",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "fb9b6f6e9ff924b6e416de91c013b92d5ac18ab7bb6eba460470ec1f0d530e97",
+                "make_wc3_pathfinding_map.py": "1a5481a9c86968e293115ef9477a49f94f206113d3768b3dd0d4ba6557819150",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "28a7e644adbb1142b9e0d252517da083f446d13c32fca72f9c12c05b5ca13473",
+                "map": "9284ffb3510b6f93df723b2e6ab1e421b61907239c60a9b13f127974f2763c44"
+              },
+              "map": "Maps\\PathingRE-CaptainPairV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -22275,6 +22417,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-captain-range-1.27.json",
       "sha256": "e11da7a6d5c7c5e5669ef616fe80e281e95027fc7882c41d94f2f6ada43c5c71"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-pair-1.27.json",
+      "sha256": "9adddb445bb700626cd444531312df71c0fe68dc43baef21d5b367cc62fa34ae"
     }
   ]
 }

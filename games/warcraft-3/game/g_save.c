@@ -78,9 +78,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format83 retains the stationary captain-home membership phase and point
- * task handoff through saved physical movement, independent of the bot VM. */
-static uint32_t const save_version = 83;
+/* Format84 retains captain roster cardinality and per-member entry/order
+ * state for shared home admission independently of the process-owned AI VM. */
+static uint32_t const save_version = 84;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -933,9 +933,12 @@ field_t edict_fields[] = {
     F(edict_s, attack_backswing_end_time, F_INT),
     F(edict_s, unitinfo, F_STRUCT, 1, unit_info_fields),
     F(edict_s, movement.captain_home.actor, F_EDICT, 0, 0),
+    F(edict_s, movement.captain_actor_members, F_INT),
     F(edict_s, movement.captain_actor_type, F_INT),
     F(edict_s, movement.captain_actor_owned, F_INT),
     F(edict_s, movement.captain_home.active, F_INT),
+    F(edict_s, movement.captain_home.entered, F_INT),
+    F(edict_s, movement.captain_home.member_index, F_INT),
     F(edict_s, movement.captain_home.home.x, F_FLOAT),
     F(edict_s, movement.captain_home.home.y, F_FLOAT),
     F(edict_s, movement.captain_home.due.time, F_FLOAT),
@@ -2028,7 +2031,11 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
             !isfinite(member->arrival_range) || member->arrival_range<0 ||
             *(uint8_t const *)&member->arrived>1 || *(uint8_t const *)&member->in_range>1 ||
             *(uint8_t const *)&member->forced_arrival>1) return false;
-        if (group->target && (unit->movement.follow_target!=group->target || unit->goalentity!=group->target)) return false;
+        if (group->target) {
+            if (group->target->movement.captain_actor_type) {
+                if (!unit->movement.captain_home.active || unit->movement.captain_home.actor!=group->target) return false;
+            } else if (unit->movement.follow_target!=group->target || unit->goalentity!=group->target) return false;
+        }
         FOR_LOOP(j,i) if (group->members[j].unit==unit) return false;
     }
     return true;
@@ -2796,8 +2803,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-80.bin",
         "/tmp/openwarcraft3-wc3-save-version-81.bin",
         "/tmp/openwarcraft3-wc3-save-version-82.bin",
+        "/tmp/openwarcraft3-wc3-save-version-83.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83 };
 
     reset_entities();
     setup_test_world();

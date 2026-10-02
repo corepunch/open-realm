@@ -45,6 +45,7 @@
 #include "retail_outside_goal.h"
 #include "retail_captain_home.h"
 #include "retail_captain_range_far.h"
+#include "retail_captain_pair.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -11123,7 +11124,7 @@ static void public_group_radius_journey(unsigned scenario, uint32_t const (*moti
 }
 
 static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motion)[7], unsigned count) {
-    bool blocked=goal_case==0,captain=goal_case>=2,far=goal_case==3;
+    bool blocked=goal_case==0,captain=goal_case>=2,far=goal_case==3,pair=goal_case==4;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities();setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
@@ -11141,19 +11142,19 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
     level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
     char script[2400];
     snprintf(script,sizeof(script),
-        "globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "globals\nunit mover\nunit peer\ninteger tick=0\nendglobals\n"
         "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
         "if tick==10 then\n%s\nendif\nendfunction\n"
         "function main takes nothing returns nothing\nlocal integer gx=0\nlocal integer gy=0\n"
-        "set mover=CreateUnit(Player(0),'hBGM',-1936,%g,90)\ncall SetUnitMoveSpeed(mover,%g)\n"
+        "set mover=CreateUnit(Player(0),'hBGM',-1936,%g,90)\ncall SetUnitMoveSpeed(mover,%g)\n%s\n"
         "loop\nexitwhen gx==%u\nset gy=0\nloop\nexitwhen gy==5\n"
         "call SetTerrainPathable(-2000+I2R(gx)*32,-208+I2R(gy)*32,PATHING_TYPE_WALKABILITY,false)\n"
         "set gy=gy+1\nendloop\nset gx=gx+1\nendloop\n"
-        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",captain ? "call StartCampaignAI(Player(0),\"test_captain_home.ai\")" : blocked ? "call IssuePointOrder(mover,\"move\",-1936,-144)" : "call IssuePointOrder(mover,\"move\",-7400,-976)",far ? -1296. : -976.,blocked || captain ? 100. : 522.,blocked ? 5u : 0u);
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",pair ? "call StartCampaignAI(Player(0),\"test_captain_pair.ai\")" : captain ? "call StartCampaignAI(Player(0),\"test_captain_home.ai\")" : blocked ? "call IssuePointOrder(mover,\"move\",-1936,-144)" : "call IssuePointOrder(mover,\"move\",-7400,-976)",far ? -1296. : -976.,blocked || captain ? 100. : 522.,pair ? "set peer=CreateUnit(Player(0),'hBGM',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)" : "",blocked ? 5u : 0u);
     T_ASSERT(run_test_jass(script));
-    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)unit=ent;
+    edict_t *unit=NULL,*peer=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID){if(!unit)unit=ent;else peer=ent;}
     T_NOT_NULL(unit);level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    followCommitTrace_t trace={0};trace.units[0]=unit;trace.units[1]=peer;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     cstring_t files[8]={"/tmp/wc3-blocked-goal-before-partial.bin","/tmp/wc3-blocked-goal-retry.bin","/tmp/wc3-blocked-goal-forced.bin","/tmp/wc3-blocked-goal-final-turn.bin"};
     if(captain) {
@@ -11162,8 +11163,15 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
         files[4]="/tmp/wc3-captain-home-2010.bin";files[5]="/tmp/wc3-captain-home-6255.bin";
         files[6]="/tmp/wc3-captain-home-6270.bin";files[7]="/tmp/wc3-captain-home-6300.bin";
     }
+    if(pair) {
+        files[0]="/tmp/wc3-captain-pair-1200.bin";files[1]="/tmp/wc3-captain-pair-1500.bin";
+        files[2]="/tmp/wc3-captain-pair-1800.bin";files[3]="/tmp/wc3-captain-pair-1995.bin";
+        files[4]="/tmp/wc3-captain-pair-2010.bin";files[5]="/tmp/wc3-captain-pair-6000.bin";
+        files[6]="/tmp/wc3-captain-pair-6500.bin";files[7]="/tmp/wc3-captain-pair-6525.bin";
+    }
     unsigned saves=captain ? 8 : 4;
     unsigned save_times[]={captain ? 1200 : blocked ? 6000 : 5500,captain ? 1500 : blocked ? 7110 : 6630,captain ? 1800 : blocked ? 7140 : 6660,captain ? 1995 : blocked ? 7170 : 6690,2010,6255,6270,6300},saved_steps[8]={0},suffix_steps=0;
+    if(pair)memcpy(save_times,(unsigned[]){1200,1500,1800,1995,2010,6000,6500,6525},sizeof(save_times));
     if(far)memcpy(save_times,(unsigned[]){1200,2000,2500,2995,3010,8415,8430,8460},sizeof(save_times));
     FOR_LOOP(pass,saves+1) {
     if(pass) {
@@ -11182,7 +11190,7 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
             saved_steps[i]=steps;
             if(!captain && i==(blocked ? 1 : 2)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);T_ASSERT(!unit->movement.point_forced_arrival);}
             if(!captain && i>=(blocked ? 2 : 3)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,1);T_ASSERT(unit->movement.point_forced_arrival);}
-            if(captain) {
+            if(captain && !pair) {
                 edict_t *actor=unit->movement.captain_home.actor;
                 T_NOT_NULL(actor);T_ASSERT(actor && actor->inuse);
                 if(actor){T_EQ(actor->collision,0);T_EQ(actor->movement.captain_actor_type,1);T_ASSERT(actor->svflags&SVF_NOCLIENT);}
@@ -11190,15 +11198,60 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
                 if(i==6){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);}
                 if(i==7){T_EQ(unit->movement.retry_count,1);T_ASSERT(unit->movement.point_forced_arrival);}
             }
+            if(pair) {
+                edict_t *actor=unit->movement.captain_home.actor;
+                T_NOT_NULL(actor);T_ASSERT(actor && actor->inuse);
+                if(actor)T_EQ(actor->movement.captain_actor_members,2);
+                T_EQ(unit->movement.captain_home.active,i<4);
+                T_EQ(peer->movement.captain_home.active,i<4);
+                if(i<7)T_ASSERT(peer->movement.captain_home.actor==actor);
+                if(i<4) {
+                    T_EQ(unit->movement.captain_home.member_index,0);
+                    T_EQ(peer->movement.captain_home.member_index,1);
+                    T_NE(unit->movement.group_id,peer->movement.group_id);
+                    T_ASSERT(move_find_member(unit)->arrival_range==wc3_div(155,32));
+                    T_ASSERT(move_find_member(peer)->arrival_range==wc3_div(155,32));
+                } else if(i<7)T_EQ(unit->movement.group_id,peer->movement.group_id);
+                if(i==7){T_EQ(peer->current_order_id,0);T_NE(unit->current_order_id,0);}
+            }
             T_ASSERT(WriteGame(files[i]));
         }
     }
     T_EQ(steps,count);T_ASSERT(!jass_rterror_pending(level.vm));
-    if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->movement.point_forced_arrival);T_ASSERT(!unit->movement.clock_valid);}
+    if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->movement.point_forced_arrival);T_ASSERT(!unit->movement.clock_valid);if(pair)T_EQ(peer->current_order_id,0);}
     if(pass)suffix_steps+=steps-saved_steps[pass-1];
     }
     fprintf(stderr,"Point goal case=%u exact commits=%u saved suffix commits=%u\n",goal_case,count,suffix_steps);
-    if(captain && !mismatch) {
+    if(pair && !mismatch) {
+        /* Cancel one member before and after shared admission; its peer and
+         * retained actor must remain live, with a valid saved physical owner. */
+        FOR_LOOP(phase,2) FOR_LOOP(action,3) {
+            T_ASSERT(ReadGame(files[phase ? 4 : 0]));
+            edict_t *actor=peer->movement.captain_home.actor;
+            if(action==2){G_FreeEdict(unit);level.time+=5;globals.RunFrame();T_ASSERT(!unit->inuse);}
+            else if(action)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
+            else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            T_NULL(unit->movement.captain_home.actor);
+            T_ASSERT(actor->inuse);T_ASSERT(peer->movement.captain_home.actor==actor);
+            T_ASSERT(S_ValidateCaptainHomeActors(false));
+            T_ASSERT(WriteGame("/tmp/wc3-captain-pair-cancel.bin"));
+        }
+        remove("/tmp/wc3-captain-pair-cancel.bin");
+        FOR_LOOP(i,6) {
+            T_ASSERT(ReadGame(files[0]));
+            edict_t *actor=unit->movement.captain_home.actor;
+            if(i==0)actor->movement.captain_actor_members=0;
+            if(i==1)unit->movement.captain_home.member_index=2;
+            if(i==2)peer->movement.captain_home.member_index=0;
+            if(i==3){unit->movement.captain_home.active=false;unit->movement.captain_home.entered=true;}
+            if(i==4)actor->movement.captain_actor_members=globals.num_edicts+1;
+            if(i==5)*(uint8_t *)&unit->movement.captain_home.entered=2;
+            T_ASSERT(!S_ValidateCaptainHomeActors(false));
+            T_ASSERT(!WriteGame("/tmp/wc3-captain-pair-invalid.bin"));
+        }
+        remove("/tmp/wc3-captain-pair-invalid.bin");
+    }
+    if(captain && !pair && !mismatch) {
         FOR_LOOP(i,3) {
             T_ASSERT(ReadGame(files[0]));
             if(i==2){G_FreeEdict(unit);level.time+=5;globals.RunFrame();T_ASSERT(!unit->inuse);}
@@ -11221,7 +11274,9 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
         edict_t *new_actor=level.bots[0].captains[BOT_CAPTAIN_ATTACK].home_actor;
         T_NOT_NULL(new_actor);T_NE(new_actor,old_actor);
         T_ASSERT(unit_issueimmediateorder(unit,"stop"));
-        T_NULL(unit->movement.captain_home.actor);T_ASSERT(!old_actor->inuse);T_ASSERT(new_actor->inuse);
+        T_NULL(unit->movement.captain_home.actor);
+        if(pair){T_ASSERT(old_actor->inuse);T_ASSERT(peer->movement.captain_home.actor==old_actor);T_ASSERT(unit_issueimmediateorder(peer,"stop"));}
+        T_ASSERT(!old_actor->inuse);T_ASSERT(new_actor->inuse);
         G_BotStop(0);T_ASSERT(!new_actor->inuse);
         T_ASSERT(ReadGame(files[0]));T_NULL(level.bots[0].vm);
         T_ASSERT(level.bots[0].captains[BOT_CAPTAIN_ATTACK].home_actor==unit->movement.captain_home.actor);
@@ -11265,6 +11320,10 @@ TEST(wc3_movement, public_ai_recruit_matches_original_captain_home_admission) {
 
 TEST(wc3_movement, public_ai_recruit_matches_original_farther_captain_home) {
     public_point_goal_journey(3,captain_range_far_motion,sizeof(captain_range_far_motion)/sizeof(*captain_range_far_motion));
+}
+
+TEST(wc3_movement, public_ai_pair_recruits_match_original_captain_home) {
+    public_point_goal_journey(4,captain_pair_motion,sizeof(captain_pair_motion)/sizeof(*captain_pair_motion));
 }
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {

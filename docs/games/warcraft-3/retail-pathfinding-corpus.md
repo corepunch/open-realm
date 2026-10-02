@@ -933,3 +933,29 @@ Moving actors, larger rosters, default town-home producers and general AI
 restoration remain explicit backlog work. See [engine payoff56](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy).
 
 Current payoff56 inventory:274 entries,116 pinned fixtures and57 strict live contracts.
+
+
+## Stationary two-recruit captain evidence
+
+`live-captain-pair-captures-261003` pins two complete captures:
+`runtime/captain-pair-v1-late-key-first-261003.jsonl` and
+`runtime/captain-pair-v1-complete-first-261003.jsonl`, with frozen source under
+`runtime/captain-pair-source-v1-261003`. Their371 total velocity commits each
+include369 physical commits and two virtual actor commits; full phase hashes
+repeat. `verify_wc3_captain_pair_trace.py` checks producer metadata/archive
+bytes, both physical trajectories, all-entered callback nesting, one two-pass
+shared request, generation retention,218 physical footprint publications,
+152 shared7c updates and1000 primary owners per capture. Production normal-frame
+C tests separately verify the complete engine journey and saved suffixes.
+
+Initial recruit tasks are independent target-follow owners. The first membership
+enter cannot prepare a point batch; only the second does. This avoids certifying
+an engine that moves both immediately as one formation. Source terrain is explicit.
+The final native public sample covers the primary recruit; both physical arrival
+commits and owner teardown are captured. Larger/mixed batches and forced retries
+are outside this evidence. See [engine payoff57](retail-pathfinding-engine.md#stationary-captain-pair-private-followers-to-shared-arrival).
+
+The premature12s-key `captain-pair-v1-first-261003` capture stayed at tick0 and
+contains no admitted AI journey. It is diagnostic only and has no corpus entry.
+Accepted captures continue at30s and retain the full final marker. Current
+inventory:275 entries,117 pinned fixtures and58 strict live contracts.

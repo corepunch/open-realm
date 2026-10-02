@@ -225,7 +225,7 @@ void G_BotHarvest(player_t *player, int32_t town_id, int32_t peons, bool gold) {
     }
 }
 
-/* Blizzard AI owns one assault and one defense captain; recreation drops all prior membership and orders. */
+/* Recreation drops logical membership; live physical tasks retain their retired virtual actor. */
 void G_BotCreateCaptains(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
@@ -280,9 +280,10 @@ void G_BotInitAssault(player_t *player) {
 static void G_BotCaptainAdd(botCaptain_t *captain, edict_t *unit) {
     uint32_t count = ARRAY_COUNT(captain->units);
     edict_t * *units = gi.MemAlloc((count + 1) * sizeof(*units));
-    if (count) memcpy(units, captain->units, count * sizeof(*units));
+    /* Native9cf680 prepends the retained captain roster link. */
+    if (count) memcpy(units + 1, captain->units, count * sizeof(*units));
     if (captain->units) gi.MemFree(captain->units);
-    captain->units = units; ARRAY_COUNT(captain->units) = count + 1; captain->units[count] = unit;
+    captain->units = units; ARRAY_COUNT(captain->units) = count + 1; captain->units[0] = unit;
 }
 
 /* Production is requested by common.ai; roster fills never steal units assigned to the other captain. */
@@ -294,8 +295,13 @@ static bool G_BotCaptainFill(player_t *player, botCaptainType_t type, int32_t qt
     captain = bot->captains + type;
     FOR_EACH_ARRAY(edict_t *, unit, captain->units)
         if (G_BotUnitAlive(*unit) && (*unit)->class_id == class_id) have++;
-    FILTER_EDICTS(unit, have < qty && G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
-        unit->class_id == class_id && !unit->construction.active && !unit->training && !G_BotCaptainHasUnit(bot, unit)) {
+    /* Native9c32d0 walks the town-owned list from newest to oldest. Fresh
+     * two-recruit captures witness this order. TODO GROUP-03.4: retain town
+     * ownership insertion order across edict reuse and ownership changes. */
+    for (uint32_t n=globals.num_edicts; n && have<qty;) {
+        edict_t *unit=g_edicts+--n;
+        if (!G_BotUnitAlive(unit) || unit->s.player!=PLAYER_NUM(player) || unit->class_id!=class_id ||
+            unit->construction.active || unit->training || G_BotCaptainHasUnit(bot,unit)) continue;
         G_BotCaptainAdd(captain, unit); have++;
         if (type == BOT_CAPTAIN_ATTACK && captain->home_set) {
             if (!S_IssueCaptainHomeMove(unit, captain))

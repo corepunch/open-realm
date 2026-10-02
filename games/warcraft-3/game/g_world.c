@@ -699,9 +699,12 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     move_query_objects(&graph, input, NULL);
     bool target_hit = false;
     edict_t const *object = input->target;
+    /* A suppressed target still terminates fine expansion at its region.
+     * Native category2 captains have radius0 but retain one fine cell. */
     if (input->units && input->mover && !(input->mover->aiflags & AI_FLYING) && object && object->inuse &&
-        !IS_HOLLOW(object) && object->data.UnitData && !G_UnitIsStructure(object) &&
-        !M_UnitMoveDisabled(object) && object->collision > 0 && !(object->aiflags & AI_FLYING)) {
+        (object->movement.captain_actor_type || (!IS_HOLLOW(object) && object->data.UnitData &&
+         !G_UnitIsStructure(object) && !M_UnitMoveDisabled(object) && object->collision>0 &&
+         !(object->aiflags & AI_FLYING)))) {
         vec2_t pos = move_grid_from_world(object->s.origin2.x, object->s.origin2.y);
         graph.target = wc3_fine_cover(wc3_fine_class(object->collision / pathmap_cell_world_size()),
             (wc3FinePoint_t){(int)floorf(pos.x), (int)floorf(pos.y)});

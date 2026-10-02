@@ -490,6 +490,8 @@ TEST(wc3_bot, assault_init_retains_captains_and_fill_tracks_formation_result) {
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 1, type));
+    /* The original owned pool admits newest first; the defense captain owns second. */
+    T_EQ(bot->captains[BOT_CAPTAIN_DEFENSE].units[0],second);
     G_BotSetCaptainHome(&game.clients[2].ps, 1, 128, 256);
     G_BotInitAssault(&game.clients[2].ps);
     T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.x, 128, 0.001f);
@@ -498,7 +500,7 @@ TEST(wc3_bot, assault_init_retains_captains_and_fill_tracks_formation_result) {
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 1);
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[0], second);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[0], first);
     T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
@@ -508,7 +510,7 @@ TEST(wc3_bot, assault_init_retains_captains_and_fill_tracks_formation_result) {
     edict_t **members = bot->captains[BOT_CAPTAIN_ATTACK].units;
     G_BotInitAssault(&game.clients[2].ps);
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units, members);
-    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);T_EQ(members[0], second);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);T_EQ(members[0], first);
     T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
     T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.x, 128, 0.001f);

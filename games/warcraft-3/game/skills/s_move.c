@@ -532,6 +532,7 @@ static void move_release_captain_reference(edict_t *self) {
     edict_t *actor=self->movement.captain_home.actor;
     self->movement.captain_home.actor=NULL;
     self->movement.captain_home.active=false;
+    self->movement.captain_home.entered=false;
     move_free_unowned_captain_actor(actor);
 }
 
@@ -565,7 +566,8 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
     edict_t *owners[MAX_PLAYERS][BOT_CAPTAIN_COUNT]={{0}};
     FILTER_EDICTS(actor,actor->inuse && actor->movement.captain_actor_type) {
         uint32_t type=actor->movement.captain_actor_type;
-        if (type>BOT_CAPTAIN_COUNT || actor->s.player>=MAX_PLAYERS || actor->collision!=0) return false;
+        if (type>BOT_CAPTAIN_COUNT || actor->s.player>=MAX_PLAYERS || actor->collision!=0 ||
+            actor->movement.captain_actor_members>globals.num_edicts) return false;
         if (!actor->movement.captain_actor_owned) continue;
         edict_t **slot=&owners[actor->s.player][type-1];
         if (*slot) return false;
@@ -574,7 +576,12 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
     FILTER_EDICTS(ent,ent->inuse) {
         if (ent->movement.captain_actor_owned && !ent->movement.captain_actor_type) return false;
         edict_t *actor=ent->movement.captain_home.actor;
-        if (ent->movement.captain_home.active && !actor) return false;
+        if (*(uint8_t *)&ent->movement.captain_home.active>1 ||
+            *(uint8_t *)&ent->movement.captain_home.entered>1 ||
+            (ent->movement.captain_home.entered && !ent->movement.captain_home.active)) return false;
+        if (ent->movement.captain_home.active && (!actor || !actor->movement.captain_actor_members ||
+            actor->movement.captain_actor_members>2 ||
+            ent->movement.captain_home.member_index>=actor->movement.captain_actor_members)) return false;
         if (actor && (!actor->inuse || !actor->movement.captain_actor_type ||
             actor->movement.captain_actor_type>BOT_CAPTAIN_COUNT)) return false;
         if (ent->movement.captain_home.active &&
@@ -582,10 +589,17 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
              ent->movement.captain_home.due.span<=0 || !isfinite(ent->movement.captain_home.home.x) ||
              !isfinite(ent->movement.captain_home.home.y))) return false;
     }
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.active)
+        for (edict_t *peer=g_edicts;peer<ent;peer++)
+            if (peer->inuse && peer->movement.captain_home.active &&
+                peer->movement.captain_home.actor==ent->movement.captain_home.actor &&
+                peer->movement.captain_home.member_index==ent->movement.captain_home.member_index) return false;
     if (rebind) FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT)
         level.bots[p].captains[c].home_actor=owners[p][c];
     return true;
 }
+
+static bool move_group_point_order(groupPointOrder_t const *request);
 
 /* Strict predicted membership retains creation phase and exact timer deadline. */
 static void move_captain_home_update(edict_t *self) {
@@ -603,16 +617,34 @@ static void move_captain_home_update(edict_t *self) {
     float target[2]={self->movement.captain_home.home.x,self->movement.captain_home.home.y};
     float delta[2];
     FOR_LOOP(k,2) delta[k]=wc3_sub(wc3_grid_coordinate(target[k],pose.origin[k],32),pose.grid[k]);
-    float radius=wc3_add(wc3_div(wc3_add(800,wc3_mul(25,1)),32),wc3_div(self->collision,32));
-    if (wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]))<wc3_mul(radius,radius)) {
-        self->movement.captain_home.active=false;
-        /* Native9d9020 replaces the private follower task: commit old velocity
-         * at this clock, then clear it before the next physical owner. */
-        edict_t *actor=self->movement.captain_home.actor;
-        /* Transfer this task reference across replacement before releasing it. */
-        self->movement.captain_home.actor=NULL;
-        S_IssueMoveOrder(self,self->goalentity,self->current_order_id);
-        self->movement.captain_home.actor=actor;
+    edict_t *actor=self->movement.captain_home.actor;
+    uint32_t members=actor->movement.captain_actor_members;
+    float radius=wc3_add(wc3_div(wc3_add(800,wc3_mul(25,members)),32),wc3_div(self->collision,32));
+    if (wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]))<wc3_mul(radius,radius))
+        self->movement.captain_home.entered=true;
+    /* Native9d9020 only publishes after bc <= cc+c4. Preserve roster order
+     * through the two-pass shared point admission, including after load. */
+    groupPointOrder_t request={.count=members,.order="move",.order_id=G_OrderId("move"),
+        .issuer_player=self->s.player,.point=&self->movement.captain_home.home};
+    uint32_t entered=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.active &&
+        ent->movement.captain_home.actor==actor && ent->movement.captain_home.entered) {
+        uint32_t index=ent->movement.captain_home.member_index;
+        if (index>=members || index>=BZ_WC3_GROUP_ORDER_UNITS || request.units[index].unit)
+            gi.error("Move: invalid captain member index %u/%u",index,members);
+        request.units[index].unit=ent;request.units[index].spawn=ent->spawn_time;entered++;
+    }
+    if (entered==members) {
+        FOR_LOOP(i,members) {
+            edict_t *ent=request.units[i].unit;
+            ent->movement.captain_home.active=false;
+            /* Transfer physical references across order replacement. */
+            ent->movement.captain_home.actor=NULL;
+        }
+        if (members==1) S_IssueMoveOrder(self,self->goalentity,self->current_order_id);
+        else if (!move_group_point_order(&request))
+            fprintf(stderr,"WC3 Move: captain shared home point rejected for %u members\n",members);
+        FOR_LOOP(i,members) request.units[i].unit->movement.captain_home.actor=actor;
     }
     level.pathing_clock=now;
 }
@@ -764,6 +796,8 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
 
 /* A different behavior must not inherit the previous Move's prediction velocity. */
 static void move_leave(edict_t *self) {
+    move_detach_group(self);
+    self->movement.group_id=0;
     move_release_captain_reference(self);
     self->movement.point_forced_arrival=false;
     if (!self->movement.clock_valid) return;
@@ -2638,22 +2672,38 @@ void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
         self->current_order_id = order_id;
 }
 
-/* AI admission remains a Move request. Saved physical state retains the
- * singleton range callback even when the process-owned bot VM is absent. */
+/* AI admission remains an independent follower until the all-entered gate.
+ * Saved physical state retains this phase without a process-owned bot VM. */
 bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
     if (!captain->home_actor) {
         fprintf(stderr,"WC3 Move: captain home has no retained virtual actor\n");
         return false;
     }
     if (!G_IssueUnitPointOrder(self,"move",&captain->home,false,self->s.player,0)) return false;
-    if (ARRAY_COUNT(captain->units)!=1) {
-        /* TODO GROUP-03.4: moving virtual actors and all-member shared batches
-         * need their own roster/target lifetime; retain ordinary home admission. */
-        FOR_EACH_ARRAY(edict_t *, member, captain->units) (*member)->movement.captain_home.active=false;
+    uint32_t members=ARRAY_COUNT(captain->units);
+    captain->home_actor->movement.captain_actor_members=members;
+    if (members>2) {
+        /* TODO GROUP-03.4: larger and mixed-radius rosters require original
+         * complete captures before extending this bounded stationary producer. */
+        FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+            edict_t *ent=*member;
+            if (!ent->movement.captain_home.active) continue;
+            edict_t *actor=ent->movement.captain_home.actor;
+            ent->movement.captain_home.actor=NULL;
+            ent->movement.captain_home.active=ent->movement.captain_home.entered=false;
+            S_IssueMoveOrder(ent,ent->goalentity,ent->current_order_id);
+            ent->movement.captain_home.actor=actor;
+        }
         fprintf(stderr,"WC3 Move: captain shared home handoff unresolved for %u members\n",ARRAY_COUNT(captain->units));
         return true;
     }
     self->movement.captain_home.actor=captain->home_actor;
+    FOR_LOOP(i,members) {
+        edict_t *member=captain->units[i];
+        if (member==self || member->movement.captain_home.actor==captain->home_actor)
+            member->movement.captain_home.member_index=i;
+    }
+    self->movement.captain_home.entered=false;
     self->movement.captain_home.home=captain->home;
     self->movement.captain_home.due=captain->created;
     do wc3_clock_advance(&self->movement.captain_home.due,1,0);
@@ -2661,6 +2711,9 @@ bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
         self->movement.captain_home.due.time<=level.pathing_clock.time :
         (int32_t)(self->movement.captain_home.due.epoch-level.pathing_clock.epoch)<0);
     self->movement.captain_home.active=true;
+    /* Native admission creates a private target-follow physical owner for
+     * each recruit. Its range is five mover radii, with no formation offset. */
+    move_start_follow_group(self,captain->home_actor,true);
     return true;
 }
 
@@ -2717,6 +2770,7 @@ static void move_group_seed_route(moveGroup_t *group);
 /* Original5fd270 admits a nearby target with half its current edge distance;
  * its later persistent task restores the authored FollowRange. */
 static float move_follow_approach_range(edict_t *unit, edict_t *target, bool persistent) {
+    if (target->movement.captain_actor_type) return wc3_div(wc3_mul(5,unit->collision),32);
     float range=wc3_div(G_FollowStopRange(unit,target),32);
     if (persistent) return range;
     wc3GridPose_t source,point;
@@ -2846,7 +2900,7 @@ static bool move_group_route(moveGroup_t *group) {
     wc3GridPose_t pose; unit_predicted_pose(source,&pose);
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
     movePathQuery_t query={.geometry={&from,&group->goal,group->radius,M_UnitStaticPathingFlags(source)},
-        .mover=source,.units=true,.fine=&fine};
+        .mover=source,.target=group->target,.units=true,.fine=&fine};
     uint32_t revision=group->route.group_revision;
     if (!G_UnitMoveGroupDestination(&query,&group->route,&point)) {
         fprintf(stderr,"Move group %u: route unavailable at (%.9g,%.9g) to (%.9g,%.9g)\n",group->id,from.x,from.y,group->goal.x,group->goal.y);
@@ -3003,7 +3057,7 @@ static void move_run_group_updates(void) {
         }
         if (!group->count) { move_release_group(group); continue; }
         if (group->target && (!group->target->inuse || group->target->spawn_time!=group->target_spawn ||
-                G_IsDeferredFree(group->target) || M_IsDead(group->target))) {
+                G_IsDeferredFree(group->target) || (!group->target->movement.captain_actor_type && M_IsDead(group->target)))) {
             while(group->count) {
                 edict_t *unit=group->members[group->count-1].unit;
                 unit->movement.follow_target=NULL; unit->goalentity=NULL; unit_stand(unit);

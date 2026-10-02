@@ -8,16 +8,18 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**132 done / 317 tasks; 185 remaining.** Payoff56 completes the stationary
-singleton captain home journey: exact creation-phase range callback, private
-point handoff, zero-radius category2 actor occupancy, retry and natural arrival.
-The two source positions match178/250 native commits and2225 saved suffix
-commits, including restores after stopping the bot VM. Ghidra retains590 roles,
-48 layouts/307 fields,260 explicit ABIs and50 globals. Larger shared rosters,
-moving captains and default town-home production remain open; the next bounded
-shared two-recruit port is explicitly split intoGROUP-03.4.2.
-Full debug/release RoC/TFT and repository checks,309 Python checks and31 fresh
-corpus contracts pass. The saved Ghidra readback and pinned inventory also pass.
+**133 done / 319 tasks; 186 remaining.** Payoff57 closes the stationary
+two-ground-recruit captain journey: private target-follow owners, actual850-world
+range, all-entered shared point admission, retained shared footprint and natural
+formation arrival. All369 native physical commits and2003 saved suffix commits
+match, including bot-free restore and a saved final survivor. Cancellation now
+synchronously detaches old physical owners. Save84 persists roster/entry state;
+Ghidra retains591 roles,48 layouts/307 fields,260 explicit ABIs and50 globals.
+Payoff56's complete singleton journeys remain verified. Larger/mixed rosters,
+forced pair retries, moving captains and default town homes stay open; mixed
+pair/retry and native owned-pool reuse are explicitly split into03.4.3/03.4.4.
+Full debug/release RoC/TFT and repository checks pass2391 engine tests;
+320 pathfinding Python checks,32 fresh contracts and the pinned inventory pass.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -33,13 +35,13 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FOOT — Footprints and query policy | 11 | 7 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
-| NUM — Numbers and random state | 23 | 13 |
+| NUM — Numbers and random state | 24 | 19 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 20 | 7 |
+| GROUP — Shared movement groups | 22 | 8 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -157,7 +159,7 @@ NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | GROUP-03.4.2 | Verified singleton actor/timer and original shared request chain | Port a complete stationary two-recruit shared home journey with saved continuations |
+| 1 | GROUP-03.4.3 | Verified stationary shared pair and native shared footprint | Port mixed-radius captain pair motion and forced retry with saved continuations |
 | 2 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Virtual captain/follower producer plus shared publication and saved travel |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
@@ -715,7 +717,9 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [ ] **GROUP-03.3** Grow the shared auxiliary pool, change the largest member radius, then remove it; assert publication and allocation recovery.
 - [ ] **GROUP-03.4** Run Captain AI attach/detach during movement; assert its shared-cap and delay ownership/inverse. Stationary authored-home recruit admission is split into03.4.1; CaptainGoHome, live shared attachment, virtual moving captain and follower task handoffs remain required here.
 - [x] **GROUP-03.4.1** Retain authored captain home/roster/goal through InitAssault, formation flag and AddAssault admission; complete stationary singleton home travel through the private range callback and point handoff. [Payoff56](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy) matches complete178/250 native commits from two source positions and2225 saved suffix commits, including exact2s/3s deadlines, post-owner callback ordering, zero-radius category2 occupancy, retry/forced arrival, Stop/replacement/removal, captain recreation and bot-free restore. Saved Ghidra annotations and strict repeated native/blocker evidence persist. Default AI town homes, moving captains, larger shared batches and wider AI lifetime remain03.4/FOOT-01.3.
-- [ ] **GROUP-03.4.2** Compose a stationary two-ground-recruit home journey from the verified singleton actor/timer. Retain original shared target/point request membership and shared7c publication, compare every physical commit and native membership callback, then restore before/after shared admission and retry. Larger mixed-radius rosters, live attach/detach and moving captain lifetimes remain03.4/FOOT-01.3.
+- [x] **GROUP-03.4.2** Compose the stationary two-ground-recruit home journey from the verified actor/timer. [Payoff57](retail-pathfinding-engine.md#stationary-captain-pair-private-followers-to-shared-arrival) matches369 complete native commits and2003 saved suffix commits; both callbacks gate one two-pass shared point request,152 shared7c/pathb4 footprint updates retain the final survivor, and initial followers remain independent. Save84, Stop/replacement/removal, captain recreation, bot-free restoration and invalid membership state are covered. Ghidra591 roles preserve recruitment/roster order and virtual target-region semantics. Native pair path94/98 never consume a retry; that acceptance is explicitly split into03.4.3. Larger mixed-radius rosters, live attach/detach and moving captain lifetimes remain03.4/FOOT-01.3.
+- [ ] **GROUP-03.4.3** Extend the stationary shared captain pair to unequal mover radii and a blocked formation endpoint that naturally consumes a retry; compare all native commits, shared7c/pathb4 changes and saved continuations before/after admission and retry. Larger12+1 batches and live attach/detach remain03.4/FOOT-01.3.
+- [ ] **GROUP-03.4.4** Retain the native AI-owned pool's insertion order across RemoveUnit/edict reuse and ownership transfer; compose partial AddAssault and captain roster prepend through complete journeys. Fresh reverse-edict admission is only a bounded substitute for the missing owned-list producer; integrate the actual ordering into the engine and save it where needed.
 
 ### GROUP-04 — Membership mutation
 

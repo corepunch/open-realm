@@ -5583,3 +5583,75 @@ The fresh upstream fetch is fully contained; no upstream merge remains.
 Network contracts are unchanged; game save format is83. The next two-recruit
 shared request is explicitGROUP-03.4.2 and has repeated native evidence; it
 is not certified engine parity by this checkpoint.
+
+
+## Stationary captain pair: private followers to shared arrival
+
+Payoff57 composes the authored-home captain with two ground recruits at
+world(-1936,-976) and(-1856,-976), both collision31 and requested speed100
+(retail minimum150). Home remains(-1936,-144). Two complete native captures
+repeat all185/184 physical commits and physical/virtual phase hash
+`4e0dfd98da478aec7e8e02dd22d1f9e11809aceda0cc58f78ccedaf88ae93bd1`.
+The production regression is
+`wc3_movement.public_ai_pair_recruits_match_original_captain_home`, with
+literal [369-commit input](../../../games/warcraft-3/game/tests/retail_captain_pair.h).
+
+Initial admission creates **two separate singleton target-follow owners**,
+not an initial shared formation. The AI-owned pool recruits the second-created
+unit first; `9cf680` prepends its retained roster link, so the final roster is
+first-created then second-created. Newest-first physical-owner visits therefore
+commit in creation order. OpenRealm reverses fresh pool admission and prepends
+its captain roster. Native owned-list ordering across edict reuse and ownership
+changes still needs its actual producer; the explicit TODO is GROUP-03.4.4.
+
+The first engine divergence was peer commit11 at1170ms: position/time matched,
+but heading and velocity differed. A virtual captain must remain a **target
+region** even while excluded as a blocker. Radius0 occupies one fine cell;
+fine expansion observes that region and finishes at its perimeter. Omitting
+`moveFineGraph_t.has_target` for the model-free actor admitted an extra route
+point and aimed at the raw home instead. Existing fine reconstruction and
+Follow routing kernels were correct; passing the actual target region restores
+all later motion without adjusting headings or authored destinations.
+
+Actual roster2 publishes membership radius850 world (800+25*2), plus each
+candidate's collision radius in the predicted strict circle test. Both enter
+on exact deadline`3ffffff8`. The first `9d9020` callback changes c4=0→1 and
+publishes no point task; the second changes1→2 and gates one two-pass batch.
+Both preparations share one wrapper/canonical request, count0 then1, policy1
+and bindShared1. All152 shared footprint updates publish31/32 through shared7c
+and pathb4. The final survivor retains this footprint after its peer finishes.
+
+Move now persists logical roster count, recruitment index and entered state.
+It retains independent follower groups until the all-entered gate, then uses
+its existing shared point admission and formation. Eight saves at
+1200/1500/1800/1995/2010/6000/6500/6525ms reproduce1648 suffix commits, including
+restoration after the peer completes. A bot-free1200ms restore adds355 exact
+suffix commits. Stop/replacement/removal before and after the handoff preserve
+the peer's actor reference and allow immediate save. Move departure now
+synchronously detaches its old group; previously Stop left an invalid captain
+target owner until the next update. Captain recreation retains the retired
+actor until both physical references end. Invalid count, duplicate/out-of-range
+member indices, entry bits and stale references fail validation. Save84 maps
+these fields and rejects prior layouts; network contracts are unchanged.
+
+The readonly verifier is
+[verify_wc3_captain_pair_trace.py](../../../tools/frida/verify_wc3_captain_pair_trace.py),
+with [frozen producer/membership/footprint input](../../../tools/ghidra/fixtures/retail-captain-pair-1.27.json).
+Rebuild the probe from the original interlude using
+`make_wc3_pathfinding_map.py --scenario captain_home --captain-peer`; its
+default AI source is `wc3_captain_pair_probe.ai`. Original captures use frozen
+`runtime/captain-pair-source-v1-261003`. A premature continue key produced no
+admitted AI journey and is diagnostic only; accepted captures continue at30s.
+
+This pair does not consume a retry: native path94/98 stay0 throughout. Forced
+pair retries, larger/mixed-radius batches, live attach/detach, moving captains,
+default town homes and broader AI restoration remain explicit backlog work.
+Saved Ghidra readback retains591 roles,48 layouts/307 fields,260 explicit ABIs,
+50 globals and`unsaved=false`.
+
+
+Payoff57 validation: full debug RoC/TFT and optimized RoC/TFT each pass794,650
+assertions/2391 tests. Required `make BUILD=release -j4 test` also passes the
+repository checks with native SDL2. All320 pathfinding Python checks,32 fresh
+contracts and275-entry/117-fixture inventory pass. Saved Ghidra readback confirms
+591 roles and `unsaved=false`. Fresh upstream is contained by the branch.

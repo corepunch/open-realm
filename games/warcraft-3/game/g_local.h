@@ -1775,10 +1775,13 @@ struct edict_s {
         bool clock_valid;
         struct {
             edict_t *actor; /* Retained virtual target, including the private point task after handoff. */
-            bool active; /* Stationary singleton captain membership waits for its retained range timer. */
+            bool active; /* Stationary captain membership waits for its retained range timer. */
+            bool entered; /* Native c4 membership gates the shared point batch. */
+            uint32_t member_index; /* Retained recruitment order, independent of edict allocation order. */
             vec2_t home;
             wc3Clock_t due;
         } captain_home;
+        uint32_t captain_actor_members; /* Actual logical roster count controls range and all-entered admission. */
         uint32_t captain_actor_type; /* Move-owned virtual category2 actor: captain selector1/2, otherwise0. */
         bool captain_actor_owned; /* Logical captain ownership persists independently of its process-owned AI VM. */
         bool type_rebind_pending; /* Retained point head waits for the next type-rebind task pass. */
