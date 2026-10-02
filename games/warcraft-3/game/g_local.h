@@ -1773,6 +1773,14 @@ struct edict_s {
         vec2_t pose_world; /* last published world pair; detects explicit external position writes */
         wc3Clock_t pose_clock; /* time origin of the retained fine pose */
         bool clock_valid;
+        struct {
+            edict_t *actor; /* Retained virtual target, including the private point task after handoff. */
+            bool active; /* Stationary singleton captain membership waits for its retained range timer. */
+            vec2_t home;
+            wc3Clock_t due;
+        } captain_home;
+        uint32_t captain_actor_type; /* Move-owned virtual category2 actor: captain selector1/2, otherwise0. */
+        bool captain_actor_owned; /* Logical captain ownership persists independently of its process-owned AI VM. */
         bool type_rebind_pending; /* Retained point head waits for the next type-rebind task pass. */
         wc3Clock_t type_rebind_deadline;
         bool turn_blocked;  /* translation decision from the heading error before this tick's turn */
@@ -2079,8 +2087,10 @@ typedef enum {
 
 typedef struct {
     ARRAY(edict_t *, units);
+    edict_t *home_actor; /* Move owns its occupancy and retained follower lifetime. */
     vec2_t home, goal;
     bool home_set, full;
+    wc3Clock_t created; /* Native range subscriptions begin when the virtual captain is created. */
     botCaptainState_t state;
 } botCaptain_t;
 
@@ -2672,6 +2682,7 @@ void S_SetUnitPosition(edict_t *, vec2_t const *);
 void S_InitUnitPosition(edict_t *, vec2_t const *);
 void S_RecoverStoppedUnitPosition(edict_t *);
 void S_PublishMovement(edict_t *);
+void S_RunMoveTimers(void);
 void S_SetUnitPaused(edict_t *, bool);
 uint32_t M_RefreshHeatmap(edict_t *, float);
 uint32_t M_RefreshHeatmapForMover(edict_t const *, edict_t *, float);
@@ -3349,6 +3360,10 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot);
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
 void S_IssueMoveOrder(edict_t *, edict_t *, uint32_t);
+bool S_IssueCaptainHomeMove(edict_t *, botCaptain_t const *);
+void S_SetCaptainHomeActor(botCaptain_t *, uint32_t, uint32_t);
+void S_ReleaseCaptainHomeActor(edict_t *);
+bool S_ValidateCaptainHomeActors(bool);
 bool S_IssueFollowOrder(edict_t *, edict_t *, uint32_t);
 bool move_is_active_order_walk(edict_t const *);
 void move_start_displacement(edict_t *, vec2_t const *);

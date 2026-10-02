@@ -1129,6 +1129,7 @@ static void G_RunFrame(void) {
         if (level.pathing_due) {
             G_RunPathOwner();
         }
+        S_RunMoveTimers();
         G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
         wc3_clock_advance(&level.pathing_clock, wc3_float(0x3ba3d70a), 0);
         level.pathing_phase = (level.pathing_phase + 1) % 6;
@@ -1142,6 +1143,7 @@ static void G_RunFrame(void) {
         G_RunPathOwner();
         M_SamplePoses();
     }
+    S_RunMoveTimers();
     G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
     G_UpdateTimerDialogs();
     G_UpdateLeaderboards();

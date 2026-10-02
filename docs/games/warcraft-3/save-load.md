@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 82, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 83, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -900,3 +900,13 @@ clipped group routing goal, route buffers and forced-arrival flag. Four
 checkpoints reproduce47 original outside-west suffix commits per variant,
 with Stop and replacement clearing force after restoration. No serialized
 layout changes are introduced. See [outside point goals](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click).
+
+Version83 retains Move's stationary captain membership callback phase, world
+home and mapped virtual-actor task reference. The hidden category2/radius0
+actor is a real server edict with persisted logical captain ownership.
+Recreating captains releases that ownership while outstanding physical tasks
+retain the old actor; Stop/replacement/removal release their references.
+These records do not serialize the bot JASS VM or its wider AI roster policy.
+Both178/250 native journeys have eight saved continuations each, including
+private point admission, final retry and forced arrival. Older versions are
+rejected. See [stationary captain callbacks](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy).

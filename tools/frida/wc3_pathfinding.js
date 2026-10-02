@@ -1337,6 +1337,25 @@ function install(module) {
         onLeave(){if(this.observe)emit('public-timer-rearm',{...this.row,after:ints(this.request,7).map(v=>v>>>0)});}
     });
     let captainScenario=false;
+    let captainRangeDepth=0;
+    const captainRanges=new Set();
+    const captainClock=()=>{const o=base.add(0xd53a48).readPointer();return {clock:ints(o.add(0x54),4).map(v=>v>>>0),counter:o.add(0x538).readU32()};};
+    const captainRegion=wrapper=>{
+        const id=wrapper.add(8).readU32(),epoch=wrapper.add(12).readU32(),alt=(id&0x80000000)!==0;
+        if(id===0xffffffff)throw new Error('captain range null identity');
+        const reg=base.add(0xd68610).readPointer(),index=id&0x7fffffff;
+        if(index>=reg.add(alt?0x3c:0x1c).readU32())throw new Error('captain range out of bounds');
+        const slot=reg.add(alt?0x2c:0xc).readPointer().add(index*8);
+        if(slot.readS32()!==-2)throw new Error('captain range not live');
+        const p=slot.add(4).readPointer();
+        if(p.isNull()||p.add(0x18).readU32()!==epoch)throw new Error('captain range stale identity');
+        return p;
+    };
+    const captainRangeState=p=>({region:p.toString(),identity:ints(p.add(0x14),2),radius:p.add(0x50).readU32(),flags:p.add(0x54).readU32(),eventCode:p.add(0x48).readU32(),policy:p.add(0x4c).readU32(),period:p.add(0x44).readU32(),request:p.add(0x1c).readPointer().isNull()?null:ints(p.add(0x1c).readPointer(),7),owner:p.add(0x40).readPointer().toString(),count:p.add(0x74).readU32()});
+    hook(0x9d0650,{onEnter(args){this.observe=captainScenario;if(!this.observe)return;captainRangeDepth++;this.p=this.context.ecx;emit('captain-roster-ranges-begin',{captain:this.p.toString(),counts:ints(this.p.add(0xb8),6),delta:args[1].toInt32(),globals:[0xd77f7c,0xd3c7f0,0xd3c7c8,0xd3c7dc,0xd77f84].map(rva=>base.add(rva).readU32()),...captainClock()});},onLeave(){if(this.observe){captainRangeDepth--;emit('captain-roster-ranges-end',{counts:ints(this.p.add(0xb8),6),...captainClock()});}}});
+    hook(0x063560,{onEnter(args){this.observe=captainRangeDepth>0;if(!this.observe)return;this.p=captainRegion(this.context.ecx);captainRanges.add(this.p.toString());this.row={requested:args[0].readU32(),before:captainRangeState(this.p),caller:this.returnAddress.sub(base).toUInt32(),...captainClock()};},onLeave(){if(this.observe)emit('captain-range-publish',{...this.row,after:captainRangeState(this.p)});}});
+    hook(0x15f210,{onEnter(args){this.p=this.context.ecx;this.observe=captainScenario&&captainRanges.has(this.p.toString());if(!this.observe)return;this.row={before:captainRangeState(this.p),flag:args[0].toUInt32(),stack:Thread.backtrace(this.context,Backtracer.ACCURATE).map(v=>v.sub(base).toString()),...captainClock()};},onLeave(){if(this.observe)emit('captain-range-update',{...this.row,after:captainRangeState(this.p)});}});
+    hook(0x9d9020,{onEnter(args){this.observe=captainScenario;if(!this.observe)return;this.p=this.context.ecx;this.row={captain:this.p.toString(),counts:ints(this.p.add(0xb8),6),packet:ints(args[0],6),stack:Thread.backtrace(this.context,Backtracer.ACCURATE).map(v=>v.sub(base).toString()),...captainClock()};emit('captain-range-enter-begin',this.row);},onLeave(){if(this.observe)emit('captain-range-enter-end',{...this.row,countsAfter:ints(this.p.add(0xb8),6)});}});
     for(const [name,rva] of [['start-wrapper',0x215d90],['load',0x9c0140],['compile',0x9cbc00],['create',0x9b9630],['init',0x9bc0f0],['add',0x9b79b0],['attack',0x9b88f0]])hook(rva,{onEnter(args){this.observe=captainScenario;if(this.observe)emit('captain-native-begin',{name,words:[args[0].toUInt32(),args[1].toUInt32()]});},onLeave(retval){if(this.observe)emit('captain-native-end',{name,result:retval.toUInt32()});}});
     hook(0x9d16c0,{onEnter(){if(captainScenario)emit('captain-update',{captain:this.context.ecx.toString(),state:this.context.ecx.add(0x64).readU32(),flags:this.context.ecx.add(0x6c).readU32(),order:this.context.ecx.add(0x70).readU32(),counts:ints(this.context.ecx.add(0xbc),5).map(v=>v>>>0),target:ints(this.context.ecx.add(0x114),2),roster:ints(this.context.ecx.add(0xac),2)});}});
     hook(0x9d1040,{onEnter(args){this.observe=captainScenario;if(this.observe){this.wrapper=args[1];this.count=args[3];this.index=args[2];emit('captain-prepare-begin',{unit:this.context.ecx.toString(),target:this.context.edx.toString(),point:args[0].isNull()?null:ints(args[0],2).map(v=>v>>>0),index:this.index.readU32(),count:this.count.readU32(),policy:args[4].toUInt32(),bindShared:args[5].toUInt32(),sharedWrapper:args[6].toString(),sharedIdentity:args[6].isNull()?null:ints(args[6].add(8),2)});}},onLeave(){if(this.observe){const p=this.wrapper.readPointer();emit('captain-prepare-end',{wrapper:p.toString(),identity:p.isNull()?null:ints(p.add(8),2),index:this.index.readU32(),count:this.count.readU32()});}}});

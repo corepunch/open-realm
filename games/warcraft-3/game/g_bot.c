@@ -12,6 +12,7 @@ static bot_t *G_BotState(uint32_t player) {
 
 static void G_BotClearCaptains(bot_t *bot) {
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
+        S_ReleaseCaptainHomeActor(bot->captains[i].home_actor);
         if (bot->captains[i].units) gi.MemFree(bot->captains[i].units);
         memset(bot->captains + i, 0, sizeof(bot->captains[i]));
     }
@@ -229,6 +230,7 @@ void G_BotCreateCaptains(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
     G_BotClearCaptains(bot);
+    FOR_LOOP(i, BOT_CAPTAIN_COUNT) bot->captains[i].created = level.pathing_clock;
 }
 
 /* Captain members remain in TownCount, so common.ai adds this count when requesting their replacements. */
@@ -267,7 +269,7 @@ void G_BotInitAssault(player_t *player) {
     if (!bot) return;
     captain = bot->captains + BOT_CAPTAIN_ATTACK;
     /* Native 9c7b10 only sets the formation flag; it retains the roster,
-     * desired count, home and active captain task. */
+     * member count, home and active captain task. */
     captain->full = true;
     if (captain->state == BOT_CAPTAIN_IDLE) captain->state = BOT_CAPTAIN_FORMING;
 #ifdef WC3_DEBUG_AI
@@ -296,11 +298,7 @@ static bool G_BotCaptainFill(player_t *player, botCaptainType_t type, int32_t qt
         unit->class_id == class_id && !unit->construction.active && !unit->training && !G_BotCaptainHasUnit(bot, unit)) {
         G_BotCaptainAdd(captain, unit); have++;
         if (type == BOT_CAPTAIN_ATTACK && captain->home_set) {
-            /* TODO: GROUP-03.4/FOOT-01.3: native admission initially follows
-             * the virtual captain before its private point-task handoff.
-             * This admits home travel; exact original travel is currently
-             * verified only before that later handoff. */
-            if (!G_IssueUnitPointOrder(unit, "move", &captain->home, false, PLAYER_NUM(player), 0))
+            if (!S_IssueCaptainHomeMove(unit, captain))
                 fprintf(stderr, "WC3 AI: captain home Move rejected player=%u unit=%u home=%g,%g\n",
                     PLAYER_NUM(player), unit->s.number, captain->home.x, captain->home.y);
         } else if (type == BOT_CAPTAIN_ATTACK) {
@@ -412,10 +410,12 @@ void G_BotSetCaptainHome(player_t *player, int32_t which, float x, float y) {
     if (which == 1 || which == 3) {
         bot->captains[BOT_CAPTAIN_ATTACK].home = home;
         bot->captains[BOT_CAPTAIN_ATTACK].home_set = true;
+        S_SetCaptainHomeActor(bot->captains+BOT_CAPTAIN_ATTACK,PLAYER_NUM(player),1);
     }
     if (which == 2 || which == 3) {
         bot->captains[BOT_CAPTAIN_DEFENSE].home = home;
         bot->captains[BOT_CAPTAIN_DEFENSE].home_set = true;
+        S_SetCaptainHomeActor(bot->captains+BOT_CAPTAIN_DEFENSE,PLAYER_NUM(player),2);
     }
 }
 

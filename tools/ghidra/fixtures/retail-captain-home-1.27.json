@@ -1,7 +1,7 @@
 {
   "version": 1,
   "target": "Warcraft III 1.27.1.7085",
-  "scope": "Stationary captain-home AI recruitment and InitAssault roster/home/full-flag retention, including recruitment shortfall/retry. Complete repeated native178 recruit commits plus2 virtual stopped commits; production engine matches initial33 admission commits and48 Save82 suffix commits only. Private membership/shared handoff at2s and moving virtual-captain lifecycle remain GROUP-03.4/FOOT-01.3; whole-engine parity explicitly false.",
+  "scope": "Complete stationary singleton captain home admission, membership-range callback, exact private handoff clock, zero-radius virtual target occupancy, final retry and natural arrival. Production normal-frame engine matches178 native commits and778 saved suffix commits. Moving captains, multiple recruits and default town-home production remain open.",
   "journeys": {
     "home": {
       "name": "home",
@@ -2733,7 +2733,7 @@
       1070141402
     ]
   ],
-  "engine_admission_commits": 33,
+  "engine_admission_commits": 178,
   "engine_admission_end_msec": 2000,
   "phases_sha256": "ed9ad726822c4ccb5b404fec22be393c23832de04a2d998d342630841a725e3b",
   "owner_counter": 1024,

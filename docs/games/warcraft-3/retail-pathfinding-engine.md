@@ -5508,3 +5508,78 @@ stack. The full repository suite passes with the native SDL2 library used by
 the debug runs (`runtime/captain-home-full-release-test-v2-261002.log`).
 No assertion was removed or weakened. Full private handoff parity remains
 explicitly open; backlog131 completed/185 open leaves.
+
+## Stationary captain range callback and zero-radius occupancy
+
+Payoff56: original `9d2f90` creates a category2 virtual actor
+with zero radius. Fine class0 still covers one cell. Original follower routing
+excludes that target; the private point task after `9d9020` includes it.
+The readonly blocker capture `captain-range-blocker-261002.jsonl` confirms the
+home actor at fine(163.5,91.5), category`01000002`/query`02000002`, causes12
+object rejections in a701-pop limited private point search. Initial follower
+search has no object rejections. Do not widen the stop radius to imitate this.
+
+Actual singleton roster count changes the range from800 to825 world units
+(`d3c7f0`, `d77f7c`=25). The four retained listeners at captain+74/+78/+7c/+80
+use412.5/1225/825/1025 world radii and.5/.5/1/1-second periods. Canonical
+region+48 is the event code, **not** the query's center. `15eac0` tests strict
+squared distance using both predicted poses and the candidate's positive
+radius. Equal boundary distance is outside. Region+1c retains its timer
+request; the phase starts when the captain is created.
+
+`0522e0` dispatches at the request's exact deadline then restores the primary
+clock. Native creation word`3f7ffff0` produces deadline`3ffffff8`; engine
+primary at2000ms is`3ffffff0`. Checking only the sampled clock fires5ms late
+and moves the physical unit an extra.75 world units. Move's callback now
+commits old velocity at the exact request clock before installing the point
+task. The ordinary engine journey matches all178 original commits and778
+saved suffix commits from eight states (1200/1500/1800/1995/2010/6255/6270/6300ms).
+Stop/replacement/removal and captain recreation retain/release the virtual
+target through Move-owned edict references. Save83 rejects older layouts and
+persists logical actor ownership plus physical timer/task references; bot VM
+execution is still process-owned. Moving captains, default AI town homes,
+multiple recruits and broader range-event routing remain open.
+
+Ghidra saved readback `captain-range-ghidra-readback-saved-261003.json`:590
+roles,48 partial layouts,307 fields,260 explicit x86 ABIs,50 globals,
+`unsaved=false`. New layouts distinguish16-byte listener bridge, canonical
+region prefix and12-byte occupant rows.
+
+The farther-source control starts at worldY=-1296 and enters on deadline
+`403ffffc` (about3s), instead of the near case's`3ffffff8` (about2s). Both
+original repeats retain identical complete physical/virtual phase hashes. The
+engine matches250 additional native commits and1033 saved suffix commits.
+An initial callback in the pose sampler ran before a due owner and differed
+by16 fine-coordinate ULPs at3000ms. Dispatch belongs **after** the due owner
+and before ordinary timer actions, matching the native event sequence.
+`S_RunMoveTimers` owns the task transition; `S_PublishMovement` stays observational.
+
+Reproduce the farther map with the bounded observer source archived as
+`captain-range-far-source-v1-261003`, sourceY=-1296, and
+`make_wc3_pathfinding_map.py --scenario captain_home --captain-source-y -1296`.
+The native player must remain COMPUTER in config before AI agent allocation.
+Read-only region probes are now retained in `wc3_pathfinding.js`; generic
+observer counts do not enumerate these diagnostic range events. Their full
+170-update timeline is independently checked by the captain-range verifier.
+
+A further restore control stops the process-owned AI VM, restores the1200ms
+physical snapshot, rebinds the saved logical captain actor and reproduces
+another171/243 native suffix commits. Initial tests failed the runtime actor
+link after load; rebinding belongs after edict restoration, while pre-save
+validation must leave runtime bot links unchanged. In-range stale entity
+references, duplicate actor ownership, invalid actor selectors and nonfinite
+active callback state are rejected by the shared validator. The bot VM is
+not needed for either complete physical journey. Total saved continuations
+are now2225 commits across the two source positions.
+
+Payoff56 final checks: debug RoC/TFT each pass770,701 assertions/2390 tests;
+optimized repository suites pass770,702 RoC/770,701 TFT assertions/2390 tests,
+plus generic repository checks with native SDL2. The invalid-reference fixture
+uses memcpy for serialized index words to preserve optimized strict-aliasing
+semantics. All309 pathfinding Python checks and31 fresh contracts (30 strict
+live entries plus the original map oracle) pass. Ghidra's saved readback
+remains590 roles/48 layouts/307 fields/260 ABIs/50 globals and`unsaved=false`.
+The fresh upstream fetch is fully contained; no upstream merge remains.
+Network contracts are unchanged; game save format is83. The next two-recruit
+shared request is explicitGROUP-03.4.2 and has repeated native evidence; it
+is not certified engine parity by this checkpoint.

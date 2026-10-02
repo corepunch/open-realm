@@ -81,6 +81,7 @@ static cstring_t const move_type_names[] = { "foot", "horse", "fly", "hover", "f
 typedef struct { edict_t *self; wc3RepulsePair_t pair; uint32_t category, rank; } moveRepulseQuery_t;
 static moveRepulseQuery_t *repulse_query;
 static edict_t *trymove_self = NULL;
+static void unit_predicted_pose(edict_t const *, wc3GridPose_t *);
 static moveGroup_t const *move_deciding_group;
 static uint32_t move_deciding_excluded;
 /* Registry identity survives callback-driven pool growth and save relocation. */
@@ -399,7 +400,7 @@ static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
         &self->movement.sampled_pose : NULL;
     moveGroupMember_t const *member=move_find_member(self);
     return (movePathQuery_t){ .geometry={&self->s.origin2,member ? &member->world_destination : point.point,point.radius,M_UnitStaticPathingFlags(self)},
-        .mover=self,.target=self->goalentity,.units=units,.fine=fine,.fine_target=member ? &member->destination : NULL };
+        .mover=self,.target=self->movement.captain_home.active ? self->movement.captain_home.actor : self->goalentity,.units=units,.fine=fine,.fine_target=member ? &member->destination : NULL };
 }
 
 static bool move_route_line(edict_t *self, moveRoutePoint_t point) {
@@ -517,6 +518,109 @@ static void unit_commit_pose(edict_t *self, wc3GridPose_t const *pose) {
         self->movement.pose_clock = level.pathing_clock;
         self->movement.clock_valid = true;
     }
+}
+
+/* Release the virtual target only after logical ownership and all physical
+ * task references end. Recreation may retire an actor with live followers. */
+static void move_free_unowned_captain_actor(edict_t *actor) {
+    if (!actor || !actor->inuse || actor->movement.captain_actor_owned) return;
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.actor==actor) return;
+    G_FreeEdict(actor);
+}
+
+static void move_release_captain_reference(edict_t *self) {
+    edict_t *actor=self->movement.captain_home.actor;
+    self->movement.captain_home.actor=NULL;
+    self->movement.captain_home.active=false;
+    move_free_unowned_captain_actor(actor);
+}
+
+void S_ReleaseCaptainHomeActor(edict_t *actor) {
+    if (!actor) return;
+    actor->movement.captain_actor_owned=false;
+    move_free_unowned_captain_actor(actor);
+}
+
+/* Native9d2f90 retains category2 with radius0. Fine occupancy still covers
+ * one cell; no model, ordinary unit data or client presentation is required. */
+void S_SetCaptainHomeActor(botCaptain_t *captain, uint32_t player, uint32_t type) {
+    if (ARRAY_COUNT(captain->units)) {
+        /* TODO GROUP-03.4: moving an established virtual captain owns a separate task. */
+        fprintf(stderr,"WC3 Move: changing an occupied captain home is unresolved player=%u type=%u\n",player,type);
+        return;
+    }
+    edict_t *actor=captain->home_actor;
+    if (!actor) actor=captain->home_actor=G_Spawn();
+    actor->svflags=SVF_NOCLIENT;
+    actor->s.player=player;
+    actor->movement.captain_actor_type=type;
+    actor->movement.captain_actor_owned=true;
+    actor->s.origin2=captain->home;
+    gi.LinkEntity(actor);
+}
+
+/* The logical actor and physical references are saved; the bot VM is not.
+ * Rebuild only runtime captain links and reject stale physical references. */
+bool S_ValidateCaptainHomeActors(bool rebind) {
+    edict_t *owners[MAX_PLAYERS][BOT_CAPTAIN_COUNT]={{0}};
+    FILTER_EDICTS(actor,actor->inuse && actor->movement.captain_actor_type) {
+        uint32_t type=actor->movement.captain_actor_type;
+        if (type>BOT_CAPTAIN_COUNT || actor->s.player>=MAX_PLAYERS || actor->collision!=0) return false;
+        if (!actor->movement.captain_actor_owned) continue;
+        edict_t **slot=&owners[actor->s.player][type-1];
+        if (*slot) return false;
+        *slot=actor;
+    }
+    FILTER_EDICTS(ent,ent->inuse) {
+        if (ent->movement.captain_actor_owned && !ent->movement.captain_actor_type) return false;
+        edict_t *actor=ent->movement.captain_home.actor;
+        if (ent->movement.captain_home.active && !actor) return false;
+        if (actor && (!actor->inuse || !actor->movement.captain_actor_type ||
+            actor->movement.captain_actor_type>BOT_CAPTAIN_COUNT)) return false;
+        if (ent->movement.captain_home.active &&
+            (!isfinite(ent->movement.captain_home.due.time) || !isfinite(ent->movement.captain_home.due.span) ||
+             ent->movement.captain_home.due.span<=0 || !isfinite(ent->movement.captain_home.home.x) ||
+             !isfinite(ent->movement.captain_home.home.y))) return false;
+    }
+    if (rebind) FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT)
+        level.bots[p].captains[c].home_actor=owners[p][c];
+    return true;
+}
+
+/* Strict predicted membership retains creation phase and exact timer deadline. */
+static void move_captain_home_update(edict_t *self) {
+    if (!self->movement.captain_home.active) return;
+    wc3Clock_t *due=&self->movement.captain_home.due,next=level.pathing_clock;
+    wc3_clock_advance(&next,wc3_float(0x3ba3d70a),0);
+    bool ready=next.epoch==due->epoch ? next.time>=due->time : (int32_t)(next.epoch-due->epoch)>0;
+    if (!ready) return;
+    /* Native0522e0 dispatches at the request's exact deadline, then restores
+     * the primary clock. Testing only the published quantum fires5ms late. */
+    wc3Clock_t now=level.pathing_clock;
+    level.pathing_clock=*due;
+    wc3_clock_advance(due,1,0);
+    wc3GridPose_t pose; unit_predicted_pose(self,&pose);
+    float target[2]={self->movement.captain_home.home.x,self->movement.captain_home.home.y};
+    float delta[2];
+    FOR_LOOP(k,2) delta[k]=wc3_sub(wc3_grid_coordinate(target[k],pose.origin[k],32),pose.grid[k]);
+    float radius=wc3_add(wc3_div(wc3_add(800,wc3_mul(25,1)),32),wc3_div(self->collision,32));
+    if (wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]))<wc3_mul(radius,radius)) {
+        self->movement.captain_home.active=false;
+        /* Native9d9020 replaces the private follower task: commit old velocity
+         * at this clock, then clear it before the next physical owner. */
+        edict_t *actor=self->movement.captain_home.actor;
+        /* Transfer this task reference across replacement before releasing it. */
+        self->movement.captain_home.actor=NULL;
+        S_IssueMoveOrder(self,self->goalentity,self->current_order_id);
+        self->movement.captain_home.actor=actor;
+    }
+    level.pathing_clock=now;
+}
+
+/* Dispatch after a due path owner, before ordinary timer/event actions. Pose
+ * sampling is observational and must not replace tasks ahead of that owner. */
+void S_RunMoveTimers(void) {
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.active) move_captain_home_update(ent);
 }
 
 /* Queries predict from the retained fine pose without committing its time origin. */
@@ -660,6 +764,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
 
 /* A different behavior must not inherit the previous Move's prediction velocity. */
 static void move_leave(edict_t *self) {
+    move_release_captain_reference(self);
     self->movement.point_forced_arrival=false;
     if (!self->movement.clock_valid) return;
     unit_commit_current_pose(self);
@@ -1781,6 +1886,7 @@ static uint32_t move_collect_selected(gameClient_t *client,
 }
 
 void move_reset_progress(edict_t *self) {
+    move_release_captain_reference(self);
     self->movement.type_rebind_pending=false;
     move_unlink_fine_request(self);
     /* Replacement/internal approaches own a new group plan. Reusing the last
@@ -2270,7 +2376,7 @@ static bool move_point_arrival(edict_t *ent) {
     vec2_t forecast = {pose.world[0], pose.world[1]};
     float cell = CM_PathCellWorldSize();
     float target[2] = {ent->goalentity->s.origin2.x, ent->goalentity->s.origin2.y};
-    wc3Arrival_t a = { .heading = ent->s.angle, .range = wc3_float(0x3efae148),
+    wc3Arrival_t a = { .heading = ent->s.angle, .range = ent->movement.captain_home.active ? wc3_div(wc3_mul(5,ent->collision),32) : wc3_float(0x3efae148),
         .flags = ent->movement.point_forced_arrival ? 0x10000u : 0 };
     /* Stock WPM cells are32. Preserve authoritative cell geometry for synthetic maps,
      * while the native retained pose remains in32-unit scalar coordinates. */
@@ -2530,6 +2636,32 @@ void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
     order_move(self, goal);
     if (self->goalentity == goal && self->currentmove == &move_move_walk)
         self->current_order_id = order_id;
+}
+
+/* AI admission remains a Move request. Saved physical state retains the
+ * singleton range callback even when the process-owned bot VM is absent. */
+bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
+    if (!captain->home_actor) {
+        fprintf(stderr,"WC3 Move: captain home has no retained virtual actor\n");
+        return false;
+    }
+    if (!G_IssueUnitPointOrder(self,"move",&captain->home,false,self->s.player,0)) return false;
+    if (ARRAY_COUNT(captain->units)!=1) {
+        /* TODO GROUP-03.4: moving virtual actors and all-member shared batches
+         * need their own roster/target lifetime; retain ordinary home admission. */
+        FOR_EACH_ARRAY(edict_t *, member, captain->units) (*member)->movement.captain_home.active=false;
+        fprintf(stderr,"WC3 Move: captain shared home handoff unresolved for %u members\n",ARRAY_COUNT(captain->units));
+        return true;
+    }
+    self->movement.captain_home.actor=captain->home_actor;
+    self->movement.captain_home.home=captain->home;
+    self->movement.captain_home.due=captain->created;
+    do wc3_clock_advance(&self->movement.captain_home.due,1,0);
+    while (self->movement.captain_home.due.epoch==level.pathing_clock.epoch ?
+        self->movement.captain_home.due.time<=level.pathing_clock.time :
+        (int32_t)(self->movement.captain_home.due.epoch-level.pathing_clock.epoch)<0);
+    self->movement.captain_home.active=true;
+    return true;
 }
 
 /* Individual owners keep stable addresses when callbacks grow the slot array. */
@@ -3132,6 +3264,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         ent->movement.fine_class=ent->s.player;
         move_repulse_init(ent); return true;
     case A_UNIT_REMOVE:
+        move_release_captain_reference(ent);
         move_unlink_fine_request(ent);
         move_detach_group(ent);
         FILTER_EDICTS(other,other->inuse && other->movement.wait_blocker==ent)

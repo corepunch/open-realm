@@ -1925,6 +1925,30 @@
           "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
         },
         {
+          "offset": 116,
+          "name": "inner_range",
+          "type": "ptr:WC3RangeListenerBridge",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 120,
+          "name": "outer_range",
+          "type": "ptr:WC3RangeListenerBridge",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 124,
+          "name": "member_enter_range",
+          "type": "ptr:WC3RangeListenerBridge",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 128,
+          "name": "member_leave_range",
+          "type": "ptr:WC3RangeListenerBridge",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
           "offset": 172,
           "name": "roster",
           "type": "WC3PathIdentity",
@@ -1995,6 +2019,120 @@
           "name": "additional_target",
           "type": "WC3PathIdentity",
           "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        }
+      ]
+    },
+    {
+      "name": "WC3RangeListenerBridge",
+      "length": 16,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 4,
+          "name": "references",
+          "type": "u32",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 8,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        }
+      ]
+    },
+    {
+      "name": "WC3RangeOccupant",
+      "length": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 8,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        }
+      ]
+    },
+    {
+      "name": "WC3RangeListenerPrefix",
+      "length": 120,
+      "fields": [
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 28,
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 32,
+          "name": "inactive",
+          "type": "u32",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 64,
+          "name": "owner",
+          "type": "ptr:WC3MoverPrefix",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 68,
+          "name": "period",
+          "type": "WC3PathScalar",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 72,
+          "name": "event_code",
+          "type": "u32",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 76,
+          "name": "policy",
+          "type": "u32",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 80,
+          "name": "radius",
+          "type": "WC3PathScalar",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 84,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 100,
+          "name": "occupants",
+          "type": "ptr:WC3RangeOccupant",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
+        },
+        {
+          "offset": 116,
+          "name": "occupant_count",
+          "type": "u32",
+          "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
         }
       ]
     }
@@ -6787,6 +6925,42 @@
         }
       ],
       "evidence": "Complete decoded9d1040 body and caller9d27c0/9d16c0; ECX/EDX plus7 stack arguments andRET1c. Original target requests pass null point; point requests publish X/Y words and singleton shared wrapper. Opaque target permits virtual-captain family without assuming a CUnit layout."
+    },
+    {
+      "address": "6f063560",
+      "name": "RangeListener_SetWorldRadius",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "listener",
+          "type": "ptr:WC3RangeListenerBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "world_radius",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots. Complete RET4 body."
+    },
+    {
+      "address": "6f15f210",
+      "name": "RangeListener_UpdateOccupants",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "ptr:WC3RangeListenerPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "notify",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots. Complete RET4 body."
     }
   ],
   "globals": [
@@ -7065,6 +7239,30 @@
       "name": "Chaos_CommitDelay",
       "type": "WC3PathScalar",
       "evidence": "4d8dc0/4d8d40 embedded timer argument; saved direct read raw3c23d70a=0.01."
+    },
+    {
+      "address": "6fd77f7c",
+      "name": "CaptainAI_MemberRangeStep25",
+      "type": "WC3PathScalar",
+      "evidence": "Decoded static initializer019880/001d50/019620/0196a0 and original range receiver snapshots."
+    },
+    {
+      "address": "6fd3c7f0",
+      "name": "Range_Base800",
+      "type": "WC3PathScalar",
+      "evidence": "Decoded static initializer019880/001d50/019620/0196a0 and original range receiver snapshots."
+    },
+    {
+      "address": "6fd77f9c",
+      "name": "CaptainAI_InnerRangePeriodHalf",
+      "type": "WC3PathScalar",
+      "evidence": "Decoded static initializer019880/001d50/019620/0196a0 and original range receiver snapshots."
+    },
+    {
+      "address": "6fd77f98",
+      "name": "CaptainAI_MemberRangePeriodOne",
+      "type": "WC3PathScalar",
+      "evidence": "Decoded static initializer019880/001d50/019620/0196a0 and original range receiver snapshots."
     }
   ]
 }

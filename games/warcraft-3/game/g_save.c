@@ -78,9 +78,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format82 retains standalone point forced arrival after partial-route retry
- * exhaustion, alongside type-rebind/timer cursors and physical cohort state. */
-static uint32_t const save_version = 82;
+/* Format83 retains the stationary captain-home membership phase and point
+ * task handoff through saved physical movement, independent of the bot VM. */
+static uint32_t const save_version = 83;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -932,6 +932,15 @@ field_t edict_fields[] = {
     F(edict_s, attack_cooldown_end_time, F_INT),
     F(edict_s, attack_backswing_end_time, F_INT),
     F(edict_s, unitinfo, F_STRUCT, 1, unit_info_fields),
+    F(edict_s, movement.captain_home.actor, F_EDICT, 0, 0),
+    F(edict_s, movement.captain_actor_type, F_INT),
+    F(edict_s, movement.captain_actor_owned, F_INT),
+    F(edict_s, movement.captain_home.active, F_INT),
+    F(edict_s, movement.captain_home.home.x, F_FLOAT),
+    F(edict_s, movement.captain_home.home.y, F_FLOAT),
+    F(edict_s, movement.captain_home.due.time, F_FLOAT),
+    F(edict_s, movement.captain_home.due.epoch, F_INT),
+    F(edict_s, movement.captain_home.due.span, F_FLOAT),
     F(edict_s, movement.type_rebind_pending, F_INT),
     F(edict_s, movement.type_rebind_deadline.time, F_FLOAT),
     F(edict_s, movement.type_rebind_deadline.epoch, F_INT),
@@ -2243,6 +2252,7 @@ bool WriteGame(cstring_t filename) {
     }
     bool ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
+    if (!S_ValidateCaptainHomeActors(false)) { fprintf(stderr,"WC3 SaveGame: invalid captain actor references\n"); goto done; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 SaveGame: invalid fine-request FIFO\n"); goto done; }
     if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
     if (!WriteMappedFields(f, level_fields, (uint8_t *)&level)) {
@@ -2381,6 +2391,7 @@ bool ReadGame(cstring_t filename) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
         }
     }
+    if (!S_ValidateCaptainHomeActors(true)) { fprintf(stderr,"WC3 LoadGame: invalid captain actor references\n"); fclose(f); return false; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
     if (!ReadMoveGroups(f)) { fprintf(stderr,"WC3 LoadGame: failed at physical Move groups\n"); fclose(f); return false; }
     /* Nested hashtable unit/item handles resolve here, after edict inuse is restored. */
@@ -2506,6 +2517,20 @@ fail:
     if (output) fclose(output);
     remove(output_path);
     return false;
+}
+
+TEST(wc3_save, rejects_invalid_captain_actor_reference) {
+    field_t const *field=NULL;
+    for(field_t const *f=edict_fields;f->name;f++)
+        if(!strcmp(f->name,"movement.captain_home.actor"))field=f;
+    T_NOT_NULL(field);if(!field)return;
+    edict_t raw={0};
+    int index=globals.num_edicts;
+    memcpy(&raw.movement.captain_home.actor,&index,sizeof(index));
+    T_ASSERT(!ReadField(field,(uint8_t *)&raw));
+    index=-2;
+    memcpy(&raw.movement.captain_home.actor,&index,sizeof(index));
+    T_ASSERT(!ReadField(field,(uint8_t *)&raw));
 }
 
 /* The raw curve tail is untrusted even after the outer checksum succeeds.
@@ -2770,8 +2795,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-79.bin",
         "/tmp/openwarcraft3-wc3-save-version-80.bin",
         "/tmp/openwarcraft3-wc3-save-version-81.bin",
+        "/tmp/openwarcraft3-wc3-save-version-82.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82 };
 
     reset_entities();
     setup_test_world();

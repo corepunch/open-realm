@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **273 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **56**
+The inventory now has **274 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **57**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -911,3 +911,25 @@ The inventory has273 entries,115 pinned fixtures and56 strict live contracts.
 capture contracts plus the original map oracle. Six source/map provenance
 checks pass. Engine and saved admission evidence, current limitations, owned
 probe setup and diagnostic exclusions are in [captain home integration](retail-pathfinding-engine.md#captain-home-recruitment-and-formation-retries-reach-move).
+
+## Stationary captain range and whole movement control
+
+`live-captain-range-captures-261003` preserves five original captures: two
+near-home repeats, one equivalent readonly blocker capture and two farther
+source repeats. All retain the170-update native range timeline and1000 owner
+callbacks. The near/far private handoff occurs at exact words`3ffffff8` and
+`403ffffc`; complete recruit motion has178 and250 commits respectively.
+The corpus fixture and verifier retain full references and immutable source/map
+hashes. The blocker capture preserves causal evidence: category2/radius0 home
+actor covers one cell, becomes eligible after private point handoff, and drives
+the limited search to701 pops with12 object rejections. Earlier v1/v2 range
+observers are diagnostic only; v2 overwrote an event discriminator with packet
+words. Use the corrected v3 source for admitted evidence.
+
+The earlier `live-captain-home-captures-261002` still retains six complete
+original journeys; its current engine claim now covers all178 commits rather
+than the initial33-only admission. Captured bytes and provenance have not changed.
+Moving actors, larger rosters, default town-home producers and general AI
+restoration remain explicit backlog work. See [engine payoff56](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy).
+
+Current payoff56 inventory:274 entries,116 pinned fixtures and57 strict live contracts.

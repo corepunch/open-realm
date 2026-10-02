@@ -21261,13 +21261,13 @@
           "equal": 1068
         },
         "engine_admission_commits": {
-          "equal": 198
+          "equal": 1068
         },
         "whole_engine_parity": {
-          "equal": false
+          "equal": true
         },
         "private_handoff_remains_open": {
-          "equal": true
+          "equal": false
         }
       },
       "capture_failures": [],
@@ -21277,7 +21277,7 @@
         "C",
         "L"
       ],
-      "scope": "Stationary captain-home AI recruitment and InitAssault roster/home/full-flag retention, including recruitment shortfall/retry. Complete repeated native178 recruit commits plus2 virtual stopped commits; production engine matches initial33 admission commits and48 Save82 suffix commits only. Private membership/shared handoff at2s and moving virtual-captain lifecycle remain GROUP-03.4/FOOT-01.3; whole-engine parity explicitly false.",
+      "scope": "Complete stationary singleton captain home admission, membership-range callback, exact private handoff clock, zero-radius virtual target occupancy, final retry and natural arrival. Production normal-frame engine matches178 native commits and778 saved suffix commits. Moving captains, multiple recruits and default town-home production remain open.",
       "exclusions": [
         "Full engine private membership/shared task handoff at2s",
         "Moving virtual captains and CaptainGoHome",
@@ -21521,6 +21521,293 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-captain-range-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_captain_range_trace.py",
+        "{archive}/runtime/captain-range-v3-first-261002.jsonl",
+        "{archive}/runtime/captain-range-v3-repeat-261002.jsonl",
+        "{archive}/runtime/captain-range-blocker-261002.jsonl",
+        "{archive}/runtime/captain-range-far-v1-first-261003.jsonl",
+        "{archive}/runtime/captain-range-far-v1-repeat-261003.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-captain-range-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_captain_range_far.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "captain-range-captures.json",
+      "inputs": {
+        "capture": "runtime/captain-range-v3-first-261002.jsonl",
+        "sha256": "185397928d93e2319495a578d114c74d1a3ef212c6afb8a186c96d2f3782b6f2",
+        "bytes": 6592971,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+            "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+            "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+            "make_wc3_pathfinding_map.py": "af8dac2485358b3700a41e6be5cc0a2bec18194e7474c053c608c6a0c1698bfc",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "f96451bb42ce9c042c3970878b452b194c584e6a0580e96e2cdc731f7e22f630"
+          },
+          "map": "Maps\\PathingRE-CaptainHomeV2-261002.w3m",
+          "seconds": 70.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "expected_exit": 0,
+      "expected_status": "pass",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 5
+        },
+        "recruit_commits": {
+          "equal": 1034
+        },
+        "range_updates": {
+          "equal": 850
+        },
+        "range_enters": {
+          "equal": 5
+        },
+        "owner_callbacks": {
+          "equal": 5000
+        },
+        "whole_engine_parity": {
+          "equal": true
+        },
+        "virtual_blocker_controls": {
+          "equal": 1
+        }
+      },
+      "scope": "Complete stationary singleton home journeys with two and three second membership callbacks. Full178/250 literal commits and saved continuations are exercised by production normal-frame C tests. Five original readonly range captures repeat full physical/virtual phases; one capture additionally proves zero-radius virtual actor occupancy. Moving captains, larger rosters and default AI homes remain open.",
+      "evidence": "SOCL",
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-range-v3-repeat-261002.jsonl",
+            "sha256": "daf481486a53a99e07f9911a79f9f5fd663c69cf65ed6081d6fb47351c753bdc",
+            "bytes": 6590912,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+                "make_wc3_pathfinding_map.py": "af8dac2485358b3700a41e6be5cc0a2bec18194e7474c053c608c6a0c1698bfc",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "f96451bb42ce9c042c3970878b452b194c584e6a0580e96e2cdc731f7e22f630"
+              },
+              "map": "Maps\\PathingRE-CaptainHomeV2-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-range-blocker-261002.jsonl",
+            "sha256": "eee265af96952bc7c7a802d33174578173d0a80151c74764aad03ce633bc2e81",
+            "bytes": 6542652,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+                "make_wc3_pathfinding_map.py": "af8dac2485358b3700a41e6be5cc0a2bec18194e7474c053c608c6a0c1698bfc",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "f96451bb42ce9c042c3970878b452b194c584e6a0580e96e2cdc731f7e22f630"
+              },
+              "map": "Maps\\PathingRE-CaptainHomeV2-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": true,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-range-far-v1-first-261003.jsonl",
+            "sha256": "9be12f5fe4cedbbceef59da90222ceefb3ee6da8eb2b06cf41babaa91c6d114b",
+            "bytes": 6991631,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+                "make_wc3_pathfinding_map.py": "1a5481a9c86968e293115ef9477a49f94f206113d3768b3dd0d4ba6557819150",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "79a6685ab796c1c000e1cd0d57c27e8b63819d5bc315bc04322f96bc765c5405"
+              },
+              "map": "Maps\\PathingRE-CaptainFarV1-261003.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-range-far-v1-repeat-261003.jsonl",
+            "sha256": "b8b5c56e0307006ef04e86cb723fa482d60662b734e9a36d9b7dc884a2ba852a",
+            "bytes": 7114204,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+                "make_wc3_pathfinding_map.py": "1a5481a9c86968e293115ef9477a49f94f206113d3768b3dd0d4ba6557819150",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "79a6685ab796c1c000e1cd0d57c27e8b63819d5bc315bc04322f96bc765c5405"
+              },
+              "map": "Maps\\PathingRE-CaptainFarV1-261003.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -21586,7 +21873,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "e26c15ac5a67399920ecd7c9b5d3f3f74d732a54ca37f7b388d12bdf411d64e5"
+      "sha256": "c047009e3116d088b7022ba06542c05d50aa85e8b76c0b254d5a7a9f9ab53337"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -21983,7 +22270,11 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain-home-1.27.json",
-      "sha256": "0ee2241d1c37eac0264a5f9acc376a6c299f1b67c19f291a3cdc199620250ca4"
+      "sha256": "833e6a5b1267913c125b7e8f0028c7ba2bf3f8c55e444a2375d06dc1e08e99ab"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-range-1.27.json",
+      "sha256": "e11da7a6d5c7c5e5669ef616fe80e281e95027fc7882c41d94f2f6ada43c5c71"
     }
   ]
 }

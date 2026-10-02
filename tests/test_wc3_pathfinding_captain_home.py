@@ -1,4 +1,4 @@
-"""Captain evidence must retain the native private handoff and its engine gap."""
+"""Captain evidence must retain the complete native private handoff journey."""
 import copy
 import json
 from pathlib import Path
@@ -44,7 +44,7 @@ class CaptainHomeTests(unittest.TestCase):
     def test_whole_recruit_reference_is_not_truncated_to_engine_admission(self):
         f = self.fixture
         self.assertEqual(len(f['motion']), 178)
-        self.assertEqual(f['engine_admission_commits'], 33)
+        self.assertEqual(f['engine_admission_commits'], 178)
         self.assertEqual(f['engine_admission_end_msec'], 2000)
         self.assertEqual((ROOT/'games/warcraft-3/game/tests/retail_captain_home.h').read_text(), render_header(f))
 

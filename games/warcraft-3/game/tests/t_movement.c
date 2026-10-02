@@ -44,6 +44,7 @@
 #include "retail_blocked_goal.h"
 #include "retail_outside_goal.h"
 #include "retail_captain_home.h"
+#include "retail_captain_range_far.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -11122,10 +11123,7 @@ static void public_group_radius_journey(unsigned scenario, uint32_t const (*moti
 }
 
 static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motion)[7], unsigned count) {
-    bool blocked=goal_case==0,captain=goal_case==2;
-    /* Captain admission matches through the first private follower handoff.
-     * Its full178-commit reference remains in the fixture for the open gap. */
-    if(captain)count=CAPTAIN_HOME_ADMISSION_COMMITS;
+    bool blocked=goal_case==0,captain=goal_case>=2,far=goal_case==3;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities();setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
@@ -11147,28 +11145,32 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
         "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
         "if tick==10 then\n%s\nendif\nendfunction\n"
         "function main takes nothing returns nothing\nlocal integer gx=0\nlocal integer gy=0\n"
-        "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,%g)\n"
+        "set mover=CreateUnit(Player(0),'hBGM',-1936,%g,90)\ncall SetUnitMoveSpeed(mover,%g)\n"
         "loop\nexitwhen gx==%u\nset gy=0\nloop\nexitwhen gy==5\n"
         "call SetTerrainPathable(-2000+I2R(gx)*32,-208+I2R(gy)*32,PATHING_TYPE_WALKABILITY,false)\n"
         "set gy=gy+1\nendloop\nset gx=gx+1\nendloop\n"
-        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",captain ? "call StartCampaignAI(Player(0),\"test_captain_home.ai\")" : blocked ? "call IssuePointOrder(mover,\"move\",-1936,-144)" : "call IssuePointOrder(mover,\"move\",-7400,-976)",blocked || captain ? 100. : 522.,blocked ? 5u : 0u);
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",captain ? "call StartCampaignAI(Player(0),\"test_captain_home.ai\")" : blocked ? "call IssuePointOrder(mover,\"move\",-1936,-144)" : "call IssuePointOrder(mover,\"move\",-7400,-976)",far ? -1296. : -976.,blocked || captain ? 100. : 522.,blocked ? 5u : 0u);
     T_ASSERT(run_test_jass(script));
     edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)unit=ent;
     T_NOT_NULL(unit);level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
-    cstring_t files[]={"/tmp/wc3-blocked-goal-before-partial.bin","/tmp/wc3-blocked-goal-retry.bin","/tmp/wc3-blocked-goal-forced.bin","/tmp/wc3-blocked-goal-final-turn.bin"};
+    cstring_t files[8]={"/tmp/wc3-blocked-goal-before-partial.bin","/tmp/wc3-blocked-goal-retry.bin","/tmp/wc3-blocked-goal-forced.bin","/tmp/wc3-blocked-goal-final-turn.bin"};
     if(captain) {
         files[0]="/tmp/wc3-captain-home-1200.bin";files[1]="/tmp/wc3-captain-home-1500.bin";
         files[2]="/tmp/wc3-captain-home-1800.bin";files[3]="/tmp/wc3-captain-home-1995.bin";
+        files[4]="/tmp/wc3-captain-home-2010.bin";files[5]="/tmp/wc3-captain-home-6255.bin";
+        files[6]="/tmp/wc3-captain-home-6270.bin";files[7]="/tmp/wc3-captain-home-6300.bin";
     }
-    unsigned save_times[]={captain ? 1200 : blocked ? 6000 : 5500,captain ? 1500 : blocked ? 7110 : 6630,captain ? 1800 : blocked ? 7140 : 6660,captain ? 1995 : blocked ? 7170 : 6690},saved_steps[4]={0},suffix_steps=0;
-    FOR_LOOP(pass,5) {
+    unsigned saves=captain ? 8 : 4;
+    unsigned save_times[]={captain ? 1200 : blocked ? 6000 : 5500,captain ? 1500 : blocked ? 7110 : 6630,captain ? 1800 : blocked ? 7140 : 6660,captain ? 1995 : blocked ? 7170 : 6690,2010,6255,6270,6300},saved_steps[8]={0},suffix_steps=0;
+    if(far)memcpy(save_times,(unsigned[]){1200,2000,2500,2995,3010,8415,8430,8460},sizeof(save_times));
+    FOR_LOOP(pass,saves+1) {
     if(pass) {
         bool loaded=ReadGame(files[pass-1]);T_ASSERT(loaded);if(!loaded)break;
         steps=saved_steps[pass-1];
     }
-    while(level.time<(captain ? CAPTAIN_HOME_HANDOFF_MSEC : 31000) && !mismatch) {
+    while(level.time<31000 && !mismatch) {
         trace.count=0;level.time+=5;globals.RunFrame();
         FOR_LOOP(i,trace.count) {
             T_ASSERT(steps<count);if(steps>=count){mismatch=true;break;}
@@ -11176,23 +11178,27 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
             FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
             if(mismatch)fprintf(stderr,"Blocked goal commit%u time%d actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x retry%u wait%u fine%u/%u coarse%u/%u goal%.9g,%.9g\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6],unit->movement.retry_count,unit->movement.wait_delay,unit->movement.fine_route.count,unit->movement.fine_route.index,unit->movement.fine_route.group_count,unit->movement.fine_route.group_index,unit->goalentity?unit->goalentity->s.origin2.x:0,unit->goalentity?unit->goalentity->s.origin2.y:0);
         }
-        if(!pass && !mismatch)FOR_LOOP(i,4)if(level.time==save_times[i]) {
+        if(!pass && !mismatch)FOR_LOOP(i,saves)if(level.time==save_times[i]) {
             saved_steps[i]=steps;
             if(!captain && i==(blocked ? 1 : 2)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);T_ASSERT(!unit->movement.point_forced_arrival);}
             if(!captain && i>=(blocked ? 2 : 3)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,1);T_ASSERT(unit->movement.point_forced_arrival);}
+            if(captain) {
+                edict_t *actor=unit->movement.captain_home.actor;
+                T_NOT_NULL(actor);T_ASSERT(actor && actor->inuse);
+                if(actor){T_EQ(actor->collision,0);T_EQ(actor->movement.captain_actor_type,1);T_ASSERT(actor->svflags&SVF_NOCLIENT);}
+                T_EQ(unit->movement.captain_home.active,i<4);
+                if(i==6){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);}
+                if(i==7){T_EQ(unit->movement.retry_count,1);T_ASSERT(unit->movement.point_forced_arrival);}
+            }
             T_ASSERT(WriteGame(files[i]));
         }
     }
     T_EQ(steps,count);T_ASSERT(!jass_rterror_pending(level.vm));
-    if(!mismatch){T_EQ(unit->current_order_id,captain ? G_OrderId("move") : 0);T_ASSERT(!unit->movement.point_forced_arrival);T_EQ(unit->movement.clock_valid,captain);}
+    if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->movement.point_forced_arrival);T_ASSERT(!unit->movement.clock_valid);}
     if(pass)suffix_steps+=steps-saved_steps[pass-1];
     }
-    fprintf(stderr,"Point goal case=%u exact commits=%u Save82 suffix commits=%u\n",goal_case,count,suffix_steps);
+    fprintf(stderr,"Point goal case=%u exact commits=%u saved suffix commits=%u\n",goal_case,count,suffix_steps);
     if(captain && !mismatch) {
-        /* End-to-end home arrival is functional here; the native private
-         * handoff after2s remains a separate numerical parity obligation. */
-        while(level.time<31000){trace.count=0;level.time+=5;globals.RunFrame();}
-        T_EQ(unit->current_order_id,0);T_ASSERT(!unit->movement.clock_valid);
         FOR_LOOP(i,3) {
             T_ASSERT(ReadGame(files[0]));
             if(i==2){G_FreeEdict(unit);level.time+=5;globals.RunFrame();T_ASSERT(!unit->inuse);}
@@ -11204,6 +11210,32 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
             }
         }
     }
+    if(captain && !mismatch) {
+        T_ASSERT(ReadGame(files[0]));
+        edict_t *old_actor=unit->movement.captain_home.actor;
+        T_NOT_NULL(old_actor);
+        G_BotCreateCaptains(G_GetPlayerByNumber(0));
+        T_ASSERT(old_actor->inuse);T_ASSERT(!old_actor->movement.captain_actor_owned);
+        T_ASSERT(unit->movement.captain_home.actor==old_actor);
+        G_BotSetCaptainHome(G_GetPlayerByNumber(0),1,-1904,-144);
+        edict_t *new_actor=level.bots[0].captains[BOT_CAPTAIN_ATTACK].home_actor;
+        T_NOT_NULL(new_actor);T_NE(new_actor,old_actor);
+        T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        T_NULL(unit->movement.captain_home.actor);T_ASSERT(!old_actor->inuse);T_ASSERT(new_actor->inuse);
+        G_BotStop(0);T_ASSERT(!new_actor->inuse);
+        T_ASSERT(ReadGame(files[0]));T_NULL(level.bots[0].vm);
+        T_ASSERT(level.bots[0].captains[BOT_CAPTAIN_ATTACK].home_actor==unit->movement.captain_home.actor);
+        unsigned resumed=saved_steps[0];
+        while(level.time<31000) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(resumed<count);if(resumed>=count)break;
+                uint32_t const *expected=motion[resumed++];
+                FOR_LOOP(k,7)T_EQ(trace.rows[i][k],expected[k]);
+            }
+        }
+        T_EQ(resumed,count);T_EQ(unit->current_order_id,0);
+    }
     /* Author a separate cancellation/replacement from the naturally forced
      * saved state; a new command must not inherit its range override. */
     if(!captain && !mismatch)FOR_LOOP(i,2) {
@@ -11212,7 +11244,7 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
         else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
         T_ASSERT(!unit->movement.point_forced_arrival);
     }
-    FOR_LOOP(i,4)remove(files[i]);
+    FOR_LOOP(i,saves)remove(files[i]);
     move_test_motion_commit=NULL;follow_commit_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0);level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
@@ -11229,6 +11261,10 @@ TEST(wc3_movement, public_move_matches_original_outside_west_goal) {
 
 TEST(wc3_movement, public_ai_recruit_matches_original_captain_home_admission) {
     public_point_goal_journey(2,captain_home_motion,sizeof(captain_home_motion)/sizeof(*captain_home_motion));
+}
+
+TEST(wc3_movement, public_ai_recruit_matches_original_farther_captain_home) {
+    public_point_goal_journey(3,captain_range_far_motion,sizeof(captain_range_far_motion)/sizeof(*captain_range_far_motion));
 }
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {

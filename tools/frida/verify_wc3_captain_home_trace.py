@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify captain home admission while keeping the later engine handoff gap explicit."""
+"""Verify the complete stationary singleton captain home journey."""
 import argparse
 import ctypes
 import hashlib
@@ -85,12 +85,12 @@ def verify_capture(rows, fixture, case, engine):
         raise ValueError('captain literal admission/whole recruit motion differs')
     if digest(canonical(rows)) != fixture['phases_sha256']:
         raise ValueError('captain whole physical/virtual phase words differ')
-    if len(fixture['motion']) != 178 or fixture['engine_admission_commits'] != 33:
+    if len(fixture['motion']) != 178 or fixture['engine_admission_commits'] != 178:
         raise ValueError('captain reference and engine admission extents differ')
     result = verify_motion(rows, engine, None)
     result.update(verify_primary(rows, engine, fixture))
-    result.update(recruit_commits=178, engine_admission_commits=33,
-                  whole_engine_parity=False, private_handoff_remains_open=True)
+    result.update(recruit_commits=178, engine_admission_commits=178,
+                  whole_engine_parity=True, private_handoff_remains_open=False)
     return result
 
 
@@ -112,7 +112,7 @@ def main():
     if a.check_engine_header and a.check_engine_header.read_text() != render_header(fixture):
         raise ValueError('captain C reference differs')
     report = dict(passed=True, cases=len(results), results=results, scope=fixture['scope'],
-                  whole_engine_parity=False, private_handoff_remains_open=True)
+                  whole_engine_parity=True, private_handoff_remains_open=False)
     for key in ('exact_velocity_commits', 'exact_decisions', 'owner_callbacks', 'recruit_commits', 'engine_admission_commits'):
         report[key] = sum(r[key] for r in results)
     a.report.write_text(json.dumps(report, indent=2)+'\n'); print(json.dumps(report, indent=2))

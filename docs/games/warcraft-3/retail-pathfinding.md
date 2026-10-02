@@ -440,3 +440,18 @@ one-second engine retry timer. Virtual captain pathing category2 and radius0
 must remain distinct from ordinary unit profiles. Default homes come from
 an AI town object, and CaptainGoHome retains moving virtual actors and their
 follower tasks. Both producers and their whole engine lifetimes remain open.
+
+### Stationary captain membership timer and virtual occupancy (payoff56)
+
+The two/farther source controls recover `063560` world/fine radius publication,
+`15f210` retained range scans, `15eac0` strict predicted circle admission and
+`9d9020` private task handoff. The captain's four listeners retain actual roster
+range producers and creation-phase periods; exact timer deadlines execute after
+a due owner. A zero-radius category2 virtual actor still owns a single fine cell
+and remains a blocker after the follower switches to a point task. Original
+blocker capture identifies that same canonical owner rather than inferring it
+from the stop position. Ghidra now saves590 descriptive roles,48 partial
+layouts/307 fields,260 explicit ABIs and50 globals. Complete production movement
+and save/lifetime payoff is recorded in [engine integration](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy).
+Larger rosters, moving actors, default town-home producers and general bot
+restoration remain separate tasks; this stationary motion contract is bounded.

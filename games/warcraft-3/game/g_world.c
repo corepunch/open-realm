@@ -196,15 +196,20 @@ static vec2_t move_object_point(edict_t const *ent) {
 /* TODO: the complete authored category table is BASE-02. This game adapter
  * uses the observed foot/horse/hover/float/amph categoryca;
  * flyers and disabled rows publish0. Buildings/destructables already own static footprints. */
+static bool move_has_dynamic_occupancy(edict_t const *ent) {
+    if (ent->movement.captain_actor_type) return ent->inuse;
+    return !IS_HOLLOW(ent) && ent->data.UnitData && !G_UnitIsStructure(ent) &&
+        !M_UnitMoveDisabled(ent) && ent->collision>0 && !(ent->aiflags&AI_FLYING);
+}
+
 static bool move_object_collect(edict_t const *ent) {
     moveFineGraph_t *graph = move_scan->graph;
     movePathQuery_t const *query = move_scan->query;
-    if (ent == query->mover || ent == query->target || IS_HOLLOW(ent) || !ent->data.UnitData ||
-        G_UnitIsStructure(ent) || M_UnitMoveDisabled(ent) || ent->collision <= 0 || (ent->aiflags & AI_FLYING)) return false;
-    uint32_t flags = S_UnitMoveFineObjectFlags(ent);
+    if (ent==query->mover || ent==query->target || !move_has_dynamic_occupancy(ent)) return false;
+    uint32_t flags=ent->movement.captain_actor_type ? 0 : S_UnitMoveFineObjectFlags(ent);
     uint32_t mask = graph->flags;
     mask |= mask << 24;
-    if (!wc3_fine_object_blocks((wc3FineObject_t){0x010000ca, flags, true}, mask, graph->endpoint)) return false;
+    if (!wc3_fine_object_blocks((wc3FineObject_t){ent->movement.captain_actor_type ? 0x01000002 : 0x010000ca, flags, true}, mask, graph->endpoint)) return false;
     vec2_t n = move_object_point(ent);
     wc3FinePoint_t point = { (int)floorf(n.x), (int)floorf(n.y) };
     assert(graph->objects < MAX_ENTITIES);
@@ -516,8 +521,8 @@ static bool move_collect_blocker_cell(void const *data, wc3FinePoint_t pos) {
         scan->items[scan->count++]=NULL;
         return true;
     }
-    FILTER_EDICTS(ent,ent->inuse && ent!=scan->query->mover && !IS_HOLLOW(ent) && ent->data.UnitData &&
-        !G_UnitIsStructure(ent) && ent->collision>0 && (entity_dynamic_pathing_flags(ent)&mask)) {
+    FILTER_EDICTS(ent,ent->inuse && ent!=scan->query->mover && ent!=scan->query->target &&
+        move_has_dynamic_occupancy(ent) && ((ent->movement.captain_actor_type ? 2 : entity_dynamic_pathing_flags(ent))&mask)) {
         vec2_t point=move_object_point(ent);
         wc3FineBox_t box=wc3_fine_cover(wc3_fine_class(ent->collision/pathmap_cell_world_size()),
             (wc3FinePoint_t){(int)floorf(point.x),(int)floorf(point.y)});

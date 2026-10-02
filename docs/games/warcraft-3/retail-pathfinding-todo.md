@@ -8,15 +8,16 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**131 done / 316 tasks; 185 remaining.** Payoff55 ports captain home/roster
-retention and the formation-full flag, removes phantom request accumulation,
-and admits authored-home recruits through Move. Six repeated native captures
-retain the whole178-commit reference; engine admission matches33 commits and48
-Save82 suffix commits. GROUP-03.4.1 stays open: private membership/shared task
-handoff at2s first differs at commit33/2010ms and must be ported before closing
-its complete journey. Default town-home production also remains explicit.
-Full debug/release RoC/TFT and repository checks,299 Python checks,29 fresh
-capture contracts plus the map oracle and saved Ghidra readback pass.
+**132 done / 317 tasks; 185 remaining.** Payoff56 completes the stationary
+singleton captain home journey: exact creation-phase range callback, private
+point handoff, zero-radius category2 actor occupancy, retry and natural arrival.
+The two source positions match178/250 native commits and2225 saved suffix
+commits, including restores after stopping the bot VM. Ghidra retains590 roles,
+48 layouts/307 fields,260 explicit ABIs and50 globals. Larger shared rosters,
+moving captains and default town-home production remain open; the next bounded
+shared two-recruit port is explicitly split intoGROUP-03.4.2.
+Full debug/release RoC/TFT and repository checks,309 Python checks and31 fresh
+corpus contracts pass. The saved Ghidra readback and pinned inventory also pass.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -156,7 +157,7 @@ NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | GROUP-03.4.1 | Native membership callback and stationary-home private handoff | Port target-to-point clock flush and match all178 original commits plus saved continuations |
+| 1 | GROUP-03.4.2 | Verified singleton actor/timer and original shared request chain | Port a complete stationary two-recruit shared home journey with saved continuations |
 | 2 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Virtual captain/follower producer plus shared publication and saved travel |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
@@ -713,7 +714,8 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [ ] **GROUP-03.2** Trace group bit800 and speed-cap exemption producers; exercise target-speed adjustment with both exempt and capped members.
 - [ ] **GROUP-03.3** Grow the shared auxiliary pool, change the largest member radius, then remove it; assert publication and allocation recovery.
 - [ ] **GROUP-03.4** Run Captain AI attach/detach during movement; assert its shared-cap and delay ownership/inverse. Stationary authored-home recruit admission is split into03.4.1; CaptainGoHome, live shared attachment, virtual moving captain and follower task handoffs remain required here.
-- [ ] **GROUP-03.4.1** Preserve authored captain home/roster/goal through InitAssault, implement its formation flag and admit AddAssault recruits toward home through Move; match complete stationary single-ground-member normal/saved travel plus Stop/replacement/removal. [Payoff55](retail-pathfinding-engine.md#captain-home-recruitment-and-formation-retries-reach-move) ports state policy and initial33-commit/48-saved-suffix admission, retaining the whole178-row native reference. Still required: native virtual-target range5*radius, membership-range callback9d9020 and private shared point-task handoff at2s, whose missing pose-clock flush first diverges at commit33/2010ms. Default AI town homes, CaptainGoHome, moving virtual captains, larger shared batches and wider AI lifetime remain03.4/FOOT-01.3.
+- [x] **GROUP-03.4.1** Retain authored captain home/roster/goal through InitAssault, formation flag and AddAssault admission; complete stationary singleton home travel through the private range callback and point handoff. [Payoff56](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy) matches complete178/250 native commits from two source positions and2225 saved suffix commits, including exact2s/3s deadlines, post-owner callback ordering, zero-radius category2 occupancy, retry/forced arrival, Stop/replacement/removal, captain recreation and bot-free restore. Saved Ghidra annotations and strict repeated native/blocker evidence persist. Default AI town homes, moving captains, larger shared batches and wider AI lifetime remain03.4/FOOT-01.3.
+- [ ] **GROUP-03.4.2** Compose a stationary two-ground-recruit home journey from the verified singleton actor/timer. Retain original shared target/point request membership and shared7c publication, compare every physical commit and native membership callback, then restore before/after shared admission and retry. Larger mixed-radius rosters, live attach/detach and moving captain lifetimes remain03.4/FOOT-01.3.
 
 ### GROUP-04 — Membership mutation
 
