@@ -872,6 +872,12 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     return true;
 }
 
+/* Command-card casts bypass G_IssueUnit*Order, so report the accepted spell
+ * order to innate owners such as Stop's guard point the same way. */
+static void spell_order_accepted(edict_t *caster, ability_t const *spell) {
+    S_UnitAbilityOrderAccepted(caster, spell->orders && *spell->orders ? *spell->orders : spell->classname);
+}
+
 /* Called when user clicks a target entity for a UNIT-target spell. */
 static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
@@ -891,15 +897,19 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     if (!S_SpellAllowsTarget(code, caster, target)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
 
-    if (!S_SpellTargetInRange(caster, target, range))
-        return spell_begin_target_approach(caster, code, target, NULL,
-                                           source_item, source_item_spawn_time);
+    if (!S_SpellTargetInRange(caster, target, range)) {
+        if (!spell_begin_target_approach(caster, code, target, NULL, source_item, source_item_spawn_time)) return false;
+        spell_order_accepted(caster, spell);
+        return true;
+    }
 
     spellUnitTargetParams_t params = {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = target,
         .source_item = source_item, .source_item_spawn_time = source_item_spawn_time
     };
-    return spell_execute_unit_target(&params, NULL);
+    if (!spell_execute_unit_target(&params, NULL)) return false;
+    spell_order_accepted(caster, spell);
+    return true;
 }
 
 /* Called when user clicks a location for a POINT-target spell. */
@@ -924,6 +934,7 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     if (range > 0.0f && Vector2_distance(&caster->s.origin2, point) > range) {
         if (!spell_begin_target_approach(caster, code, NULL, point,
                                          source_item, source_item_spawn_time)) return false;
+        spell_order_accepted(caster, spell);
         S_SpellCursorSplat(clent, 0.0f);
         G_SendPointConfirmation(clent, point, false);
         return true;
@@ -931,6 +942,7 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
 
     if (!spell_execute_point_target(clent, caster, code, level, spell, point,
                                     source_item, source_item_spawn_time, NULL)) return false;
+    spell_order_accepted(caster, spell);
     S_SpellCursorSplat(clent, 0.0f);
     G_SendPointConfirmation(clent, point, false);
     return true;
@@ -1103,6 +1115,15 @@ void spell_cmd(edict_t *clent) {
         return;
     }
     if (!caster) return;
+
+    if (!G_UnitAbilityResearchAvailable(caster, code)) {
+        G_ShowCommandErrorText(clent, "Requires training.");
+        return;
+    }
+    if (!G_IsUnitAbilityAvailable(caster, code)) {
+        G_ShowCommandErrorText(clent, "This ability is unavailable.");
+        return;
+    }
 
     /* Toggle abilities bypass the normal pipeline. */
     if (spell->flags & AB_TOGGLE) {

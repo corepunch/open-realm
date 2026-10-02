@@ -28,8 +28,9 @@ When an ability has `levelSkip == 0`, `Misc/HeroAbilityLevelSkip` is used. The W
 
 1. the rawcode is present in the unit's `heroAbilList`;
 2. the ability exists in `AbilityData.slk` and has another rank;
-3. the Hero has an unspent skill point;
-4. the Hero meets the next-rank level requirement.
+3. the player has not disabled the ability with `SetPlayerAbilityAvailable`;
+4. the Hero has an unspent skill point;
+5. the Hero meets the next-rank level requirement.
 
 `G_HeroLearnSkill()` performs that check, advances exactly one rank, and consumes exactly one point. Both the in-game `research` command and the JASS `SelectHeroSkill` native route through this function. Point mutation itself is centralized in `G_HeroModifySkillPoints()` so level-up grants, learned-skill consumption, and scripted point changes share the same non-negative storage and command-card invalidation.
 
@@ -58,6 +59,8 @@ There is no separate “starting XP” subsystem. Preplaced units exist before t
 
 - level-locked skills remain visible but disabled and append `Requires: Level N`;
 - skills with no available points remain visible but disabled;
+- skills disabled by `SetPlayerAbilityAvailable` are omitted, and the same
+  availability check prevents `SelectHeroSkill` from learning them;
 - maxed skills are omitted from the learn menu;
 - Research UI fields, including the Research hotkey, are used for learn buttons.
 
@@ -78,9 +81,9 @@ Runtime ordinary-ability membership from `UnitAddAbility` / `UnitRemoveAbility` 
 
 ## Known Boundaries
 
-Map/campaign object modifications are only partially merged into typed runtime rows. `war3map.w3u` now applies registered `UnitBalance`/`UnitProfile`/`UnitUI` fields such as `usst`, `uani`, and `umdl`, but a map-specific `heroAbilList`, Data/Weapons/Abilities unit fields, and `war3map.w3a`/campaign overrides for `levels`, `reqLevel`, `levelSkip`, or Research UI fields still require the broader object-data merge layer.
+Map/campaign object modifications are only partially merged into typed runtime rows. `war3map.w3u` applies registered `UnitBalance`/`UnitProfile`/`UnitUI`/`UnitAbilities` fields such as `usst`, `uani`, `umdl`, `uabi`, `uhab`, and `udaa`, but Data/Weapons fields and `war3map.w3a`/campaign overrides for `levels`, `reqLevel`, `levelSkip`, or Research UI fields still require the broader object-data merge layer.
 
-`SetPlayerAbilityAvailable` also remains separate work; player-wide ability disable state needs explicit ownership and runtime/UI gating rather than a Hero-menu-only special case.
+`SetPlayerAbilityAvailable` has player-wide rawcode state plus shared runtime activation, learned-command-card, and Hero skill-learning gates. Disabling a learned Hero spell hides its command and rejects direct activation; disabling an unlearned skill omits it from Select Skill and rejects `SelectHeroSkill`. Passive/on-tick lifecycle removal remains ability-specific work.
 
 `SetHeroLevel` still does not lower a Hero. Requests at or below the current level are ignored; implementing level loss needs explicit XP/stat/event semantics rather than reversing the raise path opportunistically.
 

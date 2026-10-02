@@ -29,7 +29,7 @@ void G_BotStopGathering(player_t *player) {
         (unit->currentmove->proc == CAbilityHarvest || unit->currentmove->proc == CAbilityGoldMine ||
          unit->currentmove->proc == CAbilityWispHarvest)) {
         S_GoldMineReleaseWorker(unit);
-        order_stop(unit);
+        order_stop_cleanup(unit);
     }
 }
 

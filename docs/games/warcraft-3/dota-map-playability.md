@@ -171,7 +171,7 @@ Suggested order (GitHub #431 and children):
    (#434, #436). Issue #436 registers GetEventDamageSource, Set/IncUnitAbilityLevel,
    UnitDamageTarget, GetHeroStr/Agi/Int, shop stock/sell context, item user-data
    natives, StringHash/Case/Length, and minimal lightning/image/ubersplat handles.
-   SetPlayerAbilityAvailable now stores per-player disabled ability rawcodes.
+   SetPlayerAbilityAvailable now stores per-player disabled ability rawcodes and gates authored command-card visibility plus shared command/order/validation/execute/autocast activation.
 6. Custom ability mechanics (#448 — custom rawcode → base mechanic inference,
    one-based DataA–I application, and map-authored ranks are implemented for
    AbilityData-backed mechanics; custom JASS-triggered behavior remains follow-up).

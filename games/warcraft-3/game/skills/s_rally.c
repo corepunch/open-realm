@@ -41,11 +41,9 @@ bool G_SetRallyPoint(edict_t *producer, vec2_t const *point) {
 
 bool G_SetRallyEntity(edict_t *producer, edict_t *target) {
     if (!G_UnitHasRally(producer) || !target || !target->inuse) return false;
-    if (target == producer) {
-        G_ResetRallyTarget(producer);
-        G_RefreshRallyIndicatorForProducer(producer);
-        return true;
-    }
+    /* Preserve an explicit click on the producer as an entity rally. The
+     * zero-initialized SELF state means untouched default and must remain a
+     * no-order handoff; an explicit self target is a Smart instruction. */
     producer->rally.type = RALLY_TARGET_ENTITY;
     producer->rally.entity = target;
     producer->rally.entity_spawn_time = target->spawn_time;
@@ -168,8 +166,13 @@ bool G_ApplyRallyOrder(edict_t *producer, edict_t *produced) {
 
     if (!producer || !produced || !produced->inuse) return false;
     type = G_ResolveRallyTarget(producer, &point, &target);
+    /* The default target identifies the producer for the rally marker and
+     * JASS getters. Retail does not Smart-interact with the producer when a
+     * unit finishes training, so only an explicitly chosen target gets an
+     * order. */
+    if (type == RALLY_TARGET_SELF) return false;
     if (type == RALLY_TARGET_POINT) return unit_issueorder(produced, "smart", &point);
-    if (type == RALLY_TARGET_SELF || type == RALLY_TARGET_ENTITY)
+    if (type == RALLY_TARGET_ENTITY)
         return unit_issuetargetorder(produced, "smart", target);
     return false;
 }

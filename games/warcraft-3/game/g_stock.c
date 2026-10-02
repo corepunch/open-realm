@@ -1,4 +1,6 @@
 #include <math.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #include "g_local.h"
 #include "skills/s_skills.h"
@@ -867,16 +869,42 @@ void G_SetPlayerAbilityAvailable(gameClient_t *client, uint32_t abilid, bool ava
             if (client->jass.disabled_abilities[i] != abilid) continue;
             client->jass.disabled_abilities[i] =
                 client->jass.disabled_abilities[--client->jass.disabled_ability_count];
+            G_InvalidateCommands(client);
             return;
         }
         return;
     }
     for (i = 0; i < client->jass.disabled_ability_count; i++)
         if (client->jass.disabled_abilities[i] == abilid) return;
-    if (client->jass.disabled_ability_count >=
-        sizeof(client->jass.disabled_abilities) / sizeof(client->jass.disabled_abilities[0]))
-        return;
+    if (client->jass.disabled_ability_count == client->jass.disabled_ability_capacity) {
+        size_t capacity = client->jass.disabled_ability_capacity ?
+            client->jass.disabled_ability_capacity * 2 : 8;
+        uint32_t *abilities;
+
+        if (capacity < client->jass.disabled_ability_capacity ||
+            capacity > SIZE_MAX / sizeof(*abilities)) {
+            fprintf(stderr, "SetPlayerAbilityAvailable: disabled ability list capacity overflow\n");
+            return;
+        }
+        abilities = realloc(client->jass.disabled_abilities, capacity * sizeof(*abilities));
+        if (!abilities) {
+            fprintf(stderr, "SetPlayerAbilityAvailable: unable to grow disabled ability list to %zu entries\n",
+                    capacity);
+            return;
+        }
+        client->jass.disabled_abilities = abilities;
+        client->jass.disabled_ability_capacity = capacity;
+    }
     client->jass.disabled_abilities[client->jass.disabled_ability_count++] = abilid;
+    G_InvalidateCommands(client);
+}
+
+void G_ClearPlayerAbilityAvailability(gameClient_t *client) {
+    if (!client) return;
+    free(client->jass.disabled_abilities);
+    client->jass.disabled_abilities = NULL;
+    client->jass.disabled_ability_count = 0;
+    client->jass.disabled_ability_capacity = 0;
 }
 
 bool G_IsPlayerAbilityAvailable(gameClient_t const *client, uint32_t abilid) {
@@ -885,6 +913,17 @@ bool G_IsPlayerAbilityAvailable(gameClient_t const *client, uint32_t abilid) {
     for (i = 0; i < client->jass.disabled_ability_count; i++)
         if (client->jass.disabled_abilities[i] == abilid) return false;
     return true;
+}
+
+/* Unmapped owners have no player-wide availability state to consult. Never
+ * read the fallback client for neutral or invalid owner numbers. */
+bool G_IsUnitAbilityAvailable(edict_t const *unit, uint32_t abilid) {
+    gameClient_t const *client;
+
+    if (!unit || !abilid) return true;
+    client = G_GetPlayerClientByNumber(unit->s.player);
+    return !client || client->ps.number != unit->s.player ||
+           G_IsPlayerAbilityAvailable(client, abilid);
 }
 
 static float G_ShopPawnRate(void) {

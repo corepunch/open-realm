@@ -15,6 +15,7 @@ Autocast procedures receive three typed messages:
 - `A_AUTOCAST_ACQUIRE` acquires a target and issues its ordinary order using `call->item->code`.
 
 `G_SetUnitAutocast(unit, rawcode, enabled)` enforces one selected autocast ability.
+Command-card right-click toggling applies the requested state to every controllable selected unit in the currently focused unit-type subgroup that owns the same authored ability. Selected units in other subgroups keep their existing autocast state.
 `edict.autocast_code` retains the actual authored alias; `AI_AUTOCAST_ACTIVE` is
 its fast scheduler marker. Human Heal, Inner Fire, Slow and Spell Steal use that
 selection directly. Repair additionally stores its policy bit in
@@ -29,6 +30,25 @@ runtime-added abilities and does not require a static UnitAbilities entry.
 `abilityCall_t` is a message-tagged union: boolean messages must not decode
 `call->target`. See [ability verification](ability-verification-review.md) for
 alias, switching, removal and crash regression coverage.
+
+## Default active ability
+
+`UnitAbilities.slk:auto` and unit object field `udaa` are Warcraft's Default
+Active Ability. The value is an ability rawcode, not a boolean. After ordinary
+unit initialization, spawn passes a nonzero authored value through
+`G_SetUnitAutocast(unit, rawcode, true)`. This keeps `edict.autocast_code`,
+ability-owned policy state, `AI_AUTOCAST_ACTIVE`, and the command-card active
+glow synchronized.
+
+There is no worker-specific hidden Auto Repair state. If the unit's authored
+default-active rawcode names a supported Repair ability, Repair starts enabled
+and idle acquisition may use it. Otherwise Repair starts disabled and idle
+workers cannot acquire a Repair target until the player or script enables it.
+Missing, placeholder, unsupported, or non-autocast rawcodes are rejected by the
+normal autocast setter. Map-object `UnitAbilities` overrides merge `uabi`,
+`uhab`, and `udaa` into stable per-map rows, including inheritance by custom
+unit IDs. This lets a map-authored default active ability take effect on the
+custom unit without changing the stock row.
 
 ## Command-card toggle
 
@@ -59,7 +79,7 @@ try normal automatic attack acquisition
 
 This lets a worker with an attack prefer a valid Auto Repair target over an enemy when both are available. Units with no attack can still autocast because the autocast pass occurs before the attack-capability early return.
 
-The current implementation only integrates this with ordinary idle/default stand. Hold Position, Attack-Move, Patrol, Follow, and other behaviors need explicit resume/movement semantics before they should call generic autocast.
+The current implementation only integrates generic autocast with ordinary idle/default stand. Hold Position now has stable persistent no-chase state, channel interruption, queue replay, and command-card engagement, but it still does **not** call generic autocast: the current `A_AUTOCAST_ACQUIRE` contract has no movement-policy input and several ability implementations own their own approach/order behavior. Hold-safe autocast therefore remains deliberate follow-up work; it must permit casts that can start from the held location without allowing automatic approach movement. Attack-Move, Patrol, Follow, and other behaviors likewise need explicit resume/movement semantics before they should call generic autocast.
 
 ## Auto Repair target policy
 
@@ -111,6 +131,8 @@ Typical level-2 candidate output distinguishes reasons such as full health, wron
 
 Focused coverage lives primarily in `games/warcraft-3/game/tests/t_building.c` and `tests/test_net.c` and covers:
 
+- typed `UnitAbilities:auto` / `udaa` default-active rawcode decoding;
+- spawn-time default autocast initialization and command-card active state;
 - Repair toggle state and `repairon` / `repairoff`;
 - command-card secondary command serialization and active state;
 - client right-click dispatch/consumption;
@@ -126,3 +148,29 @@ Focused coverage lives primarily in `games/warcraft-3/game/tests/t_building.c` a
 - Shift-queued Repair;
 - moving away while repairing without losing the replacement goal;
 - normal Repair cleanup still clearing a Repair-owned goal.
+
+## Mixed selected-subgroup state
+
+For a focused multiselection subgroup, the command card treats autocast as active only when every controllable selected unit of that unit type that owns the ability has autocast enabled. A mixed subgroup therefore presents the autocast button as off.
+
+Right-click uses that aggregate state as the requested destination rather than inverting each unit independently:
+
+```text
+off, off, off -> on, on, on
+on, off, on   -> on, on, on
+on, on, on    -> off, off, off
+```
+
+Units outside the focused type subgroup are unchanged, even when custom object data gives them the same autocast ability rawcode. This keeps the visual state and issued subgroup command consistent regardless of which member currently owns selection focus.
+
+`SetPlayerAbilityAvailable(player, rawcode, false)` is checked by shared command,
+order, validation, execution, and autocast dispatch. It does not simulate a
+per-unit `A_DISABLE` event, because availability belongs to the player while
+the ability lifecycle belongs to each unit. Ability effects that persist or
+update over time must check availability in their owning update/damage path or
+define a specific inverse when disabled. Current examples include Blight
+Growth (`Abli`) pausing its growth tick, Mana Flare (`Amfl`) stripping its
+channel status through `A_DISABLE`, and Moon Well effects releasing their
+presentation when the ability is explicitly removed. This player-wide native
+does not currently walk every owned unit to reverse an already active effect;
+new persistent effects must specify and test that policy.

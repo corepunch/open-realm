@@ -2139,6 +2139,14 @@ bool move_is_terminal_hold(edict_t const *ent) {
 }
 
 static void move_hold(edict_t *ent) {
+    if (ent->movement.guard_state == GUARD_RETURNING) {
+        /* Treat the normal near-goal blocked settle as completion of the
+         * internal guard return; do not strand the unit in an active Move pose. */
+        ent->movement.guard_state = GUARD_IDLE;
+        ent->goalentity = NULL;
+        unit_stand(ent);
+        return;
+    }
     /* A terminal blocked/unreachable Move is complete for queue purposes.
      * Continue a Shift chain instead of stranding pending commands behind the
      * legacy hold pose. */
@@ -2266,6 +2274,10 @@ static void ai_move_walk(edict_t *ent) {
         if (M_MoveIsValid(ent, &ent->goalentity->s.origin2))
             unit_commit_step(ent, &ent->goalentity->s.origin2);
         if (S_UnitAbilityMoveArrive(ent)) return;
+        if (ent->movement.guard_state == GUARD_RETURNING) {
+            ent->movement.guard_state = GUARD_IDLE;
+            ent->goalentity = NULL;
+        }
         ent->stand(ent);
     } else {
         blocked = move_is_blocked(ent, distance, move_distance);
@@ -2753,6 +2765,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
                 ent->movement.group_id = group_id;
                 ent->movement.group_speed = group_speed;
             }
+            S_UnitAbilityOrderAccepted(ent, "move");
             issued = true;
         }
     }

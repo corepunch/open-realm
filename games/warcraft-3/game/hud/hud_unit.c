@@ -2,7 +2,7 @@
  * hud_unit.c — Server-side unit HUD data helpers.
  */
 
-#include "../g_local.h"
+#include "hud_local.h"
 #include "hud_utils.h"
 
 typedef struct {
@@ -241,7 +241,14 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     if (!research && ability && (ability->flags & AB_AUTOCAST)) {
         strlcpy(button->alternate, "autocast ", sizeof(button->alternate));
         strlcat(button->alternate, code, sizeof(button->alternate));
-        button->alternate_active = G_UnitAutocastIsOn(ent, FS_SLKKey(code)) ? 1 : 0;
+        gameClient_t *client = ui_current_client ? ui_current_client : G_GetPlayerClientByNumber(ent->s.player);
+        uint32_t const autocast_code = FS_SLKKey(code);
+        bool active = G_UnitAutocastIsOn(ent, autocast_code);
+
+        if (client && G_GetMainSelectedUnit(client) == ent) {
+            active = G_SelectedSubgroupAutocastAllOn(client, ent, autocast_code);
+        }
+        button->alternate_active = active ? 1 : 0;
     }
     hotkey = research ? G_StringForLevel(hotkey, level) : hotkey;
     button->hotkey = hotkey && *hotkey ? *hotkey : '\0';
@@ -251,6 +258,16 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     button->level = level;
     button->active = (uint8_t)GetAbilityIndex(ability ? ability->proc : NULL);
     button->engaged = !research && toggle_on ? 1 : 0;
+    button->queueable = !research && ability && (ability->flags & AB_QUEUEABLE);
+    /* Stop represents the ordinary idle/default state. Hold owns the engaged
+     * state while its persistent no-chase policy is active, including after
+     * combat returns the unit to idle. */
+    if (!research && ability && ability->proc == CAbilityStop) {
+        button->engaged = !ent->movement.holding_position && ent->currentmove &&
+                          ent->currentmove->think == ai_stand;
+    } else if (!research && ability && ability->proc == CAbilityHoldPosition) {
+        button->engaged = ent->movement.holding_position ? 1 : 0;
+    }
     if (ability_code) {
         button->manacost = S_SpellNumber(ability_code, ABILITY_NUMBER_COST, level);
     }
@@ -332,14 +349,18 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
     uint8_t idx;
     uint32_t rawcode;
     bool researched;
+    bool research_visible;
 
     if (!S_AbilityHasCommand(ability) || !G_AncientAbilityVisible(ent, ability) ||
         strlen(code) != 4 || *count >= max_buttons) return;
     memcpy(&rawcode, code, sizeof(rawcode));
+    if (!G_IsUnitAbilityAvailable(ent, rawcode)) return;
     /* Entangle Gold Mine becomes hidden/permanent per unit while the resulting
      * mine exists. Keep the authored command unavailable for that overlay lifetime. */
     if (ability->proc == CAbilityEntangle && S_EntangleCommandHidden(ent, rawcode)) return;
     researched = G_UnitAbilityResearchAvailable(ent, rawcode);
+    research_visible = G_UnitAbilityResearchVisible(ent, rawcode);
+    if (!research_visible) return;
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
      * from Astd inherit the same visibility rule. */
@@ -519,10 +540,12 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities + i;
-        if (ha->level > 0 && G_UnitAbilityResearchAvailable(ent, ha->code)) {
+        if (ha->level > 0 && G_IsUnitAbilityAvailable(ent, ha->code) &&
+            G_UnitAbilityResearchVisible(ent, ha->code)) {
             uint8_t const idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
             if (count > idx) {
+                if (!G_UnitAbilityResearchAvailable(ent, ha->code)) buttons[idx].disabled = 1;
                 G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = ha->code, .level = ha->level, .button = &buttons[idx] });
             }
         }

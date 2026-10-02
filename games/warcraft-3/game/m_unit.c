@@ -76,6 +76,16 @@ static float unit_dissipate_duration(edict_t const *self) {
     return unit_decay_wait(game.constants.dissipateTime);
 }
 
+float G_UnitDissipatePresentationAlpha(edict_t const *self) {
+    float duration;
+
+    if (!self || !self->inuse || self->currentmove != &unit_move_dissipate ||
+        !G_UnitIsHero(self) || (self->aiflags & AI_ILLUSION)) return 1.0f;
+    duration = unit_dissipate_duration(self);
+    if (duration <= 0.0f) return 0.0f;
+    return MIN(1.0f, MAX(0.0f, self->wait / duration));
+}
+
 static void unit_set_decay_move(edict_t *self, umove_t *move) {
     unit_setmove(self, move);
     /* A missing exact secondary sequence may fall back to another sequence in
@@ -175,29 +185,37 @@ bool unit_affectingcombat(edict_t *self) {
     return true;
 }
 
-void unit_stand(edict_t *self) {
-    /* Reaching stand is the common completion edge for Move, direct Attack,
-     * Repair, Harvest, and several cast behaviors. Retire transient state first,
-     * then let a pending Shift order become authoritative before installing the
-     * idle/default stand behavior. */
+static void unit_prepare_stand(edict_t *self) {
     self->current_order_id = 0;
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
     self->s.ability = 255;
     self->movement.last_distance = 0;
     self->movement.blocked_frames = 0;
+}
+
+/* Let a persistent ability claim the stand transition before the generic idle move is installed. */
+static void unit_install_stand_move(edict_t *self) {
+    if (S_UnitAbilityEvent(self, A_UNIT_STAND)) return;
+    unit_setmove(self, unit_affectingcombat(self) ? &unit_move_stand_ready : &unit_move_stand);
+}
+
+void unit_stand_no_queue(edict_t *self) {
+    if (!self) return;
+    unit_prepare_stand(self);
+    unit_install_stand_move(self);
+}
+
+void unit_stand(edict_t *self) {
+    /* Reaching stand is the common completion edge for Move, direct Attack,
+     * Repair, Harvest, and several cast behaviors. Retire transient state first,
+     * then let a pending Shift order become authoritative before installing the
+     * idle/default stand behavior. */
+    unit_prepare_stand(self);
     if (G_UnitStartNextQueuedOrder(self)) {
         return;
     }
-    if (self->movement.holding_position) {
-        unit_setmove(self, unit_affectingcombat(self)
-            ? &holdpos_move_stand_ready
-            : &holdpos_move_stand);
-    } else {
-        unit_setmove(self, unit_affectingcombat(self)
-            ? &unit_move_stand_ready
-            : &unit_move_stand);
-    }
+    unit_install_stand_move(self);
 }
 
 /* All runtime unit-health changes pass here so intrinsic ability levels transition exactly once. */
@@ -860,11 +878,13 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         return false;
     }
     if (!strcmp(order, "harvest")) {
+        bool accepted = false;
         if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm"))
-            return S_AcolyteHarvestOrder(self, target);
-        if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
-            return harvest_gold_order(self, target);
-        return false;
+            accepted = S_AcolyteHarvestOrder(self, target);
+        else if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
+            accepted = harvest_gold_order(self, target);
+        if (accepted) S_UnitAbilityOrderAccepted(self, order);
+        return accepted;
     }
     {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
@@ -899,7 +919,10 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (!queue) G_ClearUnitOrderQueue(self);
     {
         bool const accepted = unit_issuetargetorder_now(self, order, target);
-        if (accepted) unit_publish_target_order(self, order, target, issuer_player);
+        if (accepted) {
+            S_UnitAbilityOrderAccepted(self, order);
+            unit_publish_target_order(self, order, target, issuer_player);
+        }
         return accepted;
     }
 }
@@ -952,6 +975,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     {
         bool const accepted = unit_issueorder_now(self, order, point, group_speed);
         if (accepted) {
+            S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
         }
@@ -965,14 +989,28 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
     if (!self || M_IsDead(self) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
         if (queued.target_type == UNIT_ORDER_TARGET_POINT) {
-            if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed))
+            if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed)) {
+                S_UnitAbilityOrderAccepted(self, queued.order);
                 return true;
+            }
         } else if (queued.target_type == UNIT_ORDER_TARGET_ENTITY) {
             edict_t *target;
             if (queued.target_number >= globals.num_edicts) continue;
             target = globals.edicts + queued.target_number;
             if (!target->inuse || G_IsDeferredFree(target) || target->spawn_time != queued.target_spawn_time) continue;
-            if (unit_issuetargetorder_now(self, queued.order, target)) return true;
+            if (unit_issuetargetorder_now(self, queued.order, target)) {
+                S_UnitAbilityOrderAccepted(self, queued.order);
+                return true;
+            }
+        } else if (queued.target_type == UNIT_ORDER_TARGET_NONE) {
+            if (!strcmp(queued.order, "stop")) {
+                order_stop_queued(self);
+                return true;
+            }
+            if (!strcmp(queued.order, "holdposition")) {
+                return S_HoldPositionQueued(self);
+            }
+            if (S_UnitQueuedOrderEvent(self, &queued, A_QUEUE_ORDER_START)) return true;
         } else if (S_UnitQueuedOrderEvent(self, &queued, A_QUEUE_ORDER_START)) return true;
     }
     return false;
@@ -1649,6 +1687,9 @@ heroSkillState_t G_HeroSkillState(edict_t *ent, uint32_t abilcode, uint32_t *nex
     if (required_level) *required_level = 0;
     if (!G_HeroHasCandidateSkill(ent, abilcode)) {
         return HERO_SKILL_ABSENT;
+    }
+    if (!G_IsUnitAbilityAvailable(ent, abilcode)) {
+        return HERO_SKILL_DISABLED;
     }
 
     ability = G_AbilityData(abilcode);

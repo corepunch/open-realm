@@ -231,18 +231,77 @@ by this effect.
 Some Warcraft units author a research-granted command in their normal ability
 list before the research completes. For those units, OpenRealm correlates the
 unit's `Upgrades Used` list with any `rlev` effect targeting that command. The
-command remains visible but disabled on the command card, and direct execution
-is rejected until the owning player has researched the matching upgrade. Human
-Footman Defend
+command is hidden when its required upgrade level exceeds the player's maximum
+allowed level; if that level is allowed but unresearched, the command remains
+visible but disabled. Direct execution is rejected until the owning player has
+researched the matching upgrade. Human Footman Defend
 (`Rhde` targeting `Adef`) uses this path; custom unit/upgrade pairs using the
 same data contract inherit it without rawcode-specific code.
 
 Some stock dependencies are authored as gate-only upgrade rows with no effect
-or target code. When the ability's `checkDep` flag is set, OpenRealm matches the
-ability and upgrade's authored comments within the unit's `Upgrades Used` list.
-Undead Ghoul Cannibalize (`Ruac` / `Acan`) uses this path. It has the same
-command-card and direct-execution gate as an `rlev` dependency, but the ability
-does not gain a level from the research.
+or target code. `checkDep` indicates that an ability checks dependencies, but
+it does not identify the governing upgrade. Comments are descriptive text, so
+OpenRealm does not infer links from overlapping words. These retail-only facts
+are held in `stock_ability_requirements` in `g_building.c`, separately from the
+generic `rlev` data path. This is a deliberate, narrow hardcoded compatibility
+exception: retail rows contain no structured link to parse, comments are not
+authoritative identifiers, and `reqLevel` has Hero-skill meaning. Undead Ghoul
+Cannibalize (`Ruac` / `Acan`) uses this
+table; it has the same command-card and direct-execution gate as an `rlev`
+dependency, but the ability does not gain a level from the research.
+
+Retail Sorceress training (`Rhst`) is an explicit stock relation that the SLKs
+do not encode as an effect/code pair: `hsor` lists `Rhst` in `UnitBalance` and
+`Aivs` / `Aply` are marked `checkDep`, while the `Rhst` UpgradeData row only
+contains stat effects. `Aivs`, `Aply`, `Adis`, and `Ainf` all have
+`AbilityData.reqLevel=0`; `checkDep=1` marks dependency checking but doesn't
+encode a training tier. Their `levels=1` is the ability rank count, not a
+training tier. `Rhst` and `Rhpt` have `maxlevel=2`, but their effect codes
+(`rmnx`, `rmnr`, `rhpx`, `ratd`) don't name the unlocked spell.
+
+`reqLevel` cannot safely supply this tier. Retail normal abilities such as Heal
+and Defend also have `reqLevel=0`; Hero skills such as Blizzard, Water
+Elemental, Flame Strike, Holy Light, and Channel have `reqLevel=1` and
+`levels=3`. For Hero skills, `reqLevel` works with `levelSkip` to specify the
+Hero level at which each skill rank can be learned. It is unrelated to caster
+training, and map ability edits can change it through `arlv` without changing
+the meaning.
+
+OpenRealm therefore uses one small stock compatibility table in
+`g_building.c` for the links that retail omits: Invisibility (`Aivs`) requires
+`Rhst` level 1, Polymorph (`Aply`) level 2, Dispel Magic (`Adis`) requires
+`Rhpt` level 1, Inner Fire
+(`Ainf`) level 2, and Cannibalize (`Acan`) is gated by `Ruac`. Custom
+dependencies use the parsed `UpgradeData.effect` / `effectCode` pair when it
+contains `rlev`; descriptive comments alone do not create a dependency. The
+generic `rlev` path doesn't recognize these stock spell rawcodes specially.
+
+`UnitBalance.upgrades` links a unit to the upgrade; `Upgrades Used` alone
+doesn't name which ability each caster-training level unlocks. Human05's
+Sorceress still lists `Rhst` as its training upgrade and `UnitAbilities` still
+contains `Aivs` and `Aply`. Its script sets Player 1's maximum allowed `Rhst`
+level to 1, so Invisibility is permitted while Polymorph is hidden.
+
+OpenRealm uses the resolved requirement for both command-card and direct
+activation checks. If the required level exceeds `GetPlayerTechMaxAllowed`,
+the command is hidden. If the level is allowed but not researched, the command
+stays visible and disabled. The ability is usable only while its required level
+is within the current maximum and has been researched; lowering the maximum
+after research hides the command and blocks direct activation. `SetPlayerAbilityAvailable`
+remains a separate per-player rawcode switch that can suppress an ability
+regardless of training. Unmapped owners do not use the fallback client returned
+by `G_GetPlayerClientByNumber`; their research state cannot be borrowed from a
+real player's slot.
+
+Map object overrides can edit a unit's `UnitBalance.upgrades` and map ability
+data is parsed from `war3map.w3a`. The ability override path applies fields
+such as `alev`, `arlv`, and DataA-I, but `arlv` retains its Hero-level meaning.
+OpenRealm does not currently merge `war3map.w3q` upgrade-object overrides, so
+custom maps cannot yet supply a new `rlev` upgrade-to-ability relation through
+that file. Unit object edits can change which upgrades a unit uses, but cannot
+author the missing spell-to-upgrade tier. The stock table remains necessary
+until a supported authoritative source exposes those links and tiers. Do not
+infer them from text fields or repurpose `reqLevel`.
 
 ### `rmnx` / `rmnr` — mana capacity and regeneration
 

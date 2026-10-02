@@ -63,6 +63,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Night Elf Hide/Shadow Meld, ambush order, fade/reveal rules, detection integration | [docs/games/warcraft-3/shadowmeld.md](docs/games/warcraft-3/shadowmeld.md) |
 | WC3 invisibility causes, detector integration, Wind Walk/Ghost/item invisibility, Ghost Visible/Burrow compatibility policy | [docs/games/warcraft-3/invisibility.md](docs/games/warcraft-3/invisibility.md) |
 | WC3 natural neutral-creep sleep, `canSleep`, sleep natives, wake rules, and known camp gaps | [docs/games/warcraft-3/creep-sleep.md](docs/games/warcraft-3/creep-sleep.md) |
+| WC3 Stop guard position, automatic-combat return, explicit-order priority, and broader creep/JASS guard follow-up | [docs/games/warcraft-3/guard-position.md](docs/games/warcraft-3/guard-position.md) |
 | WC3 regeneration auras and Fountain health/mana alias/data flow | [docs/games/warcraft-3/regeneration-auras.md](docs/games/warcraft-3/regeneration-auras.md) |
 | WC3 aura target masks, RoC rank columns, and scenery overlay filtering | [docs/games/warcraft-3/aura-targets-and-overlays.md](docs/games/warcraft-3/aura-targets-and-overlays.md) |
 | WC3 mutable Blight world state, Abli growth, placement/regen, JASS natives, save/load | [docs/games/warcraft-3/blight.md](docs/games/warcraft-3/blight.md) |
@@ -105,6 +106,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 area-based JASS doodad animation, show/hide, looping and non-looping sequence lifecycle | [docs/games/warcraft-3/doodad-animation.md](docs/games/warcraft-3/doodad-animation.md) |
 | WC3 Build/Repair blocked-footprint approach routing | [docs/games/warcraft-3/build-repair-routing.md](docs/games/warcraft-3/build-repair-routing.md) |
 | WC3 generic autocast hooks, command-button right click, Auto Repair nearest-valid acquisition | [docs/games/warcraft-3/autocast.md](docs/games/warcraft-3/autocast.md) |
+| WC3 player-wide ability availability, stock training gates, disable lifecycle, and persistence | [docs/games/warcraft-3/research-and-upgrades.md](docs/games/warcraft-3/research-and-upgrades.md) |
 | WC3 food/supply ownership, training reservations, provider lifecycle, upkeep income | [docs/games/warcraft-3/food-and-upkeep.md](docs/games/warcraft-3/food-and-upkeep.md) |
 | WC3 Hero death persistence and Altar revival lifecycle | [docs/games/warcraft-3/hero-revival.md](docs/games/warcraft-3/hero-revival.md) |
 | WC3 Rally producer state, Smart handoff, target lifetime, JASS getters | [docs/games/warcraft-3/rally-points.md](docs/games/warcraft-3/rally-points.md) |

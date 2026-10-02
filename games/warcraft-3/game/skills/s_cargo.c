@@ -263,7 +263,7 @@ bool S_CargoBeginUnloadAll(edict_t *transport) {
     if (!transport || !transport->inuse || !transport->cargo.count || M_IsDead(transport) ||
         transport->paused || transport->stunned || !cargo_living_hold_alias(transport)) return false;
     if (transport->currentmove == &cargo_move_unload) return true;
-    order_stop(transport);
+    order_stop_cleanup(transport);
     unit_setmove(transport, &cargo_move_unload);
     transport->freetime = 0;
     cargo_unload_all(transport);
@@ -770,7 +770,7 @@ BZ_COMMAND_PROC(AbilityCargoDropInstant) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
     if (!caster || caster->cargo.count == 0) return;
     /* Retire timed unloading before a new passenger can board this frame. */
-    order_stop(caster);
+    order_stop_cleanup(caster);
     cargo_drop_all(caster);
     Get_Commands_f(clent);
 }
@@ -784,7 +784,7 @@ void S_CargoStandDown(edict_t *caster) {
      * in-progress repeating attack cannot keep driving after the Peons leave.
      * Reuse normal Stop semantics so attack-move/patrol/follow state and queued
      * orders are retired consistently with the command-card Stop button. */
-    order_stop(caster);
+    order_stop_cleanup(caster);
     caster->goalentity = NULL;
     cargo_drop_all(caster);
 }

@@ -1402,9 +1402,24 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE && !(f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
     }
+    /* Paint the common sibling stack as texture background -> status bar ->
+     * remaining frames/text. Frame numbers can reflect FDF parse order rather
+     * than paint order: the Hero level label belongs above its XP bar, while
+     * hover-bar fills belong above their FT_TEXTURE backings. This global type
+     * order means textures cannot serve as foreground overlays over bars. */
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
-        if (f && f->flags.type != FT_SPRITE) SCR_LayoutDrawFrame(f);
+        if (f && f->flags.type == FT_TEXTURE) SCR_LayoutDrawFrame(f);
+    }
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type == FT_SIMPLESTATUSBAR) SCR_LayoutDrawFrame(f);
+    }
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type != FT_SPRITE && f->flags.type != FT_TEXTURE &&
+            f->flags.type != FT_SIMPLESTATUSBAR)
+            SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
@@ -1506,7 +1521,18 @@ static int SCR_LayoutModalLayer(void) {
 
 bool SCR_LayoutModalActive(void) { return SCR_LayoutModalLayer() >= 0; }
 
-bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
+static void SCR_LayoutApplyOrderQueueModifier(uiFrame_t const *frame, char *command, size_t size,
+                                              bool shift_held) {
+    if (!shift_held || !frame || !(frame->flagsvalue & UIFLAG_ORDER_QUEUEABLE)) return;
+    strlcat(command, " queue", size);
+}
+
+bool SCR_LayoutMouseEvent(layoutMouseEvent_t const *mouse_event) {
+    menuMouseEvent_t const event = mouse_event->event;
+    int const x = mouse_event->x;
+    int const y = mouse_event->y;
+    int32_t const param = mouse_event->param;
+    bool const shift_held = mouse_event->shift_held;
     vec2_t const point = SCR_ScreenToUI(x, y);
     uiFrame_t const *hovered_frame = NULL;
     int const modal_layer = SCR_LayoutModalLayer();
@@ -1608,6 +1634,7 @@ bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
             if (Rect_contains(SCR_LayoutRect(frame), &point)) {
                 char command[CMDARG_LEN * 2];
                 SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
+                SCR_LayoutApplyOrderQueueModifier(frame, command, sizeof(command), shift_held);
                 MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                 SZ_Printf(&cls.netchan.message, "%s", command);
                 return false;
@@ -1618,7 +1645,7 @@ bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
 }
 
 /* Dispatch a command-button hotkey the same way a mouse click on that */
-bool SCR_LayoutKeyEvent(int key) {
+bool SCR_LayoutKeyEvent(int key, bool shift_held) {
     int const upper = toupper(key);
     int const modal_layer = SCR_LayoutModalLayer();
 
@@ -1635,6 +1662,7 @@ bool SCR_LayoutKeyEvent(int key) {
             if (is_cancel || (frame->hotkey && toupper(frame->hotkey) == upper)) {
                 char command[CMDARG_LEN * 2];
                 SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
+                SCR_LayoutApplyOrderQueueModifier(frame, command, sizeof(command), shift_held);
                 MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                 SZ_Printf(&cls.netchan.message, "%s", command);
                 return true;

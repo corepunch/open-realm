@@ -604,8 +604,9 @@ struct client_s {
         uint8_t pending_game_result; /* 0 = none, PLAYER_GAME_RESULT_* + 1 while fallback UI is deferred */
         uint32_t pending_game_result_event; /* level.events.read must reach this write ordinal before fallback UI */
         char name[MAX_PATHLEN];
-        uint32_t disabled_abilities[64]; /* SetPlayerAbilityAvailable(false) rawcodes */
+        uint32_t *disabled_abilities; /* SetPlayerAbilityAvailable(false) rawcodes */
         uint32_t disabled_ability_count;
+        size_t disabled_ability_capacity;
     } jass;
     playerTechState_t tech[MAX_PLAYER_TECH_STATE];
     char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
@@ -722,6 +723,13 @@ typedef struct {
     uint32_t count;
 } unitOrderQueue_t;
 
+typedef enum {
+    GUARD_NONE,
+    GUARD_IDLE,
+    GUARD_COMBAT,
+    GUARD_RETURNING,
+} unitGuardState_t;
+
 /* Independent policies consumed by ability command and cast dispatch. */
 #define AB_PASSIVE      (1u << 0)  // bit 0; passive command policy; used in ability flags
 #define AB_TOGGLE       (1u << 1)  // bit 1; reversible on/off action; used in ability flags
@@ -736,6 +744,8 @@ typedef struct {
 #define AB_COOLDOWN_ON_STATUS_REMOVE (1u << 10) // bit 10; defer spell cooldown until its owned status ends
 #define AB_STATUS_EVENTS (1u << 11) // bit 11; active statuses from this ability accept generic status policy events
 #define AB_OWNER_UPDATE (1u << 12) // bit 12; persistent owner-clock behavior; receives one update after scheduled moves
+#define AB_ENGINE_EVENTS (1u << 13) // bit 13; engine-wide lifecycle/order notifications reach this ability
+#define AB_QUEUEABLE    (1u << 14) // bit 14; the command button accepts the generic Shift queue modifier
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -820,6 +830,9 @@ typedef enum {
     A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
     A_UNIT_INIT,        /* Spawn/type rebind: initialize behavior from the unit's authored data. */
     A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
+    A_AUTO_COMBAT_START, /* Generic AI acquired/retaliated against a target; persistent behaviors may mark a detour. */
+    A_AUTO_COMBAT_END,   /* Generic combat ended; persistent behaviors may resume or restore their order. */
+    A_UNIT_STAND,       /* Common stand installation; an owning ability may install its persistent stand behavior. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
@@ -1324,6 +1337,7 @@ typedef struct {
 
 typedef enum {
     HERO_SKILL_ABSENT,
+    HERO_SKILL_DISABLED,
     HERO_SKILL_NO_POINTS,
     HERO_SKILL_LEVEL_LOCKED,
     HERO_SKILL_AVAILABLE,
@@ -1748,6 +1762,10 @@ struct edict_s {
         edict_t *patrol_a, *patrol_b, *patrol_target;
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
         bool holding_position;
+        /* Stop establishes a WC3 guard point. Automatic idle combat may leave
+         * that point temporarily, then returns once the combat detour ends. */
+        vec2_t guard_position;
+        unitGuardState_t guard_state;
         bool explicit_allied_attack;
         bool cargo_unload_pending; /* Drop ability: unload after point-move arrival */
         uint32_t cargo_unload_ability; /* initiating concrete AbilityData rawcode */
@@ -2586,6 +2604,7 @@ void ai_pain(edict_t *);
 void ai_idle(edict_t *);
 void unit_runwait(edict_t *, void (*callback)(edict_t * ));
 void unit_stand(edict_t *);
+void unit_stand_no_queue(edict_t *);
 void unit_entercombat(edict_t *, edict_t *);
 void unit_leavecombat(edict_t *);
 bool unit_affectingcombat(edict_t *);
@@ -2855,6 +2874,7 @@ void G_RunBuildingUpgradeFrame(edict_t *building);
 void G_UpdateBuildingUpgradeAnimation(edict_t *building);
 void G_ApplyPlayerUpgradesToUnit(edict_t *unit);
 bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id);
+bool G_UnitAbilityResearchVisible(edict_t const *unit, uint32_t ability_id);
 uint32_t G_GetUnitUpgradeForClass(edict_t const *unit, cstring_t wanted_class);
 bool G_ChargeBuilding(gameClient_t *client, uint32_t building_id);
 void G_RefundBuilding(gameClient_t *client, uint32_t building_id);
@@ -2894,12 +2914,14 @@ int32_t G_GetPlayerTechInProgress(gameClient_t *client, uint32_t techid);
 void G_AddPlayerTechInProgress(gameClient_t *client, uint32_t techid, int32_t levels);
 int32_t G_GetPlayerTechCountValue(gameClient_t *client, uint32_t techid);
 void G_InvalidateCommands(gameClient_t *client);
+void G_InvalidateUnitCommands(edict_t *unit);
 bool G_BuildInventoryItem(edict_t *ent, edict_t *item, uint8_t slot, gameInventoryItem_t *out);
 uint8_t G_GetInventory(edict_t *ent, gameInventoryItem_t *items, uint8_t max_items);
 uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue);
 
 // g_ai.c
 edict_t *G_GetMainSelectedUnit(gameClient_t *);
+bool G_SelectedSubgroupAutocastAllOn(gameClient_t *, edict_t *, uint32_t);
 void Get_Commands_f(edict_t *);
 void CMD_CancelCommand(edict_t *ent);
 bool G_ClearBuildPlacementMode(edict_t *clent);
@@ -3235,7 +3257,9 @@ void unit_learnability(edict_t *, uint32_t);
 uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode);
 uint32_t G_UnitSetAbilityLevel(edict_t *ent, uint32_t abilcode, int32_t level);
 void G_SetPlayerAbilityAvailable(gameClient_t *client, uint32_t abilid, bool avail);
+void G_ClearPlayerAbilityAvailability(gameClient_t *client);
 bool G_IsPlayerAbilityAvailable(gameClient_t const *client, uint32_t abilid);
+bool G_IsUnitAbilityAvailable(edict_t const *unit, uint32_t abilid);
 cstring_t G_ObjectName(uint32_t objectId);
 extern edict_t *eventsolditem;
 extern edict_t *eventsoldunit;
@@ -3276,6 +3300,7 @@ bool G_UnitIsRaisableCorpse(edict_t const *);
 bool G_UnitIsRaisableStoredCorpse(edict_t const *);
 void G_ReviveCorpse(edict_t *, float life_fraction);
 bool G_UnitIsHero(edict_t const *ent);
+float G_UnitDissipatePresentationAlpha(edict_t const *ent);
 float G_UnitArmorValue(edict_t const *ent);
 bool S_SpellCooldownReady(edict_t *caster, uint32_t code);
 float S_SpellCooldownRemaining(edict_t *caster, uint32_t code);
@@ -3302,6 +3327,10 @@ void move_cancel_displacement(edict_t *);
 bool move_displacement_active(edict_t const *);
 bool move_displacement_reached(edict_t *);
 void order_stop(edict_t *);
+void order_stop_cleanup(edict_t *);
+void order_stop_queued(edict_t *);
+void G_SetUnitGuardPosition(edict_t *);
+void G_ClearUnitGuardPosition(edict_t *);
 void order_attackmove(edict_t *, edict_t *);
 void order_patrol(edict_t *, edict_t *);
 bool S_IssuePatrolOrder(edict_t *, edict_t *, uint32_t);

@@ -79,11 +79,11 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 
 | Code | Local file | Status |
 |---|---|---|
-| `CmdStop` | `s_stop.c` | Registered, no `cmd`; order helper exists. |
+| `CmdStop` | `s_stop.c` | Implemented immediate Stop command; clears retained movement/combat goals, interrupts channels, captures the current Stop guard point, permits ordinary idle acquisition/chase and returns there after automatic combat when no explicit queued work supersedes it, supports Shift-queued no-target replay, and exposes the ordinary stopped/idle command-card engaged state. |
 | `CmdMove` | `s_move.c` | Implemented ground move command. |
 | `CmdAttack` | `s_attack.c` | Implemented basic melee/ranged attack and projectiles. Explicit Attack may target friendly units and buildings; Smart/right-click attack selection remains unchanged. Building attack range is measured to authored pathing footprints so large blocked structures do not cause attackers to orbit their centres. |
 | `CmdBuild` | `s_build.c` | Implemented build menu and placement flow. |
-| `CmdHoldPos` | `s_holdpos.c` | Implemented Hold Position state; command-card and scripted `holdposition` orders share the same state transition. |
+| `CmdHoldPos` | `s_holdpos.c` | Implemented persistent Hold Position state; command-card and scripted `holdposition` orders share the same transition, interrupt active channels, support Shift-queued no-target replay, retain the Hold command-card engaged state through automatic combat, acquire at normal `uacq`, and suppress chase movement. Generic Hold-safe autocast remains. |
 | `CmdPatrol` | `s_patrol.c` | Registered stub. |
 | `CmdCancel` | `s_cancel.c` | Implemented UI cancel. |
 | `CmdSelectSkill` | `s_selectskill.c` | Partial; candidate skill menu, next-rank Research UI, point/level gating, max-rank hiding, and authoritative learning are implemented. Skill-point and next-rank numeric overlays are implemented; multi-selection presentation remains. |

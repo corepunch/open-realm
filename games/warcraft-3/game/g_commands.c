@@ -1093,8 +1093,10 @@ CLIENTCOMMAND(Button) {
     ability_t const *ability;
     edict_t *producer;
     bool ability_off = false;
+    bool queued;
 
     if (argc < 2) return;
+    queued = G_CommandQueueRequested(argc, argv, 2);
     producer = G_GetMainSelectedUnit(client);
     classname = argv[1];
     /* A neutral shop remains neutral selection state; buying from it must not
@@ -1130,9 +1132,12 @@ CLIENTCOMMAND(Button) {
     if (S_AbilityHasCommand(ability)) {
         client->menu.ability_item = NULL;
         client->menu.ability_item_spawn_time = 0;
+        bool const old_queued = client->menu.order_queued;
         client->menu.ability_code = *((uint32_t const *)classname);
         client->menu.ability_off = ability_off;
+        client->menu.order_queued = queued;
         S_AbilityCommand(clent, ability);
+        client->menu.order_queued = old_queued;
         client->menu.ability_off = false;
     } else if (client->menu.cmdbutton) {
         client->menu.cmdbutton(clent, *((uint32_t *)classname));
@@ -1143,6 +1148,25 @@ CLIENTCOMMAND(Button) {
         memcpy(&class_id, classname, sizeof(class_id));
         SP_TrainUnit(producer, class_id);
     }
+    if (!strcmp(argv[1], STR_CmdStop) || !strcmp(argv[1], STR_CmdHoldPos)) {
+        /* These immediate state commands change which command button is
+         * engaged. The button handler does not otherwise dirty or rebuild
+         * the command card, so publish the new state before returning. */
+        Get_Commands_f(clent);
+    }
+}
+
+bool G_SelectedSubgroupAutocastAllOn(gameClient_t *client, edict_t *main, uint32_t code) {
+    bool any = false;
+
+    if (!client || !main || !code) return false;
+    FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
+        if (ent->class_id != main->class_id) continue;
+        if (!G_ActorHasSkill(ent, GetClassName(code))) continue;
+        any = true;
+        if (!G_UnitAutocastIsOn(ent, code)) return false;
+    }
+    return any;
 }
 
 CLIENTCOMMAND(Autocast) {
@@ -1177,8 +1201,12 @@ CLIENTCOMMAND(Autocast) {
         return;
     }
 
-    enabled = !G_UnitAutocastIsOn(main, FS_SLKKey(classname));
+    enabled = !G_SelectedSubgroupAutocastAllOn(client, main, FS_SLKKey(classname));
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
+        /* Warcraft command-card autocast toggles belong to the focused unit-type
+         * subgroup. Other selected types keep their own autocast state even if
+         * custom object data gives them the same ability rawcode. */
+        if (ent->class_id != main->class_id) continue;
         if (!G_ActorHasSkill(ent, classname)) continue;
         if (G_SetUnitAutocast(ent, FS_SLKKey(classname), enabled)) {
             changed = true;

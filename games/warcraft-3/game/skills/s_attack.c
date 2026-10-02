@@ -212,6 +212,8 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target)
         order_attackmove(attacker, attacker->movement.attackmove_waypoint);
     } else if (attacker->movement.follow_target) {
         order_follow_resume(attacker);
+    } else if (S_UnitAbilityEvent(attacker, A_AUTO_COMBAT_END)) {
+        return;
     } else if (attacker->stand) {
         attacker->stand(attacker);
     }
@@ -337,8 +339,10 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
     if (can_attack(target) && !unit_is_walking(target) &&
         S_SpellIsEnemy(target, attacker)) {
-        if (!S_UnitAbilityEvent(target, A_NO_RETALIATE))
+        if (!S_UnitAbilityEvent(target, A_NO_RETALIATE)) {
+            S_UnitAbilityEvent(target, A_AUTO_COMBAT_START);
             order_attack(target, attacker);
+        }
     } else if (target->pain) {
         target->pain(target);
     }

@@ -616,6 +616,12 @@ void SP_SpawnUnit(edict_t *self) {
      * the same support-surface calculation each simulation frame. */
     M_CheckGround(self);
     G_RegisterUnitSounds(self);
+
+    /* `auto` / `udaa` is Warcraft's Default Active Ability rawcode.  Feed it
+     * through the ordinary toggle path so ability policy, scheduler state,
+     * and command-card presentation all start from the same state. */
+    if (self->data.UnitAbilities && self->data.UnitAbilities->defaultActiveAbility)
+        G_SetUnitAutocast(self, self->data.UnitAbilities->defaultActiveAbility, true);
 }
 
 /* Walkable destructables are sparse, so keep a level list instead of scanning every map edict per unit tick. */

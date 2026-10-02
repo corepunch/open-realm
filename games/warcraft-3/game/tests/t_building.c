@@ -2,6 +2,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "../hud/hud_local.h"
+#include "../skills/s_skills.h"
 #include "jass/jass.h"
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -10,6 +11,7 @@ void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void repair_build_primary(edict_t *ent, edict_t *building);
 void repair_build_legacy(edict_t *ent, edict_t *building);
 void build_build(edict_t *ent);
+void ai_train_build(edict_t *ent);
 bool build_menu_send_builder(edict_t *clent, vec2_t const *location);
 void build_menu_selectlocation(edict_t *ent, uint32_t building_id);
 slkTestData_t *parse_slk_string(char const *slk_text);
@@ -270,14 +272,63 @@ static const char building_upgrade_slk[] =
 
 static const char building_dependency_ability_slk[] =
     "ID;PWXL;N;E\n"
-    "B;X4;Y2;D0\n"
+    "B;X4;Y3;D0\n"
     "C;X1;Y1;K\"alias\"\n"
     "C;X3;K\"checkDep\"\n"
     "C;X4;K\"comments\"\n"
-    "C;X1;Y2;K\"Amic\"\n"
+    "C;X1;Y2;K\"Acan\"\n"
+    "C;X3;K1\n"
+    "C;X4;K\"Cannibalize\"\n"
+    "C;X1;Y3;K\"Axyz\"\n"
     "C;X3;K1\n"
     "C;X4;K\"Cannibalize\"\n"
     "E\n";
+
+/* These stock caster abilities and upgrades are absent from the compact test
+ * archive. Install rows so the research gate tests exercise parsed game data. */
+static const char building_caster_ability_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X4;Y5;D0\n"
+    "C;X1;Y1;K\"alias\"\n"
+    "C;X2;K\"code\"\n"
+    "C;X3;K\"checkDep\"\n"
+    "C;X4;K\"comments\"\n"
+    "C;X1;Y2;K\"Aivs\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K\"Invisibility\"\n"
+    "C;X1;Y3;K\"Aply\"\nC;X2;K\"Aply\"\nC;X3;K1\nC;X4;K\"Polymorph\"\n"
+    "C;X1;Y4;K\"Adis\"\nC;X2;K\"Adis\"\nC;X3;K1\nC;X4;K\"Dispel Magic\"\n"
+    "C;X1;Y5;K\"Ainf\"\nC;X2;K\"Ainf\"\nC;X3;K1\nC;X4;K\"Inner Fire\"\n"
+    "E\n";
+
+static const char building_caster_upgrade_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X3;Y3;D0\n"
+    "C;X1;Y1;K\"upgradeid\"\nC;X3;K\"maxlevel\"\n"
+    "C;X1;Y2;K\"Rhst\"\nC;X3;K2\n"
+    "C;X1;Y3;K\"Rhpt\"\nC;X3;K2\n"
+    "E\n";
+
+typedef struct {
+    slkTestData_t *old_abilities;
+    slkTestData_t *old_upgrades;
+    slkTestData_t *abilities;
+    slkTestData_t *upgrades;
+} buildingCasterRows_t;
+
+static buildingCasterRows_t building_install_caster_data(void) {
+    buildingCasterRows_t rows = {0};
+    rows.abilities = parse_slk_string(building_caster_ability_slk);
+    rows.upgrades = parse_slk_string(building_caster_upgrade_slk);
+    rows.old_abilities = G_SetSLKRows("AbilityData", rows.abilities);
+    rows.old_upgrades = G_SetSLKRows("UpgradeData", rows.upgrades);
+    return rows;
+}
+
+static void building_restore_caster_data(buildingCasterRows_t rows) {
+    G_SetSLKRows("UpgradeData", rows.old_upgrades);
+    G_SetSLKRows("AbilityData", rows.old_abilities);
+    free_slk_rows(rows.upgrades);
+    free_slk_rows(rows.abilities);
+}
 
 static slkTestData_t *building_install_upgrade_data(slkTestData_t **rows_out) {
     slkTestData_t *rows = parse_slk_string(building_upgrade_slk);
@@ -1146,12 +1197,19 @@ TEST(wc3_building, researched_hit_points_effect_preserves_health_ratio) {
 }
 
 TEST(wc3_building, researched_spell_level_effect_gates_and_levels_unit_ability) {
+    static const char ability_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y3;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;X1;Y2;K\"Adef\"\nC;X2;K\"Adef\"\n"
+        "C;X1;Y3;K\"Amic\"\nC;X2;K\"Amic\"\nE\n";
     gameClient_t *client = &game.clients[0];
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     UnitBalance_t balance = { .upgrades = "Rhde" };
     UnitAbilities_t abilities = { .abilList = "Adef", .heroAbilList = "" };
     slkTestData_t *rows = NULL;
     slkTestData_t *old = building_install_upgrade_data(&rows);
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", ability_rows);
     uint32_t const defend_research = MAKEFOURCC('R','h','d','e');
     uint32_t const defend = MAKEFOURCC('A','d','e','f');
 
@@ -1171,6 +1229,8 @@ TEST(wc3_building, researched_spell_level_effect_gates_and_levels_unit_ability) 
     T_ASSERT(!G_UnitAbilityResearchAvailable(unit, defend));
     T_EQ(G_UnitAbilityLevel(unit, defend), 1);
 
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(ability_rows);
     building_restore_upgrade_data(old, rows);
 }
 
@@ -1211,7 +1271,305 @@ TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
     }
     T_ASSERT(found);
 
+    G_SetPlayerAbilityAvailable(client, FS_SLKKey("Amic"), false);
+    count = G_GetCommandButtons(unit, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) found = true;
+    T_ASSERT(!found);
+
+    G_SetPlayerAbilityAvailable(client, FS_SLKKey("Amic"), true);
+    count = G_GetCommandButtons(unit, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
     building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, setplayerabilityavailable_hides_human05_polymorph_command) {
+    gameClient_t *client;
+    edict_t *sorceress;
+    UnitAbilities_t abilities = { .abilList = "Aply" };
+    gameCommandButton_t buttons[16];
+    uint8_t count;
+    bool found;
+
+    setup_test_world();
+    client = &game.clients[0];
+    client->ps.number = 0;
+    sorceress = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+    sorceress->s.player = client->ps.number;
+    sorceress->data.UnitAbilities = &abilities;
+
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(found);
+
+    G_SetPlayerAbilityAvailable(client, FS_SLKKey("Aply"), false);
+    {
+        abilityitem_t item = S_AbilityItem(FS_SLKKey("Aply"));
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+        T_ASSERT(!S_AbilityMessage(sorceress, A_EXECUTE, &call));
+        T_ASSERT(!S_AbilityMessage(sorceress, A_ORDER, &call));
+    }
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(!found);
+
+    G_SetPlayerAbilityAvailable(client, FS_SLKKey("Aply"), true);
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(found);
+}
+
+TEST(wc3_building, player_ability_availability_does_not_leak_to_unmapped_owner) {
+    gameClient_t *fallback;
+    edict_t *unit;
+    UnitAbilities_t abilities = { .abilList = "Aply" };
+    gameCommandButton_t buttons[16];
+    uint8_t count;
+    bool found;
+
+    setup_test_world();
+    fallback = &game.clients[MAX_PLAYERS - 1];
+    unit = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+    unit->s.player = MAX_PLAYERS; /* intentionally not mapped to a real client */
+    unit->data.UnitAbilities = &abilities;
+
+    G_SetPlayerAbilityAvailable(fallback, FS_SLKKey("Aply"), false);
+    T_ASSERT(G_IsUnitAbilityAvailable(unit, FS_SLKKey("Aply")));
+    count = G_GetCommandButtons(unit, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(found);
+    G_SetPlayerAbilityAvailable(fallback, FS_SLKKey("Aply"), true);
+}
+
+TEST(wc3_building, player_ability_availability_grows_past_initial_capacity) {
+    static char const digits[] = "0123456789";
+    enum { ABILITY_COUNT = 96 };
+    gameClient_t *client;
+    uint32_t abilities[ABILITY_COUNT];
+
+    setup_test_world();
+    client = &game.clients[0];
+    for (uint32_t i = 0; i < ABILITY_COUNT; i++) {
+        abilities[i] = MAKEFOURCC('A', '0', digits[i / 10], digits[i % 10]);
+        G_SetPlayerAbilityAvailable(client, abilities[i], false);
+        T_ASSERT(!G_IsPlayerAbilityAvailable(client, abilities[i]));
+    }
+    T_EQ(client->jass.disabled_ability_count, (uint32_t)ABILITY_COUNT);
+    T_ASSERT(client->jass.disabled_ability_capacity >= ABILITY_COUNT);
+
+    G_SetPlayerAbilityAvailable(client, abilities[32], false);
+    T_EQ(client->jass.disabled_ability_count, (uint32_t)ABILITY_COUNT);
+    G_SetPlayerAbilityAvailable(client, abilities[32], true);
+    T_ASSERT(G_IsPlayerAbilityAvailable(client, abilities[32]));
+    T_ASSERT(!G_IsPlayerAbilityAvailable(client, abilities[95]));
+
+    FOR_LOOP(i, ABILITY_COUNT) G_SetPlayerAbilityAvailable(client, abilities[i], true);
+    T_EQ(client->jass.disabled_ability_count, 0u);
+}
+
+TEST(wc3_building, caster_training_gates_sorceress_and_priest_spell_tiers) {
+    buildingCasterRows_t caster_rows;
+    gameClient_t *client;
+    edict_t *sorceress, *priest;
+    UnitBalance_t sorceress_balance = { .upgrades = "Rhst" };
+    UnitBalance_t priest_balance = { .upgrades = "Rhpt" };
+    UnitAbilities_t sorceress_abilities = { .abilList = "Aivs,Aply" };
+    UnitAbilities_t priest_abilities = { .abilList = "Adis,Ainf" };
+    gameCommandButton_t buttons[16];
+    uint32_t invisibility = MAKEFOURCC('A','i','v','s');
+    uint32_t polymorph = MAKEFOURCC('A','p','l','y');
+    uint32_t dispel = MAKEFOURCC('A','d','i','s');
+    uint32_t inner_fire = MAKEFOURCC('A','i','n','f');
+    uint32_t sorceress_training = MAKEFOURCC('R','h','s','t');
+    uint32_t priest_training = MAKEFOURCC('R','h','p','t');
+    uint8_t count;
+    bool found;
+
+    setup_test_world();
+    caster_rows = building_install_caster_data();
+    client = &game.clients[0];
+    client->ps.number = 0;
+    memset(client->tech, 0, sizeof(client->tech));
+    G_SetPlayerTechMaxAllowed(client, MAKEFOURCC('R','h','s','t'), 1);
+    G_SetPlayerTechMaxAllowed(client, MAKEFOURCC('R','h','p','t'), 1);
+    sorceress = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+    sorceress->s.player = client->ps.number;
+    sorceress->data.UnitBalance = &sorceress_balance;
+    sorceress->data.UnitAbilities = &sorceress_abilities;
+    priest = alloc_test_unit(MAKEFOURCC('h','m','p','r'), 64, 0);
+    priest->s.player = client->ps.number;
+    priest->data.UnitBalance = &priest_balance;
+    priest->data.UnitAbilities = &priest_abilities;
+
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aivs")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(!found);
+
+    count = G_GetCommandButtons(priest, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Adis")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Ainf")) found = true;
+    T_ASSERT(!found);
+
+    G_SetPlayerTechMaxAllowed(client, sorceress_training, 1);
+    G_SetPlayerTechMaxAllowed(client, priest_training, 1);
+    T_ASSERT(G_UnitAbilityResearchVisible(sorceress, invisibility));
+    T_ASSERT(!G_UnitAbilityResearchVisible(sorceress, polymorph));
+    T_ASSERT(G_UnitAbilityResearchVisible(priest, dispel));
+    T_ASSERT(!G_UnitAbilityResearchVisible(priest, inner_fire));
+    G_SetPlayerTechResearched(client, sorceress_training, 1);
+    G_SetPlayerTechResearched(client, priest_training, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(sorceress, invisibility));
+    T_ASSERT(G_UnitAbilityResearchAvailable(priest, dispel));
+    G_SetPlayerTechResearched(client, sorceress_training, 0);
+    G_SetPlayerTechResearched(client, priest_training, 0);
+
+    G_SetPlayerTechMaxAllowed(client, sorceress_training, 2);
+    G_SetPlayerTechMaxAllowed(client, priest_training, 2);
+    T_ASSERT(G_UnitAbilityResearchVisible(sorceress, polymorph));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(sorceress, polymorph));
+    T_ASSERT(G_UnitAbilityResearchVisible(priest, inner_fire));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(priest, inner_fire));
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    count = G_GetCommandButtons(priest, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Ainf")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    {
+        abilityitem_t item = S_AbilityItem(polymorph);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+        T_ASSERT(!S_AbilityMessage(sorceress, A_EXECUTE, &call));
+    }
+
+    G_SetPlayerTechResearched(client, sorceress_training, 2);
+    G_SetPlayerTechResearched(client, priest_training, 2);
+    T_ASSERT(G_UnitAbilityResearchAvailable(sorceress, polymorph));
+    T_ASSERT(G_UnitAbilityResearchAvailable(priest, inner_fire));
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    count = G_GetCommandButtons(priest, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Ainf")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    /* A completed tier remains unusable when the map lowers its maximum. */
+    G_SetPlayerTechMaxAllowed(client, sorceress_training, 1);
+    G_SetPlayerTechMaxAllowed(client, priest_training, 1);
+    T_ASSERT(!G_UnitAbilityResearchVisible(sorceress, polymorph));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(sorceress, polymorph));
+    T_ASSERT(!G_UnitAbilityResearchVisible(priest, inner_fire));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(priest, inner_fire));
+    {
+        abilityitem_t item = S_AbilityItem(polymorph);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+        T_ASSERT(!S_AbilityMessage(sorceress, A_EXECUTE, &call));
+    }
+    count = G_GetCommandButtons(sorceress, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aply")) found = true;
+    T_ASSERT(!found);
+
+    G_SetPlayerTechMaxAllowed(client, sorceress_training, 2);
+    G_SetPlayerTechMaxAllowed(client, priest_training, 2);
+    G_SetPlayerTechResearched(client, sorceress_training, 0);
+    G_SetPlayerTechResearched(client, priest_training, 0);
+    G_SetPlayerTechMaxAllowed(client, sorceress_training, -1);
+    G_SetPlayerTechMaxAllowed(client, priest_training, -1);
+    building_restore_caster_data(caster_rows);
+}
+
+TEST(wc3_building, rlev_dependency_uses_custom_upgrade_and_ability_rawcodes) {
+    static const char upgrade_slk[] =
+        "ID;PWXL;N;E\nB;X13;Y2;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X3;K\"maxlevel\"\n"
+        "C;X10;K\"effect1\"\nC;X13;K\"code1\"\n"
+        "C;X1;Y2;K\"Rxyz\"\nC;X3;K2\nC;X10;K\"rlev\"\nC;X13;K\"Axyz\"\nE\n";
+    static const char ability_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;X1;Y2;K\"Axyz\"\nC;X2;K\"Axyz\"\nE\n";
+    UnitBalance_t balance = { .upgrades = "Rxyz" };
+    UnitAbilities_t abilities = { .abilList = "Axyz" };
+    edict_t *unit;
+    slkTestData_t *rows = parse_slk_string(upgrade_slk), *old;
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk), *old_ability;
+    uint32_t const training = MAKEFOURCC('R','x','y','z');
+    uint32_t const custom_ability = MAKEFOURCC('A','x','y','z');
+
+    setup_test_world();
+    old = G_SetSLKRows("UpgradeData", rows);
+    old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->s.player = game.clients[0].ps.number;
+    unit->data.UnitBalance = &balance;
+    unit->data.UnitAbilities = &abilities;
+    T_ASSERT(!G_UnitAbilityResearchAvailable(unit, custom_ability));
+    G_SetPlayerTechResearched(&game.clients[0], training, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(unit, custom_ability));
+    G_SetPlayerTechResearched(&game.clients[0], training, 0);
+    G_SetSLKRows("AbilityData", old_ability);
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(ability_rows);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, training_research_state_does_not_leak_to_unmapped_owner) {
+    buildingCasterRows_t caster_rows;
+    gameClient_t *fallback;
+    edict_t *unit;
+    UnitBalance_t balance = { .upgrades = "Rhst" };
+    uint32_t const invisibility = MAKEFOURCC('A','i','v','s');
+    uint32_t const training = MAKEFOURCC('R','h','s','t');
+
+    setup_test_world();
+    caster_rows = building_install_caster_data();
+    fallback = &game.clients[MAX_PLAYERS - 1];
+    unit = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+    unit->s.player = MAX_PLAYERS;
+    unit->data.UnitBalance = &balance;
+    G_SetPlayerTechResearched(fallback, training, 1);
+    T_ASSERT(!G_UnitAbilityResearchAvailable(unit, invisibility));
+    G_SetPlayerTechResearched(fallback, training, 0);
+    building_restore_caster_data(caster_rows);
 }
 
 TEST(wc3_building, town_hall_and_tree_of_life_show_train_and_upgrade_buttons) {
@@ -1316,11 +1674,11 @@ TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
     gameClient_t *client;
     edict_t *unit;
     UnitBalance_t balance = { .upgrades = "Ruac" };
-    UnitAbilities_t abilities = { .abilList = "Amic" };
+    UnitAbilities_t abilities = { .abilList = "Acan" };
     gameCommandButton_t buttons[16];
     slkTestData_t *rows = NULL, *old, *ability_rows, *old_ability;
     uint32_t const cannibalize_research = MAKEFOURCC('R','u','a','c');
-    uint32_t const cannibalize = MAKEFOURCC('A','m','i','c');
+    uint32_t const cannibalize = MAKEFOURCC('A','c','a','n');
     uint8_t count;
     bool found;
 
@@ -1336,9 +1694,11 @@ TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
     memset(client->tech, 0, sizeof(client->tech));
 
     T_ASSERT(!G_UnitAbilityResearchAvailable(unit, cannibalize));
+    /* Shared comment words cannot create a relation for an unrelated rawcode. */
+    T_ASSERT(G_UnitAbilityResearchAvailable(unit, MAKEFOURCC('A','x','y','z')));
     count = G_GetCommandButtons(unit, buttons, 16);
     found = false;
-    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Acan")) {
         found = true;
         T_ASSERT(buttons[i].disabled);
     }
@@ -1348,7 +1708,7 @@ TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
     T_ASSERT(G_UnitAbilityResearchAvailable(unit, cannibalize));
     count = G_GetCommandButtons(unit, buttons, 16);
     found = false;
-    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Acan")) {
         found = true;
         T_ASSERT(!buttons[i].disabled);
     }
@@ -2262,6 +2622,30 @@ TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
     T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
     T_EQ(builder->build_project, barracks); T_NOT_NULL(builder->goalentity);
     T_ASSERT(!G_IssueBuildOrder(builder, MAKEFOURCC('h','f','o','o'), &point));
+}
+
+/* Build orders install their own walk without G_IssueUnitPointOrder; they must still retire a Stop guard point. */
+TEST(wc3_building, build_order_clears_stop_guard) {
+    gameClient_t *client = &game.clients[0];
+    edict_t *builder;
+    UnitProfile_t profile = { .builds = "hbar" };
+    vec2_t point = { 64.0f, 64.0f };
+    uint32_t const barracks = MAKEFOURCC('h','b','a','r');
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
+    builder->s.player = client->ps.number; builder->data.UnitProfile = &profile;
+    builder->stand = unit_stand;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    order_stop(builder);
+    T_ASSERT(builder->movement.guard_state == GUARD_IDLE);
+
+    T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
+
+    T_EQ(builder->build_project, barracks);
+    T_ASSERT(builder->movement.guard_state == GUARD_NONE);
 }
 
 /* Human04's opening sends these three preplaced Peasants to the centres of
@@ -4017,6 +4401,118 @@ TEST(wc3_building, repair_button_then_target_issues_repair_order) {
     building_restore_repair_data(old_abilities, rows);
 }
 
+TEST(wc3_building, spawn_initializes_authored_default_repair_autocast) {
+    UnitAbilities_t abilities = {
+        .abilList = "Aren",
+        .defaultActiveAbility = MAKEFOURCC('A','r','e','n')
+    };
+    gameCommandButton_t button;
+    edict_t *worker;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    worker->data.UnitAbilities = &abilities;
+
+    SP_SpawnUnit(worker);
+
+    T_EQ(worker->autocast_code, MAKEFOURCC('A','r','e','n'));
+    T_ASSERT(worker->aiflags & AI_AUTOCAST_ACTIVE);
+    T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
+    T_ASSERT(G_UnitAutocastIsOn(worker, MAKEFOURCC('A','r','e','n')));
+    T_ASSERT(G_BuildCommandButton(worker, "Aren", false, 0, &button));
+    T_EQ(button.alternate_active, 1);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, spawn_without_default_active_repair_stays_disabled) {
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    gameCommandButton_t button;
+    edict_t *worker, *building;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 96, 0);
+    worker->data.UnitAbilities = &abilities;
+    building->s.player = worker->s.player;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+
+    SP_SpawnUnit(worker);
+    worker->runtime.acquisition_range = 400.0f;
+    gi.LinkEntity(worker);
+    gi.LinkEntity(building);
+
+    T_EQ(worker->autocast_code, 0);
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_ACTIVE));
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+    T_ASSERT(!G_UnitAutocastIsOn(worker, MAKEFOURCC('A','r','e','n')));
+    T_ASSERT(!G_TryUnitAutocast(worker));
+    T_NULL(worker->build);
+    T_ASSERT(G_BuildCommandButton(worker, "Aren", false, 0, &button));
+    T_EQ(button.alternate_active, 0);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, default_self_rally_does_not_autorepair_producer) {
+    UnitBalance_t worker_balance = { .buildTime = 0, .foodUsed = 0, .foodMade = 0 };
+    UnitAbilities_t worker_abilities = { .abilList = "Arep" };
+    UnitProfile_t producer_profile = { .trains = "hpea" };
+    bool old_instant_build;
+    edict_t *worker, *producer;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    game.clients[0].ps.number = 0;
+    old_instant_build = game.clients[0].cheat_instant_build;
+    game.clients[0].cheat_instant_build = true;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    producer = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 64, 0);
+    worker->data.UnitAbilities = &worker_abilities;
+    worker->s.player = game.clients[0].ps.number;
+    producer->data.UnitProfile = &producer_profile;
+    producer->s.flags |= EF_BUILDING;
+    producer->svflags |= SVF_MONSTER;
+    producer->s.player = worker->s.player;
+    producer->targtype = TARG_STRUCTURE;
+    producer->collision = 32.0f;
+    producer->movetype = MOVETYPE_NONE;
+    producer->stand = unit_stand;
+    producer->health.max_value = 1000.0f;
+    producer->health.value = 500.0f;
+    worker->data.UnitBalance = &worker_balance;
+    worker->collision = 16.0f;
+    worker->stand = unit_stand;
+    worker->training = true;
+    worker->s.renderfx |= RF_HIDDEN;
+    producer->build = worker;
+
+    /* The unit starts production with Auto Repair off. Completion must not
+     * Smart-interact with the damaged producer as though it were a rally order. */
+    SP_SpawnUnit(worker);
+    T_EQ(worker->autocast_code, 0);
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+    ai_train_build(producer);
+    T_ASSERT(!worker->training);
+    T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
+    T_EQ(worker->autocast_code, 0);
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+    T_FEQ(producer->health.value, 500.0f, 0.01f);
+    T_NULL(worker->movement.follow_target);
+    T_ASSERT(worker->build != producer);
+    T_ASSERT(worker->goalentity != producer);
+    T_EQ(worker->buildwork.ability, 0);
+
+    game.clients[0].cheat_instant_build = old_instant_build;
+    building_restore_repair_data(old_abilities, rows);
+}
+
 TEST(wc3_building, repair_autocast_toggle_is_unit_state) {
     edict_t *worker;
     UnitAbilities_t abilities = { .abilList = "Aren" };
@@ -4040,6 +4536,75 @@ TEST(wc3_building, repair_autocast_toggle_is_unit_state) {
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_ACTIVE));
     T_ASSERT(!G_UnitAutocastIsOn(worker, FS_SLKKey(repair->classname)));
 
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, autocast_command_updates_only_focused_unit_type_subgroup) {
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    cstring_t command[] = { "autocast", "Aren" };
+    uint32_t const code = MAKEFOURCC('A','r','e','n');
+    slkTestData_t *rows, *old_abilities;
+    edict_t *first, *second, *other_type;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    other_type = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    edict_t *units[] = { first, second, other_type };
+    FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
+        units[i]->data.UnitAbilities = &abilities;
+        units[i]->s.player = 0;
+        units[i]->selected = 1;
+    }
+    T_ASSERT(G_FocusSelectedUnit(game.clients, first));
+
+    G_ClientCommand(g_edicts, 2, command);
+    T_ASSERT(G_UnitAutocastIsOn(first, code));
+    T_ASSERT(G_UnitAutocastIsOn(second, code));
+    T_ASSERT(!G_UnitAutocastIsOn(other_type, code));
+
+    G_ClientCommand(g_edicts, 2, command);
+    T_ASSERT(!G_UnitAutocastIsOn(first, code));
+    T_ASSERT(!G_UnitAutocastIsOn(second, code));
+    T_ASSERT(!G_UnitAutocastIsOn(other_type, code));
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, autocast_mixed_focused_subgroup_displays_off_and_normalizes_on) {
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    cstring_t command[] = { "autocast", "Aren" };
+    uint32_t const code = MAKEFOURCC('A','r','e','n');
+    gameCommandButton_t button;
+    slkTestData_t *rows, *old_abilities;
+    edict_t *first, *second;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    edict_t *units[] = { first, second };
+    FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
+        units[i]->data.UnitAbilities = &abilities;
+        units[i]->s.player = 0;
+        units[i]->selected = 1;
+    }
+    T_ASSERT(G_FocusSelectedUnit(game.clients, first));
+    T_ASSERT(G_SetUnitAutocast(first, code, true));
+    T_ASSERT(!G_UnitAutocastIsOn(second, code));
+
+    T_ASSERT(G_BuildCommandButton(first, "Aren", false, 0, &button));
+    T_EQ(button.alternate_active, 0);
+
+    G_ClientCommand(g_edicts, 2, command);
+    T_ASSERT(G_UnitAutocastIsOn(first, code));
+    T_ASSERT(G_UnitAutocastIsOn(second, code));
+    T_ASSERT(G_BuildCommandButton(first, "Aren", false, 0, &button));
+    T_EQ(button.alternate_active, 1);
+
+    G_ClientCommand(g_edicts, 2, command);
+    T_ASSERT(!G_UnitAutocastIsOn(first, code));
+    T_ASSERT(!G_UnitAutocastIsOn(second, code));
     building_restore_repair_data(old_abilities, rows);
 }
 

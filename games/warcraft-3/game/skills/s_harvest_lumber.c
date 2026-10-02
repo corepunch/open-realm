@@ -1125,6 +1125,7 @@ static bool harvest_lumber_selecttarget(edict_t *clent, edict_t *target) {
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         if (!S_HarvestCanLumber(ent)) continue;
         harvest_start(ent, target);
+        S_UnitAbilityOrderAccepted(ent, "harvest");
         issued = true;
     }
     return issued;

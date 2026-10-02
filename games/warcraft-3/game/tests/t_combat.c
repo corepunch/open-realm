@@ -34,12 +34,14 @@ void free_slk_rows(slkTestData_t *rows);
 
 #include "test.h"
 #include "../g_local.h"
+#include "../hud/hud_local.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void G_RunEntities(void);
+void ui_selectskill(gameClient_t *client);
 
 
 #include "../game/skills/s_skills.h"
@@ -72,6 +74,27 @@ static umove_t _replacement_move = { "stand alternate", NULL, NULL, NULL };
 static int _die_call_count = 0;
 static edict_t *_die_last_attacker = NULL;
 static PATHSTR _fire_model;
+static char _hero_menu_clicks[8][64];
+static uint32_t _hero_menu_click_count;
+static uint32_t _hero_menu_command_button_count;
+
+static void hero_menu_capture_write(pfWriteType_t type, void const *value) {
+    uiFrame_t const *frame;
+
+    if (type != PF_UIFRAME || !value || _hero_menu_click_count >= sizeof(_hero_menu_clicks) / sizeof(_hero_menu_clicks[0])) return;
+    frame = value;
+    if (frame->flags.type != FT_COMMANDBUTTON) return;
+    _hero_menu_command_button_count++;
+    if (!frame->onclick) return;
+    strlcpy(_hero_menu_clicks[_hero_menu_click_count++], frame->onclick,
+            sizeof(_hero_menu_clicks[0]));
+}
+
+static int hero_menu_test_image_index(cstring_t path) {
+    (void)path;
+    return 1;
+}
+
 static void stub_die(edict_t *self, edict_t *attacker) {
     (void)self;
     _die_call_count++;
@@ -1595,6 +1618,11 @@ TEST(wc3_combat, hero_skill_progression_uses_candidate_points_level_and_max_rank
     memset(h->heroabilities, 0, sizeof(h->heroabilities));
 
     T_EQ((int)G_UnitAbilityLevel(h, MAKEFOURCC('A','I','n','v')), 1);
+    G_SetPlayerAbilityAvailable(&game.clients[0], holy, false);
+    T_EQ((int)G_HeroSkillState(h, holy, &next, &required), HERO_SKILL_DISABLED);
+    T_ASSERT(!G_HeroLearnSkill(h, holy));
+    T_EQ((int)h->hero.skillpoints, 1);
+    G_SetPlayerAbilityAvailable(&game.clients[0], holy, true);
     T_EQ((int)G_HeroSkillState(h, holy, &next, &required), HERO_SKILL_AVAILABLE);
     T_EQ((int)next, 1);
     T_EQ((int)required, 1);
@@ -1636,6 +1664,71 @@ TEST(wc3_combat, hero_skill_progression_uses_candidate_points_level_and_max_rank
     T_EQ((int)G_HeroSkillState(h, shield, &next, &required), HERO_SKILL_AVAILABLE);
     T_EQ((int)G_HeroSkillState(h, MAKEFOURCC('A','H','w','e'), NULL, NULL), HERO_SKILL_ABSENT);
 
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_combat, player_disabled_hero_skill_is_omitted_from_select_skill_menu) {
+    UnitAbilities_t const tree = { .heroAbilList = "AHhb,AHds,AHtb" };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    gameClient_t *old_ui = ui_current_client;
+    gameClient_t *client;
+    edict_t *clent, *hero;
+    gameClient_t *old_clent_client;
+    uint32_t const holy = MAKEFOURCC('A','H','h','b');
+    slkTestData_t *rows = parse_slk_string(slk_hero_skill_progression);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
+    bool old_connected, old_clent_inuse, old_holy_available;
+    uint32_t old_player_number;
+    bool holy_visible = false, thunder_visible = false;
+
+    setup_test_world();
+    client = &game.clients[0];
+    old_connected = client->connected;
+    old_player_number = client->ps.number;
+    client->connected = true;
+    client->ps.number = 0;
+    clent = &g_edicts[0];
+    old_clent_inuse = clent->inuse;
+    old_clent_client = clent->client;
+    clent->inuse = true;
+    clent->client = client;
+    hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    hero->s.player = client->ps.number;
+    hero->data.UnitAbilities = &tree;
+    hero->hero.level = 1;
+    hero->hero.skillpoints = 1;
+    G_SelectEntity(client, hero);
+    old_holy_available = G_IsPlayerAbilityAvailable(client, holy);
+    G_SetPlayerAbilityAvailable(client, holy, false);
+
+    memset(_hero_menu_clicks, 0, sizeof(_hero_menu_clicks));
+    _hero_menu_click_count = 0;
+    _hero_menu_command_button_count = 0;
+    gi.Write = hero_menu_capture_write;
+    gi.ImageIndex = hero_menu_test_image_index;
+    UI_SetCurrentClient(client);
+    ui_selectskill(client);
+
+    FOR_LOOP(i, _hero_menu_click_count) {
+        if (strstr(_hero_menu_clicks[i], "AHhb")) holy_visible = true;
+        if (strstr(_hero_menu_clicks[i], "AHtb")) thunder_visible = true;
+    }
+    T_ASSERT(!holy_visible);
+    T_ASSERT(thunder_visible);
+    /* Thunderbolt and level-locked Divine Shield remain listed; disabled Holy Light is omitted. */
+    T_EQ((int)_hero_menu_command_button_count, 3);
+
+    G_DeselectEntity(client, hero);
+    G_SetPlayerAbilityAvailable(client, holy, old_holy_available);
+    client->connected = old_connected;
+    client->ps.number = old_player_number;
+    clent->inuse = old_clent_inuse;
+    clent->client = old_clent_client;
+    UI_SetCurrentClient(old_ui);
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }

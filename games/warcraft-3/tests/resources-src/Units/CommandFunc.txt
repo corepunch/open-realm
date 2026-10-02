@@ -1,3 +1,6 @@
+[CmdMove]
+Art=TestUI\Textures\solid_white.blp
+
 [CmdAttack]
 Art=TestUI\Textures\solid_white.blp
 
@@ -5,6 +8,9 @@ Art=TestUI\Textures\solid_white.blp
 Art=TestUI\Textures\solid_white.blp
 
 [CmdStop]
+Art=TestUI\Textures\solid_white.blp
+
+[CmdHoldPos]
 Art=TestUI\Textures\solid_white.blp
 
 [Astd]

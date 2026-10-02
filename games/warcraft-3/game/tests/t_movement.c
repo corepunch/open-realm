@@ -4802,6 +4802,35 @@ TEST(wc3_movement, ghoul_ahrl_smart_uses_lumber_only_harvest_data) {
     free_slk_rows(rows);
 }
 
+/* The lumber target click starts harvest directly; it must still retire a Stop guard point. */
+TEST(wc3_movement, lumber_target_click_clears_stop_guard) {
+    slkTestData_t *rows, *old_abilities;
+    edict_t *clent = &g_edicts[0];
+    gameClient_t *client;
+    edict_t *worker, *tree;
+    abilityCall_t call;
+
+    worker = make_moving_unit(0.0f, 0.0f);
+    client = &game.clients[0];
+    clent->client = client;
+    old_abilities = install_ghoul_harvest_test_data(&rows);
+    worker->data.UnitAbilities = &ghoul_harvest_abilities;
+    worker->s.player = client->ps.number;
+    tree = make_harvest_tree(96.0f, 0.0f, 100.0f);
+    G_SelectEntity(client, worker);
+    order_stop(worker);
+    T_ASSERT(worker->movement.guard_state == GUARD_IDLE);
+
+    call = MAKE(abilityCall_t, .client = clent);
+    T_ASSERT(CAbilityHarvestLumber(worker, A_COMMAND, &call));
+    T_ASSERT(client->menu.on_entity_selected(clent, tree));
+
+    T_ASSERT(worker->goalentity == tree);
+    T_ASSERT(worker->movement.guard_state == GUARD_NONE);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_movement, ghoul_ahrl_command_targets_tree_and_autoharvests_lumber) {
     slkTestData_t *rows, *old_abilities;
     edict_t *clent = &g_edicts[0];
@@ -5058,6 +5087,25 @@ static edict_t *add_gold_worker(float x, float y) {
     worker->unitinfo.MoveSpeed = 100.0f;
     unit_stand(worker);
     return worker;
+}
+
+TEST(wc3_movement, explicit_gold_harvest_retires_stop_guard_position) {
+    edict_t *worker, *mine;
+    slkTestData_t *rows, *old_abilities;
+
+    setup_test_world();
+    worker = add_gold_worker(0, 0);
+    mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320, 0);
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    worker->data.UnitAbilities = &harvest_abilities;
+    order_stop(worker);
+    T_ASSERT(worker->movement.guard_state != GUARD_NONE);
+
+    old_abilities = install_goldmine_test_data(&rows);
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "harvest", mine, false, 0));
+    T_ASSERT(worker->movement.guard_state == GUARD_NONE);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 static bool tree_died;

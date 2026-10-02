@@ -523,6 +523,7 @@ static void G_InitGame(void) {
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(gameClient_t));
+    memset(game.clients, 0, game.max_clients * sizeof(gameClient_t));
     game.data_prefix[0] = '\0';
     Stb_IniCacheLoad(&game.config.theme, "UI\\war3skins.txt");
     InitConstants();
@@ -555,6 +556,7 @@ static void G_ShutdownGame(void) {
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
     FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
+    if (game.clients) FOR_LOOP(i, game.max_clients) G_ClearPlayerAbilityAvailability(game.clients + i);
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;
@@ -939,6 +941,15 @@ void G_InvalidateCommands(gameClient_t *client) {
                 break;
             }
         }
+    }
+}
+
+/* Live per-unit button state (Stop's idle glow) changed; rebuild the cards of every viewer selecting it. */
+void G_InvalidateUnitCommands(edict_t *unit) {
+    if (!unit) return;
+    FOR_LOOP(i, game.max_clients) {
+        gameClient_t *client = game.clients + i;
+        if (client->connected && G_IsEntitySelected(client, unit)) client->commands_dirty = true;
     }
 }
 

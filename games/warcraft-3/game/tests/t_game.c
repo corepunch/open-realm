@@ -4046,6 +4046,74 @@ TEST(wc3_save, field_channel_origin_round_trip) {
     remove(filename);
 }
 
+TEST(wc3_save, movement_guard_state_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-movement-guard.bin";
+    field_t const *position = find_save_field("movement.guard_position");
+    field_t const *state = find_save_field("movement.guard_state");
+    field_t const *holding = find_save_field("movement.holding_position");
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+
+    T_NOT_NULL(position); if (position) T_EQ(position->type, F_VECTOR);
+    T_NOT_NULL(state); if (state) T_EQ(state->type, F_INT);
+    T_NOT_NULL(holding); if (holding) T_EQ(holding->type, F_INT);
+
+    unit->movement.guard_position = (vec2_t){ 123.5f, 456.5f };
+    unit->movement.guard_state = GUARD_RETURNING;
+    unit->movement.holding_position = true;
+    T_ASSERT(WriteGame(filename));
+    memset(&unit->movement, 0, sizeof(unit->movement));
+    T_ASSERT(ReadGame(filename));
+
+    T_FEQ(unit->movement.guard_position.x, 123.5f, 0.001f);
+    T_FEQ(unit->movement.guard_position.y, 456.5f, 0.001f);
+    T_EQ(unit->movement.guard_state, GUARD_RETURNING);
+    T_ASSERT(unit->movement.holding_position);
+    remove(filename);
+}
+
+TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-live-guard-return.bin";
+    int unit_index;
+    edict_t *unit;
+
+    setup_test_world();
+    reset_entities();
+    unit_index = globals.num_edicts;
+    unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 200, 0);
+    unit->stand = unit_stand;
+    unit->die = unit_die;
+    unit_stand(unit);
+    order_stop(unit);
+    T_ASSERT(unit->movement.guard_state != GUARD_NONE);
+
+    S_UnitAbilityEvent(unit, A_AUTO_COMBAT_START);
+    unit->s.origin2.x = unit->s.origin.x = 400;
+    gi.LinkEntity(unit);
+    T_ASSERT(S_UnitAbilityEvent(unit, A_AUTO_COMBAT_END));
+    T_ASSERT(unit->movement.guard_state == GUARD_RETURNING);
+    T_ASSERT(unit->currentmove->proc == CAbilityMove);
+    T_ASSERT(WriteGame(filename));
+
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + unit_index;
+    T_ASSERT(unit->movement.guard_state == GUARD_RETURNING);
+    T_ASSERT(unit->currentmove->proc == CAbilityMove);
+    T_NOT_NULL(unit->goalentity);
+    if (unit->goalentity) {
+        T_FEQ(unit->goalentity->s.origin2.x, 200, 0.001f);
+        T_FEQ(unit->goalentity->s.origin2.y, 0, 0.001f);
+    }
+    unit->s.origin2 = unit->movement.guard_position;
+    unit->s.origin.x = unit->s.origin2.x;
+    unit->s.origin.y = unit->s.origin2.y;
+    gi.LinkEntity(unit);
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->movement.guard_state == GUARD_IDLE);
+    T_ASSERT(unit->currentmove->think == ai_stand);
+    remove(filename);
+}
+
 TEST(wc3_save, field_vertex_tint_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-field-vertex-tint.bin";
     edict_t *unit;
