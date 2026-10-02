@@ -4922,7 +4922,7 @@ TEST(wc3_save, round_trip_jass_globals) {
         "function ChangedCallback takes nothing returns nothing\n"
         "endfunction\n"
         "function SavedFilter takes nothing returns boolean\n"
-        "  return true\n"
+        "  return false\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  set savedDeformation = TerrainDeformCrater(64.0, 96.0, 48.0, 8.0, 1000, false)\n"
@@ -5353,6 +5353,42 @@ TEST(wc3_jass, nested_script_sleep_resumes_child_before_parent) {
     T_ASSERT(!jass_rterror_pending(level.vm));
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyResumed", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_jass, sleep_in_boolean_expression_resumes_condition_and_branch) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer expressionSleepStage = 0\n"
+        "  integer expressionBranchCount = 0\n"
+        "  integer expressionAfterIf = 0\n"
+        "endglobals\n"
+        "function SleepingCondition takes nothing returns boolean\n"
+        "  set expressionSleepStage = 1\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set expressionSleepStage = 2\n"
+        "  return false\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  if not SleepingCondition() then\n"
+        "    set expressionBranchCount = expressionBranchCount + 1\n"
+        "  endif\n"
+        "  set expressionAfterIf = 1\n"
+        "endfunction\n"
+        "function verifyExpressionYielded takes nothing returns nothing\n"
+        "  call BJassAssert(expressionSleepStage == 1, \"condition did not suspend inside expression\")\n"
+        "  call BJassAssert(expressionBranchCount == 0, \"condition branch ran before condition returned\")\n"
+        "  call BJassAssert(expressionAfterIf == 0, \"caller continued past yielded condition\")\n"
+        "endfunction\n"
+        "function verifyExpressionResumed takes nothing returns nothing\n"
+        "  call BJassAssert(expressionSleepStage == 2, \"condition did not resume after sleep\")\n"
+        "  call BJassAssert(expressionBranchCount == 1, \"negated false condition did not run branch exactly once\")\n"
+        "  call BJassAssert(expressionAfterIf == 1, \"caller did not continue after condition resumed\")\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "verifyExpressionYielded", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyExpressionResumed", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 

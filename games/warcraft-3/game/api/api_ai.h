@@ -26,6 +26,20 @@ static uint32_t BotDisplayText(jass_t *j, uint32_t count) {
     char message[1024];
     FOR_LOOP(i, count) values[i] = jass_checkinteger(j, 3 + i);
     BotDisplayFormat(message, sizeof(message), format, values, count);
+#ifdef WC3_TRACE_AI
+    /* Retail common.ai enables these poll messages by default; they drown out diagnostics. */
+    if (strstr(message, "waiting for a signal") || strstr(message, "signal received") ||
+        strstr(message, "trying to gather forces") || strstr(message, "forming group") ||
+        strstr(message, "waiting for attack wave") || strstr(message, "waiting for suicide") ||
+        strstr(message, "waiting for timeout") || strstr(message, "waiting for attack wave to die"))
+        return 0;
+    if (strstr(message, "preparing suicide attack wave") || strstr(message, "exit form group") ||
+        strstr(message, "done - all units are dead") || strstr(message, "done - captain has entered combat") ||
+        strstr(message, "done - timeout") || strstr(message, "ABORT")) {
+        player_t *player = jass_getcontext(j)->playerState;
+        G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "script_ai_status", "message=\"%s\"", message);
+    }
+#endif
 #ifdef WC3_DEBUG_AI
     {
         cstring_t trace = gi.CvarString ? gi.CvarString("wc3_ai_trace", "0") : "0";
@@ -365,6 +379,16 @@ uint32_t AddAssault(jass_t *j) {
                bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0);
     return jass_pushboolean(j, ready);
 }
+uint32_t SetAssaultGroupTrace(jass_t *j) {
+    player_t *player = jass_getcontext(j)->playerState;
+    int32_t qty = jass_checkinteger(j, 1), max = jass_checkinteger(j, 2);
+    uint32_t class_id = (uint32_t)jass_checkinteger(j, 3);
+    G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_roster_entry",
+               "qty=%d max=%d unit=%.4s owned=%d complete=%d", qty, max,
+               (cstring_t)&class_id, BotUnitCount(player, class_id, false),
+               BotUnitCount(player, class_id, true));
+    return 0;
+}
 uint32_t CaptainGroupSize(jass_t *j) { return jass_pushinteger(j, G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }
 uint32_t CaptainIsFull(jass_t *j) { return jass_pushboolean(j, G_BotCaptainIsFull(jass_getcontext(j)->playerState)); }
 uint32_t CaptainIsEmpty(jass_t *j) { return jass_pushboolean(j, !G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }
@@ -385,7 +409,32 @@ uint32_t FillGuardPosts(jass_t *j) { G_BotFillGuardPosts(jass_getcontext(j)->pla
 uint32_t ReturnGuardPosts(jass_t *j) { G_BotReturnGuardPosts(jass_getcontext(j)->playerState); return 0; }
 
 uint32_t CommandsWaiting(jass_t *j) {
-    return jass_pushinteger(j, G_BotCommandsWaiting(jass_getcontext(j)->playerState));
+    player_t *player = jass_getcontext(j)->playerState;
+    uint32_t waiting = G_BotCommandsWaiting(player);
+#ifdef WC3_TRACE_AI
+    static uint32_t last_reported[MAX_PLAYERS];
+    static bool command_count_seen[MAX_PLAYERS];
+    static bool common_check_reported[MAX_PLAYERS];
+    uint32_t playernum = player ? PLAYER_NUM(player) : MAX_PLAYERS;
+    if (playernum < MAX_PLAYERS &&
+        (!command_count_seen[playernum] || last_reported[playernum] != waiting)) {
+        command_count_seen[playernum] = true;
+        last_reported[playernum] = waiting;
+        G_BOT_TRACE(playernum, j, "commands_waiting_changed", "count=%u newest=%d data=%d",
+                    waiting, G_BotLastCommand(player), G_BotLastData(player));
+    }
+    if (playernum < MAX_PLAYERS && !common_check_reported[playernum]) {
+        char callchain[512];
+        jass_formatcallchain(j, callchain, sizeof(callchain));
+        if (strstr(callchain, "CommonSuicideOnPlayer")) {
+            common_check_reported[playernum] = true;
+            G_BOT_TRACE(playernum, j, "wave_command_check",
+                        "count=%u newest=%d data=%d", waiting,
+                        G_BotLastCommand(player), G_BotLastData(player));
+        }
+    }
+#endif
+    return jass_pushinteger(j, waiting);
 }
 
 uint32_t GetLastCommand(jass_t *j) {

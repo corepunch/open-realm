@@ -121,6 +121,20 @@ static void G_JassCoroutineTrace(jass_t *vm, handle_t coroutine, handle_t trigge
             (int)yielded, (int)done);
 }
 
+static void G_JassFunctionTrace(jass_t *vm, handle_t coroutine, cstring_t function, cstring_t phase) {
+#ifdef WC3_TRACE_AI
+    bot_t *bot = NULL;
+    jass_t *root = jass_getroot(vm);
+    FOR_LOOP(player, MAX_PLAYERS) if (level.bots[player].vm == root) { bot = level.bots + player; break; }
+    if (!bot) return;
+    fprintf(stderr, "WC3_AI_TRACE time=%u player=%u script=\"%s\" event=function_%s name=%s coroutine=%p\n",
+            (unsigned)G_Time(), PLAYER_NUM(bot->player), bot->script,
+            phase ? phase : "unknown", function ? function : "(unknown)", coroutine);
+#else
+    (void)vm; (void)coroutine; (void)function; (void)phase;
+#endif
+}
+
 void G_InitJassHost(void) {
     jass_sethost(&MAKE(jassHost_t,
         .MemAlloc = gi.MemAlloc,
@@ -133,6 +147,7 @@ void G_InitJassHost(void) {
         .SaveHandle = G_SaveJassHandle,
         .LoadHandle = G_LoadJassHandle,
         .CoroutineTrace = G_JassCoroutineTrace,
+        .FunctionTrace = G_JassFunctionTrace,
         .VariableChanged = G_JassVariableChanged,
     ));
 }
