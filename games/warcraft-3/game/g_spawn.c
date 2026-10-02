@@ -681,6 +681,8 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     G_SetClientConnected(clent, false);
     G_ResetSelectionFocus(clent->client);
     clent->client->commands_dirty = false;
+    /* The disabled-ability list is heap-owned; release it before the JASS state reset drops the pointer. */
+    G_ClearPlayerAbilityAvailability(clent->client);
     memset(&clent->client->jass, 0, sizeof(clent->client->jass));
     memset(clent->client->tech, 0, sizeof(clent->client->tech));
     memset(ps, 0, sizeof(player_t));
