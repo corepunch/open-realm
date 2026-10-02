@@ -703,9 +703,7 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         .edges = move_fine_edges, .data = &graph, .target_hit = &target_hit };
     if (input->units && input->mover && !S_AdmitUnitMoveFineRequest((edict_t *)input->mover)) return false;
     int at = wc3_fine_search(&move_fine, &req);
-    if (input->units && input->mover) level.move_fine_budget.work+=move_fine.pops;
-    if (input->units && input->mover && level.move_fine_budget.work<BZ_WC3_FINE_FAST_WORK)
-        ((edict_t *)input->mover)->movement.fine_request_time=0;
+    if (input->units && input->mover) S_ChargeUnitMoveFineRequest((edict_t *)input->mover,move_fine.pops);
     bool complete = at >= 0;
     /* Original148100 retains the nearest admitted chain after exhaustion.
      * Location Move can approach that endpoint without replacing its order. */

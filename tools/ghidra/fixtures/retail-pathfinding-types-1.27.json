@@ -5480,6 +5480,58 @@
           "storage": 12
         }
       ]
+    },
+    {
+      "address": "6f168800",
+      "name": "Path_UnlinkCurrentSchedulerRequest",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Decoded x86 operands/RET; 1024 original queued class transitions and independently owned public SetUnitOwner captures."
+    },
+    {
+      "address": "6f168a80",
+      "name": "Path_SetSchedulerClass",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "player_class",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Decoded x86 operands/RET; 1024 original queued class transitions and independently owned public SetUnitOwner captures."
+    },
+    {
+      "address": "6f05c800",
+      "name": "MoverBridge_SetSchedulerClass",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "player_class",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Decoded x86 operands/RET; 1024 original queued class transitions and independently owned public SetUnitOwner captures."
     }
   ],
   "globals": [

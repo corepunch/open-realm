@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **493 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **497 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 ordinary public twelve-member movement matches1,953 commits and2,634 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
@@ -41,7 +41,7 @@ composition closes a gap.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
   `MapPathfindingTypes.java` also persists35 partial layouts,201 verified
-  fields and220 instruction-established prototypes with explicit register/stack
+  fields and223 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -51,7 +51,7 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  493 function names/comments applied and saved. Latest twelve-member readbacks:
+  497 function names/comments applied and saved. Latest twelve-member readbacks:
   `runtime/public-twelve-ghidra-readback-261002.json` and `runtime/public-twelve-interval-types-261002.json`. Prior public pair readbacks:
   `runtime/public-pair-ghidra-readback-261001.json` and `runtime/public-pair-ghidra-types-261001.json`. Prior group admission readbacks:
   `runtime/group-point-ghidra-readback-261001.json` and `runtime/group-point-ghidra-types-261001.json`. Prior spawn type readback:
@@ -281,3 +281,11 @@ commits, including two intermediate stop/refill handoffs and260 saved
 continuation commits. [Payoff36](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination)
 keeps supplied scenery geometry distinct from unresolved scene-loading and
 hierarchy-invalidation producers; shared physical crowds remain required.
+
+
+Ordinary fine work and pending request FIFOs now follow all16 unit-player rows.
+Ownership cancellation occurs before player publication and removes the old row
+before reclassification; Save76 preserves each row and request class. The public
+owner-change motion/Stop journey repeats exactly and has a normal-frame engine
+regression. See [payoff40](retail-pathfinding-engine.md#ordinary-fine-search-belongs-to-the-unit-player).
+Three accelerated policy pools and non-unit class15 producers remain open.

@@ -151,6 +151,7 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     uint32_t old_player;
 
     if (!unit || unit->s.player == player) return;
+    S_UnitAbilityEvent(unit, A_UNIT_OWNER_CHANGING);
     G_InvalidateUnitShortcutsForUnit(unit);
     /* Queue/upgrade charges belong to the original player. Cancel before
      * ownership changes so neither reservations nor refunds cross the transfer. */

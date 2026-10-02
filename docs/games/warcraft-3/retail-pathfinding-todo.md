@@ -8,7 +8,7 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**116 done / 302 tasks; 186 remaining.** Payoff39 explicitly splits ordinary public twelve-member class0 movement from the wider selected/AI, eligibility, queue and crowd integration in GROUP-04.6. Its formation adjustment, fine FIFO/interval, committed occupancy and retry ordering are implemented and verified through complete motion and save/load. Counts describe this backlog,
+**117 done / 303 tasks; 186 remaining.** Payoff40 explicitly splits ordinary fine player-row ownership and saved FIFO continuation from SCHED-03/04's remaining policy queues and traversal mutation. Its player budgets, old-owner cancellation, reclassification and saved FIFO continuation are implemented with exact public motion/Stop evidence. Counts describe this backlog,
 not a percentage of retail fidelity or an estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -26,7 +26,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | NUM — Numbers and random state | 22 | 14 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 2 | 9 |
-| SCHED — Scheduling and owner updates | 3 | 9 |
+| SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
 | GROUP — Shared movement groups | 15 | 6 |
@@ -122,11 +122,11 @@ state. Follow query ownership is integrated through Move, while completed Hold
 correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
 and seven public numeric adapters now share the verified scalar contracts
 (NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
-(NUM-01.8). Ghidra mapping persists493
-names,35 layouts,201 fields,220 x86 prototypes and45 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has257
+(NUM-01.8). Ghidra mapping persists497
+names,35 layouts,201 fields,223 x86 prototypes and45 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has258
 declared outcomes, including repeated public order, scalar, angle and complete
 public shared-pair and twelve-member witnesses. Payoff39 extends ordinary public Move-owned physical
-groups with formation destination adjustment, fine FIFO/interval, committed occupancy, retry ordering and Save75; wider retail
+groups with formation destination adjustment, fine FIFO/interval, committed occupancy and retry ordering. Payoff40 extends ordinary fine queues to16 unit-player rows with old-owner cancellation and Save76; wider retail
 eligibility/shared parameters, producers and crowd integration remain GROUP-04.6; supplied
 existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
 
@@ -561,6 +561,7 @@ Evidence: [movement evidence][M] and [routes][R]. Tools/artifacts: scheduler, mo
 - [ ] **SCHED-03.1** Trace class/priority producers, including non-unit class 15; record which runtime object can enqueue into each policy bucket.
 - [ ] **SCHED-03.2** Reclassify/requeue and delete a request during queue traversal; assert head/tail/count and next admitted request.
 - [ ] **SCHED-03.3** Cross the scheduler work-counter wrap; compare charged work and admission to an equivalent clean-counter run.
+- [x] **SCHED-03.4** Explicitly split ordinary fine player-row ownership from03.1/03.2/04: partition work/FIFO across all16 unit-player classes, cancel ordinary Move while the old owner is published, unlink old requests before class changes and removals, and retain independent work/FIFOs/intervals through save/load. Compare public ownership-change motion/Stop words through complete stationary continuation. Other three policy pools, non-unit class15 producers and mutation during original active traversal remain the parent leaves. Evidence: [payoff40](retail-pathfinding-engine.md#ordinary-fine-search-belongs-to-the-unit-player),365 exactly repeated public lifecycle records/17 arithmetic commits/two native Stops; normal-frame motion/final Stop and before/after saved continuations; all240 different-player changes,16-row removals/independent saves and actual route-consumer charging. Debug/release RoC/TFT each pass189,902 assertions/2,313 tests; production builds, repository suite,175 Python tests and fresh scheduler/live corpus checks pass. Save76 and saved Ghidra roles/types are synchronized.
 
 ### SCHED-04 — Contention
 

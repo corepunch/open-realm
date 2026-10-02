@@ -77,9 +77,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format75 adds the ordinary fine admission FIFO, work/countdown and request timestamps.
+/* Format76 partitions ordinary fine admission/work into16 player rows and saves each request class.
  * Earlier streams lack this ownership/layout contract and are rejected. */
-static uint32_t const save_version = 75;
+static uint32_t const save_version = 76;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -443,6 +443,15 @@ static fieldRing_t const game_event_ring = {
     FOFS(level_locals, events.write) - (handle_t)NULL
 };
 
+static field_t const move_fine_budget_fields[] = {
+    TF(moveFineBudget_t, work, F_INT),
+    TF(moveFineBudget_t, countdown, F_INT),
+    TF(moveFineBudget_t, count, F_INT),
+    TF(moveFineBudget_t, head, F_EDICT, 0, FIELD_NONE),
+    TF(moveFineBudget_t, tail, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const level_fields[] = {
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
@@ -450,12 +459,8 @@ static field_t const level_fields[] = {
     F(level_locals, repulse_phase, F_INT),
     F(level_locals, pathing_random.sum, F_INT),
     F(level_locals, pathing_random.index, F_INT),
-    F(level_locals, move_fine_budget.work, F_INT),
     F(level_locals, pathing_counter, F_INT),
-    F(level_locals, move_fine_budget.countdown, F_INT),
-    F(level_locals, move_fine_budget.count, F_INT),
-    F(level_locals, move_fine_budget.head, F_EDICT, 0, FIELD_NONE),
-    F(level_locals, move_fine_budget.tail, F_EDICT, 0, FIELD_NONE),
+    F(level_locals, move_fine_budgets, F_STRUCT, MAX_PLAYERS, move_fine_budget_fields),
     F(level_locals, pathing_clock.time, F_FLOAT),
     F(level_locals, pathing_clock.epoch, F_INT),
     F(level_locals, pathing_clock.span, F_FLOAT),
@@ -749,6 +754,7 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, fine_prev, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, fine_next, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, fine_queued, F_INT),
+    TF(edictMovement_s, fine_class, F_INT),
     TF(edictMovement_s, fine_request_time, F_INT),
     TF(struct edictMovement_s, fine_route.points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.count, F_INT),
@@ -1909,24 +1915,31 @@ static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
 /* Verify the intrusive admission graph before following any saved pointer.
  * Counts bound traversal, including cycles and disconnected queued edicts. */
 static bool ValidMoveFineRequests(void) {
-    if (level.move_fine_budget.count>globals.num_edicts || level.move_fine_budget.countdown>1) return false;
-    edict_t const *prev=NULL,*unit=level.move_fine_budget.head;
-    uint32_t count=0,queued=0;
-    while (unit) {
-        uintptr_t ptr=(uintptr_t)unit,base=(uintptr_t)g_edicts;
-        if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
-        if (++count>level.move_fine_budget.count || !unit->inuse || G_IsDeferredFree(unit) ||
-            *(uint8_t const *)&unit->movement.fine_queued!=1 || unit->movement.fine_prev!=prev) return false;
-        prev=unit; unit=unit->movement.fine_next;
+    uint32_t total=0,queued=0;
+    FOR_LOOP(i,MAX_PLAYERS) {
+        moveFineBudget_t const *budget=level.move_fine_budgets+i;
+        if (budget->count>globals.num_edicts || budget->countdown>1) return false;
+        edict_t const *prev=NULL,*unit=budget->head;
+        uint32_t count=0;
+        while (unit) {
+            uintptr_t ptr=(uintptr_t)unit,base=(uintptr_t)g_edicts;
+            if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
+            if (++count>budget->count || !unit->inuse || G_IsDeferredFree(unit) ||
+                *(uint8_t const *)&unit->movement.fine_queued!=1 || unit->movement.fine_prev!=prev ||
+                unit->movement.fine_class!=i || unit->s.player!=i) return false;
+            prev=unit; unit=unit->movement.fine_next;
+        }
+        if (count!=budget->count || prev!=budget->tail) return false;
+        total+=count;
+        if (total>globals.num_edicts) return false;
     }
-    if (count!=level.move_fine_budget.count || prev!=level.move_fine_budget.tail) return false;
     FOR_LOOP(i,globals.num_edicts) {
-        unit=g_edicts+i;
-        if (*(uint8_t const *)&unit->movement.fine_queued>1) return false;
+        edict_t const *unit=g_edicts+i;
+        if (*(uint8_t const *)&unit->movement.fine_queued>1 || unit->movement.fine_class>=MAX_PLAYERS) return false;
         if (unit->movement.fine_queued) queued++;
         else if (unit->movement.fine_prev || unit->movement.fine_next) return false;
     }
-    return queued==count;
+    return queued==total;
 }
 
 /* A saved group must own live, generation-matched members exactly once. The
@@ -2418,22 +2431,22 @@ TEST(wc3_save, fine_request_fifo_and_interval_continue_after_restore) {
     edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
     cstring_t file="/tmp/openwarcraft3-fine-request-fifo.bin";
     level.pathing_counter=2000;
-    level.move_fine_budget.work=BZ_WC3_FINE_OWNER_WORK+1;
-    level.move_fine_budget.countdown=1;
+    level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK+1;
+    level.move_fine_budgets[0].countdown=1;
     T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
     T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
     T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
-    T_EQ(level.move_fine_budget.count,2);
+    T_EQ(level.move_fine_budgets[0].count,2);
     T_EQ(first->movement.fine_request_time,0);
     T_ASSERT(WriteGame(file));
     S_ClearMoveFineRequests();
     T_ASSERT(ReadGame(file));
     T_ASSERT(ValidMoveFineRequests());
-    T_EQ(level.pathing_counter,2000); T_EQ(level.move_fine_budget.countdown,1);
-    T_EQ(level.move_fine_budget.work,BZ_WC3_FINE_OWNER_WORK+1);
-    T_EQ(level.move_fine_budget.head,first); T_EQ(level.move_fine_budget.tail,second);
+    T_EQ(level.pathing_counter,2000); T_EQ(level.move_fine_budgets[0].countdown,1);
+    T_EQ(level.move_fine_budgets[0].work,BZ_WC3_FINE_OWNER_WORK+1);
+    T_EQ(level.move_fine_budgets[0].head,first); T_EQ(level.move_fine_budgets[0].tail,second);
     T_EQ(first->movement.fine_next,second); T_EQ(second->movement.fine_prev,first);
-    level.move_fine_budget.work=BZ_WC3_FINE_OWNER_WORK;
+    level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK;
     T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
     T_ASSERT(S_AdmitUnitMoveFineRequest(first));
     T_EQ(first->movement.fine_request_time,2000);
@@ -2441,7 +2454,7 @@ TEST(wc3_save, fine_request_fifo_and_interval_continue_after_restore) {
     first->movement.fine_request_time=0; level.pathing_counter=0;
     T_ASSERT(ReadGame(file));
     T_EQ(first->movement.fine_request_time,2000); T_EQ(level.pathing_counter,2000);
-    T_EQ(level.move_fine_budget.head,second); T_EQ(level.move_fine_budget.count,1);
+    T_EQ(level.move_fine_budgets[0].head,second); T_EQ(level.move_fine_budgets[0].count,1);
     T_ASSERT(S_AdmitUnitMoveFineRequest(second));
     T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
     level.pathing_counter=2009; T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
@@ -2457,24 +2470,24 @@ TEST(wc3_save, rejects_invalid_fine_request_graphs) {
     reset_entities(); setup_test_world();
     edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
     edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
-    level.move_fine_budget.work=BZ_WC3_FINE_OWNER_WORK+1;
+    level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK+1;
     T_ASSERT(!S_AdmitUnitMoveFineRequest(first)); T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
-    typeof(level.move_fine_budget) original=level.move_fine_budget;
+    typeof(level.move_fine_budgets[0]) original=level.move_fine_budgets[0];
     FOR_LOOP(i,12) {
-        level.move_fine_budget=original;
+        level.move_fine_budgets[0]=original;
         first->movement.fine_prev=NULL; first->movement.fine_next=second; first->movement.fine_queued=true;
         second->movement.fine_prev=first; second->movement.fine_next=NULL; second->movement.fine_queued=true;
-        if (i==0) level.move_fine_budget.count=1;
-        if (i==1) level.move_fine_budget.tail=first;
-        if (i==2) level.move_fine_budget.head=(edict_t *)(uintptr_t)1;
+        if (i==0) level.move_fine_budgets[0].count=1;
+        if (i==1) level.move_fine_budgets[0].tail=first;
+        if (i==2) level.move_fine_budgets[0].head=(edict_t *)(uintptr_t)1;
         if (i==3) first->movement.fine_next=(edict_t *)(uintptr_t)1;
         if (i==4) second->movement.fine_prev=NULL;
         if (i==5) second->movement.fine_next=first;
         if (i==6) first->movement.fine_next=NULL;
         if (i==7) second->movement.fine_queued=false;
         if (i==8) *(uint8_t *)&second->movement.fine_queued=2;
-        if (i==9) level.move_fine_budget.countdown=2;
-        if (i==10) level.move_fine_budget.count=globals.num_edicts+1;
+        if (i==9) level.move_fine_budgets[0].countdown=2;
+        if (i==10) level.move_fine_budgets[0].count=globals.num_edicts+1;
         if (i==11) second->inuse=false;
         T_ASSERT(!ValidMoveFineRequests());
         T_ASSERT(!WriteGame("/tmp/openwarcraft3-invalid-fine-request.bin"));
@@ -2609,8 +2622,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-72.bin",
         "/tmp/openwarcraft3-wc3-save-version-73.bin",
         "/tmp/openwarcraft3-wc3-save-version-74.bin",
+        "/tmp/openwarcraft3-wc3-save-version-75.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75 };
 
     reset_entities();
     setup_test_world();
@@ -2741,4 +2755,57 @@ TEST(wc3_save, rejects_mismatched_entity_layout) {
     remove(filename);
 }
 
+#endif
+
+#ifdef BZ_TESTS
+/* All ordinary player rows retain their own work, FIFO order and interval clock. */
+TEST(wc3_save, fine_player_rows_continue_independently_after_restore) {
+    reset_entities(); setup_test_world();
+    edict_t *units[MAX_PLAYERS][2];
+    cstring_t file="/tmp/openwarcraft3-fine-player-rows.bin";
+    level.pathing_counter=2000;
+    FOR_LOOP(i,MAX_PLAYERS) {
+        moveFineBudget_t *budget=level.move_fine_budgets+i;
+        budget->work=BZ_WC3_FINE_OWNER_WORK+1+i; budget->countdown=i%2;
+        FOR_LOOP(k,2) {
+            units[i][k]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128+64*i,128+64*k);
+            units[i][k]->s.player=i;
+            T_ASSERT(!S_AdmitUnitMoveFineRequest(units[i][k]));
+        }
+    }
+    T_ASSERT(ValidMoveFineRequests()); T_ASSERT(WriteGame(file));
+    S_ClearMoveFineRequests(); T_ASSERT(ReadGame(file)); T_ASSERT(ValidMoveFineRequests());
+    FOR_LOOP(i,MAX_PLAYERS) {
+        moveFineBudget_t *budget=level.move_fine_budgets+i;
+        T_EQ(budget->work,BZ_WC3_FINE_OWNER_WORK+1+i); T_EQ(budget->countdown,i%2);
+        T_EQ(budget->head,units[i][0]); T_EQ(budget->tail,units[i][1]); T_EQ(budget->count,2);
+        T_EQ(units[i][0]->movement.fine_class,i);
+        budget->work=BZ_WC3_FINE_OWNER_WORK;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(units[i][1]));
+        T_ASSERT(S_AdmitUnitMoveFineRequest(units[i][0]));
+        T_EQ(units[i][0]->movement.fine_request_time,2000);
+        T_ASSERT(S_AdmitUnitMoveFineRequest(units[i][1]));
+        T_EQ(budget->count,0);
+    }
+    T_ASSERT(ValidMoveFineRequests()); remove(file); reset_entities(); setup_test_world();
+}
+
+TEST(wc3_save, rejects_fine_queues_in_wrong_player_rows) {
+    reset_entities(); setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK+1;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(unit));
+    moveFineBudget_t original=level.move_fine_budgets[0];
+    FOR_LOOP(i,4) {
+        unit->s.player=unit->movement.fine_class=0;
+        level.move_fine_budgets[0]=original; level.move_fine_budgets[1]=(moveFineBudget_t){0};
+        if (i==0) unit->movement.fine_class=1;
+        if (i==1) unit->s.player=1;
+        if (i==2) level.move_fine_budgets[1]=original;
+        if (i==3) unit->movement.fine_class=MAX_PLAYERS;
+        T_ASSERT(!ValidMoveFineRequests());
+        T_ASSERT(!WriteGame("/tmp/openwarcraft3-invalid-fine-player.bin"));
+    }
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
 #endif

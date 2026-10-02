@@ -17049,6 +17049,163 @@
       "exclusions": [
         "Negative endpoints, portals, irregular global hierarchy padding and map producers remain open."
       ]
+    },
+    {
+      "id": "live-owner-change-repeat-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_owner_change_trace.py",
+        "{archive}/runtime/owner-class-stop-first-261002.jsonl",
+        "--repeat",
+        "{archive}/runtime/owner-class-stop-repeat-261002.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-owner-change-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_owner_change.h",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/owner-class-stop-first-261002.jsonl",
+        "sha256": "0a2fcfcb173562188c0e7bee52653aa5c2426465d72c4589545be2ed5d710c32",
+        "bytes": 5064210,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+            "wc3_pathfinding.js": "30eaf5e262f55895c4f50888695078eaceb0c37b21405d211875036726b7fcae",
+            "wc3_pathfinding_probe.j": "a0f2405076eece8a5eec042fbc2f550477b073e490fc5df36921b587bd8cb80c",
+            "make_wc3_pathfinding_map.py": "05398d605f666119de7196fa20e1375f86c21f59dea7732b5589d9d5c83146c7",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "7c63d982acd751cea3773e8745aaf8c0b9a1a7c860d156e454868a031c5b16dc"
+          },
+          "map": "Maps\\PathingRE-OwnerClass-261002.w3m",
+          "seconds": 170.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": true,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "report": "owner-change-repeat.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeated": {
+          "equal": true
+        },
+        "lifecycle_records": {
+          "equal": 365
+        },
+        "ownership_stops": {
+          "equal": 2
+        },
+        "public_velocity_commits": {
+          "equal": 17
+        },
+        "exact_decisions": {
+          "equal": 17
+        },
+        "exact_velocity_commits": {
+          "equal": 17
+        },
+        "exact_position_commits": {
+          "equal": 17
+        },
+        "exact_facing_commits": {
+          "equal": 17
+        },
+        "lifecycle_sha256": {
+          "equal": "9e172f97f6fe4d2d0253fbea04fda6ab47b298f68f6e14cbd54260dd21a40cd2"
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Ordinary public Move/SetUnitOwner: all17 original arithmetic commits, two synchronous Stops, class0 to1 publication and complete stationary samples independently repeat. Production normal-frame regression checks16 directly observable motion commits and final Stop words, plus saved continuations before/after ownership transfer.",
+      "exclusions": [
+        "The final motion and Stop share a server frame; whole-engine regression observes final Stop state rather than the superseded velocity commit.",
+        "Static base-map geometry and Footman profile supplied from verified fixtures; arbitrary scenery/other ability ownership remains open.",
+        "This capture does not close numerical trailing-clock parity or the three accelerated scheduler policy pools."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/owner-class-stop-repeat-261002.jsonl",
+            "sha256": "393b429b3820a795fa4a33dc58b101ce6c76a7b43096b1904c953cf551bce895",
+            "bytes": 5319488,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+                "wc3_pathfinding.js": "30eaf5e262f55895c4f50888695078eaceb0c37b21405d211875036726b7fcae",
+                "wc3_pathfinding_probe.j": "a0f2405076eece8a5eec042fbc2f550477b073e490fc5df36921b587bd8cb80c",
+                "make_wc3_pathfinding_map.py": "05398d605f666119de7196fa20e1375f86c21f59dea7732b5589d9d5c83146c7",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "7c63d982acd751cea3773e8745aaf8c0b9a1a7c860d156e454868a031c5b16dc"
+              },
+              "map": "Maps\\PathingRE-OwnerClass-261002.w3m",
+              "seconds": 170.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": true,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -17114,7 +17271,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "074c8dc14af7d90c231ce1dd80d6d9542edfa5c0b7bbb5435e8b3093d023c540"
+      "sha256": "2b040ffeaee49868c8e2528298c9fed25f9e8afb344fdc9d73926f5d63b56f0a"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -17443,6 +17600,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-formation-destination-1.27.json",
       "sha256": "968093682e6b0e1ed27006c1eca5e434533f826751fbf6cb9d4f6e46512d83c8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-owner-change-1.27.json",
+      "sha256": "ada8e95ee22f7cd78ab281a9cbe610b63cfc4e4c20b096bd302b10fabbc9919e"
     }
   ]
 }

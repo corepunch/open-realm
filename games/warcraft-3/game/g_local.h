@@ -59,6 +59,12 @@ typedef struct {
     moveGroupMember_t members[BZ_WC3_GROUP_ORDER_UNITS];
 } moveGroup_t;
 
+/* Original player rows have independent ordinary fine work and intrusive queues. */
+typedef struct {
+    uint32_t work, countdown, count;
+    edict_t *head, *tail;
+} moveFineBudget_t;
+
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
 #define SEL_SCALE 72
@@ -840,6 +846,7 @@ typedef enum {
     A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
     A_TARGET_REMOVED,    /* Active move owner: call->removed_target is semantically removed, still allocated. */
     A_OWNER_UPDATE,     /* After owner-clock movement callbacks: update persistent ability-owned lists. */
+    A_UNIT_OWNER_CHANGING, /* Old owner remains published while behaviors cancel their orders/requests. */
     A_UNIT_OWNER_CHANGED, /* Ownership changes refresh behavior-owned policies after publishing the new player. */
     A_MOVE_SPEED_BONUS,  /* Aggregate all owners into call->move_speed_bonus; no stop-first dispatch. */
 } abilityMsg_t;
@@ -1716,6 +1723,7 @@ struct edict_s {
         moveFineRoute_t fine_route;
         edict_t *fine_prev, *fine_next; /* Move-owned ordinary fine admission FIFO. */
         bool fine_queued;
+        uint32_t fine_class; /* Retain the old player row until its pending request is unlinked. */
         uint32_t fine_request_time; /* owner visits, original path+7c interval timestamp */
         uint32_t wait_delay; /* eligible ordinary path advances; original requester4/peer20 */
         uint32_t retry_count; /* original path98; admitted fine progress clears before blocker collection */
@@ -2192,8 +2200,7 @@ struct level_locals {
     wc3Clock_t pathing_clock;
     wc3Random_t pathing_random;
     uint32_t pathing_counter; /* original owner+538, initialized to0x400 */
-    /* TODO SCHED-03/04: this is the verified ordinary class0 bucket; retain all16 player rows next. */
-    struct { uint32_t work, countdown, count; edict_t *head, *tail; } move_fine_budget;
+    moveFineBudget_t move_fine_budgets[MAX_PLAYERS];
     edict_t *repulse_head;
     uint32_t repulse_phase;
     uint32_t pathing_msec;
@@ -2729,6 +2736,7 @@ void S_FreeMoveRoute(edict_t *self);
 void S_ClearMoveGroups(void);
 uint32_t S_UnitMoveFineObjectFlags(edict_t const *unit);
 bool S_AdmitUnitMoveFineRequest(edict_t *unit);
+void S_ChargeUnitMoveFineRequest(edict_t *unit, uint32_t work);
 void S_ClearMoveFineRequests(void);
 bool G_IssueGroupPointOrder(groupPointOrder_t const *request);
 vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);

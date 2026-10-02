@@ -1203,15 +1203,27 @@ function install(module) {
                 emit('move-target-validation', {...this.row, result: ret.toUInt32()});
         }
     });
-    hook(0x171340, {onEnter() {
-        bump('mover-stop');
-        if (counts['mover-stop'] <= config.samples)
-            emit('mover-stop', {mover: this.context.ecx.toString(),
-                caller: this.returnAddress.sub(base).toString(),
-                stack: Thread.backtrace(this.context, Backtracer.ACCURATE)
+    hook(0x171340, {
+        onEnter() {
+            bump('mover-stop');
+            this.observe = counts['mover-stop'] <= config.samples;
+            if (!this.observe) return;
+            this.mover = this.context.ecx;
+            this.row = {mover:this.mover.toString(),
+                before:Array.from({length:8}, (_,i) => this.mover.add(0x70+i*4).readU32()),
+                requestedBefore:Array.from({length:2}, (_,i) => this.mover.add(0xc0+i*4).readU32()),
+                caller:this.returnAddress.sub(base).toString(),
+                stack:Thread.backtrace(this.context, Backtracer.ACCURATE)
                     .filter(p => p.compare(base) >= 0 && p.compare(base.add(config.imageSize)) < 0)
-                    .map(p => p.sub(base).toString())});
-    }});
+                    .map(p => p.sub(base).toString())};
+        },
+        onLeave() {
+            if (!this.observe) return;
+            emit('mover-stop', {...this.row,
+                after:Array.from({length:8}, (_,i) => this.mover.add(0x70+i*4).readU32()),
+                requestedAfter:Array.from({length:2}, (_,i) => this.mover.add(0xc0+i*4).readU32())});
+        }
+    });
     const snapshotPairGroup = group => {
         const count = group.add(0x38).readU32(), data = group.add(0x28).readPointer();
         if (count > 12) throw new Error('Public pair observer found an oversized group');

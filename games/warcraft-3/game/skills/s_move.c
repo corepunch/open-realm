@@ -108,36 +108,53 @@ uint32_t S_UnitMoveFineObjectFlags(edict_t const *unit) {
     return flags;
 }
 
-/* Ordinary fine policy has its own shared1100-work FIFO; equality still admits one full request.
- * TODO SCHED-03/04: other player classes and accelerated policy buckets remain separate. */
+/* Original16 player rows own independent ordinary fine1100-work FIFOs.
+ * TODO SCHED-03/04: the three accelerated policy buckets remain separate. */
 static void move_unlink_fine_request(edict_t *unit) {
     if (!unit->movement.fine_queued) return;
+    assert(unit->movement.fine_class<MAX_PLAYERS);
+    moveFineBudget_t *budget=level.move_fine_budgets+unit->movement.fine_class;
     edict_t *prev=unit->movement.fine_prev,*next=unit->movement.fine_next;
     if (prev) prev->movement.fine_next=next;
-    else level.move_fine_budget.head=next;
+    else budget->head=next;
     if (next) next->movement.fine_prev=prev;
-    else level.move_fine_budget.tail=prev;
-    assert(level.move_fine_budget.count); level.move_fine_budget.count--;
+    else budget->tail=prev;
+    assert(budget->count); budget->count--;
     unit->movement.fine_prev=unit->movement.fine_next=NULL; unit->movement.fine_queued=false;
 }
 
 bool S_AdmitUnitMoveFineRequest(edict_t *unit) {
+    if (unit->s.player>=MAX_PLAYERS) {
+        fprintf(stderr,"Move: invalid fine-search player %u for unit %u\n",unit->s.player,unit->s.number);
+        return false;
+    }
+    if (unit->movement.fine_class!=unit->s.player) {
+        move_unlink_fine_request(unit);
+        unit->movement.fine_class=unit->s.player;
+    }
+    moveFineBudget_t *budget=level.move_fine_budgets+unit->movement.fine_class;
     uint32_t now=level.pathing_counter;
     if (now<unit->movement.fine_request_time) unit->movement.fine_request_time=now-BZ_WC3_FINE_REQUEST_INTERVAL;
     if (now-unit->movement.fine_request_time<BZ_WC3_FINE_REQUEST_INTERVAL) return false;
     unit->movement.fine_request_time=now;
-    if (level.move_fine_budget.work<=BZ_WC3_FINE_OWNER_WORK &&
-        (!level.move_fine_budget.head || level.move_fine_budget.head==unit)) {
+    if (budget->work<=BZ_WC3_FINE_OWNER_WORK && (!budget->head || budget->head==unit)) {
         move_unlink_fine_request(unit); return true;
     }
     if (!unit->movement.fine_queued) {
-        unit->movement.fine_prev=level.move_fine_budget.tail; unit->movement.fine_next=NULL;
-        if (level.move_fine_budget.tail) level.move_fine_budget.tail->movement.fine_next=unit;
-        else level.move_fine_budget.head=unit;
-        level.move_fine_budget.tail=unit; level.move_fine_budget.count++; unit->movement.fine_queued=true;
+        unit->movement.fine_prev=budget->tail; unit->movement.fine_next=NULL;
+        if (budget->tail) budget->tail->movement.fine_next=unit;
+        else budget->head=unit;
+        budget->tail=unit; budget->count++; unit->movement.fine_queued=true;
     }
     unit->movement.fine_request_time=0;
     return false;
+}
+
+void S_ChargeUnitMoveFineRequest(edict_t *unit, uint32_t work) {
+    assert(unit->movement.fine_class<MAX_PLAYERS);
+    moveFineBudget_t *budget=level.move_fine_budgets+unit->movement.fine_class;
+    budget->work+=work;
+    if (budget->work<BZ_WC3_FINE_FAST_WORK) unit->movement.fine_request_time=0;
 }
 
 void S_ClearMoveFineRequests(void) {
@@ -145,15 +162,18 @@ void S_ClearMoveFineRequests(void) {
         g_edicts[i].movement.fine_prev=g_edicts[i].movement.fine_next=NULL;
         g_edicts[i].movement.fine_queued=false;
     }
-    level.move_fine_budget=(typeof(level.move_fine_budget)){0};
+    memset(level.move_fine_budgets,0,sizeof(level.move_fine_budgets));
     level.pathing_counter=BZ_WC3_PATH_OWNER_START;
 }
 
-/* Original167fa0 clears work on countdown0, reloads1, then decrements on the next owner visit. */
+/* Original167310 visits every row;167fa0 clears work on countdown0 and reloads1. */
 static void move_update_fine_budget(void) {
     if (!++level.pathing_counter) level.pathing_counter=BZ_WC3_PATH_OWNER_START;
-    if (!level.move_fine_budget.countdown) level.move_fine_budget.work=0,level.move_fine_budget.countdown=1;
-    else level.move_fine_budget.countdown--;
+    FOR_LOOP(i,MAX_PLAYERS) {
+        moveFineBudget_t *budget=level.move_fine_budgets+i;
+        if (!budget->countdown) budget->work=0,budget->countdown=1;
+        else budget->countdown--;
+    }
 }
 
 /* Retire route allocations independently of the originating JASS collection. */
@@ -2733,7 +2753,16 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return move_group_point_order(call->group_order) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     case A_OWNER_UPDATE: move_update_fine_budget(); move_run_group_updates(); move_repulse_owner_update(); return true;
     case A_UNIT_INIT:
-    case A_UNIT_OWNER_CHANGED: move_repulse_init(ent); return true;
+        ent->movement.fine_class=ent->s.player;
+        move_repulse_init(ent); return true;
+    case A_UNIT_OWNER_CHANGING:
+        /* Original698d92 cancels ordinary Move while callbacks still see the old player. */
+        if (unit_is_walking(ent)) order_stop(ent);
+        move_unlink_fine_request(ent); return true;
+    case A_UNIT_OWNER_CHANGED:
+        /* Original05c800/168a80 publishes the new player class after cancellation. */
+        ent->movement.fine_class=ent->s.player;
+        move_repulse_init(ent); return true;
     case A_UNIT_REMOVE:
         move_unlink_fine_request(ent);
         move_detach_group(ent);

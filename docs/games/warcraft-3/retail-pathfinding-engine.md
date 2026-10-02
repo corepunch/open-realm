@@ -4284,3 +4284,67 @@ The validation index is `runtime/public-twelve-validation-261002.json`.
 GROUP-04.11 closes. Next runnable work is SCHED-03/04: partition the ordinary
 fine admission FIFO/work by player class and preserve class changes/reclamation;
 GROUP-04.6 retains the wider physical group requirements.
+
+
+## Ordinary fine search belongs to the unit player
+
+Payoff40 ports the original sixteen player rows to the ordinary fine-search
+consumer. Player0 exhaustion no longer holds Player1 requests in a global FIFO.
+Each row retains work, reset countdown, head, tail and count. Move charges the
+row selected at admission and applies the original cumulative-work<64 timestamp
+clear there. Reclassification unlinks using the retained old class before
+publishing the new class. Other three policy pools remain SCHED-03/04.
+
+`G_SetUnitPlayer` sends generic `A_UNIT_OWNER_CHANGING` before publishing the new
+player and `A_UNIT_OWNER_CHANGED` afterward. Move owns ordinary order
+cancellation in the first message and class/repulsion publication in the second.
+This follows native `215500 -> 698ce0`, cancellation at `698d92`, and mover bridge
+`05c800 -> 168a80`; it does not put movement rules in the owner/food dispatcher.
+Callbacks during cancellation see the old owner. Same-owner writes remain no-ops.
+
+Two new independently owned `owner_change` scene9 captures use the original
+Human02Interlude map with only its script replaced. Immutable observer sources
+are `runtime/owner-class-stop-source-261002/`; captures are
+`runtime/owner-class-stop-{first,repeat}-261002.jsonl`. Read-only Stop observation
+adds native before/after pose/velocity/request words without calling target code.
+All365 lifecycle rows repeat exactly, including17 motion commits, two synchronous
+ownership Stops, class0 to1 and306 public markers through tick300. Stop preserves
+committed fineXY/facing/cap and clears velocity/requested words. The frozen fixture
+is `tools/ghidra/fixtures/retail-owner-change-1.27.json`; digest is
+`9e172f97f6fe4d2d0253fbea04fda6ab47b298f68f6e14cbd54260dd21a40cd2`.
+Trailing clock observers are complete but grant no new clock-parity claim.
+
+The normal-frame engine regression starts at clock zero, creates the supplied
+stock Footman movement profile, issues its point Move at timer tick10 and changes
+owner at tick15. It compares16 directly observable motion commits and the exact
+final Stop clock/nativeXY/native velocity/facing words. The seventeenth commit
+and synchronous Stop share the1500ms server frame, so the frame exposes final
+Stop state; original arithmetic replay separately checks every one of17 commits.
+Saved continuations immediately before and after that frame retain cancellation
+and the stationary final state through30 seconds. Static base-map geometry and
+movement profile are explicit supplied fixtures; arbitrary scenery and other
+ability ownership remain open.
+
+Engine tests additionally cover every240 different-player transition, pending
+middle/head removals for all16 rows, same-owner no-ops, actual local-route
+admission/charging under independent exhaustion, and two pending requests in
+every row through a real save/load. Save76 writes the sixteen recursive bucket
+records, relocated edict links and each request's old class. Validation rejects
+cross-row links, duplicate membership, wrong ownership/class, cycles, invalid
+pointers/countdowns and disconnected tags. Earlier save layouts are rejected;
+JSVM and network contracts are unchanged.
+
+Fresh `runtime/owner-class-strict-261002/` passes the new live lifecycle contract
+and the unchanged complete scheduler oracle:64 initialized buckets,448 policy
+selections,1280 cadence checks,16384 FIFO operations,162 intervals,1024 queued
+class changes and256 target-policy changes. Only ordinary fine queues have
+production parity here. Ghidra now retains497 roles,35 layouts/201 fields and223
+explicit prototypes; five saved owner/class roles read back in
+`runtime/owner-class-ghidra-readback-261002.json`. No p-code was needed.
+
+Final payoff40 validation: debug (`WC3_DEBUG_BUILD=1`) and forced release RoC/TFT
+each pass189,902 assertions in2313 tests. Production debug/release builds, the
+normal repository suite,175 Python pathfinding tests, ability registration audit
+and258-entry/99-fixture inventory pass. Strict fresh scheduler/live contracts
+pass. SCHED-03.4 closes; the original wider scheduling/traversal leaves remain
+open. The validation index is `runtime/owner-class-validation-261002.json`.

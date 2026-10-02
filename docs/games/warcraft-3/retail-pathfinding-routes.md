@@ -100,8 +100,10 @@ counter538 to0x400, and `15aa80` reloads0x400 after unsigned wrap. Engine
 [payoff39](retail-pathfinding-engine.md#twelve-member-public-group-retains-fine-admission-and-committed-occupancy)
 now consumes the ordinary class0 fine bucket:1100 accumulated pops, reload1,
 FIFO and ten-visit timestamps, all retained in Save75. Cumulative fine work<64
-and FIFO denial clear the fine timestamp. Other player classes and the remaining
-three policy pools are still explicit production gaps.
+and FIFO denial clear the fine timestamp. [Payoff40](retail-pathfinding-engine.md#ordinary-fine-search-belongs-to-the-unit-player)
+partitions ordinary fine work/FIFOs across all16 unit-player rows and ports old-row
+removal before owner publication, with Save76 and exact public cancellation.
+The remaining three policy pools are still explicit production gaps.
 
 `6f165ea0` and `6f1686a0` append/unlink persistent paths using links at
 `path+0x8c/+0x90`, with -1 endpoint sentinels and zero for unqueued paths.

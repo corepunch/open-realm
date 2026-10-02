@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **257 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **40**
+The inventory now has **258 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **41**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -688,3 +688,15 @@ chain. Production arithmetic replays every commit; a separate normal-frame
 engine regression matches115 commits and87 saved suffix commits. The supplied
 scene geometry and wider GROUP-04.6 gaps remain explicit. See [public pair
 movement](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner).
+
+
+Payoff40 adds `live-owner-change-repeat-261002`: two independent script-only
+public ownership-change captures repeat365 lifecycle records,17 motion commits,
+two native Stops, class0 to1 and306 markers. The strict checker pins every raw
+word and callback/class order and verifies the engine header. Arithmetic replays
+all17 commits; the normal-frame engine test checks16 observable motion commits
+and the final Stop state, including saved continuations before and after its
+shared frame. Extra trailing clock rows are checked for observer completeness
+and grant no new numerical-clock claim. The unchanged scheduler oracle is rerun
+fresh alongside this contract. Inventory is258 entries/99 frozen fixtures.
+See [ordinary player queues](retail-pathfinding-engine.md#ordinary-fine-search-belongs-to-the-unit-player).
