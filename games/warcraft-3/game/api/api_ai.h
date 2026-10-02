@@ -77,6 +77,74 @@ static int32_t BotUnitCount(player_t *player, uint32_t unitid, bool done) {
     return count;
 }
 
+#ifdef WC3_TRACE_AI
+typedef struct {
+    uint32_t unitid;
+    int32_t owned, complete, training, constructing, producing, assigned;
+    bool seen;
+} botAssaultSupplyTrace_t;
+
+enum { BOT_ASSAULT_TRACE_TYPES = 16 };
+static botAssaultSupplyTrace_t bot_assault_supply_trace[MAX_PLAYERS][BOT_ASSAULT_TRACE_TYPES];
+
+/* Emit a supply snapshot once per wave and again only when production or
+ * captain assignment changes. This keeps formation polling from flooding logs. */
+static void BotTraceAssaultSupply(jass_t *j, player_t *player, uint32_t unitid,
+                                  int32_t requested, uint32_t group_size, uint32_t desired) {
+    botAssaultSupplyTrace_t *state = NULL;
+    bot_t *bot;
+    int32_t owned = 0, complete = 0, training = 0, constructing = 0, producing = 0, assigned = 0;
+    uint32_t playernum;
+    if (!player || !unitid) return;
+    playernum = PLAYER_NUM(player);
+    if (playernum >= MAX_PLAYERS) return;
+    FOR_LOOP(i, BOT_ASSAULT_TRACE_TYPES) {
+        if (bot_assault_supply_trace[playernum][i].unitid == unitid) {
+            state = bot_assault_supply_trace[playernum] + i;
+            break;
+        }
+        if (!state && !bot_assault_supply_trace[playernum][i].unitid)
+            state = bot_assault_supply_trace[playernum] + i;
+    }
+    if (!state) return;
+    bot = &level.bots[playernum];
+    FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == playernum && ent->class_id == unitid) {
+        owned++;
+        if (ent->construction.active) constructing++;
+        else if (ent->training) training++;
+        else {
+            complete++;
+            bool in_captain = false;
+            if (bot) FOR_LOOP(c, BOT_CAPTAIN_COUNT) {
+                FOR_EACH_ARRAY(edict_t *, member, bot->captains[c].units)
+                    if (*member == ent) { in_captain = true; break; }
+                if (in_captain) break;
+            }
+            if (in_captain) assigned++;
+        }
+    }
+    FILTER_EDICTS(builder, G_BotUnitAlive(builder) && builder->s.player == playernum &&
+                          builder->build_project == unitid) producing++;
+    if (state->seen && state->unitid == unitid && state->owned == owned &&
+        state->complete == complete && state->training == training &&
+        state->constructing == constructing && state->producing == producing &&
+        state->assigned == assigned) return;
+    state->unitid = unitid;
+    state->owned = owned;
+    state->complete = complete;
+    state->training = training;
+    state->constructing = constructing;
+    state->producing = producing;
+    state->assigned = assigned;
+    state->seen = true;
+    G_BOT_TRACE(playernum, j, "wave_unit_supply",
+               "unit=%.4s owned=%d complete=%d training=%d constructing=%d producer_projects=%d assigned=%d available=%d requested=%d group_size=%u desired=%u",
+               (cstring_t)&unitid, owned, complete, training, constructing, producing,
+               assigned, complete - assigned, requested, group_size, desired);
+}
+
+#endif
+
 uint32_t GetAiPlayer(jass_t *j) {
     player_t *player = jass_getcontext(j)->playerState;
     return jass_pushinteger(j, player ? (int32_t)PLAYER_NUM(player) : -1);
@@ -377,6 +445,11 @@ uint32_t AddAssault(jass_t *j) {
                "qty=%d unit=%.4s ready=%d group_size=%u desired=%u", qty,
                (cstring_t)&class_id, (int)ready, G_BotCaptainGroupSize(player),
                bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0);
+#ifdef WC3_TRACE_AI
+    BotTraceAssaultSupply(j, player, class_id, qty,
+                          G_BotCaptainGroupSize(player),
+                          bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0);
+#endif
     return jass_pushboolean(j, ready);
 }
 uint32_t SetAssaultGroupTrace(jass_t *j) {
@@ -510,10 +583,12 @@ uint32_t SuicidePlayer(jass_t *j) {
     bool check_full = jass_checkboolean(j, 2);
     bool accepted = G_BotSuicidePlayer(player, target ? PLAYER_NUM(target) : 0, check_full);
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
-               "api=SuicidePlayer target_player=%u check_full=%d accepted=%d group_size=%u desired=%u",
+               "api=SuicidePlayer target_player=%u check_full=%d accepted=%d group_size=%u desired=%u shortfall=%u",
                target ? PLAYER_NUM(target) : 0, (int)check_full, (int)accepted,
                G_BotCaptainGroupSize(player),
-               bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0);
+               bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0,
+               bot && bot->captains[BOT_CAPTAIN_ATTACK].desired > G_BotCaptainGroupSize(player) ?
+                   bot->captains[BOT_CAPTAIN_ATTACK].desired - G_BotCaptainGroupSize(player) : 0);
     return jass_pushboolean(j, accepted);
 }
 uint32_t MergeUnits(jass_t *j) {

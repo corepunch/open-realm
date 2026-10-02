@@ -858,7 +858,9 @@ static bool G_BotBuildNearTown(player_t *player, uint32_t class_id, int32_t town
 
 /* common.ai has already bounded qty by resources; each accepted action still performs authoritative checks/payment. */
 bool G_BotProduce(player_t *player, int32_t qty, uint32_t class_id, int32_t town_id) {
+    int32_t requested = qty;
     uint32_t made = 0;
+    cstring_t stop_reason = "request_satisfied";
     if (!player || qty <= 0 || !class_id) return false;
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI produce request player=%u qty=%d id=%.4s town=%d\n",
@@ -866,8 +868,12 @@ bool G_BotProduce(player_t *player, int32_t qty, uint32_t class_id, int32_t town
 #endif
     while (qty-- > 0) {
         if (G_UnitIsBuilding(class_id)) {
-            if (!G_BotBuildNearTown(player, class_id, town_id)) break;
+            if (!G_BotBuildNearTown(player, class_id, town_id)) {
+                stop_reason = "no_worker_or_build_site";
+                break;
+            }
             made++;
+            stop_reason = "serialized_building_placement";
             break; /* common.ai retries deficits; one pending footprint at a time prevents overlapping reservations. */
         } else {
             edict_t *producer = NULL;
@@ -885,12 +891,59 @@ bool G_BotProduce(player_t *player, int32_t qty, uint32_t class_id, int32_t town
                 float dist = town ? Vector2_distance(&town->s.origin2, &ent->s.origin2) : 0.0f;
                 if (!producer || dist < producer_dist) { producer = ent; producer_dist = dist; }
             }
-            if (!producer || !SP_TrainUnit(producer, class_id)) break;
+            if (!producer) {
+                stop_reason = "no_eligible_idle_producer";
+                break;
+            }
+            if (!SP_TrainUnit(producer, class_id)) {
+                stop_reason = "train_command_rejected";
+                break;
+            }
         }
         made++;
     }
+#ifdef WC3_TRACE_AI
+    if (made < (uint32_t)requested) {
+        if (G_UnitIsBuilding(class_id)) {
+            G_BOT_TRACE(PLAYER_NUM(player), NULL, "production_shortfall",
+                       "requested=%d started=%u unit=%.4s town=%d stop=%s",
+                       requested, made, (cstring_t)&class_id, town_id, stop_reason);
+        } else {
+            int32_t owned_producers = 0, busy_producers = 0, wrong_town = 0;
+            int32_t train_absent = 0, train_hidden = 0, train_disabled = 0;
+            int32_t train_unaffordable = 0, train_available = 0;
+            FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
+                G_UnitIsBuilding(ent->class_id)) {
+                owned_producers++;
+                if (ent->construction.active || ent->training || ent->build) {
+                    busy_producers++;
+                } else if (!G_BotUnitAtTown(player, ent, town_id)) {
+                    wrong_town++;
+                } else {
+                    switch (G_GetTrainCommandState(G_GetPlayerClientByNumber(ent->s.player),
+                                                   ent, class_id, NULL, 0)) {
+                        case BUILD_COMMAND_ABSENT: train_absent++; break;
+                        case BUILD_COMMAND_HIDDEN: train_hidden++; break;
+                        case BUILD_COMMAND_DISABLED: train_disabled++; break;
+                        case BUILD_COMMAND_UNAFFORDABLE: train_unaffordable++; break;
+                        case BUILD_COMMAND_AVAILABLE: train_available++; break;
+                    }
+                }
+            }
+            G_BOT_TRACE(PLAYER_NUM(player), NULL, "production_shortfall",
+                       "requested=%d started=%u unit=%.4s town=%d stop=%s producers=%d busy=%d wrong_town=%d absent=%d hidden=%d disabled=%d unaffordable=%d available=%d",
+                       requested, made, (cstring_t)&class_id, town_id, stop_reason,
+                       owned_producers, busy_producers, wrong_town, train_absent,
+                       train_hidden, train_disabled, train_unaffordable, train_available);
+        }
+    }
+#endif
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI produce result id=%.4s made=%u\n", (cstring_t)&class_id, made);
+#endif
+#ifndef WC3_TRACE_AI
+    (void)requested;
+    (void)stop_reason;
 #endif
     return made > 0;
 }
