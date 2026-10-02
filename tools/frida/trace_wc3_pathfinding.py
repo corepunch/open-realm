@@ -102,7 +102,7 @@ def main():
         config['crt'] = dict(sha256=crt_hash, timestamp=struct.unpack_from('<I', crt, cp+8)[0],
                              imageSize=struct.unpack_from('<I', crt, cp+80)[0],
                              path='Z:' + str((args.data / 'msvcr120.dll').resolve()).replace('/', '\\'))
-    source_paths = [Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
+    source_paths = [Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
                     Path(__file__).with_name('wc3_pathfinding_probe.j'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),
@@ -124,6 +124,9 @@ def main():
         if args.point_click_sample_ticks: config['pointInput']['sampleTicks'] = True
     provenance = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths}
     map_path = args.data / args.map.replace('\\', '/')
+    captain_ai = map_path.with_suffix('.ai')
+    if captain_ai.is_file():
+        provenance['captain_ai'] = hashlib.sha256(captain_ai.read_bytes()).hexdigest()
     if args.numeric_events and not map_path.is_file():
         parser.error('numeric capture requires the actual map for provenance hashing')
     if map_path.is_file():

@@ -5399,3 +5399,112 @@ full invocation against rebuilt release binaries passes. All284 pathfinding
 Python checks, ability coverage audit,272-entry inventory and29 fresh corpus
 outcomes pass. Backlog131 completed/184 open leaves. Next runnable work is
 the Captain AI shared-radius producer and its Move-owned engine consumer.
+
+
+## Captain home recruitment and formation retries reach Move
+
+Payoff55 ports captain formation ownership into `g_bot.c` and admits newly
+recruited assault members toward an explicitly authored captain home through
+production Move. The previous engine only reserved the roster; public
+`StartCampaignAI` produced no movement commits. It also erased the home and
+roster in `InitAssault`, then added every repeated typed quantity to a desired
+counter. Keeping the roster without fixing that counter would leave retries
+permanently short of an invented total.
+
+Original `InitAssault` at9bc0f0/9c7b10 only sets attack-captain flag1.
+`CaptainIsFull` at9b8a20 reads that flag. A typed recruitment shortfall clears
+it in9c3550; a successful request leaves it unchanged. `CreateCaptains` really
+creates replacement captain actors and resets their roster/flags. Engine
+captains now retain home, roster and active goal across InitAssault, use the
+same formation flag for fullness, and preserve the current member Move when
+a retry merely counts an already recruited unit. The obsolete accumulated
+quantity is removed. Size/empty queries still count live members separately.
+
+Six immutable original captures repeat the stationary home, existing-roster
+InitAssault, and full/shortage/retry predicates. Each produces178 physical
+Footman commits plus two stopped virtual-actor commits. All1,080 captured
+commits,1,062 scalar decisions and6,000 primary owner callbacks match
+production arithmetic. This is complete native reference evidence, not full
+engine captain parity.
+
+The normal engine script starts through `StartCampaignAI` from the actual
+100ms map timer and runs CreateCaptains, SetCaptainHome, InitAssault,
+AddAssault, a shortfall and an InitAssault retry. Its first33 movement commits
+match retail exactly; four Save82 checkpoints at1200/1500/1800/1995ms match48
+additional admission suffix commits. The engine also naturally finishes home
+travel and passes Stop, replacement Move and removal controls. No pose,
+velocity, route or clock is injected. Saved evidence covers physical movement;
+the bot VM/roster context is not a serialized AI continuation contract.
+
+At2s, retail's membership callback9d9020 updates proximity counts and replaces
+the recruit's virtual-target task with a private shared point request. That
+replacement flushes its pose to clock1.9999990463256836 and zeros velocity
+before the2.009997844696045 owner. Engine ordinary point Move first diverges
+at commit33/2010ms: it integrates another10ms, producing a1.5-world-unit
+position difference. The full178-row literal reference is retained in
+`retail-captain-home-1.27.json` and `tests/retail_captain_home.h`; the regression
+explicitly ends exact admission comparison before the handoff. The verifier
+and corpus require `whole_engine_parity=false` and
+`private_handoff_remains_open=true`. GROUP-03.4.1 remains open until the
+complete stationary-home journey matches. The recorded first failed full
+comparison remains `runtime/captain-home-first-port-261002.log`.
+
+Initial native target range is five times recruit collision radius; the
+private point handoff uses minimum.49. The virtual captain has radius0,
+category2, object-category0x01000002 and path-mask0x02000002, distinct from
+Footman's radius31 and category202. Its actor range changes from500 to200
+world units. CaptainGoHome moves this virtual actor and its followers, so a
+per-unit point command does not implement that native. Moving virtual actors,
+private range/task families, shared12+1 batches and their inverses remain
+GROUP-03.4/FOOT-01.3.
+
+Default CreateCaptains homes come from the native AI town object in9c5360/
+9bb750; attack and defense use distinct town coordinates. That producer is
+still missing in the engine. An unset home is now distinguished from an
+explicitly authored(0,0) home, and unresolved default admission is logged
+instead of sending recruits to an invented origin.
+
+The owned native map configures Player0 as COMPUTER before AI-agent allocation.
+Changing its controller after neutral-agent allocation cannot start the AI.
+AI integer string natives are stubbed in this binary's AI binding, so probes
+use literal markers and Boolean predicates rather than I2S. The map builder's
+`captain_home` scenario packages `wc3_captain_probe.ai`; `--captain-ai` selects
+an explicit alternate such as `wc3_captain_full_probe.ai` and records its hash
+and adjacent AI source. A thirteen-member point diagnostic shows12+1 batches
+and shared maximum63/32, but hits the10,000-event cap and is not accepted as
+whole-motion evidence. Its source/capture stays diagnostic.
+
+Evidence under the external retail archive:
+
+- `runtime/captain-home-v2-first-261002.jsonl` and its repeat: authored home
+  before InitAssault and one recruit's complete native motion.
+- `runtime/captain-home-init-v1-first-261002.jsonl` and its repeat: literal
+  size-one predicates before and after InitAssault.
+- `runtime/captain-home-full-v1-first-261002.jsonl` and its repeat: Create false,
+  Init true, successful recruit true, shortfall false and retained retry true.
+- `runtime/captain-home-source-provenance-final-261002.json`: all six immutable
+  observer, AI/map-script and packed-map source hashes.
+- `runtime/captain-home-strict-final-261002/corpus-results.json`:29 fresh live
+  contracts plus the original map oracle pass, retaining the explicit engine gap.
+- `runtime/captain-home-ghidra-readback-saved-261002.json`:576 saved roles,
+  45 layouts/287 fields/258 explicit ABIs/46 globals and no unsaved changes.
+
+The captain prefix and full flag/native roles are persisted in Ghidra.
+The member helper's verified ABI is ECX source unit, EDX opaque target,
+stack4 nullable point,8 request array,c group-index pointer,10 member-count
+pointer,14 policy,18 shared-enable and1c shared-wrapper, withRET1c. Target
+requests pass a null point; treating it as a coordinate pointer caused an
+initial diagnostic observer failure and is rejected.
+
+Payoff55 final checks: full debug and optimized RoC/TFT each pass745,037
+assertions in2388 tests, including the complete public AI admission regression
+and existing movement/save controls. All299 pathfinding Python checks, the
+ability coverage audit and30 fresh strict corpus outcomes pass. Inventory has
+273 entries/115 fixtures/56 strict live contracts. Ghidra's saved readback has
+576 roles/45 layouts/287 fields/258 explicit ABIs/46 globals. The initial
+repository release run crashed in the host SDL3-backed SDL2 compatibility
+library during a generic client input test; its retained core identifies that
+stack. The full repository suite passes with the native SDL2 library used by
+the debug runs (`runtime/captain-home-full-release-test-v2-261002.log`).
+No assertion was removed or weakened. Full private handoff parity remains
+explicitly open; backlog131 completed/185 open leaves.

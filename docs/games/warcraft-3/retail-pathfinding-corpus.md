@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **272 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **55**
+The inventory now has **273 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **56**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -893,3 +893,21 @@ live contracts. `runtime/outside-goal-strict-final-261002/corpus-results.json`
 runs28 fresh capture contracts plus the map oracle. Four immutable source/map
 provenance checks and284 pathfinding Python checks pass. The complete engine
 journey and four Save82 continuations are described in [outside point goals](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click).
+
+
+## Captain home formation and the explicit engine handoff gap
+
+Payoff55 adds `live-captain-home-captures-261002`: six complete captures repeat
+stationary home admission, retained-roster InitAssault, and full/shortfall/retry
+Boolean predicates. All1,080 original commits (1,068 physical recruit commits
+plus12 stopped virtual-actor commits),1,062 decisions and6,000 primary owner
+callbacks pass numerical replay. The complete178-row recruit reference is
+frozen independently of the engine's33-commit admission window. The report
+requires `whole_engine_parity=false` and `private_handoff_remains_open=true`;
+reference replay cannot close the missing private task transition.
+
+The inventory has273 entries,115 pinned fixtures and56 strict live contracts.
+`runtime/captain-home-strict-final-261002/corpus-results.json` runs29 fresh
+capture contracts plus the original map oracle. Six source/map provenance
+checks pass. Engine and saved admission evidence, current limitations, owned
+probe setup and diagnostic exclusions are in [captain home integration](retail-pathfinding-engine.md#captain-home-recruitment-and-formation-retries-reach-move).

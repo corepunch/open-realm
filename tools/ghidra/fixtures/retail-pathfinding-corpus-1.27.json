@@ -21171,6 +21171,356 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "inputs": {
+        "capture": "runtime/captain-home-v2-first-261002.jsonl",
+        "sha256": "ad3f73365b4cb20b13444eb341b90ddb3cd6bc136ae12761ee589d481478e32a",
+        "bytes": 6461671,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+            "wc3_pathfinding.js": "19c3b28aab817f9d2a6b792f427be0c37635839d02398e87e2437ec61493b584",
+            "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+            "make_wc3_pathfinding_map.py": "af8dac2485358b3700a41e6be5cc0a2bec18194e7474c053c608c6a0c1698bfc",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "f96451bb42ce9c042c3970878b452b194c584e6a0580e96e2cdc731f7e22f630"
+          },
+          "map": "Maps\\PathingRE-CaptainHomeV2-261002.w3m",
+          "seconds": 70.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true,
+      "id": "live-captain-home-captures-261002",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_captain_home_trace.py",
+        "{archive}/runtime/captain-home-v2-first-261002.jsonl",
+        "{archive}/runtime/captain-home-v2-repeat-261002.jsonl",
+        "{archive}/runtime/captain-home-init-v1-first-261002.jsonl",
+        "{archive}/runtime/captain-home-init-v1-repeat-261002.jsonl",
+        "{archive}/runtime/captain-home-full-v1-first-261002.jsonl",
+        "{archive}/runtime/captain-home-full-v1-repeat-261002.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-captain-home-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_captain_home.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "captain-home-captures.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 6
+        },
+        "exact_velocity_commits": {
+          "equal": 1080
+        },
+        "exact_decisions": {
+          "equal": 1062
+        },
+        "owner_callbacks": {
+          "equal": 6000
+        },
+        "recruit_commits": {
+          "equal": 1068
+        },
+        "engine_admission_commits": {
+          "equal": 198
+        },
+        "whole_engine_parity": {
+          "equal": false
+        },
+        "private_handoff_remains_open": {
+          "equal": true
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Stationary captain-home AI recruitment and InitAssault roster/home/full-flag retention, including recruitment shortfall/retry. Complete repeated native178 recruit commits plus2 virtual stopped commits; production engine matches initial33 admission commits and48 Save82 suffix commits only. Private membership/shared handoff at2s and moving virtual-captain lifecycle remain GROUP-03.4/FOOT-01.3; whole-engine parity explicitly false.",
+      "exclusions": [
+        "Full engine private membership/shared task handoff at2s",
+        "Moving virtual captains and CaptainGoHome",
+        "Thirteen-member capped diagnostic trace",
+        "AI VM/roster save restoration"
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-home-v2-repeat-261002.jsonl",
+            "sha256": "1a3f0ab38ecd87d3d6cb273e2988af51b360d7149e58c5ee21b839445774f93f",
+            "bytes": 6463512,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+                "wc3_pathfinding.js": "19c3b28aab817f9d2a6b792f427be0c37635839d02398e87e2437ec61493b584",
+                "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+                "make_wc3_pathfinding_map.py": "af8dac2485358b3700a41e6be5cc0a2bec18194e7474c053c608c6a0c1698bfc",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "f96451bb42ce9c042c3970878b452b194c584e6a0580e96e2cdc731f7e22f630"
+              },
+              "map": "Maps\\PathingRE-CaptainHomeV2-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-home-init-v1-first-261002.jsonl",
+            "sha256": "9c6e045d523255af0e01612b1d9e955969bc71f352be3bc8f5d1cb7b5aec9b15",
+            "bytes": 6672380,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "c8d7f375977422c3e664f11e2aa7f4ae452d0a009f9b15811adf22cf960fb415",
+                "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+                "wc3_pathfinding.js": "19c3b28aab817f9d2a6b792f427be0c37635839d02398e87e2437ec61493b584",
+                "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+                "make_wc3_pathfinding_map.py": "af8dac2485358b3700a41e6be5cc0a2bec18194e7474c053c608c6a0c1698bfc",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "02799ae00631f5b01bb9c864af13528e8760da2cf8ed34fe207799b6899783f8"
+              },
+              "map": "Maps\\PathingRE-CaptainHomeInitV1-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-home-init-v1-repeat-261002.jsonl",
+            "sha256": "6f20da067edb93dcb0614b64b16c8dc8296c3c0fe57c3820c5096be582405f82",
+            "bytes": 6604149,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "c8d7f375977422c3e664f11e2aa7f4ae452d0a009f9b15811adf22cf960fb415",
+                "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+                "wc3_pathfinding.js": "19c3b28aab817f9d2a6b792f427be0c37635839d02398e87e2437ec61493b584",
+                "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+                "make_wc3_pathfinding_map.py": "af8dac2485358b3700a41e6be5cc0a2bec18194e7474c053c608c6a0c1698bfc",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "02799ae00631f5b01bb9c864af13528e8760da2cf8ed34fe207799b6899783f8"
+              },
+              "map": "Maps\\PathingRE-CaptainHomeInitV1-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-home-full-v1-first-261002.jsonl",
+            "sha256": "d5efef24738d73416dd39822fd0203f34d9656f5e6d51ca39a870efcd0bfeb2c",
+            "bytes": 6745028,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "6deef2529d0e2f0f3fd7df8aac995b0516cdca381790404ecf468ead06485da5",
+                "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+                "wc3_pathfinding.js": "19c3b28aab817f9d2a6b792f427be0c37635839d02398e87e2437ec61493b584",
+                "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+                "make_wc3_pathfinding_map.py": "af8dac2485358b3700a41e6be5cc0a2bec18194e7474c053c608c6a0c1698bfc",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "b9cc5308673921d5ad9ded92d1e561b7edaa6cfd3637d058bca39822e25d6128"
+              },
+              "map": "Maps\\PathingRE-CaptainHomeFullV1-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-home-full-v1-repeat-261002.jsonl",
+            "sha256": "b5e2683dd22bab84c4a8df232c33752b6ac3cb451815905eca6360f655585d4c",
+            "bytes": 6513260,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "6deef2529d0e2f0f3fd7df8aac995b0516cdca381790404ecf468ead06485da5",
+                "trace_wc3_pathfinding.py": "2fbdb27264ecf6f7387b1a4db5d9bee8e190bf14c9b67a3caadfa1b99df4d822",
+                "wc3_pathfinding.js": "19c3b28aab817f9d2a6b792f427be0c37635839d02398e87e2437ec61493b584",
+                "wc3_pathfinding_probe.j": "be8bbb7c3289d0b13e908af4fc5cc8cd16df8f842fb01a110662fb228823e3ff",
+                "make_wc3_pathfinding_map.py": "af8dac2485358b3700a41e6be5cc0a2bec18194e7474c053c608c6a0c1698bfc",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "b9cc5308673921d5ad9ded92d1e561b7edaa6cfd3637d058bca39822e25d6128"
+              },
+              "map": "Maps\\PathingRE-CaptainHomeFullV1-261002.w3m",
+              "seconds": 70.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -21236,7 +21586,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "fde7ff48bd928003becc0704c74f7af9a8f812c5368ac314ecc662a70d633e36"
+      "sha256": "e26c15ac5a67399920ecd7c9b5d3f3f74d732a54ca37f7b388d12bdf411d64e5"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -21630,6 +21980,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-outside-goal-1.27.json",
       "sha256": "232e0843c05bbc5510768ea7dfb1d93e330a3c72036f741b2d076ba334bc76b5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-home-1.27.json",
+      "sha256": "0ee2241d1c37eac0264a5f9acc376a6c299f1b67c19f291a3cdc199620250ca4"
     }
   ]
 }

@@ -8,13 +8,16 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**131 done / 315 tasks; 184 remaining.** Payoff54 closes FOOT-04.8:
-ordinary ground point Move retains outside clicks while clipping routing by
-the original four-cell world margin. Repeated public edge neighbors and108
-original coordinate-prefix cases match C; the complete outside-west journey
-matches191 normal engine commits and47 Save82 suffix commits per variant.
-Full debug/release/repository checks,284 Python checks,28 fresh capture
-contracts plus the map oracle, and saved Ghidra readback pass. Counts describe this backlog, not a percentage of retail fidelity or an
+**131 done / 316 tasks; 185 remaining.** Payoff55 ports captain home/roster
+retention and the formation-full flag, removes phantom request accumulation,
+and admits authored-home recruits through Move. Six repeated native captures
+retain the whole178-commit reference; engine admission matches33 commits and48
+Save82 suffix commits. GROUP-03.4.1 stays open: private membership/shared task
+handoff at2s first differs at commit33/2010ms and must be ported before closing
+its complete journey. Default town-home production also remains explicit.
+Full debug/release RoC/TFT and repository checks,299 Python checks,29 fresh
+capture contracts plus the map oracle and saved Ghidra readback pass.
+Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
 leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
@@ -35,7 +38,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 20 | 6 |
+| GROUP — Shared movement groups | 20 | 7 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -153,8 +156,8 @@ NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Live AI producer plus Move-owned shared publication and saved travel |
-| 2 | ROUTE-03.1 | Successive long refills with a dynamic blocker | Repeated original refill buffers and complete engine travel/save |
+| 1 | GROUP-03.4.1 | Native membership callback and stationary-home private handoff | Port target-to-point clock flush and match all178 original commits plus saved continuations |
+| 2 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Virtual captain/follower producer plus shared publication and saved travel |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
 decimal CRT grammar/locale, source lexer domains and original nonreturning VM
@@ -709,7 +712,8 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [x] **GROUP-03.1** Shared-cap ownership/publication and group radius lifecycles have original-code coverage. Evidence: [shared parameters][shared-groups]; remaining flag/AI producers and target-speed adjustment are not closed.
 - [ ] **GROUP-03.2** Trace group bit800 and speed-cap exemption producers; exercise target-speed adjustment with both exempt and capped members.
 - [ ] **GROUP-03.3** Grow the shared auxiliary pool, change the largest member radius, then remove it; assert publication and allocation recovery.
-- [ ] **GROUP-03.4** Run Captain AI attach/detach during movement; assert its shared-cap and delay ownership/inverse.
+- [ ] **GROUP-03.4** Run Captain AI attach/detach during movement; assert its shared-cap and delay ownership/inverse. Stationary authored-home recruit admission is split into03.4.1; CaptainGoHome, live shared attachment, virtual moving captain and follower task handoffs remain required here.
+- [ ] **GROUP-03.4.1** Preserve authored captain home/roster/goal through InitAssault, implement its formation flag and admit AddAssault recruits toward home through Move; match complete stationary single-ground-member normal/saved travel plus Stop/replacement/removal. [Payoff55](retail-pathfinding-engine.md#captain-home-recruitment-and-formation-retries-reach-move) ports state policy and initial33-commit/48-saved-suffix admission, retaining the whole178-row native reference. Still required: native virtual-target range5*radius, membership-range callback9d9020 and private shared point-task handoff at2s, whose missing pose-clock flush first diverges at commit33/2010ms. Default AI town homes, CaptainGoHome, moving virtual captains, larger shared batches and wider AI lifetime remain03.4/FOOT-01.3.
 
 ### GROUP-04 — Membership mutation
 

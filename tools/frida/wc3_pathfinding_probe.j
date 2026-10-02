@@ -457,6 +457,11 @@ function PathProbeTick takes nothing returns nothing
     local real numericX = 0.0
     local real numericY = 0.0
     set udg_PathProbeTick = udg_PathProbeTick + 1
+    if PATH_PROBE_SCENARIO == 71 and udg_PathProbeTick == 10 then
+        call PathProbeRecord("before_captain_ai")
+        call StartCampaignAI(Player(0),"Scripts\\wc3_captain_probe.ai")
+        call PathProbeRecord("after_captain_ai")
+    endif
     if PATH_PROBE_SCENARIO == 44 then
         call PathProbeSpawnAdmission()
     elseif PATH_PROBE_SCENARIO == 45 then

@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **553 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **576 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 ordinary public twelve-member movement matches1,953 commits and2,634 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
@@ -40,8 +40,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists44 partial layouts,271 verified
-  fields and251 instruction-established prototypes with explicit register/stack
+  `MapPathfindingTypes.java` also persists45 partial layouts,287 verified
+  fields and258 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  546 function names/comments applied and saved. Latest group-radius readbacks:
+  576 function names/comments applied and saved. Latest captain readbacks:
+  `runtime/captain-home-ghidra-readback-saved-261002.json` and
+  `runtime/captain-home-ghidra-types-saved-261002.json`. Prior group-radius readbacks:
   `runtime/group-radius-ghidra-readback-saved-261002.json` and
   `runtime/group-radius-types-final-261002.json`. Prior moving-radius readbacks:
   `runtime/moving-radius-ghidra-readback-saved-261002.json` and
@@ -418,3 +420,23 @@ Seven additional saved roles connect four public wrappers, dispatch and point
 construction; four explicit stack ABIs raise the persisted total to251. See
 [engine payoff54](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click).
 Other placement, target, class and mask domains remain open.
+
+
+## Captain AI home and membership producers
+
+The engine now preserves authored home, roster and current goal over
+InitAssault, reads the native formation flag for CaptainIsFull, and sends
+new recruits toward an authored home through Move. Six repeated native
+captures retain the full178-commit recruit journey and establish sticky
+shortfall/InitAssault retry flags. Only the first33 ordinary engine commits
+and48 saved admission suffix commits are exact; the native membership/shared
+task replacement at2s remains open. See [captain engine evidence](retail-pathfinding-engine.md#captain-home-recruitment-and-formation-retries-reach-move).
+
+Native9c7b10 ORs flag6c bit1,9b8a20 returns that bit,9c3550 clears it on a
+shortfall, and9d9020 delivers a membership-range enter callback through
+9d4aa0. That callback updates c4 and rebuilds private point/shared requests
+through9d4600/9d44d0/9d16c0/9d27c0. It is not evidence for an arbitrary
+one-second engine retry timer. Virtual captain pathing category2 and radius0
+must remain distinct from ordinary unit profiles. Default homes come from
+an AI town object, and CaptainGoHome retains moving virtual actors and their
+follower tasks. Both producers and their whole engine lifetimes remain open.

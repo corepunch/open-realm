@@ -812,6 +812,21 @@ class ProbeMapTests(unittest.TestCase):
         self.assertIn('udg_PathProbeTick == 20 and (PATH_PROBE_SCENARIO == 3', output)
         self.assertNotIn('@REMOVE_TICK@', output)
 
+    def test_captain_player_is_computer_before_ai_agent_allocation(self):
+        config = 'function config takes nothing returns nothing\ncall SetPlayerController( Player(0), MAP_CONTROL_NEUTRAL )\nendfunction\n'
+        output = self.builder.instrument(config+self.source, self.probe, 'captain_home')
+        self.assertIn('PATH_PROBE_SCENARIO = 71', output)
+        self.assertIn('call SetPlayerController( Player(0), MAP_CONTROL_COMPUTER )', output)
+        self.assertIn('call StartCampaignAI(Player(0),"Scripts\\\\wc3_captain_probe.ai")', output)
+        self.assertNotIn('call SetPlayerController( Player(0), MAP_CONTROL_NEUTRAL )', output)
+
+    def test_missing_or_ambiguous_captain_config_is_rejected(self):
+        with self.assertRaises(ValueError):
+            self.builder.instrument(self.source, self.probe, 'captain_home')
+        config = 'call SetPlayerController( Player(0), MAP_CONTROL_NEUTRAL )\n'
+        with self.assertRaises(ValueError):
+            self.builder.instrument(config+config+self.source, self.probe, 'captain_home')
+
     def test_gate_geometry_is_explicit_and_finite(self):
         for y in (float('nan'), float('inf'), -4000):
             with self.assertRaises(ValueError):

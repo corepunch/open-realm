@@ -260,14 +260,16 @@ static bool G_BotCaptainHasUnit(bot_t *bot, edict_t *unit) {
     return false;
 }
 
-/* Script formation retries rebuild only the assault roster; the defense captain remains independent. */
+/* InitAssault requests formation without resetting either captain. */
 void G_BotInitAssault(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     botCaptain_t *captain;
     if (!bot) return;
     captain = bot->captains + BOT_CAPTAIN_ATTACK;
-    if (captain->units) gi.MemFree(captain->units);
-    memset(captain, 0, sizeof(*captain)); captain->state = BOT_CAPTAIN_FORMING;
+    /* Native 9c7b10 only sets the formation flag; it retains the roster,
+     * desired count, home and active captain task. */
+    captain->full = true;
+    if (captain->state == BOT_CAPTAIN_IDLE) captain->state = BOT_CAPTAIN_FORMING;
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI assault init player=%u\n", PLAYER_NUM(player));
 #endif
@@ -293,6 +295,20 @@ static bool G_BotCaptainFill(player_t *player, botCaptainType_t type, int32_t qt
     FILTER_EDICTS(unit, have < qty && G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
         unit->class_id == class_id && !unit->construction.active && !unit->training && !G_BotCaptainHasUnit(bot, unit)) {
         G_BotCaptainAdd(captain, unit); have++;
+        if (type == BOT_CAPTAIN_ATTACK && captain->home_set) {
+            /* TODO: GROUP-03.4/FOOT-01.3: native admission initially follows
+             * the virtual captain before its private point-task handoff.
+             * This admits home travel; exact original travel is currently
+             * verified only before that later handoff. */
+            if (!G_IssueUnitPointOrder(unit, "move", &captain->home, false, PLAYER_NUM(player), 0))
+                fprintf(stderr, "WC3 AI: captain home Move rejected player=%u unit=%u home=%g,%g\n",
+                    PLAYER_NUM(player), unit->s.number, captain->home.x, captain->home.y);
+        } else if (type == BOT_CAPTAIN_ATTACK) {
+            /* TODO: native CreateCaptains derives two homes from the AI town
+             * object (9c5360/9bb750); that producer is not ported yet. */
+            fprintf(stderr, "WC3 AI: unresolved default captain home player=%u unit=%u; SetCaptainHome required for recruit travel\n",
+                PLAYER_NUM(player), unit->s.number);
+        }
     }
     return have >= qty;
 }
@@ -300,12 +316,13 @@ static bool G_BotCaptainFill(player_t *player, botCaptainType_t type, int32_t qt
 bool G_BotAddAssault(player_t *player, int32_t qty, uint32_t class_id) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     bool ready;
-    if (bot && qty > 0 && class_id) bot->captains[BOT_CAPTAIN_ATTACK].desired += qty;
     ready = G_BotCaptainFill(player, BOT_CAPTAIN_ATTACK, qty, class_id);
+    /* A shortage clears native formation bit1; successful calls never set it. */
+    if (bot && !ready) bot->captains[BOT_CAPTAIN_ATTACK].full = false;
 #ifdef WC3_DEBUG_AI
-    fprintf(stderr, "WC3_DEBUG_AI assault add player=%u qty=%d id=%.4s ready=%d size=%u desired=%d\n",
+    fprintf(stderr, "WC3_DEBUG_AI assault add player=%u qty=%d id=%.4s ready=%d size=%u full=%d\n",
         player ? PLAYER_NUM(player) : MAX_PLAYERS, qty, (cstring_t)&class_id, ready,
-        G_BotCaptainGroupSize(player), bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0);
+        G_BotCaptainGroupSize(player), bot ? bot->captains[BOT_CAPTAIN_ATTACK].full : false);
 #endif
     return ready;
 }
@@ -321,7 +338,7 @@ uint32_t G_BotCaptainGroupSize(player_t *player) {
 
 bool G_BotCaptainIsFull(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    return bot && G_BotCaptainGroupSize(player) >= bot->captains[BOT_CAPTAIN_ATTACK].desired;
+    return bot && bot->captains[BOT_CAPTAIN_ATTACK].full;
 }
 
 /* Blizzard scores heroes and ordinary units separately so one healthy category cannot hide the other's losses. */
@@ -392,8 +409,14 @@ void G_BotSetCaptainHome(player_t *player, int32_t which, float x, float y) {
     vec2_t home;
     if (!bot) return;
     home = MAKE(vec2_t, x, y);
-    if (which == 1 || which == 3) bot->captains[BOT_CAPTAIN_ATTACK].home = home;
-    if (which == 2 || which == 3) bot->captains[BOT_CAPTAIN_DEFENSE].home = home;
+    if (which == 1 || which == 3) {
+        bot->captains[BOT_CAPTAIN_ATTACK].home = home;
+        bot->captains[BOT_CAPTAIN_ATTACK].home_set = true;
+    }
+    if (which == 2 || which == 3) {
+        bot->captains[BOT_CAPTAIN_DEFENSE].home = home;
+        bot->captains[BOT_CAPTAIN_DEFENSE].home_set = true;
+    }
 }
 
 void G_BotSetStagePoint(player_t *player, float x, float y) {

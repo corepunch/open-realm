@@ -2080,7 +2080,7 @@ typedef enum {
 typedef struct {
     ARRAY(edict_t *, units);
     vec2_t home, goal;
-    uint32_t desired;
+    bool home_set, full;
     botCaptainState_t state;
 } botCaptain_t;
 

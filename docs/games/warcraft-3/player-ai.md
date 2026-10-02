@@ -208,9 +208,23 @@ Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include li
 
 `AddDefenders(qty, id)` idempotently fills the defense captain from live, completed, owned units of the requested type without stealing members already assigned to either captain. `common.ai` separately owns the production request; the boolean result reports whether the requested roster quantity is currently satisfied. A bounded ROC Human02 run now passes defender assignment and reports `FillGuardPosts` as the next unresolved native.
 
-`InitAssault` starts a fresh forming attack captain without disturbing the defense roster. Each `AddAssault(qty, id)` adds that request to the captain's desired total and idempotently reserves live, completed, owned units of the requested type without stealing defense members; its boolean result reports whether that typed request is currently filled. This matches `FormGroup`, which rebuilds the roster on every retry before testing captain fullness and readiness.
+`InitAssault` sets the attack captain's formation flag while retaining both
+captains' rosters, authored homes and active goals. `AddAssault(qty, id)` counts
+existing typed members before recruiting missing live, completed, owned units;
+new recruits travel toward an explicitly authored home through ordinary Move.
+A shortfall clears the formation flag, and a success leaves it unchanged.
+`CaptainIsFull` reads that flag rather than an accumulated request total, so
+InitAssault/recruit retries cannot inflate a phantom quantity and permanently
+block a formed wave. `CreateCaptains` resets the captain state and flag.
 
-`CaptainGroupSize`, `CaptainIsEmpty`, and `CaptainIsFull` inspect the attack captain and count only live roster members. Fullness compares that count with the accumulated desired total; a fresh zero-desire captain is therefore both empty and full, allowing Blizzard's zero-unit formation path to complete. Dead and removed members remain harmless stale references until the next `InitAssault` rebuild.
+`CaptainGroupSize` and `CaptainIsEmpty` count live attack roster members
+separately from formation fullness. Dead or removed members do not themselves
+change that formation flag. Native default captain homes come from the AI town
+object; that producer is still unimplemented and logs unresolved recruit travel.
+The authored-home port matches the first33 native movement commits and48 saved
+admission suffix commits. The native private membership/shared handoff at2s,
+moving virtual captains and full AI VM/roster save restoration remain open;
+see [captain pathfinding evidence](retail-pathfinding-engine.md#captain-home-recruitment-and-formation-retries-reach-move).
 
 `SuicidePlayer(target, check_full)` launches the live attack captain against the target player's valid units, falling back to the bot's staged point when no target is visible. With `check_full`, an undersized captain remains forming and returns false so `common.ai` can retry. Once the deadline permits a partial wave, the same native launches any live roster members, records the staged goal when available, marks the captain active, and returns true.
 

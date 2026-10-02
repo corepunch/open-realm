@@ -69,6 +69,13 @@ for up to twelve members. Authored ranks, collision radii, tie assignments,
 row dimensions and offset arithmetic reach the assigned destinations; the
 original group heading/clock/refresh chain remains work in progress.
 
+AI assault recruits now [move toward an authored captain home](retail-pathfinding-engine.md#captain-home-recruitment-and-formation-retries-reach-move).
+InitAssault retains roster/home/active goal, and fullness follows retail's
+formation flag so repeated typed requests do not inflate an invented total.
+Initial travel matches33 original commits and48 saved suffix commits; the
+native private membership handoff at2s and complete captain movement parity
+remain open.
+
 Move's scalar turn update and scripted movement-window gate now use
 [verified retail arithmetic](retail-pathfinding-engine.md). Static class footprints now also reach [routing, destinations and actual steps](retail-pathfinding-engine.md#retail-collision-classes-reach-routing-and-stepping). This is an incremental
 integration; the routing/velocity pipeline does not yet have full retail parity.

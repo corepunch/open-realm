@@ -1336,6 +1336,13 @@ function install(module) {
         },
         onLeave(){if(this.observe)emit('public-timer-rearm',{...this.row,after:ints(this.request,7).map(v=>v>>>0)});}
     });
+    let captainScenario=false;
+    for(const [name,rva] of [['start-wrapper',0x215d90],['load',0x9c0140],['compile',0x9cbc00],['create',0x9b9630],['init',0x9bc0f0],['add',0x9b79b0],['attack',0x9b88f0]])hook(rva,{onEnter(args){this.observe=captainScenario;if(this.observe)emit('captain-native-begin',{name,words:[args[0].toUInt32(),args[1].toUInt32()]});},onLeave(retval){if(this.observe)emit('captain-native-end',{name,result:retval.toUInt32()});}});
+    hook(0x9d16c0,{onEnter(){if(captainScenario)emit('captain-update',{captain:this.context.ecx.toString(),state:this.context.ecx.add(0x64).readU32(),flags:this.context.ecx.add(0x6c).readU32(),order:this.context.ecx.add(0x70).readU32(),counts:ints(this.context.ecx.add(0xbc),5).map(v=>v>>>0),target:ints(this.context.ecx.add(0x114),2),roster:ints(this.context.ecx.add(0xac),2)});}});
+    hook(0x9d1040,{onEnter(args){this.observe=captainScenario;if(this.observe){this.wrapper=args[1];this.count=args[3];this.index=args[2];emit('captain-prepare-begin',{unit:this.context.ecx.toString(),target:this.context.edx.toString(),point:args[0].isNull()?null:ints(args[0],2).map(v=>v>>>0),index:this.index.readU32(),count:this.count.readU32(),policy:args[4].toUInt32(),bindShared:args[5].toUInt32(),sharedWrapper:args[6].toString(),sharedIdentity:args[6].isNull()?null:ints(args[6].add(8),2)});}},onLeave(){if(this.observe){const p=this.wrapper.readPointer();emit('captain-prepare-end',{wrapper:p.toString(),identity:p.isNull()?null:ints(p.add(8),2),index:this.index.readU32(),count:this.count.readU32()});}}});
+    hook(0x16d8b0,{onEnter(args){if(captainScenario)emit('captain-shared-request',{request:this.context.ecx.toString(),shared:args[0].toString()});}});
+    hook(0x16d890,{onEnter(args){if(captainScenario)emit('captain-shared-group',{group:this.context.ecx.toString(),shared:args[0].toString()});}});
+    hook(0x16c220,{onEnter(){this.observe=captainScenario;if(this.observe){this.p=this.context.ecx;this.before=ints(this.p.add(0x1c),4).map(v=>v>>>0);}},onLeave(){if(this.observe)emit('captain-shared-publish',{identity:ints(this.p.add(0x14),2),before:this.before,after:ints(this.p.add(0x1c),4).map(v=>v>>>0)});}});
     const radiusGroupSnapshot=group=>{
         const count=group.add(0x38).readU32(),data=group.add(0x28).readPointer(),shared=group.add(0x7c).readPointer();
         if(count>12)throw new Error('radius observer group extent differs');
@@ -1672,6 +1679,7 @@ function install(module) {
             else throw new Error('Malformed numeric marker: ' + value);
             emit('numeric-marker', {value});
         }
+        if (value.startsWith('PATHCAPTAIN ')) emit('captain-marker',{value});
         if (value.startsWith('PATHPAIR ')) emit('pair-marker',{value});
         if (value.startsWith('PATHDOZEN ')) emit('twelve-marker',{value});
         if (value.startsWith('PATHGROUP ')) emit('group-order-marker',{value});
@@ -1704,9 +1712,10 @@ function install(module) {
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
-            if ((value.includes('label=start_point_bound_matrix ') || value.includes('label=start_outside_west ') || value.includes('label=start_blocked_goal ') || value.includes('label=start_group_radius_grow ') || value.includes('label=start_group_radius_shrink ') || value.includes('label=start_group_radius_remove ') || value.includes('label=start_moving_radius_matrix ') || value.includes('label=start_moving_radius ') || value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position ') || value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate '))) pairScenario = true;
+            if ((value.includes('label=start_captain_home ') || value.includes('label=start_captain_point ') || value.includes('label=start_point_bound_matrix ') || value.includes('label=start_outside_west ') || value.includes('label=start_blocked_goal ') || value.includes('label=start_group_radius_grow ') || value.includes('label=start_group_radius_shrink ') || value.includes('label=start_group_radius_remove ') || value.includes('label=start_moving_radius_matrix ') || value.includes('label=start_moving_radius ') || value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position ') || value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate '))) pairScenario = true;
             if (value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate ')) resizeScenario = true;
-            if (value.includes('label=complete ')) pairScenario = false;
+            if (value.includes('label=start_captain_home ')) captainScenario = true;
+            if (value.includes('label=complete ')) {pairScenario = false;captainScenario = false;}
             emit('marker', {value});
             if (!value.includes('label=sample ')) snapshotCells(value);
         }

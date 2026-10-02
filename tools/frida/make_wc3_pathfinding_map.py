@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 
 SCENARIOS = {'open': 0, 'wall': 1, 'insert': 2, 'remove': 3, 'remove_reorder': 4,
-             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29, 'numeric_bytes': 30, 'profiles': 31, 'speed_inputs': 32, 'speed_drop': 33, 'item_speed': 34, 'item_speed_publish': 35, 'axis_position': 36, 'clock_oblique': 37, 'forced_position': 38, 'blocked_position': 39, 'random_owner': 40, 'pathing_toggle': 41, 'pathing_position': 42, 'stop_recovery': 43, 'spawn_admission': 44, 'public_oblique': 45, 'group_orders': 46, 'group_pair': 47, 'group_twelve': 48, 'selected_point_pair': 49, 'selected_point_queued_pair': 50, 'selected_point_mixed_pair': 51, 'selected_point_independent_pair': 52, 'follow_velocity': 53, 'follow_target_remove_reuse': 54, 'follow_target_kill_reuse': 55, 'follow_target_xy': 56, 'follow_target_position': 57, 'follow_target_travel_xy': 58, 'follow_target_travel_position': 59, 'follow_target_grow': 60, 'follow_target_shrink': 61, 'follow_target_resize_gate': 62, 'moving_radius': 63, 'moving_radius_matrix': 64, 'group_radius_grow': 65, 'group_radius_shrink': 66, 'group_radius_remove': 67, 'outside_west': 68, 'point_bound_matrix': 69}
+             'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29, 'numeric_bytes': 30, 'profiles': 31, 'speed_inputs': 32, 'speed_drop': 33, 'item_speed': 34, 'item_speed_publish': 35, 'axis_position': 36, 'clock_oblique': 37, 'forced_position': 38, 'blocked_position': 39, 'random_owner': 40, 'pathing_toggle': 41, 'pathing_position': 42, 'stop_recovery': 43, 'spawn_admission': 44, 'public_oblique': 45, 'group_orders': 46, 'group_pair': 47, 'group_twelve': 48, 'selected_point_pair': 49, 'selected_point_queued_pair': 50, 'selected_point_mixed_pair': 51, 'selected_point_independent_pair': 52, 'follow_velocity': 53, 'follow_target_remove_reuse': 54, 'follow_target_kill_reuse': 55, 'follow_target_xy': 56, 'follow_target_position': 57, 'follow_target_travel_xy': 58, 'follow_target_travel_position': 59, 'follow_target_grow': 60, 'follow_target_shrink': 61, 'follow_target_resize_gate': 62, 'moving_radius': 63, 'moving_radius_matrix': 64, 'group_radius_grow': 65, 'group_radius_shrink': 66, 'group_radius_remove': 67, 'outside_west': 68, 'point_bound_matrix': 69, 'captain_home': 71}
 
 
 def byte_unit_name(data):
@@ -151,6 +151,10 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
         raise ValueError('removal tick must follow the order and precede completion')
     if not all(math.isfinite(v) and -3072 <= v <= 5120 for v in (gate_y, gate_exit_y)):
         raise ValueError('gate Y coordinates must be finite and inside the source map')
+    if scenario == 'captain_home':
+        original_controller='call SetPlayerController( Player(0), MAP_CONTROL_NEUTRAL )'
+        if script.count(original_controller)!=1:raise ValueError('Captain player config differs')
+        script=script.replace(original_controller,'call SetPlayerController( Player(0), MAP_CONTROL_COMPUTER )')
     # Exact expected call sites prevent accidental edits to another campaign map.
     for old, new in [('call CreateAllUnits(  )', 'call PathProbeInit()'),
                      ('call InitCustomTriggers(  )', '// Path probe: scripted campaign orders disabled.'),
@@ -228,7 +232,13 @@ def main():
     parser.add_argument('--remove-tick', type=int, default=50)
     parser.add_argument('--gate-y', type=float, default=-800.0)
     parser.add_argument('--gate-exit-y', type=float, default=-240.0)
+    parser.add_argument('--captain-ai', type=Path, help='explicit captain_home AI script; default is the stationary home probe')
     args = parser.parse_args()
+    if args.captain_ai and args.scenario != 'captain_home':
+        parser.error('--captain-ai requires captain_home')
+    captain_ai = args.captain_ai or Path(__file__).with_name('wc3_captain_probe.ai')
+    if args.scenario == 'captain_home' and not captain_ai.is_file():
+        parser.error('captain AI source is missing')
     if args.base.resolve() == args.output.resolve() or args.output.exists():
         parser.error('output must be a new file, distinct from the source map')
     original = args.base.read_bytes()
@@ -269,6 +279,9 @@ def main():
             ability=root/'resize.w3a'; ability.write_bytes(resize_ability(args.scenario))
             command.extend([str(ability),'war3map.w3a'])
             args.output.with_suffix('.w3a').write_bytes(ability.read_bytes())
+        if args.scenario == 'captain_home':
+            command.extend([str(captain_ai), 'Scripts\\wc3_captain_probe.ai'])
+            args.output.with_suffix('.ai').write_bytes(captain_ai.read_bytes())
         subprocess.run(command, check=True)
         args.output.write_bytes(original[:512] + payload.read_bytes())
     result = {'base_sha256': hashlib.sha256(original).hexdigest(), 'scenario': args.scenario,
@@ -278,6 +291,8 @@ def main():
               'changed_members': ['war3map.j','war3map.w3u','war3map.w3a'] if args.scenario in ('follow_target_grow','follow_target_shrink','follow_target_resize_gate','moving_radius','moving_radius_matrix','group_radius_grow','group_radius_shrink','group_radius_remove') else ['war3map.j', 'war3map.w3u'] if args.scenario in ('numeric_bytes', 'speed_inputs') else ['war3map.j'],
               'script_encoding': 'UTF-8',
               'byte_string_source': 'hfoo unam object field, GetUnitName, raw bytes 80..ff' if args.scenario == 'numeric_bytes' else None,
+              'added_members': ['Scripts\\wc3_captain_probe.ai'] if args.scenario == 'captain_home' else [],
+              'captain_ai_sha256': hashlib.sha256(captain_ai.read_bytes()).hexdigest() if args.scenario == 'captain_home' else None,
               'container': 'rebuilt MPQ with original HM3W header; signature not retained'}
     args.output.with_suffix('.json').write_text(json.dumps(result, indent=2) + '\n')
 

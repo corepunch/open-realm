@@ -385,17 +385,17 @@ TEST(wc3_bot, harvest_natives_execute_through_player_bot_vm) {
 TEST(wc3_bot, create_captains_resets_both_bot_owned_captains) {
     bot_t *bot = level.bots + 2;
     bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
-    bot->captains[BOT_CAPTAIN_ATTACK].desired = 6;
+    bot->captains[BOT_CAPTAIN_ATTACK].full = true;
     bot->captains[BOT_CAPTAIN_ATTACK].home.x = 128;
     bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_RETREATING;
-    bot->captains[BOT_CAPTAIN_DEFENSE].desired = 3;
+    bot->captains[BOT_CAPTAIN_DEFENSE].full = true;
     bot->captains[BOT_CAPTAIN_DEFENSE].goal.y = 256;
 
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_create_captains.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
         T_EQ(bot->captains[i].state, BOT_CAPTAIN_IDLE);
-        T_EQ(bot->captains[i].desired, 0);
+        T_ASSERT(!bot->captains[i].full);T_ASSERT(!bot->captains[i].home_set);
         T_EQ(ARRAY_COUNT(bot->captains[i].units), 0);
         T_NULL(bot->captains[i].units);
         T_FEQ(bot->captains[i].home.x, 0, 0.001f);
@@ -479,7 +479,7 @@ TEST(wc3_bot, add_defenders_fills_idempotently_from_completed_owned_units) {
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 0, type));
 }
 
-TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
+TEST(wc3_bot, assault_init_retains_captains_and_fill_tracks_formation_result) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
     edict_t *first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
@@ -490,16 +490,32 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 1, type));
+    G_BotSetCaptainHome(&game.clients[2].ps, 1, 128, 256);
     G_BotInitAssault(&game.clients[2].ps);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.x, 128, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.y, 256, 0.001f);
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_FORMING);
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 1);
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[0], second);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 2);
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 4);
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
+    bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
+    bot->captains[BOT_CAPTAIN_ATTACK].goal = (vec2_t){-321,456};
+    edict_t **members = bot->captains[BOT_CAPTAIN_ATTACK].units;
+    G_BotInitAssault(&game.clients[2].ps);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units, members);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);T_EQ(members[0], second);
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.x, 128, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.y, 256, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.x, -321, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.y, 456, 0.001f);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 1);
     T_ASSERT(first != second && building != enemy);
 }
 
@@ -558,26 +574,54 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     T_ASSERT(enemy != NULL);
 }
 
-TEST(wc3_bot, captain_size_empty_and_full_count_only_live_assault_members) {
-    bot_t *bot = level.bots + 2;
+TEST(wc3_bot, captain_full_tracks_formation_retry_without_reordering_retained_members) {
+    player_t *player = &game.clients[2].ps;
+    uint32_t type = MAKEFOURCC('h','f','o','o');
+    edict_t *unit = make_bot_harvest_unit(type, 32, 64, 2, NULL);
+    G_BotCreateCaptains(player);
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    G_BotSetCaptainHome(player, 1, 192, 288);
+    G_BotInitAssault(player);
+    T_ASSERT(G_BotCaptainIsFull(player));
+    T_ASSERT(G_BotAddAssault(player, 1, type));
+    T_ASSERT(G_BotCaptainIsFull(player));
+    edict_t *goal = unit->goalentity;
+    T_NOT_NULL(goal);
+    T_ASSERT(!G_BotAddAssault(player, 2, type));
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    T_ASSERT(G_BotAddAssault(player, 1, type));
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    G_BotInitAssault(player);
+    T_ASSERT(G_BotCaptainIsFull(player));
+    T_EQ(G_BotCaptainGroupSize(player), 1);
+    T_EQ(unit->goalentity, goal);
+    T_EQ(unit->current_order_id, G_OrderId("move"));
+    T_ASSERT(G_BotAddAssault(player, 1, type));
+    T_ASSERT(G_BotCaptainIsFull(player));
+    T_EQ(unit->goalentity, goal);
+    G_BotCreateCaptains(player);
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    T_EQ(G_BotCaptainGroupSize(player), 0);
+}
+
+TEST(wc3_bot, captain_size_counts_live_members_separately_from_formation_full) {
     uint32_t type = MAKEFOURCC('h','f','o','o');
     edict_t *first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
     edict_t *second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 0);
-    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
     G_BotInitAssault(&game.clients[2].ps);
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 2);
     T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
     first->svflags |= SVF_DEADMONSTER;
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 1);
-    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
     second->inuse = false;
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 0);
-    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 2);
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
 }
 
 TEST(wc3_bot, captain_readiness_uses_lower_hero_and_unit_aggregate) {

@@ -43,6 +43,7 @@
 #include "retail_group_radius.h"
 #include "retail_blocked_goal.h"
 #include "retail_outside_goal.h"
+#include "retail_captain_home.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -11120,7 +11121,11 @@ static void public_group_radius_journey(unsigned scenario, uint32_t const (*moti
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 
-static void public_point_goal_journey(bool blocked, uint32_t const (*motion)[7], unsigned count) {
+static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motion)[7], unsigned count) {
+    bool blocked=goal_case==0,captain=goal_case==2;
+    /* Captain admission matches through the first private follower handoff.
+     * Its full178-commit reference remains in the fixture for the open gap. */
+    if(captain)count=CAPTAIN_HOME_ADMISSION_COMMITS;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities();setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
@@ -11140,26 +11145,30 @@ static void public_point_goal_journey(bool blocked, uint32_t const (*motion)[7],
     snprintf(script,sizeof(script),
         "globals\nunit mover\ninteger tick=0\nendglobals\n"
         "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
-        "if tick==10 then\ncall IssuePointOrder(mover,\"move\",%g,%g)\nendif\nendfunction\n"
+        "if tick==10 then\n%s\nendif\nendfunction\n"
         "function main takes nothing returns nothing\nlocal integer gx=0\nlocal integer gy=0\n"
         "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,%g)\n"
         "loop\nexitwhen gx==%u\nset gy=0\nloop\nexitwhen gy==5\n"
         "call SetTerrainPathable(-2000+I2R(gx)*32,-208+I2R(gy)*32,PATHING_TYPE_WALKABILITY,false)\n"
         "set gy=gy+1\nendloop\nset gx=gx+1\nendloop\n"
-        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",blocked ? -1936. : -7400.,blocked ? -144. : -976.,blocked ? 100. : 522.,blocked ? 5u : 0u);
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",captain ? "call StartCampaignAI(Player(0),\"test_captain_home.ai\")" : blocked ? "call IssuePointOrder(mover,\"move\",-1936,-144)" : "call IssuePointOrder(mover,\"move\",-7400,-976)",blocked || captain ? 100. : 522.,blocked ? 5u : 0u);
     T_ASSERT(run_test_jass(script));
     edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)unit=ent;
     T_NOT_NULL(unit);level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     cstring_t files[]={"/tmp/wc3-blocked-goal-before-partial.bin","/tmp/wc3-blocked-goal-retry.bin","/tmp/wc3-blocked-goal-forced.bin","/tmp/wc3-blocked-goal-final-turn.bin"};
-    unsigned save_times[]={blocked ? 6000 : 5500,blocked ? 7110 : 6630,blocked ? 7140 : 6660,blocked ? 7170 : 6690},saved_steps[4]={0},suffix_steps=0;
+    if(captain) {
+        files[0]="/tmp/wc3-captain-home-1200.bin";files[1]="/tmp/wc3-captain-home-1500.bin";
+        files[2]="/tmp/wc3-captain-home-1800.bin";files[3]="/tmp/wc3-captain-home-1995.bin";
+    }
+    unsigned save_times[]={captain ? 1200 : blocked ? 6000 : 5500,captain ? 1500 : blocked ? 7110 : 6630,captain ? 1800 : blocked ? 7140 : 6660,captain ? 1995 : blocked ? 7170 : 6690},saved_steps[4]={0},suffix_steps=0;
     FOR_LOOP(pass,5) {
     if(pass) {
         bool loaded=ReadGame(files[pass-1]);T_ASSERT(loaded);if(!loaded)break;
         steps=saved_steps[pass-1];
     }
-    while(level.time<31000 && !mismatch) {
+    while(level.time<(captain ? CAPTAIN_HOME_HANDOFF_MSEC : 31000) && !mismatch) {
         trace.count=0;level.time+=5;globals.RunFrame();
         FOR_LOOP(i,trace.count) {
             T_ASSERT(steps<count);if(steps>=count){mismatch=true;break;}
@@ -11169,19 +11178,35 @@ static void public_point_goal_journey(bool blocked, uint32_t const (*motion)[7],
         }
         if(!pass && !mismatch)FOR_LOOP(i,4)if(level.time==save_times[i]) {
             saved_steps[i]=steps;
-            if(i==(blocked ? 1 : 2)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);T_ASSERT(!unit->movement.point_forced_arrival);}
-            if(i>=(blocked ? 2 : 3)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,1);T_ASSERT(unit->movement.point_forced_arrival);}
+            if(!captain && i==(blocked ? 1 : 2)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);T_ASSERT(!unit->movement.point_forced_arrival);}
+            if(!captain && i>=(blocked ? 2 : 3)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,1);T_ASSERT(unit->movement.point_forced_arrival);}
             T_ASSERT(WriteGame(files[i]));
         }
     }
     T_EQ(steps,count);T_ASSERT(!jass_rterror_pending(level.vm));
-    if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->movement.point_forced_arrival);T_ASSERT(!unit->movement.clock_valid);}
+    if(!mismatch){T_EQ(unit->current_order_id,captain ? G_OrderId("move") : 0);T_ASSERT(!unit->movement.point_forced_arrival);T_EQ(unit->movement.clock_valid,captain);}
     if(pass)suffix_steps+=steps-saved_steps[pass-1];
     }
-    fprintf(stderr,"Point goal blocked=%d ordinary commits=%u Save82 suffix commits=%u\n",blocked,count,suffix_steps);
+    fprintf(stderr,"Point goal case=%u exact commits=%u Save82 suffix commits=%u\n",goal_case,count,suffix_steps);
+    if(captain && !mismatch) {
+        /* End-to-end home arrival is functional here; the native private
+         * handoff after2s remains a separate numerical parity obligation. */
+        while(level.time<31000){trace.count=0;level.time+=5;globals.RunFrame();}
+        T_EQ(unit->current_order_id,0);T_ASSERT(!unit->movement.clock_valid);
+        FOR_LOOP(i,3) {
+            T_ASSERT(ReadGame(files[0]));
+            if(i==2){G_FreeEdict(unit);level.time+=5;globals.RunFrame();T_ASSERT(!unit->inuse);}
+            else {
+                if(i)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
+                else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+                T_ASSERT(!unit->movement.point_forced_arrival);
+                T_ASSERT(unit->current_order_id==(i ? G_OrderId("move") : 0));
+            }
+        }
+    }
     /* Author a separate cancellation/replacement from the naturally forced
      * saved state; a new command must not inherit its range override. */
-    if(!mismatch)FOR_LOOP(i,2) {
+    if(!captain && !mismatch)FOR_LOOP(i,2) {
         T_ASSERT(ReadGame(files[blocked ? 2 : 3]));T_ASSERT(unit->movement.point_forced_arrival);
         if(i)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
         else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
@@ -11190,16 +11215,20 @@ static void public_point_goal_journey(bool blocked, uint32_t const (*motion)[7],
     FOR_LOOP(i,4)remove(files[i]);
     move_test_motion_commit=NULL;follow_commit_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
-    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 
 TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
-    public_point_goal_journey(true,blocked_goal_motion,sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion));
+    public_point_goal_journey(0,blocked_goal_motion,sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion));
 }
 
 TEST(wc3_movement, public_move_matches_original_outside_west_goal) {
-    public_point_goal_journey(false,outside_west_motion,sizeof(outside_west_motion)/sizeof(*outside_west_motion));
+    public_point_goal_journey(1,outside_west_motion,sizeof(outside_west_motion)/sizeof(*outside_west_motion));
+}
+
+TEST(wc3_movement, public_ai_recruit_matches_original_captain_home_admission) {
+    public_point_goal_journey(2,captain_home_motion,sizeof(captain_home_motion)/sizeof(*captain_home_motion));
 }
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {

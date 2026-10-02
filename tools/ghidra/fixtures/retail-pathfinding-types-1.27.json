@@ -1895,6 +1895,108 @@
           "evidence": "0542d0 invokes receiver vtablec(request); live request snapshots"
         }
       ]
+    },
+    {
+      "name": "WC3CaptainAIPrefix",
+      "length": 296,
+      "fields": [
+        {
+          "offset": 100,
+          "name": "state",
+          "type": "u32",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 104,
+          "name": "player_index",
+          "type": "u32",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 108,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 112,
+          "name": "order_id",
+          "type": "u32",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 172,
+          "name": "roster",
+          "type": "WC3PathIdentity",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 184,
+          "name": "remembered_member_count",
+          "type": "i32",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 188,
+          "name": "member_count",
+          "type": "i32",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 192,
+          "name": "healthy_member_count",
+          "type": "i32",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 196,
+          "name": "range_enter_count",
+          "type": "i32",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 200,
+          "name": "secondary_range_count",
+          "type": "i32",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 204,
+          "name": "additional_arrival_count",
+          "type": "i32",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 252,
+          "name": "home_x",
+          "type": "WC3PathScalar",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 260,
+          "name": "home_y",
+          "type": "WC3PathScalar",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 264,
+          "name": "retained_target",
+          "type": "WC3PathIdentity",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 276,
+          "name": "follow_target",
+          "type": "WC3PathIdentity",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        },
+        {
+          "offset": 288,
+          "name": "additional_target",
+          "type": "WC3PathIdentity",
+          "evidence": "Instruction bodies9c7b10/9d0650/9d08e0/9d16c0/9d44d0/9d9020 and original captain home/membership probes. Unknown prefix bytes remain undefined; home words are FloatMini value halves."
+        }
+      ]
     }
   ],
   "methods": [
@@ -6583,6 +6685,108 @@
         }
       ],
       "evidence": "Instruction-checked206ea0/ec0,207060/70a0 and registration209f2e/42/ff6,20a00a: EBP stack offsets, tail rewrite/call cleanup, plainRET and rawEAX. Raw requested coordinates retained into original Move point task; bounds clipping in05b970."
+    },
+    {
+      "address": "6f9b8930",
+      "name": "JassNative_CaptainGoHome",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [],
+      "evidence": "Native registration and complete plainRET/tail bodies: no stack arguments; implicit script AI context. Retreating returns flags &2."
+    },
+    {
+      "address": "6f9bc0f0",
+      "name": "JassNative_InitAssault",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [],
+      "evidence": "Native registration and complete plainRET/tail bodies: no stack arguments; implicit script AI context. Retreating returns flags &2."
+    },
+    {
+      "address": "6f9b8b50",
+      "name": "JassNative_CaptainRetreating",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [],
+      "evidence": "Native registration and complete plainRET/tail bodies: no stack arguments; implicit script AI context. Retreating returns flags &2."
+    },
+    {
+      "address": "6f9b88c0",
+      "name": "JassNative_CaptainAtGoal",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [],
+      "evidence": "Native registration and complete plainRET/tail bodies: no stack arguments; implicit script AI context. Retreating returns flags &2."
+    },
+    {
+      "address": "6f9b9630",
+      "name": "JassNative_CreateCaptains",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [],
+      "evidence": "Native registration and complete plainRET/tail bodies: no stack arguments; implicit script AI context. Retreating returns flags &2."
+    },
+    {
+      "address": "6f9b8a20",
+      "name": "JassNative_CaptainIsFull",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [],
+      "evidence": "AI registration9be3f2 and complete decoded plainRET body; returns attack captain flags6c &1. Repeated original full/shortage/retry predicates retain one recruit and home trajectory."
+    },
+    {
+      "address": "6f9d1040",
+      "name": "CaptainAI_PrepareMoveRequestMember",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": "EDX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "requests",
+          "type": "ptr:ptr:WC3MoveRequestWrapper",
+          "storage": 8
+        },
+        {
+          "name": "group_index",
+          "type": "ptr:u32",
+          "storage": 12
+        },
+        {
+          "name": "member_count",
+          "type": "ptr:u32",
+          "storage": 16
+        },
+        {
+          "name": "policy",
+          "type": "u32",
+          "storage": 20
+        },
+        {
+          "name": "bind_shared",
+          "type": "u32",
+          "storage": 24
+        },
+        {
+          "name": "shared",
+          "type": "ptr:WC3MoveRequestWrapper",
+          "storage": 28
+        }
+      ],
+      "evidence": "Complete decoded9d1040 body and caller9d27c0/9d16c0; ECX/EDX plus7 stack arguments andRET1c. Original target requests pass null point; point requests publish X/Y words and singleton shared wrapper. Opaque target permits virtual-captain family without assuming a CUnit layout."
     }
   ],
   "globals": [
