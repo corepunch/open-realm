@@ -452,16 +452,6 @@ uint32_t AddAssault(jass_t *j) {
 #endif
     return jass_pushboolean(j, ready);
 }
-uint32_t SetAssaultGroupTrace(jass_t *j) {
-    player_t *player = jass_getcontext(j)->playerState;
-    int32_t qty = jass_checkinteger(j, 1), max = jass_checkinteger(j, 2);
-    uint32_t class_id = (uint32_t)jass_checkinteger(j, 3);
-    G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_roster_entry",
-               "qty=%d max=%d unit=%.4s owned=%d complete=%d", qty, max,
-               (cstring_t)&class_id, BotUnitCount(player, class_id, false),
-               BotUnitCount(player, class_id, true));
-    return 0;
-}
 uint32_t CaptainGroupSize(jass_t *j) { return jass_pushinteger(j, G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }
 uint32_t CaptainIsFull(jass_t *j) { return jass_pushboolean(j, G_BotCaptainIsFull(jass_getcontext(j)->playerState)); }
 uint32_t CaptainIsEmpty(jass_t *j) { return jass_pushboolean(j, !G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }

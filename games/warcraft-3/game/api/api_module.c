@@ -94,7 +94,6 @@ jassModule_t jass_funcs[] = {
     { "CaptainInCombat", CaptainInCombat },
     { "AttackMoveKill", AttackMoveKill },
     { "InitAssault", InitAssault },
-    { "SetAssaultGroup", SetAssaultGroupTrace },
     { "AddAssault", AddAssault },
     { "CaptainGroupSize", CaptainGroupSize },
     { "CaptainIsFull", CaptainIsFull },

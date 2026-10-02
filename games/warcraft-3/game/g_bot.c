@@ -877,22 +877,28 @@ bool G_BotProduce(player_t *player, int32_t qty, uint32_t class_id, int32_t town
             break; /* common.ai retries deficits; one pending footprint at a time prevents overlapping reservations. */
         } else {
             edict_t *producer = NULL;
+            uint32_t producer_queue = MAX_BUILD_QUEUE;
             float producer_dist = 0.0f;
             edict_t *town = town_id < 0 ? G_BotTown(player, 0) : G_BotTown(player, town_id);
-            /* Keep production attached to the requested town. When a town has
-             * multiple producers, use the nearest eligible idle one; this also
-             * avoids filling the first edict repeatedly while another barracks
-             * at the same base remains idle. */
+            /* Prefer empty queues. Once every eligible producer is occupied,
+             * balance new orders onto the producer with the most free slots. */
             FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
-                !ent->construction.active && !ent->training && !ent->build &&
+                !ent->construction.active && !ent->training &&
                 G_BotUnitAtTown(player, ent, town_id) &&
                 G_GetTrainCommandState(G_GetPlayerClientByNumber(ent->s.player), ent, class_id, NULL, 0) ==
                     BUILD_COMMAND_AVAILABLE) {
+                uint32_t queue_count = G_ProductionQueueCount(ent);
                 float dist = town ? Vector2_distance(&town->s.origin2, &ent->s.origin2) : 0.0f;
-                if (!producer || dist < producer_dist) { producer = ent; producer_dist = dist; }
+                if (queue_count >= MAX_BUILD_QUEUE) continue;
+                if (!producer || queue_count < producer_queue ||
+                    (queue_count == producer_queue && dist < producer_dist)) {
+                    producer = ent;
+                    producer_queue = queue_count;
+                    producer_dist = dist;
+                }
             }
             if (!producer) {
-                stop_reason = "no_eligible_idle_producer";
+                stop_reason = "no_eligible_producer_with_queue_space";
                 break;
             }
             if (!SP_TrainUnit(producer, class_id)) {
@@ -911,11 +917,11 @@ bool G_BotProduce(player_t *player, int32_t qty, uint32_t class_id, int32_t town
         } else {
             int32_t owned_producers = 0, busy_producers = 0, wrong_town = 0;
             int32_t train_absent = 0, train_hidden = 0, train_disabled = 0;
-            int32_t train_unaffordable = 0, train_available = 0;
+            int32_t train_unaffordable = 0, queue_available = 0, queue_full = 0;
             FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
                 G_UnitIsBuilding(ent->class_id)) {
                 owned_producers++;
-                if (ent->construction.active || ent->training || ent->build) {
+                if (ent->construction.active || ent->training) {
                     busy_producers++;
                 } else if (!G_BotUnitAtTown(player, ent, town_id)) {
                     wrong_town++;
@@ -926,15 +932,19 @@ bool G_BotProduce(player_t *player, int32_t qty, uint32_t class_id, int32_t town
                         case BUILD_COMMAND_HIDDEN: train_hidden++; break;
                         case BUILD_COMMAND_DISABLED: train_disabled++; break;
                         case BUILD_COMMAND_UNAFFORDABLE: train_unaffordable++; break;
-                        case BUILD_COMMAND_AVAILABLE: train_available++; break;
+                        case BUILD_COMMAND_AVAILABLE:
+                            if (G_ProductionQueueCount(ent) >= MAX_BUILD_QUEUE) queue_full++;
+                            else queue_available++;
+                            break;
                     }
                 }
             }
             G_BOT_TRACE(PLAYER_NUM(player), NULL, "production_shortfall",
-                       "requested=%d started=%u unit=%.4s town=%d stop=%s producers=%d busy=%d wrong_town=%d absent=%d hidden=%d disabled=%d unaffordable=%d available=%d",
+                       "requested=%d started=%u unit=%.4s town=%d stop=%s producers=%d busy=%d wrong_town=%d absent=%d hidden=%d disabled=%d unaffordable=%d queue_slots=%d queue_full=%d",
                        requested, made, (cstring_t)&class_id, town_id, stop_reason,
                        owned_producers, busy_producers, wrong_town, train_absent,
-                       train_hidden, train_disabled, train_unaffordable, train_available);
+                       train_hidden, train_disabled, train_unaffordable,
+                       queue_available, queue_full);
         }
     }
 #endif
