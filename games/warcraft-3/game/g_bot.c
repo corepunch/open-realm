@@ -708,10 +708,20 @@ bool G_BotProduce(player_t *player, int32_t qty, uint32_t class_id, int32_t town
             break; /* common.ai retries deficits; one pending footprint at a time prevents overlapping reservations. */
         } else {
             edict_t *producer = NULL;
+            float producer_dist = 0.0f;
+            edict_t *town = town_id < 0 ? G_BotTown(player, 0) : G_BotTown(player, town_id);
+            /* Keep production attached to the requested town. When a town has
+             * multiple producers, use the nearest eligible idle one; this also
+             * avoids filling the first edict repeatedly while another barracks
+             * at the same base remains idle. */
             FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
-                !ent->construction.active && !ent->training && G_BotUnitAtTown(player, ent, town_id) &&
+                !ent->construction.active && !ent->training && !ent->build &&
+                G_BotUnitAtTown(player, ent, town_id) &&
                 G_GetTrainCommandState(G_GetPlayerClientByNumber(ent->s.player), ent, class_id, NULL, 0) ==
-                    BUILD_COMMAND_AVAILABLE) { producer = ent; break; }
+                    BUILD_COMMAND_AVAILABLE) {
+                float dist = town ? Vector2_distance(&town->s.origin2, &ent->s.origin2) : 0.0f;
+                if (!producer || dist < producer_dist) { producer = ent; producer_dist = dist; }
+            }
             if (!producer || !SP_TrainUnit(producer, class_id)) break;
         }
         made++;
