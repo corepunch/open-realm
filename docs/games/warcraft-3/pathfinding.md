@@ -492,3 +492,9 @@ journeys match1510 normal-frame clock/position/velocity/facing commits and1020
 saved suffix commits; early-finished peers and later cohort joining are both
 covered. Save79 retains the existing histories and owner generations. See
 [mixed Shift integration](retail-pathfinding-engine.md#mixed-active-and-idle-shift-share-one-submitted-request).
+
+Two independent active singleton point owners also preserve their current heads
+when queuing one common selected ground request. Later physical acquisition
+creates and joins one cohort;1022 original motion commits and844 saved suffix
+commits match exactly. This strengthens the same engine admission port. See
+[independent active owners](retail-pathfinding-engine.md#independent-active-owners-accept-the-same-pending-ground-request).

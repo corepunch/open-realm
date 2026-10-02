@@ -4739,3 +4739,55 @@ strict contracts and saved Ghidra readbacks pass. GROUP-04.16 closes with Save79
 unchanged;122 completed/186 open backlog leaves remain. The validation index is
 `runtime/selected-mixed-shift-validation-261002.json`. Next runnable work is
 04.6's independent active owners, then its wider producer/eligibility contracts.
+
+## Independent active owners accept the same pending ground request
+
+Payoff46 strengthens GROUP-04.16 without adding another backlog leaf. Original
+scene52 starts two singleton JASS point groups toward distinct destinations,
+then submits one native selected ground Shift. Both distinct active heads are
+preserved1 to2. At counter1240, the peer creates a new cohort (search0), then
+the other unit joins it (search1). Common pending admission does not require
+matching current physical group IDs. This confirms the production admission
+change from payoff45 across independent active owners.
+
+Two complete owned/read-only captures repeat all511 absolute motion commits
+exactly:507 scalar decisions, four natural arrivals and440 physical owner passes
+per capture. The existing engine implementation matches1022 normal-frame
+commits and844 saved suffix commits at commit200/400, using Save79 unchanged.
+The adapter retains entity creation order; normalized member0 is the peer,
+because its newer singleton is the first native physical owner. It does not
+change owner order or replay movement decisions.
+
+The mixed-input checker is reused with an explicit independent-head policy.
+It requires two distinct nonempty preserved heads, null-target ground Shift,
+and the original0/1 cohort search with matching submitted histories. Four
+additional asset-free tests reject replacement, duplicate heads, changed
+counts, mismatched history and self-matches; every header word is checked.
+Source/capture hashes, all request/phase records and both identical motion
+tables are frozen in `retail-selected-independent-1.27.json`.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-independent-shift-source-261002/` and
+  `runtime/selected-independent-shift-{first,repeat}-261002.jsonl`;
+- `runtime/selected-independent-shift-strict-final-261002/corpus-results.json`,
+  nine fresh selected/public/owner contracts;
+- `runtime/selected-independent-shift-types-final-261002.json` and
+  `runtime/selected-independent-shift-ghidra-readback-saved-261002.json`, four
+  saved scene52 roles/signatures/xrefs;522 roles,42 layouts,262 verified fields
+  and245 explicit x86 prototypes remain unchanged. No p-code was needed.
+
+Current combat/work/cast heads, rejection/callback/limit graphs, mixed masks,
+air/larger selections, repeated identical-goal policy and arbitrary scene
+construction remain required. This bounded point-group composition does not
+close GROUP-04.6 or certify those other current-order families.
+
+Final payoff46 validation: debug RoC/TFT each pass271,444 assertions in2327
+ tests. Forced release production/test builds and the normal repository suite
+pass; all-test RoC/TFT each pass271,877 assertions in2364 tests. All203 Python
+pathfinding tests, ability audit,264-entry/105-fixture inventory, nine fresh
+strict contracts and saved Ghidra readbacks pass. GROUP-04.16 is strengthened;
+no new task is added, and122 completed/186 open leaves remain. Save79 is unchanged.
+The validation index is `runtime/selected-independent-shift-validation-261002.json`.
+Next runnable work is TARGET-02.1 moving-target refresh and numerical pursuit,
+with a live target-speed transition; wider GROUP-04.6 contracts remain required.

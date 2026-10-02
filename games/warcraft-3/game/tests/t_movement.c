@@ -34,6 +34,7 @@
 #include "retail_selected_queued.h"
 #include "retail_selected_double_queued.h"
 #include "retail_selected_mixed.h"
+#include "retail_selected_independent.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -10570,8 +10571,10 @@ static void selected_queued_input_link(edict_t *unit) {
 
 /* Native player input supplies its absolute admission clock; all owner visits
  * and motion then come from ordinary engine frames, without replaying decisions. */
+typedef enum { SELECTED_START_SINGLE, SELECTED_START_SHARED, SELECTED_START_INDEPENDENT } selectedStart_t;
+
 static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input_count,
-        uint32_t const (*motion)[7], unsigned commit_count, unsigned cases, bool initial_peer,
+        uint32_t const (*motion)[7], unsigned commit_count, unsigned cases, selectedStart_t initial_peer,
         unsigned const save_steps[2]) {
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
@@ -10598,9 +10601,9 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
         level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
         level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
         char script[2048];
-        int length=snprintf(script,sizeof(script),"globals\nunit a\nunit b\ngroup cohort\ninteger tick=0\nendglobals\n"
+        int length=snprintf(script,sizeof(script),"globals\nunit a\nunit b\ngroup cohort\ngroup peer\ninteger tick=0\nendglobals\n"
             "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
-            "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1936,-144)\nendif\nendfunction\n"
+            "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1936,-144)\n%sendif\nendfunction\n"
             "function main takes nothing returns nothing\n"
             "set a=CreateUnit(Player(0),'hSQE',-1936,-976,90)\n"
             "call SetUnitMoveSpeed(a,100)\ncall SetUnitOwner(a,Player(3),false)\n"
@@ -10608,12 +10611,19 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
             "call SetUnitMoveSpeed(b,100)\nset cohort=CreateGroup()\n"
             "call GroupAddUnit(cohort,a)\n%s"
             "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n",
-            initial_peer ? "call GroupAddUnit(cohort,b)\n" : "");
+            initial_peer==SELECTED_START_INDEPENDENT ? "call GroupPointOrder(peer,\"move\",-1856,-144)\n" : "",
+            initial_peer==SELECTED_START_SHARED ? "call GroupAddUnit(cohort,b)\n" :
+            initial_peer==SELECTED_START_INDEPENDENT ? "set peer=CreateGroup()\ncall GroupAddUnit(peer,b)\n" : "");
         T_ASSERT(length>0 && length<sizeof(script));
         T_ASSERT(run_test_jass(script));
         edict_t *units[2]={0}; unsigned count=0,steps=0;
         FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
         T_EQ(count,2); if (count!=2) continue;
+        if (initial_peer==SELECTED_START_INDEPENDENT) {
+            /* Native identity normalization starts at the first physical owner,
+             * the peer's newer singleton. Entity creation order stays intact. */
+            edict_t *main=units[0]; units[0]=units[1]; units[1]=main;
+        }
         edict_t *clent=g_edicts+3; clent->client=game.clients+3;
         clent->client->ps.number=3; clent->client->menu.order_queued=true;
         FOR_LOOP(i,2) units[i]->selected=1u<<3;
@@ -10692,6 +10702,12 @@ TEST(wc3_movement, selected_mixed_shift_inputs_match_original_complete_journeys)
     FOR_LOOP(c,sizeof(selected_mixed_cases)/sizeof(*selected_mixed_cases))
         selected_queued_journeys(selected_mixed_inputs+c,1,selected_mixed_cases[c].motion,
             selected_mixed_cases[c].count,1,false,(unsigned const[]){200,300});
+}
+
+TEST(wc3_movement, selected_independent_shift_inputs_match_original_complete_journeys) {
+    FOR_LOOP(c,sizeof(selected_independent_cases)/sizeof(*selected_independent_cases))
+        selected_queued_journeys(selected_independent_inputs+c,1,selected_independent_cases[c].motion,
+            selected_independent_cases[c].count,1,SELECTED_START_INDEPENDENT,(unsigned const[]){200,400});
 }
 
 #endif

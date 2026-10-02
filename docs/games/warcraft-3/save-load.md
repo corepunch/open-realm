@@ -35,6 +35,10 @@ under version79. No layout change is needed: common queued contexts, immediate
 idle activation and later cohort joining use the existing retained records. See
 [mixed Shift](retail-pathfinding-engine.md#mixed-active-and-idle-shift-share-one-submitted-request).
 
+Two independent active singleton point owners additionally reproduce844 saved
+suffix commits under version79, before and after later shared acquisition. See
+[independent owners](retail-pathfinding-engine.md#independent-active-owners-accept-the-same-pending-ground-request).
+
 Version78 retained Move-owned queued request context and active cohort request
 identity. Common point orders survive before activation; staggered activation
 creates fresh physical cohorts with deterministic member order. Saves on either

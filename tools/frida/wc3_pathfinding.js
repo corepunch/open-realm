@@ -1645,7 +1645,7 @@ function install(module) {
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
-            if ((value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair '))) pairScenario = true;
+            if ((value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair '))) pairScenario = true;
             if (value.includes('label=complete ')) pairScenario = false;
             emit('marker', {value});
             if (!value.includes('label=sample ')) snapshotCells(value);

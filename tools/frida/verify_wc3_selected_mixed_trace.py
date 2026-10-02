@@ -7,10 +7,10 @@ import json
 from pathlib import Path
 from verify_wc3_arrival_trace import configure
 from verify_wc3_motion_trace import verify as verify_motion
-from verify_wc3_selected_queued_trace import canonical, digest, motion_words, owner_order, producer, request_rows
+from verify_wc3_selected_queued_trace import canonical, digest, motion_words, owner_order, producer, request_rows, verify_neighbors
 
 
-def verify_mixed_policy(actual, appended, neighbors, join):
+def verify_mixed_policy(actual, appended, neighbors, join, independent=False):
     variants = [r for r in actual if r['event'] == 'player-order-variant']
     actions = [r for r in actual if r['event'] == 'player-point-action-begin']
     if (len(variants) != 1 or variants[0]['target'] != [0xffffffff,0xffffffff] or
@@ -20,6 +20,15 @@ def verify_mixed_policy(actual, appended, neighbors, join):
     publications = [r for r in actual if r['event'] == 'player-order-publish']
     if len(publications) != 2 or any(r['flags'] != 9 or r['fallback'] for r in publications):
         raise ValueError('mixed point publication policy differs')
+    if independent:
+        if (not join or len(appended) != 2 or any(r['countBefore'] != 1 or r['countAfter'] != 2 or
+                r['before'] != r['after'] or r['before'] == [-1,-1] for r in appended) or
+                appended[0]['unit'] == appended[1]['unit'] or appended[0]['before'] == appended[1]['before']):
+            raise ValueError('independent Shift must retain both distinct active heads')
+        searches = verify_neighbors(neighbors,actions[0]['point'])
+        if any(r['before']['category'] != 1 for r in searches):
+            raise ValueError('independent ground cohort category differs')
+        return searches
     if (len(appended) != 2 or [r['countBefore'] for r in appended] != [0,1] or
             [r['countAfter'] for r in appended] != [1,2] or
             appended[0]['before'] != [-1,-1] or appended[0]['after'] == [-1,-1] or
@@ -49,7 +58,7 @@ def verify_mixed(rows, case):
         raise ValueError('mixed selection producer differs')
     return verify_mixed_policy(actual,
         [r for r in rows if r.get('event') == 'player-order-queued'][-2:],
-        [r for r in rows if r.get('event','').startswith('move-previous-cohort')],case['joined'])
+        [r for r in rows if r.get('event','').startswith('move-previous-cohort')],case['joined'],case.get('independent',False))
 
 
 def verify_lifecycle(rows, case):
@@ -95,7 +104,11 @@ def render_header(fixture):
         out += '};\n'
     out += 'static struct { uint32_t const (*motion)[7]; unsigned count; } const selected_mixed_cases[]={\n'
     for i,c in enumerate(fixture['cases']): out += f'    {{selected_mixed_motion_{i},{len(c["engine_motion"])} }},\n'
-    return out+'};\n'
+    out += '};\n'
+    if fixture.get('engine_prefix'):
+        out = out.replace('selected_mixed',fixture['engine_prefix'])
+        out = out.replace('Original scene51:',f'Original scene{fixture["scene"]}:')
+    return out
 
 
 def main():

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **263 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **46**
+The inventory now has **264 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **47**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -763,3 +763,12 @@ all1510 commits and1020 saved suffix commits. A missing trace-end attempt and a
 click that actually targeted a moving unit remain diagnostic, outside acceptance.
 Inventory is263 entries/104 fixtures; eight fresh strict contracts retain all
 earlier selected/public/owner witnesses. See [mixed Shift movement](retail-pathfinding-engine.md#mixed-active-and-idle-shift-share-one-submitted-request).
+
+
+Payoff46 adds `live-selected-independent-repeat-261002`: two native selected
+ground Shift journeys preserve two distinct active singleton heads, then create
+and join the same later cohort. All511 absolute motion commits repeat. Normal
+frames match1022 commits and844 saved suffix commits. The existing mixed-input
+checker handles this explicit admission mode without relaxing its earlier
+contract. Inventory is264 entries/105 fixtures; nine fresh contracts retain all
+selected/public/owner witnesses. See [independent active owners](retail-pathfinding-engine.md#independent-active-owners-accept-the-same-pending-ground-request).
