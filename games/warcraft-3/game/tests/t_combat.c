@@ -3693,4 +3693,59 @@ TEST(wc3_combat, attack_ground_issued_order_holds_while_ensnared) {
     T_FEQ(unit->s.origin2.x, 100, 0.001f);
     T_FEQ(unit->s.origin2.y, 0, 0.001f);
 }
+
+TEST(wc3_bot, target_heroes_policy_prioritizes_farther_hero_for_ai_acquisition) {
+    edict_t *attacker, *near_unit, *far_hero;
+    bot_t *bot;
+
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    near_unit = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 40.0f, 0.0f);
+    far_hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 1000.0f, 90.0f, 0.0f);
+    attacker->s.player = 0; near_unit->s.player = far_hero->s.player = 1;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damageBase = 10;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    near_unit->targtype = far_hero->targtype = TARG_GROUND;
+    gi.LinkEntity(attacker); gi.LinkEntity(near_unit); gi.LinkEntity(far_hero);
+
+    T_ASSERT(G_FindNearestEnemy(attacker, 128.0f) == near_unit);
+    T_ASSERT(G_BotStart(&game.clients[0].ps, "test_idle.ai", BOT_MELEE));
+    bot = level.bots + 0;
+    bot->flags |= BOT_TARGET_HEROES;
+    T_ASSERT(G_FindNearestEnemy(attacker, 128.0f) == far_hero);
+    bot->flags &= ~BOT_TARGET_HEROES;
+    T_ASSERT(G_FindNearestEnemy(attacker, 128.0f) == near_unit);
+    G_BotStop(0);
+}
+
+TEST(wc3_bot, smart_artillery_prioritizes_farther_structure_for_siege_ai) {
+    edict_t *siege, *near_unit, *far_building;
+    bot_t *bot;
+
+    setup_test_world(); reset_entities();
+    siege = make_combat_unit(MAKEFOURCC('h','m','t','m'), 360.0f, 0.0f, 0.0f);
+    near_unit = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 40.0f, 0.0f);
+    far_building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1500.0f, 90.0f, 0.0f);
+    siege->s.player = 0; near_unit->s.player = far_building->s.player = 1;
+    siege->attack1.type = ATK_SIEGE;
+    siege->attack1.cooldown = 1.0f;
+    siege->attack1.damageBase = 10;
+    siege->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
+    near_unit->targtype = TARG_GROUND;
+    far_building->targtype = TARG_STRUCTURE;
+    far_building->runtime.flags |= UNIT_BALANCE_BUILDING;
+    gi.LinkEntity(siege); gi.LinkEntity(near_unit); gi.LinkEntity(far_building);
+
+    T_ASSERT(G_FindNearestEnemy(siege, 128.0f) == near_unit);
+    T_ASSERT(G_BotStart(&game.clients[0].ps, "test_idle.ai", BOT_MELEE));
+    bot = level.bots + 0;
+    bot->flags |= BOT_SMART_ARTILLERY;
+    T_ASSERT(G_FindNearestEnemy(siege, 128.0f) == far_building);
+    bot->flags &= ~BOT_SMART_ARTILLERY;
+    T_ASSERT(G_FindNearestEnemy(siege, 128.0f) == near_unit);
+    G_BotStop(0);
+}
+
 #endif

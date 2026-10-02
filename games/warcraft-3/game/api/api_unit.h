@@ -908,14 +908,16 @@ uint32_t IsUnitVisible(jass_t *j) {
     return jass_pushboolean(j, 0);
 }
 uint32_t IsUnitDetected(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    player_t *whichPlayer = jass_checkhandle(j, 2, "player");
+    if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, S_UnitIsDetectedByPlayer(whichUnit, PLAYER_NUM(whichPlayer)));
 }
 uint32_t IsUnitInvisible(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    player_t *whichPlayer = jass_checkhandle(j, 2, "player");
+    if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, S_UnitIsInvisibleToPlayer(whichUnit, PLAYER_NUM(whichPlayer)));
 }
 uint32_t IsUnitFogged(jass_t *j) {
     //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

@@ -168,6 +168,27 @@ float G_AcquisitionRange(edict_t const *self) {
     return self->runtime.acquisition_range;
 }
 
+static bool ai_has_siege_attack(edict_t const *self) {
+    return self && ((S_UnitAttackSlotEnabled(self, 0) && self->attack1.type == ATK_SIEGE) ||
+                    (S_UnitAttackSlotEnabled(self, 1) && self->attack2.type == ATK_SIEGE));
+}
+
+/* Melee AI policy setters affect automatic target acquisition, not explicit player/script
+ * attack orders. Target Heroes gives legal Heroes priority over ordinary targets. Smart
+ * Artillery gives siege-capable AI units structures priority; distance still chooses within
+ * a category. */
+static uint32_t ai_bot_target_priority(edict_t const *self, edict_t const *target) {
+    bot_t const *bot;
+    if (!self || !target || self->s.player >= MAX_PLAYERS) return 0;
+    bot = &level.bots[self->s.player];
+    if (!bot->vm) return 0;
+    if ((bot->flags & BOT_SMART_ARTILLERY) && ai_has_siege_attack(self))
+        return G_UnitIsBuilding(target->class_id) ? 0 : 1;
+    if (bot->flags & BOT_TARGET_HEROES)
+        return G_UnitIsHero(target) ? 0 : 1;
+    return 0;
+}
+
 edict_t *G_FindNearestEnemy(edict_t *self, float radius) {
     ai_current_entity = self;
     box2_t const sightbox = {
@@ -177,10 +198,14 @@ edict_t *G_FindNearestEnemy(edict_t *self, float radius) {
     uint32_t numents = gi.BoxEdicts(&sightbox, sight_entities, MAX_SIGHT_ENTITIES, filter_sight);
     edict_t *best = NULL;
     float best_dist = radius;
+    uint32_t best_priority = 2;
     FOR_LOOP(i, numents) {
         edict_t *ent = sight_entities[i];
         float const d = Vector2_distance(&ent->s.origin2, &self->s.origin2);
-        if (d < best_dist) {
+        uint32_t const priority = ai_bot_target_priority(self, ent);
+        if (d >= radius) continue;
+        if (priority < best_priority || (priority == best_priority && d < best_dist)) {
+            best_priority = priority;
             best_dist = d;
             best = ent;
         }
