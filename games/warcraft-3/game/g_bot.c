@@ -1397,6 +1397,13 @@ static void G_BotApplyRepairPolicy(bot_t *bot) {
     bot->repair_policy_dirty = false;
 }
 
+void G_BotRefreshPeonsRepair(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    bot->repair_policy_dirty = true;
+    G_BotApplyRepairPolicy(bot);
+}
+
 static void G_BotHeroChooseSkill(bot_t *bot, edict_t *hero) {
     int32_t skill = 0;
     if (!bot || !bot->vm || !bot->hero_levels || !hero || !G_BotUnitAlive(hero) ||

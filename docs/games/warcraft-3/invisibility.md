@@ -4,6 +4,8 @@
 
 Gameplay invisibility is player-relative. Ability code establishes the gameplay state; `S_UnitIsInvisibleToPlayer()` and the existing detector/shared-vision path decide whether a particular viewer can perceive the unit. Generic `RF_HIDDEN` uses such as cargo, mines, training, revival, or script-hidden units are not automatically detector-revealable.
 
+The JASS visibility queries use that same authoritative path. `IsUnitDetected(unit, player)` delegates to `S_UnitIsDetectedByPlayer()` and reports player-local true-sight coverage without mutating the target. `IsUnitInvisible(unit, player)` delegates to `S_UnitIsInvisibleToPlayer()`, including owner/shared-vision access and detector reveals. Null unit/player handles return false. The natives intentionally do not infer invisibility from every generic `RF_HIDDEN` state.
+
 ## AI and JASS queries
 
 The AI native `UnitInvis(unit)` asks whether the unit currently has an intrinsic active invisibility state. It uses `S_UnitHasInvisibilityState()` and does not take a player or fold in detection. This matches stock `common.ai`, which separately evaluates `UnitInvis(target)` and `IsUnitDetected(target, ai_player)` before deciding whether to keep tracking a target. The query returns false for invalid or dead units and for generic hidden state. Permanent Invisibility's reveal window and Shadow Meld activation timing come from their existing state predicates; merely owning an ability does not make the unit invisible.
@@ -16,7 +18,7 @@ Keep the JASS concepts distinct:
 | `IsUnitDetected(unit, player)` | Whether the specified player has detection for the unit |
 | `IsUnitInvisible(unit, player)` | Effective viewer-relative invisibility after ownership/shared vision and detection |
 
-The player-relative `IsUnitDetected` and `IsUnitInvisible` callbacks remain placeholders in `api_unit.h`; their separation here records the required contract, not completed callback coverage. The existing C helper `S_UnitIsInvisibleToPlayer()` implements the effective viewer-relative query for gameplay consumers.
+The callbacks are implemented in `api_unit.h` by delegating to the existing player-relative helpers; this keeps their JASS contract aligned with gameplay visibility without introducing another detection path.
 
 The recovered TFT class table in `games/warcraft-3/tft-ability-classes.txt` identifies the relevant stock classes: `AIvi -> CAbilityItemInvis`, `AOwk -> CAbilityWindWalk`, `Agho -> CAbilityGhost`, `Aeth -> CAbilityGhostVisible`, and `Abur -> CAbilityBurrow`. It also records `Agho` as deriving from `Apiv`; both use the shared active-invisibility state, while viewer-relative visibility and detection remain separate queries.
 

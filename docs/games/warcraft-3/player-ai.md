@@ -337,14 +337,20 @@ economy changes stay disabled, and no insane-specific behavior is selected. This
 not a claim that the scripts' full difficulty behavior is implemented. Do not infer difficulty from race, team, or map
 settings.
 
-Hero-policy setters remain registration/state only unless explicitly documented
-otherwise. In particular, `SetHeroLevels`, `SetHeroesFlee`,
-`SetHeroesTakeItems`, `SetHeroesBuyItems`, and `SetTargetHeroes` currently store
-VM-owned policy but do not yet provide a proven generic C consumer for skill
-selection, retreat, item pickup/purchase, or target prioritization. Do not invent
-those behaviors from the flag names; implement them only when the unchanged
-Blizzard AI scripts and runtime contract establish when/how the policy is
-consumed.
+AI policy setters remain state-only unless a concrete runtime consumer is documented. `SetTargetHeroes` now affects
+ordinary automatic acquisition for units owned by a running AI: legal enemy Heroes are a higher-priority category, with
+nearest-target selection preserved inside that category. Explicit attack orders are unchanged. `SetSmartArtillery` uses the
+same bounded policy hook for siege-capable AI units, prioritizing legal structures before ordinary targets; it does not
+change attack masks, ranges, or explicit orders. `SetPeonsRepair` drives the existing data-defined Repair/Repair Generic
+autocast path, so authored target categories, alliances, acquisition range, resource costs, and construction-assistance
+rules remain authoritative. Existing dirty-policy reconciliation applies changes to current units, and unit-ready handling
+applies the policy to newly trained or created workers.
+
+`SetHeroLevels`, `SetHeroesFlee`, `SetHeroesTakeItems`, and `SetHeroesBuyItems` still store VM-owned policy without a
+proven generic C consumer for skill selection, individual retreat, item pickup, or purchasing. Do not invent those
+behaviors from the flag names; implement them only when the unchanged Blizzard AI scripts and runtime contract establish
+when/how the policy is consumed. `SetDefendPlayer` likewise remains policy state until the defense-player selection and
+retargeting contract is recovered.
 
 With these startup APIs, bounded TFT Booty Bay launches start all four unchanged race scripts without a JASS runtime
 error: `Scripts/human.ai`, `Scripts/orc.ai`, `Scripts/undead.ai`, and `Scripts/elf.ai`. Keep slot type fixed at `2`
@@ -523,8 +529,8 @@ town assignment uses nearest owned gold drop-off by distance, matching `SetProdu
 
 `UnitInvis(unit)` reports the unit's intrinsic active invisibility through `S_UnitHasInvisibilityState()`. It is
 independent of which player can see or detect the unit. Stock `common.ai` checks `UnitInvis(target)` separately from
-`IsUnitDetected(target, ai_player)`; the player-relative `IsUnitDetected` and `IsUnitInvisible` JASS callbacks remain
-placeholders. See [Warcraft III Invisibility](invisibility.md#ai-and-jass-queries).
+`IsUnitDetected(target, ai_player)`. The JASS `IsUnitDetected` and `IsUnitInvisible` callbacks use the player-relative
+detector/shared-vision helpers described in [Warcraft III Invisibility](invisibility.md#ai-and-jass-queries).
 
 The remaining reachable natives are registered: `AddAssault`, `CaptainInCombat`, `CaptainIsEmpty`, `CaptainIsFull`,
 `CaptainRetreating`,

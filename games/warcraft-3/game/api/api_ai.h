@@ -240,7 +240,7 @@ static uint32_t BotSetFlag(jass_t *j, botFlag_t flag) {
     if (bot) {
         bool changed = ((bot->flags & flag) != 0) != set;
         bot->flags = set ? bot->flags | flag : bot->flags & ~flag;
-        if (changed && flag == BOT_PEONS_REPAIR) bot->repair_policy_dirty = true;
+        if (changed && flag == BOT_PEONS_REPAIR) G_BotRefreshPeonsRepair(bot->player);
     }
     return 0;
 }

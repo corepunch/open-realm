@@ -2294,6 +2294,7 @@ uint32_t G_BotCaptainGroupSize(player_t *);
 bool G_BotCaptainIsFull(player_t *);
 bool G_BotCaptainRetreating(player_t *);
 void G_BotUpdateGroupFlee(player_t *);
+void G_BotRefreshPeonsRepair(player_t *);
 void G_BotRemoveInjuries(player_t *);
 void G_BotRemoveSiege(player_t *);
 int32_t G_BotCaptainReadiness(player_t *, bool);
