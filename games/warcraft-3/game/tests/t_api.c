@@ -6170,18 +6170,37 @@ TEST(wc3_api, unit_ability_mutation_rejects_full_lists) {
     G_FreeEdict(unit);
 }
 
-TEST(wc3_api, ai_difficulty_defaults_to_normal) {
+TEST(wc3_api, ai_difficulty_fallback_tracks_game_difficulty_bands) {
+    uint32_t old_difficulty = level.setup.difficulty;
     reset_entities();
     test_player(0);
     currentplayer = &game.clients[0].ps;
+    level.setup.difficulty = 0;
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
-        "if GetAIDifficulty(Player(0)) != AI_DIFFICULTY_NORMAL then\n"
+        "if GetAIDifficulty(Player(0)) != AI_DIFFICULTY_NEWBIE then\n"
         "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
         "endif\n"
         "endfunction"));
     T_EQ(game.clients[0].ps.stats[1], 0);
+    level.setup.difficulty = 3;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "if GetAIDifficulty(Player(0)) != AI_DIFFICULTY_INSANE then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 2)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    level.setup.difficulty = 1;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "if GetAIDifficulty(Player(0)) != AI_DIFFICULTY_NORMAL then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 3)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
     currentplayer = NULL;
+    level.setup.difficulty = old_difficulty;
 }
 
 TEST(wc3_api, group_is_unit_in_group_true) {

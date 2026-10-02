@@ -16,6 +16,13 @@
 #define BOT_GROUP_FLEE_POWER_RATIO 1.5f // BZ_COMPAT_GUESS: exact retail disadvantage threshold is unknown
 #define BOT_GROUP_FLEE_PERSIST_MS 2500u // milliseconds; BZ_COMPAT_GUESS: exact retail losing-battle persistence is unknown
 #define BOT_GROUP_FLEE_HOME_RADIUS 128.0f // world units; BZ_COMPAT_GUESS: exact captain home-arrival tolerance is unknown
+#define BOT_INDIVIDUAL_FLEE_SCAN_MS 250u // BZ_COMPAT_GUESS: retail reevaluation cadence is unknown
+#define BOT_INDIVIDUAL_FLEE_HEALTH_FRACTION 0.30f // BZ_COMPAT_GUESS: retail damage threshold is unknown
+#define BOT_INDIVIDUAL_FLEE_DANGER_RADIUS 800.0f // BZ_COMPAT_GUESS: hostile proximity radius is unknown
+#define BOT_HERO_ITEM_SCAN_MS 1000u // BZ_COMPAT_GUESS: retail pickup cadence is unknown
+#define BOT_HERO_ITEM_RADIUS 600.0f // BZ_COMPAT_GUESS: retail ground-item radius is unknown
+#define BOT_HERO_BUY_SCAN_MS 2000u // BZ_COMPAT_GUESS: retail shop-purchase cadence is unknown
+#define BOT_DEFEND_PLAYER_SCAN_MS 500u // BZ_COMPAT_GUESS: retail defense response cadence is unknown
 
 static bot_t *G_BotState(uint32_t player) {
     return player < MAX_PLAYERS ? &level.bots[player] : NULL;
@@ -1404,6 +1411,193 @@ void G_BotRefreshPeonsRepair(player_t *player) {
     G_BotApplyRepairPolicy(bot);
 }
 
+/* SetUnitsFlee/SetHeroesFlee expose retail engine policy rather than script orders.
+ * BZ_COMPAT_GUESS: use <30% life while a hostile is nearby and return to the primary
+ * town until retail threshold, radius and destination policy are recovered. */
+static bool G_BotIndividualFleeCandidate(edict_t *unit, bool hero_policy) {
+    bool is_hero;
+    if (!G_BotUnitAlive(unit) || !(unit->svflags & SVF_MONSTER) ||
+        G_UnitIsBuilding(unit->class_id) || unit->health.max_value <= 0.0f) return false;
+    is_hero = G_UnitIsHero(unit);
+    if (is_hero != hero_policy) return false;
+    if (!is_hero && (G_ActorHasSkill(unit, "Ahar") ||
+        (unit->attack1.type == ATK_NONE && unit->attack2.type == ATK_NONE))) return false;
+    return unit->health.value / unit->health.max_value < BOT_INDIVIDUAL_FLEE_HEALTH_FRACTION;
+}
+
+static bool G_BotHostileNear(player_t *player, edict_t *unit) {
+    FILTER_EDICTS(enemy, G_BotUnitAlive(enemy) && (enemy->svflags & SVF_MONSTER) &&
+        G_BotIsHostile(player, enemy) &&
+        Vector2_distance(&unit->s.origin2, &enemy->s.origin2) <= BOT_INDIVIDUAL_FLEE_DANGER_RADIUS)
+        return true;
+    return false;
+}
+
+void G_BotUpdateIndividualFlee(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    edict_t *home;
+    uint32_t now;
+    if (!bot || !(bot->flags & (BOT_UNITS_FLEE | BOT_HEROES_FLEE))) return;
+    now = G_Time();
+    if ((uint32_t)(now - bot->flee_policy_last_scan) < BOT_INDIVIDUAL_FLEE_SCAN_MS) return;
+    bot->flee_policy_last_scan = now;
+    home = G_BotTown(player, 0);
+    if (!G_BotUnitAlive(home)) return;
+
+    FILTER_EDICTS(unit, unit->s.player == PLAYER_NUM(player) &&
+        (((bot->flags & BOT_HEROES_FLEE) && G_BotIndividualFleeCandidate(unit, true)) ||
+         ((bot->flags & BOT_UNITS_FLEE) && G_BotIndividualFleeCandidate(unit, false)))) {
+        if (!G_BotHostileNear(player, unit)) continue;
+        if (unit->currentmove && unit->currentmove->proc == CAbilityMove && unit->goalentity &&
+            unit->goalentity->inuse &&
+            Vector2_distance(&unit->goalentity->s.origin2, &home->s.origin2) <= 1.0f) continue;
+        unit_leavecombat(unit);
+        order_move(unit, Waypoint_add(&home->s.origin2));
+    }
+}
+
+static edict_t *G_BotNearestGroundItem(edict_t *hero) {
+    edict_t *best = NULL;
+    int32_t best_priority = INT32_MIN;
+    float best_distance = 0.0f;
+    FILTER_EDICTS(item, G_IsItem(item) && item->item.in_world) {
+        ItemData_t const *data = G_ItemData(item->class_id);
+        float distance = Vector2_distance(&hero->s.origin2, &item->s.origin2);
+        if (!data || distance > BOT_HERO_ITEM_RADIUS || !G_CanPickupItem(hero, item)) continue;
+        if (!best || data->prio > best_priority ||
+            (data->prio == best_priority && distance < best_distance) ||
+            (data->prio == best_priority && distance == best_distance && item->s.number < best->s.number)) {
+            best = item; best_priority = data->prio; best_distance = distance;
+        }
+    }
+    return best;
+}
+
+static bool G_BotHeroNearShop(edict_t *hero, edict_t *shop) {
+    float reach = G_ShopActivationRadius(shop) + MAX(0.0f, shop->collision) + MAX(0.0f, hero->collision);
+    return Vector2_distance(&hero->s.origin2, &shop->s.origin2) <= reach;
+}
+
+static bool G_BotBuyBestShopItem(player_t *player, edict_t *hero) {
+    edict_t *clent = G_GetPlayerEntityByNumber(PLAYER_NUM(player));
+    gameClient_t *client = clent ? clent->client : NULL;
+    edict_t *best_shop = NULL;
+    uint32_t best_item = 0;
+    int32_t best_priority = INT32_MIN;
+    float best_distance = 0.0f;
+    if (!client || G_FindFreeInventorySlot(hero) < 0) return false;
+
+    FILTER_EDICTS(shop, shop->inuse && G_CanUseItemShop(client, shop) && G_BotHeroNearShop(hero, shop)) {
+        cstring_t items = shop->data.UnitProfile ? shop->data.UnitProfile->sellItems : NULL;
+        if (!items || G_FindShopPatron(client, shop) != hero) continue;
+        PARSE_LIST(items, item_name, parse_segment) {
+            uint32_t item_id;
+            ItemData_t const *data;
+            float distance;
+            bool stocked = false;
+            if (strlen(item_name) != 4) continue;
+            memcpy(&item_id, item_name, sizeof(item_id));
+            data = G_ItemData(item_id);
+            if (!data || !data->file || !G_ShopSellsItem(shop, item_id)) continue;
+            if (client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < (uint32_t)MAX(0, data->goldcost) ||
+                client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] < (uint32_t)MAX(0, data->lumbercost)) continue;
+            FOR_LOOP(stock, shop->stock.item_count) {
+                if (shop->stock.items[stock].id == item_id && shop->stock.items[stock].current > 0) {
+                    stocked = true;
+                    break;
+                }
+            }
+            if (!stocked) continue;
+            distance = Vector2_distance(&hero->s.origin2, &shop->s.origin2);
+            if (!best_shop || data->prio > best_priority ||
+                (data->prio == best_priority && distance < best_distance) ||
+                (data->prio == best_priority && distance == best_distance && item_id < best_item)) {
+                best_shop = shop; best_item = item_id; best_priority = data->prio; best_distance = distance;
+            }
+        }
+    }
+    return best_shop && best_item && G_ShopPurchaseItem(clent, best_shop, best_item);
+}
+
+/* Item policies do not interrupt combat. BZ_COMPAT_GUESS: scans use 600 world units for
+ * ground items and two seconds for purchases; ItemData.prio ranks candidates. */
+void G_BotUpdateHeroItems(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    uint32_t now;
+    bool buy_due;
+    if (!bot || !(bot->flags & (BOT_HEROES_TAKE_ITEM | BOT_HEROES_BUY_ITEMS))) return;
+    now = G_Time();
+    if ((uint32_t)(now - bot->item_policy_last_scan) < BOT_HERO_ITEM_SCAN_MS) return;
+    bot->item_policy_last_scan = now;
+    buy_due = (bot->flags & BOT_HEROES_BUY_ITEMS) &&
+        (uint32_t)(now - bot->hero_buy_last_scan) >= BOT_HERO_BUY_SCAN_MS;
+    FILTER_EDICTS(hero, G_BotUnitAlive(hero) && hero->s.player == PLAYER_NUM(player) && G_UnitIsHero(hero)) {
+        edict_t *item;
+        if (unit_affectingcombat(hero)) continue;
+        if ((bot->flags & BOT_HEROES_TAKE_ITEM) && G_FindFreeInventorySlot(hero) >= 0 &&
+            (item = G_BotNearestGroundItem(hero))) {
+            if (hero->currentmove && hero->currentmove->proc == CAbilityInventory && hero->goalentity == item)
+                continue;
+            if (G_OrderPickupItem(hero, item)) continue;
+        }
+        if (buy_due && G_BotBuyBestShopItem(player, hero)) break;
+    }
+    if (buy_due) bot->hero_buy_last_scan = now;
+}
+
+static edict_t *G_BotAlliedThreat(player_t *player) {
+    uint32_t self = PLAYER_NUM(player);
+    FILTER_EDICTS(attacker, G_BotUnitAlive(attacker) && attacker->currentmove &&
+        attacker->currentmove->proc == CAbilityAttack && G_BotUnitAlive(attacker->goalentity) &&
+        attacker->goalentity->s.player < MAX_PLAYERS) {
+        uint32_t ally = attacker->goalentity->s.player;
+        player_t *ally_player;
+        if (ally == self || ally == attacker->s.player) continue;
+        ally_player = G_GetPlayerByNumber(ally);
+        if (!ally_player || !G_GetPlayerAlliance(player, ally_player, ALLIANCE_PASSIVE) ||
+            !G_GetPlayerAlliance(ally_player, player, ALLIANCE_PASSIVE)) continue;
+        if (!G_BotIsHostile(player, attacker) || !G_BotIsHostile(ally_player, attacker)) continue;
+        return attacker->goalentity;
+    }
+    return NULL;
+}
+
+/* BZ_COMPAT_GUESS: redirect only the defense captain to the first actively attacked,
+ * mutually allied player's position, then return it to its authored home. */
+void G_BotUpdateDefendPlayer(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    edict_t *threat;
+    uint32_t now;
+    if (!bot) return;
+    now = G_Time();
+    if ((uint32_t)(now - bot->defend_policy_last_scan) < BOT_DEFEND_PLAYER_SCAN_MS) return;
+    bot->defend_policy_last_scan = now;
+    captain = bot->captains + BOT_CAPTAIN_DEFENSE;
+    threat = (bot->flags & BOT_DEFEND_PLAYER) ? G_BotAlliedThreat(player) : NULL;
+    if (threat) {
+        bool any = false;
+        edict_t *waypoint = Waypoint_add(&threat->s.origin2);
+        FOR_EACH_ARRAY(edict_t *, member, captain->units) if (G_BotUnitAlive(*member)) {
+            any = true; order_attackmove(*member, waypoint);
+        }
+        if (any) {
+            captain->goal = threat->s.origin2;
+            captain->state = BOT_CAPTAIN_ACTIVE;
+            bot->defend_player_active = true;
+        }
+        return;
+    }
+    if (bot->defend_player_active) {
+        edict_t *waypoint = Waypoint_add(&captain->home);
+        FOR_EACH_ARRAY(edict_t *, member, captain->units)
+            if (G_BotUnitAlive(*member)) { unit_leavecombat(*member); order_move(*member, waypoint); }
+        captain->goal = captain->home;
+        captain->state = BOT_CAPTAIN_IDLE;
+        bot->defend_player_active = false;
+    }
+}
+
 static void G_BotHeroChooseSkill(bot_t *bot, edict_t *hero) {
     int32_t skill = 0;
     if (!bot || !bot->vm || !bot->hero_levels || !hero || !G_BotUnitAlive(hero) ||
@@ -1537,9 +1731,14 @@ void G_BotRunFrame(void) {
             G_BotStart(owner, script, mode);
             continue;
         }
-        if (!jass_rterror_pending(bot->vm)) continue;
-        fprintf(stderr, "WC3 AI: player %u script %s stopped: %s\n", player, bot->script,
-            jass_rterror_message(bot->vm));
-        G_BotStop(player);
+        if (jass_rterror_pending(bot->vm)) {
+            fprintf(stderr, "WC3 AI: player %u script %s stopped: %s\n", player, bot->script,
+                jass_rterror_message(bot->vm));
+            G_BotStop(player);
+            continue;
+        }
+        G_BotUpdateDefendPlayer(bot->player);
+        G_BotUpdateIndividualFlee(bot->player);
+        G_BotUpdateHeroItems(bot->player);
     }
 }
