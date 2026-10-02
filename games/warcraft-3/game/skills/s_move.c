@@ -622,7 +622,14 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         return;
     vec2_t to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     vec2_t dir;
-    float const radius = unit_routes_to_location(self) ? self->collision : 0.0f;
+    /* Attack retains an entity/range goal, but its route must still fit the
+     * attacker's footprint. A point-only field can thread a tower gap that
+     * move-time collision rejects, leaving local slide to stall at the obstacle.
+     * flow_goal_reached below still hands the real target to the attack behavior
+     * for its authored interaction-range check. */
+    float const radius = (unit_routes_to_location(self) ||
+        (self->currentmove && self->currentmove->proc == CAbilityAttack))
+        ? self->collision : 0.0f;
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
 
     self->movement.heading = self->s.angle;  /* default if no heading is resolved this tick */
@@ -631,13 +638,10 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
 
-    /* Generic interaction movement keeps the original point-route contract.
-     * Attack, mine entry, resource return, repair, and other ranged behaviors
-     * decide when their interaction boundary has been reached.  Do not stop
-     * those orders at a collision-expanded flow goal outside that boundary.
-     * Move orders own radius-valid reserved destinations, so their route must
-     * use the same footprint as move-time collision; point routing previously
-     * sent units into narrow gaps and touching obstacle corners. */
+    /* Interaction range remains owned by the behavior. Routing can use a
+     * collision-sized approach field without completing an attack at that
+     * field's adjusted endpoint; it continues toward the real target and the
+     * attack range check decides when to engage. */
     if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
@@ -656,10 +660,10 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         self->movement.path.valid = false;
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             /* Location orders stop at their collision-safe route endpoint in
-             * the owning behavior.  Interaction orders use a point field whose
-             * raw target may be blocked (mine/building/unit centre); once the
-             * adjusted route end is reached they must steer toward the real
-             * target so the behavior's footprint/range check can complete. */
+             * the owning behavior. Interaction goals may be blocked or have
+             * their own range boundary; once the adjusted route end is reached
+             * they steer toward the real entity target so the behavior's
+             * range check can complete. */
             self->movement.flow_goal_reached = true;
             dir = to_goal;
         } else {
