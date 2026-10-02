@@ -4167,6 +4167,43 @@ TEST(wc3_save, movement_guard_state_round_trip) {
     remove(filename);
 }
 
+TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-route-resume-runtime.bin";
+    int unit_index;
+    edict_t *unit, *goal;
+
+    reset_entities();
+    unit_index = globals.num_edicts;
+    unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    goal = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 128, 0);
+    unit->movement.route_resume_direction = (vec2_t){ 1.0f, 0.0f };
+    unit->movement.route_resume_goal_origin = goal->s.origin2;
+    unit->movement.route_resume_goal = goal;
+    unit->movement.route_resume_goal_spawn = goal->spawn_time;
+    unit->movement.route_resume_time = 1234;
+    unit->movement.route_resume_radius = 31.0f;
+    unit->movement.route_resume_flags = CM_PATHING_UNWALKABLE;
+    unit->movement.route_resume_valid = true;
+    unit->movement.route_resume_active = true;
+    unit->movement.path_wait_active = true;
+    unit->movement.path_wait_start = 5678;
+    unit->movement.path_wait_goal_number = goal->s.number;
+    unit->movement.path_wait_goal_spawn = goal->spawn_time;
+    unit->movement.path_wait_origin = unit->s.origin2;
+
+    T_ASSERT(WriteGame(filename));
+    unit->movement.route_resume_goal = (edict_t *)(uintptr_t)1;
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + unit_index;
+    T_NULL(unit->movement.route_resume_goal);
+    T_ASSERT(!unit->movement.route_resume_valid);
+    T_ASSERT(!unit->movement.route_resume_active);
+    T_ASSERT(!unit->movement.path_wait_active);
+    T_EQ(unit->movement.route_resume_time, 0);
+    T_EQ(unit->movement.path_wait_start, 0);
+    remove(filename);
+}
+
 TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-live-guard-return.bin";
     int unit_index;
