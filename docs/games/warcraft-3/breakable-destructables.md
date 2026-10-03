@@ -25,14 +25,17 @@ The resource lookup is data-driven: `dest_schema` maps the `pathTex` and
 formats used by WC3 pathing resources. It validates the complete header, ID
 field, dimensions, allocation size, and pixel payload before decoding.
 
-When a destructable's path texture blocks or opens the wrong cells in game,
-check whether its orientation is implemented in `entity_pathtex_transform()`
-in `games/warcraft-3/game/g_world.c`. Path textures are authored relative to
-the destructable's facing, and supporting path-texture loading alone does not
-ensure the footprint is rotated correctly. Confirm the rawcode is covered by
-the orientation rules and that quarter-turn behavior has a regression test;
-otherwise, a gate or other rotated destructable can have a pathing footprint
-misaligned with its model.
+Every loaded path texture follows its entity's authored facing in
+`entity_pathtex_transform()` in `games/warcraft-3/game/g_world.c`; the policy
+does not depend on a gate rawcode or `targType`. `DestructableData.slk` assigns
+path textures to many shapes besides gates, including the 10x2 stone wall
+(`LTw0`), the 16x4 elevator blocker (`DTep`), and Tree Bridge destructables
+(`LTt0`-`LTt5`, `ATt0`-`ATt1`) whose target type is `debris`. Square or symmetric
+textures may look unchanged under rotation, but an unrotated allowlist omits
+other authored shapes. When pathing does not match a destructable, confirm its
+`pathTex`/`pathTexDeath` resolved and check the actual stamped pathmap against
+the facing; the regression suite covers the transform and a rotated non-gate
+pathing blocker through `CM_BakeStaticObstacles()`.
 
 ## Walkable Model Height
 

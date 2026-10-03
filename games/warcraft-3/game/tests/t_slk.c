@@ -605,7 +605,7 @@ TEST(wc3_slk, map_unit_default_active_ability_override_inherits_to_custom_unit) 
         "C;X1;Y2;K\"hfoo\"\nC;X2;K\"Arep\"\nC;X3;K\"Adef\"\nE\n";
     uint32_t const base_id = MAKEFOURCC('h','f','o','o');
     uint32_t const custom_id = MAKEFOURCC('u','A','0','1');
-    uint32_t const default_active = MAKEFOURCC('A','r','e','p');
+    uint32_t default_active = MAKEFOURCC('A','r','e','p');
     unitModification_t mod = {
         .modID = MAKEFOURCC('u','d','a','a'), .type = mod_int, .data = &default_active
     };

@@ -16,55 +16,9 @@ static bool entity_is_pathing_ignored(edict_t const *ent) {
     return G_UnitIsStructure(ent) && (ent->s.flags & EF_NOT_SELECTABLE) && !ent->construction.active;
 }
 
-static bool entity_is_standard_gate(edict_t const *ent) {
-    if (!ent) return false;
-    switch (ent->class_id) {
-    case MAKEFOURCC('A', 'T', 'g', '1'):
-    case MAKEFOURCC('A', 'T', 'g', '2'):
-    case MAKEFOURCC('A', 'T', 'g', '3'):
-    case MAKEFOURCC('A', 'T', 'g', '4'):
-    case MAKEFOURCC('D', 'T', 'c', '1'):
-    case MAKEFOURCC('D', 'T', 'c', '2'):
-    case MAKEFOURCC('D', 'T', 'g', '1'):
-    case MAKEFOURCC('D', 'T', 'g', '2'):
-    case MAKEFOURCC('D', 'T', 'g', '3'):
-    case MAKEFOURCC('D', 'T', 'g', '4'):
-    case MAKEFOURCC('D', 'T', 'g', '5'):
-    case MAKEFOURCC('D', 'T', 'g', '6'):
-    case MAKEFOURCC('D', 'T', 'g', '7'):
-    case MAKEFOURCC('D', 'T', 'g', '8'):
-    case MAKEFOURCC('I', 'T', 'g', '1'):
-    case MAKEFOURCC('I', 'T', 'g', '2'):
-    case MAKEFOURCC('I', 'T', 'g', '3'):
-    case MAKEFOURCC('I', 'T', 'g', '4'):
-    case MAKEFOURCC('I', 'T', 't', 'g'):
-    case MAKEFOURCC('I', 'T', 'x', '1'):
-    case MAKEFOURCC('I', 'T', 'x', '2'):
-    case MAKEFOURCC('I', 'T', 'x', '3'):
-    case MAKEFOURCC('I', 'T', 'x', '4'):
-    case MAKEFOURCC('L', 'T', 'e', '1'):
-    case MAKEFOURCC('L', 'T', 'e', '2'):
-    case MAKEFOURCC('L', 'T', 'e', '3'):
-    case MAKEFOURCC('L', 'T', 'e', '4'):
-    case MAKEFOURCC('L', 'T', 'g', '1'):
-    case MAKEFOURCC('L', 'T', 'g', '2'):
-    case MAKEFOURCC('L', 'T', 'g', '3'):
-    case MAKEFOURCC('L', 'T', 'g', '4'):
-    case MAKEFOURCC('Z', 'T', 'g', '1'):
-    case MAKEFOURCC('Z', 'T', 'g', '2'):
-    case MAKEFOURCC('Z', 'T', 'g', '3'):
-    case MAKEFOURCC('Z', 'T', 'g', '4'):
-    case MAKEFOURCC('Z', 'T', 's', 'g'):
-    case MAKEFOURCC('Z', 'T', 's', 'x'):
-        return true;
-    default:
-        return false;
-    }
-}
-
-/* WC3 pathing TGAs are transposed relative to model/world axes. Bridges and
- * stock gate destructables use the authored angle to select a quarter-turn;
- * ordinary footprints retain their existing unrotated contract. */
+/* WC3 pathing TGAs are transposed relative to model/world axes. Every authored
+ * path texture follows its entity's facing; the rawcode and target type do not
+ * determine whether its footprint rotates. */
 static void entity_pathtex_transform(pathTexTransformParams_t const *params, pathTexTransform_t *transform) {
     pathTex_t const *pt = params ? params->pathtex : NULL;
     float const angle = params && params->ent ? params->ent->s.angle : 0.0f;
@@ -75,7 +29,7 @@ static void entity_pathtex_transform(pathTexTransformParams_t const *params, pat
     transform->turn = ((quarter % 4) + 4) % 4;
     transform->width = transform->turn & 1 ? pt->height : pt->width;
     transform->height = transform->turn & 1 ? pt->width : pt->height;
-    if (!params->ent || (params->ent->targtype != TARG_BRIDGE && !entity_is_standard_gate(params->ent)))
+    if (!params->ent)
         transform->turn = 0, transform->width = pt->width, transform->height = pt->height;
 }
 
