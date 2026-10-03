@@ -752,7 +752,7 @@ int S_SearingArrowDamage(edict_t *attacker, int damage) {
 }
 
 static uint32_t mana_shield_buff(uint32_t code, uint32_t level) {
-    cstring_t buff = G_AbilityLevel(code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(code, level);
     return buff && strlen(buff) >= 4 ? FS_SLKKey(buff) : 0;
 }
 

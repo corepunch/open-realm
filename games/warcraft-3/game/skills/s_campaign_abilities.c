@@ -1,15 +1,9 @@
 #include "s_skills.h"
 
-/* Campaign rawcodes keep their own spell descriptor so every lookup uses the campaign AbilityData row. */
-static cstring_t campaign_buff(abilityitem_t const *spell, uint32_t level) {
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    return buff && strlen(buff) >= 4 ? buff : NULL;
-}
-
 static void campaign_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    cstring_t buff = campaign_buff(spell, level);
-    if (st.entity && buff) unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    cstring_t buff = S_SpellBuffId(spell->code, level);
+    if (st.entity && buff) unit_addtimedstatus(st.entity, buff, level, S_SpellHeroDuration(spell->code, level, st.entity));
 }
 
 static void campaign_area_damage_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -41,7 +35,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkConversion) {
     if (!caster || !st.entity || !unit) return;
     summon = S_SummonAt(caster, unit, &st.entity->s.origin2, 0.0f);
     if (!summon) return;
-    buff = campaign_buff(spell, level);
+    buff = S_SpellBuffId(spell->code, level);
     if (buff) unit_addtimedstatus(summon, buff, level, S_SpellDuration(spell->code, level, false));
     G_FreeEdict(st.entity);
 }
@@ -240,7 +234,7 @@ static void ensnare_execute(edict_t *caster, spellTarget_t st, abilityitem_t con
     if (!buff || strlen(buff) < 4) buff = S_SpellBuffToken(list, 0);
     /* ROC omits BuffID. Use each family's authored TFT token, preserving Web's air bind. */
     if (!buff || strlen(buff) < 4) buff = spell->ability->proc == CAbilityWeb ? "Bwea" : "Bens";
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
+    unit_addtimedstatus(st.entity, buff, level, S_SpellResistantDuration(spell->code, level, st.entity));
     slot = unit_findstatus(st.entity, FS_SLKKey(buff));
     if (slot) slot->data = spell->code;
     ensnare_begin_land(st.entity, spell->code, level);
@@ -288,7 +282,7 @@ BZ_SIMPLE_SPELL_PROC(AbilitySummonQuilbeastCampaign) { S_SummonAbilityUnits(cast
 BZ_SIMPLE_SPELL_PROC(AbilitySummonMisha) { S_SummonAbilityUnits(caster, spell->code, &st); }
 BZ_SIMPLE_SPELL_PROC(AbilityStampedeCampaign) { S_SummonAbilityUnits(caster, spell->code, &st); }
 BZ_SIMPLE_SPELL_PROC(AbilityBattleRoar) {
-    uint32_t level = S_SpellLevel(caster, spell->code); cstring_t buff = campaign_buff(spell, level);
+    uint32_t level = S_SpellLevel(caster, spell->code); cstring_t buff = S_SpellBuffId(spell->code, level);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
         if (buff) unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, false));
@@ -297,7 +291,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     S_SpellDamage(st.entity, caster, (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)));
-    if (!M_IsDead(st.entity)) unit_addtimedstatus(st.entity, "Bstu", 1, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    if (!M_IsDead(st.entity)) unit_addtimedstatus(st.entity, "Bstu", 1, S_SpellHeroDuration(spell->code, level, st.entity));
 }
 BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign) { campaign_area_damage_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHazeCampaign) { campaign_status_execute(caster, st, spell); }

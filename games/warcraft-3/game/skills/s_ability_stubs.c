@@ -92,7 +92,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkRitual) {
 BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
     edict_t *target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
 
     if (!target || !buff || strlen(buff) < 4) {
         fprintf(stderr, "WC3: %.4s has no authored BuffID\n", (cstring_t)&spell->code);
@@ -120,7 +120,7 @@ void divine_shield_think(edict_t *ent) {
 BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float duration = MAX(0.1f, S_SpellDuration(spell->code, level, true));
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
     edict_t *thinker = G_Spawn();
 
     if (!thinker) return;

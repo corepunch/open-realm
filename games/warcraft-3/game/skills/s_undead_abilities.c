@@ -6,11 +6,6 @@
 #define UNDEAD_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
 #define BZ_AMS_SHIELD MAKEFOURCC('B', 'a', 'm', '2') // rawcode; Bam2 DataC spell-damage absorption
 
-static cstring_t undead_buff(abilityitem_t const *spell, uint32_t level) {
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    return buff && strlen(buff) >= 4 ? buff : NULL;
-}
-
 /* DataC > 0 is the TFT melee shield (Aam2); empty DataC is ROC-style targeting immunity (Aams/ACam). */
 static void anti_magic_shell_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
@@ -23,7 +18,7 @@ static void anti_magic_shell_execute(edict_t *caster, spellTarget_t st, abilityi
     /* ROC AbilityData omits BuffID; UndeadAbilityStrings still names Bams as the shell buff. */
     if (!buff) buff = absorb > 0.0f ? "Bam2" : "Bams";
     slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                         S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
+                                         S_SpellResistantDuration(spell->code, level, st.entity));
     if (absorb > 0.0f && slot) slot->data = (uint32_t)absorb;
 }
 
@@ -81,7 +76,7 @@ static bool replenish_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
 static void replenish_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     edict_t *target = st.entity;
-    cstring_t buff = undead_buff(spell, level);
+    cstring_t buff = S_SpellBuffId(spell->code, level);
     if (!target) return;
     S_SpellHeal(target, S_SpellData(spell->code, level, 1));
     target->mana.value = MIN(target->mana.max_value, target->mana.value + S_SpellData(spell->code, level, 2));
@@ -598,7 +593,7 @@ static void raise_dead_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
     unit_b = S_SpellDataId(spell->code, level, 4);
     duration = S_SpellDuration(spell->code, level, false) +
         G_UnitUpgradeEffectBonus(caster, BZ_UPGRADE_RAISE_DEAD_LIFE);
-    buff = G_AbilityLevel(spell->code, level)->buffID;
+    buff = S_SpellBuffId(spell->code, level);
 
     raise_dead_spawn_group(caster, spell, corpse, level, unit_a, count_a, duration, buff);
     raise_dead_spawn_group(caster, spell, corpse, level, unit_b, count_b, duration, buff);
@@ -714,7 +709,7 @@ void possession_two_think(edict_t *thinker) {
 
 static void possession_two_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    float duration = S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity));
+    float duration = S_SpellResistantDuration(spell->code, level, st.entity);
     float damage_mult = S_SpellData(spell->code, level, 2);
     float invuln = S_SpellData(spell->code, level, 3);
     float magic_imm = S_SpellData(spell->code, level, 4);

@@ -19,7 +19,7 @@ static bool stasis_land_enemy(edict_t *ward, edict_t *target, float radius) {
 }
 
 static cstring_t stasis_buff(uint32_t code, uint32_t level) {
-	cstring_t buff = G_AbilityLevel(code, level)->buffID;
+	cstring_t buff = S_SpellBuffId(code, level);
 	return (buff && strlen(buff) >= 4) ? buff : ID_STASIS_BUFF;
 }
 

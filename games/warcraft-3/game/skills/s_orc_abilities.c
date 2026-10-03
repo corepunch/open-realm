@@ -72,7 +72,7 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
         if (S_StatusIsUndispellable(s)) continue;
         unit_expirestatus(st.entity, s);
     }
-    buff = G_AbilityLevel(spell->code, level)->buffID;
+    buff = S_SpellBuffId(spell->code, level);
     if (!buff || strlen(buff) < 4) buff = "Bprg";
     slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
                                          S_SpellDuration(spell->code, level, false));
@@ -149,7 +149,7 @@ void lsh_think(edict_t *thinker) {
 BZ_SIMPLE_SPELL_PROC(AbilityLightningShield) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float dur = S_SpellDuration(spell->code, level, false);
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
     edict_t *thinker;
     if (!st.entity || !buff || strlen(buff) < 4) return;
     unit_addtimedstatus(st.entity, buff, level, dur);

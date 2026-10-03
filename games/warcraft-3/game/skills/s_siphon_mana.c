@@ -50,7 +50,7 @@ static void siphon_mana_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     ent->goalentity = st.entity; ent->channel->target_spawn_time = st.entity->spawn_time;
     ent->resources = rank; ent->velocity = S_SpellData(spell->code, rank, 3);
     ent->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
-    ent->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, rank, G_UnitIsHero(st.entity)) * 1000.0f);
+    ent->spawn_time = G_Time() + (uint32_t)(S_SpellHeroDuration(spell->code, rank, st.entity) * 1000.0f);
     ent->think = siphon_mana_think;
     ent->freetime = G_Time() + (uint32_t)MAX(FRAMETIME, ent->velocity * 1000.0f);
 }

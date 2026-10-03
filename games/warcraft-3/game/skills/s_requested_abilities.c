@@ -37,8 +37,8 @@ static cstring_t spell_buff_fallback(uint32_t code) {
 }
 
 static cstring_t spell_buff(abilityitem_t const *spell, uint32_t level) {
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    return buff && strlen(buff) >= 4 ? buff : spell_buff_fallback(spell->code);
+    cstring_t buff = S_SpellBuffId(spell->code, level);
+    return buff ? buff : spell_buff_fallback(spell->code);
 }
 
 static void target_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -46,7 +46,7 @@ static void target_status_execute(edict_t *caster, spellTarget_t st, abilityitem
     cstring_t buff = spell_buff(spell, level);
     if (!st.entity || !buff) return;
     S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                  S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+                                  S_SpellHeroDuration(spell->code, level, st.entity));
 }
 
 static void toggle_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -62,7 +62,7 @@ static void radial_damage_status(edict_t *caster, vec2_t point, abilityitem_t co
                   Vector2_distance(&target->s.origin2, &point) <= area) {
         S_SpellDamage(target, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, data)));
         if (buff && !M_IsDead(target))
-            unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(target)));
+            unit_addtimedstatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
     }
 }
 
@@ -644,7 +644,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityImpale) {
             fabsf(across) > S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)) continue;
         S_SpellDamage(target, caster, (int)S_SpellData(spell->code, level, 3));
         if (!M_IsDead(target) && buff)
-            unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(target)));
+            unit_addtimedstatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
     }
 }
 /* Name=Locust Swarm
@@ -672,7 +672,7 @@ BZ_SIMPLE_SPELL_PROC(AbilitySilence) {
     cstring_t buff = spell_buff(spell, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        if (buff) unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(target)));
+        if (buff) unit_addtimedstatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
     }
 }
 /* Corpse ultimates prefer higher-level units before lower-level ones. Equal-level
@@ -971,7 +971,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     float duration = S_SpellDuration(spell->code, level, false);
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius)
         if (buff && strlen(buff) >= 4) unit_addtimedstatus(target, buff, level, duration);

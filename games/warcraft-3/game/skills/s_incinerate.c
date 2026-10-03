@@ -29,7 +29,7 @@ void S_IncinerateOnHit(edict_t *attacker, edict_t *target) {
     if (!ability.alias) ability = S_ResolveAbilityAlias(attacker, ID_INCINERATE);
     code = ability.alias; rank = ability.level;
     if (!code || !rank || !target || !S_SpellAllowsTarget(code, attacker, target)) return;
-    buff = G_AbilityLevel(code, rank)->buffID;
+    buff = S_SpellBuffId(code, rank);
     /* Map overrides may omit BuffID; both Incinerate variants use BNic in the TFT profiles. */
     if (!buff || strlen(buff) < 4) buff = "BNic";
     stacks = G_UnitStatusLevel(target, FS_SLKKey(buff)) + 1;

@@ -81,7 +81,7 @@ static cstring_t orb_buff(uint32_t code) {
         { ID_ORB_CORRUPTION, "BIcb" },
         { ID_ORB_FREEZE, "Bfre" },
     };
-    cstring_t buff = G_AbilityLevel(code, 1)->buffID;
+    cstring_t buff = S_SpellBuffId(code, 1);
     if (buff && strlen(buff) >= 4) return buff;
     FOR_LOOP(i, sizeof(fallback) / sizeof(fallback[0]))
         if (fallback[i].code == code) return fallback[i].buff;
@@ -97,7 +97,7 @@ static void orb_apply(edict_t *attacker, edict_t *target, uint32_t orb, uint32_t
     if (!buff) return;
     level = MAX(1, G_UnitAbilityLevel(attacker, orb));
     seen[(*count)++] = orb;
-    unit_addtimedstatus(target, buff, level, S_SpellDuration(orb, level, G_UnitIsHero(target)));
+    unit_addtimedstatus(target, buff, level, S_SpellHeroDuration(orb, level, target));
 }
 
 /* Called from S_ResolveAttackHit after a hit lands on an enemy. Checks native

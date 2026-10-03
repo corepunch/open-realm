@@ -24,8 +24,8 @@ static uint32_t const polymorph_move_types_count = sizeof(polymorph_move_types) 
 void human_ability_think(edict_t *thinker);
 
 static cstring_t human_buff(abilityitem_t const *spell, uint32_t level) {
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    if (buff && strlen(buff) >= 4) return buff;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
+    if (buff) return buff;
     /* ROC omits BuffID; Aply/ACpy share the TFT token. */
     return G_AbilityCode(spell->code) == BZ_POLYMORPH ? "Bply" : NULL;
 }
@@ -45,12 +45,12 @@ static heroabilitystatus_t *human_status_execute(edict_t *caster, spellTarget_t 
     cstring_t buff = human_buff(spell, level);
     if (!st.entity || !buff) return NULL;
     return S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                         S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+                                         S_SpellHeroDuration(spell->code, level, st.entity));
 }
 
 static void human_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    float duration = S_SpellDuration(spell->code, level, G_UnitIsHero(caster));
+    float duration = S_SpellHeroDuration(spell->code, level, caster);
     (void)st;
     if (human_has_status(caster, spell->code)) {
         human_remove_status(caster, spell->code); S_HumanStatusExpired(caster, spell->code, level); return;
@@ -191,7 +191,7 @@ static bool invisibility_validate(edict_t *caster, spellTarget_t st, abilityitem
     level = S_SpellLevel(caster, spell->code);
     buff = human_buff(spell, level);
     if (!buff || strlen(buff) != 4 ||
-        S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)) <= 0.0f) return false;
+        S_SpellHeroDuration(spell->code, level, st.entity) <= 0.0f) return false;
     has_slot = unit_findstatus(st.entity, *((uint32_t const *)buff)) != NULL;
     if (has_slot) return true;
     FOR_LOOP(i, MAX_UNIT_STATUSES)
@@ -378,9 +378,9 @@ static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityit
     thinker->goalentity = st.entity; thinker->channel->target_spawn_time = st.entity->spawn_time;
     thinker->resources = shackles_buff(spell->code, level);
     thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1); thinker->spawn_time = G_Time() +
-        (uint32_t)(S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)) * 1000.0f);
+        (uint32_t)(S_SpellHeroDuration(spell->code, level, st.entity) * 1000.0f);
     thinker->think = human_ability_think;
-    unit_addtimedstatus(st.entity, GetClassName(thinker->resources), level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    unit_addtimedstatus(st.entity, GetClassName(thinker->resources), level, S_SpellHeroDuration(spell->code, level, st.entity));
     human_ability_think(thinker);
 }
 

@@ -35,10 +35,10 @@ BZ_ABILITY_PROC(CAbilityCyclone) {
                S_SpellAllowsTarget(call->item->code, ent, target->entity);
     if (target->type != SPELL_TARGET_UNIT || !target->entity) return false;
     level = S_SpellLevel(ent, call->item->code);
-    buff = G_AbilityLevel(call->item->code, level)->buffID;
+    buff = S_SpellBuffId(call->item->code, level);
     if (!buff || strlen(buff) < 4) buff = "Bcyc";
     unit_addtimedstatus(target->entity, buff, level,
-                        S_SpellDuration(call->item->code, level, S_UnitIsResistant(target->entity)));
+                        S_SpellResistantDuration(call->item->code, level, target->entity));
     /* unit_addtimedstatus zeroes data on replace; store applying rawcode after add like Purge. */
     buff_code = *((uint32_t const *)buff);
     FOR_LOOP(i, MAX_UNIT_STATUSES) {

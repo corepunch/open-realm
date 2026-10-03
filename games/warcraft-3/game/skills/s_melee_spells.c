@@ -27,8 +27,8 @@ static cstring_t melee_buff_fallback(uint32_t code) {
 }
 
 static cstring_t melee_buff(abilityitem_t const *spell, uint32_t level) {
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    return buff && strlen(buff) >= 4 ? buff : melee_buff_fallback(spell->code);
+    cstring_t buff = S_SpellBuffId(spell->code, level);
+    return buff ? buff : melee_buff_fallback(spell->code);
 }
 
 static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -36,7 +36,7 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
     cstring_t buff = melee_buff(spell, level);
     if (!st.entity || !buff) return;
     S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                  S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+                                  S_SpellHeroDuration(spell->code, level, st.entity));
 }
 
 static bool bloodlust_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {

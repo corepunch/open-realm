@@ -1078,6 +1078,24 @@ bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool w
     return best && S_CastUnitTargetSpell(caster, code, best);
 }
 
+/* Common authored metadata used by status-family procedures.  Keep fallback
+ * policy in the owning ability; this only validates the primary BuffID field. */
+cstring_t S_SpellBuffId(uint32_t code, uint32_t level) {
+    cstring_t buff = G_AbilityLevel(code, level)->buffID;
+    return buff && strlen(buff) >= 4 ? buff : NULL;
+}
+
+/* Warcraft stores separate normal/hero durations.  Some status families use
+ * hero classification while crowd-control families use the broader resistant
+ * predicate; keep those two policies explicit instead of passing a mode flag. */
+float S_SpellHeroDuration(uint32_t code, uint32_t level, edict_t const *target) {
+    return S_SpellDuration(code, level, target && G_UnitIsHero(target));
+}
+
+float S_SpellResistantDuration(uint32_t code, uint32_t level, edict_t const *target) {
+    return S_SpellDuration(code, level, target && S_UnitIsResistant(target));
+}
+
 /* AbilityData BuffID fields can contain an ordered comma-separated list. Return
  * the requested token without allocating: Warcraft rawcodes are four bytes, so
  * callers may pass the returned pointer directly to FS_SLKKey/status helpers. */

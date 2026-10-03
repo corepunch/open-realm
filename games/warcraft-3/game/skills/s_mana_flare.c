@@ -43,9 +43,9 @@ BZ_ABILITY_PROC(CAbilityManaFlare) {
 	switch (msg) {
 	case A_EXECUTE:
 		level = S_SpellLevel(ent, code);
-		buff = G_AbilityLevel(code, level)->buffID;
+		buff = S_SpellBuffId(code, level);
 		if (!buff || strlen(buff) < 4) buff = "Bmfl";
-		unit_addtimedstatus(ent, buff, level, S_SpellDuration(code, level, G_UnitIsHero(ent)));
+		unit_addtimedstatus(ent, buff, level, S_SpellHeroDuration(code, level, ent));
 		return true;
 	case A_UPDATE:
 		if (ent && ent->channel && ent->channel->code == code && !G_UnitStatusLevel(ent, ID_BMFL))

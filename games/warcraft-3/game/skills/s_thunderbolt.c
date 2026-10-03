@@ -37,7 +37,7 @@ static void thunderbolt_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     uint32_t level = S_SpellLevel(caster, code);
     cstring_t art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
     float speed = bolt_missile_speed(code);
-    float duration = S_SpellDuration(code, level, S_UnitIsResistant(target));
+    float duration = S_SpellResistantDuration(code, level, target);
     edict_t *missile;
 
     unit_setmove(caster, &spell_cast_move);

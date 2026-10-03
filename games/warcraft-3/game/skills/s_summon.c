@@ -113,7 +113,7 @@ static void inferno_impact(edict_t *caster, uint32_t code, uint32_t level, vec2_
     FILTER_EDICTS(target, inferno_hits(caster, target, area, point)) {
         S_SpellDamage(target, caster, damage);
         if (!M_IsDead(target))
-            unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellDuration(code, level, S_UnitIsResistant(target)));
+            unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellResistantDuration(code, level, target));
     }
     if (!unit_id) {
         fprintf(stderr, "WC3 Inferno: missing UnitID for %.4s\n", (cstring_t)&code);
@@ -208,7 +208,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
     uint32_t count = (uint32_t)S_SpellData(spell->code, level, 1);
     float duration = S_SpellDuration(spell->code, level, false);
     float distance = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
     vec2_t loc = caster->s.origin2;
 
     if (!caster || !unit_id || !count) return;

@@ -58,7 +58,7 @@ void S_SlowPoisonOnHit(edict_t *attacker, edict_t *target) {
     uint32_t level = G_UnitAbilityLevel(attacker, ID_SLOW_POISON);
     if (!level || !target || !S_SpellIsEnemy(attacker, target)) return;
     /* DataA DPS / BuffID Bssd are leftover; this slice only applies Bspo slow. */
-    unit_addtimedstatus(target, "Bspo", level, S_SpellDuration(ID_SLOW_POISON, level, S_UnitIsResistant(target)));
+    unit_addtimedstatus(target, "Bspo", level, S_SpellResistantDuration(ID_SLOW_POISON, level, target));
 }
 
 /* DataB/DataC are fractions (stock 0.5 / 0.25), same %>% convention as Bloodlust. */
@@ -83,10 +83,10 @@ static bool barkskin_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
 
 static void barkskin_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
     if (!st.entity || !buff || strlen(buff) < 4) return;
     S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                  S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
+                                  S_SpellResistantDuration(spell->code, level, st.entity));
 }
 
 static bool barkskin_acquire(edict_t *caster, uint32_t code) {

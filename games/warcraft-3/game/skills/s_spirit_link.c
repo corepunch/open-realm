@@ -28,8 +28,8 @@ static void spirit_link_execute(edict_t *caster, spellTarget_t st, abilityitem_t
 	level = S_SpellLevel(caster, spell->code);
 	area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
 	maxn = (uint32_t)S_SpellData(spell->code, level, 2);
-	dur = S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity));
-	buffstr = G_AbilityLevel(spell->code, level)->buffID;
+	dur = S_SpellHeroDuration(spell->code, level, st.entity);
+	buffstr = S_SpellBuffId(spell->code, level);
 	if (!buffstr || strlen(buffstr) < 4) buffstr = "Bspl";
 	if (!maxn) return;
 	if (maxn > SPL_MAX_CANDS) {

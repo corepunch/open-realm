@@ -54,9 +54,9 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
 
         if (!spell || !target) return true;
         level = S_SpellLevel(ent, spell->code);
-        buff = G_AbilityLevel(spell->code, level)->buffID;
+        buff = S_SpellBuffId(spell->code, level);
         if (!buff || strlen(buff) < 4) return true;
-        duration = S_SpellDuration(spell->code, level, G_UnitIsHero(target));
+        duration = S_SpellHeroDuration(spell->code, level, target);
         unit_addtimedstatus(target, buff, level, duration);
         slot = unit_findstatus(target, FS_SLKKey(buff));
         if (!slot) return true;
