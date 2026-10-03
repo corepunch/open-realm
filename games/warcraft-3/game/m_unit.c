@@ -2135,6 +2135,10 @@ static cstring_t G_HeroKillXPRejectReason(edict_t const *hero, edict_t const *vi
     return NULL;
 }
 
+static bool G_KillXPDebugHeroCandidate(edict_t const *ent) {
+    return ent->inuse && ent->data.UnitBalance && G_UnitIsHero(ent);
+}
+
 static bool G_HeroReceivesKillXP(edict_t const *hero, edict_t const *victim, edict_t const *killer, float range) {
     return G_HeroKillXPRejectReason(hero, victim, killer, range) == NULL;
 }
@@ -2225,7 +2229,7 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
         edict_t const *hero = &globals.edicts[i];
         cstring_t const reason = G_HeroKillXPRejectReason(hero, victim, killer, range);
         if (reason) {
-            if (debug && hero->inuse)
+            if (debug && G_KillXPDebugHeroCandidate(hero))
                 fprintf(stderr, "WC3 kill XP: range candidate hero=%u code=%08x owner=%u level=%u rejected=%s distance=%.1f\n",
                     i, hero->data.UnitBalance ? hero->data.UnitBalance->id : 0,
                     hero->s.player, hero->hero.level, reason,
@@ -2245,7 +2249,7 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
             edict_t const *hero = &globals.edicts[i];
             cstring_t const reason = G_HeroKillXPRejectReason(hero, victim, killer, -1.0f);
             if (reason) {
-                if (debug && hero->inuse)
+                if (debug && G_KillXPDebugHeroCandidate(hero))
                     fprintf(stderr, "WC3 kill XP: global candidate hero=%u code=%08x owner=%u level=%u rejected=%s distance=%.1f\n",
                         i, hero->data.UnitBalance ? hero->data.UnitBalance->id : 0,
                         hero->s.player, hero->hero.level, reason,
