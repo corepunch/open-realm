@@ -55,14 +55,14 @@ uint32_t S_SacrificeAbilityCode(void) { return ID_SACRIFICE_PIT; }
 /* The Shade result inherits the consumed worker's food slot, so Train must
  * not reserve additional food while the worker still exists. */
 bool S_SacrificeSkipsFoodReservation(edict_t const *item) {
-    return item && item->sacrifice && item->sacrifice->active;
+    return item && item->sacrifice;
 }
 
 /* The queued worker must be the same live edict owned by the same player.
  * Spawn-time comparison rejects edict slots reused after the worker died. */
 static bool sacrifice_worker_valid(edict_t const *item) {
     edict_t const *worker;
-    if (!item || !item->sacrifice || !item->sacrifice->active || !(worker = item->sacrifice->worker)) return false;
+    if (!item || !item->sacrifice || !(worker = item->sacrifice->worker)) return false;
     return worker->inuse && worker->spawn_time == item->sacrifice->worker_spawn_time &&
         !M_IsDead(worker) && worker->s.player == item->s.player;
 }
@@ -70,7 +70,7 @@ static bool sacrifice_worker_valid(edict_t const *item) {
 /* Inverse of the queue-time hide/pause: restore exactly the stashed state. */
 static void sacrifice_release_worker(edict_t *item) {
     edict_t *worker;
-    if (!item || !item->sacrifice || !item->sacrifice->active || !(worker = item->sacrifice->worker)) return;
+    if (!item || !item->sacrifice || !(worker = item->sacrifice->worker)) return;
     if (worker->inuse && worker->spawn_time == item->sacrifice->worker_spawn_time) {
         if (!item->sacrifice->restore_hidden) worker->s.renderfx &= ~RF_HIDDEN;
         worker->paused = item->sacrifice->restore_paused;
@@ -127,7 +127,6 @@ bool G_QueueSacrifice(edict_t *producer, edict_t *worker, uint32_t result_id) {
     result->s.renderfx |= RF_HIDDEN;
     if (!result->sacrifice) result->sacrifice = G_AllocSacrifice();
     assert(result->sacrifice);
-    result->sacrifice->active = true;
     result->sacrifice->worker = worker;
     result->sacrifice->worker_spawn_time = worker->spawn_time;
     result->sacrifice->restore_paused = worker->paused;
@@ -154,7 +153,7 @@ BZ_ABILITY_PROC(CAbilitySacrifice) {
     if (msg == A_QUEUE_VALIDATE || msg == A_QUEUE_COMPLETE || msg == A_QUEUE_CANCEL) {
         if (!call) return false;
         producer = call->queue.producer; item = call->queue.item;
-        if (!item || !item->sacrifice || !item->sacrifice->active) return false;
+        if (!item || !item->sacrifice) return false;
         if (msg == A_QUEUE_VALIDATE) return sacrifice_queue_validate(producer, item);
         if (msg == A_QUEUE_COMPLETE) { sacrifice_queue_complete(producer, item); return true; }
         sacrifice_queue_cancel(producer, item); return true;

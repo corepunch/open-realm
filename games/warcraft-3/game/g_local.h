@@ -1408,7 +1408,6 @@ typedef struct {
 } revival_t;
 
 typedef struct {
-    bool active;
     edict_t *worker;
     uint32_t worker_spawn_time;
     bool restore_paused;
@@ -1449,7 +1448,6 @@ typedef struct {
     uint32_t original_model;   /* presentation state restored when the buff ends */
     float original_scale;
     float original_move_speed;
-    bool active;
 } polymorph_t;
 
 typedef struct {
@@ -1537,8 +1535,6 @@ typedef struct {
 } item_t;
 
 typedef struct {
-    bool initialized;
-
     /* Set only for destructables originating from war3map.doo. */
     bool map_placed;
 

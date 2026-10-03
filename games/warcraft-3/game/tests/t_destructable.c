@@ -150,7 +150,6 @@ static edict_t *make_test_destructable(float life, float x, float y) {
     ent->health.max_value = life;
     if (!ent->destructable) ent->destructable = G_AllocDestructable();
     assert(ent->destructable);
-    ent->destructable->initialized = true;
     ent->destructable->placement_solid = true;
     ent->destructable->alive_collision = 1.0f;
     ent->destructable->pathing_active = true;

@@ -143,7 +143,7 @@ static bool CancelTrainingQueueItem(edict_t *producer, uint32_t index, bool refu
     else producer->build = next;
     ProductionSetNext(item, NULL);
 
-    if ((item->sacrifice && item->sacrifice->active)) {
+    if (item->sacrifice) {
         /* The input Acolyte was not charged and the owner restores it; Train
          * refunds only the resulting unit's authored cost, matching Warsmash. */
         SacrificeQueueMessage(producer, item, A_QUEUE_CANCEL);
@@ -416,7 +416,7 @@ void ai_train_build(edict_t *ent) {
 
     /* If the sacrificed worker disappears, the owner invalidates the result;
      * cancel and refund its authored cost instead of completing from stale. */
-    if ((ent->build->sacrifice && ent->build->sacrifice->active) && !SacrificeQueueMessage(ent, ent->build, A_QUEUE_VALIDATE)) {
+    if (ent->build->sacrifice && !SacrificeQueueMessage(ent, ent->build, A_QUEUE_VALIDATE)) {
         CancelTrainingQueueItem(ent, 0, true, true);
         return;
     }
@@ -436,7 +436,7 @@ void ai_train_build(edict_t *ent) {
             if (!ShowTrainedUnit(ent, completed)) {
                 return;
             }
-            if ((completed->sacrifice && completed->sacrifice->active))
+            if (completed->sacrifice)
                 SacrificeQueueMessage(ent, completed, A_QUEUE_COMPLETE);
             /* Queued units use build as the next-item link, while unit_stand()
              * clears build for the completed unit. Preserve the producer's queue

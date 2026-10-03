@@ -72,7 +72,6 @@ static edict_t *volcano_make_destructable(float life, float x, float y, TARGTYPE
     ent->health.value = ent->health.max_value = life;
     if (!ent->destructable) ent->destructable = G_AllocDestructable();
     assert(ent->destructable);
-    ent->destructable->initialized = true;
     ent->destructable->item_table = (uint32_t)-1; /* no random loot table */
     return ent;
 }
