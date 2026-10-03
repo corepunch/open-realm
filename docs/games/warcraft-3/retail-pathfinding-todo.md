@@ -8,24 +8,22 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**175 done / 336 tasks; 161 remaining.** Payoff87 closes existing MOVE-04.3
-and ORDER-06.6 without new IDs. Two complete original ground/flight/ground
-journeys repeat737 commits,734 decisions,15 searches,309 markers, nine states
-and643 own-spatial observations. Flight retains category-zero active links and
-uses fine-only routing; ground restoration re-enables hierarchy requests.
-Primary-clock ability timers preserve Chaos/type-rebind deadlines across frame
-batches. Actual engine RunFrame and ten Save96 checkpoints reproduce6534 suffix
-commits across5/10/25/50ms frames. Both required edition suites pass2507 tests/
-5,212,644 assertions each, plus546 Python checks; production build, fresh three-
-contract corpus and O0/O2 comparisons pass. The mapper retains647 roles,
-67 layouts/441 fields,315 ABIs and60 globals. See
-[movement-mode payoff](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).
+**176 done / 336 tasks; 160 remaining.** Payoff88 closes existing MOVE-01.2
+without adding IDs. Paired original Slow/Bloodlust journeys prove immediate speed
+publication, polarity/magic/physical removal filters and restoration. The engine
+reproduces590 original velocity commits and4356 saved continuation commits at
+5/10/25/50ms frame sizes. Applying abilities own status policy and notify Move;
+public UnitRemoveBuffs natives now use that shared mechanism. Both required
+edition suites pass2508 tests/5,276,169 assertions each, plus553 Python checks;
+production build, fresh strict corpus and O0/O2 comparisons pass. Saved Ghidra
+mapping retains655 roles,68 layouts/450 fields,323 ABIs and60 globals. See
+[temporary-modifier payoff](retail-pathfinding-engine.md#temporary-speed-modifiers-publish-through-their-applying-owners).
 
-Next runnable chunk is MOVE-01.2: temporary Slow/Bloodlust speed changes during
-travel, public buff-removal filters and immediate velocity restoration. Original
-captures already expose the missing UnitRemoveBuffs engine native and status
-queries; native policy is being recovered before implementing the shared owner
-mechanism. No new TODO IDs.
+Next runnable chunk is GROUP-03.4.7.2.2.2: extend the captain return-home
+observation through natural completion and verify the full engine/save journey.
+The previous30-second domain leaves later private retry travel unverified;
+fresh extended captures retain the same authored roster and AI policy.
+No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -45,7 +43,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
 | SCHED — Scheduling and owner updates | 4 | 9 |
-| MOVE — Stepping and callbacks | 10 | 5 |
+| MOVE — Stepping and callbacks | 11 | 4 |
 | ORDER — Orders and reclamation | 12 | 24 |
 | GROUP — Shared movement groups | 35 | 12 |
 | FORM — Formation and regrouping | 4 | 9 |
@@ -612,7 +610,7 @@ publication state; it does not close the original bonus writer or other effects.
 ### MOVE-01 — Movement parameters
 
 - [ ] **MOVE-01.1** Trace authored speed, acceleration and turn/movement-angle data into a new mover; assert converted values and clamp order.
-- [ ] **MOVE-01.2** Apply then remove a temporary speed/turn modifier during travel; assert committed velocity and restoration.
+- [x] **MOVE-01.2** Apply then remove a temporary speed/turn modifier during travel; assert committed velocity and restoration. Payoff88: paired original Slow/Bloodlust applications and public removal selectors, exact immediate cap publication and restored speed; real applying-owner procedures reproduce590 native commits and4356 Save97 continuation commits across four frame sizes. Spell-cast admission/windup and other buff families remain existing ORDER-01.13/E2E scope. [Evidence](retail-pathfinding-engine.md#temporary-speed-modifiers-publish-through-their-applying-owners).
 - [ ] **MOVE-01.3** Record group/request writes to those parameters and test each reachable overwrite order against the authored defaults.
 - [x] **MOVE-01.4** Split ordinary nonhero public speed setter/current/default getters and authored limits from01.1: preserve integer umvs/umis/umas map fields, clamp profile bounds before current speed, retain explicit zero across save/load and ignore movement-disabled setters. Evidence: [authored speed limits reach Move](retail-pathfinding-engine.md#authored-speed-limits-reach-move),1846 original/C clamp/gate cases, repeated120 public calls/26 publications/153 captured commits, actual public-order and saved-step regressions. Hero defaults, special caps/effect-stack ordering, immediate low-cap integration and clock cadence remain01.1/2/NUM-02.3.
 

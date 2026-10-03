@@ -7702,3 +7702,69 @@ caller in each supplied lane, while the new public flight regression exercises
 native disabled-adaptive policy. `mode87-validation.json` pins the final commit,
 strict fresh corpus and O0/O2 reports. Save96 changes spatial-history meaning;
 network messages/layouts are unchanged.
+
+## Temporary speed modifiers publish through their applying owners
+
+Payoff88 composes MOVE-01.2 through actual retail Slow and creep Bloodlust,
+negative/positive public removal, a reverse point order, and the caster's
+stationary blocking footprint. Two complete captures from the same authored
+map repeat594 commits:590 for the travelling Footman clone and four for the
+Sorceress. They also repeat588 decisions,13 route searches,317 position/order
+markers,317 buff/speed queries and eight removal-filter results. The complete
+motion digest is `a3d23b222276c50ec37a83811fdc00e585623c409d1a78d45ba4fc0e160405bf`;
+the590 main-mover commits have digest
+`4662111a60688c8f9a74cb98cb0176bd2d96088c8490877618e13641aa656f01`.
+
+The original `CAbilityMove_ComputeEffectiveSpeed` reports base270 and multiplier
+`3f800000`, then Slow's `3ecccccc` produces the minimum-clamped150. Removing
+Slow restores270. Bloodlust's `3fa00000` produces337.5, and removing it restores270.
+These are captured raw scalar words, including the subtraction before the lower
+clamp. The native public getters observe `Bslo`/`Bblo` level1 while attached.
+The buff prefix's separate words70/74 are **not** inferred to be public levels.
+
+The previous engine had empty `UnitRemoveBuffs`/`UnitRemoveBuffsEx` natives,
+ignored status slots in `GetUnitAbilityLevel`, discarded applying ability
+identity in the older status helpers, and read Bloodlust/Slow speed data from
+stock rawcodes even when a different authored alias applied the buff. Status
+application now retains the applying rawcode and source incarnation. The
+concrete Slow/Bloodlust procedures supply public buff policy; the shared native
+filter dispatches that query and runs the existing inverse before clearing the
+slot. The owner receives `A_STATUS_REMOVED` after the wipe and notifies Move to
+publish the new effective cap. Move owns old-pose integration and numerical
+velocity clamping. No spell-specific rules enter the client, monster dispatcher,
+or movement routing machinery.
+
+Original48eb10 traverses the attached ability identity list and restarts after
+each removal. Positive/negative select their corresponding virtual predicates;
+magic and physical selectors are independent requirements. Both tested buffs
+are magic, automatically removable, non-aura and non-timed-life. Neither
+`UnitRemoveBuffs(false,false)`, the opposite polarity, nor physical-only Ex
+removes them. The magic/negative/automatic Ex call removes Slow, and ordinary
+positive removal removes Bloodlust. Unknown engine status families are retained
+with an explicit diagnostic: the new policy does not invent their classification.
+Remaining classification and spell-order families keep ORDER-01.13/E2E scopes.
+
+`retail_speed_modifiers.h` contains the590 main commits and the literal public
+states. The owning-engine regression replays the two **captured spell application
+callbacks** through `Aslo`/`ACbl` procedures; caster windup, resource timing and
+its four steering commits are not claimed as engine parity. Its stationary
+occupancy is real: the reverse fine search encounters31 object hits against the
+caster, whose native address is normalized only after proving its fine-object
+and mover identity. Public Move, teleports, buff removal/query, routes, scalar
+timers and all subsequent commits run through normal engine behavior.
+
+All590 main velocity/position/facing/clock commits and public markers match,
+with4356 exact suffix commits across nine Save97 checkpoints and5/10/25/50ms
+server frames. Save97 keeps applying ability/source semantics and rejects older
+formats. Paired arithmetic comparisons pass at O0/O2; fresh strict contracts
+include the complete modifier witness and prior movement-mode/numerical controls.
+The saved Ghidra mapper retains655 roles,68 partial layouts/450 fields,323 ABIs
+and60 globals. It records Unit1dc's ability head, Unit1ec's cached Move and a
+38-byte buff prefix ending at rawcode34, preserving all earlier field evidence.
+
+Raw captures, map/source provenance, Ghidra readback and test logs remain under
+`runtime/modifier88-*` in the external report root. The final validation record
+is `runtime/modifier88-validation.json`. Both required edition suites pass2508
+tests/5,276,169 assertions each, plus553 Python checks; production build passes. This closes the temporary modifier
+contract; combined effect-stack precedence, other speed/turn producers and the
+independent spell-casting scheduler retain their existing tasks.

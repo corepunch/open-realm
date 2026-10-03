@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 96, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 97, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -1075,3 +1075,9 @@ is unchanged, but its meaning changes, so older versions are rejected.
 Chaos deadlines and Move's retained type-rebind deadline use the saved primary
 clock and now dispatch every primary quantum through the ability timer hook.
 See [movement-mode policy](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).
+
+Format97 retains the applying Slow/Bloodlust ability rawcode and source
+incarnation in existing status fields. Public buff queries/removal and restored
+Move caps use that owner after load. Nine original modifier boundaries reproduce
+4356 saved suffix commits; old format96 is rejected rather than inventing missing
+origin semantics. See [modifier evidence](retail-pathfinding-engine.md#temporary-speed-modifiers-publish-through-their-applying-owners).

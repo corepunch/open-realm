@@ -38,6 +38,14 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
     cstring_t buff = melee_buff(spell, level);
     if (!st.entity || !buff) return;
     unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    heroabilitystatus_t *status = unit_findstatus(st.entity, *((uint32_t const *)buff));
+    if (status) {
+        status->data = spell->code;
+        status->source = caster;
+        status->source_spawn_time = caster->spawn_time;
+    }
+    if (spell->ability->proc == CAbilityBloodlust)
+        S_UnitAbilityEvent(st.entity, A_MOVE_PARAMETERS_CHANGED);
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
@@ -87,6 +95,10 @@ BZ_ABILITY_PROC(CAbilityBloodlust) {
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
     case A_AUTOCAST_ACQUIRE: return melee_autocast_acquire(ent, code, true, false);
+    case A_STATUS_POLICY:
+        return UNIT_BUFF_KNOWN | UNIT_BUFF_POSITIVE | UNIT_BUFF_MAGIC | UNIT_BUFF_AUTO_DISPEL;
+    case A_STATUS_REMOVED:
+        S_UnitAbilityEvent(ent, A_MOVE_PARAMETERS_CHANGED); return true;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
@@ -133,12 +145,14 @@ BZ_SIMPLE_SPELL_PROC(AbilityRoar) {
 /* DataA owns the attack-rate bonus as a fraction (0.4 = +40%); DataB owns move speed. */
 float S_BloodlustAttackBonus(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
-    return level ? S_SpellData(MAKEFOURCC('A', 'b', 'l', 'o'), level, 1) : 0.0f;
+    heroabilitystatus_t const *status = level ? unit_findstatus((edict_t *)unit, MAKEFOURCC('B','b','l','o')) : NULL;
+    return level ? S_SpellData(status->data ? status->data : MAKEFOURCC('A','b','l','o'), level, 1) : 0;
 }
 
 float S_BloodlustMoveBonus(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
-    return level ? S_SpellData(MAKEFOURCC('A', 'b', 'l', 'o'), level, 2) : 0.0f;
+    heroabilitystatus_t const *status = level ? unit_findstatus((edict_t *)unit, MAKEFOURCC('B','b','l','o')) : NULL;
+    return level ? S_SpellData(status->data ? status->data : MAKEFOURCC('A','b','l','o'), level, 2) : 0;
 }
 
 /* DataA owns the armor reduction as a flat amount. */

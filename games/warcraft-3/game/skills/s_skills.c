@@ -135,7 +135,7 @@ static ability_t abilitylist[] = {
     { "Ainf", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Inner Fire */
     { "Adis", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Dispel Magic */
     { "Ahea", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal */
-    { "Aslo", CAbilitySlow, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Slow */
+    { "Aslo", CAbilitySlow, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Slow */
     { "Aivs", CAbilityInvisibility, AB_SPELL, SPELL_TARGET_UNIT },  /* Invisibility */
     { "Aply", CAbilityPolymorph, AB_SPELL, SPELL_TARGET_UNIT },  /* Polymorph */
     { "ACpy", CAbilityPolymorph, AB_SPELL, SPELL_TARGET_UNIT },  /* Polymorph (creep) */
@@ -274,7 +274,7 @@ static ability_t abilitylist[] = {
     { "AOae", CAbilityPassive, AB_PASSIVE },  /* Endurance Aura */
     { "AOre", CAbilityReincarnation, AB_PASSIVE },  /* Reincarnation */
     { "AOws", CAbilityStomp, AB_SPELL },  /* War Stomp */
-    { "Ablo", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Bloodlust */
+    { "Ablo", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Bloodlust */
 
     /* UndeadAbilityStrings.txt */
     { "AUim", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impale */
@@ -562,11 +562,11 @@ static ability_t abilitylist[] = {
     { "ACat", CAbilityCreepAura, AB_PASSIVE },  /* Aura - Trueshot (Creep) */
     { "ACav", CAbilityCreepAura, AB_PASSIVE },  /* Aura - Devotion (Creep) */
     { "ACba", CAbilityCreepAura, AB_PASSIVE },  /* Aura - Brilliance (creep) */
-    { "ACbb", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Bloodlust (creep, Hotkey B) */
+    { "ACbb", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Bloodlust (creep, Hotkey B) */
     { "ACbc", CAbilityBreathOfFire, AB_SPELL, SPELL_TARGET_POINT },  /* Breath of Fire (Creep) */
     { "ACbh", CAbilityBash, AB_PASSIVE },  /* Bash (creep) */
     { "ACbk", CAbilityBlackArrow, AB_SPELL | AB_TOGGLE | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Black Arrow (melee, creep) */
-    { "ACbl", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Bloodlust (Creep) */
+    { "ACbl", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Bloodlust (Creep) */
     { "ACbn", CAbilityBanish, AB_SPELL, SPELL_TARGET_UNIT },  /* Banish (Creep) */
     { "ACbz", CAbilityBlizzard, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Blizzard (creep) */
     { "ACcb", CAbilityThunderBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Bolt */
@@ -628,7 +628,7 @@ static ability_t abilitylist[] = {
     { "ACsm", CAbilityDrain, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Siphon Mana (Creep) */
     { "ACss", CAbilityShadowStrike, AB_SPELL, SPELL_TARGET_UNIT },  /* Shadow Strike (Creep) */
     { "ACst", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave (Trap) */
-    { "ACsw", CAbilitySlow, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Slow (Creep) */
+    { "ACsw", CAbilitySlow, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Slow (Creep) */
     { "ACt2", CAbilityThunderClap, AB_SPELL },  /* Thunder Clap (Thunder Lizard) */
     { "ACua", CAbilityCreepAura, AB_PASSIVE },  /* Unholy Aura (creep) */
     { "ACuf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy (creep) */

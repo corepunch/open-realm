@@ -873,3 +873,11 @@ Attack, Follow, Harvest, and Build call that ability's movement operations while
 conditions. `g_ai.c` owns acquisition/behavior transitions, and `g_monster.c` owns initialization and generic animation dispatch.
 Shared math, routing algorithms, collision queries, serialization, and in-place type rebinding remain reusable services;
 ability ownership does not mean duplicating these mechanisms in each ability.
+
+Public buff removal dispatches `A_STATUS_POLICY` to the status's applying ability,
+whose registry row opts into `AB_STATUS_POLICY`. `A_STATUS_REMOVE` runs before
+the slot is cleared; `A_STATUS_REMOVED` runs after clearing, so a stat owner can
+notify Move through `A_MOVE_PARAMETERS_CHANGED` using the resulting effective
+parameters. Slow/Bloodlust retain applying alias/source identity and classify
+their own buffs. Unclassified families emit a diagnostic and keep their status;
+do not infer polarity or dispel classes from the victim's skills or target masks.

@@ -1355,7 +1355,7 @@ float G_UnitArmorValue(edict_t const *ent) {
 static void UnitDispatchStatus(edict_t *ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg) {
     abilityitem_t item;
     abilityCall_t call;
-    if (!ent || !slot || !slot->level || !ability) return;
+    if (!ent || !slot || (!slot->level && msg != A_STATUS_REMOVED) || !ability) return;
     item = S_AbilityItem(ability);
     if (!item.ability || !item.ability->proc) return;
     call = MAKE(abilityCall_t, .item = &item);
@@ -1400,6 +1400,50 @@ void unit_expirestatus(edict_t *ent, heroabilitystatus_t *status) {
     origin = status->data;
     UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE);
     memset(status, 0, sizeof(*status));
+    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVED);
+}
+
+/* The native filter asks the applying owner, not the victim's ability list.
+ * Magic/physical selectors are independent requirements, as in48eb10.
+ * Restart after an inverse: an owner may change other attached statuses. */
+uint32_t unit_removebuffs(edict_t *ent, bool positive, bool negative,
+                         bool magic, bool physical, bool timed_life,
+                         bool aura, bool auto_dispel) {
+    uint32_t removed = 0;
+    if (!ent || (!positive && !negative)) return 0;
+    for (unsigned i = 0; i < MAX_UNIT_STATUSES;) {
+        heroabilitystatus_t *status = ent->abilstatus + i++;
+        abilityitem_t item;
+        abilityCall_t call;
+        uint32_t policy;
+        if (!status->level) continue;
+        item = S_AbilityItem(status->data);
+        policy = 0;
+        if (item.ability && (item.ability->flags & AB_STATUS_POLICY)) {
+            call = MAKE(abilityCall_t, .item = &item);
+            call.status.slot = status; call.status.ability = status->data;
+            policy = (uint32_t)S_AbilityMessage(ent, A_STATUS_POLICY, &call);
+        }
+        if (!(policy & UNIT_BUFF_KNOWN)) {
+            fprintf(stderr, "UnitRemoveBuffs: unclassified status %.4s, applying ability %.4s on %s\n",
+                    (char const *)&status->code, (char const *)&status->data, GetClassName(ent->class_id));
+            continue;
+        }
+        if (!((positive && (policy & UNIT_BUFF_POSITIVE)) ||
+              (negative && (policy & UNIT_BUFF_NEGATIVE)))) continue;
+        if (!aura && (policy & UNIT_BUFF_AURA)) continue;
+        if (!timed_life && (policy & UNIT_BUFF_TIMED_LIFE)) continue;
+        if (physical && !(policy & UNIT_BUFF_PHYSICAL)) continue;
+        if (magic && !(policy & UNIT_BUFF_MAGIC)) continue;
+        if (auto_dispel && !(policy & UNIT_BUFF_AUTO_DISPEL)) continue;
+        unit_expirestatus(ent, status);
+        removed++; i = 0;
+    }
+    if (removed) {
+        unit_refreshstatusflags(ent);
+        G_InvalidateUnitInfoPanel(ent);
+    }
+    return removed;
 }
 
 void unit_updatestatuses(edict_t *ent) {
@@ -1607,6 +1651,8 @@ uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode) {
         return hero_level;
     }
     if (!ent || !abilcode) return 0;
+    uint32_t const status_level = G_UnitStatusLevel(ent, abilcode);
+    if (status_level) return status_level;
     memcpy(id, &abilcode, 4);
     return G_ActorHasSkill(ent, id) ? 1 : 0;
 }

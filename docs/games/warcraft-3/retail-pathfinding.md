@@ -40,8 +40,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists67 partial layouts,441 verified
-  fields and312 instruction-established prototypes with explicit register/stack
+  `MapPathfindingTypes.java` also persists68 partial layouts,450 verified
+  fields and323 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  647 function names/comments applied and saved. Latest mode readback:
+  655 function names/comments applied and saved. Latest modifier readback:
+  `runtime/modifier88-ghidra-types.json`:68 layouts/450 fields,323 ABIs and60 globals.
+  Prior mode readback:
   `runtime/mode87-ghidra-types.json`:67 layouts/441 fields,315 ABIs and60 globals.
   Latest pause readback:
   `runtime/bypass86-ghidra-types.json`. Latest captain readbacks:

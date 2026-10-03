@@ -1051,14 +1051,17 @@ uint32_t UnitMakeAbilityPermanent(jass_t *j) {
     return jass_pushboolean(j, G_ActorSetSkillPermanent(whichUnit, abilityId, permanent));
 }
 uint32_t UnitRemoveBuffs(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //bool removePositive = jass_checkboolean(j, 2);
-    //bool removeNegative = jass_checkboolean(j, 3);
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    unit_removebuffs(unit, jass_checkboolean(j, 2), jass_checkboolean(j, 3),
+                     false, false, true, true, false);
     return 0;
 }
 uint32_t UnitRemoveBuffsEx(jass_t *j) {
-    /* TODO: ability-owned dispel filtering is not represented yet. */
-    (void)j;
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    unit_removebuffs(unit, jass_checkboolean(j, 2), jass_checkboolean(j, 3),
+                     jass_checkboolean(j, 4), jass_checkboolean(j, 5),
+                     jass_checkboolean(j, 6), jass_checkboolean(j, 7),
+                     jass_checkboolean(j, 8));
     return 0;
 }
 uint32_t UnitAddSleep(jass_t *j) {

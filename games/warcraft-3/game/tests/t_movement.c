@@ -58,6 +58,7 @@
 #include "retail_region_callbacks.h"
 #include "retail_movement_bypasses.h"
 #include "retail_movement_modes.h"
+#include "retail_speed_modifiers.h"
 #include "retail_outside_goal.h"
 #include "retail_captain_home.h"
 #include "retail_captain_range_far.h"
@@ -12770,6 +12771,204 @@ TEST(wc3_movement, teleport_and_movement_modes_match_original_and_saved_continua
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);level.mapinfo=old_info;
     G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+
+/* Only captured spell callbacks are replayed. Public Move/teleport/removal,
+ * occupancy, scalar timers and all subsequent stepping are the engine's own. */
+static unsigned modifier88_marker,modifier88_buff,modifier88_stage;
+static void modifier88_assert_state(cstring_t marker) {
+    edict_t *unit=NULL,*caster=NULL;
+    FILTER_EDICTS(ent,ent->inuse) {
+        if(ent->class_id==MAKEFOURCC('h','V','8','0'))unit=ent;
+        if(ent->class_id==MAKEFOURCC('h','s','o','r'))caster=ent;
+    }
+    if (!strcmp(marker,"CAPTURED_APPLY_SLOW") || !strcmp(marker,"CAPTURED_APPLY_BLOODLUST")) {
+        T_NOT_NULL(unit);T_NOT_NULL(caster);if(!unit || !caster)return;
+        abilityitem_t item=S_AbilityItem(!strcmp(marker,"CAPTURED_APPLY_SLOW") ?
+            MAKEFOURCC('A','s','l','o') : MAKEFOURCC('A','C','b','l'));
+        spellTarget_t target={.type=SPELL_TARGET_UNIT,.entity=unit};
+        abilityCall_t call=MAKE(abilityCall_t,.item=&item,.target=&target);
+        T_ASSERT(S_AbilityMessage(caster,A_EXECUTE,&call));return;
+    }
+    if(!strncmp(marker,"PATHBUFF ",9)) {
+        unsigned index=modifier88_buff++;
+        T_ASSERT(index<(sizeof(modifier88_buff_markers)/sizeof(*(modifier88_buff_markers))));
+        if(index<(sizeof(modifier88_buff_markers)/sizeof(*(modifier88_buff_markers))))T_STREQ(marker,modifier88_buff_markers[index]);
+        return;
+    }
+    if(strncmp(marker,"PATHTRACE ",10))return;
+    unsigned index=modifier88_marker++;
+    T_ASSERT(index<(sizeof(modifier88_markers)/sizeof(*(modifier88_markers))));
+    if(index<(sizeof(modifier88_markers)/sizeof(*(modifier88_markers))))T_STREQ(marker,modifier88_markers[index]);
+    if(strstr(marker,"label=sample "))return;
+    unsigned stage=modifier88_stage++;
+    T_ASSERT(stage<(sizeof(modifier88_states)/sizeof(*(modifier88_states))));if(stage>=(sizeof(modifier88_states)/sizeof(*(modifier88_states))) || !unit)return;
+    typeof(modifier88_states[0]) *expected=modifier88_states+stage;
+    uint32_t primary[]={wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,wc3_float_bits(level.pathing_clock.span)};
+    uint32_t world_words[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),wc3_float_bits(unit->s.origin.z)};
+    uint32_t state[]={wc3_float_bits(unit->movement.pose_clock.time),wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,3){T_EQ(primary[k],expected->primary[k]);T_EQ(world_words[k],expected->world[k]);}
+    FOR_LOOP(k,6)T_EQ(state[k],expected->state[k]);
+}
+static void modifier88_record_commit(edict_t *unit) {
+    /* Caster's four native commits are a separate spell-steering contract. */
+    if(unit->class_id==MAKEFOURCC('h','V','8','0'))record_follow_commit(unit);
+}
+
+TEST(wc3_movement, temporary_modifiers_match_original_velocity_and_saved_restoration) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,caster_radius=16,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mover_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitModification_t caster_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&caster_radius}};
+    unitData_t units[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mover_mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','s','o','r'),.numbeOfModifications=1,.modifications=caster_mods}};
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y3;X8\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"DataA1\"\nC;X5;K\"DataB1\"\nC;X6;K\"BuffID1\"\nC;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"Aslo\"\nC;X2;K\"Aslo\"\nC;X3;K1\nC;X4;K0.6\nC;X5;K0.25\nC;X6;K\"Bslo\"\nC;X7;K60\nC;X8;K10\n"
+        "C;Y3;X1;K\"ACbl\"\nC;X2;K\"Ablo\"\nC;X3;K1\nC;X4;K0.4\nC;X5;K0.25\nC;X6;K\"Bblo\"\nC;X7;K40\nC;X8;K40\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=units};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    for(unsigned y=0;y<48;y++){cells[y*64+24]=0xc6;cells[y*64+25]=0xc6;}
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    war3mapVertex_t vertices[17*17]={0};
+    FOR_LOOP(i,(sizeof(vertices)/sizeof(*(vertices)))){vertices[i].accurate_height=0x2000;vertices[i].level=2;}
+    war3map_t terrain={.width=17,.height=17,.center={0,0},.vertices=vertices};world.map=&terrain;
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    modifier88_marker=modifier88_buff=modifier88_stage=0;test_preload_marker=modifier88_assert_state;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " unit udg_PathCaster=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        " boolean udg_CasterHeld=false\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " call Preload(\"PATHBUFF slow=\"+I2S(GetUnitAbilityLevel(udg_PathProbeUnit,'Bslo'))+\" haste=\"+I2S(GetUnitAbilityLevel(udg_PathProbeUnit,'Bblo'))+\" speed=\"+R2S(GetUnitMoveSpeed(udg_PathProbeUnit)))\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==10 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1712.0,1712.0)\n"
+        "  call PathProbeRecord(\"point_move\")\n"
+        " elseif udg_PathProbeTick==35 then\n"
+        "  set udg_PathCaster=CreateUnit(Player(1),'hsor',GetUnitX(udg_PathProbeUnit)-320.0,GetUnitY(udg_PathProbeUnit),0.0)\n"
+        "  call IssueImmediateOrder(udg_PathCaster,\"slowoff\")\n"
+        "  call IssueImmediateOrder(udg_PathCaster,\"holdposition\")\n"
+        "  call PathProbeRecord(\"caster_created\")\n"
+        " elseif udg_PathProbeTick==40 then\n"
+        "  call PathProbeRecord(\"slow_requested\")\n"
+        " elseif udg_PathProbeTick==90 then\n"
+        "  call UnitRemoveBuffsEx(udg_PathProbeUnit,false,true,true,false,false,false,true)\n"
+        "  call PathProbeRecord(\"slow_removed\")\n"
+        " elseif udg_PathProbeTick==110 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",272.0,304.0)\n"
+        "  call PathProbeRecord(\"reverse_move\")\n"
+        " elseif udg_PathProbeTick==100 then\n"
+        "  call PauseUnit(udg_PathCaster,false)\n"
+        "  call SetUnitOwner(udg_PathCaster,Player(0),false)\n"
+        "  call SetUnitPosition(udg_PathCaster,GetUnitX(udg_PathProbeUnit)-320.0,GetUnitY(udg_PathProbeUnit))\n"
+        "  call UnitAddAbility(udg_PathCaster,'ACbl')\n"
+        "  set udg_CasterHeld=false\n"
+        "  call PathProbeRecord(\"haste_requested\")\n"
+        " elseif udg_PathProbeTick==140 then\n"
+        "  call UnitRemoveBuffs(udg_PathProbeUnit,true,false)\n"
+        "  call PathProbeRecord(\"haste_removed\")\n"
+        " endif\n"
+        " if not udg_CasterHeld and udg_PathCaster!=null and (GetUnitAbilityLevel(udg_PathProbeUnit,'Bslo')>0 or GetUnitAbilityLevel(udg_PathProbeUnit,'Bblo')>0) then\n"
+        "  call IssueImmediateOrder(udg_PathCaster,\"holdposition\")\n"
+        "  call PauseUnit(udg_PathCaster,true)\n"
+        "  set udg_CasterHeld=true\n"
+        "  call PathProbeRecord(\"modifier_applied\")\n"
+        "  call UnitRemoveBuffs(udg_PathProbeUnit,false,false)\n"
+        "  call PathProbeRecord(\"remove_neither\")\n"
+        "  if GetUnitAbilityLevel(udg_PathProbeUnit,'Bslo')>0 then\n"
+        "   call UnitRemoveBuffs(udg_PathProbeUnit,true,false)\n"
+        "  else\n"
+        "   call UnitRemoveBuffs(udg_PathProbeUnit,false,true)\n"
+        "  endif\n"
+        "  call PathProbeRecord(\"remove_other_polarity\")\n"
+        "  call UnitRemoveBuffsEx(udg_PathProbeUnit,true,true,false,true,false,false,true)\n"
+        "  call PathProbeRecord(\"remove_physical\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call Preload(\"PATHPOSE done=speed_modifiers\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function CapturedSlowApply takes nothing returns nothing\n"
+        " call Preload(\"CAPTURED_APPLY_SLOW\")\n"
+        "endfunction\n"
+        "function CapturedBloodlustApply takes nothing returns nothing\n"
+        " call Preload(\"CAPTURED_APPLY_BLOODLUST\")\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " call Preload(\"PATHPOSE case=speed_modifiers\")\n"
+        " call SetPlayerAlliance(Player(0),Player(1),ALLIANCE_PASSIVE,false)\n"
+        " call SetPlayerAlliance(Player(1),Player(0),ALLIANCE_PASSIVE,false)\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,270.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " call PathProbeRecord(\"start_speed_modifiers\")\n"
+        " call TimerStart(CreateTimer(),4.45,false,function CapturedSlowApply)\n"
+        " call TimerStart(CreateTimer(),10.5,false,function CapturedBloodlustApply)\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        " call PathProbeInit()\n"
+        "endfunction\n"
+        ));
+    G_FinishMovePathingInitialization();
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==units[0].newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=modifier88_record_commit;
+    unsigned steps=0,suffix=0;bool mismatch=!unit;
+    unsigned const times[]={4445,4450,4500,8995,9000,10495,10500,13995,14000};
+    char files[(sizeof(times)/sizeof(*(times)))][64];unsigned saved[(sizeof(times)/sizeof(*(times)))]={0},saved_marker[(sizeof(times)/sizeof(*(times)))]={0},saved_buff[(sizeof(times)/sizeof(*(times)))]={0},saved_stage[(sizeof(times)/sizeof(*(times)))]={0};
+    FOR_LOOP(i,(sizeof(times)/sizeof(*(times))))snprintf(files[i],sizeof(files[i]),"/tmp/wc3-speed-modifier-%u.bin",times[i]);
+    FOR_LOOP(pass,(sizeof(times)/sizeof(*(times)))+4) {
+        if(mismatch)break;
+        unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
+        unsigned frame=pass<=sizeof(times)/sizeof(*times) ? 5 : (pass==10 ? 10 : pass==11 ? 25 : 50);
+        if(pass){T_ASSERT(ReadGame(files[slot]));steps=saved[slot];modifier88_marker=saved_marker[slot];modifier88_buff=saved_buff[slot];modifier88_stage=saved_stage[slot];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time=MIN(31000,level.time+frame);globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<(sizeof(modifier88_motion)/sizeof(*(modifier88_motion))));
+                if(steps>=(sizeof(modifier88_motion)/sizeof(*(modifier88_motion)))){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=modifier88_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Modifier88 commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,(sizeof(times)/sizeof(*(times))))if(level.time==times[i]){saved[i]=steps;saved_marker[i]=modifier88_marker;saved_buff[i]=modifier88_buff;saved_stage[i]=modifier88_stage;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,(sizeof(modifier88_motion)/sizeof(*(modifier88_motion))));T_EQ(modifier88_stage,(sizeof(modifier88_states)/sizeof(*(modifier88_states))));
+        T_EQ(modifier88_marker,(sizeof(modifier88_markers)/sizeof(*(modifier88_markers))));T_EQ(modifier88_buff,(sizeof(modifier88_buff_markers)/sizeof(*(modifier88_buff_markers))));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(pass)suffix+=steps-saved[slot];
+    }
+    fprintf(stderr,"Modifier88 main commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;FOR_LOOP(i,(sizeof(times)/sizeof(*(times))))remove(files[i]);move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 
 TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {

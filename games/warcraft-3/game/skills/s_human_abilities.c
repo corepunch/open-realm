@@ -45,6 +45,14 @@ static void human_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
     cstring_t buff = human_buff(spell, level);
     if (!st.entity || !buff) return;
     unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    heroabilitystatus_t *status = unit_findstatus(st.entity, *((uint32_t const *)buff));
+    if (status) {
+        status->data = spell->code;
+        status->source = caster;
+        status->source_spawn_time = caster->spawn_time;
+    }
+    if (spell->ability->proc == CAbilitySlow)
+        S_UnitAbilityEvent(st.entity, A_MOVE_PARAMETERS_CHANGED);
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
@@ -542,7 +550,23 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
 /* Name=Heal; Ubertip="Heals a target friendly non-mechanical wounded unit for <Ahea,DataA1> hit points." */
 BZ_HUMAN_AUTOCAST_SPELL(AbilityHeal, heal_validate(ent, target, call ? call->item : NULL), heal_execute, true, true)
 /* Name=Slow; Untip="Right-click to activate auto-casting." */
-BZ_HUMAN_AUTOCAST_SPELL(AbilitySlow, slow_validate(ent, target, call ? call->item : NULL), human_status_execute, false, false)
+BZ_ABILITY_PROC(CAbilitySlow) {
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    uint32_t code = call && call->item ? call->item->code : 0;
+    switch (msg) {
+    case A_VALIDATE: return slow_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE: human_status_execute(ent, target, call ? call->item : NULL); return true;
+    case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
+    case A_AUTOCAST_SET: return true;
+    case A_AUTOCAST_ACQUIRE: return human_autocast_acquire(ent, code, false, false);
+    case A_STATUS_POLICY:
+        return UNIT_BUFF_KNOWN | UNIT_BUFF_NEGATIVE | UNIT_BUFF_MAGIC | UNIT_BUFF_AUTO_DISPEL;
+    case A_STATUS_REMOVED:
+        S_UnitAbilityEvent(ent, A_MOVE_PARAMETERS_CHANGED); return true;
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
 /* Name=Invisibility; Ubertip="Makes a unit invisible. If the unit attacks, uses an ability or casts a spell, it will become visible." */
 BZ_ABILITY_PROC(CAbilityInvisibility) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
@@ -585,7 +609,11 @@ bool S_HumanCanAttack(edict_t const *unit) {
 float S_HumanMoveFactor(edict_t const *unit) {
     uint32_t level;
     float factor = 1.0f;
-    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('B','s','l','o')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','s','l','o'), level, 1);
+    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('B','s','l','o')))) {
+        heroabilitystatus_t const *status = unit_findstatus((edict_t *)unit, MAKEFOURCC('B','s','l','o'));
+        uint32_t code = status->data ? status->data : MAKEFOURCC('A','s','l','o');
+        factor = wc3_mul(factor, wc3_sub(1, S_SpellData(code, level, 1)));
+    }
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','d','e','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','d','e','f'), level, 3);
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
     factor *= 1.0f - S_SlowAuraMoveReduction(unit);

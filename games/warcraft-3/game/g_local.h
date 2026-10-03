@@ -769,6 +769,7 @@ typedef enum {
 #define AB_QUEUEABLE    (1u << 14) // bit 14; the command button accepts the generic Shift queue modifier
 #define AB_PRIMARY_TIMER (1u << 15) // bit 15; receives primary-clock timer passes independent of server frames
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
+#define AB_STATUS_POLICY (1u << 17) // bit 17; procedure classifies its attached buffs for public removal
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
  * base classes.  SPELL_TARGET_UNIT_OR_POINT allows either (e.g. Carrion Swarm). */
@@ -876,6 +877,9 @@ typedef enum {
     A_QUEUE_ORDER_CANCEL, /* Player FIFO: owning order ability releases queued presentation/state from call->queued_order. */
     A_STATUS_REFRESH,   /* Status set changed: owner reconciles derived state with remaining statuses. Payload: call->status of one remaining status. */
     A_STATUS_REMOVE,    /* Status expiring/dispelled: owner runs its inverse while the slot is still valid. Sent before the slot is wiped. Payload: call->status of the expiring slot. */
+    A_STATUS_REMOVED,   /* Applying owner notification after its status slot was wiped. */
+    A_STATUS_POLICY,    /* Applying owner returns unitBuffPolicy_t for call->status. */
+    A_MOVE_PARAMETERS_CHANGED, /* A stat owner changed the unit's effective movement parameters. */
     A_STATUS_TICK,      /* Active status scheduler; owner advances its saved next_tick before applying damage. */
     A_STATUS_DEATH,     /* Victim died with this status active; independent of the victim's learned abilities. */
     A_ISSUED_TARGET_ORDER, /* Issuer ability gets the target/order before generic Smart fallback. */
@@ -891,6 +895,17 @@ typedef enum {
     A_UNIT_OWNER_CHANGED, /* Ownership changes refresh behavior-owned policies after publishing the new player. */
     A_MOVE_SPEED_BONUS,  /* Aggregate all owners into call->move_speed_bonus; no stop-first dispatch. */
 } abilityMsg_t;
+
+typedef enum {
+    UNIT_BUFF_KNOWN = 1u << 0,
+    UNIT_BUFF_POSITIVE = 1u << 1,
+    UNIT_BUFF_NEGATIVE = 1u << 2,
+    UNIT_BUFF_MAGIC = 1u << 3,
+    UNIT_BUFF_PHYSICAL = 1u << 4,
+    UNIT_BUFF_TIMED_LIFE = 1u << 5,
+    UNIT_BUFF_AURA = 1u << 6,
+    UNIT_BUFF_AUTO_DISPEL = 1u << 7,
+} unitBuffPolicy_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call)
 
@@ -2804,6 +2819,7 @@ void unit_leavecombat(edict_t *);
 bool unit_affectingcombat(edict_t *);
 void unit_updatestatuses(edict_t *);
 void unit_expirestatus(edict_t *, heroabilitystatus_t *);
+uint32_t unit_removebuffs(edict_t *, bool, bool, bool, bool, bool, bool, bool);
 heroabilitystatus_t *unit_findstatus(edict_t *, uint32_t);
 void unit_statusdeath(edict_t *);
 void incinerate_explode_think(edict_t *);

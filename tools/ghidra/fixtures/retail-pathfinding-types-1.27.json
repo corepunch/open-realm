@@ -710,7 +710,7 @@
     },
     {
       "name": "WC3UnitOrdersPrefix",
-      "length": 440,
+      "length": 496,
       "fields": [
         {
           "offset": 0,
@@ -783,6 +783,18 @@
           "name": "user_count",
           "type": "u32",
           "evidence": "complete point-order admission and reclamation"
+        },
+        {
+          "offset": 476,
+          "name": "ability_head",
+          "type": "WC3PathIdentity",
+          "evidence": "48eb10/48e8a0 identity traversal and restart after removal"
+        },
+        {
+          "offset": 492,
+          "name": "move_ability",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "evidence": "685310/698af0 cached Move,48e8a0 Amov removal clears pointer"
         }
       ]
     },
@@ -3051,6 +3063,54 @@
           "name": "count",
           "type": "u32",
           "evidence": "16fa00 saved old/current list ends"
+        }
+      ]
+    },
+    {
+      "name": "WC3BuffPrefix",
+      "length": 56,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Live b0c0a0 Slow and aeab24 Bloodlust readonly policy methods"
+        },
+        {
+          "offset": 4,
+          "name": "references",
+          "type": "u32",
+          "evidence": "48e8a0 release and canonical ability prefix"
+        },
+        {
+          "offset": 12,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "48e8a0 canonical next lookup"
+        },
+        {
+          "offset": 32,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "48e8a0 bit8 removal marker,48eb10 bit20000000"
+        },
+        {
+          "offset": 36,
+          "name": "next_ability",
+          "type": "WC3PathIdentity",
+          "evidence": "48eb10/48e8a0 next identity chain"
+        },
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "evidence": "Readonly captured buff words and48e8a0 owning Unit"
+        },
+        {
+          "offset": 52,
+          "name": "rawcode",
+          "type": "u32",
+          "evidence": "Live Bslo42736c6f/Bblo42626c6f; getters517520/4d95d0"
         }
       ]
     }
@@ -9046,6 +9106,179 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f218d90",
+      "name": "Jass_UnitRemoveBuffs",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "positive",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "negative",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "convention": "__cdecl"
+    },
+    {
+      "address": "6f218dc0",
+      "name": "Jass_UnitRemoveBuffsEx",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "positive",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "negative",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "magic",
+          "type": "u32",
+          "storage": 16
+        },
+        {
+          "name": "physical",
+          "type": "u32",
+          "storage": 20
+        },
+        {
+          "name": "timed_life",
+          "type": "u32",
+          "storage": 24
+        },
+        {
+          "name": "aura",
+          "type": "u32",
+          "storage": 28
+        },
+        {
+          "name": "auto_dispel",
+          "type": "u32",
+          "storage": 32
+        }
+      ],
+      "convention": "__cdecl"
+    },
+    {
+      "address": "6f48eb10",
+      "name": "Unit_RemoveBuffsMatchingPolicy",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "physical",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "magic",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "timed_life",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "aura",
+          "type": "u32",
+          "storage": 16
+        },
+        {
+          "name": "auto_dispel",
+          "type": "u32",
+          "storage": 20
+        },
+        {
+          "name": "positive",
+          "type": "u32",
+          "storage": 24
+        },
+        {
+          "name": "negative",
+          "type": "u32",
+          "storage": 28
+        },
+        {
+          "name": "query",
+          "type": "u32",
+          "storage": 32
+        },
+        {
+          "name": "allow_marked",
+          "type": "u32",
+          "storage": 36
+        }
+      ]
+    },
+    {
+      "address": "6f48e8a0",
+      "name": "Unit_RemoveAbilityAndNotify",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "ability",
+          "type": "ptr:WC3BuffPrefix",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f517520",
+      "name": "BuffSlow_GetRawcode",
+      "returns": "u32",
+      "parameters": [],
+      "convention": "__cdecl"
+    },
+    {
+      "address": "6f4d95d0",
+      "name": "BuffBloodlust_GetRawcode",
+      "returns": "u32",
+      "parameters": [],
+      "convention": "__cdecl"
+    },
+    {
+      "address": "6f5195b0",
+      "name": "BuffSlow_IsNegative",
+      "returns": "u32",
+      "parameters": [],
+      "convention": "__cdecl"
+    },
+    {
+      "address": "6f4dc8a0",
+      "name": "BuffBloodlust_IsPositive",
+      "returns": "u32",
+      "parameters": [],
+      "convention": "__cdecl"
     }
   ],
   "globals": [

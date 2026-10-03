@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **306 entries**: **45** distinct original-code oracle
-scripts plus **57** declared variants, **121** archived JSONL audits and **83**
+The inventory now has **307 entries**: **45** distinct original-code oracle
+scripts plus **57** declared variants, **121** archived JSONL audits and **84**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1584,3 +1584,25 @@ flags for task/map/motion/velocity/clock/heading/profile/numeric events. Retain
 reads the active mover's own fine chain during native position queries without
 calling new retail functions. `runtime/mode87-source-v2` preserves the exact
 capture sources; the earlier v1 captures lack own-record proof.
+
+## Temporary speed modifier travel and removal
+
+`live-speed-modifiers-captures-261004` pins both complete
+`runtime/modifier88-v4-{first,repeat}.jsonl` captures and
+`retail-speed-modifiers-1.27.json`. Each contains594 physical commits
+(590 mover/four caster),588 decisions,13 searches,317 position/order markers,
+317 buff queries and eight removal filters. The map digest is
+`d305b5e623ee16a18e5dc78771e68346faabe714b617230962a4e4394e5d81e0`.
+The strict verifier checks every public filter input/result and native effective
+speed word, not only the final position or a trajectory hash. It rejects unknown
+route-blocker identities and normalizes the caster's allocation addresses after
+joining fine-object/mover observations. Independent O0/O2 arithmetic comparisons
+match both captures.
+
+The engine reference includes the590 main-mover commits and17 public boundary
+states. It replays the captured spell application callbacks through their real
+owning procedures. Spell windup/resource timing and the caster's four steering
+commits remain ORDER-01.13; this contract does not claim those as engine matches.
+The caster retains actual occupancy during reverse routing. Nine Save97
+checkpoints reproduce4356 suffix commits across four server frame sizes, with
+all literal speed/buff and movement markers checked.

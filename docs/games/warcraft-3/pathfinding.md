@@ -792,3 +792,11 @@ budget700 fine searches against flight-blocking terrain, preserving partial
 fine routes. Its category-zero active fine rectangles remain linked; collision
 eligibility is separate from spatial lifetime. Chaos/rebind deadlines run on the
 primary clock, including saved batched-frame continuation. See [mode transitions](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).
+
+Temporary Slow/Bloodlust changes now publish through their applying ability
+owners. Move recomputes the effective cap, integrates the old pose and clamps
+retained velocity when required. Public buff getters/removal use attached status
+identity and owner-supplied policy. A complete retail travel/return witness matches
+590 main-mover commits and4356 saved suffix commits; captured spell application
+times are explicit inputs, while the separate cast scheduler remains open.
+See [temporary modifiers](retail-pathfinding-engine.md#temporary-speed-modifiers-publish-through-their-applying-owners).

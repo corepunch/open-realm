@@ -2386,8 +2386,8 @@ static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     uint32_t level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
     speed *= 1.0f + S_UnholyMoveBonus(ent);
-    speed *= 1.0f + S_BloodlustMoveBonus(ent);
-    speed *= S_HumanMoveFactor(ent);
+    speed = wc3_mul(speed, wc3_add(1, S_BloodlustMoveBonus(ent)));
+    speed = wc3_mul(speed, S_HumanMoveFactor(ent));
     speed *= 1.0f - S_CrippleMoveReduction(ent);
     speed = unit_apply_earthquake_speed(ent, speed);
     speed *= 1.0f - S_PurgeMoveReduction(ent);
@@ -3832,6 +3832,15 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 /* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
 BZ_ABILITY_PROC(CAbilityMove) {
     switch (msg) {
+    case A_MOVE_PARAMETERS_CHANGED: {
+        wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
+            .limit = unit_effective_speed(ent) };
+        if (wc3_velocity_cap_world(&velocity)) {
+            if (ent->movement.clock_valid) unit_commit_current_pose(ent);
+            ent->movement.velocity = (vec2_t){velocity.vel[0], velocity.vel[1]};
+        }
+        return true;
+    }
     case A_DEATH:
         /* Native death retires active Follow heads synchronously, before the
          * next physical-owner update or a replacement target can be created. */
