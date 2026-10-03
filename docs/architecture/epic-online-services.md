@@ -41,7 +41,8 @@ make EOS=1 EOS_SDK_ROOT=data/eos/SDK test-eos-service
 ```
 
 `EOS=0` is the default; `BZ_EOS` guards all SDK includes and implementation.
-Normal `make build` and PR CI require no SDK headers, libraries or credentials.
+Normal `make build` and the SDK-free PR CI jobs require no SDK headers, libraries
+or credentials. Trusted PRs also run the EOS job described below.
 `test-eos-service` requires `EOS=1` explicitly; an SDK-free invocation fails
 instead of reporting success with no service tests. Release builds run these
 offline SDK tests on Linux, macOS and Windows, using separate output directories
@@ -326,12 +327,48 @@ EOS-enabled full suite and the isolated optimized release test build. The six
 offline EOS service tests passed all 66 assertions. These results establish
 code/fixture behavior, not the live acceptance rows below.
 
+### GitHub EOS checks
+
+The `CI` workflow adds an EOS job on main/tag pushes and same-repository PRs.
+It fetches the same pinned private SDK and restricted player secrets as release
+builds, then runs `make EOS=1 TEST_JOBS=4 test` in the published Linux CI image.
+Fork PRs retain the SDK-free jobs; they cannot access these secrets. This job
+uses ordinary `pull_request`, never privileged execution of fork code.
+
+`dist-scripts/eos/run_acceptance.py` then runs four explicit live scenarios:
+single-guest publication/reconnect, paired default-policy exchange/departure,
+paired forced-relay exchange/departure, and forced-relay host-crash cleanup.
+Host and guest run concurrently in separate disposable Docker containers with
+private writable homes/native guest stores and a read-only source/build/config
+mount. The adapter rejects identical Product User IDs. Rooms include the
+Actions run ID, attempt and scenario to prevent concurrent-run collisions.
+Both peers must exit successfully; an intentional crash-host exit alone cannot
+pass without the guest verifying host loss and public-directory removal.
+
+Each native command has its 180-second watchdog; the runner adds a 220-second
+scenario deadline and removes surviving containers on failure. Service failures
+fail CI. Only console diagnostics are retained: no SDK, guest stores, private
+config or credential-bearing build artifacts are uploaded by the EOS job.
+For a Linux Docker host with prepared SDK/config and EOS test build:
+
+```sh
+python3 dist-scripts/eos/run_acceptance.py
+# Limit a diagnostic rerun to one scenario:
+python3 dist-scripts/eos/run_acceptance.py --scenario crash
+```
+
+Runner failure/timeout/peer-isolation checks are included in `make test` through
+`test-eos-release`; they use no Docker or service credentials. Passing the live
+adapter job proves service/packet/lifecycle behavior, while the gameplay release
+gate below still requires sign-on, simulation, lobby UI and sustained play.
+
 ### Bounded live adapter checks
 
 `+online_acceptance` is an opt-in command in the EOS-enabled **test executable**,
 not a registered unit test. It drives the real Connect/Lobbies/P2P adapter,
 filesystem map CRC and `NET_SendPacket` / `NET_GetPacket`. It never runs through
-`make test` or release CI. Every process has a 180-second watchdog, including
+`make test` or release CI; the separate GitHub EOS job invokes it explicitly.
+Every process has a 180-second watchdog, including
 synchronous native SDK calls; timeout is a failure. Use a unique room name per
 run, matching game protocol/edition and the same credentials/deployment on both
 installations. The default map is the generated fixture in `build/tests`.
