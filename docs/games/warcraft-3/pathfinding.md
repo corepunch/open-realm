@@ -738,3 +738,10 @@ route-resume/wait record while retaining serialized retail movement state.
 The larger fixture set exposed a128-file truncation in `mpqtool pack`. The
 tool now consumes every supplied pair; the140-file archive regression in
 `tests/test_parity_maps.py` verifies files on both sides of the old limit.
+
+Move also consumes [intermediate partial fine endpoints](retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff)
+through their retained coarse plan. Reconstruction keeps the exact fractional
+source in a one-point exhausted refill, and coarse handoff explicitly stops
+translation while turning. The public captain scene matches7933 exact commits
+and7310 saved suffix commits through the30-second observation domain; longer
+travel and complete pathfinder parity remain open.

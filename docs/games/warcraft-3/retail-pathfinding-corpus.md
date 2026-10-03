@@ -1183,3 +1183,26 @@ Validation: full debug/release RoC/TFT pass2413 tests/2627883 assertions per edi
 All429 Python checks and45 fresh corpus contracts pass with142 source
 fingerprints. Inventory288 entries/130 fixtures/71 strict live entries.
 The required release `make test` also passes.
+
+## Partial captain refill through the observer completion marker
+
+`live-captain-refill-captures-261003` authenticates the same two uncapped
+GoHome sources, both prior fixture hashes and only the514 new motion rows/188
+new footprint rows. Its30-second domain contains7933 motion commits,327 virtual
+commits and812 footprints. Counter1933 requires exact fractional source
+reconstruction,701/700 exhausted search and adaptive7→2 with retry6 retained.
+Counter1996 requires adaptive2→0 and explicit stop despite a tiny heading
+error. The actual engine also repeats7310 saved suffix commits.
+
+The30-second authored completion marker disables footprint observation. Later
+velocity rows remain in the authenticated raw capture, but do not extend this
+combined movement/footprint contract. Scope requires natural completion and
+whole retail pathfinding to remain open. Eighteen controls reject altered
+source, search, retry, coarse index, stop, actor motion and observation extents.
+Inventory is289 entries/131 pinned fixtures/72 strict live entries. See
+[the game-owned consumer fixes](retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff).
+
+Payoff70 validation:46 fresh contracts pass with143 source fingerprints;447
+Python pathfinding checks and the required release `make test` pass. Debug/
+release RoC/TFT each pass2477 tests/2804132 assertions. These results certify
+the30-second combined observer domain; longer travel remains open.

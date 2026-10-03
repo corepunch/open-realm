@@ -8,25 +8,22 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**145 done / 335 tasks; 190 remaining.** Payoff69 closes GROUP-03.4.7.2.1:
-accepted moving-member destinations reset search buffers, retry and pending
-neighbour delay before wait advancement. Counter1821's actual20→0 delay reset
-corrects the stale partial-route heading at23.91s. The existing public GoHome
-scene now matches7419 engine commits (306 virtual) and624 shared footprints
-through27.2s; eight checkpoints match10606 saved suffix commits. Payoff68's
-6251-commit initial reference remains independently exact. Ghidra saves613 roles,
-53 layouts/328 fields,284 explicit ABIs and58 globals.
-Full debug/release RoC/TFT pass2413 tests/2627883 assertions per edition. All429 Python
-checks and45 fresh contracts pass with142 source fingerprints. Inventory288
-entries/130 fixtures/71 strict live entries. Required release `make test` passes.
-The next runnable ID is GROUP-03.4.7.2.2: birth4's one-point exhausted fine refill
-at27.27s. Both formation destinations match151/59; native fine search returns
-one source point, retains retry6 and turns toward a selected coarse waypoint.
-The engine turns toward the final member destination after losing the fine
-buffer; immediate retry consumption of the new endpoint needs a caller check. Whole moving journeys remain open. GROUP-03.4.7.3
-retains wider home/retreat/empty/larger-roster policy. Final-binding RemoveUnit/
-retarget remains03.4.6.2.2.2.2.2. Private AI VM restoration remains open; new
-checkpoints occur after the public GoHome call.
+**146 done / 336 tasks; 190 remaining.** Payoff70 closes GROUP-03.4.7.2.2.1:
+one-point exhausted fine reconstruction retains its exact source, intermediate
+coarse consumption preserves retry and explicitly stops motion independently
+of the turn window. The public GoHome scene matches7933 commits (327 virtual)
+and812 shared footprints through the30-second observer completion marker;
+eight checkpoints reproduce7310 exact saved suffix commits. Existing6251/7419
+references remain independently exact after the upstream AI merge. Ghidra saves
+613 roles,53 layouts/328 fields,284 explicit ABIs and58 globals.
+Inventory289 entries/131 fixtures/72 strict live entries. Full validation is
+recorded with [the engine payoff](retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff).
+The next runnable ID is GROUP-03.4.7.2.2.2: extend observation beyond the
+authored30-second marker and compare later private retry travel through natural
+completion. GROUP-03.4.7.3 retains autonomous occupied-home, retreat, empty and
+larger-roster policy. Final-binding RemoveUnit/retarget remains
+03.4.6.2.2.2.2.2. Private AI VM restoration remains open; new checkpoints occur
+after the public GoHome call.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -48,7 +45,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 34 | 12 |
+| GROUP — Shared movement groups | 35 | 12 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -756,7 +753,10 @@ and the wider mixed cancellation/reclamation control:
 **GROUP-03.4.7.2 — Moving captain retry continuation.** Split accepted destination/wait reset from one-point refill and subsequent complete travel.
 
 - [x] **GROUP-03.4.7.2.1** Reset both member search buffers, retry and pending delay before advancing a newly accepted shifted-cell destination. [Payoff69](retail-pathfinding-engine.md#changed-captain-destination-resets-pending-waits) authenticates native counter1821's20→0 delay reset and three-point refill; the reproduced engine retained delay20 and its old partial route. Public GoHome now matches7419 commits including306 virtual,624 footprints and10606 exact saved suffix commits through27.2s. Saved Ghidra ABIs/comments retain168b80→168740→1687e0 and the native caller ordering. Timestamp producer domains and later refills remain open.
-- [ ] **GROUP-03.4.7.2.2** Port one-point exhausted fine refill and its retained coarse-waypoint return policy, then continue moving captain travel through natural completion and saved continuations. First mismatch now27.27s: birth4's final adjusted formation destination151/59 already matches, while retail's fine search toward161/47 returns only the source after701 pops. Native fine index invalidates, adaptive index7→2 and retry6 remains; engine loses the fine buffer and turns toward the final destination. Check whether the new one-point endpoint is consumed as a retry immediately. Compare caller output/next owner state before changing search policy. Closed captures do not prove natural completion.
+**GROUP-03.4.7.2.2 — Partial refill and later moving travel.** Split the ordinary engine consumer from the longer observation/journey domain.
+
+- [x] **GROUP-03.4.7.2.2.1** Preserve exact source in one-point exhausted fine reconstruction, consume the retained intermediate coarse waypoint without reducing retry, and stop translation for native status2 independently of heading error. [Payoff70](retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff) authenticates counter1933's701/700 search/source point/adaptive7→2/retry6 and counter1996's2→0 explicit stop. Public GoHome matches7933 motion commits,327 virtual commits,812 shared footprints and7310 saved suffix commits through30s. Both earlier references, fresh strict capture checks and saved Ghidra consumer comments remain exact.
+- [ ] **GROUP-03.4.7.2.2.2** Extend Frida group/footprint observation beyond the authored30-second completion marker, capture/repeat later private retry travel through natural completion, and compose that domain with actual engine motion/save continuations. Existing velocity capture continues past the marker while pair/footprint observation stops at counter2024. Closed uncapped files are not proof of natural completion; a private follower remains active later. Do not silently extend the accepted combined observer domain or change search ordering from an unverified later mismatch.
 - [ ] **GROUP-03.4.7.3** Compose autonomous occupied SetCaptainHome, empty/larger roster defaults, retreat and other public captain goal policies with moving actor/physical roster lifetimes. Near-home and explicit GoHome initial travel do not establish these producers; preserve diagnostics and add actual public-frame/save regressions for each independently recovered policy.
 
 Mixed recovery and reentry (GROUP-03.4.6.2.3) require two separate producers:

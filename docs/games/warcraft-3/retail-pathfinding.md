@@ -596,3 +596,13 @@ identity survive. Counter1821's actual pending20→0 transition is composed with
 the engine's exact27.2-second GoHome continuation. Saved readback now has613
 roles,53 layouts/328 fields,284 explicit ABIs and58 globals. The remaining
 27.27-second one-point refill is [separately recorded](retail-pathfinding-engine.md#changed-captain-destination-resets-pending-waits).
+
+Payoff70 corrects `147dc0`'s game-owned reconstruction input and records
+`167070`'s intermediate fine endpoint→`165d10` retained coarse consumption→
+`16fbd0` explicit stopped motion. Native counter1933 retains fractional source
+and retry6 while adaptive7→2; counter1996 advances2→0 and stops independently
+of its tiny heading error. Saved comments and readback retain613 roles,53
+layouts/328 fields,284 explicit ABIs and58 globals. The engine matches7933
+motion commits,812 footprints and7310 saved suffix commits through the30-second
+observer marker. Natural completion remains open. See
+[partial refill and stopped handoff](retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff).

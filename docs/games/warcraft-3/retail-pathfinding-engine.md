@@ -6410,3 +6410,71 @@ Validation: full debug/release RoC/TFT pass2413 tests/2627883 assertions per edi
 All429 Python checks and45 fresh corpus contracts pass with142 source
 fingerprints. Inventory288 entries/130 fixtures/71 strict live entries.
 The required release `make test` also passes.
+
+## Partial fine refill and stopped coarse handoff
+
+Payoff70 closes the one-point refill slice of GROUP-03.4.7.2.2. The public
+all13 Stop/south-home/GoHome scene now matches7933 exact motion commits through
+30 seconds, including327 virtual actor commits and812 shared footprints. Eight
+checkpoints at23820/23905/23910/27000/27265/27270/27275/28000ms reproduce7310
+exact saved suffix commits. The independent6251/7419-commit references remain
+unchanged and exact after the upstream AI integration.
+
+Three consumer errors were distinguished from formation or search policy:
+
+1. At27.27s, birth4's formation destination151/59 already matches. Native
+   counter1933 fine search toward161/47 exhausts701 pops against budget700,
+   with712 nodes and one reconstructed point. That point is the exact source
+   161.499832153/49.912647247, not the nearest cell centre161.5/49.5. The engine
+   breakpoint confirmed the correct predicted source but the wrong point in
+   its fine buffer. `G_BuildUnitMoveLocalRoute` supplied the nearest centre as
+   the reconstruction goal; the correct pure kernel then overwrote the only
+   source point. Supplying the requested goal retains the native fractional
+   source. Multi-node partial routes retain their reconstructed nearest point
+   unless its cell matches the actual goal.
+2. `167070` handles fine index0 with a nonzero adaptive index by consuming an
+   accelerated waypoint through `165d10`, invalidating the fine index and
+   returning2. It preserves retry/delay. Counter1933 advances adaptive7→2 and
+   retains retry6. The engine instead treated this intermediate endpoint as
+   terminal retry, reducing6→5 and turning toward the final destination.
+   Move now selects the retained adaptive buffer with the existing verified
+   `wc3_acc_select` kernel, clears only fine count/index and retains its route
+   allocations, goal, timestamps and retry state. Final adaptive0 still uses
+   the separate terminal retry path.
+3. At29.16s, counter1996 advances adaptive2→0 with a tiny heading error
+   word941096960. `16fbd0` starts its stop argument at1 and clears it only for
+   `Path_Advance` result0; result2 therefore stops even while facing the route.
+   The first coarse-handoff port relied on the turn window and published
+   moving velocity with a changed heading. Explicit stop preserves the
+   consumed waypoint heading4027cd9c and zero speed, while integrating the
+   previous velocity through the existing native pose/clock consumer.
+
+The implementations remain in Move and the WC3 game-owned world query. No new
+client contract, persistent field or format change is introduced beyond the
+upstream merge's existing Save89 layout. This is ordinary partial/coarse
+progression, with no birth-index or captain-specific production branch.
+
+The provisional31-second test first failed only its footprint extent after
+30.03s; those motion words still matched. The authored30-second `complete`
+marker disables the Frida pair/footprint observer, while velocity capture
+continues. Its last shared footprint counter is2024 in both captures. The
+accepted engine reference ends at30 seconds and authenticates all812 observed
+footprints. A closed uncapped capture or that marker does not establish
+natural journey completion; a private follower is still active later. Longer
+travel needs a fresh observation domain and remains GROUP-03.4.7.2.2.2.
+
+`retail-captain-refill-1.27.json` and `verify_wc3_captain_refill_trace.py` pin
+both complete capture hashes, both earlier fixture hashes, the exact-source
+refill and explicit stopped-handoff witnesses, all three composed headers and
+full scalar/primary-clock checks. The new header adds only514 motion rows and
+188 footprint rows. Eighteen controls reject source snapping, altered search
+budgets/goals, changed retry/index state, lost stop, missing repeats/virtual
+motion and overstated extents. Ghidra saves the corrected reconstruction and
+167070→165d10→16fbd0 consumer comments. Readback confirms613 roles,53 layouts/
+328 fields,284 explicit ABIs and58 globals, with no unsaved changes.
+
+Validation: debug and release RoC/TFT each pass2477 tests/2804132 assertions.
+The required release `make test` passes, as do all447 Python pathfinding checks
+and46 fresh strict corpus contracts with143 source fingerprints. Corpus
+inventory is289 entries/131 fixtures/72 strict live entries. The saved Ghidra
+readback and both earlier GoHome references remain green.

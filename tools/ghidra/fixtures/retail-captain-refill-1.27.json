@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "complete_scene_journeys": false,
+  "whole_retail_pathfinder": false,
+  "natural_completion_remains_open": true,
+  "engine_end_msec": 30000,
+  "engine_commits": 7933,
+  "virtual_commits": 327,
+  "shared_footprints": 812,
+  "base_fixture": "retail-captain-retarget-1.27.json",
+  "base_sha256": "a0a282f46f776756e99442763f5e83087193a04c53a5cd94960549e625a8a483",
+  "motion_sha256": "b6454916d561e7c4e2d13a10a0177b7f17d13390ebbc3ba89f1d997c912e5a6a",
+  "footprints_sha256": "d25ece8a64a2d45e80ab6f2e53a9b5937d28ff03ee07ab49519ab9f9384e1dfd",
+  "refill_witness": {
+    "source": [
+      1126268917,
+      1111991949
+    ],
+    "destination": [
+      1125580800,
+      1114374144
+    ],
+    "before": [
+      4294967295,
+      7,
+      0,
+      0,
+      26215100,
+      35651584,
+      0,
+      0,
+      0,
+      6
+    ],
+    "after": [
+      4294967295,
+      2,
+      1933,
+      0,
+      26215100,
+      304087040,
+      0,
+      0,
+      0,
+      6
+    ],
+    "outputs": [
+      0,
+      1083625226,
+      0,
+      0,
+      0
+    ],
+    "search": [
+      -1,
+      701,
+      700,
+      712,
+      [
+        161,
+        47
+      ],
+      1
+    ],
+    "points": [
+      [
+        1126268917,
+        1111991949
+      ]
+    ],
+    "truncated": false
+  },
+  "stop_witness": {
+    "source": [
+      1126031686,
+      1113399653
+    ],
+    "destination": [
+      1125580800,
+      1114374144
+    ],
+    "before": [
+      0,
+      2,
+      1943,
+      0,
+      26215100,
+      304087040,
+      0,
+      0,
+      0,
+      0
+    ],
+    "after": [
+      4294967295,
+      0,
+      1943,
+      0,
+      26215100,
+      304087040,
+      0,
+      0,
+      0,
+      0
+    ],
+    "outputs": [
+      0,
+      1076350364,
+      0,
+      0,
+      0
+    ],
+    "decision": [
+      1083572252,
+      1076350212,
+      941096960,
+      1,
+      0,
+      1076350364
+    ]
+  },
+  "engine_header_sha256": "b165e38da770ff7980a0be201cd6122376d5ce475e6f4ab2cd4a5ee8ad434254",
+  "cases": [
+    {
+      "trace": "captain-thirteen-mixed-cancel-all-go-home-south-v1-first-261003.jsonl",
+      "trace_sha256": "6ddf3d6e4b4db7d3db7bc5c2cf9fff50f6b6150bb755b347d8ba0a1fa3ddbdfe",
+      "bytes": 44952361,
+      "metadata": {
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "wc3_captain_probe.ai": "a2302827ca2cdd53fb9d2f73d6bab188bd1171c336d7cb82bb999328a9fb4bd8",
+          "trace_wc3_pathfinding.py": "420c9f997309695312757fc2f1e0fb8df83c2041ea27ed09ce220ff54435b4e0",
+          "wc3_pathfinding.js": "8174b701a79d3c6f12a6ef82ec2d60e13930dec148acf4280561fc2ba0637e3c",
+          "wc3_pathfinding_probe.j": "98c1256a10bc02d8fd378848b70f56a21d8f011049318edc4dcda14a51286442",
+          "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+          "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+          "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+          "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+          "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+          "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+          "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+          "map": "dcec04c8d0d1f96505c3d0956c461a51d0d3973e6651b8d9e2cd224e55c271d3"
+        },
+        "map": "Maps\\PathingRE-CZGS13V1-261003.w3m",
+        "seconds": 150.0,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "samples": 30000,
+        "watchCell": null,
+        "blockers": false,
+        "taskEvents": true,
+        "widgetEvents": false,
+        "motionEvents": true,
+        "velocityEvents": true,
+        "yieldEvents": true,
+        "clockEvents": true,
+        "headingEvents": false,
+        "captainApproachEvents": true,
+        "captainMembershipEvents": true,
+        "profileEvents": true,
+        "numericEvents": false,
+        "randomEvents": false,
+        "literalTexts": [],
+        "integerTexts": [],
+        "byteEvents": false
+      },
+      "velocity_commits": 10479
+    },
+    {
+      "trace": "captain-thirteen-mixed-cancel-all-go-home-south-v1-repeat-261003.jsonl",
+      "trace_sha256": "3da408c808d5a917508d2e3a95ce0fad793931f22b441332fa145b3c3eb569eb",
+      "bytes": 45140538,
+      "metadata": {
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "wc3_captain_probe.ai": "a2302827ca2cdd53fb9d2f73d6bab188bd1171c336d7cb82bb999328a9fb4bd8",
+          "trace_wc3_pathfinding.py": "420c9f997309695312757fc2f1e0fb8df83c2041ea27ed09ce220ff54435b4e0",
+          "wc3_pathfinding.js": "8174b701a79d3c6f12a6ef82ec2d60e13930dec148acf4280561fc2ba0637e3c",
+          "wc3_pathfinding_probe.j": "98c1256a10bc02d8fd378848b70f56a21d8f011049318edc4dcda14a51286442",
+          "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+          "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+          "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+          "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+          "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+          "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+          "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+          "map": "dcec04c8d0d1f96505c3d0956c461a51d0d3973e6651b8d9e2cd224e55c271d3"
+        },
+        "map": "Maps\\PathingRE-CZGS13V1-261003.w3m",
+        "seconds": 140.0,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "samples": 30000,
+        "watchCell": null,
+        "blockers": false,
+        "taskEvents": true,
+        "widgetEvents": false,
+        "motionEvents": true,
+        "velocityEvents": true,
+        "yieldEvents": true,
+        "clockEvents": true,
+        "headingEvents": false,
+        "captainApproachEvents": true,
+        "captainMembershipEvents": true,
+        "profileEvents": true,
+        "numericEvents": false,
+        "randomEvents": false,
+        "literalTexts": [],
+        "integerTexts": [],
+        "byteEvents": false
+      },
+      "velocity_commits": 10648
+    }
+  ],
+  "scope": "Public all13 Stop, occupied south home, CaptainGoHome: partial exact-source reconstruction, retained coarse index handoff and explicit stopped motion through the30s observer completion marker. Natural completion, wider AI policies, private AI VM restore and whole retail pathfinding remain open."
+}

@@ -2920,6 +2920,7 @@ bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *rou
 bool G_UnitMoveGroupDestination(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *fine);
 bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec2_t *dest);
 bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route);
+bool G_AdvanceUnitMoveAdaptiveDestination(moveFineRoute_t *route);
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 void G_FreeMovePathCache(void);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);

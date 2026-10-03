@@ -3377,16 +3377,25 @@ static bool move_group_route(moveGroup_t *group) {
     return true;
 }
 
-/* Original165c60 consumes a reached partial endpoint and resets only its fine
- * buffer. Refilling belongs to the next owner visit, including one-point legs. */
-static bool move_group_retry_endpoint(moveGroup_t *group, moveGroupMember_t *member, wc3GridPose_t const *pose) {
-    edict_t *unit=member->unit;
+/* Native167070 advances a nonfinal coarse leg without consuming retry.
+ * Final partial endpoints retain165c60/167290's stopped retry transition. */
+static uint32_t move_group_advance_endpoint(moveGroup_t *group, moveGroupMember_t *member,
+                                            wc3GridPose_t const *pose, vec2_t *direction) {
+    edict_t *unit=member->unit; moveFineRoute_t *route=&unit->movement.fine_route;
+    if (route->partial && route->count && !route->index && route->adaptive_index &&
+        route->adaptive_index<route->adaptive_count) {
+        float x=wc3_sub(route->points[0].x,pose->grid[0]),y=wc3_sub(route->points[0].y,pose->grid[1]);
+        float range=wc3_float(0x3efae148);
+        if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))<=wc3_mul(range,range)) {
+            *direction=(vec2_t){x,y};
+            if (!G_AdvanceUnitMoveAdaptiveDestination(route)) gi.error("Move: invalid intermediate coarse endpoint");
+            unit->movement.path.valid=false;
+            return 2;
+        }
+    }
     uint32_t result=move_retry_endpoint(unit,pose,member->destination,group->count);
-
-    if (!result) return false;
     if (result==4) {member->forced_arrival=true;member->flags|=0x20000;}
-
-    return true;
+    return result;
 }
 
 static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
@@ -3413,13 +3422,24 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
         return;
     }
     float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
-    bool denied=move_group_retry_endpoint(group,member,&pose);
-    if (arrival.in_range || denied) {
+    vec2_t direction;
+    uint32_t progress=move_group_advance_endpoint(group,member,&pose,&direction);
+    if (progress==2) {
+        /* Native returns the consumed fine point, including a zero vector.
+         * 16fbd0 passes stop1 for every nonzero Path_Advance status. */
+        unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
+        unit_turn_toward(unit,unit->movement.heading);
+        unit->movement.turn_blocked=true;
+    } else if (arrival.in_range || progress) {
         unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true;
     } else {
-        vec2_t direction;
         if (unit_accel_direction(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC},&direction)) {
-            if (move_group_retry_endpoint(group,member,&pose)) move_hold_goal_heading(unit);
+            progress=move_group_advance_endpoint(group,member,&pose,&direction);
+            if (progress==2) {
+                unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
+                unit_turn_toward(unit,unit->movement.heading);
+                unit->movement.turn_blocked=true;
+            } else if (progress) move_hold_goal_heading(unit);
             else unit_apply_heading(unit,&direction,MOVE_AVOID_GENERIC);
         }
         else { unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true; }

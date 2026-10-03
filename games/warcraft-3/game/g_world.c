@@ -721,6 +721,20 @@ bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route) {
     return true;
 }
 
+/* Native167070 consumes an intermediate coarse leg even when a partial
+ * fine search returns only the source. Retry belongs to adaptive index0. */
+bool G_AdvanceUnitMoveAdaptiveDestination(moveFineRoute_t *route) {
+    if (!route || !route->adaptive_points || !route->adaptive_count ||
+        !route->adaptive_index || route->adaptive_index>=route->adaptive_count) return false;
+    FOR_LOOP(i,route->adaptive_count)
+        move_acc_points[i]=(wc3FineVector_t){route->adaptive_points[i].x,route->adaptive_points[i].y};
+    wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,route->adaptive_index},false);
+    assert(!selected.gate);
+    route->adaptive_index=selected.index;
+    route->count=0; route->index=UINT32_MAX;
+    return true;
+}
+
 /* Reconstruct destination-first points, then use the original next-point /
  * progressively farther selection policy. Move retains the selected turn. */
 bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *curve, vec2_t *out) {
@@ -768,10 +782,11 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     if (at < 0) return false;
     wc3FinePoint_t endpoint = move_fine.nodes[at].pos;
 
+    /* Native147dc0 receives the requested goal even for a partial chain.
+     * Replacing it with the nearest cell centre snaps a one-node route away
+     * from its exact source; only the real goal can replace that source. */
     wc3FineReconstruct_t route = {move_fine.nodes, move_fine.count, at,
-        {a.x, a.y},
-        complete ? (wc3FineVector_t){b.x, b.y}
-                 : wc3_route_center(endpoint)};
+        {a.x, a.y}, {b.x, b.y}};
     uint32_t count = wc3_fine_reconstruct(&route, move_fine_points, BZ_WC3_FINE_NODES);
     if (count < 2 && !input->fine_target) return false;
     if (curve) {

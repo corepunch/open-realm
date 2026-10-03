@@ -541,3 +541,11 @@ The shared VM now also unwinds unknown (undeclared) calls through its protected 
 with runtime errors instead of process assertions, and protects global-initializer evaluation. Unique missing function names remain
 queryable until VM close via `jass_missingcount`/`jass_missingname`. See [Galaxy protected calls and coverage](../starcraft-2/galaxy-scripting.md#protected-calls-and-missing-native-inventory)
 for the SC2 reproduction, inventory workflow, and shared VM regressions. This does not change WC3 quest state ownership or native IDs.
+
+Public `CaptainGoHome` continuation now also covers intermediate partial
+fine/coarse handoff:7933 exact commits through30 seconds,327 virtual actor
+commits,812 shared footprints and7310 saved suffix commits. The native remains
+a thin AI dispatch into Move; source reconstruction, retry preservation and
+explicit stopped motion belong to the game-owned movement consumer. Natural
+journey completion and broader captain policies remain open. See
+[the refill port](../../docs/games/warcraft-3/retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff).
