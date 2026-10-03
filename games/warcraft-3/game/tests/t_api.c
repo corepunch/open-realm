@@ -194,6 +194,41 @@ TEST(wc3_api, pathfinding_decimal_high_bytes_match_retail_words) {
 }
 
 /* Capture actual VM literal values in their owning hashtable, independently of JASS comparisons. */
+#include "retail_expressions.h"
+
+TEST(wc3_api, pathfinding_compiled_expressions_match_original_inputs_and_results) {
+    reset_entities();setup_test_world();
+    char source[24000];unsigned length=snprintf(source,sizeof(source),
+        "globals\nhashtable values\ninteger calls=0\nendglobals\n"
+        "function PathExpressionInteger takes integer tag, integer value returns integer\n"
+        "set calls=calls*10+tag\nreturn value\nendfunction\n"
+        "function PathExpressionReal takes integer tag, real value returns real\n"
+        "set calls=calls*10+tag\nreturn value\nendfunction\n");
+    FOR_LOOP(i,sizeof(expression82_cases)/sizeof(*expression82_cases)) {
+        bool integer=expression82_cases[i].integer;
+        length+=snprintf(source+length,sizeof(source)-length,
+            "function case%u takes nothing returns nothing\nlocal %s input\nset calls=0\nset input=%s\n"
+            "call Save%s(values,%u,0,input)\ncall Save%s(values,%u,1,%s(input))\n"
+            "call SaveInteger(values,%u,2,calls)\nendfunction\n",i,integer?"integer":"real",
+            expression82_cases[i].expression,integer?"Integer":"Real",i,integer?"Real":"Integer",i,
+            integer?"I2R":"R2I",i);
+    }
+    length+=snprintf(source+length,sizeof(source)-length,"function main takes nothing returns nothing\nset values=InitHashtable()\n");
+    FOR_LOOP(i,sizeof(expression82_cases)/sizeof(*expression82_cases))
+        length+=snprintf(source+length,sizeof(source)-length,"call case%u()\n",i);
+    snprintf(source+length,sizeof(source)-length,"endfunction\n");
+    T_ASSERT(run_test_jass(source));
+    hashtable_t const *table=&level.hashtables[0];
+    T_EQ(table->num_entries,3*sizeof(expression82_cases)/sizeof(*expression82_cases));
+    FOR_LOOP(i,table->num_entries) {
+        uint32_t word;memcpy(&word,&table->entries[i].value,sizeof(word));
+        unsigned row=i/3,column=i%3;
+        T_EQ(table->entries[i].parent,(int32_t)row);T_EQ(table->entries[i].child,(int32_t)column);
+        T_EQ(word,column==0?expression82_cases[row].input:column==1?expression82_cases[row].output:expression82_cases[row].operands);
+    }
+    reset_entities();
+}
+
 TEST(wc3_api, pathfinding_compiled_literals_match_retail_words) {
     static uint32_t const expected[] = {0xbf85635d, 0x3f19999a, 0x3fc00000, 0xcf000000, 0x7f000000};
     reset_entities();

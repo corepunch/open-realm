@@ -52,6 +52,7 @@
 #include "retail_blocked_goal.h"
 #include "retail_adaptive_passage.h"
 #include "retail_target_overlap.h"
+#include "retail_expressions.h"
 #include "retail_outside_goal.h"
 #include "retail_captain_home.h"
 #include "retail_captain_range_far.h"
@@ -11814,6 +11815,62 @@ TEST(wc3_movement, public_overlap_matches_original_link_order_and_saved_continua
         if(pass)suffix+=steps-saved[pass-1];
     }
     fprintf(stderr,"Overlap native commits=%u saved suffix commits=%u\n",steps,suffix);
+    FOR_LOOP(i,8)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_chained_expression_move_matches_original_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick-1-3*3==0 then\ncall IssuePointOrder(mover,\"move\",1744.0-96.0-32.0,1776.0-128.0+64.0)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hV80',272,304,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall TimerStart(CreateTimer(),0.4/2.0/2.0,true,function on_tick)\nendfunction\n"));
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={995,1000,1005,3000,10000,13000,14000,16000};
+    char files[8][64];unsigned saved[8]={0},suffix=0;
+    FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-expression-%u.bin",times[i]);
+    FOR_LOOP(pass,9) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<sizeof(expression82_motion)/sizeof(*expression82_motion));
+                if(steps>=sizeof(expression82_motion)/sizeof(*expression82_motion)){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=expression82_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Expression commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,sizeof(expression82_motion)/sizeof(*expression82_motion));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch)T_EQ(unit->current_order_id,0);
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"Expression native commits=%u saved suffix commits=%u\n",steps,suffix);
     FOR_LOOP(i,8)remove(files[i]);
     move_test_motion_commit=NULL;follow_commit_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);

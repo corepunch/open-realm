@@ -7169,3 +7169,95 @@ Validation: full release RoC/TFT each pass **2,496 tests /4,443,774
 assertions**, plus **498 Python checks**. `runtime/overlap81-strict/` verifies
 all three selected producer/target/live contracts. O0 and O2 both preserve
 the81920 native active orders and repeated public arithmetic/clock words.
+
+## Compiled expressions retain retail arithmetic and evaluation order
+
+Payoff82 implements existing NUM-01.21 in the script producer that feeds Move.
+The original engine parser recursively consumed another operator at the same
+precedence on its right: `100-10-5` became `100-(10-5)` and returned95. A failing
+public JASS regression reproduces that result. Both additive and multiplicative
+parsers now accumulate a left expression, reading the right operand at the next
+lower precedence. Parentheses and unary operators retain their own nesting;
+operand procedures execute in their original left-to-right order. This applies
+to ordinary scripts and does not depend on a scene, destination or unit type.
+
+Ghidra identifies `JassVM_ExecuteBytecode` at `91b460`: each instruction is eight
+bytes, with right/left/destination register numbers in bytes0/1/2, opcode in
+byte3, and an immediate word at4. The execution prefix has the next instruction
+pointer at20, limit at44, and register0 type/saved-type/value at68/6c/70; register
+stride is28. Opcode17 promotes integers through `070d80`. Arithmetic opcodes
+20/21/22/23 perform wrapping integer ADD/SUB/IMUL and signed IDIV, or call
+`06fbb0`/`06fa90`/`06f9c0`/`06fcd0` with separate scalar locals. Assembly call
+sites are `91bfa8`, `91c009`, `91c060` and `91c0e5`. Division by zero exits the
+interpreter with status7. The integer overflow fault's surrounding VM lifetime
+is not established; the engine reports it instead of executing undefined C
+arithmetic. Full opcode/compiler grammar remains NUM-01.2/15.
+
+JASS source arithmetic now uses the already verified software scalar helpers,
+with truncating integer promotion and explicitly wrapping integer steps.
+Galaxy source retains its existing host arithmetic. The parser attaches the
+choice through internal operator names, so parsing Galaxy later cannot change
+already compiled JASS functions. A mixed-language VM regression verifies that
+`16777217-1.0-2.0` remains original JASS word4b800000 while Galaxy produces
+4b7ffffd. Script comparisons are not the numeric oracle: the public integration
+test saves raw intermediate and native-result words in the game's hashtable
+and compares them from C against the frozen retail inputs.
+
+Two complete read-only native captures authenticate27 compiled expressions
+covering chained subtraction/division, mixed additive operators, precedence,
+explicit parentheses, unary minus, typed integer/real intermediates, overflow,
+fractional scalar cancellation/product and integer-to-real promotion. Ten
+operand-side-effect markers establish actual evaluation order. Fractional
+`0.3-0.2-0.1` is b2800000, and `0.1*0.2*0.3` is3bc49ba8. These are compiled
+source expressions reaching public R2I, not calls to an isolated scalar model.
+The function's static bytecode dispatch plus public operand observations prove
+this arithmetic scope; no complete compiler or opcode inventory is claimed.
+
+The real flat64x64 map uses the authored collision40 Footman clone. Its timer
+receives expression `0.4/2.0/2.0`, exact word3dccccce; the literal `0.1` would
+produce3dcccccc. At callback10, unparenthesized `tick-1-3*3==0` issues Move to
+`1744.0-96.0-32.0,1776.0-128.0+64.0`: actual task destination1616/1712. The
+native trace retains all three TimerStart calls, including the two ancillary
+base-map timers. Move completes naturally, with432 exact commits of clock,
+fine XY, velocity XY and facing. Both engine editions reproduce the whole
+journey and1,825 continuation commits saved at995/1000/1005/3000/10000/13000/
+14000/16000ms, including the expression callback before and after admission.
+Save92/JSVM8 reject old token identities and execution semantics.
+
+Frozen contract is `retail-chained-expressions-1.27.json`; C literals are
+`retail_expressions.h`, checked by `verify_wc3_expression_trace.py`. Accepted
+captures are `runtime/expression82-final-{first,repeat}.jsonl`, strict corpus
+entry `live-chained-expression-captures-261003`. The preliminary19-expression
+pair remains exploratory and is not substituted for the final27 cases. Native
+source/hash/map provenance is pinned for each final run. Presentation-clock
+subdivision and bounded spatial samples can differ with observation overhead:
+the verifier retains each run's full recorded/count extents, then compares the
+complete6000 primary advances,1000 owner callbacks, movement phases, searches,
+operand order and public timeline against their common exact contract.
+Optimized and unoptimized C both verify all recorded movement arithmetic.
+Saved Ghidra annotations contain625 roles,63 partial layouts/429 fields,
+293 explicit ABIs and59 globals.
+
+Payoff82 validation: required release `make test` passes2,499 tests/4,466,637
+assertions in each edition,506 Python pathfinding checks and106 Galaxy tests.
+The raw expression test passes245 assertions; the whole movement/save test
+passes22,617 assertions per edition. Three fresh strict corpus contracts pass,
+including the200,330-case scalar engine comparison and the preceding overlap
+journey. No new TODO IDs are added:164 done/172 remaining.
+
+Bounded reproduction uses the normal engine test executable:
+
+```sh
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test wc3_api.pathfinding_compiled_expressions_match_original_inputs_and_results \
+  +com_frame_limit 100
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test wc3_movement.public_chained_expression_move_matches_original_and_saved_continuations \
+  +com_frame_limit 100
+```
+
+Add `-tft` for the second edition. The native map builder's
+`--scenario chained_expression` selects `wc3_expression_probe.j`; its
+`wc3_expression_inputs.json` preserves every authored case. The strict corpus
+runner can select `--only live-chained-expression-captures-261003` with the
+external archive; a fresh output directory is required. See [corpus workflow](retail-pathfinding-corpus.md#compiled-chained-expressions-and-public-movement).

@@ -2885,6 +2885,78 @@
           "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
         }
       ]
+    },
+    {
+      "name": "WC3JassInstruction",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "right_register",
+          "type": "u8",
+          "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
+        },
+        {
+          "offset": 1,
+          "name": "left_register",
+          "type": "u8",
+          "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
+        },
+        {
+          "offset": 2,
+          "name": "destination_register",
+          "type": "u8",
+          "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
+        },
+        {
+          "offset": 3,
+          "name": "opcode",
+          "type": "u8",
+          "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
+        },
+        {
+          "offset": 4,
+          "name": "immediate_word",
+          "type": "u32",
+          "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
+        }
+      ]
+    },
+    {
+      "name": "WC3JassExecutionPrefix",
+      "length": 116,
+      "fields": [
+        {
+          "offset": 32,
+          "name": "instruction",
+          "type": "ptr:WC3JassInstruction",
+          "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
+        },
+        {
+          "offset": 68,
+          "name": "instruction_limit",
+          "type": "u32",
+          "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
+        },
+        {
+          "offset": 104,
+          "name": "register0_type",
+          "type": "u32",
+          "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
+        },
+        {
+          "offset": 108,
+          "name": "register0_saved_type",
+          "type": "u32",
+          "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
+        },
+        {
+          "offset": 112,
+          "name": "register0_word",
+          "type": "u32",
+          "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
+        }
+      ]
     }
   ],
   "methods": [
@@ -8439,6 +8511,35 @@
           "name": "warp",
           "type": "u32",
           "storage": 24
+        }
+      ]
+    },
+    {
+      "address": "6f91b460",
+      "name": "JassVM_ExecuteBytecode",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21",
+      "parameters": [
+        {
+          "name": "vm",
+          "type": "ptr:WC3JassExecutionPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "instructions",
+          "type": "ptr:WC3JassInstruction",
+          "storage": 4
+        },
+        {
+          "name": "return_word",
+          "type": "ptr:u32",
+          "storage": 8
+        },
+        {
+          "name": "instruction_limit",
+          "type": "u32",
+          "storage": 12
         }
       ]
     }

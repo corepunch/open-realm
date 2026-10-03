@@ -1774,6 +1774,10 @@ function install(module) {
         }
         emit('cell-snapshot', {marker, cells});
     }
+    if (config.numericEvents) hook(0x216c70,{onEnter(args){
+        if(pairScenario) emit('expression-timer-start',{handle:args[0].toUInt32(),
+            timeout:args[1].readU32(),periodic:args[2].toUInt32(),handler:args[3].toUInt32()});
+    }});
     // Preload's string-intern call receives the resolved C string on the stack.
     hook(0x231df0, {onEnter(args) {
         if (args[0].isNull()) return;
@@ -1819,6 +1823,7 @@ function install(module) {
             else throw new Error('Malformed speed marker: ' + value);
             emit('speed-marker', {value});
         }
+        if (value.startsWith('PATHEXPR ')) emit('expression-marker',{value});
         if (value.startsWith('PATHOVERLAP ')) emit('overlap-marker',{value});
         if (value.startsWith('PATHBOUND ')) emit('bound-marker',{value});
         if (value.startsWith('PATHHOLD ')) emit('hold-marker', {value});
@@ -1830,7 +1835,7 @@ function install(module) {
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_blocker_lifecycle ') || value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
-            if ((value.includes('label=start_target_overlap ') || value.includes('label=start_adaptive_passage ') || value.includes('label=start_captain_home ') || value.includes('label=start_captain_point ') || value.includes('label=start_point_bound_matrix ') || value.includes('label=start_outside_west ') || value.includes('label=start_blocked_goal ') || value.includes('label=start_group_radius_grow ') || value.includes('label=start_group_radius_shrink ') || value.includes('label=start_group_radius_remove ') || value.includes('label=start_moving_radius_matrix ') || value.includes('label=start_moving_radius ') || value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position ') || value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate '))) pairScenario = true;
+            if ((value.includes('label=start_chained_expression ') || value.includes('label=start_target_overlap ') || value.includes('label=start_adaptive_passage ') || value.includes('label=start_captain_home ') || value.includes('label=start_captain_point ') || value.includes('label=start_point_bound_matrix ') || value.includes('label=start_outside_west ') || value.includes('label=start_blocked_goal ') || value.includes('label=start_group_radius_grow ') || value.includes('label=start_group_radius_shrink ') || value.includes('label=start_group_radius_remove ') || value.includes('label=start_moving_radius_matrix ') || value.includes('label=start_moving_radius ') || value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position ') || value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate '))) pairScenario = true;
             if (value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate ')) resizeScenario = true;
             if (value.includes('label=start_captain_home ')) captainScenario = true;
             if (value.includes('label=complete ')) {pairScenario = false;captainScenario = false;}

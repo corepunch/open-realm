@@ -353,6 +353,23 @@ TEST(galaxy, real_literals_retain_source_language) {
     gal_destroy(&s);
 }
 
+TEST(galaxy, chained_arithmetic_retains_source_language) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run_mode(&s,
+        "native CaptureReal takes real value returns nothing\n"
+        "function RetailExpression takes nothing returns nothing\n"
+        "call CaptureReal(16777217-1.0-2.0)\nendfunction\n"
+        "function main takes nothing returns nothing\ncall RetailExpression()\nendfunction\n", JASS_MODE_JASS));
+    T_EQ(gal_captured_real,0x4b800000);
+    T_ASSERT(gal_run_mode(&s,
+        "native void CaptureReal(fixed value);\n"
+        "void main() { CaptureReal(16777217-1.0-2.0); }\n", JASS_MODE_GALAXY));
+    T_EQ(gal_captured_real,0x4b7ffffd);
+    jass_callbyname(s.j,"RetailExpression",true);jass_runevents(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));T_EQ(gal_captured_real,0x4b800000);
+    gal_destroy(&s);
+}
+
 /* Parse-only: load but don't call main(). */
 static int gal_parse_mode(gal_state_t *s, char const *src, JASSMODE mode) {
     unsigned int len = (unsigned int)strlen(src);

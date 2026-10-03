@@ -40,6 +40,31 @@ static bool event_in_queue(EVENTTYPE type) {
     return false;
 }
 
+/* Original source expressions must preserve left association and operand
+ * evaluation order before their results reach Move or timer natives. */
+TEST(wc3_jass_map, chained_arithmetic_association_and_operand_order) {
+    T_ASSERT(run_test_jass(
+        "globals\ninteger calls=0\nendglobals\n"
+        "function operand takes integer tag, integer value returns integer\n"
+        "set calls=calls*10+tag\nreturn value\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "call BJassAssert(100-10-5==85,\"integer subtraction\")\n"
+        "call BJassAssert(100-10+5==95,\"mixed additive\")\n"
+        "call BJassAssert(120/4/3==10,\"integer division\")\n"
+        "call BJassAssert(9/2*2==8,\"integer division before multiply\")\n"
+        "call BJassAssert(41-1-2*20==0,\"timer tick remainder\")\n"
+        "call BJassAssert(100-(10-5)==95,\"explicit right parentheses\")\n"
+        "call BJassAssert((100-10)-5==85,\"explicit left parentheses\")\n"
+        "call BJassAssert(-100-10-5==-115,\"negative subtraction\")\n"
+        "call BJassAssert(100.0-10.0-5.0==85.0,\"real subtraction\")\n"
+        "call BJassAssert(120.0/4.0/3.0==10.0,\"real division\")\n"
+        "call BJassAssert(9.0/2.0*2.0==9.0,\"real intermediate\")\n"
+        "call BJassAssert(120.0/4/3.0==10.0,\"mixed typed division\")\n"
+        "call BJassAssert(operand(1,100)-operand(2,10)-operand(3,5)==85,\"side effects result\")\n"
+        "call BJassAssert(calls==123,\"left to right operand calls\")\n"
+        "endfunction\n"));
+}
+
 static char victory_menu_action[32];
 static char victory_menu_arg[256];
 static char cinematic_movie_path[MAX_PATHLEN];

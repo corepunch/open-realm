@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **300 entries**: **45** distinct original-code oracle
-scripts plus **57** declared variants, **121** archived JSONL audits and **77**
+The inventory now has **301 entries**: **45** distinct original-code oracle
+scripts plus **57** declared variants, **121** archived JSONL audits and **78**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1387,3 +1387,29 @@ engine comparison; original storage remains checked independently. See
 and [spatial evidence](retail-pathfinding-separation.md#engine-active-cell-history).
 The inventory contains102 oracle contracts (45 scripts plus57 variants),121
 archive audits,77 strict live contracts and142 pinned repository fixtures.
+
+## Compiled chained expressions and public movement
+
+Payoff82 adds `live-chained-expression-captures-261003`, retaining two complete
+actual compiled27-expression captures and all ten operand procedure calls.
+`verify_wc3_expression_trace.py` authenticates source/map/binary metadata,
+bracketed native argument/result words, all three TimerStart calls, the actual
+Move destination,304 public markers,430 decisions and432 velocity/facing
+commits per run. The real file-backed flat map and all primary/owner updates
+are checked with the production numerical probe. No output is reconstructed
+from a decimal R2S marker or inferred from the source expression's spelling.
+
+Frozen inputs/results and the entire literal trajectory are in
+`retail-chained-expressions-1.27.json` / `retail_expressions.h`. The engine tests
+execute real JASS, inspect raw hashtable intermediate/native-result words and
+compare normal-frame movement plus eight Save92 continuations in both editions.
+The mixed-language regression keeps JASS software arithmetic separate from
+Galaxy even after another parser runs. See [expression payoff](retail-pathfinding-engine.md#compiled-expressions-retain-retail-arithmetic-and-evaluation-order).
+
+Captures are `runtime/expression82-final-first.jsonl` and
+`runtime/expression82-final-repeat.jsonl`. The preliminary19-expression pair is
+exploratory. Each final run retains its own full observer counts, including
+variable presentation subdivisions and bounded spatial samples; common primary
+clocks, operand/public-order timeline, route/task lifetime and movement words
+must repeat exactly. Full lexical/opcode grammar, arithmetic-fault VM lifetime
+and unrelated scenario construction remain their existing tasks.

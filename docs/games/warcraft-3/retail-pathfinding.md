@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **624 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **625 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 ordinary public twelve-member movement matches1,953 commits and2,634 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
@@ -40,8 +40,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists61 partial layouts,419 verified
-  fields and292 instruction-established prototypes with explicit register/stack
+  `MapPathfindingTypes.java` also persists63 partial layouts,429 verified
+  fields and293 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -51,7 +51,7 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  624 function names/comments applied and saved. Latest captain readbacks:
+  625 function names/comments applied and saved. Latest captain readbacks:
   `runtime/captain-home-ghidra-readback-saved-261002.json` and
   `runtime/captain-home-ghidra-types-saved-261002.json`. Prior group-radius readbacks:
   `runtime/group-radius-ghidra-readback-saved-261002.json` and

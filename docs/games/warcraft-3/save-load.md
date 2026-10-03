@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 91, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 92, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -194,7 +194,14 @@ Event handler registrations store type, subject entity index, trigger index, tim
 
 ## JASS Snapshot
 
-The embedded snapshot starts with `JSVM`, snapshot format version 7, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
+Save92/JSVM8 reject programs compiled with the former right-associated arithmetic
+and host JASS scalar operators. Chained expressions now retain left association,
+software scalar operations and truncating promotion. Token ordinals/operator
+identities are rebuilt from source; old continuations cannot be reused. Eight
+expression-authored Move continuations verify callback and movement state before
+and after order admission. See [compiled expression parity](retail-pathfinding-engine.md#compiled-expressions-retain-retail-arithmetic-and-evaluation-order).
+
+The embedded snapshot starts with `JSVM`, snapshot format version 8, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
 
 - mutable scalar globals and sparse array entries;
 - integer, real, boolean, string, code, null, and supported typed-handle values;

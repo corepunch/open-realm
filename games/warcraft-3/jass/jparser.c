@@ -75,6 +75,13 @@ bool is_logic_operator(wordExtractor_t *p, cstring_t str) {
 }
 
 cstring_t jass_getoperator(cstring_t str) {
+    /* Retail bytecode20..23 uses software scalars; Galaxy keeps host arithmetic. */
+    if (!c_operators) {
+        if (!strcmp(str, "+")) return "__wc3_add";
+        if (!strcmp(str, "-")) return "__wc3_sub";
+        if (!strcmp(str, "*")) return "__wc3_mul";
+        if (!strcmp(str, "/")) return "__wc3_div";
+    }
     static struct { cstring_t token, name; } const grammar[] = {
         { "+", "__add" }, { "-", "__sub" }, { "*", "__mul" }, { "/", "__div" },
         { "!=", "__ne" }, { "==", "__eq" }, { ">=", "__ge" }, { "<=", "__le" },
@@ -290,25 +297,26 @@ wordExtractor_t(read_single_identifier) {
 }
 
 wordExtractor_t(parse_multiplicative_expression) {
+    /* Reduce each operator before reading the next operator at this precedence. */
     token_t *left = read_single_identifier(p);
-    if (is_multiplicative_operator(peek_token(p))) {
+    while (is_multiplicative_operator(peek_token(p))) {
         token_t *oper = parse_operator_token(p);
-        token_t *right = parse_multiplicative_expression(p);
+        token_t *right = read_single_identifier(p);
         PUSH_BACK(token_t, left, oper->args);
         PUSH_BACK(token_t, right, oper->args);
-        return oper;
+        left = oper;
     }
     return left;
 }
 
 wordExtractor_t(parse_additive_expression) {
     token_t *left = parse_multiplicative_expression(p);
-    if (is_additive_operator(p, peek_token(p))) {
+    while (is_additive_operator(p, peek_token(p))) {
         token_t *oper = parse_operator_token(p);
-        token_t *right = parse_additive_expression(p);
+        token_t *right = parse_multiplicative_expression(p);
         PUSH_BACK(token_t, left, oper->args);
         PUSH_BACK(token_t, right, oper->args);
-        return oper;
+        left = oper;
     }
     return left;
 }
@@ -865,4 +873,3 @@ token_t *GALAXY_ParseTokens(wordExtractor_t *p) {
         return NULL;
     }
 }
-

@@ -23,7 +23,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 7 // format version; persists callback event type
+#define BZ_JASS_SNAPSHOT_VERSION 8 // chained arithmetic changes saved token identities
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -222,6 +222,47 @@ uint32_t __unm(jass_t *j) {
 JASS_NUMOP(__sub, -);
 JASS_NUMOP(__mul, *);
 JASS_NUMOP(__div, /);
+
+/* Bytecode17 promotes integers with070d80, not a rounded host conversion. */
+static float jass_wc3number(jass_t *j, int index) {
+    if (jass_gettype(j,index)==jasstype_integer)
+        return wc3_float(wc3_from_int(jass_checkinteger(j,index)));
+    return jass_checknumber(j,index);
+}
+
+/* Retail ADD/SUB/IMUL wrap32; the scalar branch shares Move's proven helpers. */
+#define JASS_WC3_NUMOP(NAME, OP, SCALAR) \
+static uint32_t NAME(jass_t *j) { \
+    if (jass_gettype(j,1)==jasstype_integer && jass_gettype(j,2)==jasstype_integer) { \
+        uint32_t word=(uint32_t)jass_checkinteger(j,1) OP (uint32_t)jass_checkinteger(j,2); \
+        int32_t value; memcpy(&value,&word,sizeof(value)); \
+        return jass_pushinteger(j,value); \
+    } \
+    float a=jass_wc3number(j,1),b=jass_wc3number(j,2); \
+    return jass_pushnumber(j,SCALAR(a,b)); \
+}
+JASS_WC3_NUMOP(jass_wc3add, +, wc3_add);
+JASS_WC3_NUMOP(__wc3_sub, -, wc3_sub);
+JASS_WC3_NUMOP(__wc3_mul, *, wc3_mul);
+
+static uint32_t __wc3_add(jass_t *j) {
+    if (jass_gettype(j,1)==jasstype_string && jass_gettype(j,2)==jasstype_string)
+        return __add(j);
+    return jass_wc3add(j);
+}
+
+static uint32_t __wc3_div(jass_t *j) {
+    if (jass_gettype(j,1)==jasstype_integer && jass_gettype(j,2)==jasstype_integer) {
+        int32_t a=jass_checkinteger(j,1),b=jass_checkinteger(j,2);
+        if (!b) { jass_rterror(j,"division by zero"); return 0; }
+        /* Original IDIV faults here; do not invoke undefined C arithmetic. */
+        if (a==INT32_MIN && b==-1) { jass_rterror(j,"integer division overflow"); return 0; }
+        return jass_pushinteger(j,a/b);
+    }
+    float a=jass_wc3number(j,1),b=jass_wc3number(j,2);
+    if (!b) { jass_rterror(j,"division by zero"); return 0; }
+    return jass_pushnumber(j,wc3_div(a,b));
+}
 JASS_CMPOP(__le, <=);
 JASS_CMPOP(__ge, >=);
 JASS_CMPOP(__gt, >);
@@ -299,6 +340,10 @@ uint32_t __xor(jass_t *j) {
 }
 
 jassModule_t jass_operators[] = {
+    JASS_OPERATOR(__wc3_add),
+    JASS_OPERATOR(__wc3_sub),
+    JASS_OPERATOR(__wc3_mul),
+    JASS_OPERATOR(__wc3_div),
     JASS_OPERATOR(__add),
     JASS_OPERATOR(__sub),
     JASS_OPERATOR(__mul),

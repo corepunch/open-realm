@@ -8,20 +8,19 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**163 done / 336 tasks; 173 remaining.** Payoff81 closes existing FINE-01.6
-without new IDs/splits. Move and the game map owner now preserve active fine-cell
-insertion history on retained/entered cells, so overlapping target identity
-follows the actual blocker order. The real rectangle producer matches81,920
-engine active-cell orders over1,280 updates. Two complete public Smart captures
-repeat501 movement/facing commits; both engine editions match the whole journey
-and1,999 suffix commits across eight Save91 continuations. Native lazy storage,
-allocator and stamp requirements remain MAP-05/06. Required full suites pass
-2,496 tests/4,443,774 assertions per edition,498 Python checks and three fresh
-selected corpus contracts. See [overlap payoff](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history).
+**164 done / 336 tasks; 172 remaining.** Payoff82 closes existing NUM-01.21
+without new IDs/splits. The engine script producer now preserves left arithmetic
+association, wrapping integer intermediates, truncating real promotion and
+retail software scalar operations. Two complete27-expression captures repeat
+all raw inputs/results and ten operand-side-effect calls. The expression-authored
+Move matches432 commits and1,825 suffix commits across eight Save92 continuations
+in both editions. Mixed JASS/Galaxy VMs retain each source arithmetic contract.
+Required full suites pass2,499 tests/4,466,637 assertions per edition and506
+Python checks; three fresh strict corpus contracts pass. See [expression payoff](retail-pathfinding-engine.md#compiled-expressions-retain-retail-arithmetic-and-evaluation-order).
 
-Next runnable implementation chunk is NUM-01.21: recover and fix chained
-expression association, then compare actual expression-authored Move and timer
-inputs and saved movement continuations.
+Next implementation chunk is E2E-06.2: resolve fine-terrain versus adaptive
+publication timing with the existing producer inventory, preserving route
+and saved-state ownership.
 No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
@@ -38,7 +37,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FOOT — Footprints and query policy | 13 | 5 |
 | FINE — Fine search | 9 | 3 |
 | ACC — Adaptive search | 7 | 6 |
-| NUM — Numbers and random state | 24 | 19 |
+| NUM — Numbers and random state | 25 | 18 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
 | SCHED — Scheduling and owner updates | 4 | 9 |
@@ -449,7 +448,7 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 - [ ] **NUM-01.17** Split01.12's basic arithmetic/conversion callers: classify reachable Add/Subtract/Multiply/Divide/reciprocal/sqrt/fractional/rounding/integer inputs and destinations, retain composed read/write order, and integrate any difference through Move. The original33-function xref inventory records6,898 references; name-only movement filtering is not reachability proof.
 - [ ] **NUM-01.18** Split01.12's trig/inverse/paired callers: audit all140 direct references across Sin/Cos/Acos/Asin/Atan/Atan2/Tan/SinCos, include vector-heading1d4c80 and indirect wrapper relationships, observe actual producer pointers, reproduce alias-sensitive stores/sign rereads, and preserve reachable behavior in engine regressions. Acos's three sites and Atan2's26 sites must not be confused with Atan's three sites.
 - [ ] **NUM-01.19** Split01.12's Pow/log/exp callers: recover source/output/exponent pointer relationships through all referenced wrappers and internal reductions; compare reachable operation order with guarded original-code witnesses and engine consumers. Original nonreturning VM lifetime remains01.14.
-- [ ] **NUM-01.21** Explicitly add compiled chained-expression producer parity: the engine additive/multiplicative parser currently associates chained operators to the right (`tick-1-i*20` exposed this during02.8). Recover original bytecode/evaluation order for mixed/chained subtract/divide and typed integer/real expressions, compare actual Move/TimerStart input words, then fix the engine grammar with public-order/save regressions. Existing literal and scalar helper parity does not prove expression parsing.
+- [x] **NUM-01.21** Explicitly add compiled chained-expression producer parity: the engine additive/multiplicative parser currently associates chained operators to the right (`tick-1-i*20` exposed this during02.8). Recover original bytecode/evaluation order for mixed/chained subtract/divide and typed integer/real expressions, compare actual Move/TimerStart input words, then fix the engine grammar with public-order/save regressions. Existing literal and scalar helper parity does not prove expression parsing. Completed by [compiled expression payoff](retail-pathfinding-engine.md#compiled-expressions-retain-retail-arithmetic-and-evaluation-order): original bytecode17/20..23, two complete27-expression captures, ten operand calls, exact public TimerStart/Move inputs, general parser/operator integration, whole432-commit engine journey and1,825 saved suffix commits per edition. Save92/JSVM8 retain current semantics; full lexical/opcode and arithmetic-fault lifetime scopes remain01.2/15.
 
 
 - [x] **NUM-01.20** Split01.18's actual vector-heading/Acos producer: prove1d4c80's quotient/destination separation through original pointer observations and negative helper-alias controls, compare complete16f630 with guarded external output aliases, confirm the same live movement call chain, and retain exact engine heading words. Other trig callers remain01.18. Evidence: [vector-heading operand relationships](retail-pathfinding-engine.md#vector-heading-operand-relationships),5488 guarded original/model/C producer cases per-O0/-O2 and repeated191 actual nested heading chains (181 negative inputs). Existing engine heading words remain correct.
