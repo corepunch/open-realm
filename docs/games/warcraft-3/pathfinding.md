@@ -745,3 +745,10 @@ source in a one-point exhausted refill, and coarse handoff explicitly stops
 translation while turning. The public captain scene matches7933 exact commits
 and7310 saved suffix commits through the30-second observation domain; longer
 travel and complete pathfinder parity remain open.
+
+The later upstream synchronization through`a4acf914` also includes optional EOS
+Internet multiplayer. The SDK-free production/test build and required release
+`make test` pass: RoC/TFT each2478 tests/2804139 assertions,447 Python
+pathfinding checks and9 release-preparation checks. All143 payoff70 corpus
+source fingerprints remain unchanged; this networking merge does not alter
+the verified movement consumers.
