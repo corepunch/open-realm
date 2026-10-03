@@ -48,6 +48,8 @@ typedef socklen_t net_socklen_t;
 #define SOCKET_ERROR (-1)
 #endif
 #include "common.h"
+#include "online.h"
+#include <ctype.h>
 
 #define BZ_LOOPBACK_LIMIT (8 * 1024 * 1024) // bytes per direction; preserves the existing maximum queued burst
 #define BZ_LOOPBACK_MIN MAX_MSGLEN // bytes; one maximum packet of initial storage, grown with its length prefix
@@ -352,6 +354,7 @@ bool NET_IsConfigured(NETSOURCE netsrc) {
 }
 
 void NET_Shutdown(void) {
+    Online_Shutdown();
     NET_Config(false);
     net_clear_loopback();
 #ifdef _WIN32
@@ -363,6 +366,18 @@ void NET_Shutdown(void) {
 }
 
 bool NET_StringToAdr(cstring_t s, unsigned short default_port, netadr_t *adr) {
+    if (!s || !adr) return false;
+    if (!strncmp(s, "eos:", 4)) {
+        if (strlen(s + 4) != 32) return false;
+        memset(adr, 0, sizeof(*adr));
+        for (uint32_t i = 0; i < 32; i++) {
+            unsigned char c = (unsigned char)s[4 + i];
+            if (!isxdigit(c)) return false;
+            adr->peer[i] = (char)tolower(c);
+        }
+        adr->type = NA_EOS;
+        return true;
+    }
     char host[256];
     unsigned short port = default_port;
 
@@ -410,9 +425,23 @@ cstring_t NET_AdrToString(netadr_t const *adr) {
         snprintf(out, sizeof(buffers[0]), "loopback");
         return out;
     }
+    if (adr->type == NA_EOS) {
+        snprintf(out, sizeof(buffers[0]), "eos:%s", adr->peer);
+        return out;
+    }
     inet_ntop(AF_INET, adr->ip, host, sizeof(host));
     snprintf(out, sizeof(buffers[0]), "%s:%u", host, ntohs(adr->port));
     return out;
+}
+
+bool NET_CompareAdr(netadr_t const *a, netadr_t const *b) {
+    if (!a || !b || a->type != b->type) return false;
+    switch (a->type) {
+    case NA_LOOPBACK: return true;
+    case NA_IP: case NA_BROADCAST: return !memcmp(a->ip, b->ip, sizeof(a->ip)) && a->port == b->port;
+    case NA_EOS: return !strcmp(a->peer, b->peer);
+    default: return false;
+    }
 }
 
 // Route a packet to the loopback buffer or the UDP socket depending on
@@ -421,6 +450,9 @@ void NET_SendPacket(NETSOURCE netsrc, int length, void const *data, netadr_t to)
     switch (to.type) {
     case NA_LOOPBACK:
         NET_SendLoopPacket(netsrc, length, data);
+        break;
+    case NA_EOS:
+        Online_Send(netsrc, length, data, &to);
         break;
     case NA_IP:
     case NA_BROADCAST:
@@ -432,11 +464,13 @@ void NET_SendPacket(NETSOURCE netsrc, int length, void const *data, netadr_t to)
 }
 
 // Check the loopback buffer first (zero latency for local clients), then
-// fall through to the UDP socket for remote clients.
+// check EOS packets, then fall through to the UDP socket for remote clients.
 int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg) {
     int r = NET_GetLoopPacket(netsrc, from, msg);
     if (r)
         return r;
+    r = Online_Receive(netsrc, from, msg);
+    if (r) return r;
     return NET_GetUDPPacket(netsrc, from, msg);
 }
 

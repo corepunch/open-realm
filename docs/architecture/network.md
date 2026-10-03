@@ -3,7 +3,7 @@
 OpenWarcraft3 uses the same runtime-dispatch networking model as Quake 2.  A
 single send/receive API (`NET_SendPacket` / `NET_GetPacket`) handles all
 communication; only the lowest layer changes path depending on whether the
-destination is in the same process (loopback) or a remote machine (UDP).
+destination is in the same process (loopback), on LAN (UDP), or in an EOS Internet room (P2P).
 
 ## Address types (`netadr_t`)
 
@@ -13,6 +13,7 @@ Every packet is addressed with a `netadr_t`:
 typedef enum {
     NA_LOOPBACK,    // in-process ring buffer (zero copy, zero latency)
     NA_IP,          // unicast UDP
+    NA_EOS,         // EOS P2P, authenticated lobby Product User ID
     NA_BROADCAST,   // broadcast UDP
 } netadrtype_t;
 
@@ -20,6 +21,7 @@ typedef struct {
     netadrtype_t type;
     unsigned char ip[4];   // network byte order
     unsigned short port;   // network byte order
+    char peer[33];        // EOS Product User ID, used only for NA_EOS
 } netadr_t;
 ```
 
@@ -188,6 +190,7 @@ rejected by the versioned handshake.
 
 ## See Also
 
+- [Epic Online Services integration](epic-online-services.md) — optional Internet transport, Battle.net entry point, credentials and verification requirements
 - [Server-Authored UI Payloads](ui-payloads.md) — `svc_layout` frame payload contract and unsigned size-byte handling
 
 ## LAN lobby and startup

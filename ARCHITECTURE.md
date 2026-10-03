@@ -219,6 +219,7 @@ For in-depth details on specific engine subsystems, consult the following dedica
 | Server Architecture & Snapshot Delta Compression | [docs/architecture/server.md](docs/architecture/server.md) |
 | Client Architecture, Input & Interpolation | [docs/architecture/client.md](docs/architecture/client.md) |
 | Network Transport & Protocol Details | [docs/architecture/network.md](docs/architecture/network.md) |
+| EOS Internet Multiplayer | [docs/architecture/epic-online-services.md](docs/architecture/epic-online-services.md) |
 | VFS, MPQ Loading, and Config Path Resolution | [docs/fs-loading-architecture.md](docs/fs-loading-architecture.md) |
 | Native Game Coordinates & Axis Conventions | [AXIS.md](AXIS.md) |
 | Runtime Config, Cvars, and Share Directories | [docs/architecture/runtime.md](docs/architecture/runtime.md) |

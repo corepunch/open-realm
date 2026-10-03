@@ -1,4 +1,5 @@
 #include "server.h"
+#include "common/online.h"
 #include <zlib.h>
 
 static const struct { uint32_t base, count; } loading_pools[] = {
@@ -256,14 +257,7 @@ client_t *SV_FindClientByAddr(netadr_t const *from) {
     FOR_LOOP(i, svs.num_clients) {
         client_t *cl = &svs.clients[i];
         if (cl->state == cs_free) continue;
-        if (from->type == NA_LOOPBACK &&
-            cl->netchan.remote_address.type == NA_LOOPBACK)
-            return cl;
-        if (from->type == NA_IP &&
-            cl->netchan.remote_address.type == NA_IP &&
-            memcmp(cl->netchan.remote_address.ip, from->ip, 4) == 0 &&
-            cl->netchan.remote_address.port == from->port)
-            return cl;
+        if (NET_CompareAdr(from, &cl->netchan.remote_address)) return cl;
     }
     return NULL;
 }
@@ -282,6 +276,11 @@ void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
     if ((existing = SV_FindClientByAddr(from))) {
         if (existing->state != cs_zombie)
             Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
+        return;
+    }
+    if ((Cvar_Integer("online_mode", 0) && from->type != NA_EOS && from->type != NA_LOOPBACK) ||
+        (from->type == NA_EOS && sv.state != ss_lobby)) {
+        fprintf(stderr, "SV_DirectConnect: Internet games admit lobby members before match start\n");
         return;
     }
     cl = SV_AllocClientSlot(&clientnum);
@@ -380,6 +379,7 @@ void SV_Map(cstring_t mapFilename) {
     SAFE_DELETE(sv.loading.data, MemFree);
     SAFE_DELETE(sv.baselines, MemFree);
     memset(&sv, 0, sizeof(struct server));
+    Online_CloseAdmission();
     sv.state = ss_loading;
     strlcpy(sv.configstrings[CS_WORLD], mapFilename, sizeof(sv.configstrings[CS_WORLD]));
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
@@ -426,8 +426,8 @@ void SV_StartLobby(cstring_t mapFilename) {
     if (sv.state == ss_lobby && !strcmp(sv.configstrings[CS_WORLD], mapFilename)) {
         return;
     }
-    fprintf(stderr, "SV_StartLobby: opening LAN server port for %s\n", mapFilename);
-    if (!SV_EnsureServerPort()) {
+    fprintf(stderr, "SV_StartLobby: preparing lobby for %s\n", mapFilename);
+    if (!Cvar_Integer("online_mode", 0) && !SV_EnsureServerPort()) {
         return;
     }
     if (!svs.initialized) {
@@ -500,6 +500,7 @@ void SV_Shutdown(void) {
         MSG_WriteByte(&client->netchan.message, svc_disconnect);
         Netchan_Transmit(NS_SERVER, &client->netchan);
     }
+    if (Online_IsHost()) Online_Leave();
     SAFE_DELETE(sv.loading.data, MemFree);
     SAFE_DELETE(sv.baselines, MemFree);
     sv.state = ss_dead;

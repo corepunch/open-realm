@@ -8,6 +8,10 @@ on:
       tag:
         description: 'Release tag to attach assets to (e.g. v0.0.1-alpha)'
         required: true
+      publish:
+        description: 'Upload the completed assets to the release (disable for validation)'
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -18,7 +22,7 @@ jobs:
           - os: ubuntu-latest
             name: linux-x64
             archive: openwarcraft3-linux-x64.tar.gz
-          - os: macos-latest
+          - os: macos-15-intel
             name: macos-x64
             archive: openwarcraft3-macos-x64.tar.gz
           - os: windows-latest
@@ -33,6 +37,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fetch the pinned private EOS SDK archive
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.EOS_SDK_REPOSITORY }}
+          ref: ${{ vars.EOS_SDK_REF }}
+          ssh-key: ${{ secrets.EOS_SDK_DEPLOY_KEY }}
+          persist-credentials: false
+          path: data/eos-archive
+
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -42,6 +55,7 @@ jobs:
             build-essential \
             ca-certificates \
             git \
+            libgl-dev \
             libgles2-mesa-dev \
             libjpeg-dev \
             libsdl2-dev \
@@ -67,42 +81,62 @@ jobs:
             make
             zip
 
+      - name: Set up release SDK downloader
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download and verify EOS C SDK
+        shell: bash
+        env:
+          EOS_PLATFORM: ${{ runner.os }}
+          OPENREALM_EOS_PRODUCT_ID: ${{ secrets.OPENREALM_EOS_PRODUCT_ID }}
+          OPENREALM_EOS_SANDBOX_ID: ${{ secrets.OPENREALM_EOS_SANDBOX_ID }}
+          OPENREALM_EOS_DEPLOYMENT_ID: ${{ secrets.OPENREALM_EOS_DEPLOYMENT_ID }}
+          OPENREALM_EOS_CLIENT_ID: ${{ secrets.OPENREALM_EOS_CLIENT_ID }}
+          OPENREALM_EOS_CLIENT_SECRET: ${{ secrets.OPENREALM_EOS_CLIENT_SECRET }}
+        run: python dist-scripts/eos/prepare_release.py --platform "$EOS_PLATFORM" --archive data/eos-archive/EOS-SDK-1.19.2.1-CL58105819-runtime.zip
+
       - name: Build (Linux)
         if: runner.os == 'Linux'
-        run: make build
+        run: make BUILD=release EOS=1 EOS_CONFIG_FILE=data/eos/eos.cfg build
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
-        run: make build
+        run: make BUILD=release ARCH=x86_64 EOS=1 EOS_CONFIG_FILE=data/eos/eos.cfg build
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
-        run: make build
+        run: make BUILD=release EOS=1 EOS_CONFIG_FILE=data/eos/eos.cfg build
 
       - name: Create release archive (Unix)
         if: runner.os != 'Windows'
         run: |
-          mkdir -p release
-          cp build/bin/openwarcraft3 release/
-          cp -r build/lib/. release/
+          # Preserve the executable's ../lib and ../share lookup paths.
+          mkdir -p release/bin release/lib release/licenses/EOS
+          cp build/bin/openwarcraft3 release/bin/
+          cp -r build/lib/. release/lib/
           cp -r build/share release/
+          cp data/eos/ThirdPartyNotices/ThirdPartySoftwareNotice.txt release/licenses/EOS/
           tar -czf ${{ matrix.archive }} -C release .
 
       - name: Create release archive (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          mkdir -p release
+          mkdir -p release/licenses/EOS
           cp build/bin/openwarcraft3.exe release/
+          cp build/bin/EOSSDK-Win64-Shipping.dll release/
           cp -r build/lib/. release/
           cp -r build/share release/
+          cp data/eos/ThirdPartyNotices/ThirdPartySoftwareNotice.txt release/licenses/EOS/
           # Bundle the MinGW runtime closure (SDL2, zlib, libepoxy plus
           # transitive deps like libgcc/libwinpthread) beside the exe: a
           # clean Windows install has no MSYS2. Fails the job when a
           # dependency is unresolved or a required DLL is absent (issue #462).
           bash dist-scripts/windows/bundle_mingw_dlls.sh release \
-            build/bin/openwarcraft3.exe build/lib/*.dll
+            build/bin/openwarcraft3.exe build/lib/*.dll release/EOSSDK-Win64-Shipping.dll
           cd release && zip -r ../${{ matrix.archive }} .
 
       - name: Determine release tag
@@ -116,6 +150,7 @@ jobs:
           fi
 
       - name: Upload release asset
+        if: github.event_name == 'release' || inputs.publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -136,21 +171,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare Flatpak output directory
-        run: mkdir -p build
+      - name: Fetch the pinned private EOS SDK archive
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.EOS_SDK_REPOSITORY }}
+          ref: ${{ vars.EOS_SDK_REF }}
+          ssh-key: ${{ secrets.EOS_SDK_DEPLOY_KEY }}
+          persist-credentials: false
+          path: data/eos-archive
+
+      - name: Download and verify EOS C SDK
+        env:
+          OPENREALM_EOS_PRODUCT_ID: ${{ secrets.OPENREALM_EOS_PRODUCT_ID }}
+          OPENREALM_EOS_SANDBOX_ID: ${{ secrets.OPENREALM_EOS_SANDBOX_ID }}
+          OPENREALM_EOS_DEPLOYMENT_ID: ${{ secrets.OPENREALM_EOS_DEPLOYMENT_ID }}
+          OPENREALM_EOS_CLIENT_ID: ${{ secrets.OPENREALM_EOS_CLIENT_ID }}
+          OPENREALM_EOS_CLIENT_SECRET: ${{ secrets.OPENREALM_EOS_CLIENT_SECRET }}
+        run: python3 dist-scripts/eos/prepare_release.py --platform Linux --archive data/eos-archive/EOS-SDK-1.19.2.1-CL58105819-runtime.zip
+
+      - name: Prepare EOS Flatpak release manifest
+        run: |
+          mkdir -p build
+          cp dist-scripts/flathub/io.github.corepunch.OpenRealm.yml dist-scripts/flathub/eos-release.yml
+          cat >> dist-scripts/flathub/eos-release.yml <<'EOS_ENV'
+
+          build-options:
+            env:
+              EOS: '1'
+              EOS_CONFIG_FILE: data/eos/eos.cfg
+          EOS_ENV
 
       - name: Build Flatpak bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3
         with:
-          manifest-path: dist-scripts/flathub/io.github.corepunch.OpenRealm.yml
+          manifest-path: dist-scripts/flathub/eos-release.yml
           bundle: build/io.github.corepunch.OpenRealm.flatpak
           arch: x86_64
-          cache: true
-          restore-cache: true
-          save-cache: true
+          # Source snapshots contain licensed SDK files and player credentials.
+          cache: false
+          restore-cache: false
+          save-cache: false
           upload-artifact: false
 
       - name: Upload Flatpak release inputs
+        if: github.event_name == 'release' || inputs.publish
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: openrealm-flatpak-release-inputs
@@ -164,6 +228,7 @@ jobs:
   flatpak-release:
     name: Publish Flatpak
     needs: flatpak-build
+    if: github.event_name == 'release' || inputs.publish
     runs-on: ubuntu-latest
     permissions:
       actions: read

@@ -25,6 +25,7 @@ typedef enum {
     NA_LOOPBACK,
     NA_BROADCAST,
     NA_IP,
+    NA_EOS,
     NA_IPX,
     NA_BROADCAST_IPX
 } netadrtype_t;
@@ -46,6 +47,7 @@ typedef struct {
     uint8_t ip[4];
     uint8_t ipx[10];
     unsigned short port;        // stored in network byte order
+    char peer[33];              // EOS Product User ID, lowercase hex; never an IP alias
 } netadr_t;
 
 struct netchan {
@@ -61,13 +63,14 @@ void NET_ConfigSource(NETSOURCE netsrc, bool open);
 bool NET_IsConfigured(NETSOURCE netsrc);
 void NET_Shutdown(void);
 
-// Parse "host" or "host:port" into a netadr_t.  default_port is used
+// Parse "host", "host:port" or "eos:<ProductUserId>" into a netadr_t. default_port is used
 // when no port is present in the string.  Returns true on success.
 bool NET_StringToAdr(cstring_t s, unsigned short default_port, netadr_t *adr);
 cstring_t NET_AdrToString(netadr_t const *adr);
+bool NET_CompareAdr(netadr_t const *a, netadr_t const *b);
 
 // Send a packet.  Routes to the loopback buffer (NA_LOOPBACK) or the
-// UDP socket (NA_IP / NA_BROADCAST) based on to.type.
+// UDP socket (NA_IP / NA_BROADCAST) or EOS P2P (NA_EOS), based on to.type.
 void NET_SendPacket(NETSOURCE netsrc, int length, void const *data, netadr_t to);
 
 // Receive one packet.  Checks the loopback buffer first, then the UDP

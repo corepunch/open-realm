@@ -475,14 +475,24 @@ static void LAN_CopyGame(uiMapListItem_t *item, menuLanGame_t const *game, uint3
     }
 }
 
+static bool LAN_Internet(void) {
+    return lan.mode != LAN_MODE_SINGLE_PLAYER_CREATE && mi.Cvar_String &&
+        !strcmp(mi.Cvar_String("online_mode", "0"), "1");
+}
+
+static bool LAN_Game(uint32_t index, menuLanGame_t *out) {
+    if (LAN_Internet()) return mi.Online_Game && mi.Online_Game(index, out);
+    return mi.LAN_Server && mi.LAN_Server(index, out);
+}
+
 static void LAN_LoadGames(void) {
     uint32_t count;
 
-    if (!mi.LAN_NumServers || !mi.LAN_Server) {
+    if (LAN_Internet() ? !mi.Online_NumGames : !mi.LAN_NumServers) {
         return;
     }
 
-    count = mi.LAN_NumServers();
+    count = LAN_Internet() ? mi.Online_NumGames() : mi.LAN_NumServers();
     if (count > UI_MAX_MAP_LIST_ITEMS) {
         count = UI_MAX_MAP_LIST_ITEMS;
     }
@@ -490,7 +500,7 @@ static void LAN_LoadGames(void) {
         menuLanGame_t game;
         uiMapListItem_t *item;
 
-        if (!mi.LAN_Server(i, &game)) {
+        if (!LAN_Game(i, &game)) {
             continue;
         }
         if (i >= lan.games.count) {
@@ -516,7 +526,12 @@ static void LAN_LoadGames(void) {
 static void LAN_UpdateBrowserControls(void) {
     uiMapListItem_t *item;
 
+    if (LAN_Internet()) {
+        LAN_SetTextIfPresent(lan.join_frames.GameListLabel, "%s", mi.Online_Status ? mi.Online_Status() : "Internet service unavailable.");
+        UI_SetEnabled(lan.join_frames.CreateButton, mi.Online_Ready && mi.Online_Ready());
+    }
     if (lan.join_button) {
+        UI_SetEnabled(lan.join_button, lan.games.count > 0);
         if (lan.games.count > 0) {
             UI_SetOnClick(lan.join_button, "menu_lan_join");
         } else {
@@ -534,10 +549,10 @@ static void LAN_UpdateBrowserControls(void) {
     item = &lan.games.items[lan.games.selected];
     LAN_SetTextIfPresent(lan.join_frames.GameCreatorValue, "%s", item->name);
     LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(2));
-    if (mi.LAN_Server) {
+    {
         menuLanGame_t game;
 
-        if (mi.LAN_Server(item->flags, &game)) {
+        if (LAN_Game(item->flags, &game)) {
             LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(game.speed));
         }
     }
@@ -555,7 +570,9 @@ static void LAN_UpdateControls(void) {
     }
 
     if (lan.play_button) {
-        if (lan.maps.count > 0) {
+        bool const available = lan.maps.count > 0 && (!LAN_Internet() || (mi.Online_Ready && mi.Online_Ready()));
+        UI_SetEnabled(lan.play_button, available);
+        if (available) {
             UI_SetOnClick(lan.play_button, "menu_lan_start");
         } else {
             lan.play_button->OnClick[0] = '\0';
@@ -566,7 +583,9 @@ static void LAN_UpdateControls(void) {
 }
 
 static void LAN_RequestServerRefresh(void) {
-    if (mi.LAN_RefreshServers) {
+    if (LAN_Internet()) {
+        if (mi.Online_Refresh) mi.Online_Refresh();
+    } else if (mi.LAN_RefreshServers) {
         mi.LAN_RefreshServers();
     }
 }
@@ -632,7 +651,7 @@ static bool LAN_BuildCreateFrames(void) {
                   lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? "menu_single_player_skirmish" : "menu_startserver");
     UI_SetOnClick(lan.play_button, "menu_lan_start");
     UI_SetOnClick(lan.create_frames.CancelButton,
-                  lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? "menu_game" : "menu_multiplayer");
+                  lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? "menu_game" : (LAN_Internet() ? "menu_online" : "menu_multiplayer"));
     return true;
 }
 
@@ -677,8 +696,8 @@ static void LANJoin_Refresh(int msec) {
     list = lan.mode == LAN_MODE_BROWSER ? &lan.games : &lan.maps;
     if (lan.mode == LAN_MODE_BROWSER) {
         LAN_LoadGames();
-        LAN_UpdateControls();
     }
+    LAN_UpdateControls();
 
     target = (float)list->scroll;
     diff = target - list->visualScroll;
@@ -755,7 +774,7 @@ uint32_t LAN_SelectedGameSpeed(void) {
 }
 
 void LAN_StartSelectedMap(void) {
-    if (!LAN_SelectedMapPath()) {
+    if (!LAN_SelectedMapPath() || (LAN_Internet() && (!mi.Online_Ready || !mi.Online_Ready()))) {
         return;
     }
     if (mi.Cvar_Set) {
@@ -789,14 +808,16 @@ void LAN_SelectMapIndex(uint32_t index) {
 }
 
 void LAN_JoinSelectedGame(void) {
-    if (!lan.ready || lan.mode != LAN_MODE_BROWSER || !mi.LAN_ConnectServer) {
+    if (!lan.ready || lan.mode != LAN_MODE_BROWSER) {
         return;
     }
     if (lan.games.count == 0 || lan.games.selected >= lan.games.count) {
         return;
     }
     LAN_ApplyPlayerName();
-    mi.LAN_ConnectServer(lan.games.items[lan.games.selected].flags);
+    if (LAN_Internet()) {
+        if (mi.Online_Join) mi.Online_Join(lan.games.items[lan.games.selected].flags);
+    } else if (mi.LAN_ConnectServer) mi.LAN_ConnectServer(lan.games.items[lan.games.selected].flags);
 }
 
 /* Same-screen navigation still changes chrome. With animation ownership in

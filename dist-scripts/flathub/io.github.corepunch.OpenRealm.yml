@@ -38,12 +38,18 @@ modules:
     buildsystem: simple
     build-commands:
       - make clean
-      - make -j${FLATPAK_BUILDER_N_JOBS} BUILD=release GL_BACKEND=gl MSAA=0 openwarcraft3
+      - make -j${FLATPAK_BUILDER_N_JOBS} BUILD=release GL_BACKEND=gl MSAA=0 EOS=${EOS:-0} EOS_CONFIG_FILE="${EOS_CONFIG_FILE:-}" openwarcraft3
 
       - install -d /app/bin /app/lib /app/share/openrealm
       - install -Dm755 build/bin/openwarcraft3 /app/bin/openwarcraft3
       - install -m755 build/lib/libshared.so build/lib/libjass.so build/lib/libsheet.so build/lib/librenderer.so build/lib/libgame.so build/lib/libmenu.so /app/lib/
       - cp -a build/share/. /app/share/
+      # Local/Flathub builds stay SDK-free. The release manifest explicitly sets EOS=1.
+      - |
+        if [ "${EOS:-0}" = 1 ]; then
+          install -m755 build/lib/libEOSSDK-Linux-Shipping.so /app/lib/
+          install -Dm644 data/eos/ThirdPartyNotices/ThirdPartySoftwareNotice.txt /app/share/licenses/EOS/ThirdPartySoftwareNotice.txt
+        fi
 
       - install -Dm755 dist-scripts/flathub/openrealm-start /app/bin/openrealm-start
       - install -Dm755 dist-scripts/flathub/steam_shortcut.py /app/bin/steam_shortcut.py
