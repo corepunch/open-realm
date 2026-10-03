@@ -1339,8 +1339,17 @@ typedef enum {
 } moveDiagState_t;
 
 typedef struct edictArtillery_s {
-    uint32_t attack_type, area_targets, targets_allowed;
-    float area_full, area_medium, area_small, factor_medium, factor_small;
+    /* Splash identity is not a flat grab-bag. attack is the weapon contract
+     * captured at launch; area is the three-band splash profile. */
+    struct {
+        uint32_t type;
+        uint32_t targets_allowed;
+    } attack;
+    struct {
+        uint32_t targets;
+        float full, medium, small;
+        float factor_medium, factor_small;
+    } area;
 } edictArtillery_t;
 
 typedef enum {
@@ -1665,16 +1674,26 @@ struct edict_s {
         routePath_t path; /* persistent WC3 accelerator state shared with other server games */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
-        vec2_t route_resume_direction;
-        vec2_t route_resume_goal_origin;
-        edict_t *route_resume_goal;
-        uint32_t route_resume_goal_spawn, route_resume_time;
-        float route_resume_radius;
-        uint8_t route_resume_flags;
-        bool route_resume_valid, route_resume_active;
-        bool path_wait_active;
-        uint32_t path_wait_start, path_wait_goal_number, path_wait_goal_spawn;
-        vec2_t path_wait_origin;
+        /* route.resume is the short-lived steering cache used while a path job
+         * is in flight. It does not alias heading or flow_fallback_*: those stay
+         * live for avoidance and unreachable-goal retry at the same time.
+         * route.wait is diagnostic only (route-wait logs and the save clear). */
+        struct {
+            struct {
+                vec2_t direction;
+                vec2_t goal_origin;
+                edict_t *goal; /* snapshot; not goalentity, so a mid-tick order swap cannot alias */
+                uint32_t goal_spawn, time;
+                float radius;
+                uint8_t flags;
+                bool valid, active;
+            } resume;
+            struct {
+                bool active;
+                uint32_t start, goal_number, goal_spawn;
+                vec2_t origin;
+            } wait;
+        } route;
         vec2_t worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
         uint32_t worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */

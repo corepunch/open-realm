@@ -3938,13 +3938,13 @@ TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     T_NOT_NULL(desc); if (desc) T_EQ(desc->type, F_STRUCT);
     T_ASSERT(WriteGame(filename)); memset(&projectile->artillery, 0, sizeof(projectile->artillery));
     T_ASSERT(ReadGame(filename));
-    T_EQ(projectile->artillery.attack_type, ATK_SIEGE);
-    T_EQ(projectile->artillery.area_targets, WC3_TARGET_FLAG_GROUND);
-    T_FEQ(projectile->artillery.area_full, 40.0f, 0.001f);
-    T_FEQ(projectile->artillery.area_medium, 80.0f, 0.001f);
-    T_FEQ(projectile->artillery.area_small, 120.0f, 0.001f);
-    T_FEQ(projectile->artillery.factor_medium, 0.5f, 0.001f);
-    T_FEQ(projectile->artillery.factor_small, 0.25f, 0.001f);
+    T_EQ(projectile->artillery.attack.type, ATK_SIEGE);
+    T_EQ(projectile->artillery.area.targets, WC3_TARGET_FLAG_GROUND);
+    T_FEQ(projectile->artillery.area.full, 40.0f, 0.001f);
+    T_FEQ(projectile->artillery.area.medium, 80.0f, 0.001f);
+    T_FEQ(projectile->artillery.area.small, 120.0f, 0.001f);
+    T_FEQ(projectile->artillery.area.factor_medium, 0.5f, 0.001f);
+    T_FEQ(projectile->artillery.area.factor_small, 0.25f, 0.001f);
     remove(filename);
 }
 SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, autocast_code, MAKEFOURCC('A', 'h', 'e', 'a'))
@@ -4176,31 +4176,31 @@ TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
     unit_index = globals.num_edicts;
     unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     goal = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 128, 0);
-    unit->movement.route_resume_direction = (vec2_t){ 1.0f, 0.0f };
-    unit->movement.route_resume_goal_origin = goal->s.origin2;
-    unit->movement.route_resume_goal = goal;
-    unit->movement.route_resume_goal_spawn = goal->spawn_time;
-    unit->movement.route_resume_time = 1234;
-    unit->movement.route_resume_radius = 31.0f;
-    unit->movement.route_resume_flags = CM_PATHING_UNWALKABLE;
-    unit->movement.route_resume_valid = true;
-    unit->movement.route_resume_active = true;
-    unit->movement.path_wait_active = true;
-    unit->movement.path_wait_start = 5678;
-    unit->movement.path_wait_goal_number = goal->s.number;
-    unit->movement.path_wait_goal_spawn = goal->spawn_time;
-    unit->movement.path_wait_origin = unit->s.origin2;
+    unit->movement.route.resume.direction = (vec2_t){ 1.0f, 0.0f };
+    unit->movement.route.resume.goal_origin = goal->s.origin2;
+    unit->movement.route.resume.goal = goal;
+    unit->movement.route.resume.goal_spawn = goal->spawn_time;
+    unit->movement.route.resume.time = 1234;
+    unit->movement.route.resume.radius = 31.0f;
+    unit->movement.route.resume.flags = CM_PATHING_UNWALKABLE;
+    unit->movement.route.resume.valid = true;
+    unit->movement.route.resume.active = true;
+    unit->movement.route.wait.active = true;
+    unit->movement.route.wait.start = 5678;
+    unit->movement.route.wait.goal_number = goal->s.number;
+    unit->movement.route.wait.goal_spawn = goal->spawn_time;
+    unit->movement.route.wait.origin = unit->s.origin2;
 
     T_ASSERT(WriteGame(filename));
-    unit->movement.route_resume_goal = (edict_t *)(uintptr_t)1;
+    unit->movement.route.resume.goal = (edict_t *)(uintptr_t)1;
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + unit_index;
-    T_NULL(unit->movement.route_resume_goal);
-    T_ASSERT(!unit->movement.route_resume_valid);
-    T_ASSERT(!unit->movement.route_resume_active);
-    T_ASSERT(!unit->movement.path_wait_active);
-    T_EQ(unit->movement.route_resume_time, 0);
-    T_EQ(unit->movement.path_wait_start, 0);
+    T_NULL(unit->movement.route.resume.goal);
+    T_ASSERT(!unit->movement.route.resume.valid);
+    T_ASSERT(!unit->movement.route.resume.active);
+    T_ASSERT(!unit->movement.route.wait.active);
+    T_EQ(unit->movement.route.resume.time, 0);
+    T_EQ(unit->movement.route.wait.start, 0);
     remove(filename);
 }
 

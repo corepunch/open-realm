@@ -512,11 +512,15 @@ static field_t const unit_info_fields[] = {
 };
 
 static field_t const artillery_fields[] = {
-    TF(edictArtillery_t, attack_type, F_INT), TF(edictArtillery_t, area_targets, F_INT),
-    TF(edictArtillery_t, targets_allowed, F_INT),
-    TF(edictArtillery_t, area_full, F_FLOAT), TF(edictArtillery_t, area_medium, F_FLOAT),
-    TF(edictArtillery_t, area_small, F_FLOAT), TF(edictArtillery_t, factor_medium, F_FLOAT),
-    TF(edictArtillery_t, factor_small, F_FLOAT), { NULL, 0, 0, 0, 0, 0 }
+    TF(edictArtillery_t, attack.type, F_INT),
+    TF(edictArtillery_t, attack.targets_allowed, F_INT),
+    TF(edictArtillery_t, area.targets, F_INT),
+    TF(edictArtillery_t, area.full, F_FLOAT),
+    TF(edictArtillery_t, area.medium, F_FLOAT),
+    TF(edictArtillery_t, area.small, F_FLOAT),
+    TF(edictArtillery_t, area.factor_medium, F_FLOAT),
+    TF(edictArtillery_t, area.factor_small, F_FLOAT),
+    { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const link_fields[] = {
@@ -663,22 +667,22 @@ static field_t const ancient_root_fields[] = {
 
 static field_t const movement_fields[] = {
     /* Shared route jobs and resumable movement directions are process-local
-     * caches. In particular route_resume_goal is an edict pointer, so clear
+     * caches. In particular route.resume.goal is an edict pointer, so clear
      * the complete route-resume/wait record on save and rebuild it after load. */
-    TF(edictMovement_s, route_resume_direction, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, route_resume_goal_origin, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, route_resume_goal, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, route_resume_goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, route_resume_time, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, route_resume_radius, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, route_resume_flags, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, route_resume_valid, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, route_resume_active, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, path_wait_active, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, path_wait_start, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, path_wait_goal_number, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, path_wait_goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(edictMovement_s, path_wait_origin, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.resume.direction, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.resume.goal_origin, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.resume.goal, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.resume.goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.resume.time, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.resume.radius, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.resume.flags, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.resume.valid, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.resume.active, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.wait.active, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.wait.start, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.wait.goal_number, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.wait.goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route.wait.origin, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictMovement_s, waygate_target, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, waygate_goal, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),

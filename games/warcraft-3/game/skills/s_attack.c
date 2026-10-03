@@ -100,14 +100,14 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
         rocket->goalentity = desc->target;
         rocket->channel.target_spawn_time = desc->target ? desc->target->spawn_time : 0;
         if (desc->attack) {
-            rocket->artillery.attack_type = desc->attack->type;
-            rocket->artillery.area_targets = desc->area_targets;
-            rocket->artillery.targets_allowed = desc->attack->targetsAllowed;
-            rocket->artillery.area_full = desc->attack->areaFull;
-            rocket->artillery.area_medium = desc->attack->areaMedium;
-            rocket->artillery.area_small = desc->attack->areaSmall;
-            rocket->artillery.factor_medium = desc->attack->factorMedium;
-            rocket->artillery.factor_small = desc->attack->factorSmall;
+            rocket->artillery.attack.type = desc->attack->type;
+            rocket->artillery.area.targets = desc->area_targets;
+            rocket->artillery.attack.targets_allowed = desc->attack->targetsAllowed;
+            rocket->artillery.area.full = desc->attack->areaFull;
+            rocket->artillery.area.medium = desc->attack->areaMedium;
+            rocket->artillery.area.small = desc->attack->areaSmall;
+            rocket->artillery.area.factor_medium = desc->attack->factorMedium;
+            rocket->artillery.area.factor_small = desc->attack->factorSmall;
         }
     } else {
         rocket->goalentity = desc->target;
@@ -436,20 +436,20 @@ void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t cons
 
     if (!attacker || !impact || raw_damage <= 0) return;
     if (!profile) return;
-    max_radius = MAX(profile->area_full, MAX(profile->area_medium, profile->area_small));
+    max_radius = MAX(profile->area.full, MAX(profile->area.medium, profile->area.small));
     if (max_radius < 0.0f) return;
 
-    FILTER_EDICTS(other, artillery_splash_target_allowed(attacker, other, profile->area_targets, profile->targets_allowed)) {
+    FILTER_EDICTS(other, artillery_splash_target_allowed(attacker, other, profile->area.targets, profile->attack.targets_allowed)) {
         float const distance = MAX(0.0f, Vector2_distance(&other->s.origin2, impact) - MAX(0.0f, other->collision));
         float factor;
         int damage;
 
-        if (distance <= profile->area_full) factor = 1.0f;
-        else if (distance <= profile->area_medium) factor = profile->factor_medium;
-        else if (distance <= profile->area_small) factor = profile->factor_small;
+        if (distance <= profile->area.full) factor = 1.0f;
+        else if (distance <= profile->area.medium) factor = profile->area.factor_medium;
+        else if (distance <= profile->area.small) factor = profile->area.factor_small;
         else continue;
         if (factor <= 0.0f) continue;
-        damage = attack_damage_type(attacker, other, (int)MAX(1.0f, (float)raw_damage * factor), profile->attack_type);
+        damage = attack_damage_type(attacker, other, (int)MAX(1.0f, (float)raw_damage * factor), profile->attack.type);
         if (other == primary) S_ResolveAttackHit(attacker, other, damage);
         else T_Damage(other, attacker, damage);
     }
@@ -462,12 +462,12 @@ void S_ResolveArtilleryHit(edict_t *attacker, edict_t *target, int raw_damage) {
     if (!target) return;
     atk = attack_profile(attacker, target);
     if (!atk) return;
-    profile.attack_type = atk->type;
-    profile.targets_allowed = atk->targetsAllowed;
-    profile.area_full = atk->areaFull; profile.area_medium = atk->areaMedium; profile.area_small = atk->areaSmall;
-    profile.factor_medium = atk->factorMedium; profile.factor_small = atk->factorSmall;
+    profile.attack.type = atk->type;
+    profile.attack.targets_allowed = atk->targetsAllowed;
+    profile.area.full = atk->areaFull; profile.area.medium = atk->areaMedium; profile.area.small = atk->areaSmall;
+    profile.area.factor_medium = atk->factorMedium; profile.area.factor_small = atk->factorSmall;
     if (attacker->data.UnitWeapons)
-        profile.area_targets = atk == &attacker->attack2 ? attacker->data.UnitWeapons->attack2.areaTargets
+        profile.area.targets = atk == &attacker->attack2 ? attacker->data.UnitWeapons->attack2.areaTargets
                                                        : attacker->data.UnitWeapons->attack1.areaTargets;
     impact = target->s.origin2;
     S_ResolveArtilleryPointHit(attacker, target, &impact, raw_damage, &profile);

@@ -3965,7 +3965,7 @@ TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes)
         attacker->currentmove->think(attacker);
         level.time += FRAMETIME;
     }
-    T_ASSERT(attacker->movement.route_resume_valid);
+    T_ASSERT(attacker->movement.route.resume.valid);
     T_ASSERT(Vector2_distance(&attacker->s.origin2, &start_origin) > 0.01f);
 
     /* Replacing the pathmap invalidates cached shared fields while keeping the
@@ -3992,7 +3992,7 @@ TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes)
         T_ASSERT(attacker->currentmove->proc == CAbilityAttack);
         resumed = Vector2_distance(&attacker->s.origin2, &start_origin) > 0.01f;
         if (!resumed) {
-            T_ASSERT(attacker->movement.route_resume_active || attacker->movement.path_wait_active);
+            T_ASSERT(attacker->movement.route.resume.active || attacker->movement.route.wait.active);
             T_FEQ(attacker->s.origin2.x, start_origin.x, 0.01f);
             T_FEQ(attacker->s.origin2.y, start_origin.y, 0.01f);
         }
