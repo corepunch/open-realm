@@ -221,6 +221,9 @@ void Online_Acceptance_f(void) {
     online_live_start = online_live_tick = SDL_GetTicks();
     online_live_status[0] = 0;
     bool valid = !strcmp(role, "local") ? Online_LiveGameRun(role, room) : Online_LiveRun(role, room, map);
+    if (!valid && online_live_game)
+        fprintf(stderr, "EOS gameplay failed: role=%s client=%d server=%d frame=%d clients=%u status=%s\n",
+            role, cls.state, sv.state, cl.frame.serverframe, svs.num_clients, Online_Status());
     online_live_game = online_live_server = false;
     if (SV_IsActive()) SV_Shutdown();
     /* Complete asynchronous departure before releasing SDK handles. */
