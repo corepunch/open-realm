@@ -518,6 +518,11 @@ Growing the fixture archive exposed `mpqtool pack` silently truncating its
 argument list at 128 files. Its argument list now scales with the actual CLI
 input; the fixture archive verification checks files beyond the former cutoff.
 
+The paired lobby check also exposed `SV_LobbySayClient_f` generating generic
+"Player 1/2" chat labels instead of the sanitized name already held by the
+server client and shown in its slot. It now broadcasts that authoritative name;
+the server command regression checks sender text and ownership on both clients.
+
 Keep deployment failures as failing CI results. Acceptance is bounded and
 explicit; ordinary unit tests never authenticate or contact the live service.
 
