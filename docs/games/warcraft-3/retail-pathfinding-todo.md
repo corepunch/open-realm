@@ -8,30 +8,29 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**141 done / 329 tasks; 188 remaining.** Payoff65 completes the stationary,
-alive mixed13 captain journey (GROUP-03.4.6.2.3.2): all5462 native movement
-commits,353 shared footprint observations and11132 saved continuation commits
-match. Move retains logical roster references and inner/outer membership after
-physical completion, publishes the second12+1 shared generation at the exact
-16-second deadline, and clears stale partial-route state on new task activation.
-Nine literal native deadline masks/counts match; eight Save87 checkpoints span
-both publications and natural physical cleanup. Invalid logical pointers,
-booleans, duplicate indices and nonfinite deadlines are rejected. Save86 is
-rejected before world restore; the bot VM remains process-owned.
-Both frozen complete readonly captures are authenticated by the new reentry
-contract. Saved Ghidra readback retains605 roles,51 layouts/320 fields,271
-explicit ABIs and53 globals. Full debug RoC/TFT suites pass2407 tests and1798757
-assertions per edition. Full release RoC/TFT and the required repository suite
-pass;381 Python checks and41 fresh corpus contracts pass with138 matching source
-fingerprints.
-Inventory is284 entries/126 fixtures/67 strict live entries.
-The next runnable ID is GROUP-03.4.6.2.2.2: mixed13 largest-recruit cancellation,
-shared-reference reclamation, generation reuse and saved continuation. Native
-captures exist; retry+a4 is a target-record pointer, not an identity pair, and
-its canonicalization must be backed by original consumer code. General attack
-eligibility, ranged-roster policy, Hero/default/summoned producers remain
-03.4.6.2.1.2. Live membership changes, moving captains, town homes and dynamic
-coarse publication remain separate requirements.
+**142 done / 330 tasks; 188 remaining.** Payoff66 verifies largest-recruit
+public Stop before/after mixed13 shared admission (GROUP-03.4.6.2.2.2.1).
+The engine matches5458/5593 complete native commits,353/400 shared footprints
+and11764/12572 saved suffix commits. Both repeated captures per variant agree;
+logical roster retention, synchronous physical detachment, surviving reference1,
+live maximum31 versus cached63 and new generation in reused storage all pass.
+The current Move port already implements this behavior; literal full-motion and
+lifetime regressions now protect it. Retry+a4 is authenticated as a fine-target
+record pointer, separately from blocker identity+a8/ac. Saved Ghidra readback
+retains606 roles,52 layouts/323 fields,272 explicit ABIs and53 globals.
+Full debug/release RoC/TFT pass2409 tests/2199857 assertions per edition. The
+required release repository suite,393 Python checks and42 fresh corpus contracts
+pass with139 matching source fingerprints. Inventory is285 entries/127 fixtures/
+68 strict live entries. Save87 needs no change.
+Largest-only cancellation and explicit last-binding retirement are split into
+separate witnesses. The next runnable ID is GROUP-03.4.6.2.2.2.2: cancel the last
+bound group, observe zero-reference collection, reuse storage with a new generation
+and resume saved state. Natural completion and Stop of only the largest member do
+not prove every Stop/RemoveUnit/retarget branch. General attack eligibility,
+ranged-roster policy, Hero/default/summoned producers remain03.4.6.2.1.2. Dynamic
+roster changes, moving captains, town homes and dynamic coarse publication remain
+separate requirements. The prior complete mixed13 journey remains matched at5462
+commits,353 footprints and11132 Save87 suffix commits.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -53,7 +52,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 30 | 10 |
+| GROUP — Shared movement groups | 31 | 10 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -749,7 +748,9 @@ Shared owner publication (GROUP-03.4.6.2.2) is split into the first engine phase
 and the wider mixed cancellation/reclamation control:
 
 - [x] **GROUP-03.4.6.2.2.1** Port prior speed publication/reset, global live radius accumulation before physical routing, cached footprint separation and stable owner references for the mixed13 handoff and largest-member completion. [Payoff63](retail-pathfinding-engine.md#shared-captain-parameters-across-unequal-physical-batches):4560 exact commits through12000ms,127 footprint observations and9618 Save86 suffix commits. Complete native repeats retain353 footprints and325 publications across two distinct generations. Captain admission now composes bounded old-source recovery; saved classification cooldown preserves the existing blocked pair. Full mixed recovery/reentry remains03.4.6.2.3.
-- [ ] **GROUP-03.4.6.2.2.2** Verify and port mixed13 largest-recruit cancellation before/after common owner admission: retain surviving live maximum versus cached footprint, exact reference decrements, deferred zero-reference collection, generation reuse and saved continuations. Complete short-alias cancellation captures exist; authenticate retry target-pointer semantics before canonical comparison and do not certify the two zero-event long-name attempts.
+**GROUP-03.4.6.2.2.2 — Mixed13 cancellation and reference lifetime.** Largest-member Stop and explicit last-binding retirement have separate public witnesses.
+- [x] **GROUP-03.4.6.2.2.2.1** Verify largest-recruit public Stop before/after shared admission, retained logical roster, surviving live maximum versus cached footprint, exact surviving references, generation reuse and saved continuation. Complete repeated early/late native captures authenticate retry+a4 as a fine-target record pointer. Engine matches5458/5593 complete commits,353/400 footprints and11764/12572 saved suffix commits. Full debug/release/repository suites,393 Python checks,42 fresh contracts and saved Ghidra readback pass. See [payoff66](retail-pathfinding-engine.md#largest-captain-recruit-stop-before-and-after-shared-admission).
+- [ ] **GROUP-03.4.6.2.2.2.2** Explicitly cancel the final bound physical group, then verify zero-reference deferred collection, restored zero-reference state, reused parameter storage with a new generation and no retired logical/physical references. Compose public Stop/RemoveUnit/retarget controls and saved continuations; natural completion and largest-only Stop do not establish every final-binding cancellation branch.
 
 Mixed recovery and reentry (GROUP-03.4.6.2.3) require two separate producers:
 

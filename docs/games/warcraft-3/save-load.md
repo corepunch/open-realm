@@ -976,3 +976,13 @@ logical references and booleans are rejected. Version86 payloads are rejected
 before restoring the world. The bot script VM remains process-owned; this format
 restores Move's membership and physical continuation.
 See [logical-roster reentry](retail-pathfinding-engine.md#logical-captain-roster-survives-physical-completion).
+
+
+Save87 also resumes largest-recruit public Stop before and after12+1 shared
+admission: eight checkpoints per variant reproduce11764/12572 suffix commits.
+Immediate post-Stop saves retain logical membership while physical references
+are already detached; the surviving shared owner has one binding. Later saved
+reentry reuses the shared pool slot with a new generation, and final natural
+cleanup leaves neither generation live. Explicit cancellation of the last
+binding remains separate from these largest-only controls. No format change
+is needed. See [largest-recruit cancellation](retail-pathfinding-engine.md#largest-captain-recruit-stop-before-and-after-shared-admission).

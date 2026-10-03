@@ -657,3 +657,11 @@ Save87 persists logical actor/outer membership and validates completed members.
 See [logical-roster reentry](retail-pathfinding-engine.md#logical-captain-roster-survives-physical-completion)
 for exact references and scope. Mixed cancellation, roster mutation and moving
 captains remain independent follow-up work.
+
+
+Largest-recruit public Stop is now covered before and after shared captain
+admission. Complete early/late journeys match5458/5593 original commits and
+11764/12572 saved suffix commits. The surviving shared owner has one reference;
+its live radius falls to31 while cached path footprint stays63. Later publication
+uses a new shared generation. These regressions validate the current Move port;
+no new steering heuristic is needed. See [cancellation evidence](retail-pathfinding-engine.md#largest-captain-recruit-stop-before-and-after-shared-admission).

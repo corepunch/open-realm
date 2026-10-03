@@ -455,6 +455,18 @@
           "evidence": "168c40/05c7e0 stock mask publication"
         },
         {
+          "offset": 164,
+          "name": "fine_target",
+          "type": "ptr:WC3FineTargetPrefix",
+          "evidence": "16631b MOV EDI,[ECX+a4];166325 CMP [EDI+38],-1. Target perimeter consumer passes the record pointer to148790; this is not a canonical identity pair. Payoff66 retry observers authenticate this pointer against recorded mover fineObject. The following+a8 belongs to a distinct blocker identity."
+        },
+        {
+          "offset": 168,
+          "name": "blocker_identity",
+          "type": "WC3PathIdentity",
+          "evidence": "1680f0 loads canonical registry ECX from+a8 and EDX from+ac before054530. Separate from fine target record pointer+a4; readonly retry observer historically captures only the first blocker word beside the pointer."
+        },
+        {
           "offset": 180,
           "name": "footprint",
           "type": "WC3PathScalar",
@@ -2229,6 +2241,18 @@
           "name": "radius",
           "type": "WC3PathScalar",
           "evidence": "16c220 clears28;16e1f0 takes maximum live owned mover90 before all group movement;16c940 reads28"
+        }
+      ]
+    },
+    {
+      "name": "WC3FineTargetPrefix",
+      "length": 60,
+      "fields": [
+        {
+          "offset": 56,
+          "name": "live_slot",
+          "type": "i32",
+          "evidence": "Original166325 compares targetRecord+38 against-1 before passing the record to148790;14a710 repeats this guard before cell identity lookup. Accepted repeated early/late mixed13 cancellation traces authenticate path+a4 record against virtual captain velocity fineObject snapshots. Unknown prefix bytes remain undefined."
         }
       ]
     }
@@ -7321,6 +7345,29 @@
         }
       ],
       "evidence": "Complete x86 body: ECX captain, stack4 nullable Unit target,8 policy,c range pointer, RETc/void. Null-target reloads retained point d4/dc and calls9d44d0; live-target branch predicts target position and checks configured range before point/target request. Payoff65 reproduces stationary mixed13 second all-entered publication at exact16s deadline, both shared generations and5462 complete physical commits. Moving captain/target policy remains separate."
+    },
+    {
+      "address": "6f166310",
+      "name": "Path_IsSourceOnTargetPerimeter",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "target_override",
+          "type": "ptr:WC3FineTargetPrefix",
+          "storage": 8
+        }
+      ],
+      "evidence": "Full x86 thiscallECX path,stack4 source fine XY,8 nullable fine-target override,RET8/u32EAX. Null override uses+a4 record pointer; reject null/dead+38; software floor/wrapped integer XY; query footprint class selects1/3,2/4,2/5,3/6 perimeter. Payoff66 canonicalizes repeated cancellation retry records by authenticating pointers against observed mover fineObject, retaining the distinct+a8 blocker slot."
     }
   ],
   "globals": [

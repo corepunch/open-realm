@@ -548,3 +548,12 @@ physical completion and the exact16-second all-entered deadline creates the seco
 state. Both frozen complete captures and nine native range-deadline masks support
 the port; dynamic roster mutation, moving captains and mixed cancellation remain
 separate tasks.
+
+
+Payoff66 verifies [largest-recruit Stop before/after shared admission](retail-pathfinding-engine.md#largest-captain-recruit-stop-before-and-after-shared-admission)
+against four complete native captures. Existing Move behavior matches5458/5593
+commits,353/400 footprints and11764/12572 Save87 suffix commits. Stop releases
+physical ownership while retaining the logical roster; shared references, live
+radius and cached footprint remain distinct. Ghidra now types path+a4's fine-target
+record separately from+a8/ac's blocker identity. Explicit final-binding cancellation
+remains the next scoped control.

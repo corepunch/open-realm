@@ -6158,3 +6158,58 @@ required release repository suite and381 Python checks pass. Fresh
 with138 matching source fingerprints. Inventory is284 entries/126 fixtures/67
 strict live entries. GROUP-03.4.6.2.3.2 closes with141 completed/188 open leaves;
 the next runnable task is mixed13 cancellation03.4.6.2.2.2.
+
+
+## Largest captain recruit Stop before and after shared admission
+
+Payoff66 verifies the existing Move implementation against two complete public
+Stop journeys. Stopping birth0 at8.9 seconds, before shared admission, matches
+**5458 complete native commits,353 shared footprints and11764 Save87 suffix
+commits**. Stopping it at9.2 seconds, after admission, matches **5593 complete
+commits,400 shared footprints and12572 suffix commits**. Both native repeats
+agree. No further steering change is needed: payoff65's logical roster survives
+Stop and the shared owner continues to serve the remaining physical group.
+
+The after-admission Stop consumes the old velocity and releases the singleton's
+physical binding. The shared reference count becomes1; the next prepass changes
+live maximum63-to31, while the surviving path keeps its cached63 footprint.
+Later all-entered reentry creates a second owner generation in reused parameter
+storage. Largest-only Stop preserves logical inner/outer membership; a later
+captain publication can command that unit again. Two literal full-motion headers
+and all753 footprint observations protect these behaviors in the engine.
+
+Eight checkpoints per variant span immediate Stop, the surviving group, later
+private departure and second shared publication. The engine checks synchronous
+physical detachment, logical actor retention, native1/2 shared reference counts,
+retained cached footprint, pool reuse and final natural collection in each
+continuation. This extends production regression coverage without manufacturing
+a new movement heuristic. Save87 needs no format change.
+
+The old retry observer records two adjacent words from path+a4. They are not one
+identity: original16631b loads+a4 as a fine-target record pointer and166325 checks
+its live slot+38. The next word+a8 belongs to the separate blocker identity resolved
+by1680f0 from+a8/ac. Both native cancellation repeats record the pointer's owner
+through virtual captain movement-mask and velocity `fineObject` snapshots.
+The verifier authenticates that relationship and replaces only the address with
+its canonical mover birth; it preserves the blocker word and rejects foreign or
+aliased records. No unexplained address is discarded. Ghidra now retains the
+fine-target prefix, both path fields and the complete166310 ABI.
+
+The early map is copied from the accepted short-name late map: only `war3map.j`
+changes Stop tick92 to89; all other data/AI/object members remain byte-identical.
+The regenerated archive listfile is recorded separately. One missing-map attempt
+was interrupted and archived as rejected; directory/listfile packaging failures
+preceded the successful variant. Neither supplies accepted live evidence.
+
+The new strict cancellation contract authenticates four complete captures,
+full producers/ranges/motion/lifecycle/shared state and literal C headers. It
+explicitly leaves cancellation of the final binding open: natural cleanup and
+largest-only Stop cannot prove every Stop/RemoveUnit/retarget reclamation branch.
+GROUP-03.4.6.2.2.2 is split into those two separately reviewable controls. Full
+debug/release RoC/TFT pass2409 tests/2199857 assertions per edition, the required
+release repository suite and393 Python checks pass. Fresh
+`runtime/captain-cancel-strict-261003/corpus-results.json` passes42/42 contracts
+with139 matching source fingerprints. Saved Ghidra readback retains606 roles,52
+layouts/323 fields,272 explicit ABIs,53 globals and no unsaved changes. Inventory
+is285 entries/127 fixtures/68 strict live entries. Leaf03.4.6.2.2.2.1 closes with
+142 completed/188 open leaves; explicit final-binding retirement is next.

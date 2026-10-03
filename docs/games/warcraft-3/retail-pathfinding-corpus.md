@@ -1104,3 +1104,20 @@ passes41/41 contracts with138 matching source fingerprints. Full debug/release
 RoC/TFT pass2407 tests/1798757 assertions per edition; the required release
 repository suite passes. Saved Ghidra readback retains605 roles,51 layouts/320
 fields,271 explicit ABIs,53 globals and no unsaved changes.
+
+
+## Mixed13 largest-recruit cancellation contract
+
+`live-captain-cancel-captures-261003` authenticates two early and two late complete
+Stop captures through `retail-captain-cancel-1.27.json`. All11051 distinct scene
+commits and753 shared footprints are tied to literal C headers and full native
+producer/admission/range/lifecycle state. Retry target addresses are authenticated
+against recorded virtual captain fine-grid records before canonical comparison;
+the adjacent blocker slot remains unchanged. Twelve negative controls reject
+foreign/aliased/missing target records, missing timing variants, conflated
+footprints/references/generations and broader scope claims. Inventory is285 entries,
+127 fixtures and68 strict live entries.393 Python checks pass; fresh
+`runtime/captain-cancel-strict-261003/corpus-results.json` passes42/42 contracts
+with139 matching source fingerprints. Full debug/release RoC/TFT pass2409
+tests/2199857 assertions per edition; the required repository suite passes. Saved
+Ghidra readback has606 roles,52 layouts/323 fields,272 explicit ABIs and53 globals.
