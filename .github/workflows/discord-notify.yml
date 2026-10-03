@@ -5,6 +5,14 @@ on:
   # DISCORD_WEBHOOK_URL. Safe: this job never checks out code.
   pull_request_target:
     types: [opened, ready_for_review]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Published release tag to announce (manual catch-up; posts again if repeated)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -12,7 +20,7 @@ permissions:
 jobs:
   notify:
     # Drafts announce once, when marked ready; bot PRs never post.
-    if: github.event.pull_request.draft == false && github.event.pull_request.user.type != 'Bot'
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.draft == false && github.event.pull_request.user.type != 'Bot'
     runs-on: ubuntu-latest
     steps:
       - name: Post compact title card
@@ -38,5 +46,43 @@ jobs:
               | if length > 200 then (.[0:200] | sub(" \\S*$"; "")) + "…" else . end) as $summary
             | {embeds: [{author: {name: $author, url: $author_url, icon_url: $avatar}, title: ($title | .[0:256]), url: $url, color: 3066993}
                 + (if $summary == "" then {} else {description: $summary} end)], allowed_mentions: {parse: []}}' \
+            | curl -sS --fail-with-body --connect-timeout 10 --max-time 30 \
+                -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
+
+  notify-release:
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post published release card
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo '::error::DISCORD_WEBHOOK_URL is not set; release announcement cannot be sent.'
+            exit 1
+          fi
+          if [ "$GITHUB_EVENT_NAME" = 'workflow_dispatch' ]; then
+            TAG_PATH=$(jq -rn --arg tag "$RELEASE_TAG" '$tag | @uri')
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_PATH" > release.json
+          else
+            jq '.release' "$GITHUB_EVENT_PATH" > release.json
+          fi
+          if ! jq -e '.draft == false and .published_at != null' release.json > /dev/null; then
+            echo '::error::Only a published release can be announced.'
+            exit 1
+          fi
+          # Event/API text is data for jq; never execute or interpolate it as code.
+          jq '
+            (.body // "" | gsub("<!--[\\s\\S]*?-->"; "") | gsub("\r"; "") | split("\n\n")
+              | map(split("\n") | map(select(test("^\\s*#") | not)) | join(" ")
+                    | gsub("\\s+"; " ") | sub("^ | $"; ""; "g"))
+              | map(select(length > 0)) | first // ""
+              | if length > 500 then (.[0:500] | sub(" \\S*$"; "")) + "…" else . end) as $summary
+            | {embeds: [{author: {name: .author.login, url: .author.html_url, icon_url: .author.avatar_url},
+                title: (("Release: " + (if (.name // "") == "" then .tag_name else .name end)) | .[0:256]),
+                url: .html_url, color: 3447003}
+                + (if $summary == "" then {} else {description: $summary} end)], allowed_mentions: {parse: []}}' release.json \
             | curl -sS --fail-with-body --connect-timeout 10 --max-time 30 \
                 -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
