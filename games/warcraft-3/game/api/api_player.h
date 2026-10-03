@@ -375,7 +375,7 @@ uint32_t GetPlayerHandicap(jass_t *j) {
 }
 uint32_t GetPlayerHandicapXP(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
-    return jass_pushnumber(j, player ? PLAYER_CLIENT(player)->jass.handicap_xp : 100.0f);
+    return jass_pushnumber(j, player ? PLAYER_CLIENT(player)->jass.handicap_xp : 1.0f);
 }
 uint32_t SetPlayerHandicap(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
