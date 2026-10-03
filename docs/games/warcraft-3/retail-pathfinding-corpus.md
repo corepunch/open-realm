@@ -1238,3 +1238,18 @@ changed dimensions, terrain or padding/parent classes fail acceptance. The
 schema fixture now preserves55 layouts/357 fields,288 explicit ABIs and59
 globals. Six fresh strict load/map/widget reports pass in
 `runtime/map-load-strict-final-261003/`. See [engine initialization](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation).
+
+## Constructed map coordinates
+
+Payoff74 strengthens existing `oracle-map_construction`; no new script or entry.
+The135th fixture, `retail-constructed-map-coordinates-1.27.json`, freezes25
+complete original terrain-origin/no-file maps, full hierarchy RLE,2500 corner
+word/cell/inverse records and400 four-lane edits with exact grid reversals.
+The fresh strict runner requires matching original/C case counts. Literal
+engine inputs, maps, edits, indices and complete classifications are verified
+by Python; the production regression passes930530 assertions. Native proximity
+allocation is checked explicitly; engine occupancy uses BoxEdicts.
+Inventory remains292 entries/45 oracle scripts/96 oracle variants/121 archives/
+75 strict live contracts. Fresh map/map-construction/file-load contracts pass
+at `runtime/map-coordinates-strict74/corpus-results.json`. See
+[engine coverage](retail-pathfinding-engine.md#constructed-map-corners-and-padding-reach-engine-regression-coverage).

@@ -30,6 +30,7 @@
 #include "../g_local.h"
 #include "../common/wc3_pathing_masks.h"
 #include "retail_map_load.h"
+#include "retail_constructed_maps.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -238,6 +239,78 @@ TEST(pathfinding, file_backed_wpm_matches_complete_retail_initial_hierarchy) {
     T_EQ(G_TestMovePathClass(4,0,0,0),2);
     T_EQ(G_TestMovePathClass(0x40,0,0,0),0);
     free(file); free(decoded);
+    reset_entities(); setup_test_world();
+}
+
+vec2_t G_TestMoveWorldGrid(vec2_t point, bool inverse);
+
+static void assert_constructed_classes(retailConstructedMap_t const *map, unsigned const range[2]) {
+    unsigned total=0,at=0;
+    FOR_LOOP(level,4) total+=map->dimensions[level+2][0]*map->dimensions[level+2][1];
+    uint8_t *classes=malloc(total);
+    path_load_expand(retail_constructed_runs+range[0],range[1],classes,total);
+    uint8_t const lanes[]={2,0x80,0x40,4};
+    FOR_LOOP(level,4) {
+        unsigned w=map->dimensions[level+2][0],h=map->dimensions[level+2][1];
+        point2_t size=G_TestMovePathSize(level);
+        T_EQ(size.x,w); T_EQ(size.y,h);
+        FOR_LOOP(y,h) FOR_LOOP(x,w) {
+            unsigned value=classes[at++];
+            FOR_LOOP(lane,4) T_EQ(G_TestMovePathClass(lanes[lane],level,x,y),(value>>(6-2*lane))&3);
+        }
+    }
+    free(classes);
+}
+
+TEST(pathfinding, constructed_negative_uneven_maps_match_retail_corners_padding_and_reversal) {
+    reset_entities(); setup_test_world();
+    FOR_LOOP(m,sizeof(retail_constructed_maps)/sizeof(*retail_constructed_maps)) {
+        retailConstructedMap_t const *map=retail_constructed_maps+m;
+        unsigned w=map->dimensions[1][0],h=map->dimensions[1][1];
+        uint8_t *cells=calloc(w*h,1);
+        box2_t bounds={{wc3_float(map->bounds[0]),wc3_float(map->bounds[1])},
+                       {wc3_float(map->bounds[2]),wc3_float(map->bounds[3])}};
+        CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(w,h,cells);
+        assert_constructed_classes(map,map->initial);
+        FOR_LOOP(i,100) {
+            retailMapCorner_t const *row=retail_constructed_corners[m]+i;
+            vec2_t point={wc3_float(row->words[0]),wc3_float(row->words[1])};
+            vec2_t grid=G_TestMoveWorldGrid(point,false),world=G_TestMoveWorldGrid(grid,true);
+            T_EQ(wc3_float_bits(grid.x),row->words[2]); T_EQ(wc3_float_bits(grid.y),row->words[3]);
+            T_EQ(wc3_int_bits(wc3_floor_bits(wc3_float_bits(grid.x))),row->words[4]);
+            T_EQ(wc3_int_bits(wc3_floor_bits(wc3_float_bits(grid.y))),row->words[5]);
+            T_EQ(wc3_float_bits(world.x),row->words[6]); T_EQ(wc3_float_bits(world.y),row->words[7]);
+            uint8_t flags=0xa5;
+            T_EQ(G_GetTerrainPathingFlags(&point,&flags),row->index>=0);
+            T_EQ(flags,row->index>=0 ? 0 : 0xa5);
+            terrainPathingEdit_t edit={point,2,true};
+            T_EQ(G_SetTerrainPathingFlags(&edit),row->index>=0);
+            if(row->index>=0) {
+                T_ASSERT(G_GetTerrainPathingFlags(&point,&flags)); T_EQ(flags,2);
+                T_EQ(G_TestStaticPathMask(row->index%w,row->index/w)&0xc6,2);
+            }
+            edit.blocked=false;
+            T_EQ(G_SetTerrainPathingFlags(&edit),row->index>=0);
+        }
+        FOR_LOOP(y,h) FOR_LOOP(x,w) T_EQ(G_TestStaticPathMask(x,y)&0xc6,0);
+        assert_constructed_classes(map,map->initial);
+        FOR_LOOP(i,16) {
+            uint32_t const *e=retail_constructed_edits[m][i];
+            terrainPathingEdit_t edit={{wc3_float(e[0]),wc3_float(e[1])},e[2],true};
+            T_ASSERT(G_SetTerrainPathingFlags(&edit));
+        }
+        path_load_expand(retail_constructed_runs+map->fine[0],map->fine[1],cells,w*h);
+        FOR_LOOP(y,h) FOR_LOOP(x,w) T_EQ(G_TestStaticPathMask(x,y)&0xc6,cells[y*w+x]);
+        assert_constructed_classes(map,map->edited);
+        for(int i=15;i>=0;i--) {
+            uint32_t const *e=retail_constructed_edits[m][i];
+            terrainPathingEdit_t edit={{wc3_float(e[0]),wc3_float(e[1])},e[2],false};
+            T_ASSERT(G_SetTerrainPathingFlags(&edit));
+        }
+        FOR_LOOP(y,h) FOR_LOOP(x,w) T_EQ(G_TestStaticPathMask(x,y)&0xc6,0);
+        assert_constructed_classes(map,map->initial);
+        free(cells);
+    }
     reset_entities(); setup_test_world();
 }
 

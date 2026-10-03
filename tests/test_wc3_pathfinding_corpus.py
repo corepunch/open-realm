@@ -40,6 +40,49 @@ class CorpusTests(unittest.TestCase):
             check_report(dict(binary_sha256=self.target['game_sha256'],differences=[{}]*4,
                               stored_size=2,promotion_disabled=False,forced_east_boundary=False,engine_exact_cases=356,cases=356),entry,self.target)
 
+    def test_constructed_map_boundary_literals_match_original_words(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-constructed-map-coordinates-1.27.json').read_text())
+        source=(ROOT/'games/warcraft-3/game/tests/retail_constructed_maps.h').read_text()
+        table=source.split('retail_constructed_corners[][100]={',1)[1].split('};',1)[0]
+        expected=[v for m in frozen['maps'] for c in m['boundary_cases'] for v in c['input']+c['output']]
+        self.assertEqual([int(v,16) for v in re.findall(r'0x([0-9a-f]+)u',table)],expected)
+        indices=[int(v) for v in re.findall(r'\},(-?\d+)\},',table)]
+        self.assertEqual(indices,[c['index'] for m in frozen['maps'] for c in m['boundary_cases']])
+        table=source.split('retail_constructed_edits[][16][3]={',1)[1].split('};',1)[0]
+        self.assertEqual([int(v,16) for v in re.findall(r'0x([0-9a-f]+)u',table)],
+            [v for m in frozen['maps'] for e in m['edits'] for v in e])
+
+    def test_constructed_map_complete_grids_match_engine_numeric_fixture(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-constructed-map-coordinates-1.27.json').read_text())
+        source=(ROOT/'games/warcraft-3/game/tests/retail_constructed_maps.h').read_text()
+        table=source.split('retail_constructed_runs[][2]={',1)[1].split('};',1)[0]
+        self.assertEqual([[int(a),int(b)] for a,b in re.findall(r'\{(\d+),(\d+)\}',table)],
+            [r for m in frozen['maps'] for k in ('initial_classes','edited_classes','edited_fine') for r in m[k]])
+        table=source.split('retail_constructed_maps[]={',1)[1].split('};',1)[0]
+        rows=[line for line in table.splitlines() if line.strip()]
+        self.assertEqual(len(rows),25)
+        offset=0
+        for line,m in zip(rows,frozen['maps']):
+            self.assertEqual([int(v,16) for v in re.findall(r'0x([0-9a-f]+)u',line)],m['bounds'])
+            actual=[[int(a),int(b)] for a,b in re.findall(r'\{(\d+),(\d+)\}',line)]
+            expected=m['dimensions'][:]
+            for key in ('initial_classes','edited_classes','edited_fine'):
+                expected.append([offset,len(m[key])]);offset+=len(m[key])
+            self.assertEqual(actual,expected)
+            cells=sum(w*h for w,h in m['dimensions'][2:])
+            self.assertEqual(sum(n for n,v in m['initial_classes']),cells)
+            self.assertEqual(sum(n for n,v in m['edited_classes']),cells)
+            self.assertEqual(sum(n for n,v in m['edited_fine']),m['dimensions'][1][0]*m['dimensions'][1][1])
+
+    def test_constructed_map_matrix_retains_every_corner_and_rejections(self):
+        frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-constructed-map-coordinates-1.27.json').read_text())
+        self.assertEqual(len(frozen['maps']),25)
+        self.assertEqual(sum(c['index']>=0 for m in frozen['maps'] for c in m['boundary_cases']),675)
+        for m in frozen['maps']:
+            self.assertEqual(len(m['boundary_cases']),100)
+            for corner in ([0,0],[0,1],[1,0],[1,1]):
+                self.assertEqual(sum(c['corner']==corner for c in m['boundary_cases']),25)
+
     def test_public_oblique_engine_words_and_geometry_match_frozen_original(self):
         frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-public-oblique-1.27.json').read_text())
         source=(ROOT/'games/warcraft-3/game/tests/retail_public_oblique.h').read_text()

@@ -175,6 +175,9 @@ static void move_acc_prepare(void) {
 }
 
 #ifdef BZ_TESTS
+vec2_t G_TestMoveWorldGrid(vec2_t point, bool inverse) {
+    return inverse ? move_world_from_grid(point.x,point.y) : move_grid_from_world(point.x,point.y);
+}
 point2_t G_TestMovePathSize(unsigned level) {
     move_acc_prepare();
     if(level>=4) return (point2_t){0,0};

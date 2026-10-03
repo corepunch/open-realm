@@ -284,7 +284,9 @@
         "--binary",
         "{binary}",
         "--report",
-        "{report}"
+        "{report}",
+        "--engine-library",
+        "{engine}"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -295,13 +297,28 @@
       "checks": {
         "loader_constructor_prefix_cases": {
           "minimum": 1
+        },
+        "composed_loader_full_return_cases": {
+          "equal": 25
+        },
+        "constructed_corner_cases": {
+          "equal": 2500
+        },
+        "constructed_corner_engine_cases": {
+          "equal": 2500
+        },
+        "constructed_four_lane_edit_cases": {
+          "equal": 400
+        },
+        "constructed_grid_reversal_cases": {
+          "equal": 25
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Original 78b0a0\u21927425a0\u219273db20 bounds producer; original 04c860\u219215ab60 prefix stops at 14efe0 factory entry; full 14c8e0/151760 base-map initializers with real registry/preallocated storage; produced origin consumed by 04d870. Additionally 25 complete loader calls execute six map and two search-system factories, registration, maintenance-request scheduling, scale assignment, search/map links and hierarchy construction. No-file branch: no terrain deserialization; reusable pool entries and preallocated tables. Real repeating proximity maintenance clears supplied dirty empty cells/stamp wrap, preserves terrain edit and stale hierarchy across three deadlines. Explicit rebuild sees terrain edit. Release frees both search identities/pools then stops before external dirty-buffer free; full map release/reload unexecuted.",
+      "scope": "Original 78b0a0\u21927425a0\u219273db20 bounds producer; original 04c860\u219215ab60 prefix stops at 14efe0 factory entry; full 14c8e0/151760 base-map initializers with real registry/preallocated storage; produced origin consumed by 04d870. Additionally 25 complete loader calls execute six map and two search-system factories, registration, maintenance-request scheduling, scale assignment, search/map links and hierarchy construction. No-file branch: no terrain deserialization; reusable pool entries and preallocated tables. Real repeating proximity maintenance clears supplied dirty empty cells/stamp wrap, preserves terrain edit and stale hierarchy across three deadlines. Explicit rebuild sees terrain edit. Release frees both search identities/pools then stops before external dirty-buffer free; full map release/reload unexecuted. Additional2500 complete original all-corner adjacent-word/decimal boundary edits, exact fine/cell/inverse outputs and production coordinate comparisons use unchanged constructed map origins. Four-lane corner edits, full padded classes and exact reversal are frozen across all25 maps.",
       "exclusions": []
     },
     {
@@ -343,7 +360,7 @@
       ],
       "scope": "Complete original calls; exact dyadic world inputs; terrain high-bit set/clear, cell selection, no implicit hierarchy mutation; clipped base/parent updates and metadata preservation against independent model. Synthetic maps; constructors, actual origin producers, objects and non-dyadic rounding excluded. Additional576 complete world-to-fine edits record exact boundary words/cell admission and separate original scalar inverse composition. Additional108 original05b986..05ba9e point-bridge clipping prefixes retain user words and compare production C across three origins/cell sizes, four edges and adjacent values; request allocation/completion certified by public captures separately.",
       "exclusions": [
-        "Original public coordinate/metadata producers, full domain rejection and fine/proximity/adaptive padding remain MAP-01.2/3."
+        "Synthetic maps in this oracle; original terrain-origin constructor and complete padding/corner composition now certified by oracle-map_construction (MAP-01.2/3)."
       ]
     },
     {
@@ -25330,6 +25347,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-map-load-1.27.json",
       "sha256": "c6a822a80dc9ef8e913c3ea21564c0eda1293c9337eeb7c0cefb18cd41d9d782"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-constructed-map-coordinates-1.27.json",
+      "sha256": "5d4ce64302a722a964047eb822178bfabf4f43467c6dd100cebe84b90fc040da"
     }
   ]
 }

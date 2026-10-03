@@ -5,6 +5,8 @@ No stubs or retail bytes. Full bounds getter, bounded loader/constructor prefix,
 full base-map initializers and complete no-file loader calls using real registry slots.
 """
 import argparse
+import ctypes
+import math
 import hashlib
 import itertools
 import json
@@ -21,7 +23,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine-library', type=Path, help='compare production coordinate arithmetic')
+    parser.add_argument('--coordinate-fixture', type=Path, help='freeze constructed maps, boundary words and full classification grids')
     args = parser.parse_args()
+    engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
+    if engine:
+        engine.pathing_world_grid.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != SHA256:
@@ -166,6 +173,28 @@ def main():
         examples.append(dict(packed_min=[x0, y0], packed_max=[x1, y1], world_bounds=world_bounds,
                              fine=[width, height], map_dimensions=dimensions))
     factory_cases = 0
+    coordinate_maps = []
+    grid_reads, selected_cells = [], []
+    uc.hook_add(UC_HOOK_CODE, lambda m,a,n,d:grid_reads.append(words(m.reg_read(UC_X86_REG_EDX),1)[0]),
+                begin=0x6f070c80, end=0x6f070c80)
+    uc.hook_add(UC_HOOK_CODE, lambda m,a,n,d:selected_cells.append(m.reg_read(UC_X86_REG_ECX)),
+                begin=0x6f054000, end=0x6f054000)
+
+    def float_word(value):
+        return struct.unpack('<I', struct.pack('<f', value))[0]
+
+    def adjacent(value, step):
+        raw = float_word(value)
+        if not step: return raw
+        if not raw & 0x7fffffff: return 0x80000001 if step < 0 else 1
+        return raw - step if raw & 0x80000000 else raw + step
+
+    def class_runs():
+        values = []
+        for data, (w,h) in zip(buffers[2:], dimensions[2:]):
+            values.extend(word >> 24 for word in words(data,w*h*2)[1::2])
+        return [[len(list(group)), value] for value, group in itertools.groupby(values)]
+
     maintenance_callbacks = []
     def observe_maintenance(machine, address, size, data):
         maintenance_callbacks.append((machine.reg_read(UC_X86_REG_ECX), words(owner + 0x164 + 0x40, 1)[0]))
@@ -293,6 +322,70 @@ def main():
                     expected[2 * (y * w + x) + 1] = (0x55 * state) << 24
             assert words(data, len(expected)) == expected, (level, width, height)
             expected_levels.append(expected)
+        # Use the fully constructed world origin, fine map and hierarchy.
+        # Each corner crosses both axes with adjacent raw words and decimal
+        # fractions on either side. No coordinate producer/map state is replaced.
+        ox, oy, mx, my = struct.unpack('<4f', uc.mem_read(game + 0x6c,16))
+        boundary_cases = []
+        initial_classes = class_runs()
+        clean_fine = words(buffers[1],width*height)
+        for corner_x, corner_y in itertools.product(range(2),repeat=2):
+            edges = [(ox,mx)[corner_x], (oy,my)[corner_y]]
+            choices = [[adjacent(edge,step) for step in (-1,0,1)] +
+                       [float_word(edge - .1),float_word(edge + .1)] for edge in edges]
+            for wx, wy in itertools.product(*choices):
+                write(xptr,wx); write(yptr,wy)
+                grid_reads.clear(); selected_cells.clear()
+                run(0x6f04d870,xptr,2,1,edx=yptr)
+                assert len(grid_reads)==2
+                fine_words = grid_reads[::-1]
+                xy = [math.floor(struct.unpack('<f',struct.pack('<I',v))[0]) for v in fine_words]
+                valid = 0<=xy[0]<width and 0<=xy[1]<height
+                index = xy[1]*width+xy[0] if valid else -1
+                assert selected_cells==[buffers[1]+4*index if valid else 0]
+                expected = clean_fine[:]
+                if valid: expected[index] |= 0x02000000
+                assert words(buffers[1],width*height)==expected
+                output = fine_words + [v&0xffffffff for v in xy]
+                scalar_a, scalar_b, scalar_out = 0x10008500,0x10008510,0x10008520
+                for k in range(2):
+                    write(scalar_a,fine_words[k]); write(scalar_b,float_word(32))
+                    run(0x6f06f9c0,scalar_out,scalar_b,edx=scalar_a)
+                    write(scalar_a,words(scalar_out,1)[0]); write(scalar_b,float_word((ox,oy)[k]))
+                    run(0x6f06fbb0,scalar_out,scalar_b,edx=scalar_a)
+                    output.append(words(scalar_out,1)[0])
+                inputs = [wx,wy,float_word(ox),float_word(oy),float_word(32),float_word(32)]
+                if engine:
+                    actual = (ctypes.c_uint32*6)()
+                    engine.pathing_world_grid((ctypes.c_uint32*6)(*inputs),actual)
+                    assert list(actual)==output,(width,height,inputs,list(actual),output)
+                boundary_cases.append(dict(corner=[corner_x,corner_y], input=[wx,wy], output=output, index=index))
+                run(0x6f04d870,xptr,2,0,edx=yptr)
+                assert words(buffers[1],width*height)==clean_fine
+        assert class_runs()==initial_classes
+        # Retain original clipped boundary effects in every movement lane.
+        # Complete original edits followed by its explicit hierarchy rebuild;
+        # reverse every edit and demand exact full-grid restoration.
+        edits = []
+        for mask in (2,4,0x40,0x80):
+            for x,y in ((0,0),(width-1,0),(0,height-1),(width-1,height-1)):
+                wx,wy = float_word(ox+32*(x+.25)),float_word(oy+32*(y+.75))
+                write(xptr,wx); write(yptr,wy)
+                run(0x6f04d870,xptr,mask,1,edx=yptr)
+                edits.append([wx,wy,mask])
+        run(0x6f04e0b0,0)
+        edited_classes = class_runs()
+        edited_fine = [v>>24 for v in words(buffers[1],width*height)]
+        for wx,wy,mask in reversed(edits):
+            write(xptr,wx); write(yptr,wy)
+            run(0x6f04d870,xptr,mask,0,edx=yptr)
+        run(0x6f04e0b0,0)
+        assert words(buffers[1],width*height)==clean_fine
+        assert class_runs()==initial_classes
+        coordinate_maps.append(dict(bounds=list(map(float_word,(ox,oy,mx,my))), dimensions=dimensions,
+            initial_classes=initial_classes, boundary_cases=boundary_cases, edits=edits,
+            edited_fine=[[len(list(group)),value] for value,group in itertools.groupby(edited_fine)],
+            edited_classes=edited_classes))
         # A terrain edit leaves the hierarchy stale even when the actual
         # constructed proximity timers fire repeatedly at their real deadlines.
         stale = [bytes(uc.mem_read(data, w * h * 8)) for data, (w, h) in zip(buffers[2:], dimensions[2:])]
@@ -352,7 +445,14 @@ def main():
         write(0, 0)
         release_prefixes += 1
         factory_cases += 1
+    if args.coordinate_fixture:
+        args.coordinate_fixture.write_text(json.dumps(dict(binary_sha256=digest,maps=coordinate_maps,
+            scope='25 complete original no-file constructors from actual packed terrain bounds; full allocated static hierarchies, all corners and decimal/adjacent-word edits with original inverse calls; four-lane corner edit/rebuild/reversal. Engine uses BoxEdicts instead of allocating the native proximity grid.'),separators=(',',':'))+'\n')
     report = dict(binary_sha256=digest, terrain_bounds_full_calls=cases,
+                  constructed_corner_cases=sum(len(m['boundary_cases']) for m in coordinate_maps),
+                  constructed_corner_engine_cases=sum(len(m['boundary_cases']) for m in coordinate_maps) if engine else 0,
+                  constructed_four_lane_edit_cases=sum(len(m['edits']) for m in coordinate_maps),
+                  constructed_grid_reversal_cases=len(coordinate_maps),
                   constructor_factory_observation="6f14ecb0; then resume through full 04c860 return",
                   factory_prerequisites="Six reusable map pool entries with original vtables; preallocated cell/dirty tables; eight free registry slots and two reusable search-system pool entries; two maintenance request blocks and heap capacity. No stubs/import hooks.",
                   loader_constructor_prefix_cases=cases, map_initializer_full_calls=initialized_maps,
@@ -362,6 +462,7 @@ def main():
                   release_prefixes=release_prefixes, release_boundary="6f07c678 Storm Ordinal_403: first proximity dirty-buffer free",
                   produced_origin_terrain_edit_cases=consumer_cases, examples=examples,
                   scope='Original 78b0a0→7425a0→73db20 bounds producer; original 04c860→15ab60 prefix stops at 14efe0 factory entry; full 14c8e0/151760 base-map initializers with real registry/preallocated storage; produced origin consumed by 04d870. Additionally 25 complete loader calls execute six map and two search-system factories, registration, maintenance-request scheduling, scale assignment, search/map links and hierarchy construction. No-file branch: no terrain deserialization; reusable pool entries and preallocated tables. Real repeating proximity maintenance clears supplied dirty empty cells/stamp wrap, preserves terrain edit and stale hierarchy across three deadlines. Explicit rebuild sees terrain edit. Release frees both search identities/pools then stops before external dirty-buffer free; full map release/reload unexecuted.')
+    if engine: report['engine_library_sha256']=hashlib.sha256(args.engine_library.read_bytes()).hexdigest()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({k: v for k, v in report.items() if k != 'examples'}, indent=2))

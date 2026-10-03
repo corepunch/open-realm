@@ -6697,3 +6697,52 @@ each, plus470 Python pathfinding checks. Six fresh strict load/map/widget
 contracts pass. The movement suite's2762164 original assertions retain its
 recorded scalar/trajectory expectations; its isolated terrain fixture gains
 one air-baseline assertion. Backlog150 done/186 remaining; no added IDs.
+
+## Constructed map corners and padding reach engine regression coverage
+
+Payoff74 closes existing MAP-01.2 and MAP-01.3 together. The map-construction
+oracle now retains25 complete original no-file loads from the actual packed
+terrain endpoint producer, including negative origins and non-power-of-two
+fine dimensions4x4,16x24,32x20,68x36 and128x96. It uses the constructed game
+origin, fine/proximity maps and four-level hierarchy without replacing them
+before coordinate consumers. Proximity dimensions are(fine+16)/8+1; base
+dimensions are(fine+16)/2+1 and parents are truncating shifts. Initial fine
+and proximity cells retain00ffffff; adaptive storage starts zero and original
+rebuild classifies only the clipped fine rectangle plus its inclusive border.
+
+Every map exercises all four corners with both axes independently taking
+predecessor/equal/successor binary32 words and rounded decimal offsets-0.1/+0.1.
+All2500 complete04d870 calls retain exact fine words, wrapped floor integers,
+actual cell/null decisions and separate original multiply32/add-origin inverse
+words.675 inputs are accepted;1825 are rejected. At zero origin, the negative
+least subnormal input80000001 scales to fine zero and is accepted in cell0:
+a host comparison against the world bounds would reject it incorrectly.
+An exact maximum is outside the fine map. These results come from complete
+original consumers, not a geometric acceptance model.
+
+The engine regression invokes its terrain query/write API and the actual
+Move world/fine adapters against every literal row. It compares all41090
+allocated hierarchy cells in all four lanes before edits, after restored
+corner requests, after four-lane corner edits and after their reversal.
+Original explicit rebuilds freeze the edited classes; the engine continues
+to use its documented static bake invalidation policy. All original fine
+cells and hierarchy cells restore exactly. The full original proximity
+allocation/initialization is asserted; the engine retains its Quake2
+BoxEdicts consumer instead of allocating a duplicate native proximity grid.
+Dynamic coarse publication and retail storage lifetime remain their existing
+tasks. No network or saved entity layout changes.
+
+Frozen numeric expectations are in `retail-constructed-map-coordinates-1.27.json`
+and `retail_constructed_maps.h`; Python checks keep every word, index, edit,
+RLE run and map dimension synchronized. The existing oracle-map_construction
+entry requires25 complete loads,2500 original/C corner cases,400 lane edits
+and25 exact grid reversals. No new oracle, corpus entry or TODO ID is added.
+Saved Ghidra622-role annotations now retain these constructor/edit contracts.
+The focused production regression passes930530 assertions. Fresh strict
+map_construction/maps/file-load contracts are in `runtime/map-coordinates-strict74/`.
+See [corpus](retail-pathfinding-corpus.md#constructed-map-coordinates) and
+[backlog](retail-pathfinding-todo.md#map-01--map-coordinates).
+
+Required release `make test` passes RoC and TFT with2484 tests/4270524
+assertions each, and473 Python pathfinding checks. Backlog152 done/184 open;
+no added tasks. Artifact:runtime/map-coordinates-make-test74.log.

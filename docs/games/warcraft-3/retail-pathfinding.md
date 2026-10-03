@@ -633,3 +633,11 @@ The engine corrects hierarchy allocation, zero allocation padding and the
 original ground coarse mask. CDataStore/map headers, owner pointers, the owner
 global and explicit stream/constructor/loader ABIs are persisted:622 roles,
 55 layouts/357 fields,288 ABIs/59 globals. See [complete file-backed loading](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation).
+
+Payoff74 closes MAP-01.2/3 together. The existing complete terrain-origin
+constructor oracle now covers2500 all-corner adjacent-word/decimal inputs
+and400 four-lane corner edits with full-grid reversal across25 map shapes.
+Production engine adapters, terrain APIs and every padded static class match
+the frozen original; BoxEdicts remains the engine proximity consumer. Saved
+Ghidra constructor/edit annotations record this scope. See
+[constructed map coverage](retail-pathfinding-engine.md#constructed-map-corners-and-padding-reach-engine-regression-coverage).

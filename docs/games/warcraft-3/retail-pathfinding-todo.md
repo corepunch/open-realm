@@ -8,21 +8,16 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**150 done / 336 tasks; 186 remaining.** Payoff73 closes existing MAP-02.1,
-with no new TODO IDs: two complete actual WPM-backed loads agree on all98304
-fine flag bytes and145848 four-lane hierarchy classifications per run. The
-engine now allocates and initializes the full retail hierarchy, keeps unused
-padding zero, and distinguishes ground coarse mask6 from individual fine
-mask2. The real MPQ reader and no-file adapter both match all captured cells.
-Release RoC/TFT each pass2483 tests/3339994 assertions; required `make test`,
-470 Python checks and six fresh load/map/widget contracts pass. Saved Ghidra
-readback has622 roles,55 layouts/357 fields,288 explicit ABIs and59 globals.
-Inventory292 entries/134 fixtures/75 strict live contracts. See
-[file-backed initialization](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation).
-Payoff71's MAP-03.5/03.6 and payoff72's MAP-02.3 closures remain in place.
-Next runnable ID is MAP-01.2: connect the existing original negative-origin/
-non-power-of-two constructor sweep to the corrected engine coordinate and
-hierarchy consumers. MAP-01.3 retains the full corner/non-dyadic matrix.
+**152 done / 336 tasks; 184 remaining.** Payoff74 closes existing MAP-01.2
+and MAP-01.3 together without adding or splitting IDs. All25 original
+terrain-origin constructors now feed2500 complete corner/decimal inputs,
+400 four-lane edits and exact full-grid reversals. The engine consumes every
+frozen word/cell decision and compares all padded hierarchy cells through
+production terrain APIs. See [constructed map coverage](retail-pathfinding-engine.md#constructed-map-corners-and-padding-reach-engine-regression-coverage).
+
+Next runnable chunk is FOOT-02.1/02.2: finish the passage matrix across
+movement lanes, footprint classes, sub-cell offsets, diagonal corners and
+map edges against actual engine consumers. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -34,7 +29,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | Area | Done | Remaining |
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
-| MAP — Map construction and lifetime | 11 | 11 |
+| MAP — Map construction and lifetime | 13 | 9 |
 | FOOT — Footprints and query policy | 11 | 7 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
@@ -274,8 +269,8 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 ### MAP-01 — Map coordinates
 
 - [x] **MAP-01.1** Terrain-origin producer and 25 no-file map loads are covered. Evidence: [map construction][map-load]; file-backed loading and non-dyadic inputs are excluded.
-- [ ] **MAP-01.2** Sweep negative origins and non-power-of-two dimensions through coordinate conversion; assert fine/proximity/adaptive padding and clipping.
-- [ ] **MAP-01.3** Test each map corner at below/equal/above boundary coordinates, including non-dyadic values; record exact accepted cells and conversions.
+- [x] **MAP-01.2** Sweep negative origins and non-power-of-two dimensions through coordinate conversion; assert fine/proximity/adaptive padding and clipping. Evidence: [constructed map coverage](retail-pathfinding-engine.md#constructed-map-corners-and-padding-reach-engine-regression-coverage),25 complete actual endpoint/no-file constructors, full fine/proximity initialization and four-level padded hierarchy,400 lane corner edits and exact reversals. Engine production terrain APIs/Move adapters compare all literal cells/classes; native proximity allocation is asserted while engine uses BoxEdicts. No added IDs.
+- [x] **MAP-01.3** Test each map corner at below/equal/above boundary coordinates, including non-dyadic values; record exact accepted cells and conversions. Same [evidence](retail-pathfinding-engine.md#constructed-map-corners-and-padding-reach-engine-regression-coverage):2500 complete original constructed-map corner calls use adjacent raw words and decimal offsets on both axes;675 accept/1825 reject, with original fine/integer/cell/inverse words frozen. Full engine regression passes930530 assertions including zero-origin negative-subnormal acceptance, exact-max rejection and complete grid reversal.
 - [x] **MAP-01.4** Explicitly integrate the discovered whole-map normalization mismatch: use direct software world/fine conversion for engine endpoint admission/correction, object positions, segments, fine route points and rectangle goals. Evidence: [direct coordinate conversion](retail-pathfinding-engine.md#direct-world-coordinates-preserve-boundary-cells),576 complete original edits and scalar inverse compositions, repeated O0/O2 raw comparisons, actual Move/point/rectangle/correction regression fails five assertions under the old adapter. Original public domain/padding and complete corner producers remain01.2/3.
 
 ### MAP-02 — Initial loading
