@@ -8,6 +8,9 @@ typedef struct {
 } onlineGame_t;
 
 #ifdef BZ_EOS
+#ifdef BZ_TESTS
+void Online_Acceptance_f(void);
+#endif
 bool Online_Begin(void);
 void Online_Frame(uint32_t msec);
 void Online_Shutdown(void);

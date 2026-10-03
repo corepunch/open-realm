@@ -1,4 +1,5 @@
 #include "common.h"
+#include "online.h"
 
 #include "mpq.h"
 #include "test.h"
@@ -1826,6 +1827,9 @@ void Com_Init(int argc, cstring_t *argv) {
     Cmd_AddCommand("path", Com_Path_f);
     Cmd_AddCommand("dir", Com_Dir_f);
     Cmd_AddCommand("test", Com_Test_f);
+#if defined(BZ_EOS) && defined(BZ_TESTS)
+    Cmd_AddCommand("online_acceptance", Online_Acceptance_f);
+#endif
     Cvar_ApplyConfigCommandLine(argc, argv);
     Cbuf_AddEarlyCommands(false);
     Cbuf_Execute();
