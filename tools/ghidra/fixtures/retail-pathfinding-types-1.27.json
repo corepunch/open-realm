@@ -2255,6 +2255,24 @@
           "evidence": "Original166325 compares targetRecord+38 against-1 before passing the record to148790;14a710 repeats this guard before cell identity lookup. Accepted repeated early/late mixed13 cancellation traces authenticate path+a4 record against virtual captain velocity fineObject snapshots. Unknown prefix bytes remain undefined."
         }
       ]
+    },
+    {
+      "name": "WC3AIScriptPrefix",
+      "length": 592,
+      "fields": [
+        {
+          "offset": 584,
+          "name": "script_vm",
+          "type": "ptr:void",
+          "evidence": "Original9cbc64 tests AI+248 before9146f0;9cbcb0 stores its returned private JASS VM. Repeated public StartCampaignAI at17s reloads sources without replaying main or captain creation; complete readonly all-Stop journeys retain3549 physical commits."
+        },
+        {
+          "offset": 588,
+          "name": "script_environment",
+          "type": "ptr:void",
+          "evidence": "Original9cbcbc calls90cb10 with successful VM and stores result atAI+24c; nonnull result admits9c8d10(0). Opaque environment layout and VM continuations remain unrecovered."
+        }
+      ]
     }
   ],
   "methods": [
@@ -7368,6 +7386,24 @@
         }
       ],
       "evidence": "Full x86 thiscallECX path,stack4 source fine XY,8 nullable fine-target override,RET8/u32EAX. Null override uses+a4 record pointer; reject null/dead+38; software floor/wrapped integer XY; query footprint class selects1/3,2/4,2/5,3/6 perimeter. Payoff66 canonicalizes repeated cancellation retry records by authenticating pointers against observed mover fineObject, retaining the distinct+a8 blocker slot."
+    },
+    {
+      "address": "6f9cbc00",
+      "name": "AI_LoadSourcesAndInitializeVMOnce",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "ai",
+          "type": "ptr:WC3AIScriptPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "script_name",
+          "type": "ptr:u8",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete x86 thiscallECX AI, stack4 filename,RET4/void.9c87f0 reads common.j/common.ai/requested source before AI+248 null guard;9146f0 creates VM,90cb10 environment,9c8d10 initializes entry only under guard. Sources release through0669d0 afterward. Payoff67 public second StartCampaignAI after all13 Stop reloads sources but creates no new captain and no physical movement. Engine admission gate persists inSave88; private VM continuation restoration remains open."
     }
   ],
   "globals": [

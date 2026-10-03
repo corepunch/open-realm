@@ -23734,6 +23734,150 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-captain-last-binding-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_captain_last_binding_trace.py",
+        "{archive}/runtime/captain-thirteen-mixed-cancel-all-restart-v1-first-261003.jsonl",
+        "{archive}/runtime/captain-thirteen-mixed-cancel-all-restart-v1-repeat-261003.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-captain-last-binding-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--headers-root",
+        "games/warcraft-3/game/tests",
+        "--report",
+        "{report}"
+      ],
+      "report": "captain-last-binding-captures.json",
+      "inputs": {
+        "capture": "runtime/captain-thirteen-mixed-cancel-all-restart-v1-first-261003.jsonl",
+        "sha256": "68d7cdb49b4b37517afaeaeabae1b3e8c95114529bebaa3cb65794a49c16ba9c",
+        "bytes": 23069306,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+            "trace_wc3_pathfinding.py": "58807f1ef70ccf6ece9471889f0c6ea5474439a0e2719e317a6c38585aa2da45",
+            "wc3_pathfinding.js": "8174b701a79d3c6f12a6ef82ec2d60e13930dec148acf4280561fc2ba0637e3c",
+            "wc3_pathfinding_probe.j": "98c1256a10bc02d8fd378848b70f56a21d8f011049318edc4dcda14a51286442",
+            "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "6660e1c564e6471a1b0890ca6195863232a8acb12ce559f379f4267de7733ca2"
+          },
+          "map": "Maps\\PathingRE-CZ13V1-261003.w3m",
+          "seconds": 140.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "captainApproachEvents": true,
+          "captainMembershipEvents": true,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "expected_exit": 0,
+      "expected_status": "pass",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "complete_scene_journeys": {
+          "equal": true
+        },
+        "whole_retail_pathfinder": {
+          "equal": false
+        },
+        "engine_commits": {
+          "equal": 3549
+        },
+        "shared_footprints": {
+          "equal": 12
+        },
+        "remove_retarget_reuse_remain_open": {
+          "equal": true
+        }
+      },
+      "scope": "Complete stationary alive mixed13 all13 public Stop at9.2s, deferred final binding retirement and zero-reference collection; repeated StartCampaignAI at17s reloads sources without replaying main. Save88 preserves initialization gate and empty shared physical groups. RemoveUnit/retarget/reuse and private AI VM restoration remain open.",
+      "evidence": "SOCL",
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-thirteen-mixed-cancel-all-restart-v1-repeat-261003.jsonl",
+            "sha256": "573a3f205b81a9adfe6868ddcb32e9abc8de75947d6328986ab4adfeb095c11c",
+            "bytes": 23055054,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+                "trace_wc3_pathfinding.py": "58807f1ef70ccf6ece9471889f0c6ea5474439a0e2719e317a6c38585aa2da45",
+                "wc3_pathfinding.js": "8174b701a79d3c6f12a6ef82ec2d60e13930dec148acf4280561fc2ba0637e3c",
+                "wc3_pathfinding_probe.j": "98c1256a10bc02d8fd378848b70f56a21d8f011049318edc4dcda14a51286442",
+                "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "6660e1c564e6471a1b0890ca6195863232a8acb12ce559f379f4267de7733ca2"
+              },
+              "map": "Maps\\PathingRE-CZ13V1-261003.w3m",
+              "seconds": 130.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "captainApproachEvents": true,
+              "captainMembershipEvents": true,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -23799,7 +23943,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "c21fd5192d21e9675f851f67b010c94d44b64f853978970e5004f06f626dd256"
+      "sha256": "7cd27be3a0780e702694d99aca2aee6458be0fa6686c73920f55f44f8cd57db4"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -24245,6 +24389,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-captain-cancel-1.27.json",
       "sha256": "4e932e11ce3aace0642a340d3f25c9664a71b9fb1bd12fe547d5b9d5fbe57e21"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-last-binding-1.27.json",
+      "sha256": "7145b5c8f3904696c8aa74ace0dc1e19b420b2c45a2b71ebe149fa9a2ae3ab14"
     }
   ]
 }

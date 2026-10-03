@@ -295,7 +295,9 @@ static void move_detach_group(edict_t *unit) {
     if (!group) return;
     FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time) {
         group->members[i]=group->members[--group->count];
-        if (!group->count && !group->ticking) move_release_group(group);
+        /* Public Stop clears physical members now, but native16c150 retires
+         * the empty shared group after the next16c220 shared prepass. */
+        if (!group->count && !group->ticking && !group->shared_id) move_release_group(group);
         return;
     }
 }

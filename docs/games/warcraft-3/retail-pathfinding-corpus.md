@@ -1121,3 +1121,22 @@ footprints/references/generations and broader scope claims. Inventory is285 entr
 with139 matching source fingerprints. Full debug/release RoC/TFT pass2409
 tests/2199857 assertions per edition; the required repository suite passes. Saved
 Ghidra readback has606 roles,52 layouts/323 fields,272 explicit ABIs and53 globals.
+
+
+## Final-binding Stop and repeated AI initialization contract
+
+`retail-captain-last-binding-1.27.json` authenticates both complete readonly all13
+Stop captures,3549 physical commits,12 shared footprints and every final shared
+publication. Before-call identity records preserve the collected generation;
+post-call identity is invalid. The first post-Stop shared prepass still observes
+two bound groups; the next observes zero references and collects the owner.
+A second public AI call loads sources without entering main. Exact marker/native
+sequences, full canonical motion/lifecycle state and literal engine references
+are required. Eight Save88 continuations preserve idle movement and the admission
+gate. Private AI VM continuations and RemoveUnit/retarget/reuse remain open.
+Fresh `runtime/captain-last-binding-strict-261003/corpus-results.json` passes
+43/43 contracts with140 matching source fingerprints. All404 Python checks pass;
+full debug/release RoC/TFT pass2410 tests/2236214 assertions per edition, and the
+required repository suite passes. Inventory is286 entries/128 fixtures/69
+strict live entries. Historical largest-only and natural-completion contracts
+retain their narrower claims.

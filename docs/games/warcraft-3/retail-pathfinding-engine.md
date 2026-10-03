@@ -6171,7 +6171,9 @@ agree. No further steering change is needed: payoff65's logical roster survives
 Stop and the shared owner continues to serve the remaining physical group.
 
 The after-admission Stop consumes the old velocity and releases the singleton's
-physical binding. The shared reference count becomes1; the next prepass changes
+physical members. Payoff67 corrects the binding retirement phase: the empty
+singleton remains bound through the next shared prepass and retires in its
+physical owner visit; the reference count then becomes1. That prepass changes
 live maximum63-to31, while the surviving path keeps its cached63 footprint.
 Later all-entered reentry creates a second owner generation in reused parameter
 storage. Largest-only Stop preserves logical inner/outer membership; a later
@@ -6213,3 +6215,58 @@ with139 matching source fingerprints. Saved Ghidra readback retains606 roles,52
 layouts/323 fields,272 explicit ABIs,53 globals and no unsaved changes. Inventory
 is285 entries/127 fixtures/68 strict live entries. Leaf03.4.6.2.2.2.1 closes with
 142 completed/188 open leaves; explicit final-binding retirement is next.
+
+
+## Final captain binding Stop and repeated AI initialization
+
+Payoff67 fixes two concrete lifecycle mismatches. Two complete readonly retail
+captures issue public Stop to all13 mixed captain recruits at9.2 seconds, then
+call StartCampaignAI again at17 seconds. The engine matches all **3549 physical
+position/velocity/facing/clock commits and12 shared footprint observations**.
+All later physical motion remains absent, including eight saved continuations.
+
+Original15aa80 publishes shared parameters through16c220 before accumulating
+live member radii and visiting16c150 physical owners. Atcounter1331, after the
+public Stop, the shared owner still has two references.16c150 prunes stale
+members and retires empty physical groups. Counter1332, exact clock4113d4ca,
+sees zero references and destroys the shared owner. The observer records identity
+before the original call; afterward it is[-1,-1]. Engine Stop previously freed
+an empty shared group immediately, collecting its owner one update too early.
+Move now leaves an empty shared group bound until its physical owner visit.
+Save88 accepts that live empty group, preserving the binding and retirement
+phase. Unbound empty groups remain invalid. Unused pool capacity after load is
+not an owner identity and need not match allocator capacity before load.
+
+The first engine regression also reproduced3549 commits before failing on extra
+movement at17 seconds. Retail's second AI call reads sources without executing
+main again. Full9cbc00 assembly proves thiscall ECX AI/stack4 filename/RET4:
+9c87f0 reads common.j, common.ai and the requested source on every call;
+AI+248 nonnull skips9146f0 VM construction,90cb10 environment creation and
+9c8d10 entry initialization. +24c stores the opaque environment. Engine G_BotStart
+now retains the existing VM and script rather than queuing or performing a
+restart. Missing repeated sources are diagnosed without destroying the old VM.
+
+Save88 retains a player initialization bitmask separately from runtime bot VMs.
+The eight checkpoints at9195/9200/9205/9230/16995/17000/17030/18000ms preserve
+pending empty bindings, the zero-reference owner, collection and the later
+no-replay gate. They produce no additional movement commits. Private AI VM
+coroutines remain runtime-only; a saved initialized player without a VM emits
+an explicit continuation diagnostic and does not execute main again. This is
+not full AI coroutine restoration. Version87 and earlier formats are rejected.
+
+The strict last-binding contract hashes both captures and their frozen source/
+map metadata, all movement/producer/admission/range/lifecycle state, authenticated
+pre-destructor identities, every shared publication and both public AI calls.
+It requires the literal engine header. Mutation checks reject missing repeats,
+premature collection, nonzero collection references, replayed main and broader
+claims. Ghidra retains the typed AI prefix and initialization ABI, and annotates
+owner, physical retirement and shared collection ordering. Saved readback has607
+roles,53 layouts/325 fields,273 explicit ABIs and53 globals.
+
+Full debug/release RoC and TFT each pass2410 tests/2236214 assertions. The
+required release repository suite and404 Python checks pass. Fresh
+`runtime/captain-last-binding-strict-261003/corpus-results.json` passes43/43
+contracts with140 matching source fingerprints. Inventory is286 entries/128
+fixtures/69 strict live entries. Final-binding RemoveUnit/retarget, new parameter
+reuse after explicit cancellation, dynamic roster ownership and moving captains
+remain separate.

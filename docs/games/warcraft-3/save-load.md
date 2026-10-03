@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 87, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 88, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -986,3 +986,15 @@ reentry reuses the shared pool slot with a new generation, and final natural
 cleanup leaves neither generation live. Explicit cancellation of the last
 binding remains separate from these largest-only controls. No format change
 is needed. See [largest-recruit cancellation](retail-pathfinding-engine.md#largest-captain-recruit-stop-before-and-after-shared-admission).
+
+
+Version88 persists the player AI VM initialization gate and accepts empty shared
+physical Move groups awaiting their next owner visit. Public Stop detaches their
+members immediately; shared publication precedes physical retirement, and the
+following prepass collects the zero-reference parameter owner. Eight complete
+all13 Stop checkpoints preserve pending, zero-reference and collected states.
+A second StartCampaignAI must not replay main after loading. The creation gate
+is persistent; private AI VM coroutines remain runtime-only and missing restored
+continuations produce an explicit diagnostic. This does not restore the entire
+AI VM. Out-of-range initialization bits and version87 saves are rejected.
+See [final binding Stop](retail-pathfinding-engine.md#final-captain-binding-stop-and-repeated-ai-initialization).

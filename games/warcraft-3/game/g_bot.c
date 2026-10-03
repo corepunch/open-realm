@@ -572,6 +572,7 @@ static bool G_BotScriptPath(cstring_t script, string_t path, size_t size) {
 void G_BotStop(uint32_t player) {
     bot_t *bot = G_BotState(player);
     if (!bot) return;
+    level.ai_vm_initialized &= ~(1u << player);
     if (bot->vm) jass_close(bot->vm);
     G_BotClearCaptains(bot);
     if (bot->commands) gi.MemFree(bot->commands);
@@ -606,12 +607,24 @@ bool G_BotStart(player_t *player, cstring_t script, botMode_t mode) {
         fprintf(stderr, "WC3 AI: player %u is out of range\n", playernum);
         return false;
     }
-    if (bot->vm && jass_isrunning(bot->vm)) {
-        bot->restart_requested = true;
-        bot->pending_mode = mode;
-        strlcpy(bot->pending_script, path, sizeof(bot->pending_script));
-        jass_haltevents(bot->vm);
-        return true;
+    /* Original9cbc00 reads sources on every call, but creates/enters the VM
+     * only when AI+248 is null. A second public call must not replay main. */
+    if (level.ai_vm_initialized & (1u << playernum)) {
+        cstring_t sources[] = {"Scripts\\common.j", "Scripts\\common.ai", path};
+        bool loaded = true;
+        FOR_LOOP(i, sizeof(sources) / sizeof(*sources)) {
+            uint32_t size;
+            handle_t data = gi.ReadFile(sources[i], &size);
+            if (data) gi.MemFree(data);
+            else {
+                fprintf(stderr, "WC3 AI: player %u could not load %s\n", playernum, sources[i]);
+                loaded = false;
+            }
+        }
+        /* TODO: Save/load does not yet restore private AI VM continuations.
+         * Preserve their creation gate rather than executing main again. */
+        if (!bot->vm) fprintf(stderr, "WC3 AI: player %u retains saved initialization; private VM continuation is unavailable\n", playernum);
+        return loaded;
     }
 
     G_BotStop(playernum);
@@ -641,6 +654,7 @@ bool G_BotStart(player_t *player, cstring_t script, botMode_t mode) {
         G_BotStop(playernum);
         return false;
     }
+    level.ai_vm_initialized |= 1u << playernum;
     fprintf(stderr, "WC3 AI: player %u started %s\n", playernum, path);
     return true;
 }
@@ -658,15 +672,6 @@ void G_BotRunFrame(void) {
         if (bot->paused) continue;
         jass_runevents(bot->vm);
         if (bot->stop_requested) { G_BotStop(player); continue; }
-        if (bot->restart_requested) {
-            player_t *owner = bot->player;
-            botMode_t mode = bot->pending_mode;
-            char script[MAX_PATHLEN];
-            strlcpy(script, bot->pending_script, sizeof(script));
-            G_BotStop(player);
-            G_BotStart(owner, script, mode);
-            continue;
-        }
         if (!jass_rterror_pending(bot->vm)) continue;
         fprintf(stderr, "WC3 AI: player %u script %s stopped: %s\n", player, bot->script,
             jass_rterror_message(bot->vm));

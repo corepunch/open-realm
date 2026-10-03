@@ -557,3 +557,13 @@ physical ownership while retaining the logical roster; shared references, live
 radius and cached footprint remain distinct. Ghidra now types path+a4's fine-target
 record separately from+a8/ac's blocker identity. Explicit final-binding cancellation
 remains the next scoped control.
+
+
+Payoff67 fixes final shared-binding retirement after public Stop and prevents
+repeated StartCampaignAI from replaying main. Complete all13 Stop repeats match
+3549 physical commits/12 footprints; eight Save88 continuations remain idle.
+Empty bound physical groups retire after shared publication, and the next
+prepass collects their zero-reference owner. Ghidra retains the AI+248 creation
+gate and opaque+24c environment. Private AI VM restoration, RemoveUnit/retarget
+and fresh parameter reuse after cancellation remain open.
+See [final-binding evidence](retail-pathfinding-engine.md#final-captain-binding-stop-and-repeated-ai-initialization).

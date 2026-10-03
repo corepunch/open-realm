@@ -665,3 +665,13 @@ admission. Complete early/late journeys match5458/5593 original commits and
 its live radius falls to31 while cached path footprint stays63. Later publication
 uses a new shared generation. These regressions validate the current Move port;
 no new steering heuristic is needed. See [cancellation evidence](retail-pathfinding-engine.md#largest-captain-recruit-stop-before-and-after-shared-admission).
+
+
+Payoff67 fixes final shared-binding retirement after public Stop and prevents
+repeated StartCampaignAI from replaying main. Complete all13 Stop repeats match
+3549 physical commits/12 footprints; eight Save88 continuations remain idle.
+Empty bound physical groups retire after shared publication, and the next
+prepass collects their zero-reference owner. Ghidra retains the AI+248 creation
+gate and opaque+24c environment. Private AI VM restoration, RemoveUnit/retarget
+and fresh parameter reuse after cancellation remain open.
+See [final-binding evidence](retail-pathfinding-engine.md#final-captain-binding-stop-and-repeated-ai-initialization).

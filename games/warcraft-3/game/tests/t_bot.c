@@ -106,13 +106,16 @@ TEST(wc3_bot, roots_are_independent_and_stop_individually) {
     T_NULL(level.bots[2].vm);
 }
 
-TEST(wc3_bot, replacement_and_missing_script_are_bounded) {
+TEST(wc3_bot, repeated_start_preserves_vm_and_missing_script_is_bounded) {
     player_t *player = &game.clients[0].ps;
 
     T_ASSERT(G_BotStart(player, "test_idle.ai", BOT_CAMPAIGN));
     T_ASSERT(G_BotStart(player, "Scripts\\test_idle.ai", BOT_MELEE));
     T_NOT_NULL(level.bots[0].vm);
-    T_EQ(level.bots[0].mode, BOT_MELEE);
+    T_EQ(level.bots[0].mode, BOT_CAMPAIGN);
+    T_ASSERT(!G_BotStart(player, "missing.ai", BOT_CAMPAIGN));
+    T_NOT_NULL(level.bots[0].vm);
+    G_BotStop(0);
     T_ASSERT(!G_BotStart(player, "missing.ai", BOT_CAMPAIGN));
     T_NULL(level.bots[0].vm);
     T_ASSERT(!G_BotStart(player, "test_no_main.ai", BOT_CAMPAIGN));
@@ -130,12 +133,12 @@ TEST(wc3_bot, deferred_stop_removes_only_requested_player) {
     T_NOT_NULL(level.bots[2].vm);
 }
 
-TEST(wc3_bot, replacement_requested_inside_ai_is_deferred) {
+TEST(wc3_bot, repeated_start_inside_ai_preserves_current_script) {
     T_ASSERT(G_BotStart(&game.clients[1].ps, "test_replace.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(level.bots[1].vm);
     T_EQ(level.bots[1].mode, BOT_CAMPAIGN);
-    T_STREQ(level.bots[1].script, "Scripts\\test_idle.ai");
+    T_STREQ(level.bots[1].script, "Scripts\\test_replace.ai");
     G_BotRunFrame();
     T_NOT_NULL(level.bots[1].vm);
 }

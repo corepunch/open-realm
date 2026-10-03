@@ -8,29 +8,29 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**142 done / 330 tasks; 188 remaining.** Payoff66 verifies largest-recruit
-public Stop before/after mixed13 shared admission (GROUP-03.4.6.2.2.2.1).
-The engine matches5458/5593 complete native commits,353/400 shared footprints
-and11764/12572 saved suffix commits. Both repeated captures per variant agree;
-logical roster retention, synchronous physical detachment, surviving reference1,
-live maximum31 versus cached63 and new generation in reused storage all pass.
-The current Move port already implements this behavior; literal full-motion and
-lifetime regressions now protect it. Retry+a4 is authenticated as a fine-target
-record pointer, separately from blocker identity+a8/ac. Saved Ghidra readback
-retains606 roles,52 layouts/323 fields,272 explicit ABIs and53 globals.
-Full debug/release RoC/TFT pass2409 tests/2199857 assertions per edition. The
-required release repository suite,393 Python checks and42 fresh corpus contracts
-pass with139 matching source fingerprints. Inventory is285 entries/127 fixtures/
-68 strict live entries. Save87 needs no change.
-Largest-only cancellation and explicit last-binding retirement are split into
-separate witnesses. The next runnable ID is GROUP-03.4.6.2.2.2.2: cancel the last
-bound group, observe zero-reference collection, reuse storage with a new generation
-and resume saved state. Natural completion and Stop of only the largest member do
-not prove every Stop/RemoveUnit/retarget branch. General attack eligibility,
+**143 done / 331 tasks; 188 remaining.** Payoff67 ports final-binding
+retirement and repeated player AI initialization (GROUP-03.4.6.2.2.2.2.1).
+Both complete all13 public Stop captures agree on3549 physical commits and12
+shared footprints. Empty bound physical groups survive the first post-Stop
+shared prepass, then retire; the following prepass collects the zero-reference
+owner atcounter1332/clock4113d4ca. Engine Move now preserves this ordering,
+including saved empty groups and zero-reference owners. Repeated
+StartCampaignAI at17 seconds loads sources but does not replay main. Save88
+retains that creation gate; private AI coroutine restoration remains open.
+Eight saved checkpoints reproduce the remaining idle journey without extra
+movement or captain publication. Ghidra saved readback retains607 roles,
+53 layouts/325 fields,273 explicit ABIs and53 globals.
+Full debug/release RoC/TFT pass2410 tests/2236214 assertions per edition.
+The required release repository suite,404 Python checks and43 fresh corpus
+contracts pass with140 matching source fingerprints. Inventory is286 entries/
+128 fixtures/69 strict live entries.
+The next runnable ID is GROUP-03.4.6.2.2.2.2.2: compose final-binding
+RemoveUnit/retarget, parameter reuse with a new generation and saved continuation.
+Public Stop alone does not establish those branches. General attack eligibility,
 ranged-roster policy, Hero/default/summoned producers remain03.4.6.2.1.2. Dynamic
 roster changes, moving captains, town homes and dynamic coarse publication remain
-separate requirements. The prior complete mixed13 journey remains matched at5462
-commits,353 footprints and11132 Save87 suffix commits.
+separate requirements. Complete largest-only early/late journeys remain exact
+at5458/5593 commits and11764/12572 saved suffix commits.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -52,7 +52,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 31 | 10 |
+| GROUP — Shared movement groups | 32 | 10 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -750,7 +750,9 @@ and the wider mixed cancellation/reclamation control:
 - [x] **GROUP-03.4.6.2.2.1** Port prior speed publication/reset, global live radius accumulation before physical routing, cached footprint separation and stable owner references for the mixed13 handoff and largest-member completion. [Payoff63](retail-pathfinding-engine.md#shared-captain-parameters-across-unequal-physical-batches):4560 exact commits through12000ms,127 footprint observations and9618 Save86 suffix commits. Complete native repeats retain353 footprints and325 publications across two distinct generations. Captain admission now composes bounded old-source recovery; saved classification cooldown preserves the existing blocked pair. Full mixed recovery/reentry remains03.4.6.2.3.
 **GROUP-03.4.6.2.2.2 — Mixed13 cancellation and reference lifetime.** Largest-member Stop and explicit last-binding retirement have separate public witnesses.
 - [x] **GROUP-03.4.6.2.2.2.1** Verify largest-recruit public Stop before/after shared admission, retained logical roster, surviving live maximum versus cached footprint, exact surviving references, generation reuse and saved continuation. Complete repeated early/late native captures authenticate retry+a4 as a fine-target record pointer. Engine matches5458/5593 complete commits,353/400 footprints and11764/12572 saved suffix commits. Full debug/release/repository suites,393 Python checks,42 fresh contracts and saved Ghidra readback pass. See [payoff66](retail-pathfinding-engine.md#largest-captain-recruit-stop-before-and-after-shared-admission).
-- [ ] **GROUP-03.4.6.2.2.2.2** Explicitly cancel the final bound physical group, then verify zero-reference deferred collection, restored zero-reference state, reused parameter storage with a new generation and no retired logical/physical references. Compose public Stop/RemoveUnit/retarget controls and saved continuations; natural completion and largest-only Stop do not establish every final-binding cancellation branch.
+**GROUP-03.4.6.2.2.2.2 — Final-binding cancellation.** Public Stop and RemoveUnit/retarget with fresh parameter reuse need separate composed witnesses.
+- [x] **GROUP-03.4.6.2.2.2.2.1** Explicitly Stop all13 bound physical movers, retain empty groups until the next physical owner visit, collect their zero-reference shared owner on the following prepass, and reproduce saved pending/zero/collected states. Complete repeated native journeys match3549 commits/12 footprints. Second public StartCampaignAI reloads sources without replaying main; engine Save88 retains its creation gate. See [payoff67](retail-pathfinding-engine.md#final-captain-binding-stop-and-repeated-ai-initialization). Full debug/release/repository suites,404 Python checks,43 fresh contracts and saved Ghidra readback pass.
+- [ ] **GROUP-03.4.6.2.2.2.2.2** Compose final-binding RemoveUnit/retarget controls and fresh parameter reuse with a new generation after explicit cancellation. Verify no retired physical references, correct logical roster ownership and saved continuations. Stop and natural completion do not prove those branches; a second StartCampaignAI cannot provide reuse because the existing VM blocks entry replay.
 
 Mixed recovery and reentry (GROUP-03.4.6.2.3) require two separate producers:
 

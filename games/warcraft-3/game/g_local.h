@@ -2151,11 +2151,11 @@ typedef struct {
     ARRAY(botCommand_t, commands);
     ARRAY(edict_t *, harvesters);
     ARRAY(botGuardPost_t, guards);
-    botMode_t mode, pending_mode;
+    botMode_t mode;
     uint32_t flags;
     int32_t replacement_count;
-    bool paused, stop_requested, restart_requested;
-    char script[MAX_PATHLEN], pending_script[MAX_PATHLEN];
+    bool paused, stop_requested;
+    char script[MAX_PATHLEN];
 } bot_t;
 
 typedef struct {
@@ -2231,6 +2231,7 @@ struct level_locals {
     gLightning_t lightning_effects[MAX_LIGHTNING_EFFECTS];
     uint32_t next_lightning_id;
     bot_t bots[MAX_PLAYERS];
+    uint32_t ai_vm_initialized; /* Player bits: retail AI+248 gates initial VM creation. */
     mapInfo_t const *mapinfo;
     PATHSTR map_path;
     struct {
