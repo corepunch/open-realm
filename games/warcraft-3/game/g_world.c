@@ -2,7 +2,7 @@
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
 static bool entity_is_live_walkable_surface(edict_t const *ent) {
-    return ent && ent->destructable && ent->destructable->initialized && !ent->destructable->dead &&
+    return ent && ent->destructable && !ent->destructable->dead &&
         ent->destructable->placement_solid && ent->pathtex &&
         ent->data.DestructableData && ent->data.DestructableData->walkable;
 }
@@ -29,7 +29,7 @@ static void entity_pathtex_transform(pathTexTransformParams_t const *params, pat
     transform->turn = ((quarter % 4) + 4) % 4;
     transform->width = transform->turn & 1 ? pt->height : pt->width;
     transform->height = transform->turn & 1 ? pt->width : pt->height;
-    if (!params->ent || !params->ent->destructable || !(params->ent->destructable && params->ent->destructable->initialized))
+    if (!params->ent || !params->ent->destructable)
         transform->turn = 0, transform->width = pt->width, transform->height = pt->height;
 }
 

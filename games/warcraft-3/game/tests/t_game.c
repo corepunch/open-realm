@@ -4087,7 +4087,6 @@ SAVE_INT_FIELD_TEST(field_polymorph_form_type_round_trip, polymorph->form_type, 
 SAVE_INT_FIELD_TEST(field_polymorph_original_model_round_trip, polymorph->original_model, 37)
 SAVE_FLOAT_FIELD_TEST(field_polymorph_original_scale_round_trip, polymorph->original_scale, 1.35f)
 SAVE_FLOAT_FIELD_TEST(field_polymorph_original_move_speed_round_trip, polymorph->original_move_speed, 270.0f)
-SAVE_INT_FIELD_TEST(field_polymorph_active_round_trip, polymorph->active, 1)
 SAVE_FLOAT_FIELD_TEST(field_temporary_health_bonus_round_trip, temporary_health_bonus, 600.0f)
 SAVE_FLOAT_FIELD_TEST(field_temporary_mana_bonus_round_trip, temporary_mana_bonus, 125.0f)
 SAVE_FLOAT_FIELD_TEST(field_animation_speed_round_trip, animation_speed, 0.5f)

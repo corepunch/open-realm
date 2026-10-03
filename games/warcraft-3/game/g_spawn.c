@@ -527,7 +527,6 @@ static void SP_SpawnDestructable(edict_t *edict) {
      * cause of units sticking on trunks. */
     edict->collision = radius > 0.0f ? radius : 0.0f;
     edict->destructable->alive_collision = edict->collision;
-    edict->destructable->initialized = true;
     edict->destructable->dead = false;
     edict->destructable->item_table = (uint32_t)-1;
     edict->destructable->placement_solid = true;

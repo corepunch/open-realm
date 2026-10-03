@@ -79,7 +79,6 @@ static edict_t *make_harvest_tree(float x, float y, float life) {
     SP_monster_tree(tree);
     if (!tree->destructable) tree->destructable = G_AllocDestructable();
     assert(tree->destructable);
-    tree->destructable->initialized = true;
     tree->destructable->item_table = (uint32_t)-1;
     tree->targtype = TARG_TREE;
     tree->health.value = tree->health.max_value = life;
@@ -2015,7 +2014,6 @@ static edict_t *make_smart_destructable(float x, float y,
     dest->data.DestructableData = data;
     if (!dest->destructable) dest->destructable = G_AllocDestructable();
     assert(dest->destructable);
-    dest->destructable->initialized = true;
     dest->destructable->placement_solid = true;
     dest->health.value = dest->health.max_value = 500.0f;
     dest->targtype = targtype;
@@ -3300,7 +3298,7 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
     bridge->data.DestructableData = &bridge_data;
     if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
     assert(bridge->destructable);
-    bridge->destructable->initialized = bridge->destructable->placement_solid = true;
+    bridge->destructable->placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, terrain + 64.0f);
     G_RegisterGroundSurface(bridge);
@@ -3331,7 +3329,7 @@ TEST(wc3_movement, rectangular_bridge_support_bounds_follow_quarter_turns) {
         bridge->data.DestructableData = &bridge_data;
         if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
         assert(bridge->destructable);
-        bridge->destructable->initialized = bridge->destructable->placement_solid = true;
+        bridge->destructable->placement_solid = true;
         bridge->pathtex = (pathTex_t *)&bridge_path;
         bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 100.0f);
         bridge->targtype = TARG_BRIDGE;
@@ -3356,7 +3354,6 @@ TEST(wc3_movement, ground_surface_flag_clears_when_unregistered) {
     bridge->data.DestructableData = &bridge_data;
     if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
     assert(bridge->destructable);
-    bridge->destructable->initialized = true;
     bridge->destructable->placement_solid = true;
 
     G_RegisterGroundSurface(bridge);
@@ -3408,7 +3405,7 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
     bridge->data.DestructableData = &bridge_data;
     if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
     assert(bridge->destructable);
-    bridge->destructable->initialized = bridge->destructable->placement_solid = true;
+    bridge->destructable->placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 96.0f);
     G_RegisterGroundSurface(bridge);

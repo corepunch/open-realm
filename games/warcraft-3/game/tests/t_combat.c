@@ -823,7 +823,6 @@ TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
     gate->collision = 50.0f;
     if (!gate->destructable) gate->destructable = G_AllocDestructable();
     assert(gate->destructable);
-    gate->destructable->initialized = true;
     gate->destructable->placement_solid = true;
     gate->destructable->pathing_active = true;
     attacker->s.player = 0;
@@ -862,7 +861,6 @@ TEST(wc3_combat, secondary_attack_can_target_destructables) {
     gate->targtype = TARG_DEBRIS;
     if (!gate->destructable) gate->destructable = G_AllocDestructable();
     assert(gate->destructable);
-    gate->destructable->initialized = true;
     attacker->attack1.type = ATK_NORMAL;
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     attacker->attack2.type = ATK_SIEGE;

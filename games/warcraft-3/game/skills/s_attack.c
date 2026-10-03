@@ -60,7 +60,7 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
  * from the target whenever attack behavior reads a profile. */
 static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
     uint32_t flag = target ? G_TargetFlagForType(G_UnitTargetType(target)) : 0;
-    if (attacker && target && (target->destructable && target->destructable->initialized) && target->targtype == TARG_TREE) {
+    if (attacker && target && target->destructable && target->targtype == TARG_TREE) {
         if (attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->attack1;
         if (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->attack2;
     }
@@ -186,7 +186,7 @@ bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
         return false;
     }
     if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
-    if ((target->destructable && target->destructable->initialized)) {
+    if (target->destructable) {
         return G_DestructableCanBeAttackedBy(attacker, target);
     }
     if (M_IsDead((edict_t *)target)) return false;

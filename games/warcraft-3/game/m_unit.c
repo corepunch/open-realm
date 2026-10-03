@@ -338,7 +338,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     /* A dead polymorphed unit must not later restore as a living unit when its
      * timed buff expires.  Keep the death presentation chosen at the time of
      * death, but retire the reversible morph contract immediately. */
-    if ((self->polymorph && self->polymorph->active)) self->polymorph->active = false;
+    G_FreePolymorph(self);
     G_ClearUnitOrderQueue(self);
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);

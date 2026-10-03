@@ -233,7 +233,6 @@ static edict_t *mine_destructable(float life, float x, float y, TARGTYPE type) {
 	ent->health.value = ent->health.max_value = life;
 	if (!ent->destructable) ent->destructable = G_AllocDestructable();
 	assert(ent->destructable);
-	ent->destructable->initialized = true;
 	ent->destructable->item_table = (uint32_t)-1;
 	return ent;
 }

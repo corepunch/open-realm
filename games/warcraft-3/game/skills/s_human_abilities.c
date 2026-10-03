@@ -219,9 +219,9 @@ static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_
     st.entity->s.renderfx |= RF_HIDDEN;
 }
 
-/* Expose the authoritative runtime flag used by order validation and JASS. */
+/* Record presence is the authoritative Polymorph state for orders and JASS. */
 bool S_UnitPolymorphed(edict_t const *unit) {
-    return unit && unit->polymorph && unit->polymorph->active;
+    return unit && unit->polymorph;
 }
 
 /* Select the authored Ply2-Ply5 form from the target's movement class. */
@@ -273,7 +273,7 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
 void S_PolymorphRemove(edict_t *unit) {
     gameClient_t *client;
 
-    if (!unit || !unit->polymorph || !unit->polymorph->active) return;
+    if (!unit || !unit->polymorph) return;
     unit->s.model = unit->polymorph->original_model;
     unit->s.scale = unit->polymorph->original_scale;
     unit->unitinfo.MoveSpeed = unit->polymorph->original_move_speed;
@@ -337,14 +337,14 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
         return;
     }
 
-    if (!st.entity->polymorph) st.entity->polymorph = G_AllocPolymorph();
-    assert(st.entity->polymorph);
-    if (!st.entity->polymorph->active) {
+    if (!st.entity->polymorph) {
+        st.entity->polymorph = G_AllocPolymorph();
+        assert(st.entity->polymorph);
         st.entity->polymorph->original_model = st.entity->s.model;
         st.entity->polymorph->original_scale = st.entity->s.scale;
         st.entity->polymorph->original_move_speed = st.entity->unitinfo.MoveSpeed;
     }
-    st.entity->polymorph->active = true;
+    assert(st.entity->polymorph);
     st.entity->polymorph->ability = spell->code;
     st.entity->polymorph->buff = buff_code;
     st.entity->polymorph->form_type = form_type;
@@ -728,5 +728,5 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
         !S_UnitHasTemporaryInvisibility(unit, unit_findstatus(unit, code)))
         unit->s.renderfx &= ~RF_HIDDEN;
     if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
-    if (unit->polymorph && unit->polymorph->active && code == unit->polymorph->buff) S_PolymorphRemove(unit);
+    if (unit->polymorph && code == unit->polymorph->buff) S_PolymorphRemove(unit);
 }

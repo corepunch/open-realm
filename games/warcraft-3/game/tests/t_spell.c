@@ -979,7 +979,6 @@ TEST(wc3_spell, devotion_aura_does_not_affect_static_scenery) {
     assert(crate->destructable);
     if (!tree->destructable) tree->destructable = G_AllocDestructable();
     assert(tree->destructable);
-    crate->destructable->initialized = tree->destructable->initialized = true;
 
     T_FEQ(S_DevotionArmorBonus(footman), 3.0f, 0.001f);
     T_FEQ(S_DevotionArmorBonus(crate), 0.0f, 0.001f);
@@ -3778,7 +3777,7 @@ TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_sta
     *target->polymorph = MAKE(polymorph_t,
         .ability = MAKEFOURCC('A','p','l','y'), .buff = MAKEFOURCC('B','p','l','y'),
         .form_type = MAKEFOURCC('o','p','e','o'), .original_model = 17,
-        .original_scale = 1.25f, .original_move_speed = 234.0f, .active = true);
+        .original_scale = 1.25f, .original_move_speed = 234.0f);
     target->s.model = 99; target->s.scale = 0.75f; target->unitinfo.MoveSpeed = 120.0f;
     T_ASSERT(S_UnitPolymorphed(target));
     S_PolymorphRemove(target);
@@ -4797,7 +4796,7 @@ TEST(wc3_spell, earthquake_waits_for_effect_delay_slows_ground_and_damages_struc
     uprooted_ancient->health.value = uprooted_ancient->health.max_value = 500;
     if (!tree->destructable) tree->destructable = G_AllocDestructable();
     assert(tree->destructable);
-    tree->svflags &= ~SVF_MONSTER; tree->targtype = TARG_TREE; tree->destructable->initialized = true;
+    tree->svflags &= ~SVF_MONSTER; tree->targtype = TARG_TREE;
     tree->health.value = tree->health.max_value = 500;
     level.time = 0;
     T_ASSERT(S_CastPointTargetSpell(caster, MAKEFOURCC('A','O','e','q'), &point));
@@ -4930,10 +4929,10 @@ TEST(wc3_spell, earthquake_respects_authored_relationship_and_destructable_token
     enemy_building->health.value = enemy_building->health.max_value = 500;
     if (!tree->destructable) tree->destructable = G_AllocDestructable();
     assert(tree->destructable);
-    tree->svflags &= ~SVF_MONSTER; tree->targtype = TARG_TREE; tree->destructable->initialized = true;
+    tree->svflags &= ~SVF_MONSTER; tree->targtype = TARG_TREE;
     if (!debris->destructable) debris->destructable = G_AllocDestructable();
     assert(debris->destructable);
-    debris->svflags &= ~SVF_MONSTER; debris->targtype = TARG_DEBRIS; debris->destructable->initialized = true;
+    debris->svflags &= ~SVF_MONSTER; debris->targtype = TARG_DEBRIS;
     tree->health.value = tree->health.max_value = 500;
     debris->health.value = debris->health.max_value = 500;
 

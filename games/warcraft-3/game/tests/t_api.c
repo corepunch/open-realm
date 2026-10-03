@@ -8076,7 +8076,7 @@ TEST(wc3_api, blight_tileset_line_parse_truncates_long_value) {
 
 TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     static DestructableData_t const row = { .file = "Gate.mdx", .displayName = "WESTRING_DEST_ELVEN_GATE_HORIZONTAL" };
-    destructable_t destructable_state = { .initialized = true };
+    destructable_t destructable_state = { 0 };
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('A','T','g','1'),
         .svflags = SVF_STATIC_SCENERY, .targtype = TARG_STRUCTURE,
         .data = { .DestructableData = &row }, .destructable = &destructable_state,

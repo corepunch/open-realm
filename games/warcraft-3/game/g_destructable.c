@@ -112,7 +112,7 @@ bool G_IsDestructable(edict_t const *ent) {
     if (!ent || !ent->inuse || !ent->class_id) {
         return false;
     }
-    if (ent->destructable && ent->destructable->initialized) {
+    if (ent->destructable) {
         return true;
     }
     /* Spawned units are never destructables.  Besides avoiding an object-data
@@ -349,7 +349,7 @@ void G_InitializeDestructablePlacement(edict_t *ent, doodad_t const *placement) 
     float life_fraction;
     bool visible;
 
-    if (!ent || !placement || !(ent->destructable && ent->destructable->initialized)) {
+    if (!ent || !placement || !ent->destructable) {
         return;
     }
 
