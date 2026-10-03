@@ -499,3 +499,13 @@ into Move: 608 complete literal commits and 2,352 saved suffix commits preserve
 third-callback shared admission and one retry budget as the cohort shrinks
 3→2→1. This closes GROUP-03.4.5; larger 12+1 batches and live/moving captain
 policy remain open. Saved Ghidra comments retain the observed producer chain.
+
+
+Payoff61 integrates the [homogeneous thirteen-member batch boundary](retail-pathfinding-engine.md#stationary-captain-thirteen-member-batch-boundary):
+3647 full physical commits and15768 saved suffix commits preserve private
+followers, all-entered12+1 admission and newest-group-first visits. Move resets
+fine-request admission on replacement activation. Actual W3E support levels and
+map-startup PRNG are fixture inputs; poses are produced by normal simulation.
+Both uninterrupted native captures repeat. Saved Ghidra comments retain the
+batch cursor, shared wrapper and timestamp reset. Cross-batch mixed-radius owner
+lifetime remains GROUP-03.4.6.2, despite complete repeated native evidence.

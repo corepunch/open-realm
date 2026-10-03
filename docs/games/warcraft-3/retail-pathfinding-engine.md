@@ -5868,3 +5868,68 @@ default town homes remain open. Full debug/release RoC/TFT suites pass
 2,400 tests/933,454 assertions per edition. The full release repository suite,
 342 pathfinding Python checks and all 36 fresh corpus contracts pass. External
 `captain-three-validation-final-261003.json` pins the verification logs.
+
+
+### Stationary captain thirteen-member batch boundary
+
+Payoff61 closes GROUP-03.4.6.1 with the complete homogeneous13-recruit home
+journey. Frozen `runtime/captain-thirteen-source-v1-261003/` and
+`PathingRE-CaptainThirteenV1-261003.w3m` create Footmen in a four-column grid:
+`x=-1936+(i%4)*80`, `y=-976-(i/4)*80`, facing90, SetUnitMoveSpeed100
+(clamped150). At one second the public AI calls AddAssault(13,hfoo).
+`captain-thirteen-v1-first/repeat-261003.jsonl` each retain304 primary markers,
+1000 complete owners,3647 physical commits and the entire uncapped numerical
+phase/lifecycle stream. All phases, admission, ranges and physical words repeat.
+
+The owned pool recruits in reverse birth order; captain roster prepending restores
+birth order0..12. All13 enter callbacks run at clock `3ffffff8`; the first12
+only incrementc4. The thirteenth callback prepares all13 before publishing orders:
+request0 receives counts0..11, request1 receives count0. Both bind one shared
+parameter wrapper. Native physical creation is12 then1, so the singleton batch
+updates first. Treating that last member as an independent ordinary Move loses
+this owner contract. Move now retains roster indices and explicitly creates both
+bounded physical groups. Admission and Save85 validation accept13 stationary
+references; the serialized format is unchanged.
+
+Birth placement needs the original W3E support levels as well as WPM passability.
+The reference supplies97x65 vertices at origin(-7168,-3072), independently hashed
+expanded levels and1382 literal level runs. Runtime placement still computes the
+actual legal locations; expected movement poses are never injected. The test also
+runs normal map startup with the locked seed and original random-race preferences.
+Its owner state before movement is4273436052/209508436. All57 retry transitions
+match the native stream, ending591832212/1015043152; four become forced arrivals.
+
+Replacement activation `166060` zeros path7c/80 admission timestamps. Move's old
+reset only unlinked its fine request. One private follower retained timestamp1086,
+which denied its new shared fine leg at1091 and first changed physical commit488.
+Resetting the admission timestamp lets the normal router reconstruct the native
+leg. The initial source-point hypothesis was tested separately and rejected:
+unchanged production source admission matches the entire journey.
+
+[The literal fixture](../../../tools/ghidra/fixtures/retail-captain-thirteen-1.27.json)
+and `retail_captain_thirteen.h` retain all3647 commits, geometry, producer,
+admission, range, lifecycle and1088 physical footprint samples. Physical commit
+counts by birth are231/222/290/269/248/239/225/413/236/247/362/353/312.
+The phase digest is `ab21c2cb20d9179cd3fdd1035bbee61b370a415b20b64bc9af161f2922a22629`.
+`--captain-thirteen` rebuilds this explicit input scene. All3647 normal engine
+commits and15768 saved suffix commits match across saves995/1500/1995/2010/
+6390/7750/10000/13500ms. Restores retire the bot VM and retain physical owners;
+pre-recruitment saves restart the public AI timer. The three-member control still
+matches608 commits and2352 saved suffix commits, now checking the real PRNG too.
+
+Saved Ghidra comments on9d16c0/9d27c0/9d11a0/9d1040/9d9020/166060 retain the
+batch and fresh admission contracts. Readback verifies593 roles,50 layouts/
+311 fields,263 explicit ABIs and50 globals, `unsaved=false`. Capped auxiliary
+hierarchy/dirty events remain outside completeness. Mixed13 first/repeat native
+captures are already complete and identical: the radius63 mover belongs to the
+thirteenth singleton batch and both physical paths receive shared63/32. Porting
+that cross-batch parameter lifetime remains GROUP-03.4.6.2; this homogeneous
+closure does not certify it. Larger rosters, live detach/recruit, moving captains
+and default town homes remain open.
+
+
+Full debug/release RoC/TFT passes2401 tests and1127850 assertions per edition.
+The required full release repository suite,350 pathfinding Python checks and37
+fresh corpus contracts pass. `runtime/captain-thirteen-strict-final-v2-261003/`
+records all fresh reports with134 matching final source fingerprints.
+`captain-thirteen-validation-final-261003.json` pins logs and saved Ghidra readback.

@@ -1012,3 +1012,20 @@ passes all 36 selected contracts, including both complete three-recruit captures
 motion, all-entered admission and retained retry membership are verified;
 capped auxiliary hierarchy/dirty diagnostics remain outside that completeness
 claim. Accepted capture sources/maps remain frozen outside the repository.
+
+
+Checkpoint61 adds `live-captain-thirteen-captures-261003` and the complete
+`retail-captain-thirteen-1.27.json` fixture. Inventory is280 entries,122 fixtures
+and63 strict live entries. Both complete captures retain7294 physical commits
+and2000 owners in total. The contract includes all-entered12+1 admission, primary
+clock, complete motion/lifecycle, physical shared footprints and original W3E
+support-level geometry. The engine matches3647 commits plus15768 saved suffix
+commits. Mixed-radius13 captures are retained separately until their shared
+parameter owner is implemented; they do not certify this homogeneous fixture.
+
+
+Fresh `runtime/captain-thirteen-strict-final-v2-261003/corpus-results.json` passes
+all37 selected parity contracts with134 matching final source fingerprints.
+The earlier runner invocation rejected the new entry's malformed additional
+capture envelope before verification; it is retained as failed and certifies
+nothing. The corrected final run executes both immutable captures freshly.

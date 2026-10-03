@@ -611,3 +611,13 @@ whose active membership and retry budget survive completion and save/load.
 matches 608 retail commits and 2,352 saved continuation commits. Larger captain
 rosters still report the unresolved handoff; thirteen-member batch admission is
 the next explicit extension.
+
+
+Stationary captain admission now spans the native twelve-member boundary.
+[The complete homogeneous thirteen-member journey](retail-pathfinding-engine.md#stationary-captain-thirteen-member-batch-boundary)
+uses private followers until all13 enter, then creates twelve-member and singleton
+physical groups in roster order. A replacement path clears the previous fine-search
+admission timestamp. All3647 retail commits and15768 saved suffix commits agree,
+with public placement using the original W3E levels and normal startup PRNG.
+The mixed-radius cross-batch shared owner remains GROUP-03.4.6.2; live/moving
+captains and rosters beyond13 remain separate extensions.

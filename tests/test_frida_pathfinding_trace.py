@@ -857,6 +857,16 @@ class ProbeMapTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.builder.instrument(config+self.source,self.probe,'captain_home',captain_third=True,**opts)
 
+    def test_captain_thirteen_births_have_explicit_grid_order(self):
+        config='call SetPlayerController( Player(0), MAP_CONTROL_NEUTRAL )\n'
+        out=self.builder.instrument(config+self.source,self.probe,'captain_home',captain_thirteen=True)
+        self.assertIn("udg_PathProbeCrowd[12]=CreateUnit(Player(0),'hfoo',-1936.0,-1216.0,90.0)",out)
+        self.assertLess(out.index('udg_PathProbeCrowd[1]=CreateUnit'),out.index('udg_PathProbeCrowd[12]=CreateUnit'))
+        for opts in ({'captain_peer':True},{'captain_third':True},
+                     {'captain_pool':'transfer'},{'captain_blocked_home':True}):
+            with self.assertRaises(ValueError):
+                self.builder.instrument(config+self.source,self.probe,'captain_home',captain_thirteen=True,**opts)
+
     def test_gate_geometry_is_explicit_and_finite(self):
         for y in (float('nan'), float('inf'), -4000):
             with self.assertRaises(ValueError):

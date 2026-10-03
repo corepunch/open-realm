@@ -22800,6 +22800,139 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-captain-thirteen-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_captain_thirteen_trace.py",
+        "{archive}/runtime/captain-thirteen-v1-first-261003.jsonl",
+        "{archive}/runtime/captain-thirteen-v1-repeat-261003.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-captain-thirteen-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_captain_thirteen.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "captain-thirteen-captures.json",
+      "inputs": {
+        "capture": "runtime/captain-thirteen-v1-first-261003.jsonl",
+        "sha256": "8dae4ed9c18f314368a667e21babaa639d024d7247bae70253582c0bc0cfb46d",
+        "bytes": 21349156,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "2d6856d699376620868e6bf82c22817be5735d0a2cc3d7c0641bc50756a28edb",
+            "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+            "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+            "wc3_pathfinding_probe.j": "9f9c431f4fe7697156d454559aea4618f0a24addb2ee7bd24e61bd684515bcd0",
+            "make_wc3_pathfinding_map.py": "1a5481a9c86968e293115ef9477a49f94f206113d3768b3dd0d4ba6557819150",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "captain_ai": "2d6856d699376620868e6bf82c22817be5735d0a2cc3d7c0641bc50756a28edb",
+            "map": "fb98409238ae65c9f56f9ffc8abf7016081462331d30235393256c922841d955"
+          },
+          "map": "Maps\\PathingRE-CaptainThirteenV1-261003.w3m",
+          "seconds": 110.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "expected_exit": 0,
+      "expected_status": "pass",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "recruit_commits": {
+          "equal": 7294
+        },
+        "owner_callbacks": {
+          "equal": 2000
+        }
+      },
+      "scope": "Complete thirteen-ground-recruit stationary captain home travel through native 12+1 admission, shared footprint, crowd private followers, natural arrival and saved continuations. Mixed radii/shared override lifetime, live/moving captains and broader batches remain open.",
+      "evidence": "SOCL",
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-thirteen-v1-repeat-261003.jsonl",
+            "sha256": "983f0605b04dcec9f51bb3fae939a1598e1f271811924979e381417739490a3c",
+            "bytes": 21318837,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "2d6856d699376620868e6bf82c22817be5735d0a2cc3d7c0641bc50756a28edb",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "9f9c431f4fe7697156d454559aea4618f0a24addb2ee7bd24e61bd684515bcd0",
+                "make_wc3_pathfinding_map.py": "1a5481a9c86968e293115ef9477a49f94f206113d3768b3dd0d4ba6557819150",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "2d6856d699376620868e6bf82c22817be5735d0a2cc3d7c0641bc50756a28edb",
+                "map": "fb98409238ae65c9f56f9ffc8abf7016081462331d30235393256c922841d955"
+              },
+              "map": "Maps\\PathingRE-CaptainThirteenV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -23287,6 +23420,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-captain-three-1.27.json",
       "sha256": "108ff479fdc28a664048185f22345d9535aa85f9282a096c86fed446d6e88b52"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-thirteen-1.27.json",
+      "sha256": "ce44ef941c4c6bcd06e63fd02ef7c9167cd060e22fb5f425a0773e69627a417d"
     }
   ]
 }

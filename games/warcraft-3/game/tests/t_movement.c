@@ -50,6 +50,7 @@
 #include "retail_captain_blocked.h"
 #include "retail_captain_pool.h"
 #include "retail_captain_three.h"
+#include "retail_captain_thirteen.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -10753,8 +10754,8 @@ TEST(wc3_movement, selected_independent_shift_inputs_match_original_complete_jou
 }
 
 typedef struct {
-    edict_t *units[3];
-    uint32_t rows[12][7];
+    edict_t *units[13];
+    uint32_t rows[52][7];
     unsigned count;
 } followCommitTrace_t;
 static followCommitTrace_t *follow_commit_trace;
@@ -11452,11 +11453,11 @@ TEST(wc3_movement, public_captain_owned_pool_matches_original_same_owner) { publ
 TEST(wc3_movement, public_captain_owned_pool_matches_original_delayed_reuse) { public_captain_pool_journey(2); }
 TEST(wc3_movement, public_captain_owned_pool_matches_original_partial_assault) { public_captain_pool_journey(3); }
 
-TEST(wc3_movement, public_captain_three_recruits_match_original_complete_journey) {
-    uint32_t const (*motion)[7]=captain_three_motion;
-    unsigned count=sizeof(captain_three_motion)/sizeof(*captain_three_motion);
+static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned count,unsigned members) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0); reset_entities(); setup_test_world();
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
+    FOR_LOOP(i,12) {old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
     unitModification_t mods[]={
@@ -11471,58 +11472,102 @@ TEST(wc3_movement, public_captain_three_recruits_match_original_complete_journey
         offset+=public_oblique_terrain_runs[i][0];
     }
     T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    /* Placement compares W3E support levels, independently of WPM passability. */
+    static war3mapVertex_t vertices[97*65];
+    war3map_t terrain=*world.map;
+    if(members==13) {
+        terrain.width=97; terrain.height=65; terrain.vertices=vertices;
+        memset(vertices,0,sizeof(vertices)); offset=0;
+        FOR_LOOP(i,sizeof(captain_thirteen_terrain_levels)/sizeof(*captain_thirteen_terrain_levels))
+            FOR_LOOP(j,captain_thirteen_terrain_levels[i][0]) {
+                vertices[offset].accurate_height=0x2000;
+                vertices[offset++].level=captain_thirteen_terrain_levels[i][1];
+            }
+        T_EQ(offset,97*65); world.map=&terrain;
+    }
     level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
     level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
-    char const *script=
-        "globals\nunit mover\nunit peer\nunit third\ninteger tick=0\nendglobals\n"
+    char script[6000];
+    int length=snprintf(script,sizeof(script),
+        "globals\nunit array roster\ninteger tick=0\nboolean armed=false\nendglobals\n"
         "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
-        "if tick==10 then\ncall StartCampaignAI(Player(0),\"test_captain_three.ai\")\nendif\nendfunction\n"
-        "function main takes nothing returns nothing\n"
-        "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,100)\n"
-        "set peer=CreateUnit(Player(0),'hBGM',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)\n"
-        "set third=CreateUnit(Player(0),'hBGM',-1776,-976,90)\ncall SetUnitMoveSpeed(third,100)\n"
-        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n";
+        "if tick==10 then\ncall StartCampaignAI(Player(0),\"%s\")\nendif\nendfunction\n"
+        "function arm takes nothing returns nothing\nset armed=true\nendfunction\n"
+        "function main takes nothing returns nothing\nif not armed then\nreturn\nendif\n",members==3 ? "test_captain_three.ai" : "test_captain_thirteen.ai");
+    FOR_LOOP(i,members) {
+        int x=-1936+(members==3 ? i : i%4)*80,y=-976-(members==3 ? 0 : i/4)*80;
+        length+=snprintf(script+length,sizeof(script)-length,
+            "set roster[%u]=CreateUnit(Player(0),'hBGM',%d,%d,90)\ncall SetUnitMoveSpeed(roster[%u],100)\n",i,x,y,i);
+    }
+    length+=snprintf(script+length,sizeof(script)-length,
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n");
+    T_ASSERT(length>0 && length<sizeof(script));
     T_ASSERT(run_test_jass(script));
+    /* Run native map setup, including locked-seed random race draws, before
+     * public main creates movers. Retry counts consume this same owner stream. */
+    level.setup.map_flags|=0x8000u;
+    FOR_LOOP(i,12)game.clients[i].jass.race_pref=i<4 ? 1 : 32;
+    jass_callbyname(level.vm,"arm",true);
+    level.started=level.scriptsConfigured=true;level.scriptsStarted=false;
+    globals.RunFrame();
+    T_EQ(level.pathing_random.sum,4273436052u);T_EQ(level.pathing_random.index,209508436u);
     followCommitTrace_t trace={0};
     unsigned found=0;
     FILTER_EDICTS(unit,unit->inuse && unit->class_id==type.newUnitID) {
-        T_ASSERT(found<3); if(found<3)trace.units[found++]=unit;
+        T_ASSERT(found<members); if(found<members)trace.units[found++]=unit;
     }
-    T_EQ(found,3);
+    T_EQ(found,members);
     follow_commit_trace=&trace; move_test_motion_commit=record_follow_commit;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     unsigned times[8]={995,1500,1995,2010,6390,6420,6750,7950},saved[8]={0};
-    char files[8][64]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-three-%u.bin",i);
+    if(members==13)memcpy(times,(unsigned[]){995,1500,1995,2010,6390,7750,10000,13500},sizeof(times));
+    char files[8][64]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-roster-%u-%u.bin",members,i);
     unsigned steps=0,suffix=0; bool mismatch=false;
     FOR_LOOP(pass,9) {
         if(pass){G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];T_NULL(level.bots[0].vm);}
         while(level.time<31000 && !mismatch) {
             trace.count=0; level.time+=5; globals.RunFrame();
             if(level.time==1000) {
-                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),3);
-                FOR_LOOP(i,3)T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[i],trace.units[i]);
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),members);
+                FOR_LOOP(i,members)T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[i],trace.units[i]);
             }
             FOR_LOOP(i,trace.count) {
                 T_ASSERT(steps<count); if(steps>=count){mismatch=true;break;}
                 uint32_t const *actual=trace.rows[i],*expected=motion[steps++];
                 FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
-                if(mismatch)fprintf(stderr,"Captain three commit%u time%u differs\n",steps-1,level.time);
+                if(mismatch) {
+                    fprintf(stderr,"Captain roster%u commit%u time%u differs\n",members,steps-1,level.time);
+                    FOR_LOOP(k,7)fprintf(stderr,"  word%u actual=%08x expected=%08x\n",k,actual[k],expected[k]);
+                }
             }
             if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]) {
                 saved[i]=steps; T_ASSERT(WriteGame(files[i]));
             }
         }
-        T_EQ(steps,count); FOR_LOOP(i,3)T_EQ(trace.units[i]->current_order_id,0);
+        T_EQ(steps,count); FOR_LOOP(i,members)T_EQ(trace.units[i]->current_order_id,0);
+        T_EQ(level.pathing_random.sum,members==13 ? 591832212u : 3022241195u);
+        T_EQ(level.pathing_random.index,members==13 ? 1015043152u : 141606968u);
         T_ASSERT(!jass_rterror_pending(level.vm));
         if(pass)suffix+=steps-saved[pass-1];
         if(mismatch)break;
     }
-    fprintf(stderr,"Captain three exact commits=%u saved suffix=%u\n",count,suffix);
-    FOR_LOOP(i,8)remove(files[i]); move_test_motion_commit=NULL; follow_commit_trace=NULL;
+    fprintf(stderr,"Captain roster%u exact commits=%u saved suffix=%u\n",members,count,suffix);
+    FOR_LOOP(i,8)remove(files[i]);
+    move_test_motion_commit=NULL; follow_commit_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0); level.started=false; reset_entities(); setup_test_world();
     G_SetMapUnitOverrides(NULL); level.mapinfo=old_info;
     game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
+}
+
+TEST(wc3_movement, public_captain_three_recruits_match_original_complete_journey) {
+    public_captain_roster_journey(captain_three_motion,sizeof(captain_three_motion)/sizeof(*captain_three_motion),3);
+}
+
+TEST(wc3_movement, public_captain_thirteen_recruits_match_original_complete_journey) {
+    public_captain_roster_journey(captain_thirteen_motion,sizeof(captain_thirteen_motion)/sizeof(*captain_thirteen_motion),13);
 }
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {

@@ -146,7 +146,7 @@ def random_calls():
     return '\n'.join(lines)
 
 
-def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit_y=-240.0, captain_source_y=-976.0, captain_peer=False, captain_peer_type="hfoo", captain_blocked_home=False, captain_pool=None, captain_third=False):
+def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit_y=-240.0, captain_source_y=-976.0, captain_peer=False, captain_peer_type="hfoo", captain_blocked_home=False, captain_pool=None, captain_third=False, captain_thirteen=False):
     if not 11 <= remove_tick < 300:
         raise ValueError('removal tick must follow the order and precede completion')
     if not all(math.isfinite(v) and -3072 <= v <= 5120 for v in (gate_y, gate_exit_y)):
@@ -157,15 +157,26 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
         raise ValueError('captain peer profile requires an explicit supported peer')
     if captain_pool not in (None,'reuse','transfer','same_owner','partial') or (captain_pool and (not captain_peer or captain_peer_type!='hfoo' or captain_blocked_home)):
         raise ValueError('captain pool requires an unblocked Footman peer')
+    if captain_thirteen and (captain_peer or captain_third or captain_pool or captain_peer_type!='hfoo' or captain_blocked_home):
+        raise ValueError('captain thirteen requires an unblocked Footman roster without other variants')
     if captain_third and (not captain_peer or captain_peer_type!='hfoo' or captain_blocked_home or captain_pool):
         raise ValueError('captain third requires an unblocked Footman pair without pool mutation')
-    if (captain_peer or captain_blocked_home or captain_pool or captain_third) and scenario != 'captain_home':
+    if (captain_peer or captain_blocked_home or captain_pool or captain_third or captain_thirteen) and scenario != 'captain_home':
         raise ValueError('captain peer requires captain_home')
     if scenario == 'captain_home':
         if captain_blocked_home:
             guard='    if PATH_PROBE_SCENARIO == 16 then'
             if probe.count(guard)!=1:raise ValueError('Blocked home terrain producer differs')
             probe=probe.replace(guard,'    if PATH_PROBE_SCENARIO == 16 or PATH_PROBE_SCENARIO == 71 then')
+        if captain_thirteen:
+            create='    set udg_PathProbeUnit = CreateUnit(Player(0), crowdType, -1936.0, -976.0, 90.0)'
+            if probe.count(create)!=1:raise ValueError('Captain recruit creation differs')
+            births='\n    if PATH_PROBE_SCENARIO==71 then\n        set udg_PathProbeCrowd[0]=udg_PathProbeUnit\n'
+            for i in range(1,13):
+                x=-1936+(i%4)*80;y=captain_source_y-(i//4)*80
+                births+=f"        set udg_PathProbeCrowd[{i}]=CreateUnit(Player(0),'hfoo',{x:.1f},{y:.1f},90.0)\n"
+                births+=f'        call SetUnitMoveSpeed(udg_PathProbeCrowd[{i}],100.0)\n'
+            probe=probe.replace(create,create+births+'    endif')
         if captain_peer:
             peer_type="'hkni'" if captain_peer_type=='hkni' else 'crowdType'
             create='    set udg_PathProbeUnit = CreateUnit(Player(0), crowdType, -1936.0, -976.0, 90.0)'
@@ -285,18 +296,21 @@ def main():
     parser.add_argument('--captain-peer',action='store_true',help='add the second ground recruit and default to the two-recruit AI probe')
     parser.add_argument('--captain-peer-type',choices=('hfoo','hkni'),default='hfoo',help='second recruit profile; requires --captain-peer')
     parser.add_argument('--captain-blocked-home',action='store_true',help='block the five-by-five authored home terrain before admission')
+    parser.add_argument('--captain-thirteen',action='store_true',help='add thirteen Footmen in four-column birth order for captain 12+1 admission')
     parser.add_argument('--captain-third',action='store_true',help='add a third Footman to an unblocked captain pair')
     parser.add_argument('--captain-pool',choices=('reuse','transfer','same_owner','partial'),help='single-recruit owned-pool lifecycle; requires --captain-peer')
     parser.add_argument('--captain-ai', type=Path, help='explicit captain_home AI script; default is the stationary home probe')
     args = parser.parse_args()
-    if (args.captain_ai or args.captain_pool or args.captain_peer or args.captain_third or args.captain_blocked_home or args.captain_peer_type!='hfoo') and args.scenario != 'captain_home':
+    if (args.captain_ai or args.captain_pool or args.captain_peer or args.captain_third or args.captain_thirteen or args.captain_blocked_home or args.captain_peer_type!='hfoo') and args.scenario != 'captain_home':
         parser.error('--captain-ai/--captain-peer require captain_home')
     if args.captain_peer_type!='hfoo' and not args.captain_peer:parser.error('--captain-peer-type requires --captain-peer')
     if args.captain_pool and (not args.captain_peer or args.captain_peer_type!='hfoo' or args.captain_blocked_home):
         parser.error('--captain-pool requires an unblocked Footman peer')
+    if args.captain_thirteen and (args.captain_peer or args.captain_third or args.captain_pool or args.captain_peer_type!='hfoo' or args.captain_blocked_home):
+        parser.error('--captain-thirteen requires an unblocked Footman roster without other variants')
     if args.captain_third and (not args.captain_peer or args.captain_peer_type!='hfoo' or args.captain_blocked_home or args.captain_pool):
         parser.error('--captain-third requires an unblocked Footman pair without pool mutation')
-    captain_ai = args.captain_ai or Path(__file__).with_name('wc3_captain_three_probe.ai' if args.captain_third else 'wc3_captain_pool_partial_probe.ai' if args.captain_pool=='partial' else 'wc3_captain_pool_probe.ai' if args.captain_pool else 'wc3_captain_mixed_probe.ai' if args.captain_peer_type=='hkni' else 'wc3_captain_pair_probe.ai' if args.captain_peer else 'wc3_captain_probe.ai')
+    captain_ai = args.captain_ai or Path(__file__).with_name('wc3_captain_thirteen_probe.ai' if args.captain_thirteen else 'wc3_captain_three_probe.ai' if args.captain_third else 'wc3_captain_pool_partial_probe.ai' if args.captain_pool=='partial' else 'wc3_captain_pool_probe.ai' if args.captain_pool else 'wc3_captain_mixed_probe.ai' if args.captain_peer_type=='hkni' else 'wc3_captain_pair_probe.ai' if args.captain_peer else 'wc3_captain_probe.ai')
     if args.scenario == 'captain_home' and not captain_ai.is_file():
         parser.error('captain AI source is missing')
     if args.base.resolve() == args.output.resolve() or args.output.exists():
@@ -320,7 +334,7 @@ def main():
             data = subprocess.check_output([tool, '-mpq', str(args.base), 'cat', member])
             if member == 'war3map.j':
                 source = data.decode('utf-8').replace('\r\n', '\n')
-                data = instrument(source, probe, args.scenario, args.remove_tick, args.gate_y, args.gate_exit_y, args.captain_source_y, args.captain_peer, args.captain_peer_type, args.captain_blocked_home, args.captain_pool, args.captain_third).encode('utf-8')
+                data = instrument(source, probe, args.scenario, args.remove_tick, args.gate_y, args.gate_exit_y, args.captain_source_y, args.captain_peer, args.captain_peer_type, args.captain_blocked_home, args.captain_pool, args.captain_third, args.captain_thirteen).encode('utf-8')
                 args.output.with_suffix('.j').write_bytes(data)
             if member == 'war3map.w3u' and args.scenario == 'numeric_bytes':
                 data = byte_unit_name(data)
@@ -354,6 +368,7 @@ def main():
               'added_members': ['Scripts\\wc3_captain_probe.ai'] if args.scenario == 'captain_home' else [],
               'captain_pool': args.captain_pool,
               'captain_third': args.captain_third,
+              'captain_thirteen': args.captain_thirteen,
               'captain_peer': args.captain_peer if args.scenario == 'captain_home' else None,
               'captain_peer_type': args.captain_peer_type if args.captain_peer else None,
               'captain_blocked_home': args.captain_blocked_home if args.scenario == 'captain_home' else None,

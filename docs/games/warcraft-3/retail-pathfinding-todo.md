@@ -8,21 +8,23 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**136 done / 321 tasks; 185 remaining.** Payoff60 closes the stationary
-three-ground-recruit home journey (GROUP-03.4.5). Move retains private followers
-until the third range callback admits one shared group. All 608 physical retail
-commits and 2,352 saved continuation commits match normal engine frames,
-including a single retry budget through shrinking 3→2→1 membership. The native
-first/repeat captures match exactly. Save85 validates three-member references;
-no format change is needed. Ghidra saved readback retains 593 roles, 50 layouts/
-311 fields, 263 explicit ABIs and 50 globals. Full debug and release RoC/TFT
-pass 2,400 tests and 933,454 assertions per edition; the full release repository
-suite, 342 pathfinding Python checks and 36 fresh corpus contracts pass.
-Inventory is 279 entries/121 fixtures/62 strict live entries. Larger 12+1
-batches are GROUP-03.4.6; live membership changes, moving captains, town homes
-and dynamic coarse publication remain open. Two complete thirteen-recruit
-captures now match all 3,647 physical commits; the next engine regression will
-replace the explicit larger-roster fallback with verified batch admission.
+**137 done / 323 tasks; 186 remaining.** Payoff61 closes the homogeneous
+thirteen-ground-recruit stationary home journey (GROUP-03.4.6.1). All13 enter
+before Move creates the native12+1 physical batches. Replacement activation
+clears the private follower's fine-search timestamp. All3647 physical retail
+commits,57 retry/PRNG transitions and15768 saved continuation commits match
+normal engine frames with original W3E support levels and map-startup inputs.
+Both complete native captures repeat. Save85 validates13 retained references
+without a format change. Saved Ghidra readback retains593 roles,50 layouts/
+311 fields,263 explicit ABIs and50 globals. Full debug/release RoC/TFT passes
+2401 tests and1127850 assertions per edition. The full release repository suite,
+350 pathfinding Python checks and37 fresh corpus contracts pass.
+Inventory is280 entries/122 fixtures/63 strict live entries. The next runnable
+ID is GROUP-03.4.6.2: complete mixed-radius13 captures already prove the largest
+singleton publishes shared63/32 into both batches, then the maximum decreases
+after its departure. Engine cross-batch shared-owner lifetime remains open.
+Live membership changes, moving captains, town homes and dynamic coarse
+publication remain separate requirements.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -44,7 +46,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 25 | 7 |
+| GROUP — Shared movement groups | 26 | 8 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -725,7 +727,10 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [x] **GROUP-03.4.4** Retain native owned-pool insertion order across RemoveUnit/edict reuse, true owner transfer and same-owner no-op; compose partial AddAssault and captain roster prepend through complete journeys. Evidence: [owned-pool ordering](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots), two complete repeats each for transfer, no-op, delayed lower-slot reuse and AddAssault(1)→(2);908 physical commits and4344 saved suffixes. Engine lifecycle insertion replaces reverse-edict scanning; Save85 retains both64-bit fields and rejects invalid order. Saved Ghidra roles/layouts preserve698ce0→9b9230→9c3660 head insertion and9c32d0 traversal. Larger batches, live membership/continued recruitment after restore and moving captains remain03.4/FOOT-01.3.
 
 - [x] **GROUP-03.4.5** Extend stationary captain admission to three ground recruits, compose all-entered shared point travel through shrinking 3→2→1 membership and retained retry budget; compare complete motion and saved continuations. Evidence: [three-member shared journey](retail-pathfinding-engine.md#stationary-captain-three-member-shared-journey), two complete native repeats; 608 physical commits and 2,352 exact saved suffix commits. The reproduced two-member fallback diverges at commit2/1,020ms; Move admission and Save85 validation now support three, with unchanged numerical kernels. Saved Ghidra comments retain the third-callback gate and single-draw retry lifetime. Full debug/release suites, 342 Python checks and 36 fresh contracts pass. Twelve-plus-one batching remains03.4.6; live attach/detach and moving captain policy remain03.4/FOOT-01.3.
-- [ ] **GROUP-03.4.6** Extend stationary captain admission across the native twelve-member batch boundary with thirteen recruits; retain 12+1 shared parameter ownership, complete motion, natural cleanup and saved continuations. Prior capped thirteen-member diagnostics establish batch shape only; obtain uninterrupted numerical captures before implementation.
+- [ ] **GROUP-03.4.6** Extend stationary captain admission across the native twelve-member batch boundary with thirteen recruits; retain 12+1 shared parameter ownership, complete motion, natural cleanup and saved continuations. Homogeneous batching closes03.4.6.1; cross-batch mutable shared parameters remain03.4.6.2.
+
+- [x] **GROUP-03.4.6.1** Compose the homogeneous thirteen-Footman stationary home scene through actual W3E-supported birth placement, private followers, 12+1 shared batches, all3,647 physical commits, cleanup and saved continuations. [Complete engine journey](retail-pathfinding-engine.md#stationary-captain-thirteen-member-batch-boundary): two complete retail repeats, all57 retry/PRNG transitions and15,768 exact saved suffix commits. Move batches13 into12+1 and resets replaced-path search admission; Save85 validates retained13-member references. Saved Ghidra notes retain batch cursors, shared wrapper and activation timestamps. Mixed-radius shared ownership remains03.4.6.2.
+- [ ] **GROUP-03.4.6.2** Put the largest mover in the thirteenth/singleton batch and prove the shared parameter owner publishes that maximum into both physical groups through member completion, cancellation and saved continuations. Two complete native mixed13 repeats now match: initial shared63/32 spans both batches, then falls to31/32 after departure while cached path footprints remain independent. Port this mutable cross-batch owner and its lifecycle; homogeneous batches do not establish it.
 
 ### GROUP-04 — Membership mutation
 
