@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--captain-approach-events', action='store_true', help='observe authored Captain AI approach ranges and enabled attack maxima without calling or changing game state')
     parser.add_argument('--captain-membership-events', action='store_true', help='observe Captain range departures, membership counters and private reissues without changing game state')
     parser.add_argument('--profile-events', action='store_true', help='capture original unit movement categories, masks and bridge publication')
+    parser.add_argument('--fine-storage-events', action='store_true', help='observe original fine node/open storage growth without invoking searches')
     parser.add_argument('--blocker-patch-size', type=int, choices=(16,32), default=16, help='32 observes all static movement masks on a parent-aligned patch')
     parser.add_argument('--map-load-events', action='store_true', help='observe the complete file-backed loader before object creation')
     parser.add_argument('--widget-events', action='store_true', help='observe widget methods after the widget lifecycle scenario starts')
@@ -98,7 +99,7 @@ def main():
               'mapLoadEvents': args.map_load_events, 'widgetEvents': args.widget_events, 'motionEvents': args.motion_events,
               'velocityEvents': args.velocity_events, 'yieldEvents': args.yield_events, 'clockEvents': args.clock_events, 'headingEvents': args.heading_events,
               'captainApproachEvents': args.captain_approach_events, 'captainMembershipEvents': args.captain_membership_events,
-              'profileEvents': args.profile_events, 'numericEvents': args.numeric_events, 'randomEvents': args.random_events,
+              'profileEvents': args.profile_events, 'fineStorageEvents': args.fine_storage_events, 'numericEvents': args.numeric_events, 'randomEvents': args.random_events,
               'literalTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_literal_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.literal_events else [],
               'integerTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_integer_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.integer_events else [], 'byteEvents': args.byte_events}
     if args.byte_events:

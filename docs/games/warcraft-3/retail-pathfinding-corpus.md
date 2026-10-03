@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **308 entries**: **45** distinct original-code oracle
-scripts plus **57** declared variants, **121** archived JSONL audits and **85**
+The inventory now has **311 entries**: **46** distinct original-code oracle
+scripts plus **58** declared variants, **121** archived JSONL audits and **86**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 95 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 97 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1618,3 +1618,14 @@ advances/4000 owner callbacks, with the completion boundary separate. Additional
 host-duration velocity commits receive numerical checks but are outside the
 repeated group/clock domain. See the
 [extended engine journey](retail-pathfinding-engine.md#extended-captain-travel-ends-in-a-retained-visible-follow-owner).
+
+
+The fine-storage entries execute five complete original requests across node/
+heap growth, natural32,768-node saturation, subsequent success and actual
+metadata compaction/free-list reuse. The engine entry compares every semantic
+node and fractional route word; host storage substitutes only external Storm
+allocation imports, with forced relocation. Storm OOM and adaptive capacity
+policy remain excluded. `live-fine-storage-captures-261004` independently pins
+and repeats the actual fine constructor and first node/open growth observations;
+its three observations do not certify the other captured movement events.
+The inventory has153 pinned numerical/type/scenario fixtures.

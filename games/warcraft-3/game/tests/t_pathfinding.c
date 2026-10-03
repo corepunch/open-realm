@@ -33,6 +33,7 @@
 #include "retail_constructed_maps.h"
 #include "retail_passages.h"
 #include "retail_fine_queue.h"
+#include "retail_fine_storage.h"
 #include "../../common/wc3_pathing_adaptive.h"
 #include "retail_adaptive_wrap.h"
 #include "retail_adaptive_producer.h"
@@ -987,6 +988,91 @@ TEST(pathfinding, full_fine_request_matches_retail_ties_reopening_stale_generati
 }
 
 wc3FineSearch_t const *G_TestMoveFineSearch(void);
+typedef struct { uint8_t const *cells; } fineStorageGraph_t;
+static bool fine_storage_cell(void const *data, wc3FinePoint_t pos) {
+    fineStorageGraph_t const *graph=data;
+    return (uint32_t)pos.x<256 && (uint32_t)pos.y<256 && !(graph->cells[pos.y*256+pos.x]&2);
+}
+static uint8_t fine_storage_edges(void const *data, wc3FinePoint_t pos) {
+    wc3FineSegment_t query={.cls=0,.cell=fine_storage_cell,.data=data};
+    return wc3_fine_cell_edges(&query,pos);
+}
+static uint64_t fine_storage_node_hash(wc3FineSearch_t const *search) {
+    uint64_t hash=UINT64_C(14695981039346656037);
+    FOR_LOOP(i,search->count) {
+        wc3FineNode_t const *n=search->nodes+i;
+        uint32_t words[]={n->pos.x,n->pos.y,n->g,n->h,n->gen,(uint32_t)n->parent,n->state};
+        FOR_LOOP(j,7) FOR_LOOP(k,4) hash=(hash^(uint8_t)(words[j]>>(k*8)))*UINT64_C(1099511628211);
+    }
+    return hash;
+}
+static void fine_storage_terrain(uint8_t *cells) {
+    FOR_LOOP(y,256) FOR_LOOP(x,256) cells[y*256+x]=x>=192 || (abs(x-128)<=8 && abs(y-128)<=8) ? 2 : 0;
+}
+
+TEST(pathfinding, fine_capacity_failure_retains_partial_route_and_next_request_recovers) {
+    wc3FineSearch_t *search=calloc(1,sizeof(*search));
+    uint8_t *cells=malloc(256*256);
+    wc3FineVector_t *points=malloc(BZ_WC3_FINE_NODES*sizeof(*points));
+    T_ASSERT(search && cells && points);
+    if (!search || !cells || !points) { free(search); free(cells); free(points); return; }
+    fine_storage_terrain(cells); fineStorageGraph_t graph={cells};
+    FOR_LOOP(i,sizeof(retail_fine_storage)/sizeof(*retail_fine_storage)) {
+        retailFineStorage_t const *row=retail_fine_storage+i;
+        wc3FineRequest_t request={.start={(int)row->source[0],(int)row->source[1]},
+            .goal={(int)row->goal[0],(int)row->goal[1]},.width=256,.height=256,.budget=row->budget,
+            .edges=fine_storage_edges,.data=&graph};
+        int at=wc3_fine_search(search,&request);
+        T_EQ(at>=0,row->result); T_EQ(search->count,row->nodes); T_EQ(search->pops,row->work);
+        T_EQ(search->node_capacity,row->node_capacity); T_EQ(search->heap_capacity,row->heap_capacity);
+        T_ASSERT(fine_storage_node_hash(search)==row->node_hash);
+        if (i==1) {
+            uint32_t count=search->count;
+            T_EQ(wc3_fine_node(search,&request,request.start),0);
+            T_EQ(wc3_fine_node(search,&request,(wc3FinePoint_t){256,0}),-1);
+            T_EQ(search->count,count);
+        }
+        bool complete=at>=0;
+        if (!complete) at=(int)search->nearest;
+        wc3FineReconstruct_t route={search->nodes,search->count,at,{row->source[0],row->source[1]},
+            complete ? (wc3FineVector_t){row->goal[0],row->goal[1]} : wc3_route_center(search->nodes[at].pos)};
+        uint32_t count=wc3_fine_reconstruct(&route,points,BZ_WC3_FINE_NODES);
+        T_EQ(count,row->points);
+        if (count==row->points) FOR_LOOP(j,count) {
+            T_EQ(wc3_float_bits(points[j].x),row->route[j][0]); T_EQ(wc3_float_bits(points[j].y),row->route[j][1]);
+        }
+    }
+    wc3_fine_free(search); T_ASSERT(!search->nodes && !search->heap);
+    T_EQ(search->node_capacity,0); T_EQ(search->heap_capacity,0);
+    free(search); free(cells); free(points);
+}
+
+TEST(pathfinding, production_fine_storage_grows_and_survives_partial_then_short_routes) {
+    reset_entities(); setup_test_world(); G_FreeMovePathCache();
+    uint8_t *cells=malloc(256*256); T_ASSERT(cells);
+    if (!cells) return;
+    fine_storage_terrain(cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{8192,8192}}); CM_SetupTestPathmap(256,256,cells);
+    FOR_LOOP(pass,2) FOR_LOOP(k,3) {
+        retailFineStorage_t const *row=retail_fine_storage+(k ? k+1 : 0);
+        vec2_t source={row->source[0]*32,row->source[1]*32},target={row->goal[0]*32,row->goal[1]*32},
+            fine_target={row->goal[0],row->goal[1]},selected;
+        movePathQuery_t query={.geometry={&source,&target,8,2},.units=true,.fine_target=&fine_target};
+        moveFineRoute_t route={0}; T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&selected));
+        wc3FineSearch_t const *search=G_TestMoveFineSearch();
+        T_EQ(search->count,row->nodes); T_EQ(search->pops,row->work);
+        T_EQ(search->node_capacity,4096); T_ASSERT(fine_storage_node_hash(search)==row->node_hash);
+        T_EQ(route.partial,!row->result); T_EQ(route.count,row->points);
+        if (route.count==row->points) FOR_LOOP(j,route.count) {
+            T_EQ(wc3_float_bits(route.points[j].x),row->route[j][0]); T_EQ(wc3_float_bits(route.points[j].y),row->route[j][1]);
+        }
+        free(route.points);
+    }
+    G_FreeMovePathCache();
+    T_ASSERT(!G_TestMoveFineSearch()->nodes && !G_TestMoveFineSearch()->heap);
+    free(cells); reset_entities(); setup_test_world();
+}
+
 TEST(pathfinding, retained_fine_storage_matches_native_stamp_wrap_nodes_and_routes) {
     reset_entities(); setup_test_world();
     uint8_t cells[48*48];

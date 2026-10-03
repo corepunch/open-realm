@@ -46,7 +46,10 @@ static int wc3_acc_find(wc3AccSearch_t *search, int level, wc3FinePoint_t pos) {
     }
     if (map->indices[cell] < 0) {
         wc3FineSearch_t *work = &search->work;
+        /* Adaptive capacity policy remains separately owned; use the shared
+         * host backing without changing this algorithm's admission contract. */
         assert(work->count < BZ_WC3_FINE_NODES);
+        wc3_fine_reserve(work, work->count + 1, 0);
         uint32_t at = work->count++;
         map->indices[cell] = (int)at;
         work->nodes[at] = (wc3FineNode_t){.pos=pos,.parent=-1}; search->levels[at] = (uint8_t)level;
@@ -223,6 +226,7 @@ static int wc3_acc_search(wc3AccSearch_t *search, wc3AccRequest_t const *req) {
         if ((int)entry.node == goal) { at = goal; break; }
         if (search->levels[entry.node]) wc3_acc_coarse(search,(int)entry.node);
         else wc3_acc_base(search,(int)entry.node);
+        node = work->nodes + entry.node;
         node->state = WC3_FINE_CLOSED; node->gen++;
     }
     return at;

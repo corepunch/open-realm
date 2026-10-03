@@ -363,6 +363,7 @@ void pathing_fine_grid(uint32_t const input[7], uint8_t const *edges, int32_t *o
 
 /* Original queue-oracle witness: node(2,5), goal(0,0), parent g=100, step=21. */
 void pathing_fine_relax(uint32_t state, uint32_t old_cost, uint32_t out[7]) {
+    wc3_fine_reserve(&fine_probe, 1, 2);
     fine_probe.queued = fine_probe.reopens = 0;
     fine_probe.nodes[0] = (wc3FineNode_t){ .pos = {2,5}, .parent = 9, .g = old_cost,
         .h = 83, .gen = 10, .state = (wc3FineState_t)state };
@@ -377,12 +378,21 @@ void pathing_fine_relax(uint32_t state, uint32_t old_cost, uint32_t out[7]) {
 }
 
 void pathing_fine_heap_ties(uint32_t out[8]) {
+    wc3_fine_reserve(&fine_probe, 8, 0);
     fine_probe.queued = 0;
     for (uint32_t i = 0; i < 8; i++) {
         fine_probe.nodes[i] = (wc3FineNode_t){0};
         wc3_fine_enqueue(&fine_probe, i);
     }
     for (int i = 0; i < 8; i++) out[i] = wc3_fine_pop(&fine_probe).node;
+}
+
+/* Storage diagnostics consume the same production search, not a second
+ * capacity model. Reset permits a fresh-control run in the same library. */
+void pathing_fine_storage(uint32_t reset, uint32_t out[3]) {
+    if (reset) wc3_fine_free(&fine_probe);
+    out[0] = fine_probe.node_capacity; out[1] = fine_probe.heap_capacity;
+    out[2] = fine_probe.count;
 }
 
 /* Static 16ee80 geometry: raw radius/XY, dimensions and terrain-query bits. */

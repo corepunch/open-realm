@@ -8,22 +8,21 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**177 done / 336 tasks; 159 remaining.** Payoff89 closes existing
-GROUP-03.4.7.2.2.2 without adding IDs. Two original120-second observations
-repeat10,986 motion commits,865 shared footprints and all group states. The
-engine reproduces the complete translation and retained standing Follow owner,
-plus27,703 saved continuation commits at5/10/25/50ms frame sizes. The original
-visible-target persistent gate disproves the old natural-reclamation premise;
-completion is not forced. Both edition suites pass2509 tests/5,672,199 assertions
-each, plus560 Python checks; production build, fresh strict corpus and O0/O2
-comparisons pass. Saved Ghidra mapping retains655 roles,68 layouts/450 fields,
-324 ABIs and60 globals. See
-[extended captain payoff](retail-pathfinding-engine.md#extended-captain-travel-ends-in-a-retained-visible-follow-owner).
+**178 done / 336 tasks; 158 remaining.** Payoff90 closes existing FINE-03.1
+without adding IDs. The unchanged original constructor, containers and complete
+search cross2,048-node/1,024-open growth, naturally reach32,768 identities,
+retain a partial route, recover on subsequent requests and recycle32,769
+metadata links. O0/O2 C compares all semantic nodes and fractional route words.
+Production Move uses growable retained backing, the recovered identity cap and
+relocation-safe expansion; map shutdown releases scratch. Two read-only live
+captures repeat constructor/growth. Both edition suites pass2511 tests/5,673,001
+assertions each plus564 Python checks; production and fresh strict corpus pass.
+Saved Ghidra retains660 roles,69 layouts/468 fields,331 ABIs and60 globals. See
+[fine storage payoff](retail-pathfinding-engine.md#fine-storage-growth-and-capacity-preserve-search-results).
 
-Next runnable chunk is FINE-03.1: recover fine node/heap growth and capacity
-failure, then exercise engine storage reuse and request recovery. The aim is a
-general search-storage contract, not another scene-specific trajectory.
-No new TODO IDs.
+Next runnable chunk combines FINE-04.1/04.2: exercise original path-owned fine
+setup and result consumption across all classes, then port caller-visible
+same-cell, blocked and partial outcomes to Move. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -37,7 +36,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | BASE — Baseline and reproducibility | 16 | 10 |
 | MAP — Map construction and lifetime | 15 | 7 |
 | FOOT — Footprints and query policy | 13 | 5 |
-| FINE — Fine search | 9 | 3 |
+| FINE — Fine search | 10 | 2 |
 | ACC — Adaptive search | 7 | 6 |
 | NUM — Numbers and random state | 25 | 18 |
 | ROUTE — Route progression and yielding | 7 | 9 |
@@ -375,7 +374,7 @@ Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
 
 ### FINE-03 — Fine storage lifetime
 
-- [ ] **FINE-03.1** Cross node and heap growth/capacity boundaries; verify original failure codes and free-list recovery on the next request.
+- [x] **FINE-03.1** Cross node and heap growth/capacity boundaries; verify original failure codes and free-list recovery on the next request. [Payoff90](retail-pathfinding-engine.md#fine-storage-growth-and-capacity-preserve-search-results): five unchanged original requests, all-node O0/O2 comparison, natural32,768-identity refusal with partial recovery, independent heap growth,32,769 metadata links recycled, and two complete read-only live constructor/growth captures. Production growable backing retains normal700/2,048-work policy, survives relocation and is released on map teardown; actual local-route regressions and both full edition suites pass. External Storm allocation imports supply host storage; Storm OOM is not claimed.
 - [x] **FINE-03.2** Run sequential searches through 16-bit stamp wrap and reuse; compare post-wrap route and node state with a clean control. Same [wrap evidence](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state): complete original148100 executes FFFF/0/1/2 across four lanes/classes;1656 final normalized node states, nearest results, work and full fractional routes equal clean controls and C. Actual G_BuildUnitMoveLocalRoute repeats both request orders over retained backing,23928 assertions. Counter seeding is explicit; no65K-history or capacity claim.
 
 ### FINE-04 — Public fine results

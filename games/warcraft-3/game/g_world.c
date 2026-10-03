@@ -150,6 +150,7 @@ static vec2_t move_world_from_grid(float x, float y) {
 /* Classification is derived map state; release it when the game module shuts down. */
 void G_FreeMovePathCache(void) {
     free(move_acc_storage); move_acc_storage = NULL;
+    wc3_fine_free(&move_fine); wc3_fine_free(&move_acc.work);
     move_acc_width = move_acc_height = 0;
 }
 

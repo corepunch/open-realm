@@ -35,6 +35,15 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.fineStorageEvents) {
+        const fineTables = new Map();
+        const table = p => ({bytes:p.add(0x10).readU32(),grow:p.add(0x14).readU32(),capacity:p.add(0x18).readU32(),count:p.add(0x1c).readU32()});
+        hook(0x147600,{onEnter(){this.fine=this.context.ecx;fineTables.set(this.fine.add(0x24).toString(),'nodes');fineTables.set(this.fine.add(0x44).toString(),'heap');},onLeave(){emit('fine-storage-constructed',{fine:this.fine.toString(),nodes:table(this.fine.add(0x24)),heap:table(this.fine.add(0x44))});}});
+        for (const [kind,rva] of [['nodes',0x148670],['heap',0x1486f0]]) hook(rva,{
+            onEnter(args){this.row=null;const p=this.context.ecx;if(fineTables.get(p.toString())!==kind)return;const before=table(p),amount=args[1].toUInt32();if(before.count+amount<=before.capacity)return;this.p=p;this.row={kind,table:p.toString(),amount,before};},
+            onLeave(result){if(this.row)emit('fine-storage-growth',{...this.row,result:result.toUInt32(),after:table(this.p)});}
+        });
+    }
     hook(0x48e8a0,{onEnter(args){if(positionCase!=='speed_modifiers')return;const b=args[0];if(b.isNull())return;const vt=b.readPointer();emit('modifier-detach',{unit:this.context.ecx.toString(),buff:b.toString(),vtable:vt.sub(base).toUInt32(),methods:[0x1c,0x1d8,0x1dc,0x1e0,0x1e4,0x1e8,0x32c,0x330].map(o=>vt.add(o).readPointer().sub(base).toUInt32()),words:ints(b,32).map(v=>v>>>0)});}});
     const modifierClock=()=>{const owner=base.add(0xd53a48).readPointer();return {primary:ints(owner.add(0x54),4).map(v=>v>>>0),counter:owner.add(0x538).readU32()};};
     hook(0x5fc900,{onEnter(args){this.observe=false;if(positionCase!=='speed_modifiers')return;this.move=this.context.ecx;this.unit=this.move.add(0x30).readPointer();if(this.unit.isNull()||this.unit.add(0x30).readU32()!==0x68563830)return;this.observe=true;this.out=args[0];this.row={unit:this.unit.toString(),move:this.move.toString(),base:this.move.add(0x70).readU32(),multiplier:this.move.add(0x78).readU32(),...modifierClock()};},onLeave(){if(this.observe)emit('modifier-speed-effective',{...this.row,output:this.out.readU32()});}});

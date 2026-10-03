@@ -10,7 +10,9 @@
 #define BZ_WC3_FINE_FAST_WORK 64u // cumulative attempts; original166e90 clears the interval below this bucket work
 #define BZ_WC3_PATH_OWNER_START 0x400u // visits; original157610 counter origin and15aa80 unsigned-wrap reload
 #define BZ_WC3_UNIT_FINE_WORK 700 // original166060 path+84; actual denied next iteration is also charged
-#define BZ_WC3_FINE_NODES (8 * BZ_WC3_FINE_WORK + 2) // nodes; eight discoveries/pop plus start and goal
-#define BZ_WC3_FINE_HASH 32768 // slots; power of two, roughly half full at maximum node capacity
+#define BZ_WC3_FINE_NODES 32768 // original147af0 refuses a new identity at0x8000; existing nodes still resolve
+#define BZ_WC3_FINE_NODE_GROW 2048 // original147600 node table growth, independent of search work
+#define BZ_WC3_FINE_HEAP_GROW 1024 // original147600 open table growth; includes slot0 sentinel
+#define BZ_WC3_FINE_HASH 65536 // sparse lookup; at most half full at the native node limit
 
 #endif

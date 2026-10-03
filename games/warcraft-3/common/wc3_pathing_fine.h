@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,8 +30,9 @@ typedef struct {
     bool *target_hit; /* Occupancy observer, consumed after neighbor creation. */
 } wc3FineRequest_t;
 typedef struct {
-    wc3FineNode_t nodes[BZ_WC3_FINE_NODES];
-    wc3FineEntry_t heap[BZ_WC3_FINE_NODES];
+    wc3FineNode_t *nodes;
+    wc3FineEntry_t *heap;
+    uint32_t node_capacity, heap_capacity;
     uint32_t hash[BZ_WC3_FINE_HASH];
     uint32_t count, queued, pops, reopens, stale, nearest, dist2;
     bool observed_obstruction;
@@ -40,6 +42,31 @@ typedef struct {
     void *trace_data;
 #endif
 } wc3FineSearch_t;
+
+/* Original containers retain backing between requests. Slot0 is the heap
+ * sentinel; node identity capacity is independent of queue entries/work.
+ * Host allocation failure is fatal, never a fabricated native partial path. */
+static inline void wc3_fine_reserve(wc3FineSearch_t *search, uint32_t nodes, uint32_t slots) {
+    if (nodes > search->node_capacity) {
+        uint32_t capacity = (nodes + BZ_WC3_FINE_NODE_GROW - 1) / BZ_WC3_FINE_NODE_GROW * BZ_WC3_FINE_NODE_GROW;
+        wc3FineNode_t *data = realloc(search->nodes, (size_t)capacity * sizeof(*data));
+        if (!data) { fprintf(stderr, "WC3 fine search: cannot allocate %u nodes\n", capacity); abort(); }
+        search->nodes = data; search->node_capacity = capacity;
+    }
+    if (slots > search->heap_capacity) {
+        uint32_t capacity = (slots + BZ_WC3_FINE_HEAP_GROW - 1) / BZ_WC3_FINE_HEAP_GROW * BZ_WC3_FINE_HEAP_GROW;
+        wc3FineEntry_t *data = realloc(search->heap, (size_t)capacity * sizeof(*data));
+        if (!data) { fprintf(stderr, "WC3 fine search: cannot allocate %u open slots\n", capacity); abort(); }
+        search->heap = data; search->heap_capacity = capacity;
+    }
+}
+
+static inline void wc3_fine_free(wc3FineSearch_t *search) {
+    free(search->nodes); free(search->heap);
+    search->nodes = NULL; search->heap = NULL;
+    search->node_capacity = search->heap_capacity = 0;
+    search->count = search->queued = 0;
+}
 
 static wc3FinePoint_t const wc3_fine_dirs[] = {
     {-1,-1}, {0,-1}, {1,-1}, {-1,0}, {1,0}, {-1,1}, {0,1}, {1,1}
@@ -89,7 +116,8 @@ static int wc3_fine_node(wc3FineSearch_t *search, wc3FineRequest_t const *req, w
         if (search->nodes[at].pos.x == pos.x && search->nodes[at].pos.y == pos.y) return (int)at;
         slot = (slot + 1) & (BZ_WC3_FINE_HASH - 1);
     }
-    assert(search->count < BZ_WC3_FINE_NODES);
+    if (search->count == BZ_WC3_FINE_NODES) return -1;
+    wc3_fine_reserve(search, search->count + 1, 0);
     uint32_t at = search->count++;
     search->hash[slot] = at + 1;
     search->nodes[at] = (wc3FineNode_t){ .pos = pos, .parent = -1 };
@@ -100,8 +128,8 @@ static int wc3_fine_node(wc3FineSearch_t *search, wc3FineRequest_t const *req, w
 static void wc3_fine_enqueue(wc3FineSearch_t *search, uint32_t at) {
     wc3FineNode_t *node = &search->nodes[at];
     wc3FineEntry_t entry = { node->g + node->h, at, ++node->gen };
+    wc3_fine_reserve(search, 0, search->queued + 2);
     uint32_t pos = ++search->queued;
-    assert(pos < BZ_WC3_FINE_NODES);
     node->state = WC3_FINE_OPEN;
     while (pos > 1 && search->heap[pos / 2].key >= entry.key) {
         search->heap[pos] = search->heap[pos / 2]; pos /= 2;
@@ -144,7 +172,6 @@ static void wc3_fine_relax(wc3FineSearch_t *search, wc3FinePoint_t goal, wc3Fine
  * Target identity is observed during perimeter sampling, including suppressed
  * objects. Original14b760 creates neighbors, then skips relaxation on a hit. */
 static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req) {
-    assert(req->budget <= BZ_WC3_FINE_WORK);
     memset(search->hash, 0, sizeof(search->hash));
     search->count = search->queued = search->pops = search->reopens = search->stale = 0;
     search->observed_obstruction = false;
@@ -168,7 +195,11 @@ static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req)
         if (node->gen != entry.gen) { search->stale++; continue; }
         node->state = WC3_FINE_NEW; node->gen++;
         if ((int)entry.node == goal) return goal;
-        uint8_t edges = req->edges(req->data, node->pos);
+        /* Neighbor creation may relocate retained storage. Keep values and
+         * indices across allocation, then reacquire the current node. */
+        wc3FinePoint_t pos = node->pos;
+        uint32_t parent_cost = node->g;
+        uint8_t edges = req->edges(req->data, pos);
         /* Original1489a0 latches d0 on any denied perimeter cell. The four
          * neighbor-mask unions cover that entire perimeter, even off-route. */
         if (edges != 0xff) search->observed_obstruction = true;
@@ -176,7 +207,7 @@ static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req)
         for (int dir = 0; dir < 8; dir++) {
             wc3FinePoint_t delta = wc3_fine_dirs[dir];
             neighbors[dir] = edges & (1u << dir) ? wc3_fine_node(search, req,
-                (wc3FinePoint_t){ node->pos.x + delta.x, node->pos.y + delta.y }) : -1;
+                (wc3FinePoint_t){ pos.x + delta.x, pos.y + delta.y }) : -1;
         }
         if (req->target_hit && *req->target_hit) {
             *req->target_hit = false;
@@ -186,9 +217,10 @@ static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req)
             int at = neighbors[dir];
             if (at < 0) continue;
             wc3FinePoint_t delta = wc3_fine_dirs[dir];
-            uint32_t cost = node->g + (delta.x && delta.y ? 21u : 15u);
+            uint32_t cost = parent_cost + (delta.x && delta.y ? 21u : 15u);
             wc3_fine_relax(search, req->goal, (wc3FineStep_t){ (uint32_t)at, entry.node, cost });
         }
+        node = &search->nodes[entry.node];
         node->state = WC3_FINE_CLOSED; node->gen++;
     }
     return -1;

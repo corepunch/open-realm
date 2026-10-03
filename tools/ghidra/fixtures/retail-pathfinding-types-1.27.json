@@ -1199,10 +1199,40 @@
           "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
         },
         {
+          "offset": 40,
+          "name": "node_allocation",
+          "type": "ptr:void",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 44,
+          "name": "node_allocated_bytes",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
           "offset": 48,
           "name": "nodes",
           "type": "ptr:WC3FineNodePrefix",
           "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 52,
+          "name": "node_requested_bytes",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 56,
+          "name": "node_growth",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 60,
+          "name": "node_capacity",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
         },
         {
           "offset": 64,
@@ -1211,10 +1241,40 @@
           "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
         },
         {
+          "offset": 72,
+          "name": "heap_allocation",
+          "type": "ptr:void",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 76,
+          "name": "heap_allocated_bytes",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
           "offset": 80,
           "name": "heap_entries",
           "type": "ptr:WC3OpenEntry",
           "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 84,
+          "name": "heap_requested_bytes",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 88,
+          "name": "heap_growth",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 92,
+          "name": "heap_capacity",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
         },
         {
           "offset": 96,
@@ -3111,6 +3171,60 @@
           "name": "rawcode",
           "type": "u32",
           "evidence": "Live Bslo42736c6f/Bblo42626c6f; getters517520/4d95d0"
+        }
+      ]
+    },
+    {
+      "name": "WC3DynamicTablePrefix",
+      "length": 32,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 4,
+          "name": "allocation",
+          "type": "ptr:void",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 8,
+          "name": "allocated_bytes",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 12,
+          "name": "data",
+          "type": "ptr:void",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 16,
+          "name": "requested_bytes",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 20,
+          "name": "growth",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 24,
+          "name": "capacity",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        },
+        {
+          "offset": 28,
+          "name": "count",
+          "type": "u32",
+          "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
         }
       ]
     }
@@ -9288,6 +9402,150 @@
         {
           "name": "group",
           "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f148670",
+      "name": "FineNodes_Append",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "table",
+          "type": "ptr:WC3DynamicTablePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "value",
+          "type": "ptr:WC3FineNodePrefix",
+          "storage": 4
+        },
+        {
+          "name": "amount",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f1486f0",
+      "name": "PathOpen_AppendSlots",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "table",
+          "type": "ptr:WC3DynamicTablePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "value",
+          "type": "ptr:WC3OpenEntry",
+          "storage": 4
+        },
+        {
+          "name": "amount",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f14a7c0",
+      "name": "FineNodes_Erase",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "table",
+          "type": "ptr:WC3DynamicTablePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "amount",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f14a830",
+      "name": "PathOpen_EraseSlots",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "table",
+          "type": "ptr:WC3DynamicTablePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "amount",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f1c5130",
+      "name": "DynamicTable_ResizeBacking",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "table",
+          "type": "ptr:WC3DynamicTablePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "bytes",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "preserve",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f147af0",
+      "name": "PathFine_FindOrCreateNode",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f147600",
+      "name": "PathFine_Construct",
+      "returns": "ptr:WC3FineSearchPrefix",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
           "storage": "ECX"
         }
       ]

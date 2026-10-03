@@ -7820,3 +7820,59 @@ ABIs and60 globals, including the typed completion gate and its captured
 persistent-owner evidence. Raw maps/captures/source/member proofs and logs remain
 under external `runtime/captain89-*`; `captain89-validation.json` pins final
 verification. Full engine/corpus validation is recorded there when complete.
+
+
+## Fine storage growth and capacity preserve search results
+
+Payoff90 separates the original fine search's identity capacity from work and
+heap storage. `147600` configures2,048-node growth and1,024 open-slot growth;
+slot0 is the heap sentinel. `147af0` refuses a new identity at32,768 nodes with
+`FFFFFFFF`, but still resolves an existing stamped cell. Refused neighbors do
+not immediately abort the search: the queue drains normally and `148100`
+returns its nearest partial route. There is no inferred allocation-failure
+result or scene-specific workaround.
+
+`verify_wc3_pathing_storage.py` executes the unchanged original constructor,
+containers, memory-block wrapper, metadata append, search and reconstruction.
+Only the external Storm401/405/403 imports receive host allocation storage;
+reallocation deliberately moves the block and preserves its bytes. The five
+complete requests cover:
+
+- A2,048-work request that charges2,049 attempts, creates2,147 nodes and grows
+  node capacity from2,048 to4,096.
+- A disconnected-goal request that naturally reaches32,768 identities, charges
+  63,069 attempts and returns a partial route. New-cell refusal, cached identity
+  and outside-cell rejection are checked before any reset.
+- Forward/reverse short requests that return success with108/109 nodes and
+  43/44 attempts over the retained large allocation.
+- Original `14dfc0` compaction followed by another complete short request. The
+  metadata pool has32,769 links across the preceding requests: it is distinct
+  from the per-request node limit. All links enter the original free list;
+  the next108-node request reuses those slots without another allocation.
+
+Both O0/O2 production probes compare every semantic node record, charged work,
+result, capacity and fractional route word. Two read-only Frida captures pin
+and repeat the actual fine constructor and first node/open growth observations.
+That live witness does not claim saturation or whole-trajectory parity.
+The numerical fixtures are `retail-fine-storage-1.27.json` and
+`retail-fine-storage-live-1.27.json`; all binaries and raw captures stay external.
+
+The engine retains growable node/open backing instead of deriving both limits
+from its synchronous work budget. Fine identities use the recovered32,768 cap;
+new identities fail normally while existing lookup remains valid. Sparse lookup
+is kept below half occupancy. Heap entries can grow independently, including
+stale entries. Neighbor expansion preserves values/indices across relocation;
+both fine and shared adaptive consumers reacquire node pointers afterwards.
+`G_FreeMovePathCache` releases the scratch backing on map replacement/shutdown.
+Ordinary700/2,048-work policy and search ordering are unchanged. Adaptive node
+capacity policy remains ACC-05.1; sharing host backing does not close it.
+
+Actual `G_BuildUnitMoveLocalRoute` repeats the partial growth request and both
+short continuations with original node digests and route words. The core engine
+regression additionally consumes all five native requests through saturation,
+recovery and release. The focused pathfinding suite passes1,909,333 assertions
+in11 tests. Saved Ghidra now retains660 roles,69 layouts/468 fields,331 ABIs and
+60 globals, including the dynamic-table prefix, fine growth/capacity fields and
+seven verified constructor/container/lookup prototypes. Full-suite and strict
+validation are recorded in external `runtime/fine90-validation.json` after the
+commit is validated.
