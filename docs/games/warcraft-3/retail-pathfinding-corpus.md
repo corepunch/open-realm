@@ -1003,3 +1003,12 @@ live contracts. `runtime/captain-pool-strict-final-261003/corpus-results.json`
 freshly executes all 35 current parity contracts after source changes; every
 source fingerprint matches the final tools. Larger batches, active membership
 changes, moving captains and default town homes remain outside this contract.
+
+Checkpoint60 adds `live-captain-three-captures-261003` and the complete
+`retail-captain-three-1.27.json` fixture. Inventory is 279 entries, 121 fixtures
+and 62 strict live entries. Fresh `runtime/captain-three-strict-final-261003/`
+passes all 36 selected contracts, including both complete three-recruit captures
+(1,216 physical commits, 2,000 owner callbacks). Primary clock, full scalar
+motion, all-entered admission and retained retry membership are verified;
+capped auxiliary hierarchy/dirty diagnostics remain outside that completeness
+claim. Accepted capture sources/maps remain frozen outside the repository.

@@ -493,3 +493,9 @@ commits match, including pre-recruitment saves and bot-free restores.
 records the native chain, bounded layouts and excluded preliminary captures.
 Larger batches, active detach/recruit, moving captains and full town state are
 still outside this closure.
+
+Payoff60 integrates the [stationary three-member captain journey](retail-pathfinding-engine.md#stationary-captain-three-member-shared-journey)
+into Move: 608 complete literal commits and 2,352 saved suffix commits preserve
+third-callback shared admission and one retry budget as the cohort shrinks
+3→2→1. This closes GROUP-03.4.5; larger 12+1 batches and live/moving captain
+policy remain open. Saved Ghidra comments retain the observed producer chain.

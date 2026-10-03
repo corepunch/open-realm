@@ -603,3 +603,11 @@ captain member. Save85 preserves these producers. Four complete original
 controls match 908 physical and 4344 saved continuation commits. See
 [owned-pool ordering](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots);
 larger rosters and live captain membership changes remain separate gaps.
+
+Stationary captain-home admission now supports three verified ground recruits.
+The all-entered gate hands their private followers to one shared point group,
+whose active membership and retry budget survive completion and save/load.
+[The complete three-member journey](retail-pathfinding-engine.md#stationary-captain-three-member-shared-journey)
+matches 608 retail commits and 2,352 saved continuation commits. Larger captain
+rosters still report the unresolved handoff; thirteen-member batch admission is
+the next explicit extension.

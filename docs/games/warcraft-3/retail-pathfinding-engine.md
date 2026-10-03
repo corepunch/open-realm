@@ -5808,3 +5808,63 @@ Checkpoint59 validation passes the full debug and release RoC/TFT suites:
 35 fresh corpus contracts, and the ability-class audit. The full release
 repository suite passes. External `captain-pool-validation-final-261003.json`
 pins those logs and the saved Ghidra readback.
+
+## Stationary captain three-member shared journey
+
+Checkpoint60 extends the authored-home producer to three Footmen. Two frozen
+`captain-three-v1-first/repeat-261003.jsonl` captures retain 304 primary markers,
+1,000 owner callbacks and every numerical motion row. The physical birth order
+is primary, peer, third; the owned pool walks newest first and captain insertion
+prepends, yielding primary, peer, third roster order. Public AddAssault(3)
+succeeds before independent private followers approach the retained virtual
+actor. The third range callback at clock `3ffffff8` publishes one shared point
+request; the first two only increase the entered count. Two-pass preparation
+retains counts 0/1/2 and one shared wrapper/request.
+
+The engine's previous two-member fallback diverges at physical commit 2,
+1,020ms. Raising both stationary admission and saved-reference validation to
+three members lets the existing shared-group implementation reproduce all
+608 physical commits: 190 primary, 231 peer, 187 third. No numerical kernel or
+expected movement word changes are involved. Eight saves at 995, 1500, 1995,
+2010, 6390, 6420, 6750 and 7950ms produce 2,352 exact continuation commits.
+The saves bracket recruitment, private following, shared admission and retry
+progress. Restores stop the process-owned bot VM before loading, retaining
+physical followers and captain references through Save85; no format change is
+needed for the increased validated cardinality.
+
+| Owner counter | Active members | Retry before → after | Result |
+| --- | ---: | --- | ---: |
+| 1236 | 3 | 0 → 6 | 1 |
+| 1237 | 3 | 6 → 5 | 1 |
+| 1247 | 2 | 5 → 4 | 1 |
+| 1257 | 1 | 4 → 3 | 1 |
+| 1267 | 1 | 3 → 2 | 1 |
+| 1277 | 1 | 2 → 1 | 1 |
+| 1287 | 1 | 1 → 1 | 4 |
+
+Initialization chooses seven using the group owner's random state once. Member
+completion does not redraw or reset that path budget. The terminal result sets
+forced arrival `10000`; counter1288 completes cleanup. The retained engine
+retry and active-cohort logic already has this behavior once captain admission
+uses the correct shared producer.
+
+[The fixture](../../../tools/ghidra/fixtures/retail-captain-three-1.27.json),
+[verifier](../../../tools/frida/verify_wc3_captain_three_trace.py) and literal
+engine reference pin both complete captures, producer/admission/range/lifecycle
+sequences, primary clock and motion phases. The phase digest is
+`7c238a17ed9ff210a8f62fa9bcabc27bb38bff803cfacc61898b3ac3178ada95`.
+Host-time subdivision rows outside the primary domain vary with capture duration;
+primary and physical motion sequences repeat exactly. Existing capped auxiliary
+hierarchy/dirty/replan diagnostics do not certify complete publication. Builder
+`--captain-peer --captain-third` reproduces the explicit three-birth scene;
+accepted source trees and maps remain frozen externally.
+
+Saved Ghidra annotations on `9d27c0`, `9d9020`, `1689d0` and `167290` record the
+third-callback gate and shrinking cohort retry lifetime. Readback verifies
+593 roles, 50 layouts/311 fields, 263 explicit ABIs and 50 globals with
+`unsaved=false`. GROUP-03.4.5 owns this bounded extension. Thirteen recruits and
+the 12+1 boundary remain GROUP-03.4.6; live attach/detach, moving captains and
+default town homes remain open. Full debug/release RoC/TFT suites pass
+2,400 tests/933,454 assertions per edition. The full release repository suite,
+342 pathfinding Python checks and all 36 fresh corpus contracts pass. External
+`captain-three-validation-final-261003.json` pins the verification logs.

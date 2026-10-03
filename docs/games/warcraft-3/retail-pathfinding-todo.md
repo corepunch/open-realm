@@ -8,22 +8,21 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**135 done / 319 tasks; 184 remaining.** Payoff59 closes owned-pool
-ordering across removal/reuse and real owner transfer (GROUP-03.4.4). The
-engine records current owner insertion order in the unit lifecycle, preserves
-same-owner no-op calls, recruits independently of entity address, and retains
-partial AddAssault plus captain-roster prepend. Four complete native control
-pairs and normal engine frames match 908 physical commits and 4,344 saved
-suffix commits. Save85 preserves both64-bit insertion fields and rejects
-invalid pool order. Saved Ghidra readback verifies593 roles,50 layouts/311
-fields,263 explicit ABIs and50 globals. Larger rosters, live membership
-changes, moving captains, town homes and dynamic coarse publication remain
-open. Next runnable work extends GROUP-03.4/FOOT-01.3 to a complete three-member
-captain journey, then12+1 batches; the engine's explicit two-member bound must
-be lifted with complete motion and saved continuation evidence. Full debug and release
-RoC/TFT pass 2,399 engine tests/903,771 assertions per edition; 335 pathfinding
-Python checks, 35 fresh contracts and 278 entries/120 fixtures pass. The full
-release repository suite passes.
+**136 done / 321 tasks; 185 remaining.** Payoff60 closes the stationary
+three-ground-recruit home journey (GROUP-03.4.5). Move retains private followers
+until the third range callback admits one shared group. All 608 physical retail
+commits and 2,352 saved continuation commits match normal engine frames,
+including a single retry budget through shrinking 3→2→1 membership. The native
+first/repeat captures match exactly. Save85 validates three-member references;
+no format change is needed. Ghidra saved readback retains 593 roles, 50 layouts/
+311 fields, 263 explicit ABIs and 50 globals. Full debug and release RoC/TFT
+pass 2,400 tests and 933,454 assertions per edition; the full release repository
+suite, 342 pathfinding Python checks and 36 fresh corpus contracts pass.
+Inventory is 279 entries/121 fixtures/62 strict live entries. Larger 12+1
+batches are GROUP-03.4.6; live membership changes, moving captains, town homes
+and dynamic coarse publication remain open. Two complete thirteen-recruit
+captures now match all 3,647 physical commits; the next engine regression will
+replace the explicit larger-roster fallback with verified batch admission.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -45,7 +44,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 24 | 6 |
+| GROUP — Shared movement groups | 25 | 7 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -163,7 +162,7 @@ NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | GROUP-03.4 / FOOT-01.3 | Complete stationary singleton/pair producer and native12-member batching | Extend the engine through a complete third recruit, then shared12+1 home travel and saves |
+| 1 | GROUP-03.4 / FOOT-01.3 | Complete stationary singleton/pair producer and native12-member batching | Extend the engine through complete shared12+1 home travel, retry/cleanup and saves |
 | 2 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Virtual captain/follower producer plus shared publication and saved travel |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
@@ -724,6 +723,9 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [x] **GROUP-03.4.2** Compose the stationary two-ground-recruit home journey from the verified actor/timer. [Payoff57](retail-pathfinding-engine.md#stationary-captain-pair-private-followers-to-shared-arrival) matches369 complete native commits and2003 saved suffix commits; both callbacks gate one two-pass shared point request,152 shared7c/pathb4 footprint updates retain the final survivor, and initial followers remain independent. Save84, Stop/replacement/removal, captain recreation, bot-free restoration and invalid membership state are covered. Ghidra591 roles preserve recruitment/roster order and virtual target-region semantics. Native pair path94/98 never consume a retry; that acceptance is explicitly split into03.4.3. Larger mixed-radius rosters, live attach/detach and moving captain lifetimes remain03.4/FOOT-01.3.
 - [x] **GROUP-03.4.3** Extend the stationary shared captain pair to unequal mover radii and a blocked formation endpoint that naturally consumes a retry; compare all native commits, shared7c/pathb4 changes and saved continuations before/after admission and retry. Evidence: [mixed captain pairs and blocked home retries](retail-pathfinding-engine.md#mixed-captain-pairs-and-blocked-home-retries), two uninterrupted repeats per scene; mixed185+184 commits,152 shared updates including live31/cached32 survivor,2003 saved commits; blocked254+270 commits,237 shared updates, fourteen real retries/two forced arrivals,2685 saved commits. Engine now admits the virtual actor beside blocked home, uses its actual range center and temporarily excludes actor rectangles during group/member coarse admission. Full normal-frame/save/cancellation/bot-free journeys match. Larger12+1 batches, live attach/detach and general dynamic coarse publication remain03.4/FOOT-01.3/MAP-03.3.
 - [x] **GROUP-03.4.4** Retain native owned-pool insertion order across RemoveUnit/edict reuse, true owner transfer and same-owner no-op; compose partial AddAssault and captain roster prepend through complete journeys. Evidence: [owned-pool ordering](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots), two complete repeats each for transfer, no-op, delayed lower-slot reuse and AddAssault(1)→(2);908 physical commits and4344 saved suffixes. Engine lifecycle insertion replaces reverse-edict scanning; Save85 retains both64-bit fields and rejects invalid order. Saved Ghidra roles/layouts preserve698ce0→9b9230→9c3660 head insertion and9c32d0 traversal. Larger batches, live membership/continued recruitment after restore and moving captains remain03.4/FOOT-01.3.
+
+- [x] **GROUP-03.4.5** Extend stationary captain admission to three ground recruits, compose all-entered shared point travel through shrinking 3→2→1 membership and retained retry budget; compare complete motion and saved continuations. Evidence: [three-member shared journey](retail-pathfinding-engine.md#stationary-captain-three-member-shared-journey), two complete native repeats; 608 physical commits and 2,352 exact saved suffix commits. The reproduced two-member fallback diverges at commit2/1,020ms; Move admission and Save85 validation now support three, with unchanged numerical kernels. Saved Ghidra comments retain the third-callback gate and single-draw retry lifetime. Full debug/release suites, 342 Python checks and 36 fresh contracts pass. Twelve-plus-one batching remains03.4.6; live attach/detach and moving captain policy remain03.4/FOOT-01.3.
+- [ ] **GROUP-03.4.6** Extend stationary captain admission across the native twelve-member batch boundary with thirteen recruits; retain 12+1 shared parameter ownership, complete motion, natural cleanup and saved continuations. Prior capped thirteen-member diagnostics establish batch shape only; obtain uninterrupted numerical captures before implementation.
 
 ### GROUP-04 — Membership mutation
 

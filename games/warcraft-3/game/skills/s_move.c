@@ -584,7 +584,7 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
             *(uint8_t *)&ent->movement.captain_home.entered>1 ||
             (ent->movement.captain_home.entered && !ent->movement.captain_home.active)) return false;
         if (ent->movement.captain_home.active && (!actor || !actor->movement.captain_actor_members ||
-            actor->movement.captain_actor_members>2 ||
+            actor->movement.captain_actor_members>3 ||
             ent->movement.captain_home.member_index>=actor->movement.captain_actor_members)) return false;
         if (actor && (!actor->inuse || !actor->movement.captain_actor_type ||
             actor->movement.captain_actor_type>BOT_CAPTAIN_COUNT)) return false;
@@ -2688,9 +2688,9 @@ bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
     if (!G_IssueUnitPointOrder(self,"move",&captain->home,false,self->s.player,0)) return false;
     uint32_t members=ARRAY_COUNT(captain->units);
     captain->home_actor->movement.captain_actor_members=members;
-    if (members>2) {
-        /* TODO GROUP-03.4: larger and mixed-radius rosters require original
-         * complete captures before extending this bounded stationary producer. */
+    if (members>3) {
+        /* TODO GROUP-03.4.6: larger rosters require original complete 12+1
+         * captures and batch admission before extending this producer. */
         FOR_EACH_ARRAY(edict_t *, member, captain->units) {
             edict_t *ent=*member;
             if (!ent->movement.captain_home.active) continue;

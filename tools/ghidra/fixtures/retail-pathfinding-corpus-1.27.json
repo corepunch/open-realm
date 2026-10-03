@@ -22667,6 +22667,139 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-captain-three-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_captain_three_trace.py",
+        "{archive}/runtime/captain-three-v1-first-261003.jsonl",
+        "{archive}/runtime/captain-three-v1-repeat-261003.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-captain-three-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_captain_three.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "captain-three-captures.json",
+      "inputs": {
+        "capture": "runtime/captain-three-v1-first-261003.jsonl",
+        "sha256": "628af103ff0b2d5412ead8300bc0b7945b5e555037e1499456850a5ea763a0aa",
+        "bytes": 8518645,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+            "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "make_wc3_pathfinding_map.py": "7251a2c97207a0a50580dab6b67b0b7b67fc0c2c006708034866c46dfa5ab71b",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "captain_ai": "e1e8a58d93be46b654136cd8540ec78ab38044aeda21af9e079f1c7a37e229ad",
+            "map": "e2e2eea4477232e64a5df1bc5f61b7034952cbaf2222ca4d144dd311dbe7b946"
+          },
+          "map": "Maps\\PathingRE-CaptainThreeV1-261003.w3m",
+          "seconds": 110.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "expected_exit": 0,
+      "expected_status": "pass",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "recruit_commits": {
+          "equal": 1216
+        },
+        "owner_callbacks": {
+          "equal": 2000
+        }
+      },
+      "scope": "Complete stationary three-ground-recruit public captain home journey, all-entered admission, shared travel and retained retry budget through 3-to-2-to-1 membership. Larger batches, live attach/detach and moving captains remain open.",
+      "evidence": "SOCL",
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-three-v1-repeat-261003.jsonl",
+            "sha256": "8eb25263acd58cf0d88be4a13a5c0922b6724d27de9e57bd436aa50fe3b80451",
+            "bytes": 8171809,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "make_wc3_pathfinding_map.py": "7251a2c97207a0a50580dab6b67b0b7b67fc0c2c006708034866c46dfa5ab71b",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "e1e8a58d93be46b654136cd8540ec78ab38044aeda21af9e079f1c7a37e229ad",
+                "map": "e2e2eea4477232e64a5df1bc5f61b7034952cbaf2222ca4d144dd311dbe7b946"
+              },
+              "map": "Maps\\PathingRE-CaptainThreeV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -23150,6 +23283,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-captain-pool-1.27.json",
       "sha256": "01980088705137a8505863e38b08d06d668ecaa3f5777063dc26e87fb09e49b9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-three-1.27.json",
+      "sha256": "108ff479fdc28a664048185f22345d9535aa85f9282a096c86fed446d6e88b52"
     }
   ]
 }

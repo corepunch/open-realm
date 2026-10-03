@@ -49,6 +49,7 @@
 #include "retail_captain_mixed.h"
 #include "retail_captain_blocked.h"
 #include "retail_captain_pool.h"
+#include "retail_captain_three.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -10752,17 +10753,19 @@ TEST(wc3_movement, selected_independent_shift_inputs_match_original_complete_jou
 }
 
 typedef struct {
-    edict_t *units[2];
-    uint32_t rows[8][7];
+    edict_t *units[3];
+    uint32_t rows[12][7];
     unsigned count;
 } followCommitTrace_t;
 static followCommitTrace_t *follow_commit_trace;
 
 static void record_follow_commit(edict_t *unit) {
     followCommitTrace_t *trace=follow_commit_trace;
-    unsigned i=unit==trace->units[0] ? 0 : 1;
-    T_ASSERT(unit==trace->units[i]); T_ASSERT(trace->count<sizeof(trace->rows)/sizeof(*trace->rows));
-    if (unit!=trace->units[i] || trace->count>=sizeof(trace->rows)/sizeof(*trace->rows)) return;
+    unsigned i=0;
+    while(i<sizeof(trace->units)/sizeof(*trace->units) && trace->units[i]!=unit)i++;
+    T_ASSERT(i<sizeof(trace->units)/sizeof(*trace->units));
+    T_ASSERT(trace->count<sizeof(trace->rows)/sizeof(*trace->rows));
+    if (i>=sizeof(trace->units)/sizeof(*trace->units) || trace->count>=sizeof(trace->rows)/sizeof(*trace->rows)) return;
     uint32_t words[]={i,wc3_float_bits(unit->movement.pose_clock.time),
         wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
         wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
@@ -11448,6 +11451,79 @@ TEST(wc3_movement, public_captain_owned_pool_matches_original_owner_transfer) { 
 TEST(wc3_movement, public_captain_owned_pool_matches_original_same_owner) { public_captain_pool_journey(1); }
 TEST(wc3_movement, public_captain_owned_pool_matches_original_delayed_reuse) { public_captain_pool_journey(2); }
 TEST(wc3_movement, public_captain_owned_pool_matches_original_partial_assault) { public_captain_pool_journey(3); }
+
+TEST(wc3_movement, public_captain_three_recruits_match_original_complete_journey) {
+    uint32_t const (*motion)[7]=captain_three_motion;
+    unsigned count=sizeof(captain_three_motion)/sizeof(*captain_three_motion);
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); reset_entities(); setup_test_world();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&type};
+    mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    char const *script=
+        "globals\nunit mover\nunit peer\nunit third\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall StartCampaignAI(Player(0),\"test_captain_three.ai\")\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,100)\n"
+        "set peer=CreateUnit(Player(0),'hBGM',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)\n"
+        "set third=CreateUnit(Player(0),'hBGM',-1776,-976,90)\ncall SetUnitMoveSpeed(third,100)\n"
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    followCommitTrace_t trace={0};
+    unsigned found=0;
+    FILTER_EDICTS(unit,unit->inuse && unit->class_id==type.newUnitID) {
+        T_ASSERT(found<3); if(found<3)trace.units[found++]=unit;
+    }
+    T_EQ(found,3);
+    follow_commit_trace=&trace; move_test_motion_commit=record_follow_commit;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    unsigned times[8]={995,1500,1995,2010,6390,6420,6750,7950},saved[8]={0};
+    char files[8][64]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-three-%u.bin",i);
+    unsigned steps=0,suffix=0; bool mismatch=false;
+    FOR_LOOP(pass,9) {
+        if(pass){G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];T_NULL(level.bots[0].vm);}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0; level.time+=5; globals.RunFrame();
+            if(level.time==1000) {
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),3);
+                FOR_LOOP(i,3)T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[i],trace.units[i]);
+            }
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<count); if(steps>=count){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Captain three commit%u time%u differs\n",steps-1,level.time);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]) {
+                saved[i]=steps; T_ASSERT(WriteGame(files[i]));
+            }
+        }
+        T_EQ(steps,count); FOR_LOOP(i,3)T_EQ(trace.units[i]->current_order_id,0);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(pass)suffix+=steps-saved[pass-1];
+        if(mismatch)break;
+    }
+    fprintf(stderr,"Captain three exact commits=%u saved suffix=%u\n",count,suffix);
+    FOR_LOOP(i,8)remove(files[i]); move_test_motion_commit=NULL; follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); level.started=false; reset_entities(); setup_test_world();
+    G_SetMapUnitOverrides(NULL); level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+}
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {
     public_group_radius_journey(0,group_radius_grow_motion,sizeof(group_radius_grow_motion)/sizeof(*group_radius_grow_motion),
