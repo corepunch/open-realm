@@ -1350,9 +1350,8 @@ static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool insta
     CM_BakeStaticObstacles();
     if (!instant) G_PublishEvent(entangled, EVENT_PLAYER_UNIT_CONSTRUCT_START);
     {
-        edict_t *effect = G_SpawnAbilityEffectTarget(alias, WC3_EFFECT_CASTER, 0, caster, NULL, false);
+        edict_t *effect = G_SpawnOwnedAbilityEffectTarget(entangled, alias, WC3_EFFECT_CASTER, 0, caster, NULL);
         if (effect) {
-            effect->owner = entangled;
             effect->summon_ability = alias;
         }
     }

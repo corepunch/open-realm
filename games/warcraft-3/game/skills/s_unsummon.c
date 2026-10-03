@@ -198,8 +198,7 @@ static void unsummon_start(edict_t *worker, edict_t *thinker) {
     worker->unsummon->starting = false;
     unsummon_add_status(building);
     {
-        edict_t *effect = G_SpawnAbilityEffectTarget(ID_UNSUMMON_BUFF, WC3_EFFECT_TARGET, 0, building, NULL, false);
-        if (effect) effect->owner = thinker;
+        G_SpawnOwnedAbilityEffectTarget(thinker, ID_UNSUMMON_BUFF, WC3_EFFECT_TARGET, 0, building, NULL);
     }
 }
 

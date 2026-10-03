@@ -225,9 +225,11 @@ For relocation abilities, resolve destination legality and fallback in the owner
 then use `S_SpellRelocateUnit()` only for the demonstrated common commit step:
 source/destination `SpecialArt`, FOW blocker invalidation, relink, and
 `G_UnitPositionChanged()`. Mass Teleport and Way Gate intentionally keep different
-destination/search, grouping, failure, and order-cleanup policy. Channel-owned
-presentation should use the existing owned-effect helpers where possible rather
-than maintaining a parallel effect registry.
+destination/search, grouping, failure, and order-cleanup policy. Gameplay-owned persistent presentation should use the owned-effect helpers where
+possible rather than open-coding effect ownership or maintaining a parallel
+registry. Use `G_SpawnOwnedAbilityEffectAtPoint()` for world-space art and
+`G_SpawnOwnedAbilityEffectTarget()` for attached target/caster art; the owning
+ability still controls extra tags, offsets, and the cleanup trigger.
 Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with
 animation, expiry, or other side effects retain their own wrappers.
 Homing spell missiles likewise resolve the captured caster and target incarnations through

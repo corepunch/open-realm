@@ -2797,6 +2797,7 @@ void G_LightningColor(gLightning_t *effect, color32_t color);
 void G_LightningScriptColor(gLightning_t *effect, color32_t color, float const *precise);
 void G_LightningRemove(gLightning_t *effect);
 gLightning_t *G_SpawnAbilityLightning(abilityLightningParams_t const *params);
+edict_t *G_SpawnOwnedAbilityEffectTarget(edict_t *owner, uint32_t ability_id, wc3EffectType_t type, uint32_t index, edict_t *target, cstring_t attach_point);
 edict_t *G_SpawnOwnedAbilityEffectAtPoint(edict_t *owner, uint32_t ability_id, wc3EffectType_t type, uint32_t index, vec2_t const *point);
 void G_DestroyOwnedEffects(edict_t *owner);
 void G_EffectThink(edict_t *);

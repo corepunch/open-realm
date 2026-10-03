@@ -699,9 +699,8 @@ static void hero_aura_sync_overlay(edict_t *unit, uint32_t base_code, edict_t * 
         keep = NULL;
     }
     if (!keep && desired_model) {
-        edict_t *effect = G_SpawnAbilityEffectTarget(effect_code, WC3_EFFECT_TARGET, 0, unit, NULL, false);
+        edict_t *effect = G_SpawnOwnedAbilityEffectTarget(unit, effect_code, WC3_EFFECT_TARGET, 0, unit, NULL);
         if (effect) {
-            effect->owner = unit;
             effect->summon_ability = base_code;
             overlays[unit->s.number] = effect;
         }
