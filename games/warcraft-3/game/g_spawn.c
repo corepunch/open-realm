@@ -400,6 +400,13 @@ edict_t *G_Spawn(void) {
     return edict;
 }
 
+/* Native owned pools prepend on birth and genuine ownership changes. A saved
+ * sequence preserves this order without retaining process-owned AI list nodes. */
+void G_UnitOwnerInsert(edict_t *unit) {
+    if (level.next_unit_seq==UINT64_MAX) gi.error("WC3 unit owned-pool sequence exhausted\n");
+    unit->own_seq=++level.next_unit_seq;
+}
+
 /* Confirm a candidate variation resolves through the authoritative VFS. */
 static bool SP_DoodadModelExists(cstring_t filename) {
     uint32_t size = 0;
@@ -544,6 +551,7 @@ static void SP_SpawnDestructable(edict_t *edict) {
     }
     edict->movetype = MOVETYPE_NONE;
     edict->svflags |= SVF_STATIC_SCENERY;
+    G_ApplyDestructableCreationPose(edict);
     G_BlightInitializeDestructable(edict);
 }
 
@@ -600,6 +608,7 @@ void SP_CallSpawn(edict_t *edict) {
         SP_SpawnDestructable(edict);
         SP_monster_tree(edict);
     } else if (edict->data.UnitUI->modelFile) {
+        if (!edict->own_seq) G_UnitOwnerInsert(edict);
         SP_SpawnUnit(edict);
         SP_monster_unit(edict);
     } else if (edict->data.ItemData->file) {
@@ -676,6 +685,22 @@ static uint32_t G_MapControl(mapPlayer_t const *player) {
         case kPlayerTypeRescuable: return 2;
         case kPlayerTypeNeutral: return 3;
         default: return 5;
+    }
+}
+
+/* Original29e300 locked-seed branch precedes1e9dd0 race resolution and main().
+ * TODO NUM-04.5: unlocked/lobby seed and observer payload78 production are still unverified. */
+void G_InitLockedMapRandom(void) {
+    if (!(level.setup.map_flags&0x8000u)) return; /* MAP_LOCK_RANDOM_SEED, original common.j value. */
+    wc3_random_seed(&level.pathing_random,0x77617233u);
+    static uint32_t const prefs[]={0,1,2,8,4,16}; /* a93c84/a93c88; preference bits by resolved race. */
+    FOR_LOOP(i,PLAYER_NEUTRAL_AGGRESSIVE) {
+        gameClient_t *client=game.clients+i;
+        uint32_t pref=client->jass.race_pref&~0x40u;
+        client->ps.race=0;
+        if (pref&0x20) client->ps.race=(wc3_random_next(&level.pathing_random)>>30)+1;
+        else for (unsigned race=1;race<sizeof(prefs)/sizeof(prefs[0]);race++)
+            if (pref==prefs[race]) { client->ps.race=race; break; }
     }
 }
 
@@ -765,6 +790,8 @@ void G_SpawnEntities(void) {
     G_ClearHashtableRegistry();
     G_FowShutdown();
     G_BlightShutdown();
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
     memset(&level, 0, sizeof(level));
     G_ResetSelectionSoundState();
     G_CommandErrorReset();
@@ -772,6 +799,9 @@ void G_SpawnEntities(void) {
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     G_ResetStartingResourceCheat();
     level.time = gi.GetTime();
+    level.pathing_msec = level.time;
+    level.pathing_clock.span = 300;
+    level.pathing_counter = BZ_WC3_PATH_OWNER_START;
 
     level.mapinfo = mapinfo;
     G_BlightInit();
@@ -892,6 +922,7 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     ent->s.angle = -M_PI / 2;
     ent->s.player = player;
     SP_CallSpawn(ent);
+    if (!ent->own_seq) G_UnitOwnerInsert(ent);
     /* SP_SpawnUnit fills collision and the server broad-phase bounds depend on
      * that value. Link only after the class-owned spawn initializer runs. */
     gi.LinkEntity(ent);
@@ -937,8 +968,7 @@ void G_SetDestructableScriptBinding(bool enabled) {
  * Destructables are neutral-passive, like the map-placed ones.  facing is in
  * radians (the native converts from JASS degrees).
  *
- * Parity note (Ghidra): the original CreateDestructable (FUN_003f80b0 ->
- * worker FUN_00621d90) always creates a fresh instance — its hash lookup
+ * Parity note (Ghidra1.27): constructor6c0d90 always creates a fresh instance — its hash lookup
  * resolves the destructable *type* by objectid, not an existing entity by
  * position.  We diverge with find-or-create because OUR engine already spawns
  * every war3map.doo destructable in G_SpawnEntities, and the map's generated
@@ -946,7 +976,8 @@ void G_SetDestructableScriptBinding(bool enabled) {
  * gg_dest_* handles + death triggers.  Reusing the pre-placed entity (like
  * unit_createorfind does for CreateUnit) yields the same observable result as
  * the original — one crate/gate carrying the trigger — instead of a stacked
- * duplicate.  Match a same-type destructable within 10 units of the spot. */
+ * duplicate. Match a same-type destructable within10 units of the constructor's
+ * snapped spot, including a hidden placeholder's retained alive texture. */
 /* HACK: Positional binding is required until the map parser exposes the
  * generated script variable's editor creation ID. */
 edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation) {
@@ -966,9 +997,8 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
                 continue;
             }
 
-            distance = Vector2_distance(
-                &MAKE(vec2_t, x, y),
-                &existing->s.origin2);
+            vec2_t point=G_DestructableCreationPoint(existing,(vec2_t){x,y},facing);
+            distance = Vector2_distance(&point,&existing->s.origin2);
 
             if (distance >= best_distance) {
                 continue;
@@ -1102,11 +1132,9 @@ static bool G_CanRepositionUnitAt(edict_t *unit, vec2_t const *point) {
     return gi.BoxEdicts(&area, blockers, MAX_REPOSITION_BLOCKERS, G_RepositionBlocker) == 0;
 }
 
-/* Warcraft III SetUnitPosition is not the raw X/Y setter. Warsmash models the
- * native through CUnit.setPointAndCheckUnstuck(): test the requested point,
- * then walk a deterministic 64-world-unit square spiral for at most 300
- * candidates. Keep the requested point as the fallback when no candidate is
- * legal, matching Warsmash's outputX/outputY initialization. */
+/* TODO: legacy placement for item drops, cargo, summons and Way Gates retains
+ * Warsmash's300-candidate64-unit spiral until those original producers are
+ * recovered. Public CreateUnit/SetUnitPosition use verified fine rings instead. */
 bool G_FindUnitUnstuckPosition(edict_t *unit, vec2_t const *requested, vec2_t *out) {
     int check_x = 0, check_y = 0;
 

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "id": "public-order-lifecycle-1.27",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "scenario": "order_lifecycle",
+  "map": {
+    "base_sha256": "199683be6cd1a888ade00f3dce1e3e93f16e92e05724717048b033108b5a2104",
+    "scenario": "order_lifecycle",
+    "remove_tick": 50,
+    "gate_y": -800.0,
+    "gate_exit_y": -240.0,
+    "map_sha256": "3d56d146527a3e2e1d904c34646f3c258c3f5ad0deb9929aa464666493ce143e",
+    "members": [
+      "war3map.doo",
+      "war3map.j",
+      "war3map.mmp",
+      "war3map.shd",
+      "war3map.w3c",
+      "war3map.w3e",
+      "war3map.w3i",
+      "war3map.w3r",
+      "war3map.w3s",
+      "war3map.w3u",
+      "war3map.wct",
+      "war3map.wpm",
+      "war3map.wtg",
+      "war3map.wts",
+      "war3mapMap.blp",
+      "war3mapUnits.doo"
+    ],
+    "changed_members": [
+      "war3map.j"
+    ],
+    "container": "rebuilt MPQ with original HM3W header; signature not retained"
+  },
+  "observer_sources": {
+    "tools/frida/wc3_pathfinding.js": "4bcdcfa6eeb2606910f9274c5130fb11fc64c8ea2e7461e82b91faf2f366653c",
+    "tools/frida/wc3_pathfinding_probe.j": "a0b00054efb957ca8e8b63e6450c52afb3285fc9a580c773ec6133ed0f9c887b",
+    "tools/frida/make_wc3_pathfinding_map.py": "cff89805917c3ab1479e740c30dd415ac6fc347db5ebaaa986cf6d3874a23c09",
+    "tools/frida/trace_wc3_pathfinding.py": "0771525d6c7a3c267e6cfcb55568ff9b1af3dc4301fe1b7ae56a3bb16d17b225"
+  },
+  "provenance_scope": "Hashes recorded after the two owned captures; observer/probe/map builder and generated map were unchanged throughout those captures. Historical observer and map hashes are not embedded in original trace metadata. No whole-engine trajectory or raw float-position parity claim.",
+  "repeat_marker_sha256": "a386b56ddd95c2154127315e65c3afe8b2869fe754db44458e0d67c83712df19",
+  "markers_per_capture": 320
+}

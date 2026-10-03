@@ -9,6 +9,7 @@
 
 #include "test.h"
 #include "../g_local.h"
+#include "retail_widget_overlap.h"
 
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void setup_test_world(void);
@@ -25,6 +26,8 @@ bool run_test_jass(cstring_t src);
 bool G_TestFixOrc07BridgeRestoreScript(char *script);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
+unsigned G_TestStaticPathMask(unsigned x, unsigned y);
+int G_TestMovePathClass(uint8_t mask, unsigned level, unsigned x, unsigned y);
 
 TEST(wc3_destructable, unknown_entity_without_data_is_not_destructable) {
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('d', 'u', 'm', 'y') };
@@ -468,6 +471,169 @@ TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {
     T_ASSERT(dest->destructable->pathing_active);
     T_ASSERT(dest->pathtex == (pathTex_t *)&destructable_blocked_death_pathtex);
     T_ASSERT(!CM_PointIsPathableForRadius(&center, 0.0f));
+}
+
+/* Free is also a pathing producer: callers need not issue a separate bake.
+ * Keep a field alive across the removal so stale cache reuse is observable. */
+TEST(wc3_destructable, final_free_retires_static_footprint_and_cached_field) {
+    uint8_t cells[32 * 32] = {0};
+    vec2_t center = {272,272}, source = {144,272}, target = {496,272}, out;
+
+    FOR_LOOP(dead,2) {
+        reset_entities(); setup_test_world();
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{1024,1024}});
+        CM_SetupTestPathmap(32,32,cells);
+        edict_t *dest=make_test_destructable(10,center.x,center.y);
+        dest->pathtex=dest->destructable->alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+        if(dead) {
+            dest->destructable->death_pathtex=dest->pathtex;
+            T_ASSERT(G_KillDestructable(dest,NULL));
+        } else CM_BakeStaticObstacles();
+        edict_t *goal=Waypoint_add(&target);
+        uint32_t generation=CM_BuildHeatmapForRadius(goal,16);
+        CM_ProcessPathJobs(8192);
+        T_ASSERT(CM_ActivateCachedFlow(generation));
+        T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+
+        G_FreeEdict(dest);
+        T_ASSERT(!dest->inuse);
+        T_ASSERT(CM_PointIsPathableForRadius(&center,0));
+        T_ASSERT(!CM_ActivateCachedFlow(generation));
+        edict_t *mover=make_destructable_test_attacker(source.x,source.y);
+        mover->collision=16;
+        movePathQuery_t query={.geometry={.from=&source,.target=&target,.radius=16,.blocked_flags=2},
+                              .mover=mover,.units=true};
+        moveFineRoute_t route={0};
+        T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&out));
+        T_ASSERT(route.adaptive_count>0);
+        T_ASSERT(!route.partial);
+        mover->movement.fine_route=route;
+        S_FreeMoveRoute(mover);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_destructable, death_restore_remove_preserve_overlapping_blocker_and_terrain) {
+    uint8_t cells[32 * 32]={0};
+    vec2_t center={272,272}, terrain={592,272}, target={496,272};
+    reset_entities(); setup_test_world();
+    cells[18+8*32]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{1024,1024}});
+    CM_SetupTestPathmap(32,32,cells);
+    edict_t *a=make_test_destructable(10,center.x,center.y);
+    edict_t *b=make_test_destructable(10,center.x,center.y);
+    a->pathtex=a->destructable->alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+    b->pathtex=b->destructable->alive_pathtex=a->pathtex;
+    b->destructable->death_pathtex=b->pathtex;
+    CM_BakeStaticObstacles();
+    edict_t *goal=Waypoint_add(&target);
+    uint32_t old=CM_BuildHeatmapForRadius(goal,16);
+    CM_ProcessPathJobs(8192); T_ASSERT(CM_ActivateCachedFlow(old));
+
+    T_ASSERT(G_DestructableApplyDamage(a,NULL,10));
+    T_ASSERT(a->destructable->dead);
+    T_ASSERT(!a->destructable->pathing_active);
+    T_ASSERT(!CM_ActivateCachedFlow(old));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(G_RestoreDestructable(a,10,false));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(G_KillDestructable(b,NULL));
+    T_ASSERT(b->destructable->pathing_active);
+    T_ASSERT(G_RemoveDestructable(a));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    old=CM_BuildHeatmapForRadius(goal,16);
+    CM_ProcessPathJobs(8192); T_ASSERT(CM_ActivateCachedFlow(old));
+    G_FreeEdict(b);
+    T_ASSERT(CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(!CM_ActivateCachedFlow(old));
+    T_ASSERT(!CM_PointIsPathableForRadius(&terrain,0));
+    reset_entities(); setup_test_world();
+}
+
+static void assert_widget_overlap_grid(unsigned state) {
+    FOR_LOOP(y,32) FOR_LOOP(x,32)
+        T_EQ(G_TestStaticPathMask(144+x,64+y)&0xc6,retail_widget_masks[state][y*32+x]);
+    uint8_t const lanes[]={2,0x80,0x40,4};
+    unsigned at=0;
+    FOR_LOOP(level,4) {
+        unsigned size=16>>level, ox=144>>(level+1), oy=64>>(level+1);
+        FOR_LOOP(y,size) FOR_LOOP(x,size) FOR_LOOP(lane,4)
+            T_EQ(G_TestMovePathClass(lanes[lane],level,ox+x,oy+y),retail_widget_classes[state][at++]);
+    }
+}
+
+/* Original public LTlt/LTg1 creation snaps (-1936,-560) to (-1920,-512)
+ * using its file-backed texture dimensions and authored fixedRot270. */
+TEST(wc3_destructable, authored_overlapping_creations_snap_pose_and_rotation) {
+    char const *slk="ID;PWXL;N;E\nB;Y3;X8;D0\n"
+        "C;Y1;X1;K\"ID\"\nC;X2;K\"file\"\nC;X3;K\"targType\"\nC;X4;K\"HP\"\n"
+        "C;X5;K\"radius\"\nC;X6;K\"pathTex\"\nC;X7;K\"fixedRot\"\nC;X8;K\"numVar\"\n"
+        "C;Y2;X1;K\"B4DF\"\nC;X2;K\"UI\\Glues\\SpriteLayers\\TopLeftPanel\"\n"
+        "C;X3;K\"tree\"\nC;X4;K50\nC;X5;K0\nC;X6;K\"PathTextures\\4x4Default.tga\"\nC;X7;K270\nC;X8;K1\n"
+        "C;Y3;X1;K\"B20G\"\nC;X2;K\"UI\\Glues\\SpriteLayers\\TopLeftPanel\"\n"
+        "C;X3;K\"debris\"\nC;X4;K500\nC;X5;K50\nC;X6;K\"PathTextures\\Gate1Path.tga\"\nC;X7;K270\nC;X8;K1\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk), *saved=G_SetSLKRows("DestructableData",rows);
+    uint32_t ids[]={MAKEFOURCC('B','4','D','F'),MAKEFOURCC('B','2','0','G')};
+    uint8_t cells[384*256]={0};
+    FOR_LOOP(y,32) FOR_LOOP(x,32) cells[(64+y)*384+144+x]=retail_widget_masks[0][y*32+x];
+    FOR_LOOP(order,2) {
+        reset_entities(); setup_test_world();
+        CM_SetupTestWorldBounds(&(box2_t){{-7168,-3072},{5120,5120}});
+        CM_SetupTestPathmap(384,256,cells);
+        assert_widget_overlap_grid(0);
+        edict_t *objects[2];
+        FOR_LOOP(i,2) {
+            unsigned index=i^order;
+            objects[index]=G_CreateDestructable(ids[index],-1936,-560,0,0,1,0);
+            T_ASSERT(objects[index]);
+            T_EQ(objects[index]->s.origin2.x,-1920);
+            T_EQ(objects[index]->s.origin2.y,-512);
+            T_EQ(objects[index]->data.DestructableData->fixedRot,270);
+            T_FEQ(objects[index]->s.angle,wc3_degrees_to_radians(270),0.000001f);
+            assert_widget_overlap_grid(i ? 3 : index+1);
+        }
+        vec2_t gate_edge={-2160,-496}, tree_center={-1904,-528};
+        T_ASSERT(!CM_PointIsPathableForRadius(&gate_edge,0));
+        T_ASSERT(!CM_PointIsPathableForRadius(&tree_center,0));
+        T_ASSERT(G_RemoveDestructable(objects[order]));
+        assert_widget_overlap_grid((order^1)+1);
+        T_EQ(CM_PointIsPathableForRadius(&gate_edge,0),order!=0);
+        T_ASSERT(!CM_PointIsPathableForRadius(&tree_center,0));
+        T_ASSERT(G_RemoveDestructable(objects[order^1]));
+        assert_widget_overlap_grid(0);
+        T_ASSERT(CM_PointIsPathableForRadius(&tree_center,0));
+    }
+    /* The generated script's original off-grid request must find its already
+     * snapped hidden placeholder, rather than create a second blocker. */
+    edict_t *placed=G_CreateDestructable(ids[0],-1936,-560,0,0,1,0);
+    G_InitializeDestructablePlacement(placed,&(doodad_t){.flags=0,.treeLife=100,.unitID=99});
+    uint32_t before=globals.num_edicts;
+    G_SetDestructableScriptBinding(true);
+    edict_t *created=G_CreateDestructable(ids[0],-1936,-560,0,0,1,0);
+    G_SetDestructableScriptBinding(false);
+    T_ASSERT(created==placed); T_EQ(globals.num_edicts,before);
+    T_ASSERT(placed->destructable->script_bound); T_ASSERT(placed->destructable->pathing_active);
+    T_EQ(placed->s.origin2.x,-1920); T_EQ(placed->s.origin2.y,-512);
+    T_ASSERT(G_RemoveDestructable(placed));
+    assert_widget_overlap_grid(0);
+    /* Negative fixedRot retains the caller's angle; no texture retains pose.
+     * Noninteger angles must survive the SLK schema, rather than becoming bool. */
+    DestructableData_t data={.fixedRot=-1};
+    edict_t *bound=make_test_destructable(50,-1936,-560);
+    bound->data.DestructableData=&data;
+    bound->s.angle=wc3_degrees_to_radians(90);
+    G_ApplyDestructableCreationPose(bound);
+    T_EQ(bound->s.origin2.x,-1936); T_EQ(bound->s.origin2.y,-560);
+    T_EQ(bound->s.angle,wc3_degrees_to_radians(90));
+    bound->pathtex=bound->destructable->alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+    data.fixedRot=37.5f;
+    bound->s.origin2=(vec2_t){100000,-100000};
+    G_ApplyDestructableCreationPose(bound);
+    T_EQ(bound->s.angle,wc3_degrees_to_radians(37.5f));
+    T_EQ(bound->s.origin2.x,5072); T_EQ(bound->s.origin2.y,-3088);
+    reset_entities(); setup_test_world();
+    G_SetSLKRows("DestructableData",saved); free_slk_rows(rows);
 }
 
 TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {

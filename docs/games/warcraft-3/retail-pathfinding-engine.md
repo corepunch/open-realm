@@ -1,0 +1,6999 @@
+# Pathfinding engine integration
+
+## Implemented slice
+
+`games/warcraft-3/common/wc3_math.h` implements the retail 1.27.1.7085
+software scalar add, subtract, multiply, divide, square root, reciprocal,
+sine/cosine, acos-based vector headings, angle normalization, speed/heading decisions and velocity/position
+arithmetic. Integer significands, truncation, explicit sign extension and exponent
+wrapping reproduce the game-specific arithmetic; host nearest-rounded float
+operations are not equivalent. This does not replace ordinary shared vector math.
+
+Move's `unit_turn_toward()` consumes the scalar heading update instead of
+rotating a host sine/cosine vector. `SetUnitTurnSpeed` and `SetUnitPropWindow`
+normalize their radians through the retail arithmetic. Turn speed retains the
+retail minimum (`3a83126f`, approximately 0.001). `unitinfo.move_flags` records
+explicit overrides, including a valid zero movement window.
+
+With an authored or scripted window, translation stops when the **pre-turn** heading error
+is greater than or equal to the window. Turning continues. Internal approaches retain this propagation-window decision;
+ordinary public point Move uses the separate arrival contract below. `movement.turn_blocked` records this tick's
+decision and resets with order progress. Both values survive save/load. Save
+format 55 rejects earlier layouts because scalar fields shift edict offsets.
+
+Stock units now use authored `UnitData.propWin` degrees, converted and normalized
+through the verified retail scalar path. Current native getters expose the effective
+turn rate and radians window; default getters expose the immutable authored values,
+including degrees for `GetUnitDefaultPropWindow`. Zero authored values retain their
+meaning; they are not replaced by unrestricted movement.
+
+## Evidence
+
+Binary identity and report-root conventions are in the [retail ledger](retail-pathfinding.md#binary-and-evidence-conventions).
+Reports below are under `/GitHub/wc3-analysis/reports/pathfinding-1.27/`:
+
+| Report | Verified scope |
+| --- | --- |
+| `numeric-engine-exact.json` | 65,316 original add/subtract/multiply calls match production C output words exactly; 21,772 per operation |
+| `motion-engine-exact.json` | 13,824 complete `170880` calls and nine `062930` normalizer calls match C exactly; the surrounding existing motion corpus also runs |
+| `runtime/motion-integration-open-exact.json` | All 182 captured open-ground decisions match C |
+| `runtime/motion-integration-turn-exact.json` | All 191 captured turning decisions match C, including nine stopped updates |
+| `runtime/motion-integration-turn-repeat-exact.json` | A second run has the identical normalized 191-decision input/output sequence |
+
+Turning input: copied Human02Interlude, Footman at `(-1936,-976)`, facing east,
+`SetUnitTurnSpeed(0.125)`, `SetUnitPropWindow(0.5)`, move north toward
+`(-1936,-144)`. All 300 JASS samples and completion are required. The read-only
+observer records raw words at `6f170880` entry/return, four thiscall stack
+arguments and mover `+b4/+b8/+bc`. Ghidra assembly confirms the ABI.
+Captures, map hashes, provenance and frozen observer/controller sources use
+the `motion-integration-*` prefix.
+
+The ordinary arithmetic oracle also reran its existing 200,330 helper calls
+and composed checks. Only the three implemented operations are compared to C
+there. A helper match does not establish a whole OpenRealm trajectory match.
+
+## Reproduction
+
+Run from the repository root. The probe compiles the **production header**;
+it contains no second implementation. Reports record its library hash.
+
+```sh
+cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared -I. \
+  tools/ghidra/wc3_pathing_engine_probe.c -o /tmp/wc3-pathing-engine.so
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_numeric.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --engine-library /tmp/wc3-pathing-engine.so --report /tmp/numeric-engine-exact.json
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_motion.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --engine-library /tmp/wc3-pathing-engine.so --report /tmp/motion-engine-exact.json
+python3 tools/frida/make_wc3_pathfinding_map.py \
+  --base /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/Human02Interlude-original.w3m \
+  --scenario turn --output /run/media/lofcz/ssd_external/Games/w3/Maps/PathingRE-TurnNew.w3m
+/home/lofcz/.local/share/uv/tools/frida-tools/bin/python tools/frida/trace_wc3_pathfinding.py \
+  --data /run/media/lofcz/ssd_external/Games/w3 --map 'Maps\PathingRE-TurnNew.w3m' \
+  --motion-events --task-events --samples 500 --seconds 130 --continue-at 80 \
+  --x11-display :94 --output /tmp/motion-turn.jsonl
+python3 tools/frida/verify_wc3_motion_trace.py /tmp/motion-turn.jsonl \
+  --engine-library /tmp/wc3-pathing-engine.so --scenario turn --report /tmp/motion-turn-exact.json
+```
+
+Start an isolated Wine/Frida server using the [RE setup](audio-retail-analysis.md),
+with the pathfinding prefix, display `:94` and port 27046. Use fresh map/output
+paths. Repeat the capture and add `--compare /tmp/motion-turn-repeat.jsonl` to
+require the same normalized decision sequence. The checker rejects absent,
+truncated, malformed or mismatched decisions and observer/controller errors.
+
+Asset-free checks: `make test-pathfinding-tools`,
+`make test-wc3-engine WC3_PATTERN='wc3_movement.scripted*'`, then `make test`.
+The Python suite compiles C at O0/O2, compares seeded raw words to independent
+integer models, freezes a live decision, and rejects deliberate trace mutations.
+The normalizer retains retail quirks: positive float32 tau remains tau, negative
+tau becomes zero, and positive zero becomes negative zero.
+`t_movement.c` drives native setters, pre-turn stopping, equality, zero windows,
+subsequent travel, close-goal arrival and save/load. Turn and arrival regressions
+failed before the corresponding fixes. On this host `make test` needs native
+SDL2 as documented in [test performance](../../test-performance.md#linux-sdl-compatibility-layer-text-event-crash).
+
+## Public scalar inputs and decimal destinations
+
+NUM-01.5/06 bridge the verified movement arithmetic into actual public JASS
+inputs. OpenRealm previously implemented `S2R` with `atoi`, losing fractional
+coordinates, and used host casts/libm for `I2R`, `R2I`, `Sin`, `Cos`, `Acos`
+and `SquareRoot`. `api_misc.h` now uses the verified software scalars, retaining
+each public wrapper's own domain guard. These changes affect WC3's native API;
+SC2's separate Galaxy math adapters are outside this change.
+
+The original registration at207490 installs these actual functions:
+
+| Native | RVA | Input / return |
+| --- | --- | --- |
+| S2R | 211080 | encoded string handle / raw scalar word |
+| I2R | 204c80 | signed integer value / raw scalar word |
+| R2I | 2103a0 | scalar pointer / signed integer |
+| Sin / Cos | 215d00 / 1f9580 | scalar pointer / raw scalar word |
+| Acos | 1f75d0 | scalar pointer / raw scalar word |
+| SquareRoot | 215d30 | scalar pointer / raw scalar word |
+
+All seven registered wrappers are cdecl with stack4 input and EAX result.
+`S2R` resolves its string through06e8d0, returns zero for absent/empty text,
+otherwise calls070de0 (ECX output, EDX text, EAX output pointer, plain RET).
+The parser accepts an optional leading sign, one decimal point and nine
+significant digits, stopping at any other byte. It skips no leading whitespace
+and recognizes no exponent notation. Leading zeroes do not count as significant
+digits. Scaling uses071180's scalar multiplication/squaring of10 and original
+070d80's truncating integer conversion, followed by scalar multiply/divide.
+A host `strtof` would still miss the actual contract: `S2R("1936.25")` is raw
+`44f20801` (1936.2501220703125), while the exactly representable host value is
+`44f20800`. The negative coordinate is `c4f20801`; `"-144.125"` is `c3102000`.
+
+`R2I` calls070170, saturating exponents >=158 to INTMAX/INTMIN according to
+sign. It differs from raw wrapping070120. `I2R` truncates the integer
+significand; INTMAX becomes2147483520. `Cos(0)` is `3f7fffff`.
+`Acos` returns zero for values strictly outside[-1,1]; unordered COMISS does
+not take the rejection branch, a distinction retained by the engine adapter.
+`SquareRoot` returns zero when `abs(ScalarSubtract(input,0))` is strictly below
+static `3a83126f` (~0.001), or input is negative. Equality executes071480.
+The threshold belongs to the public wrapper, not the raw root helper used
+by movement. Nonfinite raw-wrapper controls do not establish producer reachability.
+
+`num-01.6-public-wrapper-engine-exact.json` records2,024 original parser calls
+matching independent integer formulas and production C, plus12,210 executions
+of the six registered numeric wrappers with raw synthetic inputs, preserved
+input/guard words, nonvolatile registers and balanced cdecl stack. The isolated
+parser supplies only ASCII `isdigit`; all scalar/parser instructions execute
+unchanged. The separate live witness uses retail's installed sibling CRT.
+Parser digest is `45fb304aa5ffa02919dae455d2e5ede75299567f71be7b9acb058374f7713556`;
+wrapper digest is `1af7c716e12804fbb195cf546923f6411cb1be6dc73bae87adbf59dea713440c`.
+
+`numeric_inputs` map scenario23 brackets calls with `PATHNUM` markers before
+native argument evaluation. Both complete `runtime/num-01.5-inputs2-{raw,repeat}.jsonl`
+captures contain67 native returns and25 nonempty original parser witnesses.
+Inputs for real-valued natives come through explicit `S2R` text; integer inputs
+remain actual integer values. The normalized raw sequence repeats exactly with
+digest `cbeb498cdb8e4f0de7806f4be9cb44a321ea44d4b5aa1bad3d2a974429f62d2e`.
+A real public Move task retains both parsed destination words above. Capture
+metadata embeds hashes of observer, controller, probe, builder, case data and
+the actual generated map; the fixture retains those historical hashes.
+`verify_wc3_numeric_inputs.py` rejects missing/reordered markers, mismatched
+input/output/helper text, changed provenance, counts and destination words.
+The corpus pins both captures independently.
+
+Public engine tests reproduced21 failures across41 numeric cases, then pass
+all41 frozen words. The separate decimal/Move regression failed before the
+parser change and now passes five checks, including issued coordinates through
+`IssuePointOrder`. Asset-free C checks cover optimized/unoptimized parser and
+integer conversions against independent models. Ghidra now persists289 names,
+18 partial layouts,115 fields and57 explicit prototypes, including the byte
+text pointer and public wrapper threshold. Report:
+`num-01.6-ghidra-public-numeric-types.json`.
+
+Full validation:83 pathfinding tool tests,37,056 assertions in2,140 engine tests
+for each Classic/TFT run, and both WC3/SC2 production builds pass.
+`num-01.6-public-corpus/corpus-results.json` passes123/123 with all recorded
+source fingerprints unchanged through completion. Manifest SHA256:
+`e013410a7e49451311ce5b872b543b6bba13f28f8a4495c142a9620622c07448`;
+summary SHA256:
+`849aa7407ec18ae6dea6d91790da46cbcd17fe04542b6a44bf136360179362f2`.
+
+Exploratory `runtime/num-01.5-inputs-raw.jsonl` used long compiled decimal
+literals and exposed a different producer contract: for example a long literal
+written for0.6 reached Sin with raw `bf85635d`. This trace is retained as
+an investigation artifact; it is not the accepted decimal-input fixture.
+NUM-01.7 explicitly owns the original JASS literal compiler/parser and engine
+integration. Remaining angle/power helpers, their constant initialization,
+non-ASCII grammar/locale and broader public exceptional domains stay NUM-01.2/03.
+Whole trajectory/cadence parity remains NUM-02.3.
+
+## Public angle adapters
+
+NUM-01.8 extends the scalar integration to `Asin`, `Atan`, `Atan2`, `Tan`,
+`Deg2Rad` and `Rad2Deg`. These WC3 native adapters now use the same deterministic
+scalar helpers as movement. Host Galaxy math remains separate.
+
+| Public native | Registered RVA | Helper / public guard |
+| --- | --- | --- |
+| Asin | 1f8250 | 0703a0; strict outside[-1,1] returns0 |
+| Atan | 1f8310 | 0705b0; reciprocal/range-reduced scalar polynomial |
+| Atan2 | 1f8290 | 070530; both absolute scalar distances strictly below3a83126f returns0 |
+| Tan | 216750 | 071590; original paired sin/cos followed by scalar division |
+| Deg2Rad | 1fcda0 | scalar multiply by static3c8efa35 |
+| Rad2Deg | 210480 | scalar multiply by static42652ee1 |
+
+All wrappers are cdecl, returning a raw scalar in EAX. Single-real arguments
+are pointers at stack4; Atan2 uses y/x pointers at stack4/8. Decompiler's earlier
+fastcall suggestion for Tan was corrected from instructions. All four low-level
+angle helpers use ECX output/EDX input, with Atan2's second input at stack4 and
+RET4. The other helpers have plain RET and return the output pointer in EAX.
+
+Asin reuses the original inverse curve and its near-one table. Its ordinary
+branch negates the clamped fixed-point phase and subtracts3243f6a8 before
+truncating integer-to-scalar conversion. Computing half-pi minus the completed
+acos scalar would lose that operation order. Near one, positive/negative
+inputs use separate half-pi subtraction/addition. The engine shares the
+interpolation machinery with acos; the frozen acos/vector/velocity corpora
+continue to verify every affected consumer.
+
+Atan takes the absolute input, uses a reciprocal above1, then tests strict
+range threshold3e8930a3. Reduction is
+`(x + bf13cd3a) / (1 + 3f13cd3a*x)`, using scalar operations. The rational
+polynomial is `x*(3f7ffff0 + 3e8415a6*x*x)/(1 + 3f17592e*x*x)` in that exact
+operation order. Reduction adds3f060a92; reciprocal mode subtracts the result
+from3fc90fdb. Negative-nonzero input bits then invert the sign. Atan2 consumes
+the absolute scalar quotient, handles exponent-zero x with half-pi, then uses
+pi subtraction and y sign correction. Signed zero does not trigger either
+negative quadrant correction. The public wrapper's both-small guard is separate.
+
+Tan consumes the paired helper directly. Its live half-pi example returns
+4effffff, and its pi example returnsb0000001; these retain lookup/remainder
+quirks rather than host transcendental results. Asin's public bounds and
+Atan2's strict tiny-input guard are retained in `api_misc.h`; SC2's own math
+adapters are not routed through these WC3 helpers.
+
+`num-01.8-angle-engine-exact.json` records81,309 original/model/C calls across
+the four distinct-storage helpers, including adjacent reduction/lookup inputs,
+and24,420 original registered-wrapper raw calls across twelve natives. Public
+producer reachability is separately established by the live cases; raw
+nonfinite inputs and pointer aliases are not promoted to public-domain evidence.
+Angle-helper digest:
+`caba85090ffb76bb247fd0a43bf23e1661915cf5d77710299689a8923700f205`;
+registered-wrapper digest:
+`23c401d402844bdfa509d5eff151dcfe37c3cb4e88139b2d9aff0c5d9bc43251`.
+
+Scenario24 `numeric_angles` supplies actual decimal text to S2R before each
+angle-native invocation. Two complete `runtime/num-01.8-angles-{raw,repeat}.jsonl`
+captures each record48 bracketed raw input/output pairs and ordinary point-Move
+admission/completion. All raw pairs repeat identically:
+`8dc9da2575dc2703abc75e88f941251beceb2c22537cba781423d13ecd08bee8`.
+The fixture includes both Atan2 operand words, public boundary/zero guards,
+static factors and source/map hashes. The analyzer treats absent sparse parser
+counters as zero when no parser event is expected, and rejects nonzero counts,
+operand reversal and other trace corruption.
+
+The engine public regression reproduced25 failures across48 frozen cases;
+all48 pass after integration. Together with the earlier decimal/scalar cases,
+all94 public checks pass in both Classic and TFT. Independent integer models
+also compare optimized/unoptimized C. Ghidra persists299 names,18 partial
+layouts,115 fields and67 explicit operand-storage prototypes; twelve consumed
+static constants have named typed labels and no direct write xrefs.
+`num-01.8-ghidra-angle-types.json` records the persisted ABI. Historical
+constant generation, pointer-alias producers, Pow and compiled-literal parsing
+remain explicit NUM-01.2/07 work. Whole cadence/trajectory parity stays NUM-02.3.
+
+Full validation passes85 pathfinding tool tests and37,104 assertions in2,141
+engine tests per Classic/TFT run; WC3 and SC2 production builds pass.
+`num-01.8-angle-corpus/corpus-results.json` passes124/124 with all recorded
+source fingerprints unchanged through completion. Manifest SHA256:
+`8ce2ad3f3889607dabcc45d87d582eb32119d5c6c7475bb45c0422663525867f`;
+summary SHA256:
+`90450e97d996040caaf9c336d15d72f57bd6ea322d91b8e7501700676021895c`.
+
+## Generated tables and exact trigonometry
+
+`generate_wc3_math_tables.py` independently generates the static tables into
+`wc3_math_tables.h`, using 90-digit Decimal sine series and integer division.
+The 1,025 quarter-wave entries are `floor(sin(i*pi/2048)*2^31)`, saturating the
+positive endpoint to `7fffffff`. The reciprocal entries are
+`min(2^23, floor(2^47/(2^23+i*2^13-1))-2^23)`. The subtraction of one from
+the denominator is necessary: sampling the exact nominal significand misses 845
+entries. Both generated tables compare byte-for-byte with the embedded retail
+constants; the original build-time generator source is unavailable.
+
+Sine/cosine first multiply by stored scale `4822f983`, truncate to a wrapping
+integer phase, select a quadrant and interpolate the quarter-wave table with
+its low 8-bit residue repeated four times. Converting that fixed-point value
+back to a scalar truncates; hardware float conversion rounds. There is no host
+libm call in these simulation helpers. Table addresses/hashes and exact C
+comparisons are in `scalar-trig-engine-exact.json`: add/subtract/multiply 21,772
+each, sine/cosine 21,668 each, square root/reciprocal 25,542 each and divide 21,732.
+Raw exceptional inputs establish helper behavior, not public producer validity.
+
+
+NUM-01.4 adds the complete paired helper071340. It uses ECX angle pointer,
+EDX sine output, stack4 cosine output and RET4; sine is stored before cosine.
+`num-01.4-paired-all-alias-numeric-exact.json` executes20,032 raw angles and
+80,128 alias cases against an independent generated-table model and production
+C, with adjacent quarter-turn inputs, signed zeros, exceptional raw words,
+input/output aliases, shared outputs, guard words, nonvolatile registers and
+stack cleanup. The distinct-angle output digest is unchanged from the earlier
+inventory experiment:
+`01131f854754268404722dcdae905cde29dcbb40228f0c30c877a346dd21c44e`.
+
+Production `wc3_sincos` computes the phase once and reuses the same interpolation
+as the singles. `wc3_velocity_update` consumes that pair. The test-first probe
+fails before the paired API exists, then verifies both-O0 and-O2 words against
+the independent model. This shares calculation without changing the requested
+velocity formula or making a new clock/trajectory claim. The original paired
+helper has verified formation/random-direction callers; its use here does not
+claim that the original velocity kernel itself calls071340. The strict corpus
+requires the paired case/alias counts and frozen digest in both numeric entries,
+then replays the existing velocity/facing/position witnesses unchanged.
+
+Ghidra now persists278 recovered names,18 partial layouts,115 fields and46
+explicit x86 prototypes, including `Math_SinCosPaired` and scalar phase constant
+`Math_TrigPhaseScale` atcd58d8. Remaining conversion/angle-helper comments retain
+partial ABI/semantics and direct caller counts, with unverified public domains
+explicitly excluded. Full remaining arithmetic inventory stays NUM-01.2; public
+exceptional inputs remain NUM-03, and whole-engine timing remains NUM-02.3.
+
+Validation for01.4: full `make test` passes81 tool tests and37,010 assertions
+in2,138 engine tests; WC3/SC2 production builds pass. Fresh strict corpus
+`num-01.4-paired-corpus/corpus-results.json` passes122/122 and verifies unchanged
+source fingerprints at completion. The velocity/facing/position expectations
+remain frozen. Manifest SHA256:
+`6061e98eac2f62b11d32aefad73e5650290632ce51ee884e8602adf4863b5ef5`;
+summary SHA256:
+`1c4f5ed3eea55779bd0942f1f9d533af29668130e3fad5878490596733d50912`.
+
+## Velocity and position integration
+
+`wc3_velocity_update()` computes desired-minus-old velocity and adds that delta
+back with retail truncation. It tests squared magnitude against `3456bf95`
+(2e-7), then clamps with retail sqrt/reciprocal and scalar multiply. Cancellation
+cannot be simplified to assigning the desired vector. `wc3_elapsed()` clears
+fractional differences strictly below `38d1b717`, then adds the signed epoch
+span; it does not clamp negative elapsed time. `wc3_integrate()` applies the
+previous committed velocity before any requested velocity change.
+
+`velocity-integration-engine-exact.json` compares 80 complete original velocity
+commits and 2,384 position integrations exactly against C, alongside real
+occupancy mutations and the existing motion corpus. Frida's optional
+`--velocity-events` records the mover's prior time/epoch/position/velocity,
+selected original clock and complete commit output. The fresh turning capture
+`runtime/velocity-turn-raw.jsonl` contains 191 scalar decisions and 192 velocity/
+position commits, including the final stop; all output words compare exactly in
+`runtime/velocity-turn-exact.json`. The normalized translation hash is
+`b1f3acf293d750142136d18534a9492330fcacd2fe7fc2cfa7d26f5aac6616f8`.
+A second complete capture has the same decision and translation hashes in
+`runtime/velocity-turn-repeat-exact.json`. Frozen observer/controller sources and
+binary/map/capture hashes are in `runtime/velocity-integration-tools` and the
+corresponding `*-provenance.json` files.
+That historical report excluded facing; the committed-facing extension below closes that numerical slice.
+
+The captured clock advances by approximately 0.03, with soft-add truncation
+visible in adjacent deltas. The historical offline fixtures use a controlled
+1/32 input; that value must not be presented as recovered live cadence.
+`tools/ghidra/fixtures/retail-turn-velocity-1.27.json` freezes all 192 raw commits
+without process addresses. Asset-free tests replay the entire fixture through
+production C at O0/O2. The capture checker rejects missing/truncated commits,
+invalid raw words and mismatched velocity, position or clock outputs.
+
+Move now retains committed XY velocity and uses this arithmetic when computing
+steps along the selected facing or avoidance heading. It still integrates at the existing engine frame interval
+and uses world coordinates; an explicit TODO marks the remaining retail grid/
+clock handoff. An oblique-step regression fails on the former host arithmetic
+and passes with exact coordinate/velocity words. Stop, no-route, failed-step and
+order-reset paths clear the velocity. Save format 55 includes the new state and
+rejects format 54; a 12-step alternating-heading test matches uninterrupted versus
+save/load-resumed position and velocity words exactly.
+
+## Stock propagation window
+
+Static producer evidence is in `stock-window-producer.json`: `6f6b0870` installs
+`turnRate`/`propWin` descriptors; `6f66bf40` caches the authored values at `+1e0`
+and `+1e4`; `6f69a690`/`6f691aa0` retrieve those words. `6f6785d0` multiplies
+propagation degrees by stored radians-per-degree word `3c8efa35`, then unit
+construction passes setup `+40/+44` through the same normalized setters used by
+JASS. A stock Footman's 60 degrees become mover word `3f860a91`.
+Native binding identifies `GetUnitDefaultPropWindow` as `6f203b20`; that wrapper
+returns the cached authored word without conversion.
+
+Copied-map `stock_turn` turns an unmodified Footman from east toward north.
+`runtime/stock-turn-exact.json` requires all 300 samples and compares all 183
+scalar decisions plus 184 velocity/position commits exactly. One decision stops
+translation while facing changes by 0.6. JASS reports current window 1.047 radians
+and default window 60.000 degrees. After explicit setters, the current fields
+change to 0.125/0.500 while defaults remain 0.600/60.000.
+`runtime/stock-turn-unattached/comparison.json` confirms all 306 marker strings
+match a run with spawn/resume control and no attach or injected observer.
+That control checks three-decimal JASS positions, not every internal raw word.
+
+Engine regressions reproduced unrestricted initial movement, premature close-goal
+arrival and wrong native getters before the change. The stock gate also exposed a
+worker queue restart: selecting a legal passing direction cleared the queue before
+the turn could complete, repeatedly restarting the wait. The existing chopper
+regression still failed after 96 thinks. The counter now remains exhausted until
+a step commits or the direct corridor clears; no passing direction is cached. Fixtures carry the
+actual Peasant/Footman/Knight/Wisp turn and propagation data instead of zero rows.
+
+## Exact vector headings
+
+Move now selects its desired heading with the original software length/divide/acos
+chain, and computes the shortest error with retail's current-minus-target operand
+order. Host `atan2f` gave different heading words even for direction `(4,0.125)`;
+the engine regression fails before this change and expects retail word `3d00f7e3`.
+The vector-length and post-acos tiny guards are inclusive at `3727c5ac`; the final
+error deadzone is strict at `3456bf95`. Opposite-heading signs retain retail's
+represented-pi behavior.
+
+`generate_wc3_math_tables.py` reconstructs the 1,020 consumed ordinary acos entries
+with 90-digit Decimal arithmetic, plus all 138 near-one entries. The ordinary
+branch ends at magnitude `3f7e8000`; its unreachable trailer is not copied into
+the engine. Near-one sample indices 120–135 retain repeated represented-input
+plateaus, followed by two zero endpoints. The generator is a mathematical
+reconstruction; the historical table generator remains unavailable.
+`acos-engine-exact.json` verifies all consumed table words and 20,810 original
+acos outputs, including adjacent branch values, both signs and in-place calls.
+Aliasing output with input changes the original negative-input sign behavior;
+the C value-return API has no such aliasing contract.
+
+`heading-chain-engine-exact.json` compares 1,287 original `16f630` results exactly,
+including non-binary directions, all quadrants, near-cardinal directions and
+adjacent tiny-vector/deadzone values. The frozen 441-case heading/error fixture
+runs through production C at O0/O2 without retail assets. Frida's read-only
+`--heading-events` captures raw vectors, prior headings and resulting errors.
+`heading-stock-turn-exact.json` checks all 183 live errors, plus 183 motion
+decisions and 184 velocity/position commits. Its raw trace is
+`runtime/heading-stock-turn-raw.jsonl`. A second complete capture matches its
+normalized heading, decision and velocity/position sequences exactly in
+`heading-stock-turn-repeat-exact.json`; heading hash
+`b391f4d1125b2965d6d83b7f93ea98d414d9d3eefa468e78f95a40acc9fc09d8`.
+Frozen sources and capture/map/binary hashes are in `runtime/heading-tools` and
+the corresponding `*-provenance.json` files. This verifies the observed numerical
+chain; full route selection and whole-engine motion cadence remain open.
+
+## Committed facing and remainder arithmetic
+
+NUM-02.4 explicitly separates the facing exclusion from the already closed
+velocity slice. Ghidra original`16fe20 →15f7e0 →160060` shows that positive
+requested speed commits the heading reconstructed from the resulting velocity,
+including cancellation and clamping. `160060` preserves prior facing when
+`abs(soft(vx²+vy²)-0) <34d6bf95` (4e-7). Equality recomputes it. This threshold
+is twice the earlier velocity-zero threshold`3456bf95` (2e-7); positive tiny
+velocity can therefore survive while facing remains unchanged.
+
+The regression uses world speed100, angle`.125` and zero old velocity. Exact
+velocity words are`42c67084/41477a18`; original`160060` commits facing
+`3dfffadc`, while the previous engine left requested`3e000000`. The assertion
+failed before changing Move and passes afterward. A second failing regression
+exposed the coordinate scale: the facing guard uses fine-grid velocity, with32
+world units per fine cell. Move now converts accepted world velocity through
+retail scalar multiplication before that guard. World speed`.016` retains the
+prior facing; testing the squared world magnitude would incorrectly recompute it.
+Only accepted candidates commit velocity/facing/position; rejected steps retain
+the existing steering/collision policy.
+
+Nonpositive requested speed normalizes the requested heading using the
+`15ffd0/16fe20` remainder path. This differs from the `062930` turn/window
+parameter normalizer. Original`070d20` subtracts the truncated integer word,
+returning +0 for integral magnitudes at least2²³. Original`070fe0` multiplies
+by the absolute divisor's reciprocal, takes that fraction, multiplies back, then
+performs its sign-dependent correction. Preserve its negative correction; it
+adds the **negative** absolute divisor at the original boundary. `wc3_fraction`,
+`wc3_modulo` and `wc3_facing_angle` implement the verified value contracts.
+Positive tau produces raw`35490fdb`, a small remainder, rather than zero or tau.
+Signed zeros remain signed in the facing-angle path.
+
+Evidence **S/O/C/L**, target/CRT hashes unchanged:
+
+| Report under the report root | Exact evidence |
+| --- | --- |
+| `fraction-modulo-engine-exact.json` | 20,422 fractional and21,750 remainder calls, including aliases; independent integer models and C |
+| `facing-chain-engine-exact.json` | 810 velocity-heading calls,44 facing-angle boundaries,140 complete velocity/facing commits and2,444 integrations |
+| `facing-stock-turn-exact.json` | Earlier complete repeat captures: all184 velocity/position/facing commits,183 scalar decisions and183 vector-heading errors |
+| `facing-stock-turn-fresh-exact.json` | Fresh complete Frida capture with the same exact counts and normalized hashes; compared with the earlier complete capture |
+
+The frozen numeric fixture
+[`retail-committed-facing-1.27.json`](../../../tools/ghidra/fixtures/retail-committed-facing-1.27.json)
+contains810 input/result rows plus44 wrap cases. It includes adjacent input words
+around the tiny-velocity guard, both signs and preserved prior headings. The
+explicit vector`3a176b4c/39870e5f` produces squared word`34d6bf95` exactly,
+and recomputes facing at equality. CI replays these and all192 frozen live
+turn velocity/facing commits at O0/O2, compares seeded raw fractional/remainder
+inputs with independent models and rejects a changed facing word in a capture.
+The larger-speed original matrix uses exact C velocity words; host trig's
+former1e-5 tolerance does not describe its recovered numerical contract.
+
+Reproduce with the common compile/numeric/motion commands above; the motion
+oracle's `--facing-fixture /tmp/facing.json` exports original numeric outputs.
+For the stock live fixture:
+
+```sh
+/home/lofcz/.local/share/uv/tools/frida-tools/bin/python tools/frida/trace_wc3_pathfinding.py \
+  --data /run/media/lofcz/ssd_external/Games/w3 --map 'Maps\PathingRE-StockTurn.w3m' \
+  --seconds 130 --samples 300 --motion-events --velocity-events --heading-events \
+  --x11-display :94 --continue-at 80 --output /tmp/facing-stock-turn.jsonl
+python3 tools/frida/verify_wc3_motion_trace.py /tmp/facing-stock-turn.jsonl \
+  --engine-library /tmp/wc3-pathing-engine.so --scenario stock_turn \
+  --report /tmp/facing-stock-turn-exact.json
+```
+
+The fresh raw capture is`runtime/facing-stock-turn-raw.jsonl`, SHA256
+`d21d4072db02f0b290bc19db72868bb8a866d5b861bbfe7d46e0e17451d3215a`.
+Frozen observer/controller/checker/kernel/oracle sources and hashes are in
+`runtime/facing-tools` and `facing-stock-turn-provenance.json`. The normalized
+velocity hash remains`7a1d7783e9c680144b4ea61592d9604673b293e1871b6a992cbf709b65d6aa70`;
+it already includes facing words, which the comparator now checks explicitly.
+Raw exceptional arithmetic input tests do not prove public producer reachability.
+Move still updates requested facing during its existing steering phase; these
+accepted-step fixes do not claim a complete retail motion/clock state machine.
+
+## Velocity guards in fine-grid units
+
+The accepted-step adapter now converts old velocity, requested speed and maximum
+speed from world units to32-unit fine cells before `wc3_velocity_update`, then
+converts the resulting velocity back. The scalar cutoff belongs to the original
+mover's coordinate system: squared fine velocity below`3456bf95` (`2e-7`) is
+cleared by `1606e0`; facing uses the separate`34d6bf95` (`4e-7`) guard. Applying
+the first guard directly to world velocity admitted motion retail clears.
+
+A test-first Move regression at custom world speed`.01`, facing`.125`, position
+320,320 failed four velocity/position assertions before this fix. It now keeps
+zero velocity, the original position and facing. The existing`.016` case still
+moves while retaining facing, proving the two thresholds remain distinct.
+These tiny controlled speed values test the mover/adapter domain; they do not
+claim public `SetUnitMoveSpeed` bypasses retail's native speed limits.
+
+```sh
+cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared -I . \
+  tools/ghidra/wc3_pathing_engine_probe.c -o /tmp/wc3-world-velocity-engine.so
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_motion.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --engine-library /tmp/wc3-world-velocity-engine.so \
+  --world-velocity-fixture /tmp/retail-world-velocity-1.27.json \
+  --report /tmp/world-velocity-engine-exact.json
+python3 tests/test_wc3_pathfinding_math.py
+```
+
+`world-velocity-engine-exact.json` checks **1,040** complete original `16fe20`
+velocity/facing commits and their world adapter words, plus **3,344** original
+position integrations. The matrix includes17 adjacent cutoff-speed inputs,
+zero/nonzero old velocity, five headings, four maxima, and low/ordinary/high
+speeds. Requested speed remains recorded at mover`+c0` even when velocity is
+cleared; the fine occupancy moving bit is checked against actual resulting
+velocity. Ghidra `1606e0` confirms this branch and its optional callback.
+
+`tools/ghidra/fixtures/retail-world-velocity-1.27.json` freezes the original
+world-adapted input/output words without retail assets. Both O0 and O2 probes
+replay all1,040 cases and all192 recorded live velocity/facing commits through
+the same world adapter used by Move. No saved struct or frame cadence changes.
+This extends the integrated NUM-02.2/NUM-02.4 kernels; world-position clock
+ownership, route choices, collision and complete cross-feature trajectories
+remain open.
+
+## Remaining fidelity work
+
+Flow fields, route scheduling, group ownership, collision, repulsion and arrival
+range policy are not replaced. Move's vector-heading and accepted velocity-facing arithmetic now match the verified retail kernels;
+its route and avoidance selection still use existing steering. Stored-velocity integration and elapsed-clock arithmetic have exact C/retail
+evidence. Their complete engine clock/position lifecycle and cross-feature trajectories
+remain open; accepted velocity guards now execute at the verified fine-grid scale. Repeat equality
+covers the observed helper sequence, not an unattached-observer control or all
+deterministic state.
+
+Next numerical integration: connect committed velocity/clocks to the [admission-to-owner baseline](retail-pathfinding-todo.md#work-next).
+Extend the same C probe and exact-word comparator before changing those stages.
+The full replacement still needs the [READY gates](retail-pathfinding-todo.md#ready--start-the-faithful-replacement).
+
+## Active Move cohort speed
+
+The original [callback completion journeys](retail-pathfinding-movement.md#callback-completion-surviving-cohort-and-empty-teardown)
+re-resolve group ownership before selecting the minimum eligible member
+maximum. OpenRealm previously kept the speed captured at selection submission:
+a fast300 member stayed capped at100 after the slow member stopped, arrived,
+received a replacement Move, died or was removed. A production order regression
+reproduced all six failures, including runtime100→200 speed override,
+before changing `s_move.c` (`/tmp/wc3-group-survivor-before-fix-valid-order.log`).
+
+Move now assigns an explicit nonzero cohort identity to accepted simultaneous
+selection orders. Speed queries compute the minimum effective speed of the
+currently live, alive, actively walking members with that identity. Replacement
+Move clears the previous identity through `move_reset_progress`; standing,
+terminal hold, death and edict removal exclude the member from the next query.
+The existing reserved destination is retained, matching the original fixed-goal
+mutation witnesses. Single-unit orders retain their own speed.
+
+Cohort identity is separate from `goalentity->secondarygoal`, which belongs to
+route caching and uses a cyclic waypoint ring. Allocation skips zero and every
+identity still stored by a live entity, including on uint32 wrap. Reusing a
+freed unit edict initializes ungrouped state; an unrelated Move toward the same
+point cannot inherit the old cohort. Tests cover independent groups at the same
+endpoint, wrap, actual edict reuse and active-group save/load with post-load
+Stop. Save format56 persists both per-unit identity and the level allocation
+cursor and rejects55/older records.
+
+This is a bounded group-lifecycle correction. Cohort speed queries currently
+scan live edicts; the upcoming Move-owned retail member storage should replace
+that scan together with the verified member flags, shared parameter owner and
+separate decision/commit passes (GROUP-04.6). Queued selections still use the
+existing per-unit queued speed value; cohort activation/handoff remains part
+of that task. The engine still uses its existing simulation cadence and route
+solver, so this change does not claim exact retail trajectories.
+
+## Current point-order ownership
+
+ORDER-01.4 fixes the ordinary point-Move current query. `GetUnitCurrentOrder`
+previously delegated to historical `G_GetIssuedOrderId`: queued Smart displaced
+the reported Move head before activation; Stop remained reported; natural
+arrival retained the historical command. The public-native/server-frame test
+reproduced all three failures in
+`/tmp/wc3-order-01.4-current-head-before-fix.log` before changing production code.
+The retained idle goal cache is not evidence of an active user order and is
+left intact.
+
+`edict_t.current_order_id` now represents the active user command separately
+from pending FIFO entries, event snapshots and internal locomotion.
+Move's `S_IssueMoveOrder` publishes the ID only when its requested goal and
+ordinary walk behavior are installed. The public point Move/Smart path and
+simultaneous selection path use it; pending insertion does not alter it.
+Queued activation uses the same owner. Generic `unit_stand` retires the old ID
+before starting a queued successor, and death retires it with the order queue.
+Internal spell/interaction approaches still call `order_move` without inventing
+a new public Move ID. The native reads this current field, never event history.
+
+The regression uses public JASS orders and `globals.RunFrame`, verifies queued
+Smart handoff, replacement/rejection, Stop, new-goal arrival and actual edict
+reuse, and saves an active Move with pending Smart. It stops the actor before
+restore, then verifies restored current Move and normal queued execution. The
+selection-group round-trip also checks active command restoration and Stop.
+Save57 includes an explicit `F_INT` descriptor and rejects56/older layouts.
+The network protocol is unchanged.
+
+The original oracle executes the registered cdecl native2039d0, including
+1eef90 handle/type/canonical resolution and061320 head resolution, at all42
+frozen singleton/FIFO states. It checks balanced Unit references, callee
+registers, stack cleanup and the FS exception chain. Nine controls per scenario
+cover null/low/unbound handles, stale Unit generation, retired/bad-tag Unit
+wrapper, stale/retired order head and empty head with a nonzero count. All18
+return zero. Each invalid data word is restored immediately, and a valid
+query checks the retained head again. Both complete scenarios repeat identically:
+124 actual native calls, with unchanged frozen movement/reclamation output.
+Supplied existing VM handle-array backing is explicit; these controls do not
+prove how invalid states arise in the full gameplay producer graph.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_order_tasks.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --producer-baseline --current-order-query --report /tmp/current-order-new.json
+LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test-wc3-engine WC3_PATTERN='wc3_api.current_order_point*'
+```
+
+The strict corpus entry is `owner-current-order-query`.
+This is bounded **O/C plus engine regression** evidence. It does not establish
+full retail engine clock/route parity. The remaining command owners are
+indexed by [ORDER-01.6](retail-pathfinding-todo.md#order-01--arrival-and-failure-dispatch),
+with completed Follow/Hold slices and explicit remaining leaves below:
+Patrol/Attack, economy commands and ability/channel/metadata owners do not yet
+maintain this field consistently. Their queries can return zero or retain the
+previous point-Move ID; there is no guessed historical-event fallback. Those
+remaining leaves must be integrated through their owning abilities before
+claiming whole-query parity; wider target lifetime composition remains01.17.
+
+Validation: `/tmp/wc3-order-01.4-current-head-validated-full-suite.log`
+passed78 Python tool tests and36775/36775 engine assertions across2133 tests
+in each WC3 schema. The first full run correctly rejected the stale53-oracle
+inventory count; the declared new variant raises it to54. The fresh strict
+corpus is121/121 at
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/order-01.4-current-head-corpus/corpus-results.json`
+(manifest SHA256 `eaf61dba2a79609d699bd83970d07f9bde1f64ca1b6e83190c0cbe8ff9f07c8a`;
+summary SHA256 `12d377b5b3e2a31b5bff4b2a815d641c520a4fb9625899e2ce5faa534da1b753`).
+All recorded sources matched at completion. The current-query repeat digests
+are `b9bdf5ae025230a63f64072fa79ad3460ea29b7d1f433983b681e517d8f414bd`
+(singleton) and `e720414033bb01b16c4bd293c40443d0183784a3704b5d5e1945f28864c2b0f1`
+(FIFO). Ghidra saved `Unit_CurrentOrderCommandLoad` at203a23 and EOL comments
+at203a15/203a23 with the head/count distinction and complete native witness.
+
+
+## Remaining command-owner inventory
+
+ORDER-01.6 splits the current-query domain by owner. `2039d0` reads the live
+user head; `680320` admits/replaces, `67abe0` classifies and dispatches it,
+`679cc0` delivers to the order-owned ability, and `69b2f0` offers virtual22c
+interception before replacement. These shared roots are **S**, not a complete
+reachable producer graph; BASE-03.1 still owns that graph. In particular,
+copying every accepted publisher ID into current state would misclassify
+metadata, instant actions and internal locomotion.
+
+| Leaf | Engine owner/entry point | Retail starting evidence and remaining contract |
+| --- | --- | --- |
+| ORDER-01.7 | `s_holdpos.c:S_HoldPosition` | Move d0019 creates Hold tasks at5fccf0; user head retires to0 while behavior persists |
+| ORDER-01.8 | `s_move.c:S_IssueFollowOrder`, `order_follow_resume` | Move d0003/d0012 target branches5ff240/5fd270; public Smart/Move retain their IDs at rest |
+| ORDER-01.9 | `s_patrol.c:order_patrol`, `order_patrol_resume` | Move d0017 at5fdff0; native point admission, endpoint reversal, combat resume and queue/save ownership |
+| ORDER-01.10 | `s_attack.c:S_OrderAttack`, Attack Move/Attack Ground | Shared dispatch and Move d0016 at5fe1a0; distinguish public attack IDs from automatic sub-behaviors |
+| ORDER-01.11 | `s_repair.c:S_OrderRepair` | Shared owning-ability dispatch; trace concrete retail repair owner, approach, completion and interruption |
+| ORDER-01.12 | `s_harvest_lumber.c`, `s_goldmine.c` and race-specific resource owners | Smart/Harvest dispatch; inventory early-return admissions and resource-return/internal approaches |
+| ORDER-01.13 | `s_spell.c` plus each concrete ability | Shared owning-ability dispatch; approach, execute, channel, inverse and instant ownership |
+| ORDER-01.14 | Each metadata/toggle owner | Shared interception69b2f0; preserve an existing active head when a metadata action is accepted |
+| ORDER-01.15/17 | Generic target lifetime dispatch, Move loss handling | Public healthy Follow loss is synchronous; combat-parent/direct-free/reentrant-generation/save composition remains01.17 |
+| ORDER-01.16 | `s_build.c` and race-specific construction owners | Concrete admission, approach, work, interruption and queued build ownership; separate from Harvest |
+
+`m_unit.c` routes public target orders through specialized owners before ordinary
+Follow: item pickup, authored Smart, Acolyte/Gold/Lumber, return resources,
+attack/destructables, target-owned interactions, cargo and repair. Point spells,
+rally metadata, Attack Ground and Attack Move have separate paths. Harvest and
+rally have early returns that do not consistently use the same publisher.
+The FIFO calls these owners again at activation; it must not make a pending
+entry current merely because the issued event was published. Generic
+`S_UnitAbilityOrderAccepted` is a post-accept hook, not universal head activation.
+
+Ghidra now persists **278 names,18 partial layouts,115 fields and46 explicit
+x86 prototypes**. New names cover Hold creation/enter/leave, Patrol/Attack Move
+creation, Smart target dispatch and the shared owner/interception roots.
+Move20 bit200 is named in the existing Move prefix; instruction labels at
+5ffb0f and5ffe8f distinguish retained behavior from current user identity.
+`MapPathfindingTypes.java` permits naming undefined bytes only when every
+existing field/type/offset/comment and total size is preserved. Actual mapper
+rename/retype/omission controls all reject the change before resolution;
+`order-01.6-ghidra-owner-types.json` is the final readback. This refinement does
+not install inferred calling conventions or discard another analyst's fields.
+
+
+## Current Patrol ownership
+
+ORDER-01.9 integrates public point Patrol with command851991. The previous
+native whitelist rejected Patrol, while the selected-unit UI called an internal
+procedure without recording its current identity or using the player FIFO.
+The test-first native/UI witnesses fail against the committed engine. Native
+and selected-unit commands now reach `S_IssuePatrolOrder` in `s_patrol.c`; that
+owner records the public ID only after Patrol owns the installed move. UI Shift
+uses the existing FIFO and advertises queue support. Endpoint reversals retain
+the ID, and queued activation records it when the prior command completes.
+
+The public-native regression runs real server frames through repeated endpoint
+reversal, rejected replacement, queued point state, save/load, Move replacement,
+queued Patrol activation, Stop, death/dead rejection and actual edict reuse. The
+UI regression issues the real `button CmdPatrol` command, queues behind Move,
+advances server frames and then replaces the endpoints with an immediate click.
+Its fixture initializes a JASS VM before entering the server scheduler; the
+initial fixture crash was a null VM, not a production Patrol/HUD failure.
+
+The existing repeated public order-lifecycle capture supplies actual no-enemy
+reversal: tick150 starts at(-1968,-464), tick172 reaches(-1937.086,-155.213),
+and tick179 returns to(-1946.351,-243.171). Current head851991 remains active.
+The analyzer now requires approach within64 world units of the authored endpoint,
+then return by more than64 units under that same head. Negative controls reject
+stationary, outbound-only, truncated and wrong-head traces. The threshold admits
+the observed coarse timer samples; it is not a recovered retail stop distance.
+`order-01.9-patrol-reversal-audit.json` rechecks both complete captures and the
+unchanged320-marker repeat digest. No new observer/map provenance is claimed.
+
+Ghidra persists `WC3PatrolEndpointsPrefix`, a104-byte partial prefix containing
+only command24 and scalar coordinates48/50/5c/64, plus the verified ECX Move /
+stack4 event / RET4 dispatcher ABI. Labels5fe04a,5fe059 and5fe114 retain the
+primary/alternate endpoint reads and d0175 return-task creation. Complete
+original construction, queued-origin capture timing, blocked-route endpoint
+policy and automatic combat/resume remain ORDER-01.18. This integration closes
+public current ownership and no-enemy lifecycle, not whole Patrol trajectory
+or numerical/clock parity.
+
+Validation for01.9: the full normal suite passes80 tool tests and37,010 assertions
+in2,138 engine tests, after correcting the stale unknown-order Patrol fixture.
+All six current-order regressions pass257 checks with DEBUG_JASS, followed by
+normal library restoration. WC3/SC2 production builds pass. Fresh strict corpus
+`order-01.9-patrol-corpus/corpus-results.json` passes122/122 and rechecks source
+fingerprints unchanged at completion. Manifest SHA256:
+`e267f21ac2a21ca6d9fe397538d60cd5467fe3580e9231e976a7d2df2c5f5705`;
+summary SHA256:
+`b2ad131dd8491f5f67ccc866304f8c9d42fae1e55d30ae75f1be4632c5233871`.
+
+## Current Follow and Hold ownership
+
+**S/L plus engine regression:** the `order_lifecycle` probe uses actual public
+JASS orders on stock hfoo in a copied Human02Interlude terrain. Both final
+owned captures run130 seconds, send the isolated-display loading key at80,
+then record all300 timer samples. All**320** timer/health strings repeat exactly,
+SHA256 `a386b56ddd95c2154127315e65c3afe8b2869fe754db44458e0d67c83712df19`.
+The hashes of the generated map and observer/probe/builder are recorded in
+`fixtures/retail-order-lifecycle-1.27.json`. Those source hashes were recorded
+separately after capture; they are not embedded in the historical JSONL header.
+
+| Stage | Expected and observed current order |
+| --- | --- |
+| Point Move at10 |851986 |
+| Hold at30 |0 immediately and through standing |
+| Accepted Defend/undefend at60/65 |0; these samples do not prove metadata preserves a busy head |
+| Smart ally Follow at80, target moved near at110 |851971 even while stationary |
+| Target Move at120 |851986 even while stationary |
+| RemoveUnit(target) at130 |0 synchronously in retail and the integrated healthy Follow engine path |
+| Stop at140 |0 |
+| Patrol at150, rejected unsupported replacement at170 |851991 |
+| Hold at180 and automatic attack after200 |0; enemy life420.000→409.606 at220 |
+| Target Move at230, KillUnit at240, rejected dead order at250 |851986→0→0 |
+
+The final fixture explicitly researches Rhde and changes the copied campaign's
+0↔1 PASSIVE alliance to hostile, with user/computer controllers. Earlier
+controls had rejected Defend without research, or could not attack because
+Human02Interlude config made players0/1 allies. The paused enemy remains
+vulnerable; the health drop is required by the analyzer. These controls remain
+in the report directory and do not certify the final combat witness.
+
+OpenRealm's prior target Move/Smart path installed Follow without updating its
+current head. The test-first public-native witness failed current-query
+checks before the fix. `S_IssueFollowOrder` now records the actual command only
+when Move owns the installed Follow; internal `order_follow_resume` keeps that
+identity across moving/standing and opportunistic combat. Common completion
+retires the head before queued activation, and death clears it. The regression
+covers queued target activation, standing, resumed pursuit, rejected replacement,
+Stop, saved Follow/pending point Move, target-loss handoff, arrival, death and
+actual edict reuse. The later ORDER-01.15 integration below adds synchronous
+healthy Follow target-loss handling while preserving deferred edict reclamation.
+
+
+ORDER-01.15 adds a generic `A_TARGET_REMOVED` notification to the active move
+procedure after `G_DeferFreeEdict` has marked the target semantically removed.
+Move owns the response: only active Follow of that exact target clears its
+follow/goal references and reaches `unit_stand`, retiring the user head before
+pending activation. The FIFO now rejects semantically removed entity targets,
+so a stale pending Follow cannot prevent a later valid point Move from starting.
+The target stays allocated until the ordinary frame-end event/deferred drain;
+no edict field or save layout changes are required (W3SV57 remains current).
+
+The isolated regression tests Move/Smart × no pending command, pending point
+Move, removed-target Follow then point Move, and prior point replacement. It
+also checks unrelated and repeated RemoveUnit, immediate public queries,
+next-frame reclamation and actual queued arrival. Against the committed engine
+it failed32 of132 assertions; the integrated owner dispatch passes all132.
+This is healthy active Follow coverage. Temporary combat-parent ownership,
+direct free/death, callback reentry, generation reuse and save before drain are
+explicitly split into ORDER-01.17. The existing repeated live tick130 current0
+witness supplies the immediate public loss observation; it does not by itself
+prove the complete RemoveUnit-to-target-loss caller graph.
+
+Ghidra retains `Move_TargetLossUserHeadResolve` at5ff5d9:5ff5f0 resolves
+Unit19c/1a0, while5ff618 calls the separate internal-task query69c6a0. The named
+5ff490 handler comments record this distinction and the caller-graph exclusion.
+
+Validation for01.15: full `make test` passes79 tool tests and36,965 assertions
+in2,136 engine tests; current-order queries pass212 checks in both normal and
+DEBUG_JASS builds, followed by normal-build restoration. WC3/SC2 production
+builds pass. Fresh corpus `order-01.15-synchronous-corpus/corpus-results.json`
+passes122/122 with unchanged source fingerprints at completion; summary SHA256
+`11ef7ba0b1e4c2ddee651cc6cdd4b6f3271a2afce58ca254d10e0b63bcc0d46d`. Its manifest remains
+`667324574a68516357cbcb401e48bca8cd79643e80a1b4b28ff463d5816c2391`.
+
+Hold needs **no invented persistent851993 head**. The original dispatcher
+creates d0148,d014e,d0177,d0144/action0, and d0177 sets Move20 bit200; d0178
+clears it. The command completes while this behavior remains. The engine's
+public Hold regression verifies head0, cleared pending commands, save/load,
+automatic damage through `globals.RunFrame`, return to Hold after enemy removal
+and replacement by Move. Its minimal attack fixture supplies UnitWeapons,
+SVF_MONSTER/hostile owner and a nonzero authored damage point; omitted fixture
+attack timing was corrected without changing unrelated production attack code.
+
+```sh
+python3 tools/frida/make_wc3_pathfinding_map.py --base /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/Human02Interlude-original.w3m --scenario order_lifecycle --output /run/media/lofcz/ssd_external/Games/w3/Maps/PathingRE-OrderLifecycleNew.w3m
+# Execute the owned trace command twice, each into a new JSONL path:
+DISPLAY=:94 WAYLAND_DISPLAY= WINEDEBUG=-all WINEPREFIX=/home/lofcz/.local/share/open-realm/wine-pathfinding-re /home/lofcz/.local/share/uv/tools/frida-tools/bin/python tools/frida/trace_wc3_pathfinding.py --data /run/media/lofcz/ssd_external/Games/w3 --map 'Maps\PathingRE-OrderLifecycleNew.w3m' --seconds 130 --samples 1000 --task-events --x11-display :94 --continue-at 80 --output /new/orders.jsonl
+python3 tools/frida/analyze_pathfinding_trace.py /first/orders.jsonl --scenario order_lifecycle --compare /second/orders.jsonl --output /new/orders-audit.json
+LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test-wc3-engine WC3_PATTERN='wc3_api.current_order*'
+```
+
+The actual final artifacts are
+`runtime/order-01.6-lifecycle4-{raw,repeat}.jsonl` and
+`order-01.6-lifecycle4-repeat-audit.json`; corpus entry
+`live-order-lifecycle-repeat` rechecks both complete inputs and their repeat.
+Timer position/health text has three decimals. This is not raw float-position,
+full engine clock/trajectory parity, complete Unit/VM construction, all target
+visibility/lifetime paths or all metadata/spell/interaction-owner coverage.
+Current state uses existing save57; issued-event context remains JSVM7 and
+network contracts are unchanged.
+
+Validation checkpoint for ORDER-01.6/07/08: normal full umbrella tests pass
+(`/tmp/wc3-order-01.6-domain-validated-full-suite.log`,79 tool tests and
+36833 engine assertions in2135 tests/schema); DEBUG_JASS and normal current-order
+suites pass, and normal JASS is restored. `openwarcraft3` and `opensc2` production
+builds pass. Strict `order-01.6-domains-validated-corpus/corpus-results.json`
+passes122/122 with all recorded source fingerprints unchanged at completion.
+Manifest SHA256 `667324574a68516357cbcb401e48bca8cd79643e80a1b4b28ff463d5816c2391`;
+summary SHA256 `8466ca0aa96d2a8b72523d8441c3e7ca9743b187baba52d4fab6820facab49b3`.
+The earlier scratch corpus rejected an unsupported dotted report-check key;
+the final manifest checks the complete repeat object, preserving every assertion.
+
+
+## Widget escape idle admission
+
+The accepted widget escape in MAP-03.4 installs a real Move for an idle occupant,
+then completes after thirteen original group ticks with its Footman query mask
+produced by the original getters/bridge and retained throughout. A separate
+seven-tick terrain-only control preserves the historical fixture. Its widget footprint remains registered ([original journey](retail-pathfinding-search.md#widget-produced-escape-through-arrival)).
+The engine previously only set `movement.displacement_active` and a walk animation;
+its stand thinker never consumed that target. A construction-margin fixture using
+`G_DisplaceBuildOccupants`, `G_StartHumanConstruction`, a live JASS VM and normal
+`globals.RunFrame` reproduces five failures, including zero travel after120 frames.
+
+Move now starts an ordinary temporary Move destination for an idle stand with no
+active user order and no Hold behavior. Existing Move/build walkers retain their
+original behavior and destination and continue consuming the displacement target
+as before. No issued-event publication, queue clearing, persistent field or wire
+change is added. The new server-frame regression verifies escape arrival, current
+Move head then head0, retained construction blocking and replacement public Move
+canceling displacement and arriving at its replacement point. The existing worker
+regression still reaches its later build destination.
+
+This is bounded admission/lifecycle integration, not full widget-path parity.
+The later stock-mask fixture closes MAP-03.4; the earlier terrain-only control
+remains separate evidence. MAP-03.7 below now covers the engine's solid-footprint
+failure and interruption cleanup. Original nearest-edge/jitter proposal generation
+and RNG ownership remain MAP-03.3/NUM-04; no spiral geometry is promoted to retail parity.
+Validation logs retain both failures in `/tmp/wc3-map-03.4-idle-{baseline,fixed}.log`
+and the final margin baseline in `/tmp/wc3-map-03.4-idle-final-baseline.log`.
+
+
+Validation: final `make test` passes85 pathfinding tool tests and37,126 engine
+assertions in2,142 tests per Classic/TFT. The two construction displacement
+regressions pass47 checks with `WC3_DEBUG_BUILD=1` after forcing recompilation
+of the Move source, and pass again after rebuilding normally. WC3/SC2 production
+builds pass. No save or network representation changes.
+Fresh strict `map-03.4-widget-final-corpus/corpus-results.json` passes124/124
+with unchanged source fingerprints. Manifest SHA256
+`72b14dc041e398b499eedbe6dbd9e8db63bc8f5bbbad81844fccdf5c2b07c564`;
+summary SHA256
+`69fdc4610b6e8bfa4fe3615d6c5ed87079e7ebb3dfc518c2f428ef2af99fcb49`.
+At that earlier checkpoint MAP-03.4 was still unchecked; the later stock-mask
+checkpoint closes it. The terrain-only journey remains supporting bounded evidence.
+
+
+MAP-03.4 stock-mask checkpoint: fresh
+`map-03.4-stock-final-corpus/corpus-results.json` reproduces **133/133** declared
+outcomes with unchanged source fingerprints at completion. Manifest SHA256:
+`8a6a9e6aeeab8b7ad79e85fa024ba0a37f5775e8887b6836f8a11d828848efc8`.
+Summary SHA256:
+`39754dca2b4d64f4b966f407fef683b48d019f5f762fec08ad417917af61850d`.
+Full ROC/TFT suites pass37,126 assertions in2,142 engine tests each;85 pathfinding
+tool tests and both WC3/SC2 production builds pass. The original-mask extension
+adds no engine representation or frame-cadence change. The earlier idle admission
+fix remains active; inside-footprint escape integration remains MAP-03.7.
+
+
+September30 upstream sync (`upstream/main` at`d21a0a1f`) combines its route
+progress guard with the verified software-scalar velocity/integration path.
+The guard applies to location orders. Applying final-center distance to ranged
+interactions reproduced four failed lumber-dropoff assertions: a worker at the
+flow endpoint reversed before reaching the blocked Town Hall's interaction
+boundary. Existing interaction steering is retained there. The imported turn-lag
+regressions now wait through the verified propagation window, assert no drift
+while stopped and require the first admitted step to progress. Numerical raw-word
+and velocity save/resume tests remain active. Position commits also synchronize
+snapshot X/Y and retain worker-blocked-counter clearing from the two parents.
+The combined raw layout uses save58 and rejects both parents' earlier formats.
+
+Sync validation: full ROC/TFT suites pass37,248 assertions in2,155 engine tests
+per schema,85 pathfinding tool tests and both WC3/SC2 production builds. The
+movement subset passes1,530 assertions in163 tests per schema. Save rejection
+covers the combined58 layout. Logs are`wc3-upstream-20260930-final-full-suite.log`
+and`wc3-upstream-movement-fixed.log` under`/tmp`.
+
+
+## Solid-footprint escape failure and cleanup
+
+The retained solid9×9 widget produces an accepted original escape order with the
+same stock Footman query2/categoryca/custom radius8 setup as MAP-03.4. Fresh
+original search produces no initial route. All seven elapsed1/32 group ticks
+retain the exact starting position and zero velocity. At the final tick original
+`603110 → 5fb190(1)` recovers the can't-path result, drains the internal/user
+queues through `5fa7a0`, and releases the group, path, task/order payloads and
+wrappers after two release ticks. The original footprint stays active throughout.
+This result does not authorize a collision bypass for units inside construction.
+The original witness and frozen fixture are documented in
+[solid-widget recovery](retail-pathfinding-search.md#solid-widget-cant-path-recovery).
+
+The engine reproducer places the idle worker at`(0,-64)` inside its new9×9
+construction. Before the fix,120 actual server frames leave the displacement
+flag, current Move head and walk thinker live: three failing assertions. The
+displacement branch returned before normal progress accounting. Move now applies
+its existing progress budget when the origin is statically blocked, then retires
+the failed displacement through the ordinary stand/queued-order completion edge.
+The point validator and all static masks remain active. Margin escape, replacement
+Move and Stop are exercised in the same two-geometry server-frame fixture;
+terrain and a separate building remain blocked after completion/interruption.
+No struct/save/network change is introduced.
+
+This integrates the verified failure outcome and cleanup, with an explicit timing
+limit: the engine currently has its existing10Hz progress budget, while the
+original witness completes after seven1/32 group ticks. The source carries that
+TODO, owned by NUM-02.3/SCHED; this does not claim complete retry-cadence or
+trajectory parity. Stop already cancels displacement through `unit_setmove`;
+no second cancellation mechanism was added.
+
+
+MAP-03.7 validation: final umbrella tests pass85 pathfinding tool tests and
+37,286 assertions in2,155 engine tests per Classic/TFT. Construction displacement
+passes85 assertions in normal and forced DEBUG Move builds; normal is restored.
+WC3/SC2 production builds pass. Fresh `map-03.7-final-corpus/corpus-results.json`
+passes134/134 with source fingerprints unchanged. Manifest SHA256
+`0a691e0657ae0affaf25860d725e2a7f0d08cf6d10a58486e2ac8f2cda98750a`;
+summary SHA256
+`94fc67963332bff10a955bbc43297951f5e607c78d00657650a4302195bf33fe`.
+Logs are `/tmp/wc3-map-03.7-final-full-suite.log`, `wc3-map-03.7-debug.log`,
+`wc3-map-03.7-normal-restored.log` and `wc3-map-03.7-production.log`.
+
+
+## Public Pow and exact logarithm/exponential arithmetic
+
+NUM-01.9 recovers the registered cdecl Pow adapter`20f990` and its scalar
+`0710e0` helper. The adapter compares absolute software differences from zero
+against raw`3a83126f`, strictly: small base plus negative exponent returns0;
+non-small base plus small exponent returns1. Otherwise an exact nonnegative
+integral exponent uses wrapped`070120` conversion and binary power`071180`.
+Other exponents use magnitude-log`070f70`, scalar multiplication by the exponent,
+and exp`070c20`. Negative bases with fractional/negative exponents therefore use
+magnitude, unlike the former host `pow` call. Exponent-zero base is guarded inside
+the noninteger branch, so public`Pow(0,0)` still reaches integer power and returns1.
+
+The magnitude-log strips sign/exponent into a1.x mantissa, applies rational
+`06fd50` through reduction`06ff20`, scales by reciprocal-ln2, adds a truncated
+integer exponent, then multiplies by ln2. The rational curve uses
+`t=(x-1)/(x+1)`, ordered software products and an explicit raw exponent increment
+for numerator doubling. Exp splits four times the magnitude into a truncated
+whole and fractional quarter-step, runs the five-term ordered polynomial, then
+multiplies integer power of the original quarter-step constant. Negative input
+uses the original reciprocal. All constants and operation order are retained;
+production uses the same integer scalar operations as Move, with no host log/exp.
+
+The original/model/C oracle verifies24,423 completed calls, including12,000
+arbitrary raw log words, exceptional exp words, output aliases, stack guards and
+nonvolatile registers. O0/O2 yield identical outcome digest
+`7cf000cfa0a565663f3828dc3186a88efe463c7a9a27ea12494024ba0d13430e`.
+Expanded raw testing corrected a reference-model mistake: original`0715c0`
+truncates toward zero, whereas`070c80` floors. A wrapped scaled negative sub-unit
+from raw`ff920e3a` distinguishes them; the C port already used truncation.
+Ghidra saves329 descriptive names,22 layouts,138 verified fields,93 exact x86
+prototypes and31 named globals, including all15 immutable log/exp operands.
+
+Two complete owned Frida captures repeat40 actual Pow argument/output pairs
+exactly. Arguments are real public S2R products; compiled literals remain
+NUM-01.7. Capture start pins all observer/generator/input/map hashes; adjacent
+archived files reproduce each hash. The strict native sequence digest is
+`238d8a90f6f0153a8311e673b62cb1c3b41f7f9a6e00f8406baa1fb917160888`.
+The frozen fixture is`retail-public-power-inputs-1.27.json`.
+The engine public-native regression reproduces27 host-Pow mismatches before the
+port, then passes all40 exact cases. The wider public numeric subset passes136
+checks, including the new error/inverse case. Fixtures compare real constants;
+an earlier scratch version used integer expected literals and was corrected
+before accepting the baseline.
+
+There is a distinct nonreturning helper domain: wrapped integer conversion can
+produce a negative signed exponent, and original`071180` arithmetic-shifts it
+until it stays`ffffffff`, never returning. The oracle records173 separate bounded
+controls, including full registered Pow with exponent2147483648; it assigns no
+numeric output. The C helper returns a failure status without changing its
+output, and the native reports a visible runtime error instead of fabricating a
+number or hanging the server. This is an explicit bounded integration limit:
+retail VM watchdog/lifetime behavior is not observed and remains NUM-01.2. The
+engine error case uses a runtime-produced exponent and verifies the next normal
+Pow call still succeeds. Shared initialization producers, non-ASCII parser
+locale and other arithmetic consumers remain in that inventory; attack's
+separate armor `powf` consumer has not been promoted without its own retail
+producer evidence. No save/network or movement-clock representation changes.
+
+
+## Scalar rounding and shared startup
+
+NUM-01.10/11 extend the independent scalar evidence without changing any frozen
+trajectory. These recovered procedures use ECX output, EDX input, plain RET and
+return the output pointer in EAX; output may alias input.
+
+| Procedure | RVA | Exact contract |
+| --- | --- | --- |
+| Floor | 070c80 | Negative nonzero sub-unit becomes minus-one; both signed zeros become plus-zero; truncate positive fraction or increment negative magnitude; exponent at least150 copies the raw word |
+| Ceil | 070700 | Negative nonzero sub-unit becomes plus-zero; either signed zero and positive sub-unit becomes one; truncate negative fraction or increment positive magnitude; exponent at least150 copies the raw word |
+| Round | 071250 | ScalarAdd(input, immutable half atcd53f4), then Floor; preserve truncating addition before the floor |
+| Truncate | 0715c0 | Exponent below127 becomes plus-zero, below150 masks fraction, otherwise copies raw word; distinct from Floor for negative fractions |
+
+`wc3_math.h` now owns reusable raw-word floor/ceil/round primitives alongside the
+verified truncate primitive. The production arithmetic bridge compares all four
+against original calls. No gameplay call is changed from an unrelated host ceil
+without its original producer evidence. Round is directly used by
+`PathMaps_Load` at04c922/04c951 to construct map dimensions; authored integer map
+bounds in existing fixtures remain unchanged. Ceil has only three recovered
+direct callers,3d93f4/3d9448/3dc7f9, outside the movement caller graph. These sites
+do not prove that synthetic exceptional helper inputs are public gameplay inputs.
+
+Reports `num-01.10-round-startup-O0.json` and `-O2.json` each retain81,688
+rounding calls:20,222 raw inputs and200 output aliases per helper. Both C compiler
+modes match the independent integer models exactly, with digest
+`0bab35aa844a75957939052470982389bcb928b6a619503fc5f56ee69c99f713`.
+The existing paired, decimal, public-angle and power digests are unchanged. The
+asset-free regression includes adjacent integer/half thresholds, both zero
+signs, arbitrary raw words and both C optimization levels.
+
+The shared minus-one, zero and one words are not DLL literals. Three no-argument
+startup entries tail-jump to original070d80:
+
+| Registration slot | Entry | Destination | Output word |
+| --- | --- | --- | --- |
+| a7cdb8 | 001dd0 | d3c740 | bf800000 |
+| a7cdbc | 001a80 | d3c744 | 00000000 |
+| a7cdc0 | 001b80 | d3c748 | 3f800000 |
+
+Original CRT process-attach routine78ee55 dispatches the initializer array
+`[a7cd48,a7ec94)` through `initterm`; these three adjacent slots run in the shown
+order. The numeric and power oracles now execute each actual initializer from
+poisoned storage and check neighboring words, returned destination pointer,
+stack and nonvolatile registers. Original instruction writes are never replaced.
+`num-01.11-power-startup.json` retains24,423 completed calls and173 bounded
+nonreturn controls, with unchanged digest
+`7cf000cfa0a565663f3828dc3186a88efe463c7a9a27ea12494024ba0d13430e`.
+Other isolated movement fixtures may still supply these now producer-verified
+values; this does not claim that their full CRT/heap lifecycle executes.
+
+Ghidra persists the three helper names and three initializer names,99 explicit
+x86 prototypes,22 partial layouts/138 fields and35 scalar globals. Report:
+`num-01.10-ghidra-types.json`. This closes shared startup01.11, not initialization
+of every numeric family. Remaining inventory01.2 must classify those producers;
+actual alias reachability, CRT grammar/locale and nonreturning VM lifetime stay
+01.12/13/14. Compiled literal parsing remains01.7.
+
+
+## Compiled JASS real literals
+
+NUM-01.7 recovers the decimal-token producer at925260 separately from public
+S2R's070de0. The lexer supplies NUL-terminated unsigned token text through+98.
+The procedure returns token109 in EAX, writes the raw scalar to+24, and preserves
+nonvolatile registers with plain RET. Parent lexer9249d0 invokes it at924e6f;
+the observed return site is924e74. Unary minus is a separate source operation,
+including negative zero and sign reversal after a wrapped negative prefix.
+
+The integer prefix, fractional numerator and power-of-ten denominator all
+accumulate modulo32. Original070d80 converts each wrapped signed integer.
+Original06fcd0 divides the fraction, then06fbb0 adds the converted prefix. Every
+fractional digit participates; S2R's nine-significant-digit policy does not apply.
+The denominator may wrap to zero. These are observable retail outputs, not
+host IEEE decimal conversion or arbitrary precision source constants.
+
+| Source literal | Raw VM/native input | Observed consequence |
+| --- | --- | --- |
+| `0.6` | `3f19999a` | Ordinary fractional conversion |
+| `0.59999999999999998` | `bf85635d` | Fraction accumulator wraps negative; host conversion to0.6 is wrong |
+| `4294967297.5` | `3fc00000` | Prefix wraps to1 before adding0.5 |
+| `2147483648.0` | `cf000000` | Prefix converts as signed minus2^31 |
+| `-2147483648.0` | `4f000000` | Unary minus reverses the wrapped prefix |
+| `0.00000000000000000000000000000001` | `7f000000` | Wrapped zero denominator follows retail scalar division |
+| `1.00000000000000000000000000000000` | `40000000` | Equal zero fraction/denominator takes the scalar equality result1 |
+
+The engine now uses `wc3_literal` for JASS real tokens. `TF_RETAIL_NUMBER` attaches
+the numeric producer to the parsed source token; loading Galaxy into the same VM
+cannot change earlier JASS literal behavior. Galaxy retains its existing host
+number conversion. Unsupported host-strtod identifiers such as nan/inf report a
+visible runtime error instead of entering the decimal producer. Full original
+lexical grammar is explicitly NUM-01.15; integer tokens925210/925490/925350 are01.16.
+These limits do not claim that retail rejects the same identifiers before that
+experiment. The dormant `VM_Compile` text emitter has no callers and does not
+execute this production path.
+
+Two owned live captures repeat32 public R2I argument/output pairs and40 read-only
+compiler output/token/caller observations exactly. Ordinary, `.5`, `0.`, unary
+signs and long prefix/fraction/denominator overflow all pass real compilation.
+Public native sequence digest:
+`5a3109312428b4c29a88b873b8c9f330b3b45561943f7b676fa3f8ed76e89883`.
+Compiler event digest:
+`408b2c06ef30ef303bc5d05e4470b9245d6939e41fa54004e43d6f6fe3126288`.
+Archive files `runtime/num-01.7-literals-{first,repeat}-raw.jsonl` have adjacent
+exact observer/generator/input/map copies and embedded hashes. Frozen fixture:
+`retail-compiled-literal-inputs-1.27.json`. Report: `num-01.7-live-literals.json`.
+
+`verify_wc3_pathing_literals.py` executes4,064 original/model/C calls with lexer
+write-region, untouched token text, return-token, stack and register guards.
+Optimized/unoptimized C retain digest
+`29ddca0c9fc50ddab40b92a23cb4b5da47e3f8baf4be167c0d907c708eb20a24`.
+Reports: `num-01.7-literals-O0.json` and `-O2.json`. The engine reproducer fails
+four of five stored raw words before the fix. It now preserves the exact compiled
+Move destination and save/load constants plus later evaluations. A mixed-language
+regression retains both original source policies after parser reuse. Prior native
+regressions store actual results through production hashtables and compare frozen
+C words, so expected values are independent of the literal parser under test.
+No save-record fields or format bytes change; reconstructed tokens carry the
+producer flag and the existing program hash includes it. Historical saves with
+old token hashes are not claimed compatible.
+
+Ghidra persists336 names,23 layouts/142 fields,100 explicit x86 prototypes and35
+scalar globals. `WC3JassLexerPrefix` assigns only the verified scalar/text/line/
+length fields; other bytes stay undefined. Report: `num-01.7-ghidra-types.json`.
+
+
+Validation at this checkpoint: WC3 and SC2 production builds pass; full `make test`
+passes37,854 assertions/2,160 WC3 cases in both fixture variants and91 pathfinding
+tool tests. Fresh corpus `num-01.7-final-corpus/corpus-results.json` passes all142
+outcomes (58 oracles,73 archive audits,11 strict live contracts), with every
+recorded source fingerprint unchanged. NUM-01.7 is closed. Next numeric producer
+experiment is01.16; remaining ownership inventory is01.2.
+
+
+## Compiled JASS integer words
+
+NUM-01.16 extends the same source-token policy to original integer token108.
+The real and integer actions share lexer text+98, token lengthc4 and raw result
+slot24; the slot also carries other token data, so its scalar prefix name is not
+a claim that every result is real. Saved parent `JassLexer_ReadToken` at9249d0
+records the action dispatch and original call sites.
+
+| Action | RVA | Input/return ABI | Parent return site |
+| --- | --- | --- | --- |
+| Decimal | 925210 | ECX lexer; no stack argument; RET plain; EAX108 | 924e38 |
+| Octal | 925490 | ECX lexer; skip first0; RET plain; EAX108 | 924e46 |
+| Hex | 925350 | ECX lexer; prefix length1($) or2(0x) at stack4; RET4; EAX108 | 924e56/924e66 |
+
+Every digit multiplies and adds into a wrapping32-bit accumulator. Original
+hex accepts uppercase and lowercase digits; octal has its own action rather
+than a guessed decimal interpretation. Unary minus applies after token
+production and wraps32, including minimum signed integer negation. The engine
+uses `wc3_integer_literal_bits` and reconstructs signed values from raw bytes;
+unsigned subtraction keeps unary negation independent of signed-overflow
+optimization. `TF_RETAIL_NUMBER` now selects the source policy for both real and
+integer tokens. Galaxy retains its prior conversion, including in mixed VMs.
+
+| Source integer | Raw I2R argument | Public I2R result word |
+| --- | --- | --- |
+| `2147483648` | `80000000` | `cf000000` |
+| `-2147483648` | `80000000` | `cf000000` |
+| `9223372036854775808` | `00000000` | `00000000` |
+| `18446744073709551617` | `00000001` | `3f800000` |
+| `$10000000000000001` | `00000001` | `3f800000` |
+| `0x10000000000000001` | `00000001` | `3f800000` |
+| `040000000001` | `00000001` | `3f800000` |
+
+Two owned captures repeat44 actual source/I2R argument/result pairs and42
+read-only integer compiler word/radix/prefix/token/caller observations exactly.
+Native sequence digest:
+`c6551118d93d2a33338ef9b808730307cda7f27d5e19f57bc77884fc80cacbb6`.
+Compiler sequence digest:
+`a0dcc682acd7366904c854a031bf1955c812944c5ccc952b898fe4e0c7b15fe6`.
+Archive files `runtime/num-01.16-integers-{first,repeat}-raw.jsonl` have adjacent
+exact source/map copies and embedded hashes. Frozen fixture:
+`retail-compiled-integer-inputs-1.27.json`. Report: `num-01.16-live-integers.json`.
+Full invalid-token grammar remains01.15; these valid source cases do not claim
+that malformed octal/hex/exponent/identifier forms have matching admission.
+
+`verify_wc3_pathing_integers.py` executes16,080 original/model/C calls with
+lexer write-region, untouched text, token108, stack-cleanup and register guards.
+Both C optimization levels match digest
+`3affdc0f24c0d35efe665da0f857f4d02bdb034ba8ca517e9ab0a569f329fcb0`.
+Counts:4,027 decimal,4,026 octal,4,015 dollar hex and4,012 prefixed hex. Reports:
+`num-01.16-integers-O0.json` and `-O2.json`.
+
+The engine reproducer fails nine of44 raw source words before the fix because
+host `strtol` saturates at its own width. The fixed test checks both source
+integer words and all44 public I2R outputs against independent frozen C values.
+A Move/save-load regression retains a wide compiled constant as257, routes its
+I2R value into the issued point, and re-evaluates a wide hex literal after token
+reconstruction. Mixed-language regression fails before the port, then retains
+JASS wrapping and Galaxy's existing conversion after parser reuse. Both source
+kinds share one producer flag; no save-record fields are added. Existing source
+program hashing makes historical token-policy compatibility explicit.
+
+Ghidra persists340 descriptive names,23 partial layouts/142 fields,104 explicit
+x86 prototypes and35 scalar globals. Parent and all three integer actions are
+saved; report `num-01.16-ghidra-types.json`. These numeric source improvements
+preserve the previous movement/velocity corpus; they do not establish full
+retail pathfinding parity.
+
+
+Validation at this checkpoint: full `make test` passes38,132 assertions/2,162
+WC3 cases in both fixture variants and93 pathfinding tool tests. Fresh corpus
+`num-01.16-final-corpus/corpus-results.json` passes all146 outcomes (59 oracles,
+75 archive audits,12 strict live contracts), with every recorded source
+fingerprint unchanged. NUM-01.16 is closed. The next producer experiment is
+NUM-01.13, with the shipped CRT now analyzed and saved in the same Ghidra project.
+
+## Public decimal byte grammar and CRT locale
+
+NUM-01.13 closes the original default-locale byte classifier and its public
+S2R producer. The engine's existing ASCII digit predicate is already correct
+for this domain; the new regression preserves that result through authored
+object data, public string natives, hashtable words and Move admission.
+No unobserved locale behavior is substituted into the parser.
+
+The exact sibling `msvcr120.dll` has SHA256
+`86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f`.
+Preferred base is10000000; table/function addresses below are RVAs.
+
+| Original CRT entry/state | Recovered contract |
+| --- | --- |
+| `isdigit`0f1d5 | Cdecl integer; ever-changed flag0 reads `pctype[C]&4`; nonzero calls `_isdigit_l(C,NULL)` |
+| `_isdigit_l`12652 | Single-byte locale directly indexes signed-byte prefix; multibyte locale delegates to `_isctype_l` |
+| `_isctype`8957d / `_isctype_l`895ac | Default global table versus explicit locale; `_isctype_l` direct-table range is only-1..255 |
+| Locale context0f764 | ECX context, stack4 optional locale pair, RET4; explicit pair avoids TLS; null reconciles TLS/shared state and owns a temporary ownlocale bit |
+| `_wsetlocale`132b8 / write1335c | A non-C requested locale sets the ever-changed flag1; returning to C does not reset it |
+| Ever-changed globaldf7c4 / pctype globaldf858 | Captured native values0 and pointer toRVA1158 |
+| Default localeinfodfa84 | Verified `mb_cur_max`+74=1 and `pctype`+90 points toRVA1158 |
+| Table1058..1357 | 128 signed-prefix words plus256 byte words; digit bit4 only on ASCII48..57 |
+
+Original070de0 promotes input bytes as signed `char`, so80..ff reaches
+`isdigit` as-128..-1. All of those entries have digit mask0. It stops at the
+first rejected byte while retaining the preceding scalar; the optional sign,
+single decimal point and nine-significant-digit rule remain unchanged.
+The entire384-word table digest is
+`e7304be1d56c85907c3c409a5252fba8b5b51fa74aeb8fa4703b67e8427d7d3f`.
+
+`verify_wc3_pathing_decimal_ctype.py` executes1,409 original classifier calls:
+384 each for default `isdigit`, explicit-default `_isdigit_l` and `_isctype`,
+plus257 direct-domain `_isctype_l` calls. Another1,020 original070de0 calls
+cover bytes01..ff with four prefix/suffix shapes. All match the independent
+integer scalar model and production C at-O0/-O2, retaining text/output guards,
+nonvolatile registers, stack cleanup and observed signed argument promotion.
+Classifier digest `24428fc4fc4d87a3878d9973d2dcc574b13aa5ed1189d4a5efc60d9d6b590c48`;
+parser digest `ea16cf01eaa14b274f4b819e4668bd9b2d173f90f9643054b45c7b2ab472d87a`.
+Reports: `num-01.13-decimal-ctype-o0.json` and `-o2.json`.
+
+The live producer changes only the copied map's Footman `unam` object field
+to the128 raw bytes80..ff. `GetUnitName` and `SubString` supply each byte to
+public S2R. Two further calls parse Move coordinates with80/ff before a trailing
+digit. Both complete captures repeat514 parser/native outputs and1,040 actual
+CRT digit observations, including locale flag0, original table RVA1158 and
+the exact parsed point-task destination.
+
+| Public byte input | Result word |
+| --- | --- |
+| A byte80..ff alone | `00000000` |
+| `12` + byte + `34` | `41400000` (12) |
+| `.5` + byte + `7` | `3f000000` (0.5) |
+| `-` + byte + `0.2` | `00000000` |
+| `-1936.25` +80 +`9` | `c4f20801` |
+| `-144.125` +ff +`9` | `c3102000` |
+
+Frozen fixture: `retail-public-byte-inputs-1.27.json`. Strict checker:
+`verify_wc3_byte_inputs.py`; report `num-01.13-live-byte-repeat.json`.
+The full byte/classifier/native sequence digest is
+`fab4d0567d4df888159c71243a4f682b0ab0470fe671c2be8d2fdeef91ccec44`.
+Raw files are `runtime/num-01.13-bytes-move-{first,repeat}-raw.jsonl`, with exact
+ten source files and map copies adjacent. `--byte-events` checks the loaded
+CRT path, timestamp and image size before installing its read-only classifier
+observer. The default byte producer is not inferred from formatted R2S text.
+
+Wine can substitute its built-in CRT while reporting the sibling DLL's path.
+The PE-header guard rejected that capture; it is retained as
+`runtime/num-01.13-bytes-crt-mismatch-raw.jsonl`. In the owned isolated Wine
+prefix, `AppDefaults\\war3.exe\\DllOverrides` sets `msvcr120=native`.
+Earlier captures without this CRT-header guard are not retroactively certified
+as native-CRT observations. The accepted probes use75-second process bounds
+and send the loading key at30 seconds; they retain timer300 completion.
+
+Other rejected producer attempts are retained in the runtime archive: raw
+Latin-1 JASS source containing80..ff crashes during compilation; this is not
+a public S2R result or a complete lexical rejection proof. WTS/GetLocalizedString
+returns empty byte slices, while a direct `TRIGSTR_999999` literal remains the
+reference text. Raw input capture exposes both substitutions. Use the verified
+unit-name object field instead. Rejected attempts never become numeric evidence.
+
+`wc3_shipped_crt.py` maps the original CRT and applies HIGHLOW relocations
+without replacing code. The general numeric oracle now uses its actual
+`isdigit` instead of an ASCII stub; all previous numerical digests remain fixed.
+Alternative locale construction, TLS startup and `_isctype_l` Windows multibyte
+services are excluded. No direct Game.dll locale-setting import/symbol was
+found; absence alone is not a proof of dynamic unreachability.
+
+Ghidra stores `/CRT/msvcr120.dll` in the same project. `MapPathfindingCRT.java`
+verifies its executable hash, preserves incompatible fields, saves three
+partial layouts/eight function roles/seven globals and the explicit context
+ABI, then writes `num-01.13-ghidra-crt-types.json`. Undefined prefix bytes stay
+undefined. The engine regression `pathfinding_decimal_high_bytes_match_retail_words`
+passes2,054 assertions without a production behavior change. Full `make test`
+passes40,186 assertions/2,163 WC3 tests in each fixture variant and96 pathfinding
+tool tests; WC3/SC2 production builds pass. Fresh `num-01.13-validated-corpus/corpus-results.json` passes150/150 declared
+outcomes (60 oracles,77 archive audits,13 strict live contracts), with all63
+recorded source fingerprints unchanged. NUM-01.13 is closed; reachable alias
+producer work remains NUM-01.12.
+
+## Effective speed reaches actual movement
+
+`unit_current_speed()` now consumes the same existing `unit_effective_speed()`
+as selection-group minima. Previously individual stepping read only the raw
+MoveSpeed override/authored base (plus Earthquake), leaving Cripple, Bloodlust,
+Wind Walk, Slow, Purge, poison and movement auras disconnected from single-unit
+travel. A group also capped a boosted member against its unmodified own speed.
+The effect formulas stay in their owning abilities; Move applies their existing
+composition once before selecting a group cap.
+
+`wc3_spell.movement_statuses_change_actual_steps_and_expire` executes the owning
+Cripple/Bloodlust procedures with non-stock37%/17% data, issues Move, and advances
+the actual Move thinker. Four failures precede the fix. A200-speed unit now
+travels12.6/23.4 units per current100ms frame; a220-speed peer shares12.6/22.0
+formation travel, and expiration restores20-unit travel. The regression checks
+step length because routing may adjust the final point to a legal cell center.
+No saved fields or wire contracts change. This repairs an engine consumer gap;
+full retail modifier ordering, clamps and32ms owner cadence remain unproved.
+
+## Vector-heading operand relationships
+
+Original `1d4c80` divides vector X by the separately supplied length into
+`EBP-4`, then writes Acos into `EBP+c`. At Acos entry these are `ESP+8` and
+`ESP+24`, respectively. They stay distinct even when the caller's final output
+aliases vector X/Y or the length. `16f630` similarly computes its complete
+heading error before the final output store. The raw Acos helper instead loses
+a negative sign when its input/output pointers alias; this is a negative control,
+not behavior to inject into the movement consumer.
+
+`verify_wc3_pathing_heading_aliases.py` checks784 vector and4704 full heading
+cases, ten direct Acos controls, guards, stack/nonvolatile registers, original
+startup and independent generated-table arithmetic, against-O0/-O2 production C.
+Word digest: `641aa3b6156fde2731578ffe95660150b98ea56700f8b83c7765b14fe486e2cf`.
+Two actual turn captures retain191 nested heading chains (181 negative quotient
+inputs),192 velocity/position/facing commits and exact repeat. Private captures:
+`runtime/num-01.20-heading-alias-{first,repeat}-raw.jsonl`, each with adjacent exact
+source/map archive; report `num-01.20-live-heading-alias-repeat.json`.
+The strict verifier rejects changed source/map provenance, missing/reordered
+observations, changed pointers, sequence linkage and quotient/output words.
+
+Ghidra now retains354 names and119 explicit prototypes, including the scalar
+helpers and these producer signatures. The33-function inventory records6898
+references; name-only filtering is not reachability proof. Other trig, basic
+arithmetic and power aliases remain NUM-01.17/18/19. This witness confirms the
+existing heading implementation; it adds no new movement behavior.
+
+Validation for this integration: full `make test` passes40329 assertions in2172
+WC3 cases for both Classic/TFT plus97 pathfinding tool tests. The focused
+movement/status regression passes22 assertions with DEBUG enabled and disabled;
+WC3/SC2/WoW production builds and both boundary audits pass. Only the four new
+heading entries were rerun in `num-01.20-status-final-corpus`; all four pass.
+
+## Retail fine search drives nearby detours
+
+Move now uses `wc3_pathing_fine.h` through the geometry adapter
+`G_FindMovePathWaypoint`. The search uses the recovered row-major eight-neighbor
+order,15/21 costs, piecewise integer heuristic, equal-key heap insertion/right
+child removal ties, generation-tagged stale entries and cheaper closed-node
+reopening. Queue attempts include stale pops and the rejected iteration after
+the budget. A ready generic field previously replaced the mover's retained
+turn; nearby reachable detours now retain the fine turn through travel.
+
+The wrapper now uses the [retail class shape](#retail-collision-classes-reach-routing-and-stepping) below,
+while keeping nearest-ring endpoint correction. The [segment port](#retail-segment-sampling-and-waypoint-selection)
+now replaces its initial farthest-visible-cell adapter with the original selection
+loop. FINE-01.4 originally retained the prior ceil-radius shape. Search work stays bounded to
+2,048 queue attempts for endpoints within48 cells per axis. One reusable game
+scratch block is832KiB; its sparse hash avoids allocating or clearing one node
+per map cell on each request. No saved edict or network layout changes. Direct
+clear paths, known unreachable/adjusted interaction endpoints and distant routes
+retain their existing handling. These adapters are explicit partial integration,
+not proof of retail footprint admission, smoothing or full trajectories.
+
+`fine-engine-exact-o2.json` and the fresh `oracle-grid-engine` corpus entry compare
+all288 original static searches with the same production header: complete cell
+chains, costs, charged queue work and allocated nodes match, including a second
+C query per request. Asset-free tests repeat the frozen original results at O0/O2
+and exercise original queue witnesses for equal ties, stale replacement and
+closed reopening. The288 complete map searches themselves have no closed
+reopening, so that evidence remains separate.
+
+`t_pathfinding.c` first reproduced a generic route mismatch on the original
+wall-gap chains. Its actual Move test then reproduced18 failed assertions across
+three blocked detours when a ready field discarded the fine turn. Both changes
+now pass; the fourth gap has a legal direct route and checks that direct path.
+The test retains each waypoint after the mover advances. Existing collision
+radius, distant-route, interaction, worker and unreachable regressions remain
+required, alongside the full Classic/TFT suite.
+
+Reproduce the original/C comparison with the compiled probe shown above and:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_grid.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --engine-library /tmp/wc3-pathing-engine.so --report /tmp/fine-engine-exact.json
+```
+
+Add `--fixture tools/ghidra/fixtures/retail-fine-grid-1.27.json` only when explicitly
+regenerating the pinned original result fixture. Ghidra's heap and search-entry
+comments link these consumers without claiming the remaining admission policy.
+
+## Retail collision classes reach routing and stepping
+
+The former `ceil(radius/cell_size)` shape required a3x3 square for every positive
+radius up to one cell and a5x5 square above that. Original `14ad50` and complete
+`16ee80` endpoint calls instead select class0/1/2/3 at0.5/1/1.5 fine cells,
+covering1x1/2x2/3x3/4x4 cells. An even-sized square starts at
+`floor(position) - size/2`; it is biased toward decreasing X/Y. The authored
+collision scalar is a world value divided by32 by the original unit producer.
+
+`wc3_fine_class/cover` now supply these bounds. WC3's world adapter uses existing
+static obstacle prefix sums for constant-time endpoint tests. For a legal current
+footprint, checking the neighbor square and both diagonal side squares is
+equivalent to retail's entering perimeter strips: unchanged interior cells were
+already legal. This static equivalence does not infer dynamic object eligibility.
+
+Move consumes the shape in its nearby search, direct line, waypoint retention,
+step validator, displacement failure check, selection destination reservations
+and ordinary point-order correction. Destination correction still uses the
+existing nearest-ring policy. The [segment port](#retail-segment-sampling-and-waypoint-selection)
+now replaces Bresenham/corner sampling with original `168d30` sampling. Long shared
+fields consume the same class bounds as described below. These partial
+policies remain visible rather than being described as complete retail parity.
+
+`foot-corridors-original.json` executes24 complete original searches, reuse
+repeats and request reconstructions over widths0..5 and all four classes. Widths
+1/2/3/4 respectively are the first passable corridor.
+`foot-endpoints-engine-exact-o2.json` compares1,184 complete original static
+endpoint calls with production C geometry, including class boundaries, map edges,
+negative positions and each single blocked cell. Original dynamic84 cases also
+run, with no C parity claim. The frozen endpoint fixture is asset-free and runs
+at O0/O2. Fresh selected corpus results are in
+`foot-engine-validated-final-corpus/corpus-results.json`. Ghidra saves356 descriptive
+functions, including `149370/1492b0`, with existing119 prototypes unchanged.
+
+The engine passage regression covers seven near-boundary radii with corridor
+width below/equal/above each selected class. It first failed16 of42 geometry
+assertions. The fixed test also issues14 fitting Move orders, preserves each
+requested destination and advances the actual Move thinker. A pre-existing
+wall-detour regression still used the superseded3x3 predicate; it now checks
+the independently known four class1 cells against its raw fixture on every
+frame and retains exact final arrival. No wire, edict or save layout changes.
+
+
+## Long fields use the same class geometry as Move
+
+`G_RequestMovePathField` derives half-open cell offsets with the same
+`wc3_fine_class/cover` helper as fine routing and stepping. The shared field
+builder consumes a generic `pathGridQuery_t`: min/max offsets and blocked mask.
+Expansion, diagonal side checks, flow sampling, goal correction and cache keys
+all use that query. WC3 owns the class policy; existing shared radius APIs retain
+their symmetric ceil-radius geometry for other callers, including SC2.
+
+`G_ActivateMovePathField` checks the cached query against the mover's actual
+class and mask. The old 0.01 radius tolerance could incorrectly reuse a field
+across a class boundary: radii0.499 and0.5 differ geometrically despite the small
+scalar difference. Same-class radii can share a field; different bounds or masks
+cannot. Static rebakes invalidate all generations as before.
+`G_ClosestReachableMovePoint` also floods the mover's class graph, so an
+unreachable-order fallback agrees with both the field and the Move validator.
+
+The new winding-corridor regression first failed7 of14 assertions: a class1
+mover could not obtain a long field through a two-cell L beyond the48-cell fine
+search envelope. It now checks field reachability, advances the actual Move
+thinker for eight ticks and validates the four covered cells against the raw
+fixture. Pinching the passage to one cell invalidates the old generation;
+class1 becomes disconnected while class0 still reaches the exact target.
+The class1 fallback chooses the near-side49.5/5.5 cell, while class0 preserves
+the exact100.5/15.5 requested destination.
+
+A separate regression reproduced pending-job scratch corruption: a synchronous
+closest-reachable source flood overwrote an incremental goal flood's prices and
+queue, then the interrupted job published those prices under its original goal.
+The original goal incorrectly had a nonzero flow vector. Source floods now
+cancel the pending scratch job; its next request restarts correctly. Cached
+completed fields remain separate. This fixes engine scratch lifetime, not an
+inferred retail scheduler contract.
+
+Two pre-existing tests encoded the superseded shape. The disconnected-Move
+regression now checks all four class1 cells independently rather than invoking
+the old3x3 predicate. The blocked-mine-entry regression formerly supplied only
+the mine footprint; class1 can legally advance into interaction range there.
+It now supplies a real separating wall and still requires visible workers,
+zero occupants and a retained Harvest walk. Existing successful mine-entry,
+return-resource, crowd/group, queued orders and save/load cases remain required.
+
+Validation: the full Classic/TFT suite passes41,710 assertions in2,176 WC3 cases
+per variant; all101 pathfinding tool tests and WC3/SC2/WoW production builds pass.
+Fresh selected `long-field-validated-corpus/corpus-results.json` retains both
+original/C footprint oracles; it does not represent a full157-entry corpus run.
+Ghidra's saved `16ee80/1492b0` comments link the additional engine consumers.
+There are no wire, edict or save layout changes. The shared SPFA field and
+interpolated steering are still the engine algorithm, not the retail adaptive
+hierarchy or full-trajectory replacement; FOOT-01.5 closes geometry consistency
+only. The subsequent [segment port](#retail-segment-sampling-and-waypoint-selection)
+now connects the all-class sampled segment and its waypoint consumer.
+
+
+## Retail segment sampling and waypoint selection
+
+`wc3_pathing_segment.h` ports `168d30` and its four directional footprint
+consumers `149440/149630/149970/149cc0`. It uses the existing exact software
+add/multiply/floor/integer helpers. Sample distance starts at1 and increases
+by1 while strictly below the supplied length; unchanged cells are skipped.
+Previous cell starts at0,0. Neither endpoint is queried by the sampler itself,
+and lengths at most1 perform no cell query. Class0 tests the current cell, then
+X/Y predecessor-side cells for a diagonal code. Larger classes test entering
+rows/columns; diagonal codes use a horizontal strip of size+1 followed by a
+vertical strip of size. They are not complete squares at every sampled point.
+
+`wc3_segment_normalize` ports `168280`: compute software-float squared length
+and sqrt, then multiply both components by the reciprocal only above length1.
+The original cardinal3 vector yields length3.0000576973 and direction0.9999808669.
+Using native sqrt or ideal direction1 changes the final sample. Sixteen original
+normalizer input/output word triples match C. The full sampler comparison also
+checks every composed sample coordinate, query order and early rejection.
+
+`G_MovePathLineIsPathable` now uses the sampler for direct routing, cached-turn
+retention and swept Move checks. It retains explicit full-footprint source and
+destination admission before sampling. That admission is an engine adapter;
+FOOT-04 still owns the original public clamping/exclusion policy. Coordinates
+still enter through the current game's world-to-grid transform. The callback
+uses static ground/flight bits; dynamic retail eligibility/suppression is not
+inferred from this port. Move's separate live-unit collision policy still applies.
+
+`wc3_segment_waypoint` ports the `167bf0` candidate loop. The next route point
+is accepted unchecked; progressively farther points are tested until the first
+failure, then the last accepted index is returned. `G_FindMovePathWaypoint`
+reconstructs destination-first points from the verified search parents and uses
+that loop. Its initial farthest-to-nearest visibility scan could choose past a
+rejected nearer candidate and was not the original policy. The extra reusable
+point array is128KiB; total static fine-search/selection scratch is about960KiB.
+No saved/network fields change.
+
+The asset-free `retail-sampled-segments-1.27.json` freezes43,244 complete original
+static sampler calls across four classes, both masks, sixteen cardinal/oblique/
+45-degree directions, seven interior/edge/corner positions and eight lengths.
+It includes8,064 unchecked short-segment cases and both sides of length1.
+Original calls use real cell/footprint routines without code replacements.
+The result and queried-cell sequence digest is
+`4c1235cbdf7aa53b3be95c43cb2ca12c5436514bb0db9231623e3326296746e4`.
+C matches at O0/O2. The same oracle supplies123 complete `167bf0/165e60`
+selection/commit calls on the reachable frozen fine chains, across all four
+classes. It verifies the selected index/point and restoration of self suppression.
+Those are supplied cell-centred chains, not evidence for all retail reconstruction
+coordinates or public admission.
+
+The engine first reproduced four missed first-sample strips, one per class,
+with blockers outside both legal endpoint footprints. All four now reject.
+The actual Move steering test uses original wall-gap selection indices11/6/2/0,
+which select11.5/10.5,15.5/13.5,18.5/17.5 and19.5/19.5. Retention still passes after
+the mover advances. The clear-waypoint regression now checks retail sampling
+rather than the superseded Bresenham predicate. Existing actual detour, worker,
+group, unreachable, orders and save/load regressions remain required.
+
+The full Classic/TFT suite passes41,733 assertions in2,178 WC3 cases per variant,
+plus103 pathfinding tool tests; the production WC3 build passes. Fresh selected
+corpus results are in
+`segments-engine-validated-corpus/corpus-results.json`: class0 baseline and new
+all-class/C entry pass. No full158-entry rerun is claimed. Ghidra saves360 names
+with119 existing prototypes unchanged and links both sampler and waypoint
+consumers to their production helpers. Next integrate mixed dynamic eligibility
+and target exclusion through the full fine request; shared adaptive routing and
+whole trajectories remain separate required work.
+
+
+## Idle objects affect nearby Move routes
+
+FINE-01.5 puts live idle ground-unit footprints into location-order direct
+checks, nearby fine searches, waypoint selection and retained-segment checks.
+An idle unit ahead now produces a detour before local circle collision. Actual
+Move order/think/step regressions pass for all four mover/object classes and
+leave the idle unit fixed. A new object entering a retained segment invalidates
+that turn and produces a fresh route.
+
+Original `1489a0` blocks a live kind1 object when its active category bit is
+set, its low24 category overlaps the query, and `flags40 & 8fffffff` is zero.
+Normal search mode0 additionally excludes `20000000` and `40000000` objects.
+Endpoint mode1 includes those objects. Original `1606e0` maintains `20000000`
+from committed velocity at mover+80/+84; mover+88 is the speed cap, not the
+current vector. Merely entering the walk animation does not set that bit.
+
+Fresh read-only crowd captures establish these profile publications:
+
+| Unit | Getter category/query | Fine object / owned path | Velocity commits | Starts / stops | Idle object hits |
+| --- | --- | --- | ---: | ---: | ---: |
+| Footman `hfoo` | `ca / 2` | `010000ca / 02000002` | 3,012 | 90 / 90 | 2,423 across179 per-request records |
+| Hippogryph `hgry` | `0 / 4` | `01000000 / 04000004` | 1,661 | 9 / 9 | 0 |
+
+Each capture contains18 getter pairs/publications, all velocity commits,
+completed crowd markers and a successful observer end. Fine search counts
+are56 and9. The new observer fields only read the occupancy pointer and flags;
+no retail object or velocity is changed. `verify_wc3_profile_trace.py
+--fine-objects` rejects truncated counters, missing identities, altered
+velocity flags, omitted/unclassified hits and blocker records inconsistent
+with published profiles. The captures do not observe the transient group
+`40000000` flag; its existing composed producer evidence remains separate.
+
+`verify_wc3_pathing_grid.py --objects` adds **192 complete original searches**,
+192 retained-cell-metadata repeats and192 setup/search/reconstruction requests:
+four classes, ground/flight masks, open/gapped static terrain and12 object-chain
+variants. Variants include idle, moving, transient, suppressed, disabled,
+unlinked, inactive, empty flight category, overlapping movers/idle objects in
+both chain orders, mixed categories and a solid object wall. The actual original
+linked records coexist with generated search-node metadata. The independent
+reference checks reachability/cost; production C eligibility, entering-strip
+geometry and search match every parent chain, cost, pop count and node count
+at O0/O2. Frozen evidence: `retail-fine-objects-1.27.json`.
+
+Game queries snapshot eligible idle-unit class rectangles. Overlapping objects
+coexist; a moving object never erases an idle blocker. Direct/retained queries
+use a conservative area-tree region derived from the sampled strips and largest
+object cover. The1900-idle-unit direct query falls from0.19ms to below0.005ms
+per call in the same benchmark. A regression keeps a class3 biased edge even
+when its physical bounds miss the class0 segment. Fine searches retain a full snapshot because their detours can
+leave the endpoint rectangle. Rectangles are sorted by their minimum X; each
+cell only examines rectangles starting in its four-column range. Shared static
+fields are untouched and retain their generations when a neighbour starts or
+stops. Scratch stays in the game module; edict/network/save layouts are unchanged.
+
+Interaction abilities keep their existing range/queue policy. Gold/resource
+return collision queries still ignore peers; lumber still uses its local queue
+and bounded pass. When a live object occupies the goal and the static field is
+pending, a clear static corridor keeps collision-aware local steering rather
+than pausing forever. The original nearest-node partial route is still
+FINE-02.2; public self/target admission and target-exit semantics remain
+FOOT-04/FINE-01.3. The engine adapter retains existing ground-unit eligibility
+until BASE-02 supplies the complete authored category table. Water/amphibious
+profiles and native pathing-disable producers are not certified by this slice.
+
+Reports under the standard report root:
+`fine-objects-engine.json`, `ground-object-policy-live.json`,
+`air-object-policy-live.json`, and
+`idle-objects-final-corpus/corpus-results.json`. The fresh selected corpus
+passes4/4 entries (static baseline, mixed-object C comparison and both live
+contracts); no full161-entry rerun or whole-trajectory match is claimed.
+Ghidra saves360 names with prototypes unchanged and updates the occupied-cell,
+velocity flag, profile publication/getter and fine-rectangle contracts.
+
+Reproduce the original/C comparison with:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --output /tmp/wc3-idle-objects-new-corpus \
+  --only oracle-grid --only oracle-grid-objects-engine \
+  --only live-ground-fine-objects --only live-air-fine-objects
+```
+
+The output directory must be fresh. Use the Unicorn environment for the runner;
+the default system Python lacks Unicorn and is correctly rejected. Capture
+metadata pins the builder/probe/controller/observer and map hashes; source copies
+are archived alongside `runtime/{ground,air}-object-policy-first-260930.jsonl`.
+
+
+Final validation: both Classic/TFT suites pass41,787/41,787 assertions in2,184
+WC3 cases per variant, all106 pathfinding tool tests pass, the debug pathfinding
+suite passes443 assertions in68 cases, and the production WC3 build passes.
+The renderer suite also passes5,862 assertions after reproducing/fixing a
+multi-statement macro that dropped higher ground layers when a lower texture
+was missing; see [ground list lifetime](loading-and-assets.md#whole-map-ground-list-preserves-earlier-layers).
+
+
+## Nearest partial routes survive blocked goals
+
+FINE-02.2 ports the original nearest-node update from `14a560` and retains its
+parent chain when `14a4c0` exhausts its queue or work budget. Distance is an
+unsigned wrapped integer square; only a strict improvement replaces the
+nearest identity. Equal-distance candidates retain the first admitted node.
+The update occurs on fresh/list-invalid admission, before that node is popped.
+
+`verify_wc3_pathing_grid.py --objects --partials` executes208 complete core,
+metadata-repeat and setup/search/reconstruction scenarios, then **1,456 full
+requests** at budgets0/1/5, one before/equal/one after the unrestricted pop count,
+and2048. Four classes, ground/flight masks and mixed chains include an idle
+object covering the destination and a full-height idle wall. There are925 failed
+and531 successful requests. **177 failures already have the goal as nearest**:
+its node was admitted, but the final goal pop was denied. Budget failure still
+returns a partial route; it must not discard that chain or claim search success.
+
+Original `148100` preserves the exact source when nearest is the start;
+otherwise it reconstructs toward the nearest cell centre and updates its stored
+adjusted destination. Original wrapper output/source/endpoints, nearest identity,
+distance, parent chain, queue charge and allocation count are frozen in
+`retail-fine-partials-1.27.json`. Production C matches all nearest chains and
+metadata at O0/O2 with storage reuse, plus208 full chains. No public scheduler
+budget-producer or unrelated target-exit behavior is inferred from these
+supplied requests.
+
+Location Move now uses a useful nearest chain even when the requested point
+cannot be reached. A full-height wall of idle units first reproduced four failed
+engine assertions: no retained path or approach turn. The same scene now selects
+the original `(10.5,4.5)` turn, advances through actual Move thinks and retains
+its original `(19.5,4.5)` order. Removing the wall through actor lifetime calls
+lets that Move finish toward the unchanged destination. A nearest chain with
+only the current cell still supplies no advancing turn; the existing local
+collision/settling policy remains responsible there.
+
+A completed static field that proves disconnection continues to own the existing
+component fallback. Without that check, a valid partial fine turn postponed the
+already-verified static fallback. Static-only query callers retain their prior
+complete-route result contract; interaction abilities keep their existing policy.
+No persistent actor, save or network layout changes.
+
+Reports: `fine-partials-engine.json` and
+`partials-engine-final-corpus/corpus-results.json`. The selected static baseline,
+mixed-object C and partial-route entries pass3/3; no full162-entry rerun or whole
+trajectory certification is claimed. Ghidra saves the nearest-admission,
+termination and wrapper contracts alongside the existing layouts/prototypes.
+
+Validation: both Classic/TFT suites pass 41,796/41,796 assertions in 2,185
+WC3 cases per variant. All 107 pathfinding tool tests pass; debug and release
+pathfinding each pass 452 assertions in 69 cases. The production WC3 build
+and game/client boundary audits pass.
+
+## Authored movement masks reach terrain and object queries
+
+BASE-02.4 ports the stock movement profiles published by original
+`690c20/690c80 -> 05c7e0`. One read-only copied-map capture creates seven stock
+units; each emits two paired getters and publications, with enclosing Unit+30
+rawcode and resolved mover identity/epoch. Retail UnitData.SLK supplies `movetp`:
+
+| Unit | movetp | Category | Query | Owned path mask |
+| --- | --- | --- | --- | --- |
+| hfoo | foot | ca | 02 | 02000002 |
+| hkni | horse | ca | 02 | 02000002 |
+| hsor | hover | ca | 02 | 02000002 |
+| hgry | fly | 00 | 04 | 04000004 |
+| hbot | float | ca | 40 | 40000040 |
+| uplg | amph | ca | 80 | 80000080 |
+| halt | _ | 00 | 00 | 00000000 |
+
+The engine previously queried02 for every non-flyer. Its shared cell predicate
+also ignored40/80. The actual Move validation and nearby-route regression
+reproduced ten failures, then passes for all six mobile types. Queries now honor
+the complete supplied byte mask; the game selects40/80 from the authored row.
+Flight remains mutable through AI_FLYING, preserving existing grounded-flyer
+ability policy. Disabled movement retains its existing owner-level contract.
+
+Original `04caba` derives amphibious80 when WPM bytes contain both02 and40.
+All256 original single-byte outputs are frozen; the production WPM helper matches
+movement bits at O0/O2. Map reading invokes it before publishing path cells.
+The original6144 WPM and12288 image loops still pass, and a fresh engine oracle
+compares all256 WPM bytes. Image decoding is not replaced by this WPM rule.
+
+Original widget blue coverage creates categoryc2. Baked static footprints now
+block walk/float/amph; SC2 supplies its existing02 policy through the same private
+callback. Two failing water-footprint assertions now pass, including release
+restoring all three lanes. Command-time unit occupancy now uses categoryca
+rather than the encountered unit's own query mask. A ground unit consequently
+blocks40/80, while a flyer with category0 blocks no query. The command-destination
+regression reproduced all three mismatches before correction. The former
+flight-blocking expectation is replaced by the captured zero-category contract.
+
+FINE-01.2 extends complete mixed-chain composition to all four published masks:
+384 original searches,384 metadata-repeat searches and384 full setup/search/
+reconstruction requests, across all four footprint classes. Production C matches
+cell routes, cost, work and allocation counts, including repeated storage at
+O0/O2. The engine's fine/direct/retained queries use the mover's actual mask and
+exclude disabled rows. Existing local collision ownership is unchanged.
+
+Evidence: `runtime/movement-profiles-first-260930.jsonl`,
+`movement-profiles-table.json`, `fine-movement-profiles-engine.json`,
+`water-load-masks-original.json` and `water-masks-final-corpus/corpus-results.json`.
+The four selected corpus entries pass. Source/map/capture hashes and compact
+observations are pinned. These stock mask observations do not establish every
+row's profile parser, support-surface transitions, bridge policy or a complete
+boat/amphibious travel trajectory; BASE-02.1 retains those requirements.
+Ghidra saves and reads back the three getter/publication contracts, retaining
+360 function annotations and119 existing prototypes. No actor/save/network
+layout changes. All112 pathfinding tool tests pass. Both Classic/TFT suites pass41,868 assertions in2,188 cases;
+debug pathfinding passes524 assertions in72 cases, and WC3/SC2/WoW production
+builds and both boundary audits pass.
+
+## Exact fine route endpoints
+
+ROUTE-01.3 ports original `147dc0` into the production nearby-route adapter.
+Node centres use the already-verified truncated integer conversion and scalar
+add-half. The destination-first chain then copies the exact source into its
+last entry. It compares the first point's floored coordinates with the supplied
+destination and copies that exact destination only when both match. A one-node
+chain can consequently become the exact goal after source replacement.
+
+The original oracle expands from480 diagonal chains to **3,840 eight-direction
+chains**, lengths1..5, negative/positive origins and matching/nonmatching goal
+cells. Original software arithmetic and append execute without stubs. Frozen
+raw inputs/coordinate words in `retail-fine-reconstruction-1.27.json` match the
+production helper at O0/O2 with repeated storage; the fresh original/C oracle
+also matches. The existing9,216 coarse cases remain original/model evidence.
+
+The engine regression first reproduced eight failures: all four classes turned
+`(19.875,17.125)` into `(19.5,17.5)`. The route adapter now retains the admitted
+fractional world destination when it selects the complete endpoint. Partial
+requests supply the nearest cell centre to reconstruction, following `148100`;
+they cannot substitute the original fractional goal or claim completion. The
+idle-wall actual Move scenario now orders `(19.875,4.125)`, retains its centre
+approach, advances, then resumes toward that same fractional order after actor
+removal. It still respects the existing arrival tolerance; full retail arrival
+range/heading behavior remains TARGET-01.2.
+
+Source/destination admission continues through the existing engine policy;
+this port does not certify public invalid starts, capacity growth, coarse
+coordinates or complete world-to-fine numerical parity. Those remain
+FOOT-04/ROUTE-01.1/01.2/NUM-02.3. The helper consumes valid internal parent chains
+and the existing bounded route storage, without actor/save/network changes.
+Reports: `fine-reconstruction-eight-directions-engine.json` and
+`fine-reconstruction-final-corpus/corpus-results.json`; the fine endpoint and
+existing partial-search entries pass2/2. Ghidra saves the reconstruction contract
+alongside the existing360 function annotations and119 prototypes.
+
+Validation: both Classic/TFT suites pass41,880 assertions in2,189 cases; all113
+pathfinding tool tests pass. Release/debug pathfinding passes536 assertions
+in73 cases; the production WC3 build passes. Both boundary audits are clean.
+The first umbrella run overlapped a production link and an asset CLI saw an
+incomplete shared library; the serialized rerun passes.
+
+## Point Move arrival
+
+TARGET-01.4 ports the actual zero-range point command into Move. Retail
+`MoveBridge_StartPoint` (`05b970`, ECX Unit+164) receives eight stack arguments;
+its last argument, index7, is a pointer to world arrival range. The actual
+`Move_HandlePointTask` caller supplies zero. After division by32 the bridge
+publishes the minimum `3efae148` (approximately0.49 fine cells) through
+`1710a0` to mover+b0. On a32-unit WPM grid this is approximately15.68 world units.
+This is independent of collision size, the step budget and `PropWindow`.
+
+The complete `16e910` predicate subtracts source from target with the retail
+software arithmetic, computes distance and vector bearing, applies the strict
+`3456bf95` angular deadzone, and tests distance<=range (or force bit10000) plus
+absolute heading error<=`3e4ccccd` (approximately0.2 radians). Forced range does
+not bypass the heading gate. A perfect host bearing is not interchangeable:
+for vector(.3125,0), the original computes bearing`3ba9540a`, approximately
+0.005167489 radians. The original/C fixture covers this residual explicitly.
+
+The read-only open-ground point witness records183 evaluations. Every source
+is the next committed position, every stored position is the commit's previous
+position, and the final commit integrates the previous velocity while publishing
+zero new velocity. It stops short of the exact destination. A second owned run
+repeats all183 evaluations/commits and182 ordinary motion decisions exactly.
+`wc3_pathing_arrival.h` implements the predicate; `verify_wc3_pathing_arrival.py`
+compares2342 complete original calls with raw C distance/error/range/result words.
+The asset-free tests run this fixture twice at bothO0 andO2.
+
+`move_point_arrival()` uses the existing engine frame interval to forecast the
+previous velocity step. For active public Move/Smart heads with a waypoint goal,
+it applies the fine-cell range and angular gate, validates the forecast pose,
+commits that pose and publishes zero velocity. While in range but outside the
+arrival heading tolerance it turns in place and retains the order. At completion
+it uses the existing ability-arrival and stand/queued-order lifecycle. It no longer
+snaps these point orders onto their goal. Existing internal approaches, active construction displacement, Patrol
+and AttackMove retain their owning contracts until their producers are verified.
+
+The four `wc3_pathfinding.point_move*` regressions drive actual order submission
+and Move thinkers: nearby stop without snapping, a heading outside0.2 but inside
+the propagation window, the final previous-velocity step, and saved velocity
+with a queued successor. The first three failed against the earlier engine. Tests use the engine cadence; this does **not** certify retail
+clock scheduling, complete world-to-fine coordinate conversion, earlier translation
+phases, occupied-slot force/can't-path decisions or target-order arrival. These remain
+NUM-02.3, TARGET-01.2/3 and the applicable FOOT admission tasks.
+
+Evidence: `arrival-predicate-engine-final.json` and
+`runtime/arrival-point-inputs-repeat-exact.json` under the report root. The new
+`verify_wc3_arrival_trace.py` rejects missing/truncated inputs, publication and
+commit records, wrong hashes, changed mover/force/range, altered raw results,
+wrong predicted-pose pairing, missing final stop and a differing repeat.
+The first capture (`arrival-point-inputs-first-260930.jsonl`) is explicitly rejected:
+the original observer indexed the ninth stack slot instead of the eighth and
+raised an access violation. It remains in the corpus with no certified evidence.
+Use the verified/repeat captures, whose sources/maps are pinned in
+`retail-point-arrival-inputs-1.27.json`.
+
+```sh
+python3 tools/frida/verify_wc3_arrival_trace.py \
+  /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/arrival-point-inputs-verified-260930.jsonl \
+  --compare /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/arrival-point-inputs-repeat-260930.jsonl \
+  --fixture tools/ghidra/fixtures/retail-point-arrival-inputs-1.27.json \
+  --engine-library /tmp/wc3-pathing-engine.so --report /tmp/point-arrival-repeat.json
+```
+
+Validation: Classic and TFT each pass41,926 assertions in2,193 cases; all115
+pathfinding tool tests pass. Debug and release pathfinding each pass573 assertions
+in77 cases, production WC3 builds, and both boundary audits are clean. The fresh
+five-entry arrival corpus passes all expected outcomes, including the rejected
+observer archive. Save remains60; no actor, network or serialized layout changes.
+
+
+## Authored speed limits reach Move
+
+MOVE-01.4 puts the ordinary nonhero speed producer into the engine. Public
+`SetUnitMoveSpeed` now changes Move's runtime value, including explicit zero and
+negative inputs. `GetUnitMoveSpeed`, step budgets and selection-group speed
+selection share the profile/status consumer. `GetUnitDefaultMoveSpeed` reads the
+immutable authored profile rather than the last setter. Movement-disabled units
+ignore setters and return zero current speed.
+
+The actual retail UnitMetaData defines `umvs`, `umis` and `umas` as integers.
+Our typed UnitBalance stores scalars; map-object application previously discarded
+integer modifications to those fields. An actual custom-unit CreateUnit/public
+Move regression failed all three authored-profile assertions before the integer
+to software-scalar conversion fix. The captured custom h001 clone now retains
+speed237, minimum173 and maximum389 through normal map-row binding.
+
+Original `5fc900` first clamps nonzero profile bounds to immutable1..522. Zero
+profile bounds select Misc defaults unchanged; it clamps the effective value
+against minimum, then maximum. Retail Misc supplies unit150..400 and
+building25..400, with map overrides remaining authoritative. Missing data retains
+the instruction-verified startup defaults1/522 and logs the missing key. These
+are distinct from the game owner's additional bridge cap, observed as raw
+`4402aaab`; its producer and exceptional composition remain open.
+
+`verify_wc3_pathing_speed_limits.py` executes1820 original ordinary-tail cases
+plus26 complete disabled getter gates. The production C header matches every
+output word, including adjacent thresholds, zero/negative/inverted profile
+bounds and defaults above522. Asset-free tests replay the frozen1846 cases twice
+against both O0 and O2 builds.
+
+Two owned75-second captures, `runtime/speed-inputs-first-260930.jsonl` and
+`runtime/speed-inputs-repeat-260930.jsonl`, preserve source/map hashes and agree
+on120 public native calls,26 speed publications,152 motion decisions and153
+velocity/position/facing commits. Stock Footman setters clamp150..400 while its
+default remains270; custom h001 clamps173..389 with default237; halt stays0 and
+publishes no speed. The high setter reaches the moving owner's next committed
+cap. **The low restoration occurs after arrival**, so it does not establish
+low-cap integration or temporary-modifier restoration during travel.
+
+`verify_wc3_speed_inputs.py` checks actor/mover identity and epoch, native
+producer sequence, all bounds/default words, actual bridge division32, the high
+setter's next commit, complete300 JASS samples and repeated raw commit digests.
+Damaged-source, missing-record, changed-bound/default/epoch and wrong travel-cap
+controls are rejected. Fixtures are `retail-speed-limits-1.27.json` and
+`retail-public-speed-inputs-1.27.json`; the fresh five-entry corpus is
+`speed-inputs-corpus-fresh-260930/corpus-results.json` under the local report root.
+
+Actual engine regressions cover integer custom-profile binding, low/zero/high
+public setters during Move, disabled-owner no-op, immutable defaults and saved
+explicit-zero motion. Eight post-load steps reproduce position and velocity
+words exactly. The saved bit uses the existing primitive override mask; save60,
+JSVM7, actor/network layouts and field tables remain unchanged. The two existing
+sub-bound velocity-guard tests now explicitly supply a small Misc minimum;
+ordinary inputs correctly encounter the newly implemented bound first.
+
+BASE-02.5 adds the missing stable UnitData map-row cache. The disabled custom
+unit regression first failed because umvt never reached the created entity;
+integer balance fields alone could not fix it. Original edits now serve as
+custom inheritance sources, distinct rows survive further lookups, and map
+cleanup releases them before rebinding stock data. Actual public CreateUnit
+profiles exercise amphibious, floating and flying masks plus inherited turn
+rate/window. This also makes authored custom-map movement settings reach normal
+path queries instead of silently resolving the base unit row. Other unported
+typed tables and full support transitions remain open.
+
+Ghidra now persists380 descriptive functions,119 verified prototypes,143 fields
+and43
+scalar globals plus the registry pointer. The new native/profile/getter/startup
+functions and separate immutable/default bound labels are saved and read back in
+`speed-types-readback.json`. Upstream effect-stack ordering, hero-specific default
+speed, special ability/type caps, immediate old-velocity integration/clamp on a low cap and
+whole engine clock cadence remain MOVE-01.1/2 and NUM-02.3.
+
+
+Validation: full Classic and TFT suites each pass42,005 assertions in2,197 cases,
+with all118 pathfinding tool tests passing. Forced debug and ordinary movement
+builds each pass2,811 assertions in167 cases per schema. The five new corpus
+entries pass their declared outcomes; boundary/menu audits and relative links
+are clean. Production WC3 builds. No whole-trajectory fidelity claim is added.
+
+
+## Speed drops clamp existing velocity immediately
+
+MOVE-01.5 makes public `SetUnitMoveSpeed` update the existing velocity before
+the next Move think. An actual public CreateUnit/Move/setter regression first
+retained the old roughly400-unit velocity after lowering the cap to150. Move
+now uses the verified scalar normalization in fine coordinates, scales back
+to world coordinates and leaves pose and facing intact. Raising the cap
+preserves the current vector. Save/load reproduces the next eight position
+and velocity samples word for word without adding serialized fields.
+
+Original `15ff40` stores the fine cap, compares it strictly against the
+software square root of the old vector and calls `15f7e0` with a zero delta
+and no facing notification only when that length exceeds the cap. This
+integrates old velocity through `1603d0`, then uses `1606e0/15fc70` to clamp
+and update the fine object's moving bit. Original `071570` computes inverse
+square root through the existing square-root/reciprocal helpers. The tiny
+vector guard and small numerical overshoot from the original normalization
+remain intact. Higher caps do not integrate or reset the vector.
+
+`verify_wc3_pathing_speed_caps.py` executes the complete original function
+with real constructed spatial maps, clocks and existing movers, without
+function stubs. All756 cases match production C scalar composition, including
+444 entering old-velocity integration. Signed and oblique vectors, zero/tiny
+caps, both owner-clock domains, epoch changes and nonzero elapsed intervals
+are covered. O0/O2 tests replay frozen outputs twice and independently verify
+the world-coordinate adapter. This does not establish engine owner-clock
+production or retail spatial-cache lifecycle parity.
+
+Two owned75-second captures, `runtime/speed-drop-first-260930.jsonl` and
+`runtime/speed-drop-repeat-260930.jsonl`, raise the stock Footman to400 at
+tick20 and lower it to150 at tick30, both during travel. They agree on six
+public calls, two publications, two cap transitions,127 motion decisions
+and128 velocity/position/facing commits. The low transition has exactly
+zero elapsed time; raw velocity changes from `[31c80000,4147ffff]` to
+`[31160009,40960008]`, with pose/facing unchanged. The next normal commit
+consumes that clamped vector. This closes the bounded immediate clamp;
+temporary-effect restoration and nonzero-elapsed engine timing remain
+MOVE-01.2 and NUM-02.3.
+
+The strict verifier pins sources/maps, admission/completion,300 samples,
+actor identity and immutable defaults, rejects altered clocks and unconsumed
+vectors, and repeats all three raw digests. Fixtures are
+`retail-speed-cap-transition-1.27.json` and
+`retail-public-speed-drop-1.27.json`. The fresh five-entry checkpoint is
+`speed-cap-corpus-final-261001/corpus-results.json` under the local report root.
+
+Ghidra persists383 named functions,23 partial layouts,143 verified fields
+and122 explicit prototypes; `speed-cap-types-readback.json` records the
+saved cap, normalization and reciprocal-square-root ABIs. Existing scalar
+globals and registry labels remain separate. Save60, JSVM7 and actor/network
+layouts are unchanged.
+
+Validation: full Classic and TFT suites each pass42,055 assertions in2,198
+cases; all120 pathfinding tool tests pass. Forced debug and ordinary movement
+builds each pass2,861 assertions in168 cases per schema. The fresh five-entry
+corpus passes, and both boundary audits are clean.
+
+
+## Flat bonuses retain their publication state
+
+MOVE-01.6 registers and implements concrete `CAbilityMoveSpeedBonus` (`AIms`).
+Its typed contribution query reads DataA through the actual authored rawcode.
+The query visits every native owner and usable carried item, retaining
+`max(0, contributions)`. Different aliases, reversed dominance, negative
+values and duplicate Boots do not turn that maximum into a sum. Backpack
+permission excludes carried item effects while preserving native owners.
+Move adds the flat maximum with retail software arithmetic before the existing
+status multipliers and authored speed limits. Upstream multiplier composition
+is still outside this bounded port.
+
+The public speed getter and an existing mover's cap are separate retail states.
+Two repeated quiet captures show the Hpal getter changing270→330 with Boots,
+staying330 with two copies, and returning270 when both are removed. Every
+actual velocity commit still uses the original270 cap. A second repeated scene
+shows `SetUnitMoveSpeed(270)` publishing330 with Boots equipped, a new Move
+order publishing330 again, removal changing the getter back to270 while the
+committed cap remains330, and a following setter restoring270 with the verified
+immediate vector clamp. Engine Move now retains the last published flat bonus
+and refreshes it on accepted Move orders and public setters. Inventory queries
+remain current; inventory changes alone do not rewrite that saved Move state.
+
+These captures use a RoC-format map with the active TFT AIms row. Extracted
+original `war3.mpq` AbilityData supplies `Data11=40`; `War3x.mpq` supplies
+`DataA1=60`, matching the actual contribution field and public outputs in this
+run. Stock bspd's ItemData attaches AIms. The engine reads the table and schema,
+including aliases, instead of hardcoding either40 or60. The source-table
+hashes and selected row values are retained in
+`retail-public-item-speed-1.27.json`. The original writer of ability+88 and
+complete campaign/game-mode table selection remain required work.
+
+The complete original speed oracle now compares126 attached-bonus compositions
+with production C, preserving max-before-add-before-multiply-before-clamp order.
+Frozen outputs replay twice at O0/O2. The quiet scene repeats ten public calls,
+five compositions,101 decisions and102 velocity/position/facing commits. The
+published scene repeats18 public calls,12 compositions,91 decisions and92
+commits, including four cap transitions and three bridge publications. All
+three raw digests match between each pair. The strict verifier rejects altered
+source, maximum, attached identity, defaults and caps, including a cap change
+without an observed publication. Broader effects and engine owner clocks are
+not inferred from these records.
+
+Actual public CreateUnit/CreateItem/UnitAddItem/UnitRemoveItem/Move/setter
+regressions check both queried speed and physical steps. The first engine
+fixture omitted the item's model field; it was corrected before accepting
+evidence. A valid-fixture absence control then reproduces the missing-bonus
+failures; restoring the implementation passes56 assertions. Additional alias
+and transport tests pass12 assertions. Saving after the last Boots removal
+retains the previously published60 contribution and reproduces eight following
+position/velocity samples word for word. A later setter clears it and clamps
+the vector. This private movement field advances W3SV to61, with exact-version
+rejection covering60; JSVM remains7 and shared network contracts are unchanged.
+
+Ghidra persists385 descriptive functions,24 partial layouts,144 verified fields
+and124 explicit prototypes. The original maximum-list traversal, AIms getter
+and typed bonus88 field are saved and read back in
+`item-speed-types-readback.json`. The fresh seven-entry checkpoint is
+`item-speed-corpus-fresh-261001/corpus-results.json` under the local report root.
+
+Validation: Classic and TFT each pass42,128 assertions in2,200 cases, and all
+122 pathfinding tool tests pass. Forced debug and ordinary movement checks
+each pass2,929 assertions in170 cases per schema. The seven fresh corpus
+entries pass, the concrete ability registry audit runs, and both boundary
+audits and relative links are clean.
+
+
+## Ranked formation layout reaches group orders
+
+`wc3_pathing_formation.h` ports the complete original `16a5b0` geometry for
+one through twelve members: authored rank buckets, the one/multiple-rank
+capacity tables and radius threshold1.5, common row width, strict backwards
+selection-sort ties, row/rank spacing, member-order mean and paired-trig
+rotation. Every scalar operation uses the verified software arithmetic.
+The supplied positions are fine-grid predicted positions; the pure helper
+leaves clock ownership to its caller.
+
+`verify_wc3_pathing_motion.py` now compares865 complete original layouts with
+production C raw offset words. The144 existing uniform layouts remain checked
+against their independent model. Another720 cover mixed radii .25/.5/1.5/2,
+one/multiple ranks, four headings, unique/equal/nearly equal projections,
+stationary/moving members, both owner-clock domains and differing epochs,
+counts2/3/5/9/12, and both group bit20 states. Both spacing-global sets are
+initialized to the same2/2.5/5.5 values in this binary. The final case freezes
+the actual engine regression inputs. Repository fixture
+`retail-formation-layout-1.27.json` retains inputs and raw outputs; O0/O2
+production probes repeat every comparison and verify input immutability.
+The thirteen-member probe rejects before reading member data or changing
+output slots; this is an engine guard, not a claim about retail's larger domain.
+
+`move_selectlocation` now feeds current committed fine positions, collision
+radii and typed `UnitData.formationRank` into that layout. It assigns the exact
+software-scaled offsets to both immediate orders and Shift-queued orders,
+then applies the existing static destination admission and reservation policy.
+The actual regression selects three radius16 units at(-640,-200),(-640,0),
+(-640,200), with ranks0/0/1, and moves east to(1000,0). The old source-offset
+heuristic fails all six target coordinates. Retail places the first two in a
+front row at raw X44845555, Yc27fffff/427fffff; the rear member receives
+X445caaaa,Y00000000. The regression asserts all target words, shared route
+ownership, queued target words and unchanged active targets after Shift. All three
+members advance toward their assigned rows, and eight further ticks after
+save/load reproduce all96 pose/velocity words and retain the target words.
+
+The engine currently derives its initial heading from selection mean to goal.
+Original group heading production, clock prediction during submission,
+subsequent refresh/held-member classification, and narrow-passage regrouping
+remain FORM-01/03/04/05. Selections above twelve retain the prior source-offset
+engine policy with an explicit bounded diagnostic, pending the original
+caller precondition in FORM-02.3. This integrates proven geometry while keeping
+those remaining contracts visible. No private entity or save layout changes.
+
+Ghidra persists the five refined layout function comments, descriptive names
+for rank-row layout, row sorting and mean calculation, and the partial
+`WC3FormationRankBucket` a4-byte structure: count0, diameter94, row width98,
+integer capacity9c and scalar capacitya0. The twelve-entry index and projected
+position arrays remain unnamed gaps in this partial schema. Readback is
+`formation-types-readback.json`; fresh original and production comparisons
+are `formation-corpus-final-261001/corpus-results.json`. The preliminary
+fresh run rejected missing comparison-count report fields; that reporting
+omission was corrected before accepting the final run.
+
+
+Validation: the complete Classic and TFT suites each pass42,267 assertions in
+2,201 cases, with123 pathfinding tool tests. Forced debug and optimized release
+movement checks each pass3,068 assertions in171 cases, including the139-assertion formation/queue/
+resume regression. Ghidra readback now has25 layouts,149 fields,124 explicit
+prototypes and43 scalar globals plus the original native registry. Boundary
+and documentation-link audits are clean.
+
+
+## Direct world coordinates preserve boundary cells
+
+`wc3_pathing_coordinates.h` applies the original scalar subtraction and direct
+cell scaling, and the separate multiply/add inverse. Game-owned routing no
+longer divides a point by the full map extent and multiplies it by the cell
+count. On a96×96 WPM with32-unit cells, world X435fffff (223.9999847,
+just before224) belongs to cell6. The old adapter rounded the normalized
+coordinate to7 and rejected the point against a wall in cell7; destination
+correction also replaced its world word. The reverse adapter changed a legal
+cell centre112 into111.999992 on a23-cell map.
+
+The actual engine regression covers before/equal/after that wall boundary,
+unchanged legal destination words, a one-ulp rectangle on the open side,
+a real Move order advancing left, and correction to the only open cell(3,4)
+in a23×23 map. Temporarily restoring the actual previous `g_world.c` reproduces
+five assertion failures; the direct adapter passes all15. Investigation traces
+and temporary production edits are removed.
+
+The direct transform now serves endpoint checks, corrected cell centres,
+idle object positions, segment inputs/pruning bounds, fine-search endpoints,
+reconstructed waypoints and game-owned rectangle goals. Formation input
+coordinates share the scalar helper. Cell dimensions still come from the
+engine's authoritative world extents/pathmap dimensions; stock WC3 produces32.
+Shared long-field traversal and nearest-ring search remain the engine policy.
+No server/client API, private entity or save layout changes.
+
+`verify_wc3_pathing_maps.py` executes576 additional complete original04d870
+set/clear boundary pairs, covering23/96/160/288 square maps, three positive/
+negative origins, both axes, and predecessor/exact/successor words around
+zero, interior and final boundaries. A read-only hook at original070c80 records
+the exact fine words. Original floor/integer conversion and actual054000
+cell/null admission are asserted; low occupancy bits and all adaptive words
+remain unchanged. The inverse separately executes original06f9c0 multiplication
+by32 and06fbb0 addition of origin. The production probe matches all six raw
+fine/cell/inverse outputs, with immutable inputs, twice at O0/O2.
+
+`retail-world-grid-boundaries-1.27.json` freezes that matrix.
+`world-grid-corpus-final-261001/corpus-results.json` freshly reproduces the
+strengthened original map oracle and its new production variant. The original
+11,664 edits,216 rebuild/reversals and30 clipped updates still pass unchanged.
+The original inline divide-by32 uses an exponent adjustment after software
+subtraction; the tested helper preserves its boundary words. Public metadata
+construction, complete domain rejection, proximity/adaptive padding and all
+corner producers remain MAP-01.2/3. Ghidra saves this bounded contract on04d870.
+
+
+Validation: complete Classic/TFT suites each pass42,282 assertions in2,202
+cases; all124 pathfinding tool tests pass. The first full run exposed the
+inventory's old76-oracle assertion after adding the77th comparison; the count
+was updated before accepting the final run. Boundary/link audits are clean.
+
+Forced debug and optimized release routing runs each pass588 assertions in78
+cases per schema. The production build succeeds with the same game-owned
+conversion; no debug traces remain in the implementation.
+
+## Retained fine pose reaches Move
+
+`1603d0` updates native fine position at mover`78/7c`, using the velocity and
+elapsed scalar before updating both spatial rectangles. Publishing world
+coordinates multiplies by32 and adds the map origin with separate software
+operations. Integrating directly in world coordinates changes the committed
+words on nonzero origins. Reprojecting published coordinates each frame can
+also discard fine-pose bits.
+
+`verify_wc3_pathing_motion.py` now executes18 retained-pose sequences with16
+commits each: three initial positions, origins `(0,0)`, `(-256,-256)` and
+`(-2048,512)`, and constant/alternating oblique headings. Every interval uses a
+controlled zero-elapsed `16fe20` velocity publication followed by complete
+`1603d0` integration with supplied elapsed0.1. Spatial records and pose remain
+live between steps. Original `06f9c0` and `06fbb0` compose the world inverse.
+All288 fine/world results match production C;139 world results differ from the
+old direct-world integration. The frozen
+`tools/ghidra/fixtures/retail-native-pose-1.27.json` is compared twice at O0/O2.
+The primary report is `native-pose-original-engine-first-261001.json`.
+
+Move retains `movement.fine_pose`, previews candidate integration without
+mutating it, and commits it only after collision admission. Explicit world
+commits invalidate it. A changed published world axis is reprojected on the
+next preview while an unchanged axis retains its fine bits. Save format62
+persists the fine position and validity; no network struct changes are needed.
+The actual16-step Move regression failed all32 world position assertions
+before the port, while velocity/facing already matched. A positive-origin
+case covers fine/world/velocity/facing words, eight-step save/reload, blocked
+candidate preservation, changed-world repositioning and explicit snap
+invalidation. Natural point arrival also consumes the retained pose before
+publishing zero velocity; its previous forecast failed four of ten assertions.
+Arrival geometry uses the map cell size: stock WPM32 retains the original
+fine words, while one-unit synthetic routing maps keep their authored scale.
+
+This is a numerical integration payoff with supplied elapsed time. The engine
+still uses its existing frame cadence and new-velocity update phase;
+NUM-02.3 owns original public clock production and old-velocity phase parity.
+Public axis-setter geometry is now independently covered by BASE-01.5 below;
+other forced-position producers remain BASE-01.4.
+Ghidra's saved integration annotation records these boundaries.
+
+Fresh `native-pose-corpus-final-261001` motion/original-C entries both pass.
+
+Validation: complete RoC and TFT suites each pass42,599 assertions in2206
+cases, plus125 pathfinding tool tests; forced release/native comparisons are
+recorded beside the primary report. The production release build passes.
+A separate warning cleanup corrects an existing six-anchor HUD array copy and
+bounded string copies; its serializer regression preserves both axis arrays
+and frame references.
+
+
+## Public axis-position writes retain the next Move step
+
+Retail `SetUnitX/Y` obtains the predicted world pair, replaces the requested
+axis, then writes a delta through the native fine pose. Both fine axes are
+reprojected, even when the public coordinate word is unchanged. A direct
+world-axis assignment preserves hidden bits that retail deliberately changes;
+the next Move step can then differ in fine and world coordinates.
+
+The registered cdecl natives are `204100/204140` getters and `215900/215960`
+setters. Unit virtual slotb8 returns the mover bridge. `058900` delegates the
+read-only predicted query to `05a970`, using `161040` elapsed and `05bdd0`
+fine prediction, then software multiply32/add map origin. `058810` calls
+`05c200` with notification1. The writer subtracts origin/divides32, subtracts
+the predicted fine pose, then `15f7b0` integrates old velocity plus that delta.
+The setter leaves velocity, published cap, facing and the current Move intact.
+`SetUnitPosition` at `2155c0` has a distinct Stop/placement path and is excluded.
+
+The complete original-code matrix executes576 writes over18 retained-pose
+sources, two axes, four input modes and four clock cases: zero/nonzero elapsed,
+primary wrap and secondary domain. Every write is followed by an actual
+original Move publication/integration, retaining its spatial and fine state.
+All576 writes and576 next-step results match production C. The frozen
+`retail-axis-position-1.27.json` checks every word twice at O0/O2.
+Primary report: `axis-position-original-engine-next-261001.json`.
+
+Owned scene36 repeats eight public same-word/fractional setters during Move
+and after Stop:40 native calls,40 predicted queries and eight writes per
+capture. Queries leave mover state unchanged; all writes preserve the velocity,
+cap and facing words. C also matches the captured original elapsed time and
+all167 movement decisions/velocity commits. Strict verification checks public
+getter results, actor identity, case order, notification, completion, source
+hashes and all300 samples; damaged/absent inputs are rejected. Captures
+`runtime/axis-position-first-261001.jsonl` and `axis-position-repeat-261001.jsonl`
+have identical normalized producer digest
+`4686d7cec6b781cadc351bb39fa965e6215d172a520cfcd08e2554dee74ad5c6`.
+The accepted report is `runtime/axis-position-original-C-repeat-261001.json`.
+
+The initial OpenRealm axis-setter port used Move's `S_SetUnitAxisPosition`
+with committed-pose geometry. The [primary clock port](#primary-clock-reaches-move-and-predicted-positions)
+below extends the same verified delta/reprojection to current prediction.
+Position linking, fog invalidation and position-change events remain in their
+normal order; worker avoidance state, current order and goal are preserved.
+The actual JASS/Move regression first failed32 coordinate assertions, then
+passes128 checks including the next oblique step before/after save/load.
+Save62 already owns the fine pose; no new saved or network fields are needed.
+
+This initial port closed geometry at the engine's committed-pose boundary.
+The following primary clock section extends getters/publication between callbacks;
+the complete original route owner remains NUM-02.3. The retail captures show accumulated clock spans and varying
+elapsed intervals; they do not justify substituting a guessed fixed32Hz step.
+Ghidra saves397 names,133 explicit prototypes and the existing25 layouts/149
+fields, including each native/bridge ABI and these limits.
+
+Fresh strict outcomes are in `axis-position-corpus-final-261001`: both motion
+oracles, both capture audits and the repeated public contract.
+
+Validation: debug and forced optimized RoC/TFT suites each pass42,727
+assertions in2207 cases;127 pathfinding tool tests pass. All five fresh
+strict corpus entries pass, and Ghidra readback reports the nine new explicit
+prototypes with no unsaved changes.
+
+## Primary clock reaches Move and predicted positions
+
+OpenRealm now schedules point Move on the measured retail owner cadence. The
+private gameplay clock advances by the scalar word `3ba3d70a` (.005 seconds),
+and Move runs after each six advances, during timer dispatch before the next
+advance. The engine still emits its ordinary100ms snapshots. An accepted Move
+first integrates the previous velocity from its last clock origin, then requests
+the new velocity/facing. Between callbacks, publication predicts from the
+retained fine pose without consuming that origin. A repeated .03 addition or a
+new-velocity100ms step produces different coordinate words.
+
+Owned scene37 (`clock_oblique`) supplies a quiet Footman Move from(-1936,-976)
+to(-1600,-144). Both75-second captures contain6000 completed primary advances,
+1000 owner callbacks,205 motion decisions,206 velocity/facing/position commits
+and300 public samples. The source word, span300 and flags4096 remain fixed.
+Owner callbacks see the sixth completed clock value before the seventh advance.
+The final source call includes the1000th owner callback and scenario completion;
+its advance observer is disabled by completion, but its source-end row still
+records the actual next clock. This boundary is checked explicitly.
+
+The primary sequence digest is
+`c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae`.
+`verify_wc3_primary_clock.py` checks source/owner/advance order, actual C clock
+words, source hashes, admission, all300 samples and repeated movement commits.
+It excludes the presentation clock: host intervals and interleaving vary between
+runs. That variation must not be described as primary nondeterminism.
+Captures live in `runtime/clock-oblique-{first,repeat}-261001.jsonl`; the accepted
+live report is `runtime/primary-clock-original-C-repeat-261001.json`.
+
+The original-code oracle separately executes the complete primary producer with
+empty original timer/request heaps, preserving the actual fine/spatial mover.
+It supplies the observed5ms input and a controlled constant .125 heading every
+six advances. It freezes6000 clock values,1000 old-velocity commits and300 world
+queries in `retail-primary-clock-trajectory-1.27.json`. Another1944 original
+controls cover paused flags, negative/zero increments, span boundaries, strict
+residual cancellation and epoch overflow. Production C matches every word twice
+at O0/O2. This isolates the clock and movement contracts; it does not emulate the
+complete original route owner by substituting engine routes into the oracle.
+
+### Recovered producer and persistent annotations
+
+| RVA | Recovered role and ABI |
+| --- | --- |
+| `36aba0` | Registered primary event callback; adds14 to ECX and calls04c1a0; returns1. |
+| `04c1a0` | Primary source, ECX scalar pointer; timer, gameplay request, auxiliary callback and unit clocks advance in order. |
+| `04c0d0` | Presentation source, ECX scalar pointer; subdivides at global299. This is not the primary quantum. |
+| `001e70` | Initializes `Simulation_PresentationAdvanceMaximum` atd3c844. |
+| `054050` | Timer clock advance, ECX increment pointer/EDX clock. |
+| `054190` | Gameplay request-clock advance, same fastcall ABI; flags bit1 pauses. |
+| `0540f0` / `054230` | Auxiliary callback/unit-clock advances. |
+| `0521f0` | Request deadline rebase; subtracts span from heap deadlines and increments epoch once. |
+| `0522e0` | Timer drain temporarily publishes each due deadline during callback dispatch. |
+| `04da30` | Loads the original path owner and tail-calls15aa80. |
+
+All four advances perform software addition and a single epoch rebase. Residual
+cancellation uses a strict comparison against `3556bf95`, distinct from elapsed
+movement's `38d1b717` deadzone. The80-byte `WC3SimulationClockPrefix` names only
+verified time40/epoch44/span48/flags4c fields. Timer/request containers remain
+opaque. Ghidra saves408 names,144 explicit prototypes,26 layouts/153 fields and
+44 scalar globals plus the ability registry. `primary-clock-ghidra-readback-261001.json`
+records the applied types; the event producer's broader registration/scheduling
+chain remains open.
+
+### Engine lifecycle and evidence limits
+
+Move owns pose prediction, native axis writes, speed-cap integration and pause
+state. A higher speed cap does not consume the old pose origin; only a cap below
+current velocity commits elapsed motion before clamping. Public axis writes now
+consume the actual primary-clock prediction. A paused or stunned mover freezes
+its last exact sampled fine pose, avoiding both continued prediction and a jump
+on resume. Leaving Move consumes its current pose and clears prediction velocity.
+
+Generic move callbacks select scheduled think, pose sampling and leave behavior.
+The generic dispatcher prevents a newly activated queued Patrol from also taking
+a snapshot-sized movement step in the same frame. Region comparison positions
+are sampled before scheduled movement, so a Move crossing still reaches its
+JASS entry action. Other ability owners and animations retain their existing
+snapshot cadence; their retail timing has not been measured by this scene.
+
+Save63 persists primary time/epoch/span,5ms cursor, six-step phase, pending owner
+request, retained/predicted fine pose and mover time origin. Transient dispatch
+flags and per-frame callback stamps are cleared on load. Save62 and older layouts
+are rejected. The production point-order test saves at all three snapshot phases
+and compares six subsequent frames word for word after restoration; pause,
+resume, stun, Stop and region entry are exercised through the real owner/VM.
+A test fixture originally retained trigger pointers after closing its earlier
+VMs; the full-suite backtrace isolated that stale registry, and each independent
+phase now retires its trigger/event/region registries before VM replacement.
+
+The engine's fixed-input regression originally failed128 of224 coordinate
+checks while all96 velocity/facing checks passed. With the port it drives the
+real server-frame dispatcher over the full30-second original controlled
+trajectory, comparing each fine/world/velocity/facing word. This proves the
+measured movement kernel and publication phase. Adaptive waypoint selection,
+local avoidance, group refresh, retry/task timing, other ability clocks and
+forced `SetUnitPosition` placement remain separate open tasks.
+
+Fresh strict outcomes are in `primary-clock-corpus-accepted-261001`: both motion
+oracles, both clock archive audits and the repeated clock/movement contract.
+The earlier corpus run used the system Python without Unicorn and is retained
+as a failed environment run. Use `/GitHub/wc3-analysis/verify-venv/bin/python`
+for executable retail oracles.
+
+Validation: the required `make -j8 test` passes; debug and forced optimized
+RoC/TFT suites each pass45,084 assertions in2209 cases, including2101 fixed
+trajectory and255 public lifecycle assertions. All129 pathfinding tool tests,
+all five fresh strict corpus entries, engine/menu boundary audits and the
+production release build pass. Ghidra readback and explicit program save succeed.
+
+
+## Target identity exits reach the engine
+
+The fine search now stops at the original current node when a perimeter query
+observes the requested target object. Suppressing that object from collision
+checks does not remove its identity. The search samples the complete perimeter
+and creates every legal neighbor before consuming the hit; it returns without
+relaxing those neighbors or closing the current node. This matters for exact
+work, node counts and later parent-chain reconstruction.
+
+`verify_wc3_pathing_targets.py` executes2,304 original core searches and complete
+setup/search/reconstruction requests: a single-cell target or full-height wall,
+open or blocked target terrain, four movement masks, four footprints, budgets
+0/5/700 and twelve object roles. Self/suppressed, target/both, moving, inactive,
+unlinked and off-lane records are included. Two overlapping chains establish
+that an earlier foreign blocker hides the target, while a target preceding the
+blocker still reports identity even when the cell returns false. Terrain rejects
+before any identity query. There are200 non-goal target completions; production
+C matches cost, work, created nodes and full parent chains twice at O0/O2 with
+reuse. The frozen fixture is `retail-fine-targets-1.27.json`.
+
+The engine's `G_FindUnitMovePathWaypoint` now carries separate active ground-unit
+target bounds through the same perimeter observer. Classes0/1 stop at
+`(11.5,11.5)` and classes2/3 at `(10.5,10.5)` in the controlled request from
+`(4.25,4.75)` toward `(19.25,19.75)` with target at `(12.25,12.25)`. These are
+fine-grid fixture coordinates, not a retail public-order replay. The regression
+failed16 coordinate checks before the adapter port; all48 assertions now pass,
+including moving targets, no-pathing category rejection and retained fractional
+point destinations. A target-completed route retains its approach-node centre;
+only a route that actually reaches the requested goal substitutes its original
+world words. No persistent or network state changes.
+
+The sorted ground-rectangle snapshot still evaluates foreign blockers before
+target identity. It does not preserve retail's overlapping link chronology.
+FINE-01.6 explicitly owns that producer and public-order composition; building,
+destructable and complete category publication remain BASE-02/FOOT-04. The exact
+supplied-chain C matrix must not be presented as proof that these runtime
+producers already match.
+
+Ghidra persists the216-byte `WC3FineSearchPrefix` with six verified fields:
+size classa0, maska4, targeta8, target-seencc, obstructiond0 and endpoint-moded4.
+The occupancy, expansion and search functions have explicit operand prototypes
+and durable comments for the exit timing. The saved readback is
+`fine-target-ghidra-readback-261001.json` (27 layouts/159 fields,147 prototypes).
+The corpus now has197 entries and68 frozen fixtures; accepted fresh original/C
+results are in `fine-target-corpus-accepted-261001`.
+
+
+Validation uses the [native SDL2 headless runtime](../../build-and-renderer-platforms.md#headless-sdl-input-regression-runtime)
+because the installed SDL2 compatibility layer crashes on the unchanged synthetic
+text-input fixture, independently of pathfinding. The required full suite passes;
+RoC/TFT each pass45,132 assertions in2,210 cases. All130 pathfinding tool tests,
+both accepted fresh target corpus entries and engine/menu boundary audits pass.
+
+
+## Forced-position Stop reaches the engine
+
+Public `SetUnitPosition`2155c0 resolves the unit and calls6803f0(1) before
+vtable180 admits placement. `SetUnitPositionLoc`215620 resolves the location,
+reads24/28 and delegates to2155c0. These cdecl natives have plain RET;
+6803f0 uses ECX Unit, stack4 flags and RET4. The nested Stop admission clears
+task/order/group identities, integrates old velocity at the current clock,
+then zeros velocity while retaining cap/facing and the allocated path.
+
+The owned `forced_position` scene38 brackets moving same-position, moving
+fractional, idle same-position and Patrol fractional writes. Two75-second
+captures contain300 samples,28 public Get/Set calls,60 position queries,
+four Stop pairs and four placement commits, with no observer errors.
+`verify_wc3_forced_position.py` checks native/query result relationships,
+event ordering, actor and bridge identity, captured clocks, scalar outputs,
+retired public orders and stationary samples after placement. All99 preceding
+motion and velocity commits also match production C. The position digest is
+`490e48e8f1e2c8c446bbda6cf536dbac780e4fcca19d8e33feed49a884c35917`.
+The fixture `retail-forced-position-1.27.json` retains the actual observations;
+O0/O2 replay and thirteen altered/truncated controls verify rejection.
+
+Both public engine natives now delegate to Move-owned `S_SetUnitPosition`.
+It replaces the active order, clears queued/group routing state and velocity,
+admits placement through the existing legality adapter, and writes through
+`wc3_grid_place`. This preserves the original fine reprojection and scalar
+delta operation: a distant placement can differ from the requested world
+word by one ULP. Region crossings, linking and fog invalidation retain their
+normal publication paths. Stop's stand transition is optional, as it already
+is in CreateUnit, for units without an installed movement lifecycle; existing
+public blocked-placement/region tests reproduced the null-callback crash.
+
+The actual public regressions reproduced57 failed assertions before the port.
+Five Move/Patrol/paused/Loc modes now clear orders, FIFO and group state and
+remain stationary after save/load. Four captured native before-Stop clocks,
+fine poses and velocities produce exact original fine/world/time words through
+public JASS writes. Together these two regressions pass167 assertions. They
+prove supplied captured placement state, not the complete retail route owner.
+Save format63 and network layouts are unchanged.
+
+Ghidra saves411 descriptive names and150 explicit prototypes; existing27
+layouts/159 fields and44 globals remain unchanged. Readback is
+`runtime/forced-position-ghidra-readback-261001.json`. All three fresh corpus
+entries pass in `forced-position-corpus-accepted-261001`.
+
+Blocked/overlapping placement legality still uses the existing adapter and
+remains FOOT-04. Gold-mine/cargo/dead actors, other forced writers and a live
+SetUnitPositionLoc capture remain BASE-01.4. The Loc engine regression and
+original wrapper disassembly do not claim that missing live capture.
+
+Validation: required `make test` and forced release RoC/TFT each pass45,299
+assertions in2,212 cases;131 pathfinding tool tests, production release build,
+engine/menu boundary audits and all three strict corpus entries pass. Tests use
+the [documented native SDL2 runtime](../../build-and-renderer-platforms.md#headless-sdl-input-regression-runtime).
+No production C warnings are reported.
+
+
+## Blocked placement reaches the engine
+
+The ordinary CUnit vtable180 producer698050 enters653510, vtableDC67f490,
+6515f0 and bridge058cd0. The bridge converts world coordinates to fine cells,
+clips the permitted rectangle, and reaches owner16ecc0/fine14a1e0. Public
+point placement uses policy2, limit32, radius31/32 for Footman, mask02000002,
+and callback654060 with the requested support level. The callback truncates
+fine coordinates and compares78bc90's terrain/bridge level to that context.
+The terrain producer744040 reads the low four bits of a28-byte vertex record;
+750100 selects `(cell+2)/4`, divided toward zero, rather than interpolation.
+
+14a1e0 preserves a legal requested scalar pair. Otherwise it floors the
+rectangle and expands half-open cell rings, counting the initial point in the
+budget. 14b580 scans bottom/right/top/left, with explicit corner ownership and
+first-success ordering. The accepted callback point contains integer scalars;
+only afterward does ordinary output add one half to produce a cell centre.
+Endpoint mode includes moving objects and restores the previous mode on every
+return. This is different from the previous64-unit,300-candidate spiral.
+
+`verify_wc3_pathing_placement.py` executes2,304 complete original calls over
+1,152 cases: four masks/classes, open/single/square/sealed terrain, fractional
+and negative points, integer/centre output, budgets1/5/32 and mode0/7 repeats.
+Actual original scalar startup runs before negative-floor controls. Output
+words, stack cleanup, endpoint mode and SEH restoration are checked. The
+production C selector matches every endpoint; the compact frozen fixture also
+retains original candidate counts/digests. This isolated matrix supplies a
+null admission callback; it does not claim bridge or public wrapper parity.
+
+Two owned scene39 captures each contain770 records without observer errors.
+The actual34 terrain edits precede six public blocked destinations. Seven
+searches repeat candidate order and footprint results; every observed search
+accepts its first legal same-level footprint. `verify_wc3_placement_trace.py`
+checks the original arguments, all observed footprint decisions against the
+synthetic edited patch, raw C endpoints,78 predicted queries, six scalar writes
+and33 motion/velocity commits. Public getter results and stationary samples
+remain associated with the same resolved actor. A separate five-ring search
+occurs inside Stop when the old point is embedded before the final32-ring
+placement; its engine producer is explicitly FOOT-04.4.
+
+Move's public position writer now uses `G_FindUnitPlacementPosition`. The game
+adapter collects endpoint-eligible ground rectangles, including moving units,
+and supplies terrain/object cells plus the authored terrain-level condition to
+`wc3_fine_place`. All six captured public destinations initially differed in
+both coordinate words; the actual JASS regression now passes26 assertions with
+exact destinations. Existing public SetUnitPosition/Loc blocked-cell tests now
+expect the retail cell centre272,240. CreateUnit and item drops retain their
+separate placement producer, whose native parity remains open.
+
+The initial regression installed the synthetic edited pathmap directly; the
+[next integration](#terrain-pathing-natives-reach-the-engine) now drives these
+same endpoints through actual JASS terrain edits. Bridge support-level
+overlays, outside-map clipping, callback rejection controls and broader object
+categories also remain open. The base authored terrain-level condition is
+ported; no bridge-level approximation is claimed. Save63 and wire layouts are
+unchanged.
+
+Ghidra saves423 descriptive names and156 explicit prototypes. Two new partial
+terrain prefixes bring readback to29 layouts/164 verified fields, with44 globals
+unchanged, in `runtime/blocked-position-ghidra-readback-261001.json`. All four
+fresh entries pass in `blocked-position-corpus-final-accepted-261001`.
+
+Validation: required `make test` and forced release RoC/TFT each pass45,325
+assertions in2,213 cases;133 pathfinding tool tests, production release build,
+engine/menu boundary audits and all four strict corpus entries pass. Native
+SDL2 is used as documented; production builds report no C warnings.
+
+## Terrain pathing natives reach the engine
+
+The engine previously discarded `SetTerrainPathable` and returned true for every
+`IsTerrainPathable` query. These now read and edit the mutable fine terrain byte.
+Despite its name, the retail query returns **blocked**, including outside-map
+coordinates even when the enum selects an empty mask. `SetTerrainPathable`
+inverts the passable boolean and changes only the selected bits of one32-unit
+cell; it never re-derives the amphibious bit from no-walk/no-float edits.
+
+Recovered public contracts are cdecl `205e90` (X/Y scalar pointers, pathingtype)
+and `2148f0` (same plus passable). Cdecl `201630` returns only AL: enum0 selects
+ff, enums1..7 select02/04/08/10/20/40/80, and other values select0. Query wrapper
+`04e090` shifts this byte into the high word and delegates `04df50`, with the
+low object-category mask zero. Thus public terrain queries ignore dynamic
+objects and baked scenery footprints. Point conversion uses the established
+software world-origin subtraction and direct32 scaling; mode and SEH restore
+on both admitted and outside exits.
+
+`verify_wc3_pathing_terrain_natives.py` executes complete public native chains,
+without replacing imports: ten enums, thirteen seed bytes, both booleans and
+four admitted/fractional/outside sources. All1,040 cases and3,130 original calls
+retain unrelated cells, low occupancy words and endpoint mode. Frozen
+`retail-terrain-natives-1.27.json` matches production scalar/flag helpers at O0
+and O2 twice. Fresh `terrain-natives-corpus-accepted-261001` passes its strict
+entry. Existing retail scene39 independently supplies34 actual terrain edits
+and six resulting public placement endpoints.
+
+Actual JASS engine tests reproduced61 failures across180 assertions before
+the native port. The placement regression now builds its blocked patches
+through JASS rather than replacing routing storage and retains all six exact
+retail coordinate pairs. Further tests prove outside/empty-mask handling,
+independent amphibious state, and terrain queries versus baked object blockers.
+A live Move regression inserts a wall after the direct route is admitted,
+proves the cached field is invalidated, follows15 legal detour steps, removes
+the wall through the native and completes inside the recovered0.49-cell
+arrival gate. Blight edits update the shared cell/dirty-row owner and terrain20 consistently.
+Save64 stores mutable terrain before Blight and rebuilds static obstacles after
+restoring entities. Its regression failed two assertions before persistence was
+added; unrelated cells and all native bits now survive. Two movement save
+fixtures now set the real spawned actor classification flag so rebuilding
+static footprints cannot misclassify them as scenery.
+
+Terrain mutation rebuilds the engine's existing baked obstacle map and
+invalidates its legacy field cache. This is an explicit engine integration
+policy; retail adaptive classification stays stale until its separate update
+producer, whose exact scheduling remains MAP-03.3. No hierarchy or full edited
+movement trajectory parity is claimed. Bridge levels and outside placement
+clipping remain FOOT-04. Ghidra saves427 descriptive names,161 explicit
+prototypes,29 partial layouts/164 fields and44 globals; readback is
+`runtime/terrain-native-ghidra-readback-261001.json`.
+
+Validation: required `make test` and forced release RoC/TFT each pass45,561
+assertions in2,217 cases;134 pathfinding tool tests, fresh original-native
+corpus entry, production release build and engine/menu boundary audits pass.
+Native SDL2 is used as documented; production builds report no C warnings.
+
+## Deterministic owner random state reaches public natives
+
+Engine payoff17 replaces libc draws in actual `GetRandomInt`/`GetRandomReal`
+with `wc3_pathing_random.h`, the same two-word state and arithmetic used by
+retail overlap directions. `level.pathing_random` persists through Save65;
+loading older formats is rejected before reconstruction. `SetRandomSeed`
+seeds that owner then consumes one draw, matching214140's prefix. The full
+693710 tail reseeds45 separate unit streams; those streams remain unported.
+Its legacy `srand` side effect remains explicitly marked until those consumers
+are replaced. This does not claim a complete global gameplay draw order.
+
+`verify_wc3_pathing_random.py` executes1,408 complete original PRNG/public
+integer/real/direction calls across11 seeds and11 public seed prefixes,
+checking ABI, raw result words and both state words against production C.
+The original scalar-table initializers run; no platform/TLS import is stubbed.
+The frozen `retail-pathfinding-random-1.27.json` stores only derived words.
+`random-owner-corpus-accepted-261001` independently compiles the engine probe and runs
+this scope. `runtime/random-owner-ghidra-readback-261001.json` records saved
+function prototypes and the two-word state structure.
+
+Equal integer bounds and scalar differences below `3456bf95` consume no draw.
+Integer draws use unsigned inclusive span and multiply-high; full signed-range
+span wraps tozero but still consumes a draw. Both reversed-bound natives keep
+the first argument as the result anchor. Real fractions use the low23 bits
+with retail software scalar arithmetic. Exact overlap directions consume one
+owner draw and the existing retail sine/cosine table.
+
+The engine tests invoke compiled public JASS:550 assertions compare11 seeded
+native query sequences to original words, plus save/load continuation and
+range/reseed controls. The original engine crashed on full-width integer
+bounds and failed both saved continuation words. Clear the hashtable registry
+between seeded fixture programs: `reset_entities` does not retire old tables;
+reading slot0 without clearing it silently tests the previous seed's output.
+Default map seed production, separate per-unit reseeding and movement-wide
+consumer order remain NUM-04.1/5/6. Repulsion scheduling and actual overlap
+movement remain SEP-02.3; helper parity alone does not complete them.
+
+Scene40 `random_owner` observes complete public seeding and48 interleaved
+queries per seed:539 native returns, owner-before/after words and raw query
+results match the frozen original/C oracle in both completed captures.
+`runtime/random-owner-loaded-first-261001.jsonl` and its repeat are accepted;
+`verify_wc3_random_trace.py` rejects damaged words or missing scheduled
+completion. The full public seed tail returns without changing the verified
+owner words, although its separate unit streams are outside this assertion.
+The initial `random-owner-first-261001.jsonl` has no timer samples and is
+unaccepted: its10s loading key preceded initialization at21s. The controlled
+captures use35s/85s timing and both reach tick300. Observer/controller sources
+are frozen under `runtime/random-owner-sources-261001/`.
+
+Validation: `make test`, forced release RoC/TFT engine suites and the release
+binary build; original/C comparisons run twice atO0/O2. The full engine suites
+now contain46,022 assertions across2,219 cases per mode. Dedicated public
+random tests have560 assertions. Network/snapshot contracts are unchanged.
+
+## Authored repulsion reaches idle engine units
+
+The engine now applies authored `repulse`, `repulseParam`, `repulseGroup` and
+`repulsePrio` through Move. A generic ability owner-update hook runs after the
+scheduled movement callbacks. Repulsors retain newest-first membership and
+alternate owner-list parity before updating every other member, including idle
+units. Each visit consumes cooldown first, admits the retained fine-coordinate
+endpoint against terrain/live occupancy excluding self, then accumulates
+eligible neighbors and applies retail damping, deadzone and cap. Near overlap
+consumes exactly one draw from the saved pathfinding-owner random state.
+
+`wc3_pathing_repulsion.h` uses the complete original initializer's scalar words
+and the ordered software arithmetic. `verify_wc3_pathing_repulsion.py` executes
+16 settings rows and 1,024 full category-producer cases with the authentic CUnit
+vtable. Its 600 pair and 105 tail slices match production C exactly; these are
+arithmetic slices, not a complete original scheduler/query/application replay.
+The first seed12345 overlap's pending vector and next random state also match
+through the real engine `RunFrame` scheduler.
+
+Three actual JASS/scheduler regressions pass72 assertions in RoC and TFT:
+overlapping idle Gryphons separate without receiving an order, overlapping
+Footmen remain stationary, Save66 restores the identical numerical continuation,
+owner transfer replaces policy/membership, paused sources remain stationary,
+and public removal retires membership after deferred reclamation. A custom
+`hRPL` SLK row selects configuration1, group19 and rank3, separating only its
+matching group while the coincident stock Gryphon remains stationary.
+
+Save66 includes pending vectors, packed policy/cooldown, active membership,
+relocated next/head pointers and owner-list parity. The pathfinding random state
+and fine pose/clock continue through the existing schema. Original-proximity
+cell-chain order, stamps, runtime category15 semantics and extra disable
+producers remain explicitly open; the current area index visits actors once,
+so this port does not establish multi-neighbor accumulation/draw-order parity.
+This is the next separation integration boundary, not a claimed complete WC3
+pathfinding replacement.
+
+Artifacts under the local analysis root: `repulsion-kernels-corpus-final-261001/`,
+`runtime/repulsion-ghidra-readback-261001.json`, and the versioned repository
+`retail-pathfinding-repulsion-1.27.json`. Ghidra now retains440 names,31 layouts,
+173 verified fields and170 explicit prototypes, including the owner getter and
+fine-point application contract. The misleading historical15fc70 cap comment
+and6803f0 virtual-call interpretation are corrected.
+
+Validation: the required umbrella suite passes; forced release builds pass
+46,097 assertions in2,222 WC3 cases in each fixture variant. All137 pathfinding
+tool tests pass. Original/C pair/tail words match atO0 andO2 twice. The first
+umbrella attempt rejected a stale types-fixture checksum after annotation;
+that metadata was corrected before the accepted rerun. The release game build
+and repository checks are recorded with the engine change.
+
+
+## Adaptive search reaches long-distance Move
+
+Engine payoff19 replaces the long-location routing gap with ordinary retail
+adaptive search in `wc3_pathing_adaptive.h`. Requests beyond the fine48-cell
+range now use the2x-fine base and three clear/mixed parent levels. The port
+retains first-lookup node representatives, side subdivision order, cardinal/
+corner gates, both stored sizes, the asymmetric size2 predicates, integer
+Newton distance, heap ties, nearest partial endpoints and reconstruction words.
+The next coarse leg is refined with the existing fine search and live occupancy;
+Move retains that local turn through its ordinary ability lifecycle.
+
+`verify_wc3_pathing_adaptive.py --engine-library` compares every route coordinate
+word, result/point count, charged pop and created-node count against full original
+`162cb0` requests. All356 size1 and356 size2 cases agree atO0/O2 and repeated
+execution. The four known size2 original/reference reachability differences
+remain visible; this port preserves them. A separate budget8 comparison has356
+exact original/C results at each optimization level, including partial routes;
+its268 reachability disagreements concern a graph reference with unlimited work,
+not a production-C mismatch.
+
+The real engine regression issues public JASS Move on a64x64 fine map with an
+off-axis wall gap, confirms a retained adaptive turn, checks every sampled point
+and reaches the existing retail arrival range without snapping to the target.
+A Save66 round-trip reproduces180 subsequent ticks' position, heading, velocity
+and order words exactly. A second regression alternates all four lanes and both
+sizes, edits terrain through public JASS, changes the walk route while retaining
+the untouched fly route, and checks legal fine handoffs. The prior winding
+corridor regression now expects the new adaptive turn and verifies its legality.
+The two added lifecycle cases pass1,310 assertions in each WC3 fixture variant.
+
+The four static classifications are derived cache state, keyed by the shared
+routing bake epoch; module shutdown releases their allocation. Save66 and the
+wire contract are unchanged. Engine search retains the existing2,048 charged-pop
+bound. Original5,000-budget request producers, special/warp edges, dynamic
+classification/exclusion, original allocation/stamp lifetime, exact hierarchy-to-
+fine route progression and whole retail movement trajectories remain open.
+Static-only interaction/resource queries still use their existing routing path.
+
+Accepted original/C artifacts under the analysis root:
+`adaptive-engine-corpus-final-261001/`,
+`adaptive-size1-engine-o0-repeat-261001.json`,
+`adaptive-size2-engine-o0-repeat-261001.json`,
+`adaptive-budget8-engine-o0-261001.json` and
+`adaptive-budget8-engine-o2-261001.json`.
+Ghidra now retains456 descriptive function names; the added predicates and
+integer-distance comments are saved and read back in
+`runtime/adaptive-engine-ghidra-readback-261001.json`. The31 layouts,173 verified
+fields and170 explicit prototypes are unchanged.
+
+
+Validation for payoff19: the required umbrella passes with coherent release
+artifacts. Forced release WC3 suites pass47,408 assertions in2,224 cases for
+both RoC and TFT; the production release executable builds without C warnings.
+All137 pathfinding tool tests, ability coverage audit, backlog ID/count checks,
+document links and `git diff --check` pass. The initial broader run caught the
+old winding-corridor expectation; it is now updated to the new legal route.
+
+
+## Retained fine routes reproduce a complete retail detour
+
+Engine payoff20 fixes a concrete route-to-motion mismatch. Original168870
+initializes a new destination-first fine curve at count-2;167ce0 exposes that
+raw successor. Original167070 keeps it until the predicted native position is
+within0.49 fine cells, then165e60/167bf0 select progressively farther visible
+successors. The engine previously smoothed immediately and reconsidered the
+turn every whole cell. Ordinary location detours now retain the full fine chain,
+initial index and subsequent progress through the Move ability. A retained
+curve continues when the final goal becomes visible; it is not replaced by the
+generic flow field or by a fresh direct-goal shortcut.
+
+The versioned `retail-fine-route-trajectory-1.27.json` freezes all34 ticks of a
+controlled original singleton wall detour: fine positions, velocities, heading
+words and route indices. The new corpus entry `fine-route-trajectory-reference`
+replays the original twice and compares all68 steps to that reference. The
+actual engine test creates authored `hRTE` through compiled JASS, issues the
+public Move order and executes the real Move callback with the same1/32 elapsed
+input. All34 position/velocity/heading steps agree exactly, including the
+turn-induced stops and natural final arrival. Active curve indices agree;
+the final inactive storage lifetime is deliberately not equated with retail's
+pooled release. Saving at tick12 and restoring reproduces the remaining22 ticks.
+
+That whole-motion regression exposed two additional production errors: a
+turn-induced stop discarded the old-velocity step, and its stored heading could
+remain above2pi. Scheduled Move now commits that previous step before publishing
+zero velocity and wraps the stopped facing through the verified scalar helper.
+The first-point regression and complete word trajectory both failed before
+these corrections. The broader routing regressions retain their lane, blocker,
+partial-route and generic-field checks while expecting the raw first successor;
+a dynamic blocker is inserted after progress produces a segment with interior
+samples, because the original length<=1 sampler has none.
+
+Save67 serializes native curve points, count, index and mask. Its process pointer
+is runtime-only and rebuilt by the reader; bounds and finite-point checks reject
+invalid payloads. Earlier formats are rejected by the exact-version guard.
+Move owns curve cleanup on public actor removal, reload, test reset and module
+shutdown. Wire messages, JASS snapshot7 and the callback roster are unchanged.
+The scheduler lifecycle regression exercises pause/resume, Stop, replacement
+and deferred public removal. Stock radius producers, fresh open-line steering,
+nonzero-origin whole-route words, actual original primary-owner cadence, dynamic
+yield/retry, adaptive refill and original buffer growth remain required. This
+controlled motion match does not close those broader gates.
+
+Accepted original artifact under the local analysis root:
+`fine-route-trajectory-corpus-accepted-261001/corpus-results.json`.
+Ghidra retains456 names,31 layouts,177 verified fields and170 explicit prototypes.
+The four new fields type the fine/adaptive point-buffer pointers and counts in
+`WC3PathPrefix`. Saved readback:
+`runtime/route-progress-ghidra-types-261001.json` and its repeat. The schema
+preflight now permits canonical pointers to separately checked refined layouts;
+incompatible offsets, field identities and byte extents still refuse mutation.
+
+Validation for payoff20: the required umbrella and production release build pass.
+Forced release suites pass47,805 assertions in2,228 cases for both RoC and TFT;
+all138 pathfinding tool tests pass, including the frozen-to-engine word-table
+check. Ability coverage, backlog counts/IDs, new document links and diff checks
+pass. The first release attempt exposed an unused search-definition warning
+from including its implementation in the common game declaration header; it
+was stopped, the existing bounds were extracted into `wc3_pathing_limits.h`,
+and the complete final release checks passed without C compiler warnings.
+The first lifecycle fixture's misplaced SLK row was corrected and its authored
+turn/window values are now asserted. Failed attempts grant no accepted evidence.
+
+
+## Native route inputs survive world projection
+
+Engine payoff21 fixes the next complete-motion mismatch rather than adding a
+standalone numeric helper. The controlled detour's native inputs are unchanged
+while the engine publishes into four maps with origins `(0,0)`, `(-256,-256)`,
+`(-2048,512)` and `(0.125,-19.25)`. After resetting each case's clock and waypoint
+pool,174 position/velocity/heading word assertions failed. The first divergence
+occurs when the callback subtracts a world waypoint from a rounded published
+world position; subsequent fine motion inherits that different velocity.
+
+Original16a790 obtains the predicted native vector from05bdd0 and passes it
+directly to16fbd0. At16fd3b,16fbd0 subtracts its native waypoint and native source
+before16f630 computes heading. That decision has no world-origin input. Move now
+carries its valid published `sampled_pose` into the route query; unchanged world
+publication words validate the alias. Explicit world-only geometry still has its
+own input path. Initial fine reconstruction, retained-point distance, segment
+sampling and route direction consume the native source without inverting world
+publication. World coordinates remain the engine's visible waypoint and actor
+position interface. Manual world writers invalidate the alias through the
+existing pose/publication contract.
+
+The actual compiled-JASS Move regression now passes1,364 assertions: all34
+original fine position/velocity/heading ticks at each origin and each22-tick
+saved continuation, with the same active indices and natural arrival. This
+proves the original native-input contract under translated engine publication;
+it does not claim four new live retail scenes or a different original clock
+producer. The original reference remains the twice-replayed controlled detour
+from payoff20. Full primary-owner cadence, additional footprints/lanes, adaptive
+refill and dynamic yielding remain open. Runtime query fields do not change
+Save67, the semantic JASS snapshot or the wire format.
+
+Ghidra saves the native coordinate contract on05bdd0/16fbd0 and now explicitly
+types16fbd0's ECX mover and nine stack words, including its source/destination
+vectors. Instruction readback confirms `RET0x24`. The schema retains31 layouts,
+177 verified fields and171 explicit prototypes;456 descriptive names are
+unchanged. Saved readback under the analysis root:
+`runtime/native-route-source-ghidra-types-261001.json` and
+`runtime/native-route-source-ghidra-readback-261001.json`.
+
+Accepted regression artifacts: `/tmp/wc3-route-origin-fixture-corrected-red.log`
+records the174 genuine failures after fixture correction;
+`/tmp/wc3-route-origin-native-first.log` records the1,364-word acceptance.
+The earlier loop experiments reset clocks after order submission or retained
+an old waypoint pool; those invalid fixtures are rejected, not engine evidence.
+
+Validation for payoff21: forced release RoC/TFT suites pass48,828 assertions in
+2,228 cases each. The required release umbrella and production executable build
+pass without C compiler warnings. All138 pathfinding tool tests, ability coverage,
+backlog counts/IDs, document targets and diff checks pass. The diagnostic O0 TFT
+run had one additional branch assertion and also passed; the forced release
+artifacts above are the final matrix. No additional retail replay is claimed:
+the unchanged original fixture is reused for its native-input contract.
+
+
+## Primary owner clocks reproduce the complete detour
+
+Payoff22 joins the previous retained-route and native-coordinate ports to the
+actual engine frame scheduler. The original15aa80 controlled singleton wall
+case advances054190 six times with the authentic5ms word `3ba3d70a` before each
+owner pass. Original161040 supplies the elapsed interval; it is not replaced
+with host.03 or the earlier1/32 test input. Two independent complete executions
+match every clock, elapsed, fine position, velocity, heading and active curve
+index through34 motion ticks. The original performs45 owner passes including
+the supplied fresh callback atclock0 and nine visual settling ticks.
+
+The engine test creates the authored hRTE unit through compiled JASS, submits
+public Move, supplies the same fresh callback atclock0, then runs
+`globals.RunFrame()` every30ms. No test writes callback clocks or publishes
+positions during this trajectory. All509 assertions pass, including all active
+motion and clock words, natural order completion and the22 remaining ticks
+after loading a tick12 save. The existing engine implementation already agrees;
+this closes the combined scheduling regression without inventing a production
+change. Save67 and network contracts are unchanged.
+
+Frozen reference: `tools/ghidra/fixtures/retail-primary-owner-route-1.27.json`.
+Accepted fresh repeat: `primary-owner-route-corpus-accepted-261001/corpus-results.json`
+under the local analysis root. The strict corpus now has214 entries,87 oracles
+and76 frozen fixtures. Ghidra persists the expanded15aa80 contract; its saved
+readback is `runtime/primary-owner-route-ghidra-readback-261001.json`.
+
+This supplied starting phase does not establish initial public order-admission
+phase parity. Stock profile producers, other clocks, shared groups, live wall
+scenes, rendered unit presentation, adaptive refill and dynamic yielding remain
+open. SCHED-02.5 names exactly this bounded composition.
+
+Validation for payoff22: forced release RoC/TFT suites each pass49,337 assertions
+in2,229 cases. The required release umbrella and production executable build
+pass without C compiler warnings. All139 pathfinding tool tests, corpus hashes,
+backlog counts/IDs, document targets and diff checks pass.
+
+
+## Adaptive handoff uses retail route length
+
+Payoff23 fixes the initial long-route handoff. The engine previously selected
+a visible coarse point, then limited its distance to48 fine cells. Original
+165d10/167ae0 instead starts below the current reverse-chain index and sums
+software scalar edge lengths until ten accelerator units. Index zero is never
+inspected by that scan. Original167d70 mode zero selects the resulting coarse
+point times two when the index is nonzero; index zero selects the path's current
+destination. Visibility is not this initial coarse selection policy.
+
+The production route helper now implements that recovered scan, including its
+sentinel result without executing a portal. The ordinary hierarchy producer
+cannot emit that sentinel. The game handoff consumes its ordinary result before
+calling the existing fine search. A48-case engine regression failed64 assertions
+before the change. It now matches all2,936 original fine-route coordinate words
+across open, solid-wall and gapped-wall64-cell maps, four footprint classes and
+four traversal lanes. It also checks retained fine count and initial index.
+
+The compiled-JASS public Move regression uses the solid wall: the local fine
+destination is native `(15.5,33.5)`, and its first point is `(4.5,5.5)`. The public
+order keeps the final `(59.25,59.75)` destination. An earlier public fixture used
+a clear diagonal through the gap and incorrectly expected the engine to enter
+its obstruction route; that expectation is rejected. It provides no public
+producer or new engine-defect evidence.
+
+Original full165ae0 route buffers are frozen in
+`tools/ghidra/fixtures/retail-adaptive-handoff-1.27.json`. Two independent original
+runs agree exactly. All1,456 complete original167ae0 selector outputs and marker
+flags match production C atO0 andO2. The accepted strict two-entry run is
+`adaptive-handoff-corpus-accepted-261001/corpus-results.json` under the analysis
+root. Its manifest now has216 entries,89 oracles and77 fixtures.
+
+This is the initial ordinary handoff port. Coarse buffer retention across later
+fine refills, dynamic obstruction/yielding, budget admission, primary owner
+composition and portal execution remain required. Save67 and network contracts
+are unchanged. Ghidra records the integrated167ae0/165d10/167d70 contracts so
+that this policy does not need another investigation.
+
+Saved Ghidra readback: `runtime/adaptive-handoff-ghidra-readback-261001.json`.
+Validation for payoff23: forced release RoC/TFT suites each pass52,430 assertions
+in2,231 cases. The required release umbrella and production executable pass
+without C compiler warnings. All140 pathfinding tool tests, ability coverage,
+corpus hashes, backlog counts/IDs, document targets and diff checks pass.
+
+
+## Retained coarse progress refills the fine route
+
+Payoff24 preserves the original adaptive point buffer and current index instead
+of treating each fine endpoint as a new global route request. Original165f10
+measures approach in accelerator coordinates against.49 accelerator units. It
+runs before fine progression. A supplied source.48 accelerator units left of
+the selected waypoint therefore consumes the coarse point and invalidates/refills
+the fine route, although it remains.96 fine cells from the fine endpoint.
+
+The engine previously retained that endpoint under its separate.49-fine-cell
+threshold. All32 initial routes built correctly, but64 subsequent route-count
+and index assertions failed. The production owner now stores coarse points and
+index, applies the original coarse squared-distance predicate first, consumes
+167ae0's reverse-chain selection and refills the fine buffer from the retained
+coarse destination. Static revision, goal, radius and lane changes invalidate
+the coarse cache. Move frees both buffers on removal, load and shutdown.
+
+The controlled original replay advances the owner counter ten ticks and resets
+fine work at each supplied admitted boundary. It executes the complete original
+165ae0 chain; it does not simulate the full owner scheduler. Open/gapped maps,
+four classes and four lanes match all1,800 native fine words after consumption,
+with unchanged original coarse buffers. This matrix reaches coarse index zero;
+larger retained nonzero next indices and physical retail trajectories remain
+required. First experiments used a one-tick denied boundary or carried the
+previous fixture's counter into a new case; those are rejected admitted controls.
+The accepted reference is `tools/ghidra/fixtures/retail-adaptive-progress-1.27.json`,
+with a fresh repeat under `adaptive-progress-corpus-accepted-261001/`.
+
+Save68 serializes both curve buffers and indices. Serialized process pointers
+are ignored; count/index limits, finite points and truncated tails are checked.
+The coarse revision is runtime state. Reload reconstructs the saved terrain and
+obstacles, then binds restored curves to that world's new bake epoch. Before
+that correction the long Move save regression changed760 later motion words.
+Afterward the real RunFrame long Move repeats all180 saved continuation frames,
+retaining coarse count/index and reaching the original order goal. Semantic
+JASS snapshot7 and network contracts remain unchanged.
+
+The strict corpus now has217 entries,90 oracles and78 frozen fixtures. Ghidra
+retains the integrated165f10/167ce0 contracts. Dynamic blockers, yielding,
+denied admission timing, larger route index transitions, other clock producers
+and portal execution remain open under the existing backlog.
+
+Saved Ghidra readback: `runtime/adaptive-progress-ghidra-readback-261001.json`.
+Validation for payoff24: forced release RoC/TFT suites each pass54,459 assertions
+in2,232 cases. The required release umbrella and production executable pass
+without C compiler warnings. All141 pathfinding tool tests, ability coverage,
+corpus hashes, backlog counts/IDs, document targets and diff checks pass. Invalid
+fine/adaptive extent, index, nonfinite and truncated-tail tests reject all eight
+payloads and retain no serialized process pointers.
+
+
+## Public pathing toggle separates query from occupancy
+
+Engine payoff25 fixes a public behavior gap, rather than adding another unused
+helper. The registered `SetUnitPathing` native is `6f215540`. Its false branch
+gets the embedded mover bridge through the actual CUnit vtable `6fb77eb0` slot
+`b8` (`6864d0`), reads the **current occupancy category** through `05ac60`, then
+publishes that category with query zero through virtual `15c` (`699200` →
+`05c7e0`). The true branch restores the authored query and category through
+slots `164`/`160` (`678b50`/`678b60`). The occupancy and query are separate inputs;
+clearing the query does not make the unit invisible to other movers.
+
+Two newly generated `pathing_toggle` maps invoke false/true/false/true at ticks
+10/20/30/40. Both complete owned, observational Frida captures contain all four
+native enter/publication/leave brackets: stock Footman category stays `ca`,
+object category stays `010000ca`, and its own query alternates zero and
+`02000002`. Native brackets preserve position and current order. The travelling
+Footman crosses the wall at x=-1936/y=-560 while its own query is zero. All182
+scalar motion decisions and183 velocity, position/clock and facing commits
+match the production C arithmetic; the independently repeated raw decision and
+commit sequences are identical. Accepted evidence:
+`pathing-toggle-corpus-accepted-261001/corpus-results.json`; raw captures are
+`runtime/pathing-toggle-{first,repeat}-261001.jsonl`. The strict scenario checker
+rejects lost brackets, category/mask substitution, receiver/identity changes,
+script transition loss, order replacement and a missing straight wall crossing.
+
+The engine regression first fails four assertions: a disabled blocker vanishes
+from another mover's route query; a disabled mover keeps its retained detour;
+that route remains active; and it never crosses the blocked wall cells. The fix
+retains ordinary occupancy/category and target identity when `no_pathing` is
+true. Move's own route-line policy bypasses geometry, and its direct branch
+ignores an existing fine curve while disabled. Re-enabling pathing rebuilds a
+collision-aware route from the current source. Existing precise step collision
+already ignored collisions for the disabled mover and retained disabled
+neighbours; it did not need a second collision representation. Legacy generic
+geometry mask zero still means walking: this public toggle does not alter that
+separate compatibility contract.
+
+The public JASS/frame regression passes261 assertions, including an actual
+blocked-cell crossing, a pre-existing detour, resumed collision-aware return,
+and240 exact position/velocity words after save/load while disabled. Target
+perimeter regression expectations now preserve the disabled target's category.
+Save68, JASS semantic snapshot7 and the wire layout are unchanged: `no_pathing`
+already has a persistence contract and no runtime field was added. This proves
+the bounded ordinary Move policy and saved continuation; it does not claim the
+engine's complete public trajectory equals the live capture. Placement,
+blocked command destination admission, repulsion/fallback ownership, other
+profiles and native retained-buffer lifetime remain separate work.
+
+Ghidra now retains460 names,31 partial layouts,177 fields and175 explicit
+prototypes. All four new native/bridge functions have verified receiver/stack
+storage and saved descriptive comments. Readbacks:
+`runtime/pathing-toggle-ghidra-types-261001.json` and
+`runtime/pathing-toggle-ghidra-readback-261001.json`. Corpus inventory now has
+220 entries:90 original-code oracles,102 archived audits and28 live contracts;
+78 repository fixtures remain hash checked.
+
+Validation: forced release RoC/TFT suites each pass54,720 assertions in2,233
+cases;142 pathfinding tool tests pass. Full `make BUILD=release test` and
+production `openwarcraft3` builds pass without C compiler warnings. Ability
+coverage, backlog counts/IDs/areas, local links and `git diff --check` pass.
+
+
+## Disabled query reaches public placement
+
+Engine payoff26 continues the public toggle through its placement consumer.
+`SetUnitPosition` → `698050` → `653510` → `67f490` → `6515f0` obtains its query
+from actual CUnit vtable `158`, `685ef0` → `05ac30`. This getter resolves the
+bridge identity, reads the owned query path at canonical+a8 and returns its
+`+9c & 00ffffff`; an absent path returns zero. It is distinct from the authored
+getter `678b50`. Vtable `168` (`6742f0`) obtains the cached authored collision
+radius through `674280` with ECX=output/EDX=rawcode. Query zero changes neither
+the footprint nor the `654060` same-terrain-level acceptance callback.
+
+Two fresh owned `pathing_position` maps toggle true/false/true/false/true before
+five `SetUnitPosition` calls at ticks20/30/40/50/60. Enabled requests for
+(-1936,-560) and(-1935.875,-560.125) land at(-1936,-592); disabled requests retain
+the exact requested coordinates, despite the same four blocked wall cells.
+All native/profile brackets retain categoryca and object010000ca. The two
+captures contain65 exact public getter/bridge queries, five exact world
+position commits and seven complete placement searches. Two additional
+five-attempt queries belong to Stop's embedded recovery after restoring pathing
+inside a blocked footprint; the public point admission still uses32 attempts.
+All searches, candidates, masks, radius, level callback, result and output words
+match production C and repeat. The preceding33 motion decisions and33
+velocity/position/facing commits also match C exactly and repeat.
+
+The engine public-native regression reproduces six raw destination failures.
+`G_FindUnitPlacementPosition` now passes the current zero mask when
+`no_pathing` is set, and its cell callback preserves valid footprint bounds
+without applying the generic geometry API's legacy zero-as-walk default. The
+same-level callback and authored footprint remain active. Normal routing
+continues to normalize its generic masks before constructing the graph. The
+regression passes65 assertions through public SetUnitPosition/Loc, both toggle
+directions, all five observed destinations and a disabled save/load continuation.
+Save68, JASS snapshot7 and the wire layout remain unchanged.
+
+`verify_wc3_pathing_placement.py --zero-mask-only --reference` independently
+executes576 complete original calls at288 inputs: four classes, two output
+forms, three budgets, repeated modes0/7, three source positions and four terrain
+maps. **Terrain is still authored02 when the query is zero**; the sealed-map
+controls do not erase obstacles to manufacture passability. Outside fine-source
+controls retain bounds rejection. C reproduces the complete original outputs,
+and a damaged frozen reference is rejected. This isolated matrix has a null
+callback; the repeated public capture separately proves the supplied level6
+acceptance callback, not arbitrary bridge overlays or outside-map clipping.
+
+Frozen fixtures are `retail-zero-query-placement-1.27.json` and
+`retail-public-pathing-position-1.27.json`. Accepted strict replay:
+`pathing-position-corpus-accepted-b261001/corpus-results.json`; raw witnesses:
+`runtime/pathing-position-{first,repeat}-261001.jsonl`. The public verifier's
+new mode rejects substituted toggle receivers/categories, zero-mask changes,
+missing brackets, endpoints, Stop velocity and source provenance changes. Its
+pre-existing six-placement mode retains its original frozen contract.
+
+Ghidra retains463 descriptive names and178 explicit prototypes, with31 layouts
+and177 fields. Saved readbacks:
+`runtime/pathing-position-ghidra-types-261001.json` and
+`runtime/pathing-position-ghidra-readback-261001.json`. The strict inventory now
+has224 entries:91 original-code oracles,104 archive audits and29 live contracts,
+with80 hash-checked repository fixtures. Broader actor forms, outside-map public
+clipping, bridge/terrain-level rejection, full engine clock parity and separation
+are not closed by this ordinary ground placement result.
+
+Validation: forced release RoC/TFT suites each pass54,785 assertions in2,234
+cases; full release umbrella and production builds pass without C compiler
+warnings, as do144 pathfinding tool tests, ability coverage, backlog counts/IDs/
+areas, local links and `git diff --check`.
+
+
+## Stop recovers an embedded mover with a bounded query
+
+Engine payoff27 ports the separate Stop recovery that FOOT-04.4 identified in
+blocked public placement. Actual `171340` receives a nonzero stack14 recovery
+limit, then calls `170080` with the current query mask, callback/context and
+policy2. The recovery helper predicts native fine pose, temporarily suppresses
+its own spatial object, tests the endpoint footprint, and only searches when
+that point is blocked. A successful `14a1e0` point/ring query applies its admitted
+fine point through `05c820`. Its return value is **source was blocked**, not
+search succeeded: an exhausted five-attempt query returns1 and leaves pose
+unchanged. Clear or in-bounds queryzero returns0 without a placement search.
+Instruction readback verifies RET14/RET1c and the explicit receiver/stack slots.
+
+Two fresh owned `stop_recovery` maps invoke public Stop on a clear travelling
+unit, an enabled unit embedded in the four-cell wall, a disabled embedded unit,
+and an enabled unit embedded in an eleven-cell square. Each command performs
+two recovery calls. The eight result words are0/0/1/0/0/0/1/1: first enabled
+wall recovery moves(-1936,-560) to(-1936,-592), the settled second call is clear,
+the disabled unit stays put, and both dense-square searches exhaust the five
+attempts. All three searches retain callback654060/context6, radius3f780000,
+endpoint mode and supplied query mask. Complete cell visits/results and output
+words match production C. The recovered native fine commit and exact published
+world pair match the new production fine-coordinate writer; all24 public getter
+words match C's noncommitting prediction and the native results. The preceding33
+motion and33 velocity/position/facing commits match and repeat exactly.
+
+The engine regression first fails both embedded-recovery destination assertions,
+before and after save/load. Stop now asks the Move owner to recover its stopped
+fine pose. Public32-attempt placement and Stop's five-attempt recovery share the
+same footprint/object/terrain-level admission, with separate limits. Recovery
+preserves native fine precision rather than converting an admitted point through
+world coordinates. Queryzero and failed bounded searches stay in place. The
+public-native regression passes29 assertions, including save/load, both toggle
+policies, exhaustion and Stop during map release; all196 movement tests also
+pass. Broader actor forms, bridge overlays and outside-map public recovery remain
+unverified. This does not change Save68, JASS snapshot7 or the wire contract.
+
+The strict verifier is `tools/frida/verify_wc3_stop_recovery_trace.py`; its frozen
+witness is `retail-public-stop-recovery-1.27.json`. It rejects missing calls,
+changed receiver/masks/limits/callbacks, wrong helper statuses, substituted fine
+outputs, movement during exhaustion, getter changes and source provenance.
+Accepted replay: `stop-recovery-corpus-accepted-261001/corpus-results.json`;
+raw witnesses `runtime/stop-recovery-{first,repeat}-261001.jsonl`. The inventory
+now has227 entries:91 original-code oracles,106 archived audits and30 live
+contracts, with81 hash-checked repository fixtures. Ghidra retains464 names,
+180 explicit prototypes,31 layouts and177 fields, with saved readbacks
+`runtime/stop-recovery-ghidra-types-261001.json` and
+`runtime/stop-recovery-ghidra-readback-261001.json`.
+
+Validation: forced release RoC/TFT suites each pass54,814 assertions in2,235
+cases;145 pathfinding tool tests, full release umbrella and production builds,
+ability coverage, backlog counts/IDs/areas, local links and `git diff --check`
+pass without C compiler warnings. Full retail owner phases, all Stop callers and dynamic
+multi-mover recovery remain separate from this bounded public result.
+
+
+## Successive long refills select the original fine index
+
+Engine payoff28 addresses ROUTE-03.3's remaining nonzero following-index case,
+explicitly split into ROUTE-03.4. Thirty-two complete original165ae0 requests on
+128-cell open/gapped maps retain their entire coarse buffers through five
+admitted fine refills each. Open chains consume5→4→3→2→1→0; gapped chains
+consume9→8→7→2→1→0. All initial/refill fine buffers, indices and selected outputs
+match the engine across four classes and four lanes. Source positions remain
+controlled at .48 accelerator units from the current point, with supplied ten
+owner ticks and reset fine work between requests. This verifies repeated route
+composition, not full physical retail owner motion or denied-request timing.
+
+The larger fixture reproduces160 engine index failures. Original1489a0 latches
+fine+d0 (`observed_obstruction`) whenever a queried perimeter cell rejects.
+Original14ad50 clears it before the request;166e90 uses index0 when the flag
+remains clear, otherwise initializes the next parent index. **A blocked cell
+anywhere in expansion matters**, even when the reconstructed route is clear.
+The union of each class's neighbor masks covers its complete perimeter, so the
+C search latches the same flag when any expansion edge rejects.480 complete
+original/C requests match that flag;192 frozen initial/refill flags also match
+atO0/O2 with search reuse. The initial fine-index producer is now implemented,
+replacing the previously unconditional count-2 engine policy. Earlier64-cell
+handoff and refill buffers retain their original words; their previously assumed
+indices now use the independently recorded original outputs.
+
+The32-case engine regression passes13,384 exact assertions after the fix. An
+actual public long Move across an offset wall gap reaches the legal goal through
+multiple coarse transitions. It preserves a nonzero coarse index across save/load
+and repeats260 frames with exact world/native fine pose, velocity, heading,
+current order and both route indices:3,027 assertions pass. All198 movement
+cases pass. The change adds only process-local search scratch; Save68, JASS
+snapshot7 and the wire contract retain their existing representation.
+
+Frozen witness: `retail-adaptive-long-progress-1.27.json`. Accepted strict replay:
+`adaptive-long-corpus-accepted-261001/corpus-results.json`, including the existing
+handoff/progress references. The inventory has228 entries:92 original oracles,
+106 archives and30 live contracts, with82 pinned fixtures. Four Ghidra comments
+are saved and read back in `runtime/adaptive-long-ghidra-readback-261001.json`;
+the existing31 layouts/177 fields already identify the fine obstruction flag.
+
+Validation: forced release RoC/TFT suites each pass71,225 assertions in2,237
+cases; full release umbrella and production builds,147 pathfinding tool tests,
+ability coverage, backlog counts/IDs/areas, local links and `git diff --check`
+pass without C compiler warnings. Dynamic
+blockers/yielding, denied refills, complete physical retail long motion and portals
+remain explicit separate tasks.
+
+
+## Ordinary path defaults enable adaptive routing
+
+Engine payoff29 closes BASE-02.7, explicitly adding the ordinary activation
+policy discovered while reproducing budget-limited routing. Original166060
+`Path_Activate` writes flags88=200000, fine/coarse indices=-1 and packed
+limits84=019002bc:700 fine attempts and400 adaptive attempts. Path_Advance165ae0
+calls165b60 before165c60; the adaptive stage has no48-cell admission cutoff.
+Original1678f0 independently returns5000 for169840's group-owned path. Existing
+accepted public captures (`pathing-position-first/repeat-261001.jsonl`) record
+that actual sequence: group5000, member400, member fine700. Reusing those captures
+establishes the producer distinction; this change does not claim a new live maze
+capture or complete group-budget implementation. The144-distance branch in1689d0
+controls retry counting and does not admit the adaptive stage.
+
+The engine inherited PATH_ACCEL_MAX_DISTANCE=48 from its bounded nearby-routing
+policy. On a64-cell maze whose goal is43 cells east and39 north, that gate skips
+the original coarse route. With the original fine700 cap, successive partial
+fine endpoints stop advancing beyond a wall, leaving the public unit oscillating.
+The full original165ae0 oracle reproduces32 coarse/fine count/index failures in
+eight engine cases. Ordinary live unit queries now build adaptive routes before
+fine refinement and use400/700 attempt limits. Generic moverless queries retain
+their existing bounded request policy. The local leg procedure is exposed as
+G_BuildUnitMoveLocalRoute and used directly by the adaptive stage; it provides
+an independent entry point for the isolated148100 fine contract without a
+second routing implementation.
+
+Two original winding-map patterns across four classes produce eight complete
+coarse/fine handoffs. Every coordinate and both indices match the actual engine
+world builder:1,276 assertions. Sixteen isolated original fine700/2048 controls
+produce distinct partial endpoints and match the production C request kernel
+atO0/O2; the actual local builder matches638 assertions. The public JASS Move
+keeps its final destination(1512,1400), follows the unmodified four-wall maze,
+refills successive legs and arrives. Save/load repeats600 continuation frames
+with exact world/native position, velocity, heading, order and fine index:
+7,112 assertions. All201 movement cases pass40,232 assertions. Save68, JASS
+snapshot7 and the wire representation are unchanged.
+
+Frozen witnesses: `retail-unit-default-route-1.27.json` and
+`retail-unit-fine-budget-1.27.json`. Strict fresh replay is
+`unit-default-corpus-accepted-261001/corpus-results.json`, including the prior
+long-refill reference. Two new Ghidra roles and explicit ABIs are saved and read
+back in `runtime/unit-budget-ghidra-readback-261001.json` and
+`runtime/unit-budget-ghidra-types-261001.json`:466 names,182 prototypes,
+31 layouts/177 fields/44 globals. Scheduling queues, charged-work reset cadence,
+group-owned5000 composition and complete physical retail maze motion remain open.
+
+Validation: forced release RoC/TFT suites each pass80,251 assertions in2,240
+cases. The release umbrella, production executable build,150 pathfinding tool tests, ability coverage,
+backlog counts/unique IDs/area totals, fixture hashes, local links and
+`git diff --check` pass without C compiler warnings.
+
+
+## Ordered moving waits reach ordinary Move
+
+Engine payoff30 integrates original moving-blocker decisions and retained waits;
+it explicitly splits ROUTE-05.3 from the remaining05.1/05.2 producer and cycle
+work. Every completed leaf includes the production Move change, original/C
+comparison, public-order regression and saved continuation. It does not close
+full crowd trajectory parity.
+
+Original168360 first clears the requester blocker identity, keeps its unsigned
+prior delay and scans the supplied vector in order. It uses software squared
+**committed velocity**, not authored movement speed. A candidate without a
+resolved group, with zero speed, or with a resolved existing blocker is skipped.
+Same group with bit8 clear, faster/equal candidate, or different player class
+sets requester identity and `max(delay,4)`, then returns. Otherwise it sets the
+candidate identity and `max(delay,20)` and continues; those earlier side effects
+survive a later requester wait. A repeated candidate can therefore be skipped
+because the first visit blocked it.
+
+The shared production `wc3_pathing_yield.h` decision and countdown kernels match
+all8,640 complete original single-candidate cases and25 enabled/disabled gate
+controls. The original oracle also checks128 multi-candidate sequences using
+real registered identity/group resolution. Original165ae0 checks internal flag
+100000 before the delay: it freezes a disabled path; an enabled nonzero delay
+consumes one eligible advance and returns1, including1→0. `SetUnitPathing(false)`
+zeroes the query mask, which is a different contract from this disabled flag.
+
+Two fresh owned Frida crowd captures record actual velocities, player classes,
+group pointers/flags, ordered candidate identities, each chronological blocker
+resolution, all actor before/after wait states and the countdown calls. Each
+matches the production C decision kernel on2,503 complete runtime decisions,
+including51 duplicate candidates,56 requester4 waits,10 peer20 waits and424
+retiring delay calls. Actual group flags20000/30000 have bit8 clear. Exact
+normalized repeat digest:
+`dc0362228855a17aba4279a9581f9f8a176b8daf8a782f9d1b2d6bbd3fed05fc`.
+Observer source and map hashes are embedded; map hash:
+`3516ddb2377f3b34d53a76c6b08aafc9a8fcdfce2f0436cdc35697e270d4c027`.
+
+Move now collects the next native route step using the existing four-class
+entering-strip sampler, continuing across all cells and retaining duplicates
+and terrain/null tokens in its32-entry vector. `S_ResolveMoveBlockers` owns the
+ordinary engine cohort decisions and persistent4/20 waits. Waits stop
+translation while turning still runs; the scheduler consumes one per eligible
+ordinary Move call. New orders clear progress; actor reclamation clears other
+waiter identities before edict reuse while preserving their remaining delays.
+Save69 persists the counter and `F_EDICT` blocker reference. Older save layouts
+are rejected; JASS snapshot7 and the network contract are unchanged.
+
+The19-assertion ordered peer-policy regression uses distinct actual actors,
+contrasting authored speed with committed velocity, preserving an earlier peer
+wait, skipping an already blocked candidate and retaining a larger prior wait.
+The124-assertion public regression issues two real JASS Move orders, collects a
+moving blocker, saves with its identity/delay live, removes it through deferred
+`RemoveUnit` reclamation and disables the query. Both continued runs consume
+exactly four scheduled waits, then resume motion; all48 captured position,
+velocity, heading, order and wait words repeat exactly after load. The missing
+resolver was reproduced with a no-decision control before accepting the port.
+All203 movement cases pass40,375 assertions.
+
+Evidence under the report root:
+
+- `runtime/moving-yield-oracle-first-261001.json` and `runtime/moving-yield-oracle-repeat-261001.json`.
+- `runtime/moving-yield-ordered-first-261001.jsonl` and `runtime/moving-yield-ordered-repeat-261001.jsonl`.
+- `runtime/moving-yield-ordered-strict-261001.json`.
+- `moving-yield-corpus-accepted-v2-261001/corpus-results.json`.
+- `runtime/moving-yield-ghidra-readback-261001.json` and `runtime/moving-yield-types-261001.json`.
+
+Frozen asset-free original fixtures are `retail-moving-yield-1.27.json` and
+`retail-public-moving-yield-1.27.json`; both production optimization levels are
+checked. Missing group/resolver inputs, mutated states/writers/countdowns,
+truncated captures and absent completion/provenance are rejected. Ghidra now
+retains470 role names,191 verified prototypes,31 layouts,177 fields and44
+globals; the four class collectors and blocker resolver have saved operand ABI.
+The corpus contains233 entries:94 original oracles,108 archive audits and31
+stronger live contracts, with86 pinned fixtures.
+
+Remaining work is explicit: retail overlapping lazy cell-link insertion/stamp
+order, group-bit8 and complete group-membership producers, caller restoration
+and retry after a peer20 assignment, denied scheduler requests, oblique held
+heading composition, multi-mover cycles and full stock crowd trajectories.
+Engine cohort IDs represent the existing reimplementation group ownership;
+the scalar decision port does not certify the original group producer.
+
+
+The old collision fixture's lateral-distance comparison was an inference from
+an earlier authored-speed slide policy. It pinned a peer after committing motion
+but started its requester at rest; both variants now correctly wait. The fixture
+now commits both actors and checks original4/20 identities and counters through
+actual collision steering. A pinned peer still occupies the next step, so a
+peer20 assignment alone does not prove immediate movement or the unported
+caller retry. Independent save-field tests cover the wait counter, pointer fixup
+and rejection of a misaligned blocker pointer.
+
+
+Final validation: forced release RoC and TFT each pass80,425 assertions in2,244
+cases; the collision encounter passes21 assertions and new save fields13.
+The152 Python pathfinding checks, strict four-entry original/live corpus,
+ability audit, backlog counts/IDs/area totals and local documentation links pass.
+Umbrella `make test` and the release production `openwarcraft3` target pass
+without C compiler warnings.
+
+### Upstream synchronization after payoff30
+
+Merged41 commits from `upstream/main` at `f7b34c7b63892f7ee53a9d4f2e8dad4229ee1f6b`.
+Move retains the original pre-turn propagation gate, software native setters,
+adaptive/refill state and ordered waits, while incorporating upstream's Stand
+clip preservation and Walk resumption. Runtime propagation-window overrides
+still require their explicit presence bit, including zero. The incoming
+boundary-equality fixture now starts strictly inside its authored window;
+equality is still a stop before turning. Incoming combat target/cooldown and
+Cargo Drop state are persisted alongside movement through strict save70.
+JASS snapshot7 and the network layout are unchanged.
+
+Focused movement passes40,433 assertions in212 cases, native API24,199/342,
+and save1,491/164. Forced release RoC and TFT each pass80,659/2,285; the debug
+matrix with `WC3_DEBUG_BUILD=1` repeats those complete suites. Both umbrella
+configurations and all three production targets (`openwarcraft3`, `opensc2`,
+`openwow`) pass. An incoming SC2 filter's misleading-indentation warning was
+fixed and its production target and umbrella checks repeated successfully.
+The152 Python pathfinding checks,233-entry corpus admission and engine/menu
+boundary audits pass. Merge validation artifacts are
+`/tmp/wc3-upstream-{engine-full,umbrella,production,warning-fixed,debug-accepted}.log`.
+The merge closes no additional research leaf:109 done/291 tasks,182 remaining.
+
+### Waiting headings preserve the native caller
+
+Payoff31 strengthens ROUTE-05.3's existing wait consumer. Complete original
+`Mover_StepRoute`16fbd0 initializes its local destination from the final caller
+goal. A nonzero165ae0 countdown leaves that vector untouched and returns1;
+16fd3b then subtracts the predicted native fine source before selecting heading
+and stopping speed. This differs from acquisition-time165c60, which retains
+the current fine waypoint when it assigns a requester wait. Saved Ghidra
+comments and source/destination operand storage now record both branches.
+
+Two original replays cover1,008 full waiting callers across four native sources,
+seven destinations, six facings, two turn rates and1/4/20 delays, without
+replacing any routine. Every original speed/heading/countdown word matches
+production C. Digest:
+`c96d159d6bc411d7a66d44655df2041f455a27c846fe33a0db7c5d1e76d376ff`.
+The frozen fixture is `retail-wait-heading-1.27.json`.
+
+The engine's world subtraction reproduced eight failures at four map origins.
+The native heading is3f08101b; rounded-world alternatives include3f081011 and
+3f081019. Move now shares its retained prediction helper with repulsion and
+forms the final-goal delta before world projection. The44-assertion regression
+matches heading, stopped velocity, countdown1→0 and untouched native/world
+pose. A224-assertion public JASS Move/save regression drives actual owner
+frames, preserves four stopped oblique headings and resumes movement; all120
+recorded state words repeat after load. Save70's existing native pose and wait
+fields cover the change; neither serialized meaning nor the network changes.
+
+Two fresh owned Frida crowd runs record424 complete16fbd0 countdown calls,
+their nested165ae0 operands, actual parameters and outputs. Every call uses
+the same final destination and native source before/after the gate, stops
+speed and matches C heading exactly; normalized digest:
+`033f2e18400b9ff2bb849d94961744acbeaee40f606f388c9a0fbfc840b3535c`.
+The strict verifier rejects missing operands/provenance/completion, altered
+inputs/outputs/gates/counters, truncation and observer errors. Asset-free tests
+replay both original fixtures atO0 andO2. Sources and the owned crowd map remain
+hash-pinned in `retail-public-wait-heading-1.27.json`.
+
+Evidence under the report root:
+
+- `runtime/wait-heading-{first,repeat}-261001.json`.
+- `runtime/wait-heading-live-{first,repeat}-261001.jsonl` and `runtime/wait-heading-live-strict-261001.json`.
+- `runtime/wait-heading-ghidra-readback-261001.json` and `runtime/wait-heading-types-261001.json`.
+- `wait-heading-corpus-accepted-v2-261001/corpus-results.json`.
+
+Ghidra retains470 named roles,31 layouts,177 fields,192 verified prototypes and44
+globals. The corpus now contains237 entries:95 original contracts,110 archive
+audits and32 live contracts, with88 pinned fixtures. This strengthens an
+already completed leaf without inflating the backlog:109 done/291 tasks,
+182 remaining. Original acquisition-time waypoint composition, overlapping
+cell-link ordering, group-bit8/membership producers, peer retry, denied
+admission and complete crowd/cycle trajectories remain open.
+
+Final payoff31 validation: forced release RoC/TFT and forced debug with
+`WC3_DEBUG_BUILD=1` each pass80,927 assertions in2,287 cases. The release
+umbrella suite passes, including154 pathfinding Python checks. Forced release
+and debug `openwarcraft3` builds pass without compiler warnings. The ability
+audit,237-entry corpus inventory, exact four-entry fresh replay, backlog IDs/
+counts/area totals and243 local documentation links pass.
+
+
+## Payoff32: blocked fine-leg retry and retained coarse plan
+
+`Move` now follows admitted original165c60 fine-progress retries: a nonempty
+next-step blocker vector assigning peer20 without a requester wait restores the caller's final
+goal, turns from its predicted native source, stops committed velocity, and
+resets only fine count/index. The coarse count/index/points remain owned for
+refill on the next thinker. Requester4 acquisition retains the fine waypoint;
+peer20 acquisition reaches this retry branch. Empty admitted progress clears
+retry/delay too, as original167070/1687e0 do. Move handles the held decision
+before route-pending and legacy settle branches can bypass the velocity commit.
+
+`wc3_pathing_retry.h` ports complete1689d0/167290 null-target scalar state.
+**Source-minus-adjusted-goal** is intentional: software subtraction truncation
+makes opposite operand orders differ at the144 threshold. Count2 consumes no
+random draw when distance-squared<=144 and unsigned group count<=1; otherwise
+1d62b0 takes bit22 of the owner's next word for7/8. Public GetRandomInt instead
+uses multiply-high and is not this operation. Consumption retains count1 and
+buffers for result4; all other counts clear only fine buffers and decrement for
+result1. Production currently uses the admitted-progress result1 transaction;
+index0 terminal/perimeter and direct-flow owner transitions remain open.
+Engine cohorts supply group members until the original membership producer is
+ported; this does not certify original groups or multi-unit cycles.
+
+Complete original registered-group oracle336 initializations and2016 transitions
+match production C, including owner words and native threshold boundaries:
+`runtime/peer-retry-full-engine-first-261001.json`, sequence
+`0365fb3e93fd856a73f2944858a0c465e802bad1bd862e712d4a74fd5a91cc09`.
+The frozen `retail-peer-retry-1.27.json` runs at O0/O2 without assets.
+The actual wall-detour regression first failed six movement/buffer assertions;
+now20/20 pass. The public JASS order regression runs120 actual scheduler ticks,
+then repeats after save/load:1467 assertions and1440 exact recorded state words,
+including positions, committed velocities, facing, retry/order and owner PRNG.
+Both actors resume, peer delay expires, and requester progress exceeds64 units.
+Save71 persists retry_count through the normal field table and rejects save70;
+network and JASS snapshot formats are unchanged.
+
+Ghidra `WC3PathPrefix+98` is now typed retry_count, and1689d0/167290 have explicit
+ECX-path/stack4-source/RET4 ABI. The472 names retain31 layouts,178 fields,196 prototypes and44 globals;
+070850 source-minus-point distance and1d62b0 mantissa-range draws now have saved
+roles and exact fastcall/stdcall storage, preventing renewed numerical confusion. This strengthens ROUTE-05.3 rather than
+closing full cycle resolution, group-bit8, target perimeter or denied scheduling.
+
+
+The broader regression suite exposed the remaining source-admission dependency:
+a stationary16-radius actor at60,0 overlaps the mover's quantized fine footprint
+at0,0 although their collision circles do not touch. Unconditionally retrying
+all nonempty vectors makes this legacy admitted source refill indefinitely.
+Payoff32 therefore ports **actual peer20 assignments on an admitted fine leg**;
+other terrain/idle/ineligible vectors retain existing engine steering pending
+original footprint admission/recovery. The existing idle-detour regression
+remains required. This is explicit ROUTE-03 scope, not full165c60 parity.
+
+
+Read-only Frida retry inputs now retain source/adjusted-goal words, actual
+registered group size and owner PRNG before/after. Two complete owned crowd
+captures each replay42 initializations and55 transitions, including eight
+terminal count1 calls, with exact digest
+`b22624f045c5916d77deae4f2c07ed815a42a577796e6851175d5eb89331068a`:
+`runtime/peer-retry-live-{first,repeat}-261001.jsonl` and
+`runtime/peer-retry-live-strict-261001.json`. Observer SHA256
+`32c10a2c9cf70d0cff5bf6f480256f65ed004629e22548d5d13d9db21dfd71b0`;
+map/creator identities remain the recorded crowd source. The corpus has240
+entries,95 original contracts,112 archive audits,33 live contracts and90 fixtures.
+The saved Ghidra ABI/field readback is
+`runtime/peer-retry-ghidra-readback-final-261001.json`.
+
+
+Final payoff32 checks: release and forced debug (`WC3_DEBUG_BUILD=1`) RoC/TFT
+both pass82423 assertions in2290 engine tests, including the idle detour and
+live retry field/version rejection. Forced release production and test binaries
+build cleanly; `make BUILD=release test` passes the umbrella. All156 Python
+pathfinding tests, the fresh four-entry retry corpus,240-entry inventory,
+ability audit, unchanged109/291 backlog accounting and relative file links pass.
+No engine/client/network boundary changed. Original full retry kernels are exact
+within their supplied null-target inputs; production coverage remains the
+peer20 admitted fine-leg transaction described above.
+
+## Public spawn admission and initial mover pose
+
+Engine payoff33 replaces public `CreateUnit`/`CreateUnitAtLoc`'s approximate
+64-world-unit collision-circle spiral with the recovered32-ring, policy2 fine
+footprint admission. `unit_create` delegates position initialization to Move;
+Move preserves the fresh mover's scalar cancellation, publishes/supports the
+accepted point and retains native fine coordinates for subsequent movement.
+Item drops, cargo, summons and Way Gate placement still have separately tracked
+producers; this port does not silently grant them the public spawn contract.
+
+Two owned scene44 captures create eight ground Footmen beside stationary source
+`(-1936,-976)`, at east offsets0,16,31,32,60,63.9999,64,96. Each brackets the
+public create/getter calls, then issues an accepted Move for the new unit.
+All300 samples and completion markers are present. Each capture contains eight
+complete placement calls, sixteen position writes,104 predicted world queries,
+56 public native calls and239 movement decisions. The searches use current mask
+`02000002`, radius`3f780000` (31/32), callback654060/context6, limit32 and policy2.
+Source/self identity and each first accepted candidate remain distinguishable.
+
+| Requested world X | Accepted public XY | Retained native XY |
+| ---: | --- | --- |
+| -1936 | (-1968,-1040) | (162.5,63.5) |
+| -1920 | (-1872,-1008) | (165.5,64.5) |
+| -1905 | (-1872,-1008) | (165.5,64.5) |
+| -1904 | (-1872,-1008) | (165.5,64.5) |
+| -1876 | (-1876,-976) | (165.375,65.5) |
+| c4ea0001 (-1872.0001220703125) | (-1872.25,-976) | (165.4921875,65.5) |
+| -1872 | (-1872,-976) | (165.5,65.5) |
+| -1840 | (-1840,-976) | (166.5,65.5) |
+
+The fractional row exposes why placement alone is insufficient. Registered
+native1fc930 calls64e650, which calls the unit factory677870 with flags502,1,-1.
+Mover activation15ed40 seeds both fine axes from immutablece4584:
+`c7fa0040`, **-128000.5**. The first05c200 world write has notify0 and maximum
+cap`7f7fffff`; it computes requested-minus-sentinel then adds that delta back.
+The accepted fine point`43257fff` first projects to world`c4ea0004`, then
+cancellation commits fine`43257e00`, publishing world`c4ea0800`. A second notified
+world write consumes that canonical pair. Inverting the original request into
+an already initialized pose skips this observable rounding. Production
+`wc3_grid_spawn_place` retains the original order of both writes.
+
+`verify_wc3_spawn_trace.py` strictly checks owned binary/source/map identities,
+completion/counts, created/source actor relationships, public getters and write
+ordering. It replays footprint visits against the stationary actor's equivalent
+class1 occupied cells, all eight endpoints, sixteen complete scalar commits,
+104 read-only queries and239 movement decisions through production C. Both
+captures have identical normalized spawn digest
+`860c89180e22330fdba167e727887383550d82c8650f46c27d177e54cfef99b5` and motion digest
+`5611670c6339529325e4ba121128e3768194c4b717606e7193478a5cf84a0368`.
+The accepted reports are `runtime/spawn-admission-live-accepted-261001.json` and
+the fresh corpus report; raw captures are
+`runtime/spawn-admission-live-{first,repeat}-261001.jsonl`. The observer source is
+`1fb3edeecf602d6e0b8611e93839b0446165f92b4536e4ea7c5b9307f3f95bdd`; map is
+`bc2f1aaf9040bb6d4e67cdf13fc5db48ee622fd2e63492b5e11542898f9b819f`.
+The frozen `retail-public-spawn-1.27.json` preserves raw evidence and negative
+checks at O0/O2, including coherent input, sentinel, getter, commit and candidate
+mutations after recomputing the sequence checksum.
+
+The public engine regression initially reproduced35 failures. After porting,
+all eight captured destination/native-pose pairs pass through actual JASS
+CreateUnit/AtLoc. A custom authored collision row supplies the captured31-unit
+footprint to the visible route fixture; an8-unit nonstock control must instead
+select the closer class0 cell. The fractional actor saves immediately
+after creation, issues public Move and runs80 real scheduler frames, then repeats
+after loading:640 continuation state words match exactly and both runs travel
+more than64 world units. Initial test source uses the original JASS expression
+`-1936+63.9999`; rewriting it as a rounded decimal literal changes the producer
+input. Save71, callback identities and the serialized meaning of retained fine
+pose remain unchanged; no save migration or new network contract is added.
+
+Ghidra persists three new roles/ABIs: `Jass_CreateUnit`1fc930 (cdecl five stack
+arguments/EAX handle), `Unit_CreatePublic`64e650 (fastcall player/rawcode plus
+three scalar-pointer stack arguments, RETc/EAX payload), and
+`Mover_ActivateSpatialPose`15ed40 (thiscall context, RET4). The sentinel is a typed
+named scalar, with instruction xrefs retained. Saved type readback is
+`runtime/spawn-admission-types-261001.json` plus persisted role/constant check
+`runtime/spawn-admission-ghidra-readback-261001.json`:475 roles,199 prototypes,31 partial
+layouts/178 fields and45 globals. These descriptive names are evidence labels.
+
+FOOT-04.6 closes this ordinary in-map ground public spawn producer and its engine
+consumer. Original Loc, buildings/other factory flags, outside-map clipping,
+bridge/rejected-level callbacks and full physical crowd/group cadence remain
+FOOT-04.1/02, BASE-02, MAP and E2E work. Exact public spawn outputs do not certify
+whole retail trajectories.
+
+Final payoff33 validation: public spawn regression passes783 assertions across
+the eight original endpoints and the nonstock footprint, including640 saved
+continuation words. Optimized and forced debug (`WC3_DEBUG_BUILD=1`) RoC/TFT
+both pass83,207 assertions in2,291 engine tests. Forced release production/test
+builds and the complete `make BUILD=release test` umbrella pass. All157 Python
+pathfinding checks pass, including ten negative variants at O0/O2. The fresh
+three-entry spawn corpus,243-entry/91-fixture inventory, ability audit,
+110/292 backlog counts and224 relative file links pass. Full logs are indexed in
+`runtime/spawn-admission-validation-261001.json`; no shared engine/client boundary
+or network format changed. The following section extends this initial-pose
+evidence to actual post-spawn scheduled movement; broader source admission
+and original group/cycle scheduling remain separate requirements.
+
+
+## Clear public routes retain native waypoints
+
+Engine payoff34 removes the ordinary location-order clear-line heading shortcut.
+Original `Mover_StepRoute`16fbd0 runs `Path_Advance` even in a clear corridor;
+it subtracts the predicted native fine source from the selected fine waypoint
+before16f630. A fine search may observe a blocked neighbour while its forward
+corridor remains legal, causing the retained initial index to be `count-2`.
+Steering directly toward the final world destination loses that real waypoint
+and also reverses the native-to-world publication before heading evaluation.
+Move now enters its existing retained fine/adaptive route for a clear ordinary
+location order. Interaction abilities still own their approach/range policies.
+Disconnected static routes retain the existing component fallback.
+
+The admitted fine leg also survives static sample-cell changes as its source
+moves. Original165ae0/165c60 consumes progress and collects the next step;
+it does not rerun a full static segment from every fractional source. The old
+engine recheck rebuilt the route at the sixth fractional commit, replacing
+its admitted final waypoint with a new parent. Move now uses the saved route's
+terrain epoch/mask and retains the existing live occupancy check through
+`G_UnitMoveFineRouteIsUnoccupied`, with native source/waypoint inputs.
+Static edits still invalidate through the bake epoch. The broader original
+nonempty blocker retry remains ROUTE-03: the existing full live peer segment is
+explicitly marked as the remaining engine approximation, and its idle-insertion
+regression remains required. No new saved field or callback is introduced.
+
+Two complete scene44 captures with `--motion-events --velocity-events
+--profile-events` retain239 movement decisions,247 velocity/position/facing
+commits,247 predicted arrivals and eight final natural arrival stops. The eight
+public CreateUnit lifetimes use stock Footman speed270 (fine cap`41070000`),
+turn0.6 and authored60-degree propagation window. Original scene samples refer
+to the stationary source, so its public X/Y markers do not describe the moving
+actor; the moving trajectory comes from the raw commits. Mover addresses are
+reused between actors, and markers delimit each lifetime.
+
+The original fractional journey starts from native `(165.4921875,65.5)` and
+initially steers to `(166.5,65.5)`, not final `(173,65.5)`. Its first requested
+heading is0; commit publishes velocity`4106ff7b,00000000` and facing`3b8f1bc4`.
+The old world shortcut produced79 failures in183 engine assertions. Retained
+native routing matches all29 scheduled commits. The final committed world point
+is approximately `(-1645.501953125,-975.993408203125)`; it integrates the previous
+velocity and stops within the original arrival range without snapping to-1632.
+The tiny alternating headings and sideways velocities are measured software
+arithmetic, not noise to smooth away.
+
+`public_spawn_move_matches_retained_retail_motion_and_resumes` drives actual
+JASS CreateUnit/IssuePointOrder and the production RunFrame scheduler, comparing
+clock/native position/velocity/facing against the frozen captured words. Each
+initial clock/primary phase is a supplied measured control; this does not close
+NUM-02.3's full original admission-phase producer. The fractional journey also
+saves after its eighth commit and reloads for the remaining original trajectory.
+The custom visible unit row supplies captured radius31 and speed270.
+
+Scene44 retains Human02Interlude's terrain. The initial empty test map was a
+valid control for the fractional journey, but its other trajectories diverged
+when segment skipping crossed real blocked cells. The regression now supplies
+the derived ground walk-bit rectangle x152..183/y56..71 from the pinned original
+WPM, with original384×256 dimensions and origin`(-7168,-3072)`. This small control
+is recorded in the fixture and checked against the C table. It does not claim
+parity for unrepresented terrain cells. Altering heading arithmetic to fit the
+empty-map control would have hidden a scene mismatch.
+
+`verify_wc3_spawn_motion_trace.py` replays all original lifetimes and checks the
+initial/next/terminal state chains, range publication and predicted arrival
+against production C. Both complete captures share journey digest
+`c9bdf0f74634db0555f2625776af7d97d8838997999efd5a6f8c37c6a593bf96` and velocity digest
+`3c3033e448af26248d72c1b53d06e24a27afa0cdaaca034f87e55c4470d8e9f4`.
+The frozen fixture and strict negative tests execute at O0/O2. Ghidra's existing
+16fbd0 role retains this clear-route consumer finding; no new speculative ABI
+or layout is needed. Save71 and network layouts remain unchanged: the existing
+retained route/pose representation now receives the original movement decisions.
+
+
+Final payoff34 validation: the public spawn-to-Move regression passes1,686
+assertions, including all247 original commit rows and21 original saved
+continuation rows. Release and forced debug (`WC3_DEBUG_BUILD=1`) RoC/TFT each
+pass84,904 assertions in2,292 tests. Forced release production/test builds and
+`make BUILD=release test` pass. All159 Python checks pass, including twelve
+corrupt/incomplete lifetime variants at O0/O2; motion decisions are paired with
+their own mover, old-vector speed and following requested heading. The fresh
+three-entry producer corpus,246-entry/92-fixture inventory, ability audit,
+110/292 backlog count, relative file links and diff checks pass. Logs are indexed
+in `runtime/spawn-motion-validation-261001.json`. This strengthens ROUTE-01.3 and
+NUM-02.3's partial evidence without declaring the initial clock producer or full
+dynamic crowd replacement complete.
+
+## Public timer admission reaches Move from zero
+
+Payoff35 removes the supplied per-actor clock/phase from the eight public
+spawn-to-Move journey checks. The engine starts at primary clock0/phase0 and
+uses ordinary JASS TimerStart(0.1,true), RemoveUnit, CreateUnit and IssuePointOrder.
+The existing scene44-derived WPM clip and stock-shaped31-radius/270-speed row
+remain explicit test controls. Every one of247 committed clock, native position,
+velocity and facing rows matches the original journey fixture.
+
+Two engine bugs were reproduced. G_RunTimers subtracted100ms on every drain,
+although RunFrame now drains before each5ms primary advance and at publication.
+It now consumes actual elapsed simulation time once through a retained cursor.
+Within a shared primary quantum, the engine also ran authored timers before the movement
+owner. The captured original heap runs the owner first: births420/1620/2820
+see70/270/470 completed owner updates. Running a fresh mover immediately at its
+birth timestamp advanced three journeys one owner update early; changing that
+relative order removes398 word/count failures in the complete regression.
+
+Both new owned150-second traces use the unchanged map/source hashes. They
+contain6000 completed primary advances,1000 owner callbacks,300 scenario samples,
+eight public births and247 movement commits. Primary digest remains
+`c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae`;
+movement digest remains
+`c9bdf0f74634db0555f2625776af7d97d8838997999efd5a6f8c37c6a593bf96`.
+The strict phase checker validates admission inside the primary source, both
+position writes, owner counts and the phase sequence2/0/4/2/0/4/2/0.
+
+Save72 serializes the timer cursor normally with the restored server clock.
+Elapsed-time, repeated-drain, Pause/Resume, restart, destroy and callback-restart
+tests cover the changed timer paths. A save during the fractional public journey
+also resumes the authored timer and the later public actor lifetimes, matching76
+additional original commits. Debug RoC/TFT each pass87,244 assertions in2295 tests. Ghidra
+persists registered TimerStart216c70 and ScriptTimer_Start249ca0 with explicit
+stack/register ABIs; the existing primary source and timer-drain comments retain
+the new observed relative order. Total477 roles,31 layouts/178 fields,201
+prototypes and45 globals.
+
+This closes the ordinary scene's public admission producer. TimerStart still
+converts scalar timeout to integer milliseconds: general scalar heap deadlines,
+periodic rearm/zero-period policy, epoch handling and other producer profiles
+remain required. The test's explicit remainder parentheses avoid the engine's
+currently right-associated chained subtraction; full compiled expression grammar
+and its pathfinding consumers remain separate work.
+
+Validation: optimized RoC/TFT also each pass87,244 assertions in2295 tests;
+forced debug/release production builds and the ordinary `make test` umbrella
+pass. All160 pathfinding Python checks,249-entry/93-fixture inventory and the
+three fresh strict phase corpus reports pass. Ghidra readback reports the
+program saved with the four relevant roles/prototypes intact.
+
+## Public oblique Move retains the singleton group destination
+
+Payoff36 moves from supplied route phases to three ordinary public lifetimes:
+CreateUnit, SetUnitMoveSpeed and IssuePointOrder run through a periodic0.1s
+JASS timer, with engine clock/phase initially zero. The original stock-shaped
+Footman row has radius31, speed270, turn0.6 and propagation window60 degrees.
+Captured Misc bounds150..400 clamp the requested100 speed to150; the minimal
+fixture's startup1..522 bounds are not silently substituted.
+
+Scene45 starts actors at(-1936,-976),(-0.125,-0.125) and
+(-6000.125,-1500.25), at timer ticks1/101/201. Public placement's scalar
+cancellation is retained, including the near-zero(-0.25,-0.25) result. Two
+complete owned170-second captures agree on6000 primary advances,1000 owner
+updates, three births,684 movement decisions and689 velocity/pose/facing/clock
+commits. Births occur after20/2020/4020 advances, at phases2/4/0.
+A third read-only geometry capture preserves those same motion/primary words.
+The strict journey digest is
+`5724e6aad3914d60fe2b988fc61bbe4b84e117d8ccd2aa23a619147b9ac4c913`.
+
+The missing engine layer was the group-owned adaptive plan. Original16ce10
+requests it with5000 work, and1697a0 advances its ten-accelerator-unit selector
+before167d70 publishes the group destination.16a790 passes the selected member
+point at+18 into16fbd0; the member then builds its separate400-work adaptive
+and700-work fine paths. A single public order therefore contains these stages:
+
+| Journey | Group chain | First member destination | Natural zero commits |
+| --- | --- | --- | --- |
+| Baseline |4 points, selected index0|final174/91.5|commit205|
+| Near zero |9 points, selected index1|233.5/113.5, then238.99609375/122.0078125|commits159/232|
+| Large coordinates |6 points, selected index1|49.5/65.5, then61.48928125/69.984375|commits158/249|
+
+Move now retains that group chain separately from the member's adaptive/fine
+buffers. Intermediate arrival integrates the previous velocity, publishes
+zero, advances the group destination after the commit, and refills the member
+route on its next owner update. The issued final goal and user order remain
+active. Both intermediate stops require this actual handoff; continuously
+consuming the member's coarse points does not reproduce it. The three public
+journeys initially exposed1533 word/count failures. The resulting engine
+regression matches every original commit and repeats260 further original
+commits after saves during the large-coordinate first leg and immediately
+after its intermediate stop.
+
+Geometry is explicit. The first diagnostic near-zero source was isolated in a
+21-cell class1 terrain component, so its eight stationary commits and forced
+arrival do not certify a natural long trajectory. Scene45 opens a24×36-cell
+terrain corridor before starting the timer. Read-only1489a0 eligibility decoding
+shows32 scenery-blocked cells remain inside it; terrain edits cannot remove
+those object records. The regression supplies the observed terrain-plus-static
+walkability bitmap. Omitting that scenery changed the first heading and created
+a212-commit route in place of233. This proves the numerical/routing composition
+under supplied scene geometry; it does not close the original scene-loading,
+cell-link chronology or stale-hierarchy invalidation producers.
+
+Replacement orders clear the retained group plan. The existing item-approach
+regression caught an internal approach inheriting an older point destination;
+cleanup belongs to Move's normal progress reset. Save73 serializes group
+points/count/index/final native goal/radius, rebinds the rebuilt world epoch,
+rejects72 and older formats, and rejects malformed/truncated group tails.
+[The engine regression](../../../games/warcraft-3/game/tests/t_movement.c) and
+[observed words/geometry](../../../tools/ghidra/fixtures/retail-public-oblique-1.27.json)
+remain paired with the strict fresh corpus entry.
+
+This is ordinary singleton point movement. Shared multi-member group ownership,
+formation admission, all-member decision/commit phases, moving targets, general
+timer deadlines, other profiles and arbitrary map/scenery producers remain
+open. Ghidra persists478 roles and202 explicit prototypes, including the
+instruction-checked165e30 selector wrapper and live group/member destination
+annotations;31 layouts/178 fields and45 globals remain unchanged.
+
+Validation: optimized and forced debug RoC/TFT each pass104,227 assertions in
+2297 tests; forced release/debug production builds also pass. All162
+pathfinding Python checks and the253-entry/94-fixture inventory pass. Fresh
+`public-oblique-corpus-final-261001` passes all four requested entries,
+including the third geometry observer. Persistent Ghidra names/prototypes and
+saved program are read back in the paired runtime reports.
+
+
+## Public group point orders admit twelve members
+
+Payoff37 closes GROUP-01.3's public admission boundary. OpenRealm's name and
+Loc group point orders previously walked the entire mutable JASS group; the
+numeric forms always returned false. The new common dispatch snapshots at most
+12 insertion-order entries, rejects removed/reused identities and executes the
+ordinary order path. Numeric IDs resolve through the same order table; numeric
+building rawcodes use the existing construction dispatch. Null groups/locations
+and unrecognized orders return false. This changes no persistent layout or
+serialized state; payoff37 preserved the then-current Save73. Payoff38 below advances it to74.
+
+The scene46 map creates fourteen stock Footmen with mixed public speeds. At
+periodic ticks10/80/150/220 it calls name/ById/Loc/ByIdLoc respectively and
+queries every member's current order. Both complete owned captures show twelve
+Move orders and two untouched idle units on every call:48 admissions and eight
+exclusions. The callbacks first attach all twelve units to one nonnull CMoveReq,
+then validate/admit those twelve in the same order. Captured callerflags0 and
+resolved orderflags6 are retained; no numerical inference substitutes for the
+original native wrappers. The admission digest is
+`348c40f6e3e16f36b6601ad3bfbf89cc1e3dc5513a7f6ca596e876447aba7a81`.
+
+Reports under the standard report root:
+
+- `runtime/group-orders-live-first-261001.jsonl` and `group-orders-live-repeat-261001.jsonl`;
+- `runtime/group-point-admission-repeat-261001.json`;
+- `runtime/group-point-ghidra-types-261001.json`;
+- `group-point-corpus-261001/corpus-results.json`.
+
+`verify_wc3_group_point_trace.py` checks actual metadata/source/map hashes,
+complete scene markers, every normalized request/callback phase/scalar word,
+one shared request per call and every public member-order query. The frozen
+`retail-group-point-admission-1.27.json` is independently pinned by the corpus.
+Negative checks reject changed words, missing callbacks, different snapshot
+order, independent requests, provenance changes and over-limit admission.
+The engine test `group_point_order_forms_admit_twelve_members` reproduces the
+original over-limit bug before the fix and passes all four forms afterward.
+
+Ghidra now retains487 named roles,211 explicit prototypes,32 partial layouts,
+186 fields and45 globals. New names cover the four public wrappers, CGroup
+point producer, retained snapshot enumeration and its attach/admit callbacks.
+The44-byte point context describes only proven fields; unresolved bytes remain
+undefined. [Payoff38](#public-pair-movement-uses-a-shared-move-owner) subsequently integrates ordinary public shared movement; wider producer/eligibility/queue state remains GROUP-04.6. These captures hit the
+intentional10000 motion-row cap; only admission is certified, and the final
+30-second scene still has an active order. This is not arrival/trajectory
+parity evidence.
+
+Validation: release and forced debug RoC/TFT each pass104,228 assertions in
+2,298 tests. Both production builds,165 Python pathfinding tests, ability
+registration coverage,254-entry/95-fixture inventory and the fresh strict
+admission corpus and ordinary release umbrella pass.
+
+
+## Public pair movement uses a shared Move owner
+
+Payoff38 splits GROUP-04.10 from the larger04.6 task. A public point batch now
+reaches the registered order ability through `A_GROUP_POINT_ORDER` and a typed,
+generation-retaining request. `Amov` owns the Move/Smart order names. The JASS
+adapter snapshots twelve insertion-order entries; it contains no hardcoded
+movement IDs or movement-specific dispatch. Other point orders retain ordinary
+per-unit admission, including building rawcodes, spells, Patrol and Attack.
+Move/Smart still use that admission for validation, Smart rally behavior and
+issued-order events before accepted walkers join the physical owner.
+
+Move retains each group's separate5000-work route, public final goal, selected
+native point/heading and member rows. Members retain generation, native offsets
+and destinations, requested speed/heading, arrival flags and forced-arrival
+state. The owner stages every decision before publishing any velocity. Each
+decision uses its own speed; eligible commits use the group's minimum speed.
+Replacement/removal detaches members by generation with swap removal. Destroying
+the JASS collection does not cancel physical movement. Final completion removes
+members after commits; an intermediate shared point uses verified regrouping,
+resets member paths and refreshes formation before the next owner visit.
+Paused/stunned members retain their existing pause semantics; Walk/Stand clips
+follow the actual movement request.
+
+Scene47 creates two stock Footmen at `(-1936,-976)` and `(-1856,-976)`, facing
+north, sets public speeds100/350 (retail clamps100 to150), and issues one
+`GroupPointOrder("move",-1936,-720)` at periodic tick10. Two sequential owned
+captures contain60 complete group visits,113 decisions,115 commits (60/55),
+240 phase snapshots,6000 primary advances and601 public markers. Both units
+arrive naturally with order0; the slow member ends at its retained left slot,
+not the public group centre. The captures end normally without capped motion.
+
+The initial formation heading is selected group point minus previous group
+point, rather than the member mean. Initial native offsets are
+`[-2.937499761581421,1.367880031466484e-9]` and its inverse. The left assigned
+native destination `[160.5625,73.5]` is blocked; its fine search retains the
+nearest endpoint `[161.5,73.5]`. After the fast member finishes, the survivor
+keeps its original slot. Its final failed leg exercises retry2→1→4, a one-point
+nearest chain, zero speed while turning toward the exact assigned destination,
+and forced arrival on the following visit. These are runtime branch results,
+not hardcoded tick positions or expected-output shortcuts in production.
+
+The normal-frame engine regression starts clock/phase zero and uses public
+creation, speed setters, the timer and group order. RED had1537 word/count/order
+failures; the port matches all115 clock/position/velocity/facing commits.
+The compared retained ordinary group/member words (flags, age/counter, selected point,
+slots, destinations, requested speeds/headings and forced-arrival state) also
+agree before the next owner visit. That stronger comparison exposed a one-bit
+initial requested heading error hidden by velocity canonicalization: public
+creation used host degree conversion. `unit_create` now consumes the observed
+software multiplier `cd5444=3c8efa35`. Saves after commit30 and113 replay87
+further original commits exactly. Format74
+retains the physical registry through stable edict indices, generations and
+bounded finite route tails; earlier versions are rejected. Corrupt owner,
+member/reference/generation/duplicate and curve payloads fail visibly and free
+partial allocations, even when a mapped record contains serialized addresses.
+Network state and wire layouts are unchanged.
+
+The fixture supplies the already observed scene45 combined terrain/static
+geometry; the scene45 remote clear control does not intersect this route.
+Arbitrary scenery construction, selected/AI producers, queued group activation,
+all eligibility/shared-override bits, cooldown/target-speed policy, callback
+mutation during complete physical motion and general crowds remain04.6/MAP.
+Inter-group owner traversal and reused pool-slot ordering also remain unverified;
+the bounded pair owns only one physical group. The current cap accumulator
+uses zero as an unset sentinel; test whether a movement-disabled retained member
+can reach this path before certifying that admission domain. Public speed0 by
+itself is clamped to the configured minimum and does not prove a zero cap.
+Existing-actor
+`unit_createorfind` facing conversion is a separate producer and remains
+unverified. Ordinary Attack point dispatch still has a pre-existing stale
+`GetUnitCurrentOrder` result after Patrol; the ability-ownership regression checks
+the actual Attack procedure and waypoint, without granting that query parity.
+The long shared-route/pause engine regression checks lifecycle without granting
+an additional original trajectory claim.
+
+Artifacts under the standard report root:
+
+- `runtime/public-pair-live-first-261001.jsonl` and `public-pair-live-repeat-261001.jsonl`;
+- `runtime/public-pair-repeat-final-261001.json`;
+- `runtime/public-pair-source-261001/` retains the exact capture sources;
+- `runtime/public-pair-ghidra-{types,readback}-261001.json`;
+- `public-pair-corpus-261001/corpus-results.json`.
+
+`runtime/public-pair-repeat-startup-rejected-261001.jsonl` records an accidental
+controller overlap at startup. It is diagnostic only; both accepted captures
+ran to completion sequentially. The strict checker pins actual source/map and
+capture metadata, all sampled words, every normalized phase/member/pose word,
+all-member-before-commit order and natural final orders. It composes production
+scalar/velocity/clock arithmetic. The separate engine test proves routing and
+normal-frame integration; raw helper replay alone does not prove that.
+
+Frozen [pair words](../../../tools/ghidra/fixtures/retail-public-pair-1.27.json)
+and [engine trajectory](../../../games/warcraft-3/game/tests/retail_public_pair.h)
+are synchronized by Python checks. Ghidra retains489 roles,213 explicit
+prototypes,32 partial layouts/186 fields and45 globals. The newly typed
+`16c6d0` chooses a predicted native source member with strict ties; preferred
+path88.200000 and group200 bypass extensions remain explicitly unimplemented.
+Nine saved role/prototype/comment readbacks retain this payoff's evidence.
+
+
+Final payoff38 validation: forced release and forced debug with
+`WC3_DEBUG_BUILD=1` RoC/TFT each pass108,320 assertions in2,302 tests. The public
+pair regression passes3,957 assertions, including87 saved continuation commits;
+the separate long-route/pause lifecycle and fourteen malformed physical-group
+payload cases pass. Both production builds, the normal release repository suite,
+168 Python pathfinding tests, ability registration audit and255-entry/96-fixture
+inventory pass. Fresh strict pair replay and nine saved Ghidra readbacks pass.
+The validation index is `runtime/public-pair-validation-261001.json`.
+GROUP-04.10 closes; next runnable work remains GROUP-04.6's wider physical groups.
+
+
+## Twelve-member public group retains fine admission and committed occupancy
+
+Scene48 creates twelve stock Footmen in a4×3 arrangement with authored move
+speeds100/200/300 (the first clamps to150), then issues one public point group
+at timer tick10. Two corrected, independently owned retail captures repeat
+all7,035 canonical phase/motion records and3,601 public samples exactly.
+There are297 complete owner passes,1,941 decisions and1,953 velocity commits;
+per-member commit counts are297/138/190/102/135/126/88/243/158/111/160/205.
+All twelve public orders finish naturally, including retail partial-route
+forced arrivals; these final positions are not proof that every member reached
+the group centre.
+
+The strict fixture and verifier are
+`tools/ghidra/fixtures/retail-public-twelve-1.27.json` and
+`tools/frida/verify_wc3_public_twelve_trace.py`. The production arithmetic replay
+matches every captured commit and the6,000 primary advances/1,000 owner
+callbacks. Separately, the whole-engine regression
+`wc3_movement.periodic_public_twelve_members_match_retail` now matches all1,953
+seven-word member/clock/native-position/native-velocity/facing records through
+normal5ms server frames. Saves after the first12 commits (member11 queued) and
+commit1,260 (partial-route recovery) replay2,634 further original commits.
+Every member's public order ends at0 in each run. Frozen expectations were not
+changed to accommodate any engine mismatch.
+
+Production Move now consumes these original contracts:
+
+- `16e250` adjusts formation offsets using a separate30-attempt adaptive
+  distance query. `1627e0`/`163440` sum integer parent-edge lengths; this is not
+  A* cost divided by12. Query size is an exponent. Four classes/four lanes and
+  eight offsets on three supplied64-cell maps give384 exact original/C cases.
+- Eligible group members acquire temporary fine-object40000000 before all
+  decisions. Fine search suppresses these objects; endpoint queries retain
+  them. Fine occupancy uses peers' last committed native poses, while published
+  world positions may already contain predicted presentation samples.
+- Ordinary class0 fine requests share an1100-work FIFO. Equality admits a full
+  request; node pops charge the work, including the denied701st pop. Original
+  `167fa0` resets work on countdown0 and reloads1. The first eleven requests
+  charge1723 pops, leaving member11 queued for the next owner visit.
+- `157610` initializes the owner visit counter to0x400; `15aa80` increments once
+  per30ms owner update and reloads0x400 on unsigned wrap. `168910` requires ten
+  visits between searches. FIFO denial and cumulative work below64 clear the
+  fine request timestamp. These are owner visits, not elapsed milliseconds.
+- Empty next-step candidate vectors still call `168360`, clearing stale blocker
+  identity. Any nonempty admitted vector can trigger retry, including a
+  stationary peer. A self-yield retains the fine waypoint on acquisition;
+  later countdown visits retain the assigned destination.
+- Reached partial endpoints consume retry, clear fine count/index and defer
+  refill until the next owner visit. Refilling immediately shifted the request
+  timestamp by one visit and first diverged at commit1,263. Whole-leg dynamic
+  resampling and a second world-space slide search also changed original
+  headings; retained fine routes now own their next-step steering.
+
+Save75 persists owner counter, work/countdown, FIFO head/tail/count, intrusive
+member links and request timestamps through the ordinary DDX `F_EDICT` fixups.
+The real saved trajectory covers a pending queue and later recovery. Twelve
+invalid FIFO graphs fail visibly; old Save74 is rejected. Map teardown,
+replacement and unit reclamation clear links through Move. Spell approach and
+all-class tiny-cell detour regressions now advance normal server frames, so
+fine retry admission sees the real owner clock. This exposed the legacy stuck
+guard's one-world-unit progress floor: speed2 steps at30ms could not beat it
+within eight visits. The floor is now bounded by the actual step budget; the
+full original retry/task replacement remains required.
+
+The locked startup branch is also a production producer: original `29e300`
+seeds owner random with0x77617233 before `1e9dd0` resolves twelve race
+preferences. Four fixed Human/eight random preferences in this capture consume
+eight owner draws, producing4273436052/209508436 before path retries. The engine
+executes that preference loop; it does not burn a fixed number of draws or
+install the captured final state. Independent seed captures repeat this chain.
+Unlocked/lobby seed, the default lock-flag producer and canonical player
+payload78 remain NUM-04.5; this witness explicitly supplies the observed locked
+setup.
+
+The claim remains bounded to an ordinary class0 public twelve-member group and
+supplied scene terrain/static geometry. Other player classes and policy pools,
+selected/AI producers, queued physical activation, all eligibility/override
+bits, overlapping cell-link insertion order, arbitrary scenery/map construction,
+inter-group scheduling and general crowd scenarios remain open. Matching forced
+partial arrivals does not imply that all units reach the common centre.
+
+Artifacts under the standard report root:
+
+- `runtime/public-twelve-fixed-{first,repeat}-261001.jsonl`, immutable sources
+  `runtime/public-twelve-source-261001/`, and `public-twelve-arithmetic-261001.json`;
+- `runtime/public-twelve-seed-{first,repeat}-261001.jsonl` and
+  `public-twelve-startup-evidence-261001.json`;
+- `runtime/public-twelve-step-{first,repeat}-261002.jsonl` and
+  `public-twelve-step-evidence-261002.json`: a read-only `16fbd0` route-step hook
+  repeats all1,953 inputs/results and7,035 canonical rows. Extra trailing clock
+  samples from capture duration are outside this separate step witness; the
+  fixed capture's strict6,000-primary-advance contract is unchanged;
+- `runtime/formation-adjust-engine-size-261002.json` and fresh
+  `runtime/public-twelve-strict-fixed-261002/corpus-results.json`;
+- `runtime/public-twelve-types-final-261002.json` and
+  `public-twelve-ghidra-readback-261002.json`:493 persisted roles,35 partial
+  layouts/201 fields,220 explicit x86 prototypes and45 globals, including11
+  saved role/prototype/comment readbacks for this payoff.
+
+The first strict formation runner attempt passed the twelve-member replay but
+rejected an incorrect `--engine-library` argument; the actual refill tool uses
+`--engine`. Its failed directory is retained separately; only the fresh fixed
+runner's two verified outcomes certify this change.
+
+The corrected scene excludes the inherited tick10 singleton order. Its first
+attempt accidentally issued that order too, replacing member0 and creating
+two physical groups; that capture is retained as
+`runtime/public-twelve-mixed-order-diagnostic-261001.jsonl` with a separately
+pinned source archive and is excluded from the parity fixture.
+
+Final payoff39 validation: forced release and forced debug with
+`WC3_DEBUG_BUILD=1` RoC/TFT each pass172,645 assertions in2,305 tests. Both
+production builds, the normal repository suite,172 Python pathfinding tests,
+ability registration audit and257-entry/98-fixture corpus inventory pass.
+Fresh strict twelve-member and formation-distance outcomes pass. Eleven saved
+Ghidra role/prototype/comment readbacks and all35 layouts/201 fields/220 explicit
+prototypes pass. Test fixture declarations were moved before test functions;
+the subsequent release RoC/TFT matrix retains the same exact result.
+The validation index is `runtime/public-twelve-validation-261002.json`.
+GROUP-04.11 closes. Next runnable work is SCHED-03/04: partition the ordinary
+fine admission FIFO/work by player class and preserve class changes/reclamation;
+GROUP-04.6 retains the wider physical group requirements.
+
+
+## Ordinary fine search belongs to the unit player
+
+Payoff40 ports the original sixteen player rows to the ordinary fine-search
+consumer. Player0 exhaustion no longer holds Player1 requests in a global FIFO.
+Each row retains work, reset countdown, head, tail and count. Move charges the
+row selected at admission and applies the original cumulative-work<64 timestamp
+clear there. Reclassification unlinks using the retained old class before
+publishing the new class. Other three policy pools remain SCHED-03/04.
+
+`G_SetUnitPlayer` sends generic `A_UNIT_OWNER_CHANGING` before publishing the new
+player and `A_UNIT_OWNER_CHANGED` afterward. Move owns ordinary order
+cancellation in the first message and class/repulsion publication in the second.
+This follows native `215500 -> 698ce0`, cancellation at `698d92`, and mover bridge
+`05c800 -> 168a80`; it does not put movement rules in the owner/food dispatcher.
+Callbacks during cancellation see the old owner. Same-owner writes remain no-ops.
+
+Two new independently owned `owner_change` scene9 captures use the original
+Human02Interlude map with only its script replaced. Immutable observer sources
+are `runtime/owner-class-stop-source-261002/`; captures are
+`runtime/owner-class-stop-{first,repeat}-261002.jsonl`. Read-only Stop observation
+adds native before/after pose/velocity/request words without calling target code.
+All365 lifecycle rows repeat exactly, including17 motion commits, two synchronous
+ownership Stops, class0 to1 and306 public markers through tick300. Stop preserves
+committed fineXY/facing/cap and clears velocity/requested words. The frozen fixture
+is `tools/ghidra/fixtures/retail-owner-change-1.27.json`; digest is
+`9e172f97f6fe4d2d0253fbea04fda6ab47b298f68f6e14cbd54260dd21a40cd2`.
+Trailing clock observers are complete but grant no new clock-parity claim.
+
+The normal-frame engine regression starts at clock zero, creates the supplied
+stock Footman movement profile, issues its point Move at timer tick10 and changes
+owner at tick15. It compares16 directly observable motion commits and the exact
+final Stop clock/nativeXY/native velocity/facing words. The seventeenth commit
+and synchronous Stop share the1500ms server frame, so the frame exposes final
+Stop state; original arithmetic replay separately checks every one of17 commits.
+Saved continuations immediately before and after that frame retain cancellation
+and the stationary final state through30 seconds. Static base-map geometry and
+movement profile are explicit supplied fixtures; arbitrary scenery and other
+ability ownership remain open.
+
+Engine tests additionally cover every240 different-player transition, pending
+middle/head removals for all16 rows, same-owner no-ops, actual local-route
+admission/charging under independent exhaustion, and two pending requests in
+every row through a real save/load. Save76 writes the sixteen recursive bucket
+records, relocated edict links and each request's old class. Validation rejects
+cross-row links, duplicate membership, wrong ownership/class, cycles, invalid
+pointers/countdowns and disconnected tags. Earlier save layouts are rejected;
+JSVM and network contracts are unchanged.
+
+Fresh `runtime/owner-class-strict-261002/` passes the new live lifecycle contract
+and the unchanged complete scheduler oracle:64 initialized buckets,448 policy
+selections,1280 cadence checks,16384 FIFO operations,162 intervals,1024 queued
+class changes and256 target-policy changes. Only ordinary fine queues have
+production parity here. Ghidra now retains497 roles,35 layouts/201 fields and223
+explicit prototypes; five saved owner/class roles read back in
+`runtime/owner-class-ghidra-readback-261002.json`. No p-code was needed.
+
+Final payoff40 validation: debug (`WC3_DEBUG_BUILD=1`) and forced release RoC/TFT
+each pass189,902 assertions in2313 tests. Production debug/release builds, the
+normal repository suite,175 Python pathfinding tests, ability registration audit
+and258-entry/99-fixture inventory pass. Strict fresh scheduler/live contracts
+pass. SCHED-03.4 closes; the original wider scheduling/traversal leaves remain
+open. The validation index is `runtime/owner-class-validation-261002.json`.
+
+
+## Selected ground Move uses the shared physical owner
+
+Payoff41 connects ordinary selected-unit Move, including the existing SmartPoint
+movement handoff, to the retained Move-owned group. Previously selection assigned
+matching IDs to independent walkers; the new failing regression found no physical
+group. For two through twelve unqueued ground candidates with the same static
+pathing mask, `move_selectlocation` snapshots unit generations and delegates a
+named Move request through generic ability order admission. Move owns the routes,
+formation slots, all-member decisions, commits and cleanup. Shift, air/mixed
+masks and larger selections retain their explicitly marked existing path pending
+recovery of those producers; this bounded port does not certify their fidelity.
+
+The new selected pair also consumes the unchanged public-pair fixture:115 exact
+normal-frame commits and87 saved continuation commits. Two independently owned
+original scene49 captures then exercise the actual player producer. The map keeps
+the original Human02Interlude bytes except its script, enables its local Player3,
+creates/selects two stock Footmen and waits for external Move input. The Frida
+observer remains read-only. `wc3_ui_input.c`, built with native `winegcc`, uses
+Win32 `SendInput` after requiring one visible Warcraft window belonging to the
+controller-owned PID and verifying foreground ownership. The controller hashes
+the reviewed C source, wrapper and linked Winelib library along with its observer
+and map sources. X11 keyboard input opens Move targeting; diagnostic X11 mouse
+attempts failed to publish an order and remain outside accepted evidence.
+
+Live `6b9f70` receives player3, packet flags8, order851986 and the exact native
+point words `c4f0f91c/c3ea6970`. It allocates ground/air requests, attaches both
+candidates through `6b8c10` before either `6ba800` admission, then sorts its
+nine-word rows and publishes both orders through `6b93a0`. Both members retain
+one ground request. `89caf0(false)` clears the three extended formation flags;
+the enabled-policy/physical-flag mapping remains open. The observed member order
+is the supplied ordinary selection witness, not a claim about every selection
+priority or callback mutation.
+
+Each clicked lifetime has117 decision/commit owner visits,228 commits
+(member counts117/111),226 scalar decisions and two natural order completions.
+Both repeat every fine position, velocity and facing word; relative-motion digest
+is `7e6be9b93f5e75f25f58573e0b77830658317507bc3b9a1eba6e4756b250a685`.
+Absolute input clocks differ, so the frozen cases retain each separately. Normal
+engine frames start at clock zero, create the supplied movement profile and
+static scene, then issue selected Move at each observed admission clock. All456
+clock/position/velocity/facing commits agree without replaying native decisions.
+Saves after commit80 and224 reproduce304 additional suffix commits, preserving
+Player3 fine ownership and the physical member lifecycle. This is deterministic
+simulation with supplied input timing; external wall-clock input timing is not
+claimed deterministic. Scene construction remains an explicit fixture boundary.
+
+Formation tests retain the original frozen layout words through the queued
+producer. Physical destinations follow the current shared coarse point/heading;
+the normal-frame save regression checks their exact continuation. Speed and
+status tests now check the separate physical commit cap. The status scene was
+also corrected to contain both members and the destination inside its route grid
+and to supply the recovered Footman turn/window profile; its single-unit and
+fresh-cohort branches separately check application, actual movement and expiry.
+No tolerance was widened.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-point-final-source-261002/`, including the input helper;
+- `runtime/selected-point-final-{first,repeat}-261002.jsonl`;
+- `runtime/selected-point-strict-final-261002/corpus-results.json`, which reruns selected
+  input, public pair, twelve-member group and owner-change contracts freshly;
+- `runtime/selected-point-types-final-261002.json` and
+  `runtime/selected-point-ghidra-readback-saved-261002.json`:507 saved function roles,
+  38 partial layouts/218 fields and230 verified x86 prototypes; ten new producer
+  roles retain comments and native xrefs. No p-code was needed.
+
+The frozen input/phase hashes and motion rows live in
+`tools/ghidra/fixtures/retail-selected-point-1.27.json`; the strict checker also
+verifies the generated engine header. GROUP-04.12 explicitly splits this ordinary
+selection producer from04.6. Queue activation, air/mixed lanes, wider selection
+priority, callbacks, enabled formation options, AI producers and arbitrary scene
+construction remain required. Next runnable work is GROUP-04.6/ORDER: recover
+Shift activation and retain physical ownership through queued point orders.
+
+Final payoff41 validation: debug (`WC3_DEBUG_BUILD=1`) and forced release RoC/TFT
+each pass200,146 assertions in2316 tests. Production debug/release builds, the
+normal repository suite,179 Python pathfinding tests, ability registration audit
+and259-entry/100-fixture inventory pass. All four strict fresh live contracts
+pass. Save version76 is unchanged. GROUP-04.12 closes; the ledger retains118
+completed tasks and186 open tasks after explicit splits. The validation index
+is `runtime/selected-point-validation-261002.json`.
+
+
+## Selected Shift Move retains request ownership through staggered arrival
+
+Payoff42 ports the first selected ground Shift Move behind an active shared
+cohort. Move now queues the common destination with one new request identity,
+keeping the current physical group and order intact. Each member activates its
+queued request only when its preceding leg completes. It first creates a
+singleton; a later member with the same request, destination and movement mask
+rebuilds a fresh cohort with the activating member first. Generation-retaining
+member rows, the default truncated fine-distance40 admission and separate
+all-member decisions/commits remain Move-owned. The ranked-formation regression retains its frozen world-point expectations
+for independent current orders; its active-cohort branch now asserts the native
+common point and shared new request identity instead of legacy per-unit offsets.
+No numerical tolerance changes. The owner visits newer groups
+first and freezes each pass's initial extent, so callback-created owners wait
+until the next pass. Generic queue dispatch carries an owner-interpreted context
+and delegates activation through the ability procedure.
+
+Two complete owned scene50 captures use external Win32 Shift input and read-only
+Frida instrumentation. The original Human02Interlude bytes are retained except
+its script. The public timer issues the first pair Move at1 second; actual
+selected player3 packet9 appends the common point without replacing either
+current order. Both movers retain the new request in Unit240/244. The first
+neighbor search returns no active match; the second returns the first mover's
+new wrapper. Four callback candidates contain exactly one accepted nonself
+match. `89c890/169620/16bdb0/16b7b0` distinguish canonical request candidates,
+ready slots and active physical members; attachment alone does not activate a
+member. The first peer finishes at6.479768, its singleton ticks at6.509766 before
+the old main member finishes, and the rebuilt pair first ticks at6.539764.
+
+Both journeys repeat every one of510 absolute clock/fine-position/velocity/facing
+commits (250 main,260 peer),506 scalar decisions, four natural arrivals and261
+owner passes. The three physical cohorts visit184,1 and76 times. Their common
+motion digest is `a8020af581b9aa7fa0d83d1474baffae9e2ae9d73166306c3e6ededc32f03c14`.
+The input clocks differ while the motion repeats exactly. A boundary input in
+the first capture arrives after primary clock advance but before the due owner
+counter increment; the engine test delivers that input through the ordinary
+pose-publication import callback. It does not advance clocks or replay native
+movement decisions. Both original clock and owner counter are asserted exactly.
+Normal engine frames reproduce all1020 commits, with684 saved suffix commits
+from saves before activation and immediately after cohort rebuilding.
+
+Save78 records queued request contexts and physical group request identities.
+The upstream merge's Save77 already combines retained player fine queues with
+Stop guards and per-player disabled abilities; their behavior and serialization
+remain present. New ability flags use separate symbolic bits, and queued Move
+activation retains the upstream accepted-order cleanup hook. Earlier layouts
+are explicitly rejected.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-queued-final-source-261002/`, with immutable observer,
+  controller, script, map tool and reviewed Winelib Shift helper;
+- `runtime/selected-queued-final-{first,repeat}-261002.jsonl`;
+- `runtime/selected-queued-strict-confirmed-261002/corpus-results.json`, freshly
+  rerunning queued selection, ordinary selection, public pair, twelve-member
+  movement and owner-change contracts;
+- `runtime/selected-queued-types-final-261002.json` and
+  `runtime/selected-queued-ghidra-readback-final-saved-261002.json`:521 saved roles,
+  42 partial layouts/261 fields and244 instruction-established x86 prototypes.
+  Fourteen new roles retain comments and native xrefs. No p-code was needed.
+
+`retail-selected-queued-1.27.json` freezes every phase/request hash, neighbor
+record, owner order and motion word. The checker verifies the engine header,
+complete provenance, numerical decisions and natural order cleanup. Five
+asset-free tests reject neighbor identity, category, destination, wrapper,
+self-match, accepted-result and missing-search mutations.
+
+GROUP-04.13 explicitly splits this active-cohort first-Shift port from04.6.
+Idle or mixed current groups, additional queued requests, other movement masks,
+larger selections, wider spatial neighbor predicates, preferred-path/range90/
+bypass policies, callback mutation and arbitrary scene construction remain
+required. Next runnable work is04.6's additional/idle/mixed queued producers.
+
+
+Final payoff42 validation: debug (`WC3_DEBUG_BUILD=1`, `wc3_*`) RoC/TFT each
+pass213,974 assertions in2323 tests. The forced release production/test build
+and normal repository suite pass; its all-test RoC/TFT runs each pass214,407
+assertions in2360 tests, including the additional generic/client tests. All184
+Python pathfinding tests, ability audit,260-entry/101-fixture inventory and five
+fresh strict contracts pass. The Ghidra readback verifies fourteen new roles
+and two updated player-producer roles after saving. GROUP-04.13 closes; Save78
+and119 completed/186 open backlog leaves are synchronized. General inter-group
+ordering after physical slot reuse remains separate scheduling work. The
+validation index is `runtime/selected-queued-validation-261002.json`.
+
+
+## Selected idle Shift starts the shared physical owner immediately
+
+Payoff43 extends ordinary selected ground movement to Shift input when every
+selected candidate has no active order or pending entries. The Move batch then
+starts the physical owner immediately. An active shared cohort still follows
+payoff42's deferred common-point request path; mixed/additional queued producers
+remain explicit work. Previously the idle Shift path resolved per-unit slots and
+started independent walkers. The native-word regression failed40 assertions
+before the dispatch correction. Its completed comparison now matches456
+clock/fine-position/velocity/facing commits and304 saved suffix commits through
+normal engine frames and both natural order completions.
+
+Two independent owned captures reuse the original scene49 script/map and send
+actual native Win32 Shift input. Both player3 packet9 producers attach both
+candidates before admission and publish one shared physical pair. Native
+`693490` appends each empty current head (count0 to1); when the internal task
+identity is unresolved it immediately dispatches `67abe0`. With an existing
+internal task it instead publishes `d02a5`. Assembly retains ECX Unit and the
+stack4 order pointer, both returns `RET4`; decompilation alone misattributes the
+identity-setter receivers. The native signed count>500 and Unit5c bit100 gates
+remain documented; the engine's pending ring cap16 remains an explicit bound,
+not a claim about that original limit or the wider rejection/event graph.
+
+Each lifetime has228 exact commits,226 scalar decisions,117 decision/commit
+owner visits and two natural arrivals. Both repeat all absolute motion words;
+relative digest is `1d3d1cccace13249fc2739dd761c6548dc1ab22afd7c12152440591974241703`.
+The supplied input occurs near5 seconds. Low position bits differ from payoff41's
+later unqueued input because software clock subtraction depends on exponent;
+these words are retained separately. No tolerance or clock assertion is widened.
+The existing selected-input engine setup is reused with explicit fixture tables
+and the Shift flag; saved continuations retain Player3 ownership and membership.
+Save78 is unchanged.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-idle-shift-source-261002/` and the two complete
+  `runtime/selected-idle-shift-{first,repeat}-261002.jsonl` captures;
+- `runtime/selected-idle-shift-strict-final-261002/corpus-results.json`, freshly
+  rerunning idle Shift, active Shift, ordinary selection, public pair,
+  twelve-member movement and owner-change contracts;
+- `runtime/selected-idle-shift-types-final-261002.json` and
+  `runtime/selected-idle-shift-ghidra-readback-saved-261002.json`:522 saved roles,
+  42 partial layouts/262 verified fields and245 explicit x86 prototypes. The
+  append role, ABI and rejection flag are persisted alongside both updated
+  player-producer comments and their xrefs. No p-code was needed.
+
+`retail-selected-idle-shift-1.27.json` pins input provenance, producer/phase
+records, empty-head admission and every motion word. The same strict selected
+checker verifies the distinct packet policy and rejects absent Shift or nonempty
+current heads. Five new asset-free tests preserve the independent captures,
+input-clock rounding distinction and exact generated engine header. GROUP-04.14
+explicitly splits this idle producer from04.6. Next runnable work is additional
+queued requests and mixed active/idle cohorts; wider movement masks, rejection
+policies, callbacks and arbitrary scene construction remain required.
+
+
+Final payoff43 validation: debug (`WC3_DEBUG_BUILD=1`, `wc3_*`) RoC/TFT each
+pass220,116 assertions in2324 tests. Forced release production/test builds and
+the normal repository suite pass; all-test RoC/TFT each pass220,549 assertions
+in2361 tests. All189 Python pathfinding tests, ability audit,261-entry/102-fixture
+inventory, six strict fresh contracts and saved Ghidra readbacks pass. Save78 is
+unchanged. GROUP-04.14 closes;120 completed/186 open backlog leaves are retained.
+The validation index is `runtime/selected-idle-shift-validation-261002.json`.
+
+
+## Two pending Shift moves retain submission history and physical generations
+
+Payoff44 extends selected ground Move to two pending Shift point requests behind
+one active physical cohort. The engine keeps each FIFO entry's owner context,
+but cohort acquisition compares the units' latest submitted request history.
+Submitting another common Move changes that history before issued-order
+publication; activating an older queued entry does not overwrite it. Request
+identity allocation excludes retained history as well as active owners and
+pending entries. Mixed active/idle selections and other producer lanes remain
+separate work.
+
+Two independent native Win32/read-only scene50 captures append current counts
+1 to2 to3 without replacing either current head. Their input clocks differ,
+but all555 absolute clock/fine-position/velocity/facing commits repeat exactly.
+There are549 scalar decisions, six natural arrivals and295 owner passes per
+capture, across five physical cohorts with184/1/76/10/24 passes. All four native
+previous-request searches retain the SECOND submitted ground canonical identity
+`[1305,1331]`, including the two searches that activate the FIRST queued goal.
+Their results are0/1/0/1. Assembly `6b94e3/6b94ec` writes Unit240/244 before
+`693490` appends the order at `6b9545`. Native rejection-side history and the full
+queue-limit/event graph remain open; the engine pending ring remains bounded16.
+
+The full journey also exposes two physical lifecycle errors. Freezing only the
+slot-array extent lets a newly created owner reuse a lower slot and run again
+in its creation tick. Move now freezes owner pointers plus64-bit creation
+sequences, visits newest cohorts first, and excludes replaced generations.
+Second, `16de50` selects and predicts its source during cohort creation and
+stores the formation origin at group54/58 (`16ded2/dedd`). Deferring that seed
+until the next owner pass changes low destination/velocity/heading bits when
+the reused cohort includes a moving singleton. Move now retains the creation
+origin. These fixes preserve the original phase boundary and numerical words.
+
+Normal frames match1110 native commits and864 saved suffix commits. The shared
+input adapter delivers recorded selection, Shift and both points at exact
+primary-clock/owner-counter boundaries through ordinary pose publication. One
+save precedes the later external click; the adapter uses player3's actual client
+slot and restores those external input controls after load. The other save
+follows the first cohort rebuild. No clock is advanced manually, no owner or
+retail decision is replayed, and no comparison tolerance is widened. The old
+additional-queue path fails six assertions; correcting history then exposes the
+owner-generation and creation-origin failures before the complete comparison
+passes.
+
+Save79 retains latest submitted unit history, physical creation sequences and
+the next sequence alongside Save78's queued contexts and group request records.
+Zero, duplicate and out-of-range saved owner sequences are rejected. Prior
+layouts including78 are rejected explicitly; upstream Stop and disabled-ability
+contracts remain present.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-double-shift-buffered-source-261002/`, immutable controller,
+  observer, scenario/map sources and reviewed native Move/Shift input helper;
+- `runtime/selected-double-shift-light-{first,repeat}-261002.jsonl`;
+- `runtime/selected-double-queued-strict-final-261002/corpus-results.json`, seven
+  fresh contracts covering this journey, first Shift, idle Shift, ordinary
+  selection, public pair/twelve and owner changes;
+- `runtime/selected-double-queued-types-final-saved-261002.json` and
+  `runtime/selected-double-queued-ghidra-readback-saved-261002.json`:522 saved
+  roles,42 partial layouts/262 fields/245 explicit x86 prototypes. Six roles,
+  their signatures/native xrefs and two refined fields are read back after save.
+  New field evidence appends to existing annotations; layouts stay unchanged.
+  No p-code was needed.
+
+The controller buffers every JSON record and uses observed sample ticks for
+input deadlines. Separate bulk clock events are explicitly disabled for these
+captures because transport backlog delayed the second click past activation.
+Every producer and movement clock remains frozen; previous clock-kernel
+contracts remain in the corpus. Earlier loading/timing attempts are diagnostic
+captures outside this accepted two-pending-request contract.
+
+`retail-selected-double-queued-1.27.json` and the generated engine header retain
+all words, request/member/phase hashes, five-cohort visit order and input
+provenance. Five additional asset-free tests reject old history, wrong goals,
+categories, self-matches, accepted results and missing searches. GROUP-04.15
+explicitly splits this port from04.6. Mixed active/idle or unrelated current
+orders, other masks, larger selections, broader neighbor/preferred/range90
+policies, callbacks, rejection-side history and arbitrary scene construction
+remain required.
+
+
+Final payoff44 validation: debug (`WC3_DEBUG_BUILD=1`, `wc3_*`) RoC/TFT each
+pass236,027 assertions in2325 tests. Forced release production/test builds and
+the normal repository suite pass; all-test RoC/TFT each pass236,460 assertions
+in2362 tests. All194 Python pathfinding tests, ability audit,262-entry/103-fixture
+inventory, seven fresh strict contracts and saved Ghidra readbacks pass. Save79
+and GROUP-04.15 are synchronized;121 completed/186 open backlog leaves remain.
+The validation index is `runtime/selected-double-queued-validation-261002.json`.
+Next runnable work is04.6's mixed active/idle and unrelated-current-order producers.
+
+## Mixed active and idle Shift share one submitted request
+
+Payoff45 extends selected ground Move admission to heterogeneous current state.
+`move_queue_group_point` appends the same destination/context to each eligible
+unit, records latest submission history, and starts an idle unit through the
+ordinary FIFO activation hook before issued-order publication. An active unit
+keeps its current head. Selection no longer requires all current physical owners
+to match. Formation destinations are assigned at physical activation, not when
+queuing the common point. Move owns these changes; the universal client is unchanged.
+
+Four complete original scene51 captures use reviewed native Win32 Move/Shift
+input and a read-only observer. Two early clicks give361 commits each: the idle
+peer finishes before the original mover, and the later cohort search returns0.
+Two later clicks give418 and370 commits: the still-moving peer joins the later
+cohort, and its search returns1. All1510 absolute clock, fine-position, velocity
+and facing commits match ordinary engine frames;1498 scalar decisions, twelve
+arrivals and1365 owner visits are retained. Input clocks differ and the four
+motion tables remain separate; no cross-input numerical equality is claimed.
+Save79 reproduces1020 suffix commits across saves at commit200 and300.
+
+The adapter samples recorded movement clocks because order admission also
+publishes a pose. It still advances only ordinary5ms frames and supplies input
+through the normal pose-publication boundary. No owner, clock advancement or
+retail decision is replayed. Earlier shared/idle/two-pending input regressions
+remain exact. The older queued-formation test now checks common points and
+request history while retaining physical formation and saved continuation checks.
+The broad suite exposed a scene-adapter lifetime bug: resetting entities did
+not retire periodic timers before replacing the JASS VM. The adapter now destroys
+its scene timers at boundaries; production timer semantics are unchanged. The
+failed run and debugger backtrace are retained as diagnostic artifacts.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-mixed-shift-source-261002/`: immutable scenario, observer,
+  controller, map and reviewed native input helper;
+- `runtime/selected-mixed-shift-complete-{first,repeat}-261002.jsonl`;
+- `runtime/selected-mixed-shift-late-first-261002.jsonl` and
+  `runtime/selected-mixed-shift-late-confirmed-repeat-261002.jsonl`;
+- `runtime/selected-mixed-shift-strict-final-261002/corpus-results.json`: eight
+  fresh contracts, including all four mixed journeys and prior input/owner cases;
+- `runtime/selected-mixed-shift-types-final-261002.json` and
+  `runtime/selected-mixed-shift-ghidra-readback-saved-261002.json`:522 saved
+  roles,42 partial layouts,262 fields and245 explicit x86 prototypes. Four
+  heterogeneous-admission roles, signatures and native xrefs are read back.
+
+One earlier capture lacks a valid trace-end and remains diagnostic. Another
+late click hit the moving unit: its packet carries target identity[1108,1108],
+so it is target Move evidence outside this ground-point contract. The strict
+checker requires target[-1,-1] and rejects that substitution. It also rejects
+non-Shift input, replacement of an active head, failure to start an idle unit,
+wrong previous-request matching, self-candidates and incorrect join results.
+
+`retail-selected-mixed-1.27.json` and `retail_selected_mixed.h` retain all four
+journeys and provenance. Full unrelated-current-order, rejection/callback,
+other-mask/air/larger-selection and arbitrary-scene contracts remain open.
+
+
+Final payoff45 validation: debug RoC/TFT each pass256,436 assertions in2326
+tests. Forced release production/test builds and the normal repository suite
+pass; all-test RoC/TFT each pass256,869 assertions in2363 tests. All199 Python
+pathfinding tests, ability audit,263-entry/104-fixture inventory, eight fresh
+strict contracts and saved Ghidra readbacks pass. GROUP-04.16 closes with Save79
+unchanged;122 completed/186 open backlog leaves remain. The validation index is
+`runtime/selected-mixed-shift-validation-261002.json`. Next runnable work is
+04.6's independent active owners, then its wider producer/eligibility contracts.
+
+## Independent active owners accept the same pending ground request
+
+Payoff46 strengthens GROUP-04.16 without adding another backlog leaf. Original
+scene52 starts two singleton JASS point groups toward distinct destinations,
+then submits one native selected ground Shift. Both distinct active heads are
+preserved1 to2. At counter1240, the peer creates a new cohort (search0), then
+the other unit joins it (search1). Common pending admission does not require
+matching current physical group IDs. This confirms the production admission
+change from payoff45 across independent active owners.
+
+Two complete owned/read-only captures repeat all511 absolute motion commits
+exactly:507 scalar decisions, four natural arrivals and440 physical owner passes
+per capture. The existing engine implementation matches1022 normal-frame
+commits and844 saved suffix commits at commit200/400, using Save79 unchanged.
+The adapter retains entity creation order; normalized member0 is the peer,
+because its newer singleton is the first native physical owner. It does not
+change owner order or replay movement decisions.
+
+The mixed-input checker is reused with an explicit independent-head policy.
+It requires two distinct nonempty preserved heads, null-target ground Shift,
+and the original0/1 cohort search with matching submitted histories. Four
+additional asset-free tests reject replacement, duplicate heads, changed
+counts, mismatched history and self-matches; every header word is checked.
+Source/capture hashes, all request/phase records and both identical motion
+tables are frozen in `retail-selected-independent-1.27.json`.
+
+Accepted artifacts under the standard report root:
+
+- `runtime/selected-independent-shift-source-261002/` and
+  `runtime/selected-independent-shift-{first,repeat}-261002.jsonl`;
+- `runtime/selected-independent-shift-strict-final-261002/corpus-results.json`,
+  nine fresh selected/public/owner contracts;
+- `runtime/selected-independent-shift-types-final-261002.json` and
+  `runtime/selected-independent-shift-ghidra-readback-saved-261002.json`, four
+  saved scene52 roles/signatures/xrefs;522 roles,42 layouts,262 verified fields
+  and245 explicit x86 prototypes remain unchanged. No p-code was needed.
+
+Current combat/work/cast heads, rejection/callback/limit graphs, mixed masks,
+air/larger selections, repeated identical-goal policy and arbitrary scene
+construction remain required. This bounded point-group composition does not
+close GROUP-04.6 or certify those other current-order families.
+
+Final payoff46 validation: debug RoC/TFT each pass271,444 assertions in2327
+ tests. Forced release production/test builds and the normal repository suite
+pass; all-test RoC/TFT each pass271,877 assertions in2364 tests. All203 Python
+pathfinding tests, ability audit,264-entry/105-fixture inventory, nine fresh
+strict contracts and saved Ghidra readbacks pass. GROUP-04.16 is strengthened;
+no new task is added, and122 completed/186 open leaves remain. Save79 is unchanged.
+The validation index is `runtime/selected-independent-shift-validation-261002.json`.
+Next runnable work is TARGET-02.1 moving-target refresh and numerical pursuit,
+with a live target-speed transition; wider GROUP-04.6 contracts remain required.
+
+
+## Smart Follow tracks a moving target through a speed change
+
+Payoff47 splits the bounded ground-unit producer from TARGET-02.1 into
+TARGET-02.4. Original scene53 creates two friendly Footmen, issues public Smart
+at tick10, starts the target's point Move at80, changes its speed at85, and
+explicitly Stops the follower at300. Two independently owned, read-only Frida
+captures contain the same1015 absolute position/velocity/facing/clock commits:
+106 initial approach owner visits,861 persistent Follow visits and48 target
+point-Move visits. The Smart user head survives the internal approach arrival.
+The final Stop is authored input; this is not natural Follow order completion.
+
+Move now owns the physical target cohorts, per-member arrival range, generation
+checks, cached target destination and countdown. Normal engine frames match all
+1015 commits without injecting native decisions or owner clocks. Save80 loads
+at commits50/150/250 reproduce2595 suffix commits, including later ordinary
+JASS point/speed/Stop callbacks. Structures and flight retain their existing
+explicitly marked traversal pending the corresponding native producer evidence.
+
+Two recovered policies have direct engine payoff. Target arrival is
+`max(.49,(FollowRange+followerRadius+targetRadius)/32)` in fine coordinates:
+scene53 publishes11.3125, or362 world units. Countdown reload uses the first
+member's committed pose and cached destination, software scalar distance times
+0.33 plus0.5, wrapped integer conversion, then clamps16..132 (flag400 adds165).
+Destination replacement compares `floor(fine)>>1`: sampled target motion within
+that bucket retains the old destination. Unconditional replacement originally
+failed at commit341; retaining the bucket restores the entire journey. The
+captured destination-delay timestamps are zero. Their wider delayed-change
+producers remain TARGET-02.1 rather than being claimed by this witness.
+
+The broad suite exposed a retired timer callback lifetime bug. Destroy stopped
+the timer but retained a pointer into a freed VM program when the next scene
+replaced that program. Save/load serializes retired allocated timer slots;
+GDB with the standard JUnit environment found an invalid serialized handler.
+`G_TimerDestroy` now clears the callback while cancelling its generation. The
+loader also names an unresolved function field instead of only reporting a
+level-state failure. The failing standard-run and GDB reports remain diagnostic
+artifacts; passing reruns alone were not treated as proof.
+
+Accepted capture/provenance inputs live under the standard report root:
+
+- `runtime/follow-velocity-complete-source-261002/` and
+  `runtime/follow-velocity-complete-{first,repeat}-261002.jsonl`;
+- `runtime/follow-velocity-types-final-261002.json` and
+  `runtime/follow-velocity-ghidra-readback-saved-261002.json`:527 saved function
+  roles,42 partial layouts,262 verified fields and245 explicit prototypes;
+- `retail-follow-velocity-1.27.json` and `retail_follow_velocity.h` freeze every
+  motion word plus range/refresh/replan/completion policies and sampled markers.
+
+The strict checker verifies complete observer extents, source hashes, repeated
+absolute phases/owners/motion and explicit Stop. Six asset-free tests reject
+missing collision radii, wrong countdown/clamp, same-bucket replacement,
+persistent completion and lost bounded Stop, and compare every header word.
+No p-code, prototype guesses, tolerance widening or game calls from the observer
+were needed. An earlier experiment let Follow continue beyond the completion
+marker; those extra commits remain diagnostic, outside the bounded fixture.
+Target teleport/resize, visibility, kill/remove/reuse, wider timestamp producers,
+combat chase and arbitrary map/mask composition remain open.
+
+
+Payoff47 final validation: debug RoC/TFT each pass300,392 assertions in2328
+WC3 tests. Forced release production/test builds and the normal repository suite
+pass; all-test RoC/TFT each pass300,825 assertions in2365 tests. All209 Python
+pathfinding tests, ability audit,265-entry/106-fixture inventory, ten fresh strict
+contracts and saved Ghidra readbacks pass. The final strict reports are
+`runtime/follow-velocity-strict-saved-final-261002/corpus-results.json`; the
+validation index is `runtime/follow-velocity-validation-261002.json`.
+TARGET-02.4 closes with123 completed/186 open leaves. Next runnable work is
+TARGET-02.3 public target removal/death and reuse under the physical Follow port.
+
+## Follow cancels synchronously before target pool reuse
+
+Payoff48 closes TARGET-02.3. Scenes54/55 extend the preceding ground Smart
+Follow scene: target Move at tick80, speed change85, public RemoveUnit or
+KillUnit100, removal of the dead target105, replacement CreateUnit110,
+explicit new Smart120 and bounded Stop300. Four complete read-only captures
+(two per retirement mode) share948 absolute clock/position/velocity/cap/facing
+commits and the digest
+`cbb14147556d5f198adebba685a232c5de78400185c585d9236ddd80e8b9f696`.
+They show actual reuse of the target mover address and public GetHandleId,
+with a fresh canonical generation. The follower's user head clears before the
+public retirement call returns, stays zero during ticks100..119, and changes
+only on explicit Smart120. Per-case markers preserve the distinction between
+a dead target awaiting removal and immediate RemoveUnit.
+
+The baseline engine did not cancel Follow synchronously on death. Its resumed
+journey diverged at commit348 despite matching clock, velocity and facing.
+Move now receives the generic engine-owned death event and notifies its target
+subscribers itself. Its target-removal handler detaches the physical group
+before entering stand; merely clearing the target and waiting for the next
+30ms owner pass left a stale physical owner. Gameplay behavior remains in Move;
+the universal client and general Unit death machinery are unchanged.
+
+`t_movement.c` drives both journeys through ordinary RunFrame and public JASS,
+without injected owner counters or decisions:948 exact commits each, plus
+1746 saved suffix commits each (3492 total). Saves cover early approach, the
+idle interval after the replacement exists, and reacquired persistent Follow.
+Save80 is unchanged. The preceding speed-change fixture retains1015 exact
+commits and2595 saved suffix commits. Native Follow still ends by authored
+Stop; natural user-head completion is not claimed. Other orders, queued/combat
+parents, simultaneous reentrant callbacks, flight/structures and arbitrary
+maps remain separately open.
+
+Artifacts under the report root:
+
+- `runtime/follow-target-{remove,kill}-reuse-{first,repeat}-261002.jsonl`:
+  four complete original captures,948 commits each.
+- `runtime/follow-target-reuse-source-261002/`: immutable13-input source archive.
+- `runtime/follow-target-reuse-cmath-first-261002.json`:844 scalar decisions,
+  3792 exact commits/owner passes and four actual native reuse witnesses.
+- `runtime/follow-target-reuse-ghidra-readback-saved-261002.json`:
+  saved death/loss/cleanup roles, signatures and xrefs. New death producer
+  `679bb0` reaches `651010`, Move dispatch `5fda10`, target-loss `5ff490`,
+  recovery `5fb190` and arrival cleanup `5fa7a0` before KillUnit returns.
+  528 roles are saved;42 layouts/262 fields/245 prototypes/45 globals remain.
+- `runtime/follow-target-reuse-strict-saved-final-261002/corpus-results.json`:
+  fresh strict reruns of this contract and ten preceding public/owner journeys.
+- `runtime/follow-target-reuse-validation-261002.json`: validation and current
+  source fingerprints. Corpus inventory266 entries/107 fixtures/49 strict live
+  entries;215 Python checks.
+
+TARGET-02.3 closes with124 completed/185 open leaves. Next runnable work is
+TARGET-02.2, public target teleport/resize through physical Follow owners.
+
+Payoff48 final checks: forced debug RoC/TFT each pass349,559 assertions in2330
+WC3 tests; forced optimized build and normal repository suite pass349,992
+assertions in2367 WC3 tests per variant and the remaining repository suites.
+All215 pathfinding Python checks and the ability audit pass; the fresh strict
+runner completes11/11 contracts with current source hashes.
+
+## Follow tracks public target teleports without premature point settling
+
+Payoff49 explicitly splits public teleportation from TARGET-02.2 into02.5;
+collision resizing stays02.2. Scenes56/57 teleport the target after point
+arrival at tick100; scenes58/59 jump while its Move is active at tick90.
+Each pair uses public SetUnitX/Y or SetUnitPosition to(-1600,300). The axis
+setters retain the target's Move851986, so it returns toward(-1936,112).
+SetUnitPosition stops that target order. The other unit's Smart851971 survives
+both setters, and Follow ends only at the authored Stop300.
+
+All four journeys have complete read-only native repeats. The two stationary
+setter variants share1015 motion commits and digest
+`0b6094b124cb56eb07840ff3c2a1e91622556e0a470ae1c30eb38a624ead8725`.
+Moving-target axis teleport has1060 commits/digest
+`cfe77e9583885789aad3ffb595f735aeab74fe3ec2e7d6ec3243aba452de5845`;
+moving-target placement has1001/digest
+`ad07cb2dcab4aa4a142e934f6b2774bb4cb7ae0b66a43a09987d7a5aabd438d8`.
+Every owner phase, motion word, public marker, range and refresh record repeats.
+Each journey retains58 target-refresh reloads. The new stationary fine target
+174/105.375 is accepted at owner counter1368. Moving-target setters are accepted
+at1334; axis travel already returns to172.2073059/104.8294907 by that sample.
+Member replan timestamps1334/0 are subsequently witnessed at1351, still eligible
+under the ten-tick gate. Denied changed-cell timestamp producers remain02.1.
+
+The engine initially appeared to diverge at the teleport itself because the
+regression read only the final frame state, after its JASS timer. A BZ_TESTS-only
+observer now records scheduled Move commits, including singleton target steps,
+turn stops and arrival stops, before timer writes overwrite them. It changes no
+movement decisions. That stricter comparison exposed a real divergence at
+commit407: after a turn wait, the legacy blocked-progress counter8 and stale
+last-distance28.556 triggered Hold, even though the target was52.028 world units
+from its destination. Native counter1378 resumed the retained point route.
+Move now excludes scheduled retained retail point routes from that legacy settling
+shortcut, leaving termination to its fine arrival and retry policies. Other
+approach behaviors keep the existing settling rule.
+
+All four normal engine journeys match4091 commits total and7872 saved suffix
+commits. The saved checkpoints cover initial approach, the retained route after
+teleportation, and persistent Follow. Axis travel uses completed-owner boundary
+351 instead of350, which falls between two same-clock commits. The preceding
+speed-change regression now also uses boundary251 instead of250: its strict
+commit observer verifies2594 suffix commits. The earlier snapshot regression's
+2595 samples included an already committed row present in the restored save;
+the new boundary avoids counting it as newly executed movement. The preceding
+death/removal cases retain1896 normal commits and3492 saved suffix commits.
+Save format80 is unchanged.
+
+Artifacts under the report root:
+
+- `runtime/follow-target-{xy,position}-{first,repeat}-261002.jsonl` and
+  `runtime/follow-target-travel-{xy,position}-{first,repeat}-261002.jsonl`:
+  eight complete native witnesses,8182 total commits.
+- `runtime/follow-target-mutation-source-261002/` and
+  `runtime/follow-target-travel-mutation-source-261002/`: immutable source
+  archives for the respective map producers. Per-capture metadata retains each
+  exact producer hash; promoted repository sources include all four scenarios.
+- `runtime/follow-target-teleport-cmath-first-261002.json`:2158 scalar decisions,
+  8182 exact motion commits/owner passes,464 target reloads.
+- `runtime/follow-target-travel-xy-hold-correct-gdb-261002.log`: original engine
+  premature Hold breakpoint, distance, progress state and caller locals.
+- `runtime/follow-target-teleport-engine-settle-fixed-261002.log`: seven exact
+  Follow engine journeys and their saves in both variants.
+- `runtime/follow-target-teleport-ghidra-readback-saved-261002.json` and
+  `runtime/follow-target-teleport-types-final-261002.json`: saved setter,
+  destination refresh, replan and point-task roles/signatures/xrefs.528 roles,
+  42 layouts/262 fields/245 prototypes/45 globals remain.
+- `runtime/follow-target-teleport-strict-saved-final-261002/corpus-results.json`:
+  fresh strict contract plus eleven preceding public/owner journeys.
+- `runtime/follow-target-teleport-validation-261002.json`: final checks/current
+  source hashes. Corpus267 entries/108 fixtures/50 strict live entries;
+  222 Python checks.
+
+TARGET-02.5 closes with125 completed/185 open leaves. Next runnable work is
+TARGET-02.2, an authored public collision-resize/morph producer and its range,
+footprint and routing consumers. Visual scale alone cannot close this task.
+
+Payoff49 final checks: debug RoC/TFT each pass487,322 assertions in2334 WC3
+tests; the forced optimized build and normal repository suite pass487,755
+assertions in2371 WC3 tests per variant and all remaining repository suites.
+All222 Python checks, ability audit and267-entry inventory pass; the fresh
+strict runner completes12/12 contracts with current source hashes.
+
+## Follow retains active range and admits resized targets with half-edge approaches
+
+Payoff50 closes TARGET-02.2 through original UnitAddAbility/Chaos, rather than
+visual scale. Scenes60/61 clone hfoo with only collision `ucol` changed31 to63
+or7. Original Chaos resolves replacement type from level-one `Cha1`/UnitID,
+not DataA; `ucol` is unreal, not real. Wrong metadata produced either unchanged
+type or a one-world-unit minimum mover footprint and is preserved as rejected
+setup evidence. Public UnitAddAbility returns with the original type, and the
+next authored tick observes the replacement. Target public handle1048700 and
+canonical mover identity remain unchanged; radius words become1.96875 or.21875
+fine cells. Active Follow keeps11.3125 fine arrival range and its original full
+1015-commit motion, rather than forcing a radius/range recomputation.
+
+Two fresh Smart150 requests are deliberate frozen same-clock inputs in each
+fresh journey. Growth uses initial approach range `40e520f2` (7.1602716446 fine)
+then persistent `41450000` (12.3125); shrink uses `41290000` (10.5625) for both.
+Original Move_CreateTasksFromOrder5fd270 first calls05b580 to test predicted
+center distance against the configured range including both radii. If already
+near,05ae70 computes software sqrt(dx²+dy²), subtracts target then source radius,
+clamps the edge distance to zero and converts it to world units. Initial task
+range is half that edge distance; the later persistent task retains authored
+FollowRange. The engine initially stopped at growth commit515 with the fully
+configured range. The recovered approach rule restores every motion word.
+
+The fifth journey retains Sca1's original Requires=Roch. Ability addition100
+remains pending through149; public research unlock150 retains original type
+inside that callback and151 observes63-world radius. Its full Follow motion
+matches the unchanged-range control. Engine Chaos now owns the deferred work
+through A_UPDATE, uses actual authored UnitID, research and requirement amounts,
+rebinds the existing edict, and consumes the ability even for a same-type morph.
+Removing the pending ability cancels resolution. Custom W3A requirements inherit
+the actual parent profile; an explicit empty list clears that gate. RoC UnitID
+and TFT UnitID1 fixtures cover non-stock radius59.25, inherited amount2 and
+unchanged DataA37. No timer entity or new saved field is introduced.
+
+All five ordinary engine journeys match5075 native absolute motion commits.
+Save80 checkpoints50/350/700 restore9725 suffix commits, including pending and
+research-gated ability state and both retained/fresh Follow owners. This verifies
+the bounded stationary-target mutation during active pursuit; moving-unit radius
+publication/occupancy, other body/locomotion families, combat/queued parents and
+exact automatic Chaos callback-clock timing remain their owning tasks.
+
+Artifacts under the report root:
+
+- `runtime/follow-target-{grow,shrink}-v3-{first,repeat}-261002.jsonl`: retained
+  range controls; each1015 commits and unchanged baseline motion digest
+  `e85f0a94e7b22a0411d248dae105bd8f7ee96c14c9391c12108171a4e22c3869`.
+- `runtime/follow-target-{grow,shrink}-v5-{first,repeat}-261002.jsonl`: two fresh
+  reissues; growth digest `1e171ae90d8d4ae5b5224ae6712bc80bc264d2c61cd5eff0a4e22b69cacc8c11`,
+  shrink `a1f1b632eb4c658810efab9d59b39a2f4d6c0f5ac43e579dfc5a43f87c87626c`.
+- `runtime/follow-target-resize-gate-v3-{first,repeat}-261002.jsonl`: original
+  Roch requirement and delayed same-identity radius change, each1015 commits.
+- `runtime/follow-target-resize-source-v3-261002/`, `...-v5-261002/` and
+  `runtime/follow-target-resize-gate-source-v3-261002/`: immutable producers.
+  The retained control has an irrelevant Tcha research input; it is not the
+  valid Roch gate experiment. Rejected earlier source/capture versions remain
+  archived and are excluded from the strict accepted fixture.
+- `runtime/follow-target-resize-fresh-engine-first-261002.log`: failing full-range
+  initial approach; `runtime/follow-target-resize-chaos-lifecycle-first-261002.log`
+  verifies consumption, requirements and cancellation (106 assertions/3 tests
+  per variant). These lifecycle tests are engine regressions, not native pending
+  removal captures.
+- `runtime/follow-target-resize-ghidra-readback-saved-261002.json` and
+  `runtime/follow-target-resize-types-final-261002.json`:539 saved roles,43 partial
+  layouts/265 fields/245 explicit x86 prototypes/45 globals. Chaos prefix only
+  assigns observed owner30, zero-based rank50 and cache54; no full-class size or
+  new unverified ABI is asserted.
+- `runtime/follow-target-resize-strict-final-261002/corpus-results.json`: fresh
+  new contract plus13 preceding public/owner journeys;10150 exact motion commits,
+  2160 scalar decisions and584 target reloads in the resize contract.
+- `runtime/follow-target-resize-validation-261002.json`: final checks and current
+  source hashes; inventory268 entries/109 fixtures/51 strict live entries.
+
+TARGET-02.2 closes with126 completed/184 open leaves. Next runnable work is
+FOOT-01.2: use the recovered public Chaos producer to resize a moving unit and
+verify its own mover/routing/occupancy updates in parallel with engine behavior.
+
+Payoff50 final checks: forced debug RoC/TFT each pass635,653 assertions in2342
+WC3 tests; forced release and normal `make test` pass636,086 assertions in2379
+WC3 tests per variant and the remaining repository suites. All238 pathfinding
+Python checks, ability audit and268-entry inventory pass. Fresh strict execution
+passes14/14 contracts with current source hashes and saved Ghidra readbacks.
+
+## Moving radius changes retain point motion and scalar owner deadlines
+
+Payoff51 closes FOOT-01.2 and NUM-02.9.1. A public point Move now survives
+Chaos replacing its own moving unit type, updates collision-sized routing and
+physical ownership, publishes the replacement's authored speed, and completes
+with the original absolute motion words. This adds1179 ordinary engine commits
+and4280 Save81 continuation commits per RoC/TFT variant. The bounded producer is
+ground point Move; other locomotion and task families remain separate work.
+
+Scene63 changes hfoo collision31 to63 during travel. Scene64 creates nine fresh
+hfoo movers, changing each through a distinct authored Chaos alias to world radii
+15.9921875/16/16.0078125,31.9921875/32/32.0078125 and
+47.9921875/48/48.0078125. Native fine footprints become1/2/2,2/3/3 and3/4/4 cells.
+Equality enters the next class. Each public handle and canonical mover generation
+survives; the physical group changes. Scripted speed100 (retail minimum150) is
+replaced by the new type's authored270. These are real public type changes,
+not supplied expected poses or visual scale.
+
+Original enabled delivery schedules a0.01 Chaos commit timer. The type commit
+publishes radius through15fef0, then the retained point task is reissued after
+another0.01 delay through5fd270/5ffb60. The engine retains both pending stages in
+ability-owned state, commits the old velocity pose before rebinding, clears old
+routing/occupancy, and reissues the preserved goal only after the task handoff.
+Research notification is synchronous with the public tech publisher and schedules
+the same commit delay. Pending state survives save/load. The observed delivery
+is two primary5ms advances: adding0.01 once differs by one ulp at eight matrix
+clocks. General delay arithmetic remains NUM-02.9, rather than being inferred
+from this bounded delivery rule.
+
+The90-second matrix exposed another production mismatch. Integer100ms public
+timer countdowns and a fixed six-update movement-owner cadence eventually
+separated from retail's scalar clocks. The owner first differed after41seconds.
+Read-only053630 witnesses show periodic rearm uses the retained due deadline,
+not the callback's primary clock. The public source token0.10 produces raw
+3dcccccd; the owner's period is3cf5c290. The lower adjacent owner word is wrong.
+Timer processing drains against the next primary quantum before publishing that
+primary clock. Both engine cursors now use software scalar addition, retaining
+the original domains and rearm words across load. Existing C timer callers keep
+their millisecond API. Public getters, pause remainder, nonpositive/long inputs,
+general heap tie order, catch-up and epoch-crossing producers remain open.
+
+The complete native matrix has1061 commits (118 per case except equality48,
+which has117), identical across two base captures and two read-only handoff
+witness captures. The growth control has118 commits twice. A repeated research
+control retains1015 commits. The accepted eight captures certify6510 commits,
+4858 scalar decisions and40 public resizes. Each handoff capture also retains
+3000 owner and899 public timer rearms. Secondary presentation clocks and spatial
+cleanup counts remain archived but are outside the frozen deterministic domain.
+
+Production regressions run the public JASS producer and ordinary engine frames.
+Save81 checkpoints exercise pending enabled delivery, pending commit, the first
+resized owner and late travel:254 saved growth commits and4026 matrix suffix
+commits. The original supplied-clock spawn regression now also supplies the
+corresponding original owner deadline; its old six-phase-only setup was no longer
+a complete clock input. Its failing full-suite report is retained.
+
+Artifacts under the report root:
+
+- `runtime/moving-radius-source-v2-261002/`: immutable growth/research producers;
+  `moving-radius-grow-v2-{first,repeat}-261002.jsonl` and
+  `chaos-research-clock-v2-{first,repeat}-261002.jsonl` retain complete journeys.
+- `runtime/moving-radius-matrix-source-v1-261002/` and `...-v4-261002/`:
+  identical map inputs; v4 adds only read-only task/radius/timer witnesses.
+  `moving-radius-matrix-v{1,4}-{first,repeat}-261002.jsonl` repeat the complete
+  canonical motion digest
+  `f420aeb7a123fc239627099a0a13c3f5135a4aeb8b76b95e588d2907c750411e`.
+- `runtime/moving-radius-strict-final-261002/corpus-results.json`:25 fresh
+  capture contracts pass with current production numeric sources, including all
+  eight new captures. Inventory269 entries/110 fixtures/52 strict live entries.
+- `runtime/moving-radius-ghidra-readback-saved-261002.json` and
+  `runtime/moving-radius-types-final-261002.json`:546 saved roles,44 partial
+  layouts/270 verified fields/246 explicit x86 ABIs/46 globals. Timer request
+  deadline4, period8, clockc, flags10 and receiver18 have observed meanings;
+  unassigned bytes and wider type-rebind ABI remain unclaimed.
+- `runtime/moving-radius-full-debug-first-261002.log`: retained failing old
+  supplied-owner-clock setup. `...-full-debug-v2-261002.log` passes690,372
+  assertions in2344 WC3 tests per variant. `...-python-final-261002.log` passes
+  all252 pathfinding checks, including dropped rearm/wrong period controls.
+
+The next runnable task is FOOT-01.3: trace and port shared group maximum-radius
+publication when the largest member changes size or disappears. Passage geometry
+and the full reimplementation acceptance gates remain open.
+
+Payoff51 final checks: forced release and full `make test` pass690,805 assertions
+in2381 WC3 tests per variant plus the remaining repository suites. Ability audit,
+269-entry inventory,252 Python checks and25 fresh capture contracts pass. The
+backlog now has128 completed/184 open leaves, including the explicit split of
+positive periodic scheduling from the remaining timeout/getter domains.
+
+
+### Local group maximum and retained route footprint have separate lifetimes
+
+Payoff52 ports FOOT-01.3.1 through actual public GroupPointOrder Move. Three
+journeys grow the moving peer from31 to63, shrink the largest peer from63 to7,
+or remove it. All831 complete normal-frame motion commits and730 owner footprint
+states match original words per RoC/TFT variant. Four completed-frame Save81
+checkpoints per journey resume2207 motion commits and2193 footprint states:
+growth816/811, shrink832/827, removal559/555. Saved state includes the pending
+Chaos stage, membership, live group maximum, retained route footprint and owner
+counter. The save format is unchanged.
+
+The initial local physical group has two members. Chaos preserves the peer's
+public handle and canonical mover, then hands it to a new physical owner. The
+surviving old group now has a lower live maximum; removal also leaves one member.
+Original16c940 scans resolved live members when the group is unbound. However,
+16ce10 only calls that getter and168be0 Path_SetFootprint when admitting a new
+route. Existing path+b4 remains31 for the growth survivor and63 for the shrink
+and removal survivors. The newly rebound peer samples63 or7. Recalculating a
+live maximum must not invalidate a retained route solely because that maximum
+changed. Move now updates the group maximum after membership pruning, while
+G_UnitMoveGroupDestination retains the footprint until actual route admission.
+
+Comparing owner states also exposed a counter/scheduler phase mismatch hidden
+by the already matching motion words. Standalone point movers ran before the
+counter advanced; retained cohorts ran after it. The generic ability owner
+scheduler now dispatches A_OWNER_BEGIN before individual movement callbacks and
+A_OWNER_UPDATE after them. Move publishes its counter and player-row budget in
+the begin phase, then visits physical groups and repulsion in the update phase.
+No movement rule enters the universal client or general lifecycle dispatch.
+
+Twelve complete original captures use immutable v3 base and v4 read-only
+footprint observers. All versions/repeats retain identical canonical phases:
+3324 motion commits,3304 scalar decisions,2920 owner passes,20 actual routing
+radius queries and1460 observed path+b4 samples. The fixture separates observed
+cached footprint from the live maximum derived by the verified16c940 member
+scan. Bound shared7c accumulation and other target/task families remain
+FOOT-01.3; these unbound journeys do not certify them.
+
+Artifacts under the report root:
+
+- `runtime/group-radius-source-v{3,4}-261002/` and
+  `group-radius-{grow,shrink,remove}-v{3,4}-{first,repeat}-261002.jsonl`:
+  immutable accepted producers and full300-marker journeys. Earlier v1/v2
+  setups accidentally issued a second singleton Move after the group order;
+  interrupted/empty captures and all setup sources remain diagnostic archives.
+- `runtime/group-radius-strict-final-261002/corpus-results.json`:26 fresh
+  capture contracts pass with current production numeric sources. Inventory270
+  entries/111 fixtures/53 strict live entries.
+- `runtime/group-radius-types-final-261002.json` and
+  `runtime/group-radius-ghidra-readback-saved-261002.json`:546 saved roles,
+  44 partial layouts/271 verified fields/247 explicit x86 ABIs/46 globals.
+  WC3PathPrefix extends monotonically to b8 to record scalar footprint+b4;
+  all existing fields/types remain verified and unassigned bytes undefined.
+- `runtime/group-radius-save-engine-first-261002.log`:48021 passing assertions
+  per variant for the three complete journeys and twelve saved continuations.
+
+FOOT-01.3's bound shared7c producer runs through Captain AI batching and requires
+its own Move-owned shared publication layer; it remains open. The next runnable
+engine comparison is FOOT-04.2's public blocked-goal lifecycle.
+
+Payoff52 final checks: forced debug passes738393 assertions/2347 WC3 tests per
+variant. Forced release and full `make test` pass738826 assertions/2384 WC3 tests
+per variant plus the remaining repository suites. All263 pathfinding Python
+checks, ability audit,270-entry inventory and26 fresh capture contracts pass.
+The extra broad WC3 Python discovery report retains two unavailable external
+ability-binary fixtures; the required pathfinding suite and repository tests are
+green. Backlog129 completed/184 open leaves.
+
+## Blocked point goals retain the click through retry and forced arrival
+
+Payoff53 integrates FOOT-04.7 through an ordinary public ground Move. A Footman
+at(-1936,-976), with authored31-unit collision and public speed100 clamped to150,
+receives one Move to(-1936,-144). Twenty-five public terrain mutations block
+that destination. Two independent unmodified retail journeys repeat all207
+velocity/position/facing commits and205 motion decisions, including the final
+stopped turns and natural order cleanup. The production engine now reproduces
+all207 commits through normal five-millisecond frames without injecting poses,
+routes, clocks, retry results or completion events.
+
+The first engine mismatch was commit4: `unit_issueorder_now` corrected the user
+waypoint to a nearby reachable point before Move admitted its route. Move now
+retains the requested click. Its coarse group route, member adaptive route and
+fine leg own their separate intermediate/adjusted destinations. This change
+extended the exact prefix to177 commits. Passing the selected native fine goal
+unchanged to fine search extended it to203; nearest-point correction had turned
+the final failed search into a successful route.
+
+Retail's group/member adaptive searches use5000/400 work, and fine searches use
+700. The six complete captured searches produce5/4/25/2/6/1 route points. Both
+failed final fine searches consume701 pops. Original166c30 publishes the failed
+adaptive endpoint83.5/45.5 multiplied by2 as adjusted167/91, while retaining
+requested163.5/91.5 separately. This is the retry operand, not a replacement
+public click.
+
+At owner1261, the reached partial fine endpoint consumes the null-target retry:
+nearby singleton initializes2 without changing PRNG, returns1 with count1,
+clears the fine index, retains the adaptive/group plan and defers refill until
+the next owner. At1262, the rebuilt one-point fine route returns4 with count1
+and its buffers retained. Original171060 sets mover D8 bit10000. The engine's
+Move-owned `point_forced_arrival` preserves this state: it overrides range, while
+the angular gate still turns at1263 and completes at1264. Translation remains
+zero; neither endpoint nor destination receives a snap. Retail's can't-path
+fallback clears both task/order heads and publishes ability flags16/unit flags513.
+The engine ends the plain Move at the same final commit and stands normally.
+Queued/target-specific recovery branches remain open.
+
+Four Save82 checkpoints at6000/7110/7140/7170 milliseconds restore before the
+partial leg, after retry1, after force, and during the final turn. All46 suffix
+commits match the retail literal words per RoC/TFT variant. Save82 serializes
+standalone point force; replacement and leaving Move clear it. Old versions,
+including81, are rejected. The Hero save diagnostic now validates its own
+reachable walking candidate rather than relying on the public waypoint being
+rewritten. The existing speed/clock tests use larger synthetic worlds so their
+1800-unit goals remain in-map; they exercise speed/clock rather than outside-map
+policy.
+
+Evidence is frozen in `retail-blocked-goal-1.27.json` and
+`tests/retail_blocked_goal.h`. Reports under the external retail archive include:
+
+- `runtime/blocked-goal-v2-first-retry-261002.jsonl` and
+  `runtime/blocked-goal-v2-repeat-261002.jsonl`: full native trajectories, six
+  searches each, retry/force/task cleanup and1000 primary owner callbacks.
+- `runtime/blocked-goal-source-v2-261002` and
+  `runtime/blocked-goal-source-provenance-final-261002.json`: immutable producer
+  sources and exact archived source/map hashes. The initial Python-without-Frida
+  setup failure remains a separate diagnostic.
+- `runtime/blocked-goal-strict-final-261002/corpus-results.json`:27 fresh capture
+  contracts pass against production numeric C; inventory271 entries/112
+  fixtures/54 strict live entries. Secondary host/presentation subdivisions
+  differ between captures; primary clock digest and canonical movement agree.
+- `runtime/blocked-goal-ghidra-readback-saved-261002.json`:546 saved role comments,
+  44 layouts/271 fields/247 explicit ABIs/46 globals, with no unsaved changes.
+- `runtime/blocked-goal-save-engine-261002.log`:2575 passing assertions for the
+  complete journey and four saved continuations.
+
+This closes the bounded static blocked-goal producer only. Outside/overlapping
+goals, target removal, other masks/classes, combat and queued fallback remain
+FOOT-04.2 and their owning leaves. Full faithful pathfinding is still open.
+
+Payoff53 final checks: forced debug full WC3 runs pass740971 assertions/2348
+tests per variant; the subsequently added Stop/replacement inverse controls
+pass2583 assertions per variant in forced debug. Forced release and full `make test`
+pass741412 assertions/2385 WC3 tests per variant and the remaining repository
+suites. All274 pathfinding Python checks, ability coverage audit,271-entry
+inventory and27 fresh capture contracts pass. Backlog130 completed/184 open
+leaves. The next runnable comparison is outside-goal bridge clipping.
+
+
+## Outside point goals clip routing while retaining the public click
+
+Payoff54 closes FOOT-04.8 for ordinary ground point Move. Public
+`IssuePointOrder`/`IssuePointOrderById` admit the requested coordinates unchanged
+into the point task. Original05b970 clips the routing coordinates to world
+minimum plus four path cells and maximum minus four path cells before
+subtracting the origin and dividing by32. In the captured world the bounds
+are(-7168,-3072)..(5120,5120), cell32 and margin4, so the requested
+(-7400,-976) remains the public click while the fine routing destination
+is(4,65.5), world(-7040,-976). Instruction comparisons are strict: equality
+retains the input word. The decompiler's unordered comparison spelling was
+checked against COMISS/JA/CMOVA before implementing the helper.
+
+Move now clips only its implicit group's routing goal. An admitted point route
+owns its steering before generic flow-field reachability can replace the
+public destination. The engine previously substituted(-3408,-976) and first
+moved at1080ms, while retail started at1050ms. Clipping alone did not fix that
+mismatch; preserving the admitted route's ownership does. Both original
+outside-west captures now match all191 production position, fine pose, facing
+and velocity commits through normal five-millisecond frames. No route, pose,
+clock, retry or completion is injected. The eight captured searches retain
+11/5/21/6/33/2/11/1 route points. Retry1 at owner1246 defers refill, retry4 at
+1247 forces range acceptance, and1248 completes naturally.
+
+Four Save82 checkpoints at5500/6630/6660/6690ms match47 saved suffix commits
+per variant, including replacement and Stop inverse controls. The clipped
+group goal and standalone forced-arrival flag already belong to the serialized
+Move records, so this change needs no new field or save-format version.
+
+The four-edge public matrix repeats12 lower/exact/upper neighboring inputs at
+X=-7040/4992 and Y=-2944/4992. Each public order reports acceptance and retains
+its raw task words while original routing operands match production C. The
+original coordinate prefix additionally matches108 finite cases across three
+origins, cell sizes16/32/64, both axes, both bounds and adjacent float words.
+These prefix calls are separate from the complete32-cell public journey.
+Outside placement, overlapping/removed targets, other masks/classes and
+non-point task policies remain open.
+
+The regression suite now distinguishes public click ownership from controlled
+arrival-consumer arithmetic. Its retained native-pose test calls the actual
+arrival consumer and preserves every frozen expected position/velocity word;
+the new public journeys cover admission. Synthetic detour worlds leave room
+for the recovered boundary margin, and the collision-sized blocked passage
+asserts a partial route endpoint west of the wall while retaining the click.
+
+Evidence under the external retail archive:
+
+- `runtime/outside-west-v2-first-261002.jsonl` and
+  `runtime/outside-west-v2-repeat-261002.jsonl`: complete motion, primary clocks,
+  route/retry/cleanup and read-only original bound operands.
+- `runtime/point-bound-matrix-v2-first-261002.jsonl` and
+  `runtime/point-bound-matrix-v2-repeat-261002.jsonl`:12 accepted public edge
+  inputs each. The earlier matrix without acceptance markers remains diagnostic.
+- `runtime/outside-goal-source-provenance-final-261002.json`: exact immutable
+  observer, script and map hashes for all four accepted captures.
+- `runtime/outside-goal-strict-final-261002/corpus-results.json`:28 fresh live
+  contracts plus the expanded original map oracle pass against current C.
+- `runtime/outside-goal-ghidra-readback-saved-261002.json`:553 saved roles,
+  44 layouts/271 fields/251 explicit ABIs/46 globals, with no unsaved changes.
+
+`retail-outside-goal-1.27.json` and `tests/retail_outside_goal.h` freeze the
+complete journey; `retail-point-order-clip-1.27.json` freezes the original
+prefix cases. Seven new Ghidra roles connect public wrappers, dispatch and
+raw point-task construction to the existing routing producer.
+
+Payoff54 final checks: forced debug full WC3 runs pass743415 assertions/2349
+tests per variant. Forced release binaries and full `make test` pass743848
+assertions/2386 WC3 tests per variant plus the remaining repository suites.
+The first forced recursive invocation inherited `-B` into the JASS dependency
+check, whose required up-to-date assertion consequently failed; the normal
+full invocation against rebuilt release binaries passes. All284 pathfinding
+Python checks, ability coverage audit,272-entry inventory and29 fresh corpus
+outcomes pass. Backlog131 completed/184 open leaves. Next runnable work is
+the Captain AI shared-radius producer and its Move-owned engine consumer.
+
+
+## Captain home recruitment and formation retries reach Move
+
+Payoff55 ports captain formation ownership into `g_bot.c` and admits newly
+recruited assault members toward an explicitly authored captain home through
+production Move. The previous engine only reserved the roster; public
+`StartCampaignAI` produced no movement commits. It also erased the home and
+roster in `InitAssault`, then added every repeated typed quantity to a desired
+counter. Keeping the roster without fixing that counter would leave retries
+permanently short of an invented total.
+
+Original `InitAssault` at9bc0f0/9c7b10 only sets attack-captain flag1.
+`CaptainIsFull` at9b8a20 reads that flag. A typed recruitment shortfall clears
+it in9c3550; a successful request leaves it unchanged. `CreateCaptains` really
+creates replacement captain actors and resets their roster/flags. Engine
+captains now retain home, roster and active goal across InitAssault, use the
+same formation flag for fullness, and preserve the current member Move when
+a retry merely counts an already recruited unit. The obsolete accumulated
+quantity is removed. Size/empty queries still count live members separately.
+
+Six immutable original captures repeat the stationary home, existing-roster
+InitAssault, and full/shortage/retry predicates. Each produces178 physical
+Footman commits plus two stopped virtual-actor commits. All1,080 captured
+commits,1,062 scalar decisions and6,000 primary owner callbacks match
+production arithmetic. This is complete native reference evidence, not full
+engine captain parity.
+
+The normal engine script starts through `StartCampaignAI` from the actual
+100ms map timer and runs CreateCaptains, SetCaptainHome, InitAssault,
+AddAssault, a shortfall and an InitAssault retry. Its first33 movement commits
+match retail exactly; four Save82 checkpoints at1200/1500/1800/1995ms match48
+additional admission suffix commits. The engine also naturally finishes home
+travel and passes Stop, replacement Move and removal controls. No pose,
+velocity, route or clock is injected. Saved evidence covers physical movement;
+the bot VM/roster context is not a serialized AI continuation contract.
+
+At2s, retail's membership callback9d9020 updates proximity counts and replaces
+the recruit's virtual-target task with a private shared point request. That
+replacement flushes its pose to clock1.9999990463256836 and zeros velocity
+before the2.009997844696045 owner. Engine ordinary point Move first diverges
+at commit33/2010ms: it integrates another10ms, producing a1.5-world-unit
+position difference. The full178-row literal reference is retained in
+`retail-captain-home-1.27.json` and `tests/retail_captain_home.h`; the regression
+explicitly ends exact admission comparison before the handoff. The verifier
+and corpus require `whole_engine_parity=false` and
+`private_handoff_remains_open=true`. GROUP-03.4.1 remains open until the
+complete stationary-home journey matches. The recorded first failed full
+comparison remains `runtime/captain-home-first-port-261002.log`.
+
+The initial Footman target range was first described as five radii.
+[Payoff62](#private-captain-approach-range-is-independent-of-collision) corrects
+that inference: authored124 plus collision31 happens to equal155. The
+private point handoff uses minimum.49. The virtual captain has radius0,
+category2, object-category0x01000002 and path-mask0x02000002, distinct from
+Footman's radius31 and category202. Its actor range changes from500 to200
+world units. CaptainGoHome moves this virtual actor and its followers, so a
+per-unit point command does not implement that native. Moving virtual actors,
+private range/task families, shared12+1 batches and their inverses remain
+GROUP-03.4/FOOT-01.3.
+
+Default CreateCaptains homes come from the native AI town object in9c5360/
+9bb750; attack and defense use distinct town coordinates. That producer is
+still missing in the engine. An unset home is now distinguished from an
+explicitly authored(0,0) home, and unresolved default admission is logged
+instead of sending recruits to an invented origin.
+
+The owned native map configures Player0 as COMPUTER before AI-agent allocation.
+Changing its controller after neutral-agent allocation cannot start the AI.
+AI integer string natives are stubbed in this binary's AI binding, so probes
+use literal markers and Boolean predicates rather than I2S. The map builder's
+`captain_home` scenario packages `wc3_captain_probe.ai`; `--captain-ai` selects
+an explicit alternate such as `wc3_captain_full_probe.ai` and records its hash
+and adjacent AI source. A thirteen-member point diagnostic shows12+1 batches
+and shared maximum63/32, but hits the10,000-event cap and is not accepted as
+whole-motion evidence. Its source/capture stays diagnostic.
+
+Evidence under the external retail archive:
+
+- `runtime/captain-home-v2-first-261002.jsonl` and its repeat: authored home
+  before InitAssault and one recruit's complete native motion.
+- `runtime/captain-home-init-v1-first-261002.jsonl` and its repeat: literal
+  size-one predicates before and after InitAssault.
+- `runtime/captain-home-full-v1-first-261002.jsonl` and its repeat: Create false,
+  Init true, successful recruit true, shortfall false and retained retry true.
+- `runtime/captain-home-source-provenance-final-261002.json`: all six immutable
+  observer, AI/map-script and packed-map source hashes.
+- `runtime/captain-home-strict-final-261002/corpus-results.json`:29 fresh live
+  contracts plus the original map oracle pass, retaining the explicit engine gap.
+- `runtime/captain-home-ghidra-readback-saved-261002.json`:576 saved roles,
+  45 layouts/287 fields/258 explicit ABIs/46 globals and no unsaved changes.
+
+The captain prefix and full flag/native roles are persisted in Ghidra.
+The member helper's verified ABI is ECX source unit, EDX opaque target,
+stack4 nullable point,8 request array,c group-index pointer,10 member-count
+pointer,14 policy,18 shared-enable and1c shared-wrapper, withRET1c. Target
+requests pass a null point; treating it as a coordinate pointer caused an
+initial diagnostic observer failure and is rejected.
+
+Payoff55 final checks: full debug and optimized RoC/TFT each pass745,037
+assertions in2388 tests, including the complete public AI admission regression
+and existing movement/save controls. All299 pathfinding Python checks, the
+ability coverage audit and30 fresh strict corpus outcomes pass. Inventory has
+273 entries/115 fixtures/56 strict live contracts. Ghidra's saved readback has
+576 roles/45 layouts/287 fields/258 explicit ABIs/46 globals. The initial
+repository release run crashed in the host SDL3-backed SDL2 compatibility
+library during a generic client input test; its retained core identifies that
+stack. The full repository suite passes with the native SDL2 library used by
+the debug runs (`runtime/captain-home-full-release-test-v2-261002.log`).
+No assertion was removed or weakened. Full private handoff parity remains
+explicitly open; backlog131 completed/185 open leaves.
+
+## Stationary captain range callback and zero-radius occupancy
+
+Payoff56: original `9d2f90` creates a category2 virtual actor
+with zero radius. Fine class0 still covers one cell. Original follower routing
+excludes that target; the private point task after `9d9020` includes it.
+The readonly blocker capture `captain-range-blocker-261002.jsonl` confirms the
+home actor at fine(163.5,91.5), category`01000002`/query`02000002`, causes12
+object rejections in a701-pop limited private point search. Initial follower
+search has no object rejections. Do not widen the stop radius to imitate this.
+
+Actual singleton roster count changes the range from800 to825 world units
+(`d3c7f0`, `d77f7c`=25). The four retained listeners at captain+74/+78/+7c/+80
+use412.5/1225/825/1025 world radii and.5/.5/1/1-second periods. Canonical
+region+48 is the event code, **not** the query's center. `15eac0` tests strict
+squared distance using both predicted poses and the candidate's positive
+radius. Equal boundary distance is outside. Region+1c retains its timer
+request; the phase starts when the captain is created.
+
+`0522e0` dispatches at the request's exact deadline then restores the primary
+clock. Native creation word`3f7ffff0` produces deadline`3ffffff8`; engine
+primary at2000ms is`3ffffff0`. Checking only the sampled clock fires5ms late
+and moves the physical unit an extra.75 world units. Move's callback now
+commits old velocity at the exact request clock before installing the point
+task. The ordinary engine journey matches all178 original commits and778
+saved suffix commits from eight states (1200/1500/1800/1995/2010/6255/6270/6300ms).
+Stop/replacement/removal and captain recreation retain/release the virtual
+target through Move-owned edict references. Save83 rejects older layouts and
+persists logical actor ownership plus physical timer/task references; bot VM
+execution is still process-owned. Moving captains, default AI town homes,
+multiple recruits and broader range-event routing remain open.
+
+Ghidra saved readback `captain-range-ghidra-readback-saved-261003.json`:590
+roles,48 partial layouts,307 fields,260 explicit x86 ABIs,50 globals,
+`unsaved=false`. New layouts distinguish16-byte listener bridge, canonical
+region prefix and12-byte occupant rows.
+
+The farther-source control starts at worldY=-1296 and enters on deadline
+`403ffffc` (about3s), instead of the near case's`3ffffff8` (about2s). Both
+original repeats retain identical complete physical/virtual phase hashes. The
+engine matches250 additional native commits and1033 saved suffix commits.
+An initial callback in the pose sampler ran before a due owner and differed
+by16 fine-coordinate ULPs at3000ms. Dispatch belongs **after** the due owner
+and before ordinary timer actions, matching the native event sequence.
+`S_RunMoveTimers` owns the task transition; `S_PublishMovement` stays observational.
+
+Reproduce the farther map with the bounded observer source archived as
+`captain-range-far-source-v1-261003`, sourceY=-1296, and
+`make_wc3_pathfinding_map.py --scenario captain_home --captain-source-y -1296`.
+The native player must remain COMPUTER in config before AI agent allocation.
+Read-only region probes are now retained in `wc3_pathfinding.js`; generic
+observer counts do not enumerate these diagnostic range events. Their full
+170-update timeline is independently checked by the captain-range verifier.
+
+A further restore control stops the process-owned AI VM, restores the1200ms
+physical snapshot, rebinds the saved logical captain actor and reproduces
+another171/243 native suffix commits. Initial tests failed the runtime actor
+link after load; rebinding belongs after edict restoration, while pre-save
+validation must leave runtime bot links unchanged. In-range stale entity
+references, duplicate actor ownership, invalid actor selectors and nonfinite
+active callback state are rejected by the shared validator. The bot VM is
+not needed for either complete physical journey. Total saved continuations
+are now2225 commits across the two source positions.
+
+Payoff56 final checks: debug RoC/TFT each pass770,701 assertions/2390 tests;
+optimized repository suites pass770,702 RoC/770,701 TFT assertions/2390 tests,
+plus generic repository checks with native SDL2. The invalid-reference fixture
+uses memcpy for serialized index words to preserve optimized strict-aliasing
+semantics. All309 pathfinding Python checks and31 fresh contracts (30 strict
+live entries plus the original map oracle) pass. Ghidra's saved readback
+remains590 roles/48 layouts/307 fields/260 ABIs/50 globals and`unsaved=false`.
+The fresh upstream fetch is fully contained; no upstream merge remains.
+Network contracts are unchanged; game save format is83. The next two-recruit
+shared request is explicitGROUP-03.4.2 and has repeated native evidence; it
+is not certified engine parity by this checkpoint.
+
+
+## Stationary captain pair: private followers to shared arrival
+
+Payoff57 composes the authored-home captain with two ground recruits at
+world(-1936,-976) and(-1856,-976), both collision31 and requested speed100
+(retail minimum150). Home remains(-1936,-144). Two complete native captures
+repeat all185/184 physical commits and physical/virtual phase hash
+`4e0dfd98da478aec7e8e02dd22d1f9e11809aceda0cc58f78ccedaf88ae93bd1`.
+The production regression is
+`wc3_movement.public_ai_pair_recruits_match_original_captain_home`, with
+literal [369-commit input](../../../games/warcraft-3/game/tests/retail_captain_pair.h).
+
+Initial admission creates **two separate singleton target-follow owners**,
+not an initial shared formation. The AI-owned pool recruits the second-created
+unit first; `9cf680` prepends its retained roster link, so the final roster is
+first-created then second-created. Newest-first physical-owner visits therefore
+commit in creation order. OpenRealm reverses fresh pool admission and prepends
+its captain roster. Native owned-list ordering across edict reuse and ownership
+changes still needs its actual producer; the explicit TODO is GROUP-03.4.4.
+
+The first engine divergence was peer commit11 at1170ms: position/time matched,
+but heading and velocity differed. A virtual captain must remain a **target
+region** even while excluded as a blocker. Radius0 occupies one fine cell;
+fine expansion observes that region and finishes at its perimeter. Omitting
+`moveFineGraph_t.has_target` for the model-free actor admitted an extra route
+point and aimed at the raw home instead. Existing fine reconstruction and
+Follow routing kernels were correct; passing the actual target region restores
+all later motion without adjusting headings or authored destinations.
+
+Actual roster2 publishes membership radius850 world (800+25*2), plus each
+candidate's collision radius in the predicted strict circle test. Both enter
+on exact deadline`3ffffff8`. The first `9d9020` callback changes c4=0→1 and
+publishes no point task; the second changes1→2 and gates one two-pass batch.
+Both preparations share one wrapper/canonical request, count0 then1, policy1
+and bindShared1. All152 shared footprint updates publish31/32 through shared7c
+and pathb4. The final survivor retains this footprint after its peer finishes.
+
+Move now persists logical roster count, recruitment index and entered state.
+It retains independent follower groups until the all-entered gate, then uses
+its existing shared point admission and formation. Eight saves at
+1200/1500/1800/1995/2010/6000/6500/6525ms reproduce1648 suffix commits, including
+restoration after the peer completes. A bot-free1200ms restore adds355 exact
+suffix commits. Stop/replacement/removal before and after the handoff preserve
+the peer's actor reference and allow immediate save. Move departure now
+synchronously detaches its old group; previously Stop left an invalid captain
+target owner until the next update. Captain recreation retains the retired
+actor until both physical references end. Invalid count, duplicate/out-of-range
+member indices, entry bits and stale references fail validation. Save84 maps
+these fields and rejects prior layouts; network contracts are unchanged.
+
+The readonly verifier is
+[verify_wc3_captain_pair_trace.py](../../../tools/frida/verify_wc3_captain_pair_trace.py),
+with [frozen producer/membership/footprint input](../../../tools/ghidra/fixtures/retail-captain-pair-1.27.json).
+Rebuild the probe from the original interlude using
+`make_wc3_pathfinding_map.py --scenario captain_home --captain-peer`; its
+default AI source is `wc3_captain_pair_probe.ai`. Original captures use frozen
+`runtime/captain-pair-source-v1-261003`. A premature continue key produced no
+admitted AI journey and is diagnostic only; accepted captures continue at30s.
+
+This pair does not consume a retry: native path94/98 stay0 throughout. Forced
+pair retries, larger/mixed-radius batches, live attach/detach, moving captains,
+default town homes and broader AI restoration remain explicit backlog work.
+Saved Ghidra readback retains591 roles,48 layouts/307 fields,260 explicit ABIs,
+50 globals and`unsaved=false`.
+
+
+Payoff57 validation: full debug RoC/TFT and optimized RoC/TFT each pass794,650
+assertions/2391 tests. Required `make BUILD=release -j4 test` also passes the
+repository checks with native SDL2. All320 pathfinding Python checks,32 fresh
+contracts and275-entry/117-fixture inventory pass. Saved Ghidra readback confirms
+591 roles and `unsaved=false`. Fresh upstream is contained by the branch.
+
+
+## Mixed captain pairs and blocked home retries
+
+Payoff58 extends the complete stationary captain pair to Footman/Knight and to
+a five-by-five blocked authored home. GROUP-03.4.3 owns this bounded extension;
+larger rosters, moving captains and native owned-pool reuse remain open.
+
+The mixed scene separately calls `AddAssault(1,'hfoo')` and
+`AddAssault(1,'hkni')`. Creation order is Footman then Knight; physical follower
+owner order and the later shared roster are Knight then Footman. Native radii
+are31/32 and1 fine unit, and authored turn rates are0.6 and0.5. Both public speed
+setters clamp100 to150. All185 Footman and184 Knight commits match normal engine
+frames. The first attempted test inherited the Footman turn rate for the Knight:
+its fine route already matched, but the first large turn diverged. The corrected
+fixture explicitly authors the Knight rate. No numerical movement kernel change
+was needed for this mixed scene.
+
+Shared7c and cached pathb4 both publish32-world during151 owner visits. After the
+Knight finishes, the last survivor publishes live31 while the retained cache
+stays32. Eight saved prefixes resume1648 exact suffix commits; a bot-free restore
+adds355, for2003 saved commits. The complete phase hash is
+`b37868da1198d3aa05565fce168ad6750a5393841308363fdfb78ba30f79047f`.
+
+The blocked pair exposes two production gaps. Native9d2f90 admits the zero-radius
+virtual captain through ordinary point placement. Authored home(-1936,-144)
+places the actor at(-2000,-240), fine161.5/88.5. Move now uses the existing
+placement routine, and range membership tests this admitted actor rather than
+the authored home. The later shared point request still carries the authored
+home, so blocked destination routing and failure remain observable.
+
+Original166c30 clears self and target spatial rectangles through15d360 before
+adaptive admission, then rebuilds those rectangles and all three parents. The
+rectangle is rounded into accelerator cells; unrelated edge terrain is cleared
+temporarily too. The blocked target's base80/44 is mixed before admission.
+Without exclusion the engine picks a different first fine leg and the peer
+heads east. The engine now clears/restores these static traversal rectangles in
+both group5000 and member400 admission. Point waypoints have no native spatial
+target and must not receive this exclusion. Dynamic coarse cell-link composition
+and general spatial dirty publication remain MAP-03.3.
+
+All254 primary and270 peer commits now match, including two seven-count retry
+initializations, shared random-owner changes, fourteen retry results, twenty
+waiting steps, forced arrival at counters1310/1326, and ordinary task recovery.
+The primary finishes first; the last peer retries with actual count1. Existing
+fine/arrival/retry kernels handle this once admission geometry is correct.
+Saved times1200/1500/1995/2010/7035/7050/8580/9060ms cover both sides of shared
+admission, first retry, each forced arrival and the final survivor. These resume
+2175 exact suffix commits; bot-free1200ms restore adds510, for2685 saved commits.
+Save84 already retains the necessary physical owners, actor, retries and random
+state. The full phase hash is
+`b0a228243e654b451d11e5c8eb51c565691a7f5aa630f2a398c30bf4737e968b`.
+
+Two uninterrupted owned captures repeat for each scene. The complete references
+are `retail-captain-mixed-1.27.json` and `retail-captain-blocked-1.27.json`, checked
+by the strict pair verifier against literal motion, callback nesting, footprint
+publications and complete retry/buffer/cleanup lifecycle. Auxiliary cell watch
+`captain-pair-blocked-v1-watch-261003.jsonl` distinguishes pre-edit clear and
+pre-AI mixed classification; it does not justify deferred whole-map update
+claims. Capture sources remain frozen in the external archive.
+
+Current builder reproduces these scenes with `--scenario captain_home
+--captain-peer --captain-peer-type hkni` or `--captain-blocked-home`. Accepted
+captures keep their original source/map hashes. Ghidra persists the placement
+and rectangle admission findings on9d2f90/15d360/166c30;591 roles,48 layouts/307
+fields,260 explicit ABIs and50 globals remain saved with no unsaved changes.
+
+
+Validation: full debug RoC/TFT and required release `make test` each pass850,914
+assertions in2,393 engine tests, with repository checks passing.325 pathfinding
+Python tests and34/34 fresh contracts pass; final corpus source hashes match.
+Readback confirms saved Ghidra annotations. External
+`captain-pair-extensions-validation-final-261003.json` pins the results/logs;
+`captain-pair-extensions-strict-final-v2-261003/corpus-results.json` is the fresh
+corpus report after builder changes. Both current CLI variants rebuild successfully.
+
+
+## Captain owned-pool order survives transfer and reused slots
+
+Payoff59 replaces the captain fill's reverse-edict scan with the native owned
+pool's insertion order. Four public controls share the frozen Human02Interlude
+terrain and authored home `(-1936,-144)`. Two complete captures per control
+retain all motion, admission, range callbacks, retries and 1,000 primary owner
+callbacks. [The fixture](../../../tools/ghidra/fixtures/retail-captain-pool-1.27.json)
+and [verifier](../../../tools/frida/verify_wc3_captain_pool_trace.py) retain the
+physical birth generations and complete literal journey; native process
+addresses are not engine entity identities.
+
+| Control | Public producer | Retail recruitment | Physical commits | Saved continuation commits |
+| --- | --- | --- | ---: | ---: |
+| Transfer | Older unit goes Player0→1→0 before AI starts | Older primary; newer peer remains idle | 178 | 805 |
+| Same owner | SetUnitOwner(older,Player0,false) | Newer peer; older primary remains idle | 181 | 829 |
+| Delayed reuse | Remove primary at0.5s; CreateUnit at2s, then start AI | Recreated primary in the reused lower slot | 179 | 1008 |
+| Partial fill | Transfer, AddAssault(1), then AddAssault(2) | Retain primary; add peer and prepend captain roster | 369 | 1702 |
+
+All 908 physical commits and 4344 saved suffix commits match production C through
+normal 5ms frames. The transfer singleton has the same 178 literal words as the
+existing home journey; choosing its actor was the engine defect. The partial
+fill has 185 primary and 184 peer commits and one shared point batch after both
+range callbacks. It does not duplicate the first recruit when the requested
+quantity grows from 1 to 2.
+
+`9c32d0` walks the owned head at28/2c and the canonical next link at24/28.
+The owner transition `698ce0` publishes `d01a2`, then `9b9230` resolves the
+current player's AI and calls `9c3660`. That insertion resolves the previous
+head, initializes the new link with the unit and prior head, and publishes its
+canonical identity14/18 as the new head. Assembly identifies receivers lost
+by the decompiler's local allocation output; no p-code rewrite is required.
+`9cf680` separately prepends the captain roster. Same-owner `698ce0` returns
+without either operation.
+
+Engine units now receive `own_seq` through their birth lifecycle and through
+a genuine ownership change after owner-event publication. Captain fill chooses
+the greatest eligible sequence, independent of entity number. Removing a unit
+retires its record; reusing the slot assigns a fresh sequence. In the delayed
+scene, native reuses the physical mover address with birth identity
+`1110/1110→1109/1323`. The engine test exercises its real one-second allocator
+quarantine and asserts the lower primary slot is live again; it never edits
+`freetime` to manufacture reuse. The same-frame auxiliary reuse scene confirmed
+retail selection but did not expose the engine bug, because its allocator had
+not yet allowed lower-slot reuse.
+
+Save85 maps both 64-bit insertion fields (`edict.own_seq`,
+`level.next_unit_seq`) through the field schema. The round-trip crosses
+`UINT32_MAX`, retains same-owner no-op state, then allocates the next sequence.
+Validation rejects duplicate, out-of-range and missing live-unit sequences.
+Eight saves per journey bracket recruitment, removed-slot state, private
+followers, shared admission and final arrival. Continuations explicitly stop
+the process-owned bot VM before loading; saved physical followers and owned
+insertion order remain sufficient. The public timer restarts AI when loading
+a pre-recruitment save. Save84 and earlier exact layouts are rejected.
+
+Current builder exposes `--scenario captain_home --captain-peer
+--captain-pool transfer|same_owner|reuse|partial`; frozen accepted sources and
+maps remain external. Native files are `captain-pool-transfer-v1-*`,
+`captain-pool-same-owner-v1-first-fresh/repeat-*`,
+`captain-pool-reuse-v2-first-fresh/repeat-*` and
+`captain-pool-partial-v1-*`, all under `runtime/` with suffix `261003.jsonl`.
+The interrupted reuse attempt and overlapping preliminary same-owner run are
+excluded. All eight accepted traces have uninterrupted complete numerical
+rows,304 primary markers and 1,000 owners.
+
+Ghidra saved readback verifies 593 roles,50 partial layouts/311 fields,263
+explicit x86 ABIs and 50 globals with `unsaved=false`. Added structures describe
+only the owned head and canonical link prefix; broader town/guard policy is
+not inferred. GROUP-03.4.4 closes this ordering slice. Larger12+1 batches, live
+attach/detach, moving captains and default town homes remain open.
+
+Checkpoint59 validation passes the full debug and release RoC/TFT suites:
+2,399 tests and 903,771 assertions per edition, 335 pathfinding Python tests,
+35 fresh corpus contracts, and the ability-class audit. The full release
+repository suite passes. External `captain-pool-validation-final-261003.json`
+pins those logs and the saved Ghidra readback.
+
+## Stationary captain three-member shared journey
+
+Checkpoint60 extends the authored-home producer to three Footmen. Two frozen
+`captain-three-v1-first/repeat-261003.jsonl` captures retain 304 primary markers,
+1,000 owner callbacks and every numerical motion row. The physical birth order
+is primary, peer, third; the owned pool walks newest first and captain insertion
+prepends, yielding primary, peer, third roster order. Public AddAssault(3)
+succeeds before independent private followers approach the retained virtual
+actor. The third range callback at clock `3ffffff8` publishes one shared point
+request; the first two only increase the entered count. Two-pass preparation
+retains counts 0/1/2 and one shared wrapper/request.
+
+The engine's previous two-member fallback diverges at physical commit 2,
+1,020ms. Raising both stationary admission and saved-reference validation to
+three members lets the existing shared-group implementation reproduce all
+608 physical commits: 190 primary, 231 peer, 187 third. No numerical kernel or
+expected movement word changes are involved. Eight saves at 995, 1500, 1995,
+2010, 6390, 6420, 6750 and 7950ms produce 2,352 exact continuation commits.
+The saves bracket recruitment, private following, shared admission and retry
+progress. Restores stop the process-owned bot VM before loading, retaining
+physical followers and captain references through Save85; no format change is
+needed for the increased validated cardinality.
+
+| Owner counter | Active members | Retry before → after | Result |
+| --- | ---: | --- | ---: |
+| 1236 | 3 | 0 → 6 | 1 |
+| 1237 | 3 | 6 → 5 | 1 |
+| 1247 | 2 | 5 → 4 | 1 |
+| 1257 | 1 | 4 → 3 | 1 |
+| 1267 | 1 | 3 → 2 | 1 |
+| 1277 | 1 | 2 → 1 | 1 |
+| 1287 | 1 | 1 → 1 | 4 |
+
+Initialization chooses seven using the group owner's random state once. Member
+completion does not redraw or reset that path budget. The terminal result sets
+forced arrival `10000`; counter1288 completes cleanup. The retained engine
+retry and active-cohort logic already has this behavior once captain admission
+uses the correct shared producer.
+
+[The fixture](../../../tools/ghidra/fixtures/retail-captain-three-1.27.json),
+[verifier](../../../tools/frida/verify_wc3_captain_three_trace.py) and literal
+engine reference pin both complete captures, producer/admission/range/lifecycle
+sequences, primary clock and motion phases. The phase digest is
+`7c238a17ed9ff210a8f62fa9bcabc27bb38bff803cfacc61898b3ac3178ada95`.
+Host-time subdivision rows outside the primary domain vary with capture duration;
+primary and physical motion sequences repeat exactly. Existing capped auxiliary
+hierarchy/dirty/replan diagnostics do not certify complete publication. Builder
+`--captain-peer --captain-third` reproduces the explicit three-birth scene;
+accepted source trees and maps remain frozen externally.
+
+Saved Ghidra annotations on `9d27c0`, `9d9020`, `1689d0` and `167290` record the
+third-callback gate and shrinking cohort retry lifetime. Readback verifies
+593 roles, 50 layouts/311 fields, 263 explicit ABIs and 50 globals with
+`unsaved=false`. GROUP-03.4.5 owns this bounded extension. Thirteen recruits and
+the 12+1 boundary remain GROUP-03.4.6; live attach/detach, moving captains and
+default town homes remain open. Full debug/release RoC/TFT suites pass
+2,400 tests/933,454 assertions per edition. The full release repository suite,
+342 pathfinding Python checks and all 36 fresh corpus contracts pass. External
+`captain-three-validation-final-261003.json` pins the verification logs.
+
+
+### Stationary captain thirteen-member batch boundary
+
+Payoff61 closes GROUP-03.4.6.1 with the complete homogeneous13-recruit home
+journey. Frozen `runtime/captain-thirteen-source-v1-261003/` and
+`PathingRE-CaptainThirteenV1-261003.w3m` create Footmen in a four-column grid:
+`x=-1936+(i%4)*80`, `y=-976-(i/4)*80`, facing90, SetUnitMoveSpeed100
+(clamped150). At one second the public AI calls AddAssault(13,hfoo).
+`captain-thirteen-v1-first/repeat-261003.jsonl` each retain304 primary markers,
+1000 complete owners,3647 physical commits and the entire uncapped numerical
+phase/lifecycle stream. All phases, admission, ranges and physical words repeat.
+
+The owned pool recruits in reverse birth order; captain roster prepending restores
+birth order0..12. All13 enter callbacks run at clock `3ffffff8`; the first12
+only incrementc4. The thirteenth callback prepares all13 before publishing orders:
+request0 receives counts0..11, request1 receives count0. Both bind one shared
+parameter wrapper. Native physical creation is12 then1, so the singleton batch
+updates first. Treating that last member as an independent ordinary Move loses
+this owner contract. Move now retains roster indices and explicitly creates both
+bounded physical groups. Admission and Save85 validation accept13 stationary
+references; the serialized format is unchanged.
+
+Birth placement needs the original W3E support levels as well as WPM passability.
+The reference supplies97x65 vertices at origin(-7168,-3072), independently hashed
+expanded levels and1382 literal level runs. Runtime placement still computes the
+actual legal locations; expected movement poses are never injected. The test also
+runs normal map startup with the locked seed and original random-race preferences.
+Its owner state before movement is4273436052/209508436. All57 retry transitions
+match the native stream, ending591832212/1015043152; four become forced arrivals.
+
+Replacement activation `166060` zeros path7c/80 admission timestamps. Move's old
+reset only unlinked its fine request. One private follower retained timestamp1086,
+which denied its new shared fine leg at1091 and first changed physical commit488.
+Resetting the admission timestamp lets the normal router reconstruct the native
+leg. The initial source-point hypothesis was tested separately and rejected:
+unchanged production source admission matches the entire journey.
+
+[The literal fixture](../../../tools/ghidra/fixtures/retail-captain-thirteen-1.27.json)
+and `retail_captain_thirteen.h` retain all3647 commits, geometry, producer,
+admission, range, lifecycle and1088 physical footprint samples. Physical commit
+counts by birth are231/222/290/269/248/239/225/413/236/247/362/353/312.
+The phase digest is `ab21c2cb20d9179cd3fdd1035bbee61b370a415b20b64bc9af161f2922a22629`.
+`--captain-thirteen` rebuilds this explicit input scene. All3647 normal engine
+commits and15768 saved suffix commits match across saves995/1500/1995/2010/
+6390/7750/10000/13500ms. Restores retire the bot VM and retain physical owners;
+pre-recruitment saves restart the public AI timer. The three-member control still
+matches608 commits and2352 saved suffix commits, now checking the real PRNG too.
+
+Saved Ghidra comments on9d16c0/9d27c0/9d11a0/9d1040/9d9020/166060 retain the
+batch and fresh admission contracts. Readback verifies593 roles,50 layouts/
+311 fields,263 explicit ABIs and50 globals, `unsaved=false`. Capped auxiliary
+hierarchy/dirty events remain outside completeness. Mixed13 first/repeat native
+captures are already complete and identical: the radius63 mover belongs to the
+thirteenth singleton batch and both physical paths receive shared63/32. Porting
+that cross-batch parameter lifetime remains GROUP-03.4.6.2; this homogeneous
+closure does not certify it. Larger rosters, live detach/recruit, moving captains
+and default town homes remain open.
+
+
+Full debug/release RoC/TFT passes2401 tests and1127850 assertions per edition.
+The required full release repository suite,350 pathfinding Python checks and37
+fresh corpus contracts pass. `runtime/captain-thirteen-strict-final-v2-261003/`
+records all fresh reports with134 matching final source fingerprints.
+`captain-thirteen-validation-final-261003.json` pins logs and saved Ghidra readback.
+
+
+## Private captain approach range is independent of collision
+
+Payoff62 ports ordinary ground captain recruits' actual approach range into
+Move. The complete mixed13 reference places one radius63 Footman in the final
+singleton batch and twelve radius31 Footmen in the first physical batch. The
+old engine5*collision/32 formula first stops the large recruit at commit1572,
+4620ms. Original `9d86f0` instead calls the enabled attack maximum getter
+`4985c0`: Footman range90 times software.6 plus70 gives124 world units.
+`05a5c0` adds source collision and target collision before dividing32; the
+virtual captain contributes0. Private arrival ranges are4.84375 and5.84375,
+not a common multiple of each mover's radius. The older mixed pair's range100
+recruit uses(70+.6*100+32)/32=5.0625; its previous engine assertion of5 was
+also corrected from the retained original arrival observer.
+
+Readonly `captain-thirteen-mixed-range-v2-first/repeat-261003.jsonl` each retain
+304 markers,1000 owners,5462 physical commits,5194 decisions and5465 complete
+velocity/arrival/route-step events. All14 authored-range calls repeat, including
+one later reentry; the initial13 distinct units/attack objects report90 and124.
+Runtime constants are70,600 and300. Auxiliary attack getter call counts differ
+with host-time AI work; the captured scalar inputs and simulation movement are
+stable. The first extra probe's hooks were accidentally inside the disabled
+numeric-event option. That capture does not establish helper execution and is
+excluded from this range contract.
+
+Production Move stores the computed range in the existing physical member,
+which Save85 already serializes and validates. It remains independent of later
+weapon changes. Map-local UnitWeapons rows previously resolved straight to the
+base table and ignored authored edits. Stable per-map merges now inherit
+original-object edits before custom edits, preserve custom identity, and supply
+range/enable bits to normal public spawning and restored data bindings. A
+nonstock177.25/288.75 inheritance regression checks both slots, independent
+original/custom rows, enabled-mask semantics and cleanup. The literal movement
+scene supplies actual90/100 weapon inputs through object data; no pose, velocity,
+route, clock or expected output is injected.
+
+`public_captain_thirteen_mixed_matches_original_private_prefix` matches3471
+commits through9000ms and17368 saved suffix commits across995/1500/1995/2010/
+4000/5000/7750/8750ms. Homogeneous three/thirteen and owned-pool controls retain
+whole-journey parity. The full mixed comparison now first differs at commit3478,
+9030ms, when separate batch radii require the missing common shared owner.
+The complete5462-row reference is retained in `retail_captain_thirteen_mixed.h`
+and [the approach fixture](../../../tools/ghidra/fixtures/retail-captain-approach-1.27.json).
+Its strict verifier explicitly requires `whole_engine_parity=false` and
+`shared_owner_remains_open=true`. A bounded prefix is not full mixed closure.
+
+Ghidra retains named range/attack/eligibility functions, two explicit ABIs
+(RET8 and RET4), and the three runtime constants. Saved readback verifies597
+roles,50 layouts/311 fields,265 ABIs and53 globals with `unsaved=false`.
+`--captain-approach-events` exposes the reusable readonly Frida hooks.
+No-attack/disabled attack, Hero/summoned producers, native40000000 policy,
+ranged-roster bonus and target-adjusted eligibility remain03.4.6.2.1.2.
+Shared publication/cached footprint and full mixed recovery/cancellation remain
+03.4.6.2.2/3.
+
+
+Full debug/release RoC/TFT passes2403 tests and1336346 assertions per edition.
+The required full release repository suite and357 pathfinding Python checks pass.
+Fresh `runtime/captain-approach-strict-final-261003/corpus-results.json` passes38
+selected contracts with135 matching final source fingerprints.
+`captain-approach-validation-final-261003.json` pins validation logs and saved
+Ghidra readback. Failed initial range-probe/corpus/test runs remain archived and
+do not certify this final result.
+
+## Shared captain parameters across unequal physical batches
+
+Payoff63 adds a Move-owned shared parameter pool for the mixed thirteen-recruit
+scene. Each all-entered publication gets a new 64-bit identity; both the twelve
+Footmen and the final singleton large recruit retain that owner. Pool growth
+and slot reuse preserve bindings by identity. Reentry allocates a new identity
+rather than extending the lifetime of the virtual captain actor.
+
+The owner pass publishes the previous minimum-speed accumulator, resets that
+accumulator to FLT_MAX, clears the radius, and accumulates all still-bound live
+mover generations before either physical batch routes. Routing samples this
+shared maximum while each retained path keeps its own cached footprint. In the
+first native phase both paths use63/32; after the large recruit completes the
+live maximum drops to31/32 while the surviving path retains63/32. Native owner
+identities `[1471,1941]` and `[1471,2193]` share a recycled slot but remain distinct
+generations. The complete captures retain353 shared footprint observations and
+325 original speed-publication observations across both lifetimes.
+
+Captain point admission also replaces the old private approach through the
+captured bridge05ca50 stop/recovery chain. Moving recruit7 is embedded at the
+handoff: retail consumes its old velocity and admits166.5/78.5 before binding
+the new request. Reusing only the ordinary point-order replacement misses this
+relocation and first differs at movement commit3478. The engine now performs
+that bounded recovery before captain shared admission. The captured group policy
+also requires the66-tick classification-denial cooldown and member eligibility
+after65 owner visits; preserving this state keeps the established blocked home
+journey exact. Wider mover-special and projected-priority policies remain open.
+
+The engine first private/shared phase matches **4560 absolute movement commits
+through12000ms**, **127 shared footprint observations**, and **9618 continuation
+commits from eight saves**. Save86 retains the shared pool, group binding and
+cooldown, rejects stale bindings/nonfinite parameters/incorrect reference counts,
+and releases a partially rejected pool atomically. Reference zero is valid until
+the next owner prepass reclaims it. Version85 is rejected before restoration.
+This is bounded engine parity: retail first starts a new private approach after
+a captain range departure at12.03 seconds; the later16-second all-entered
+publication and the rest of the5462-commit journey remain separate work.
+
+The broad deferred-member-removal experiment did not resolve this callback and
+regressed established control journeys, so it is not part of the implementation.
+The engine keeps its existing member retirement while that composition remains
+open. Complete native captures and their existing approach contract remain
+unchanged; `retail-captain-shared-1.27.json` adds the generation/publication/
+footprint contract, and `retail_captain_shared.h` is its literal127-row reference.
+`verify_wc3_captain_shared_trace.py` checks both accepted original captures and
+explicitly refuses a whole-engine or recovery-reentry parity claim.
+
+
+## Captain range departure into a private approach
+
+Payoff64 extends the mixed thirteen-recruit engine journey to **4867 exact
+physical movement commits before15000ms**, with **7917 continuation commits
+from eight saves** around the handoff and departure. The complete5462-row
+retail reference remains unchanged. Move retains the one-second, creation-phase
+range deadline while a physical follower runs its shared point leg. At the
+outer-circle departure it consumes the old velocity at the exact deadline,
+performs the bounded stopped-position recovery, and admits a new private
+virtual-target owner. The newest physical owner runs before the remaining
+shared batch. Its arrival range remains `(70+.6*90+31)/32 = 4.84375` fine units.
+
+Two complete read-only captures,
+`runtime/captain-thirteen-mixed-membership-v1-first-261003.jsonl` and
+`runtime/captain-thirteen-mixed-membership-v1-repeat-261003.jsonl`, retain304
+markers,1000 path-owner updates and5465 velocity commits each. All34 range-count
+changes,38 callback begin/end observations and15 member-order calls repeat.
+Thirteen calls are initial private admission; the later calls occur at4 seconds
+and12 seconds. The4-second call already targets the captain and does not replace
+that private task. The12-second call replaces the shared point order for
+physical birth12. Canonical unit births are authenticated by task admission
+between the corresponding mover publications, authored rawcodes and both
+roster-order shared preparations; authored-range first-seen order is different.
+
+Ghidra bodies9d05e0/9d8d50/9d8eb0/9d87d0 establish the counter and admission
+chain. `9d05e0(mode1)` changes captainc4; mode0 changesc8. Initial outer-circle
+registration through9d8d50 incrementsc8 and registersd01cd. Subsequent departure
+is9d8eb0(mode0), which decrementsc8 and reissues target Move. At12 seconds the
+raw clock is`413fffff`, owner counter1424, c8 changes13-to-12 and c4 stays12.
+The callback consumes the old pose through05ca50 before the new12.03-second
+owner. This is a range event, not a can't-path event or a member-sort fix.
+The outer contact threshold is `(1000+25*13+31)/32`; the virtual actor's radius
+is zero. Native group binding leaves`[1843,2123]`, passes through the unbound
+state, and publishes private`[1820,2170]`.
+
+`retail-captain-departure-1.27.json` pins both complete capture hashes and the
+literal counter/callback/reissue/stop/binding contract. Its strict verifier
+also reruns the complete existing numerical, primary-clock, authored-range and
+shared-parameter contracts. Eight mutation tests reject wrong counts, deadlines,
+births, generations, stopped velocity, arrival range and expanded parity claims.
+Saved Ghidra readback retains604 roles,51 layouts/318 fields,270 explicit ABIs
+and53 globals. Save86 already stores the actor and exact deadline; no serialized
+field changes are needed. Validation now checks inactive shared followers'
+finite deadlines, home coordinates and unique roster indexes as well. Engine
+regressions reject six malformed shared-follower saves and preserve the last
+physical reference across reissue after logical actor ownership is retired.
+
+Full logical membership after individual physical tasks finish is still
+GROUP-03.4.6.2.3.2. The engine does not yet publish the second shared generation
+at16 seconds: its physical reference lifetime currently loses completed roster
+members. That task must retain logical c4/c8 membership separately and reproduce
+the full5462 commits and353 shared footprint observations. Dynamic roster
+mutation and mixed cancellation remain their own explicit controls.
+
+
+## Logical captain roster survives physical completion
+
+Payoff65 completes GROUP-03.4.6.2.3.2 for the stationary, alive mixed thirteen-recruit
+home scene: **all5462 retail movement commits,353 shared footprint observations
+and11132 saved continuation commits agree**. The engine reproduces both12+1
+shared generations, largest-recruit departure/reentry, and natural physical
+cleanup through31000ms. This closes the scene's complete journey; moving captains,
+dynamic roster changes and wider AI policy remain explicit tasks.
+
+A physical Move completion releases its task reference but does not remove the
+unit from the captain's logical roster. Move now retains that separate logical
+actor reference, inner membership, outer membership, roster index and exact
+creation-phase deadline. Completed members continue participating in range
+notifications. Birth12 reenters the outer circle at15 seconds and inner circle at
+native clock`417fffff` at16 seconds. The inner count becomes13, so the all-entered
+request includes the twelve completed members and publishes a fresh shared owner.
+Both groups initially use63/32; live maximum falls to31/32 at owner1561 while
+cached footprint stays63/32. A retired logical actor is freed only after both
+logical and physical references end.
+
+The first full engine attempt stopped matching at the second publication.
+Retaining logical membership moved the first failure to commit4908: birth8 turned
+by+0.6 instead of-0.6. Its previous partial-route flag survived new task admission,
+blocked projected classification and left no fresh fine route. Original166060
+activation writes flags88=`00200000` and indices74/78=-1. Move's common progress
+reset now clears partial state, counts and indices as well as the request timestamp.
+That restores the complete original journey without changing the scalar kernel
+or substituting a route from a capture.
+
+The literal regression checks nine complete native range deadlines, including
+exact inner/outer birth masks and counts after physical members finish. Eight
+Save87 checkpoints at995/9030/11995/12030/15995/16000/16020/17000ms reproduce11132
+suffix commits. Save87 adds logical actor and outer-membership fields to the
+recursive schema and rejects version86 before world restore. Negative controls
+reject invalid raw booleans, foreign or retired logical actors, missing ownership,
+duplicate roster indices and nonfinite deadlines. Runtime bot VM state is not
+serialized; Move's saved roster references independently reproduce movement.
+
+The strict `retail-captain-reentry-1.27.json` contract authenticates both previously
+frozen complete membership captures, all original movement/producer/range words,
+both shared generations and every logical deadline. It hashes the departure and
+shared fixtures and requires the generated footprint/membership header to match
+literally. Historical prefix contracts keep their original limited scope.
+Saved Ghidra readback has605 roles,51 layouts/320 fields,271 explicit ABIs and53
+globals. The retained request values at captain+d4/dc and nullable-target request
+refresh9d4600 are now typed; activation and membership consumers retain payoff65
+annotations. Generic proximity traversal order and moving-target policy remain
+outside this bounded witness.
+
+Full debug/release RoC and TFT each pass2407 tests/1798757 assertions; the
+required release repository suite and381 Python checks pass. Fresh
+`runtime/captain-reentry-strict-261003/corpus-results.json` passes41/41 contracts
+with138 matching source fingerprints. Inventory is284 entries/126 fixtures/67
+strict live entries. GROUP-03.4.6.2.3.2 closes with141 completed/188 open leaves;
+the next runnable task is mixed13 cancellation03.4.6.2.2.2.
+
+
+## Largest captain recruit Stop before and after shared admission
+
+Payoff66 verifies the existing Move implementation against two complete public
+Stop journeys. Stopping birth0 at8.9 seconds, before shared admission, matches
+**5458 complete native commits,353 shared footprints and11764 Save87 suffix
+commits**. Stopping it at9.2 seconds, after admission, matches **5593 complete
+commits,400 shared footprints and12572 suffix commits**. Both native repeats
+agree. No further steering change is needed: payoff65's logical roster survives
+Stop and the shared owner continues to serve the remaining physical group.
+
+The after-admission Stop consumes the old velocity and releases the singleton's
+physical members. Payoff67 corrects the binding retirement phase: the empty
+singleton remains bound through the next shared prepass and retires in its
+physical owner visit; the reference count then becomes1. That prepass changes
+live maximum63-to31, while the surviving path keeps its cached63 footprint.
+Later all-entered reentry creates a second owner generation in reused parameter
+storage. Largest-only Stop preserves logical inner/outer membership; a later
+captain publication can command that unit again. Two literal full-motion headers
+and all753 footprint observations protect these behaviors in the engine.
+
+Eight checkpoints per variant span immediate Stop, the surviving group, later
+private departure and second shared publication. The engine checks synchronous
+physical detachment, logical actor retention, native1/2 shared reference counts,
+retained cached footprint, pool reuse and final natural collection in each
+continuation. This extends production regression coverage without manufacturing
+a new movement heuristic. Save87 needs no format change.
+
+The old retry observer records two adjacent words from path+a4. They are not one
+identity: original16631b loads+a4 as a fine-target record pointer and166325 checks
+its live slot+38. The next word+a8 belongs to the separate blocker identity resolved
+by1680f0 from+a8/ac. Both native cancellation repeats record the pointer's owner
+through virtual captain movement-mask and velocity `fineObject` snapshots.
+The verifier authenticates that relationship and replaces only the address with
+its canonical mover birth; it preserves the blocker word and rejects foreign or
+aliased records. No unexplained address is discarded. Ghidra now retains the
+fine-target prefix, both path fields and the complete166310 ABI.
+
+The early map is copied from the accepted short-name late map: only `war3map.j`
+changes Stop tick92 to89; all other data/AI/object members remain byte-identical.
+The regenerated archive listfile is recorded separately. One missing-map attempt
+was interrupted and archived as rejected; directory/listfile packaging failures
+preceded the successful variant. Neither supplies accepted live evidence.
+
+The new strict cancellation contract authenticates four complete captures,
+full producers/ranges/motion/lifecycle/shared state and literal C headers. It
+explicitly leaves cancellation of the final binding open: natural cleanup and
+largest-only Stop cannot prove every Stop/RemoveUnit/retarget reclamation branch.
+GROUP-03.4.6.2.2.2 is split into those two separately reviewable controls. Full
+debug/release RoC/TFT pass2409 tests/2199857 assertions per edition, the required
+release repository suite and393 Python checks pass. Fresh
+`runtime/captain-cancel-strict-261003/corpus-results.json` passes42/42 contracts
+with139 matching source fingerprints. Saved Ghidra readback retains606 roles,52
+layouts/323 fields,272 explicit ABIs,53 globals and no unsaved changes. Inventory
+is285 entries/127 fixtures/68 strict live entries. Leaf03.4.6.2.2.2.1 closes with
+142 completed/188 open leaves; explicit final-binding retirement is next.
+
+
+## Final captain binding Stop and repeated AI initialization
+
+Payoff67 fixes two concrete lifecycle mismatches. Two complete readonly retail
+captures issue public Stop to all13 mixed captain recruits at9.2 seconds, then
+call StartCampaignAI again at17 seconds. The engine matches all **3549 physical
+position/velocity/facing/clock commits and12 shared footprint observations**.
+All later physical motion remains absent, including eight saved continuations.
+
+Original15aa80 publishes shared parameters through16c220 before accumulating
+live member radii and visiting16c150 physical owners. Atcounter1331, after the
+public Stop, the shared owner still has two references.16c150 prunes stale
+members and retires empty physical groups. Counter1332, exact clock4113d4ca,
+sees zero references and destroys the shared owner. The observer records identity
+before the original call; afterward it is[-1,-1]. Engine Stop previously freed
+an empty shared group immediately, collecting its owner one update too early.
+Move now leaves an empty shared group bound until its physical owner visit.
+Save88 accepts that live empty group, preserving the binding and retirement
+phase. Unbound empty groups remain invalid. Unused pool capacity after load is
+not an owner identity and need not match allocator capacity before load.
+
+The first engine regression also reproduced3549 commits before failing on extra
+movement at17 seconds. Retail's second AI call reads sources without executing
+main again. Full9cbc00 assembly proves thiscall ECX AI/stack4 filename/RET4:
+9c87f0 reads common.j, common.ai and the requested source on every call;
+AI+248 nonnull skips9146f0 VM construction,90cb10 environment creation and
+9c8d10 entry initialization. +24c stores the opaque environment. Engine G_BotStart
+now retains the existing VM and script rather than queuing or performing a
+restart. Missing repeated sources are diagnosed without destroying the old VM.
+
+Save88 retains a player initialization bitmask separately from runtime bot VMs.
+The eight checkpoints at9195/9200/9205/9230/16995/17000/17030/18000ms preserve
+pending empty bindings, the zero-reference owner, collection and the later
+no-replay gate. They produce no additional movement commits. Private AI VM
+coroutines remain runtime-only; a saved initialized player without a VM emits
+an explicit continuation diagnostic and does not execute main again. This is
+not full AI coroutine restoration. Version87 and earlier formats are rejected.
+
+The strict last-binding contract hashes both captures and their frozen source/
+map metadata, all movement/producer/admission/range/lifecycle state, authenticated
+pre-destructor identities, every shared publication and both public AI calls.
+It requires the literal engine header. Mutation checks reject missing repeats,
+premature collection, nonzero collection references, replayed main and broader
+claims. Ghidra retains the typed AI prefix and initialization ABI, and annotates
+owner, physical retirement and shared collection ordering. Saved readback has607
+roles,53 layouts/325 fields,273 explicit ABIs and53 globals.
+
+Full debug/release RoC and TFT each pass2410 tests/2236214 assertions. The
+required release repository suite and404 Python checks pass. Fresh
+`runtime/captain-last-binding-strict-261003/corpus-results.json` passes43/43
+contracts with140 matching source fingerprints. Inventory is286 entries/128
+fixtures/69 strict live entries. Final-binding RemoveUnit/retarget, new parameter
+reuse after explicit cancellation, dynamic roster ownership and moving captains
+remain separate.
+
+## Public CaptainGoHome and moving virtual captain
+
+Payoff68 implements the missing `CaptainGoHome()` AI native through the current
+AI player's attack captain. `api_ai.h` and `g_bot.c` only dispatch; Move owns the
+virtual actor, retained roster, point requests and idle-member handoff. The public
+retail wrapper `9c40c0` resolves the attack captain through `9c64c0`, then jumps
+to `9d2670`. It has no arguments and uses cdecl; the captain methods use ECX.
+
+The owned readonly south scene stops all thirteen recruits at9.2s, repeats
+StartCampaignAI at17s without restarting main, then changes the occupied home
+from(-1936,-144) to(-1936,-1424) and calls CaptainGoHome at18s. Only the AI
+member changes in the97228-byte map; the inherited terrain, units and wrapper
+remain identical. Both uncapped captures reproduce the same initial6251 commits:
+6058 physical commits and193 moving virtual-actor commits through23.8 seconds.
+They also agree on398 shared footprints. The exact literal reference is
+`games/warcraft-3/game/tests/retail_captain_go_home.h`; the public AI regression
+runs ordinary simulation frames and matches11228 saved suffix commits across
+eight checkpoints at18030/18100/19000/20000/21000/23000/23500/23700ms. Save88
+already stores the relevant movement parameters, callbacks and references;
+no save layout or network contract changes.
+
+`SetCaptainHome` on an occupied logical roster authors the new request point
+without teleporting the actor. Explicit GoHome admits a radius-zero, category2
+virtual mover with the minimum effective roster speed (150world units/second in
+this scene), turn0.4 and movement window0.1. This actor has no ordinary unit data
+or health; movement must neither dereference UnitData nor prune it as dead.
+Its fine object keeps `01000002`, path mask `02000002`, and publishes the moving
+object flag through the same consumer as other movers. Treating it as permanently
+stationary first diverged at23.07s when birth10 incorrectly avoided retail's
+four-tick yield. The engine now preserves that moving-object distinction.
+
+`9d44d0` retains the authored request in captain+d4/dc and its range in+e4,
+while+58/60 hold the current point request. GoHome's retained range is500world
+units; an all-entered callback at23s replaces the actor's physical request with
+range200 while preserving500 for the idle-roster policy. `9d2ee0` compares
+predicted world distance squared with `2*r*r+5000` for these ranges; it returns
+normalized full EAX0/1 (`XOR EAX,EAX; SETNC AL`). The near-home wrapper `9d3480`
+uses500. Initializers019720/019890/001c30 establish500/5000/2; reading the
+uninitialized PE global bytes gives zeros and is not evidence of runtime values.
+The near-home public regression checks that a64-unit home change followed by
+GoHome leaves the actor and existing physical approach request in place.
+
+Shared roster requests retain native12+1 batching. After the23-second callback,
+identical active AI point requests keep their shared generation rather than
+replacing it. Initial and moving generations are1471/1941 and1471/2237. The
+native idle-roster path `9d8a90` calls `9cff90` with the retained point/range:
+birth8 finishes at23.37s while the captain is still outside that request area
+and starts a private approach; birth1 finishes after the captain has entered
+that area and becomes idle. Comparing only the actor's tightened200-unit
+arrival range incorrectly reissued birth1. First target refresh also preserves
+the admission destination when both points have the same `floor(fine)>>1` cell.
+
+The full moving journey is **not** certified. The first remaining mismatch is
+a private birth8 fine retry at23.91s: retail produces three reconstructed points
+`(159.5,55.5),(159.5,54.5),(160.3397827,54.5789986)` with result-1 and12 pops;
+the engine retains a two-point partial route. Its source endpoint resembles
+the prior23.82s pose; stale route/source publication is a hypothesis requiring
+a direct consumer trace, not a confirmed cause. The engine regression ends
+before that mismatch. The captures themselves close normally and their velocity
+observers are uncapped, but their wall-time endings do not prove natural journey
+completion. Autonomous occupied-home admission, retreat/empty-captain defaults,
+larger rosters and other moving-captain policies remain separately open.
+
+Evidence: `retail-captain-go-home-1.27.json`,
+`verify_wc3_captain_go_home_trace.py`, and frozen archive sources
+`runtime/captain-thirteen-mixed-cancel-all-go-home-south-source-v1-261003`.
+The strict verifier authenticates both full capture hashes and observer/footer
+counts, verifies their scalar commits and primary clocks, then compares only the
+bounded engine motion/footprint reference. It rejects whole-journey claims.
+Saved Ghidra readback contains613 roles,53 layouts/328 fields,281 explicit ABIs
+and58 globals with `unsaved=false`.
+
+Validation: full debug/release RoC/TFT pass2412 tests/2427132 assertions per edition.
+All416 Python pathfinding checks and44 fresh corpus contracts pass with141
+source fingerprints; inventory287 entries/129 fixtures/70 strict live entries.
+The required release `make test` also passes.
+
+## Changed captain destination resets pending waits
+
+Payoff69 fixes the first remaining private follower mismatch from payoff68.
+The extended31-second reference first reproduced birth8's mismatch at23.91s.
+A direct engine breakpoint then showed `wait=20`, `retry=0`, `path.valid=0`,
+old two-point partial fine storage and old adaptive goal165.540665/75.648605,
+even though the member's destination had changed to165.502075/73.118240.
+The cached fine source was not a new prediction failure: the pending neighbour
+wait bypassed the refill and kept the old route. This supersedes payoff68's
+stale-source hypothesis.
+
+Retail counter1821 begins that same member update with delay20. Both the coarse
+and member replan predicates report changed1/ready1 with timestamps0/0.
+`16fbd0` calls `168b80` before advancing the route/wait. `168b80` invokes
+`168740` with mode-1, clear-retry1, unlink0 and clear-results1. Both buffers
+reset; `1687e0` clears path+94 delay, path+98 retry and path+88 progress bit.
+Timestamps, allocated storage and blocker identity are preserved. The member
+then rebuilds its coarse route and its three-point partial fine route with12
+pops. Its heading becomes `3fffd0f5`, speed remains zero, and delay is zero.
+The accepted destination change must reach this reset before the engine's wait
+gate; erasing blocker identity is not part of the native reset.
+
+Move now compares the previous and new member destinations in native shifted
+fine-cell buckets while publishing the member destination. A changed bucket
+clears fine/adaptive counts and indices, partial state, retry and delay before
+`move_group_decide`. This uses the existing destination-admission policy;
+delayed readiness/timestamp producers remain TARGET-02.1. No captain-specific
+branch, numerical kernel, save layout or client contract is added.
+
+The same two readonly public GoHome captures now match7419 exact engine
+commits through27.2s, including306 moving virtual commits and624 shared
+footprints. The new literal header contains only the1168 motion rows and226
+footprint rows after payoff68's prefix, so the previous reference remains
+independently authenticated. Eight additional checkpoints at18030/23000/23820/
+23905/23910/23940/25000/27000ms reproduce10606 exact saved suffix commits,
+including before and after the accepted changed destination. The original
+6251-commit regression also remains exact.
+
+The next mismatch at27.27s is **one-point fine refill behavior**, not a different
+formation destination. Both retail and engine retain birth4's adjusted destination
+151/59. Retail's fine search toward161/47 exhausts701 pops with one reconstructed
+point equal to the current source161.499832/49.912647. The native caller discards
+that fine index, changes its adaptive index7→2, keeps retry6 and turns toward
+the selected coarse waypoint while committing zero speed. The engine publishes a zero-buffer state and turns toward the final adjusted
+member destination. Immediate retry consumption of the new one-point endpoint
+is a hypothesis to check at that caller. This requires a separate refill/return
+policy port; it is not evidence to change formation layout or fine A* ordering.
+Neither27.2s parity nor closed captures prove the whole moving journey.
+
+`retail-captain-retarget-1.27.json` and
+`verify_wc3_captain_retarget_trace.py` retain both capture hashes, the original
+GoHome fixture hash, counter1821's normalized20→0 witness, initial/tail header
+composition and repeated full scalar/primary clock checks. Ghidra adds explicit
+ECX/stack ABIs for168b80,168740 and1687e0 and updates their caller comments;
+saved readback retains613 roles,53 layouts/328 fields,284 explicit ABIs and58
+globals with no unsaved changes. GROUP-03.4.7.2.1 closes this reset slice;
+GROUP-03.4.7.2.2 owns the one-point refill and remaining moving journey.
+
+Validation: full debug/release RoC/TFT pass2413 tests/2627883 assertions per edition.
+All429 Python checks and45 fresh corpus contracts pass with142 source
+fingerprints. Inventory288 entries/130 fixtures/71 strict live entries.
+The required release `make test` also passes.
+
+## Partial fine refill and stopped coarse handoff
+
+Payoff70 closes the one-point refill slice of GROUP-03.4.7.2.2. The public
+all13 Stop/south-home/GoHome scene now matches7933 exact motion commits through
+30 seconds, including327 virtual actor commits and812 shared footprints. Eight
+checkpoints at23820/23905/23910/27000/27265/27270/27275/28000ms reproduce7310
+exact saved suffix commits. The independent6251/7419-commit references remain
+unchanged and exact after the upstream AI integration.
+
+Three consumer errors were distinguished from formation or search policy:
+
+1. At27.27s, birth4's formation destination151/59 already matches. Native
+   counter1933 fine search toward161/47 exhausts701 pops against budget700,
+   with712 nodes and one reconstructed point. That point is the exact source
+   161.499832153/49.912647247, not the nearest cell centre161.5/49.5. The engine
+   breakpoint confirmed the correct predicted source but the wrong point in
+   its fine buffer. `G_BuildUnitMoveLocalRoute` supplied the nearest centre as
+   the reconstruction goal; the correct pure kernel then overwrote the only
+   source point. Supplying the requested goal retains the native fractional
+   source. Multi-node partial routes retain their reconstructed nearest point
+   unless its cell matches the actual goal.
+2. `167070` handles fine index0 with a nonzero adaptive index by consuming an
+   accelerated waypoint through `165d10`, invalidating the fine index and
+   returning2. It preserves retry/delay. Counter1933 advances adaptive7→2 and
+   retains retry6. The engine instead treated this intermediate endpoint as
+   terminal retry, reducing6→5 and turning toward the final destination.
+   Move now selects the retained adaptive buffer with the existing verified
+   `wc3_acc_select` kernel, clears only fine count/index and retains its route
+   allocations, goal, timestamps and retry state. Final adaptive0 still uses
+   the separate terminal retry path.
+3. At29.16s, counter1996 advances adaptive2→0 with a tiny heading error
+   word941096960. `16fbd0` starts its stop argument at1 and clears it only for
+   `Path_Advance` result0; result2 therefore stops even while facing the route.
+   The first coarse-handoff port relied on the turn window and published
+   moving velocity with a changed heading. Explicit stop preserves the
+   consumed waypoint heading4027cd9c and zero speed, while integrating the
+   previous velocity through the existing native pose/clock consumer.
+
+The implementations remain in Move and the WC3 game-owned world query. No new
+client contract, persistent field or format change is introduced beyond the
+upstream merge's existing Save89 layout. This is ordinary partial/coarse
+progression, with no birth-index or captain-specific production branch.
+
+The provisional31-second test first failed only its footprint extent after
+30.03s; those motion words still matched. The authored30-second `complete`
+marker disables the Frida pair/footprint observer, while velocity capture
+continues. Its last shared footprint counter is2024 in both captures. The
+accepted engine reference ends at30 seconds and authenticates all812 observed
+footprints. A closed uncapped capture or that marker does not establish
+natural journey completion; a private follower is still active later. Longer
+travel needs a fresh observation domain and remains GROUP-03.4.7.2.2.2.
+
+`retail-captain-refill-1.27.json` and `verify_wc3_captain_refill_trace.py` pin
+both complete capture hashes, both earlier fixture hashes, the exact-source
+refill and explicit stopped-handoff witnesses, all three composed headers and
+full scalar/primary-clock checks. The new header adds only514 motion rows and
+188 footprint rows. Eighteen controls reject source snapping, altered search
+budgets/goals, changed retry/index state, lost stop, missing repeats/virtual
+motion and overstated extents. Ghidra saves the corrected reconstruction and
+167070→165d10→16fbd0 consumer comments. Readback confirms613 roles,53 layouts/
+328 fields,284 explicit ABIs and58 globals, with no unsaved changes.
+
+Validation: debug and release RoC/TFT each pass2477 tests/2804132 assertions.
+The required release `make test` passes, as do all447 Python pathfinding checks
+and46 fresh strict corpus contracts with143 source fingerprints. Corpus
+inventory is289 entries/131 fixtures/72 strict live entries. The saved Ghidra
+readback and both earlier GoHome references remain green.
+
+## Blocker removal owns static route invalidation
+
+Payoff71 closes the existing MAP-03.5 and MAP-03.6 lifecycle tasks together.
+`G_FreeEdict` previously cleared a static blocker without rebuilding its baked
+footprint. Deferred public `RemoveUnit` also hid a building without publishing
+that change to the static map. Both paths could retain an obsolete flow field
+and adaptive classification. The regression reproduces six failures across
+live destructibles and retained dead rubble: the removed cell stays blocked,
+the old field still activates, and the next direct segment remains obstructed.
+
+The game now uses the bake's existing static-entity predicate before removal.
+Direct free rebuilds after the edict is cleared; deferred removal rebuilds as
+soon as `RF_HIDDEN` becomes authoritative. Final reclamation of that already
+hidden unit needs no second bake. `G_RemoveDestructable` delegates invalidation
+to central free. Rebuilding from the mutable terrain baseline preserves other
+objects at the same location and live bridge decks. Nonempty death textures
+remain blocking until their owner is actually removed. The existing revision
+invalidates flow fields and causes Move to rebuild all static adaptive lanes
+on its next request. No saved state or client contract changes.
+
+The dedicated public `blocker_lifecycle` JASS scene uses actual worker Harvest
+orders, overlapping stock `LTlt` trees, a six-gold `ngol`, and an `LTg1` gate.
+Two uninterrupted retail runs agree on all13 lifecycle snapshots and all376
+motion decisions/382 velocity, position and facing commits per run. Four fresh
+point orders per run execute fine searches after the new grids are published.
+Seven nonnull pathing collections per run return from complete `650c00` with
+`Widget+34 == NULL`; Ghidra identifies the real region retirement and Storm403
+free before that store. This closes the former emulator's final-free exclusion
+for these public lifetimes.
+
+The watched16×16 fine patch is `[155,70,171,86)` on the original384×256 map.
+Effective **static blue** occupancy includes terrain and eligible widgetc2
+regions, excludes dynamic unitca regions, and respects the original lazy-link
+visit order: mark an eligible object seen before testing link kind. A retired
+newer link suppresses older active history for that same object. The observer
+uses a local set and writes no game state. All four native hierarchy levels,
+including an unchanged highest mixed parent, are compared separately.
+
+| Public state | Blocked fine cells | Changed hierarchy cells by level vs baseline |
+| --- | ---: | --- |
+| Baseline | 80 | 0 / 0 / 0 / 0 |
+| Both trees / first tree harvested with peer retained | 96 | 4 / 4 / 2 / 0 |
+| Both trees removed | 80 | 0 / 0 / 0 / 0 |
+| Mine with six gold | 144 | 16 / 4 / 2 / 0 |
+| Mine depleted / finally removed | 80 | 0 / 0 / 0 / 0 |
+| Gate alive / restored | 120 | 10 / 5 / 2 / 0 |
+| Gate killed / finally removed | 80 | 0 / 0 / 0 / 0 |
+
+Engine tests exercise direct live/dead-rubble free, death/restoration/removal
+with overlapping footprints and independent terrain, real partial final gold
+extraction with a waiting worker, warmed adaptive routing, and two overlapping
+buildings removed through public JASS. The latter submits Move in the same
+callback and reaches its goal through ordinary frames. Field activation fails
+for obsolete generations before reclamation. The allocator-only mining fixture
+must explicitly use `SVF_MONSTER`, like runtime units; otherwise its workers
+become static blockers. Its next fine search also respects the ordinary request
+throttle instead of requesting twice at the same pathing counter.
+
+Frozen acceptance is `tools/ghidra/fixtures/retail-blocker-lifecycle-1.27.json`
+and `live-blocker-lifecycle-captures-261003` in the strict corpus. Raw captures,
+map and authenticated controller/observer sources remain under
+`runtime/blocker-lifecycle-v2-{first,repeat}-261003.jsonl` and
+`runtime/blocker-lifecycle-source-v2-261003/` outside the repository. The first
+probe spawned the worker in terrain and failed depletion; it is rejected,
+not a resource witness. The corrected scene approaches from the open south.
+The observer freezes its own output/counts before its footer and kills only
+its owned spawned process before detaching, avoiding cleanup stalls in hot
+hooks. Attached processes retain their lifecycle.
+
+Saved Ghidra readback adds `Destructable_EnterDeath`,
+`Destructable_RestoreLife`, and `Widget_RetirePathing`:616 roles, unchanged53
+layouts/328 fields,284 explicit ABIs and58 globals, `unsaved=false`.
+General dynamic coarse publication and the complete producer inventory remain
+MAP-03.3. This contract covers blue widget lifetimes, not every authored mask
+or complete retail resource-worker motion in OpenRealm.
+
+Payoff71 validation: required release `make test` passes; RoC/TFT each pass2481
+tests/2804207 assertions. Debug affected suites pass:45 destructible tests/318
+assertions,79 pathfinding tests/650 assertions, and the focused mining/removal
+checks. The initial full debug run exposed an allocator-only idle-unit fixture
+without `SVF_MONSTER`; the corrected helper mirrors runtime dynamic occupancy.
+454 Python pathfinding checks and four fresh strict widget/lifecycle contracts
+pass with145 source fingerprints. Backlog148 done/188 remaining; no task IDs
+were added. This validates removal and next-request behavior, not a complete
+OpenRealm reproduction of the retail worker trajectories.
+
+
+## Authored widget creation preserves snapped pose and rotation
+
+Payoff72 completes existing MAP-02.3. Retail `CreateDestructable` for stock
+`LTlt` and `LTg1` at(-1936,-560), requested facing0, publishes(-1920,-512).
+The shipped rows supply `fixedRot=270` degrees. OpenRealm previously parsed
+that field as Boolean and published the unsnapped request: the rectangular
+gate blocked the wrong axis. The new engine regression reproduces18 failures
+before the creation fix.
+
+`Destructable_CreateAuthored` (`6c0d90`) obtains the scalar degrees through
+`Destructable_GetAuthoredFixedRotation` (`6c1770`, cached row+90), overrides
+facing only when that value is nonnegative, and publishes through its widget.
+`PathTexture_SnapWidgetPoint` (`22f410`) first calls
+`Widget_ClampWorldPoint` (`04c330`). The latter's upper margin is32, established
+by the actual CRT initializer001c70; it is not an arbitrary epsilon.
+Snapping uses wrapped integer conversion, signed truncation to multiples of64,
+and signed32/16 offsets selected by the rotated texture dimensions' parity.
+Production scalar helpers match288 snap cases and27 lower/upper clamp cases
+against complete original functions, including fractional negative coordinates,
+odd/even rectangular dimensions, orientation and large finite inputs.
+
+The game module now parses `fixedRot` as float degrees, retains the caller's
+angle for negative values, clamps and snaps the public object pose before
+linking. Fresh spawning and map-script placeholder activation share this
+constructor policy. Generated-script binding compares the requested snapped
+point against the preplaced snapped pose, including a hidden placeholder's
+retained alive texture; an off-grid request must reuse the same object rather
+than duplicate the blocker. Missing optional `fixedRot` columns explicitly default to-1
+in the engine schema; the native stock witness uses authored270. No save,
+network or universal-client layout changes are needed.
+
+Two complete retail captures create the actual file-backed tree and gate in
+both orders, then remove the first and remaining objects. All18 observed
+snapshots agree: each contains1024 static fine masks and1360 classifications
+across four lanes and four hierarchy levels. The32-cell patch is aligned to
+its16-cell highest parents, preserving every child required to reproduce the
+captured hierarchy. Baseline has340 ground-blocked cells, tree356 and
+gate/both380. Independent terrain remains after both removals. Remove invokes
+alive retirement and the authored death-widget stage before final retirement:
+each run observes eight destroy calls, six nonnull collections actually freed.
+
+The engine test loads minimal4x4 and20x4 TGA numeric fixtures at the archive's
+actual `PathTextures\4x4Default.tga` / `PathTextures\Gate1Path.tga` paths,
+uses the same map dimensions/bounds and captured terrain, and compares all fine
+masks and all four cached hierarchy levels after every creation/removal. The
+literal C arrays are checked against frozen native JSON, so changing the
+engine does not regenerate its expected answer. The patch excludes dynamic
+unit occupancy; arbitrary angle/colored mask decoding and walkable surfaces
+retain their existing backlog scope.
+
+Frozen acceptance is `retail-widget-overlap-1.27.json` and strict entry
+`live-widget-overlap-captures-261003`. Historical controller/observer sources
+are immutable under `runtime/widget-overlap-source-v2-261003/`; captures are
+`runtime/widget-overlap-v2-{first,repeat}-261003.jsonl`. The canonical builder
+now provides `--scenario widget_overlap_orders`; the observer's
+`--blocker-patch-size 32` reproduces the aligned all-static-lane patch.
+Default16 retains the earlier blue-only lifecycle contract. Historical source
+hashes authenticate the external package, not the subsequently extended
+canonical scripts. The canonical builder reproduces the historical map byte
+hash515c0b0195401a765d64401b0e2f20424ced8a573b60bda49b3d6577385f1b3e.
+Ghidra saves four new verified function roles,620 total;
+existing53 layouts/328 fields,284 ABIs and58 globals remain unchanged.
+
+
+Payoff72 validation:46 affected destructible tests/26589 assertions pass;
+required release `make test` passes RoC/TFT with2482 tests/2830478 assertions
+each, plus461 Python pathfinding checks. Strict C11 O0 compilation and five
+fresh widget/lifecycle contracts pass. Saved Ghidra readback is unchanged after
+save (`unsaved=false`). The backlog is149 done/187 remaining, with no added IDs.
+
+
+## File-backed maps retain native hierarchy allocation
+
+Payoff73 closes existing MAP-02.1 with two complete public file-backed map
+loads. Read-only Frida observes `PathMaps_Load` (`04c860`) after it returns,
+before object constructors: actual Storm279 load of `war3map.wpm`, CDataStore
+header/payload deserialization, ordinary factories/registration, and complete
+hierarchy initialization. The archive contains MP3W/version0,384x256 cells;
+all98304 resulting native fine flag bytes equal the actual WPM payload's
+original mask decoder. Source, binary, map and capture hashes authenticate
+both runs. This is the full file branch, not the earlier supplied mask-loop
+slice or no-file fixture.
+
+The full capture exposes an engine allocation bug hidden by interior-only
+comparisons. Original `15ab60` adds16 to the fine dimensions, truncates division
+by2, adds1, then shifts for three parents. The engine previously rounded the
+half dimensions to multiples of8. Original base/parent sizes are201x137,
+100x68,50x34,25x17; the engine's old base was192x128. Original initializers zero
+all allocation padding. Rebuild includes one cell beyond the fine rectangle
+and its affected parents, while remaining allocation padding stays zero.
+Treating that unused padding as blocked terrain produces different classes.
+
+Move's cached static hierarchy now follows those dimensions and initialization
+limits. The original base ground classification mask is06000006, distinct from
+an individual mover's fine mask2; the other lanes are80,40 and4. Cache lookup
+still uses the mover's lane identity, then the base classifier uses the correct
+coarse mask. A dedicated no-fly cell test preserves fine ground admission while
+asserting its mixed ground/fly coarse classes. The cache-isolation fixture now
+uses a ground/float/amph wall and retains an independent pre-edit air result:
+clearing ground2 cannot open a coarse mask6 passage while no-fly4 remains.
+No recorded retail movement words or expected trajectories were regenerated.
+
+The engine regression builds and reopens a real MPQ containing the numeric
+WPM fixture, calls the production `CM_ReadPathMap`, and compares98304 movement
+cells plus145848 lane classifications across every allocated hierarchy cell,
+including borders and unused padding. It repeats through the no-file adapter
+with the same decoded terrain. Literal numeric RLE inputs/outputs are checked
+against frozen original JSON and the original WPM byte hash. This avoids
+checking a cache against another copy of its own classification algorithm.
+
+The new canonical observer flag is `--map-load-events`. Historical sources
+are immutable under `runtime/map-load-source-v1-261003/`; two complete captures
+are `runtime/map-load-v1-{first,repeat}-261003.jsonl`. Frozen acceptance is
+`retail-map-load-1.27.json`, strict entry `live-map-load-captures-261003`.
+Existing original no-file construction, all256 WPM byte decoders, coordinate
+and widget contracts continue to pass. Generic image/failure/reload domains,
+other map origins/corners and dynamic coarse publication retain their
+existing BASE/MAP tasks; no new task IDs are added.
+
+Ghidra now retains the24-byte CDataStore,108-byte common map header, eight
+owner map/search pointers and typed `PathWorld_Owner` global. Explicit
+DataStore read, constructor and file-loader ABIs are verified from assembly
+and complete consumers. Saved readback has622 roles,55 layouts/357 fields,
+288 ABIs and59 globals, `unsaved=false`.
+
+Payoff73 validation: the full file/direct-map test passes509515 assertions;
+required release `make test` passes RoC/TFT with2483 tests/3339994 assertions
+each, plus470 Python pathfinding checks. Six fresh strict load/map/widget
+contracts pass. The movement suite's2762164 original assertions retain its
+recorded scalar/trajectory expectations; its isolated terrain fixture gains
+one air-baseline assertion. Backlog150 done/186 remaining; no added IDs.
+
+## Constructed map corners and padding reach engine regression coverage
+
+Payoff74 closes existing MAP-01.2 and MAP-01.3 together. The map-construction
+oracle now retains25 complete original no-file loads from the actual packed
+terrain endpoint producer, including negative origins and non-power-of-two
+fine dimensions4x4,16x24,32x20,68x36 and128x96. It uses the constructed game
+origin, fine/proximity maps and four-level hierarchy without replacing them
+before coordinate consumers. Proximity dimensions are(fine+16)/8+1; base
+dimensions are(fine+16)/2+1 and parents are truncating shifts. Initial fine
+and proximity cells retain00ffffff; adaptive storage starts zero and original
+rebuild classifies only the clipped fine rectangle plus its inclusive border.
+
+Every map exercises all four corners with both axes independently taking
+predecessor/equal/successor binary32 words and rounded decimal offsets-0.1/+0.1.
+All2500 complete04d870 calls retain exact fine words, wrapped floor integers,
+actual cell/null decisions and separate original multiply32/add-origin inverse
+words.675 inputs are accepted;1825 are rejected. At zero origin, the negative
+least subnormal input80000001 scales to fine zero and is accepted in cell0:
+a host comparison against the world bounds would reject it incorrectly.
+An exact maximum is outside the fine map. These results come from complete
+original consumers, not a geometric acceptance model.
+
+The engine regression invokes its terrain query/write API and the actual
+Move world/fine adapters against every literal row. It compares all41090
+allocated hierarchy cells in all four lanes before edits, after restored
+corner requests, after four-lane corner edits and after their reversal.
+Original explicit rebuilds freeze the edited classes; the engine continues
+to use its documented static bake invalidation policy. All original fine
+cells and hierarchy cells restore exactly. The full original proximity
+allocation/initialization is asserted; the engine retains its Quake2
+BoxEdicts consumer instead of allocating a duplicate native proximity grid.
+Dynamic coarse publication and retail storage lifetime remain their existing
+tasks. No network or saved entity layout changes.
+
+Frozen numeric expectations are in `retail-constructed-map-coordinates-1.27.json`
+and `retail_constructed_maps.h`; Python checks keep every word, index, edit,
+RLE run and map dimension synchronized. The existing oracle-map_construction
+entry requires25 complete loads,2500 original/C corner cases,400 lane edits
+and25 exact grid reversals. No new oracle, corpus entry or TODO ID is added.
+Saved Ghidra622-role annotations now retain these constructor/edit contracts.
+The focused production regression passes930530 assertions. Fresh strict
+map_construction/maps/file-load contracts are in `runtime/map-coordinates-strict74/`.
+See [corpus](retail-pathfinding-corpus.md#constructed-map-coordinates) and
+[backlog](retail-pathfinding-todo.md#map-01--map-coordinates).
+
+Required release `make test` passes RoC and TFT with2484 tests/4270524
+assertions each, and473 Python pathfinding checks. Backlog152 done/184 open;
+no added tasks. Artifact:runtime/map-coordinates-make-test74.log.
+
+## Passage matrix covers lanes, footprints, corners and offsets
+
+Payoff75 closes existing FOOT-02.1/02.2 in one chunk. The existing fine-grid
+oracle's new `--passages` mode runs3200 original core searches, retained-stamp
+repeats and complete fractional148100 requests. Fifty geometry cases cover
+vertical/horizontal widths0..5, six L-corner widths in four rotations, six
+touching-rectangle gaps, four map edges and four individual lane-bit walls.
+Each combines four footprint classes, masks2/4/40/80 and offsets.125/.875,
+.5/.5,.875/.125 and decimal.1/.9. The width sweep includes below/equal/above
+every1/2/3/4-cell footprint diameter. Original cost, charged work, node
+creation, complete/partial parent chains and C search agree on every case.
+
+Each complete request also invokes original149370 twice on its source/goal.
+Its verified ABI is ECX fine system, stack4 software XY pointer, stack8 mask
+pointer, stack12 class, RET12 and normalized EAX result. The original native
+consumer owns flooring and footprint bounds. Six thousand four hundred
+endpoint results and all reconstructed route words are frozen;2720 pairs
+have both endpoints admitted,1664 searches complete and1536 retain partial
+chains. Native SEH scratch must be mapped; do not pass a null ECX. Decimal
+source/goal inputs must be rounded to binary32 before comparison, rather
+than comparing native binary32 outputs against Python binary64 decimals.
+
+The engine compares all6400 endpoint decisions through its production Move
+footprint API. For2720 admitted pairs, its complete local-route builder
+compares every frozen complete/partial point, source, endpoint and failure
+result. One-point nearest-source failures correctly produce no usable turn.
+Blocked endpoint correction belongs to public admission and existing FOOT-04
+tasks; this seeded-map matrix does not claim full public clock/steering or
+dynamic object producers. Static touching footprints are represented by
+their rasterized rectangles. No engine-versus-original matrix mismatch
+remains, so there is no additional minimized counterexample or TODO.
+
+The existing production implementation passes55776 new assertions. Numeric
+fixtures are `retail-passage-matrix-1.27.json` and `retail_passages.h`; only41
+unique rasters and864 shared interior route words are retained in the C
+fixture. Python ties every C input, geometry, endpoint, route word and
+result back to the original capture. Ghidra retains622 function roles,
+55 layouts/357 fields,289 explicit ABIs and59 globals; the new footprint
+consumer signature is saved. No network or saved entity layout changes.
+See [corpus](retail-pathfinding-corpus.md#passage-matrix) and
+[backlog](retail-pathfinding-todo.md#foot-02--passage-matrix).
+
+Required release `make test` passes RoC/TFT with2485 tests/4326300 assertions
+each and475 Python checks. The final strict endpoint/route-word digest
+contract adds one Python check; all476 pass afterward, and all five fresh
+strict variants pass with final source fingerprints in
+`runtime/passage-strict-final75/`. No C changes follow the full suite.
+Backlog154 done/182 open, no new IDs.
+
+## Full queue composition preserves partial goal centres
+
+Payoff76 closes existing FINE-02.1 and strengthens the already completed
+FINE-02.2 integration. One48x48 static map naturally combines886 equal
+queue keys, one cheaper closed-node reopening and190 stale records. The
+complete original core, retained-storage repeat and fractional148100 request
+produce1068 identical pops. Each frozen pop records unsigned key, node
+identity, entry/current generation, charged work, g/h, parent, node state and
+queue count. Production C at O0/O2 and the real engine local-route builder
+match every word, full reconstructed route and repeated backing reuse.
+No expansion, queue, relaxation or allocator call is stubbed; storage and
+static input cells are provisioned. Public admission and movement clocks
+are separate existing tasks.
+
+A second complete original request uses the actual ordinary700 work limit.
+The goal43/43 is already admitted when the denied next iteration charges
+work701. Original148100 returns failure and a50-point nearest partial route
+whose endpoint is43.5/43.5, despite the supplied click43.25/43.75. The engine
+previously reconstructed against that click and replaced the partial centre
+because both occupy the same cell. The regression reproduces exactly two
+wrong endpoint words through the actual mover's700-work producer and fine
+owner accounting. In world coordinates, the wrong endpoint was1384/1400
+rather than1392/1392.
+
+Move now supplies the native nearest-node centre to reconstruction for a
+non-source partial chain. A one-node failure retains its precise original
+source; the requested click remains available for refill/retry. Complete
+routes and target exits keep their existing exact-destination policy. All
+frozen expectations remain original words, including the complete queue
+record and source/goal poses. The new regression also requires exactly701
+charged owner work; a discovered goal is not successful until its valid pop.
+
+A read-only pop observer exists only under BZ_TESTS/BZ_WC3_FINE_TRACE. Ordinary
+production builds have no observer fields or branch. The strict corpus
+runner enables the probe define only for queue-composition variants. Ghidra
+now retains36-byte fine-node and12-byte heap-entry prefixes, and actual
+fine-header stamp/table/count/budget/nearest fields:622 roles,57 layouts/
+381 fields,289 explicit ABIs and59 globals. Unknown node+0x20 bytes remain
+undefined. No edict, save or network layout changes.
+
+Numeric acceptance is `retail-fine-queue-1.27.json`/`retail_fine_queue.h`.
+Run existing `verify_wc3_pathing_grid.py --queue-composition` through the
+strict runner's `oracle-grid-queue-composition-engine` variant. Frozen original
+pop/route words are reasserted before C comparison. The original48x48
+complete request costs990, equal to its independent Dijkstra reference;
+this does not assume heuristic optimality for other scenes. The engine
+regressions repeat25500 exact queue/route assertions and106 limited-work
+assertions; all five current pathfinding acceptance tests pass1521427
+assertions. See [corpus](retail-pathfinding-corpus.md#full-queue-composition)
+and [backlog](retail-pathfinding-todo.md#fine-02--search-termination).
+
+Required release `make test` passes RoC and TFT with2487 tests/4351906
+assertions each, plus479 Python checks. Four fresh fine/partial/passage/queue
+contracts pass with149 source fingerprints; the original queue/control also
+passes production C at O0. The ordinary release game target builds with the
+observer absent. Artifact logs are `runtime/fine-queue-{make-test,production-build}76.log`;
+strict output is `runtime/fine-queue-strict76/`. Backlog155 done/181 remaining;
+no added IDs. Original path-owned166e90 calls148100, so its partial centre
+policy applies to the mover consumer as well as the direct request fixture.
+
+## Fine stamp wrap preserves complete engine request state
+
+Payoff77 covers existing FINE-03.2 and MAP-05.2 together. The existing grid
+oracle seeds the fine request counter once at`fffe`; complete original148100
+requests then execute the actual14ad50 ushort increment to`ffff`,0,1,2.
+The terrain and all produced cell metadata remain allocated between requests.
+Ground/flight/float/amphibious queries change lanes and footprint classes0..3.
+Four fresh-metadata controls match result, charged work, nearest coordinate,
+distance, every final node's XY/g/h/generation/parent/state and every fractional
+route word. All1656 final nodes also match production C; work is706/180/180/180.
+The original closed-list links are normalized to new/open/closed for comparison
+with the engine's flat node representation; unknown node bytes are excluded.
+
+Frozen`retail-fine-stamp-wrap-1.27.json` hashes the literal700-work companion
+terrain in`retail-fine-queue-1.27.json`, avoiding another terrain fixture. The
+numeric C fixture preserves every expected node and route. Actual
+G_BuildUnitMoveLocalRoute runs the four requests twice over retained backing,
+second time in reverse class order, and matches all23928 assertions. The engine
+clears its sparse lookup on each request and reuses allocated nodes/heap; this
+is a deliberately different storage representation with identical observed
+results. Required release RoC/TFT suites each pass2488 tests/4375834
+assertions;480 Python checks pass. No16-bit counter is added to gameplay state or save files.
+
+Ghidra's typed fine prefix retains`search_stamp`at20; setup and node-lookup
+annotations record the original mutation and wrap controls. One existing
+oracle gains`--stamp-wrap`; strict entry`oracle-grid-stamp-wrap-engine`also
+reasserts all frozen native node/route records. This proves the controlled
+boundary sequence, not65,536 historical requests, metadata-maintenance timing,
+node/heap growth or spatial repulsion stamps.
+
+See [corpus](retail-pathfinding-corpus.md#fine-stamp-wrap),
+[search storage](retail-pathfinding-search.md#complete-static-fine-grid-searches-and-stamp-reuse)
+and [backlog](retail-pathfinding-todo.md#fine-03--fine-storage-lifetime).
+
+## Adaptive reuse restores the original ground classifications
+
+Payoff78 completes existing ACC-05.2 with a production fix. Full original162cb0
+requests retain adaptive cell metadata and allocated nodes/heap across the actual
+164c30 DWORD counter increment`fffffffe`,`ffffffff`,0..5. Four ordinary lanes
+(ground/amphibious/float/flight) and both stored sizes1/2 produce six complete
+and two disconnected-goal partial routes. All511 final semantic node records,
+charged work and complete fractional route words equal fresh-metadata controls
+and production C at O0/O2. Setup lane/size/warp words and every node warp tag are also
+asserted. The counter is seeded once;3451 actual1625f0 lazy lookups first warm
+all searchable cell identities. That supplied history is explicit, not a claim
+about billions of historical requests or untouched metadata at a forced zero.
+
+The frozen numeric fixture is`retail-adaptive-stamp-wrap-1.27.json`, with
+native lane masks6/80/40/4. The actual engine G_BuildUnitMoveFineRoute compares
+all expected coarse nodes/work/routes twice over one64x64 fine map, its padded
+cached hierarchy and reused route buffers. Six complete/two partial requests
+per pass change lane and stored size through the production invalidation path.
+Owner work windows are supplied independently; scheduler cadence remains its
+own contract. The two passes match8508 assertions.
+
+The new checks exposed a separate restoration error in g_world.c. Initial
+hierarchy ground classification used mask6, but temporary source/target
+exclusion restored cells using fine-ground mask2. No-fly-only terrain therefore
+became spuriously clear in the retained ground hierarchy after a request.
+Original15d360/15cf80 controls on three map dimensions produce flag byte
+`41 ->0 ->41`, preserving terrain, metadata and all parents. The engine
+regression captures every lane/level before a real owned request and reproduces
+eight changed source/target/parent classifications. Restoration now uses6,
+matching initial construction. All8828 assertions pass; every cached class is
+restored before subsequent routing. Fine-ground admission retains mask2.
+Required release RoC/TFT suites each pass2490 tests/4393170 assertions;481
+Python checks and six fresh corpus contracts pass.
+
+Ghidra now retains623 roles,61 partial layouts/419 verified fields and292
+explicit x86 ABIs. New adaptive search/cell/map/node prefixes distinguish the
+DWORD cell stamp from the ushort node index and type the actual setup/reset/
+creation operands. Unknown bytes remain undefined. One variant of the existing
+adaptive oracle and strengthened existing map contracts preserve these checks;
+no task IDs are added or split. Capacity, special-edge producers and complete
+public scheduler/callback composition remain separate.
+
+See [corpus](retail-pathfinding-corpus.md#adaptive-stamp-and-class-restoration),
+[search evidence](retail-pathfinding-search.md#complete-adaptive-request-oracle)
+and [backlog](retail-pathfinding-todo.md#acc-05--adaptive-storage-lifetime).
+
+## Terrain-produced adaptive passages preserve the retail veto
+
+Payoff79 closes existing **MAP-03.3, ACC-02.1 and ACC-03.2** together; no new
+IDs or splits. The [producer/update inventory](retail-pathfinding-search.md#pathing-producer-and-update-inventory)
+now maps spawn, movement, size/profile/pathing changes, construction,
+removal/depletion, terrain writes, exclusions, gates and save/load to their
+retail grids/timing, engine owners and remaining existing IDs. Inventory
+completion does not imply all listed lifetime differences have been ported.
+
+`verify_wc3_pathing_adaptive.py --terrain-producer` starts with an empty fine
+map and applies **288 original04d870→054000 terrain setters**. These publish
+72 fine cells with all four blocked movement flags. Full original15d360 then
+builds the padded41/20/10/5 hierarchy, including2,206 exact class bytes. The
+actual full162cb0 request still hits the reduced size2 east-boundary veto:
+**38 charged pops,56 nodes, six-point partial route** in all four native lanes.
+Ordinary occupancy at(18,13) returns1 while the east-side boundary predicate
+returns0. The full original/C node and route states match. Thus supplied
+unrelated-lane constants in the earlier synthetic fixture did not cause the
+selected-lane failure; it survives actual terrain/classification producers.
+
+The same oracle enumerates16^4 possible ordinary fine occupancy patterns,
+retains one witness for each of54 attainable four-lane tuples, and executes
+original rectangle/base/parent producers on all54. Ground6 contains flight4,
+so27 of81 class0/1/2 tuples are impossible. Class3 is not emitted by full
+ordinary rebuilding. Special markers/object eligibility and counterfactual
+mixed-parent/forced-predicate controls are classified separately; see
+[reachability inventory](retail-pathfinding-search.md#ordinary-classification-reachability).
+The frozen producer fixture is `retail-adaptive-terrain-producer-1.27.json`;
+`retail_adaptive_producer.h` stores literal original expectations.
+
+The actual engine regression checks all54 class witnesses and every lane of
+all2,206 hierarchy cells, then executes `G_BuildUnitMoveFineRoute` in all four
+lanes twice over retained map/node/heap/route backing. **12,785 assertions**
+compare every final56-node record, work, size and all six partial-route points,
+and preserve the issued goal independently of that partial centre. This extends
+the real routing regression surface without changing the retail veto or
+inventing an algorithm correction. The existing implementation already agrees.
+Public mover retries and complete native arrival/failure remain ACC-03.3;
+map headers/backing and original empty fine occupancy are supplied explicitly.
+
+Ghidra retains the class inclusion/rejection proof, producer-built veto and
+producer ownership links in its existing623 named functions. Unknown bytes,
+special records and complete gameplay branches remain untyped/unclaimed.
+The new strict corpus entry remains `known-reference-difference`, expected
+exit1, because the conventional reference graph can reach the goal.
+
+The preceding upstream merge reaches13bcc8b7 and retains all native movement
+state beside27 pooled sparse lifecycle records. Save90 writes pools before
+shared/group movement and clears transient edict fields before rebuilding route
+buffers. Combined pathfinding/save checks and full RoC/TFT runs pass2491 tests/
+4393447 assertions per edition; normal production builds. The additional
+producer fixture changes no network fields, saved state or production ABI.
+
+Required final `make BUILD=release -j4 test` passes **RoC/TFT2,492 tests and
+4,406,232 assertions each**, plus **482 Python checks**. Fresh
+`runtime/terrain-producer79-strict-pinned/corpus-results.json` passes all three
+selected contracts with149 source pins, preserving both known-difference
+entries and the prior adaptive wrap control. The producer comparison also
+passes at O0. The first repository run caught a stale expected oracle count;
+updating the inventory regression to101/four known differences and rerunning
+resolved it. No native mismatch was converted into a pass.

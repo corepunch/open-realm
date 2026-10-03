@@ -87,7 +87,9 @@ static void LAN_CopyTitleSubtitle(string_t out, size_t out_size, cstring_t title
     if (!out || out_size == 0) {
         return;
     }
-    snprintf(out, out_size, "%s: %s", title ? title : "", subtitle ? subtitle : "");
+    strlcpy(out, title ? title : "", out_size);
+    strlcat(out, ": ", out_size);
+    strlcat(out, subtitle ? subtitle : "", out_size);
 }
 
 static bool LAN_HasMapExtension(cstring_t path) {

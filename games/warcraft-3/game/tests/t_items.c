@@ -1462,6 +1462,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     }
     T_NOT_NULL(approach);
     if (!approach) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
+    T_EQ(hero->movement.fine_route.group_count,0); /* Replacement approach owns a fresh plan. */
     {
         float const start_x = hero->s.origin2.x;
         uint32_t frame;

@@ -51,8 +51,11 @@ static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guar
     ent->movement.holding_position = false;
     if (record_guard) G_SetUnitGuardPosition(ent);
     unit_leavecombat(ent);
+    /* Optional movement lifecycle still admits stopped placement. */
+    ent->current_order_id = 0;
     if (preserve_queue) unit_stand_no_queue(ent);
-    else ent->stand(ent);
+    else if (ent->stand) ent->stand(ent);
+    S_RecoverStoppedUnitPosition(ent);
 }
 
 void order_stop(edict_t *ent) {

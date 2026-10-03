@@ -12,6 +12,7 @@ int G_AutocastDebugLevel(void) {
 cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
 cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
+static cstring_t const move_orders[] = { "move", "smart", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
 static cstring_t const entangle_orders[] = {
@@ -20,7 +21,7 @@ static cstring_t const entangle_orders[] = {
 
 static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Stop command policy
-    { STR_CmdMove, CAbilityMove, AB_COMMAND },  // Move — engine command
+    { STR_CmdMove, CAbilityMove, AB_COMMAND | AB_ENGINE_EVENTS },  // Move — engine command and target death policy
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND },  // Attack — engine command
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
@@ -103,7 +104,7 @@ static ability_t abilitylist[] = {
     { "Afir", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire */
     { "Afiu", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire (Undead) */
     { "Aloc", CAbilityPassive, AB_PASSIVE },  /* Locust */
-    { "Amov", CAbilityMove, AB_COMMAND },  /* Move */
+    { "Amov", CAbilityMove, AB_COMMAND | AB_INNATE | AB_OWNER_UPDATE | AB_UPDATE, SPELL_TARGET_NONE, move_orders },  /* Move */
     { "Atdp", CAbilityCargoDrop, AB_COMMAND },  /* Drop Pilot */
     { "Atlp", CAbilityCargoLoad, AB_COMMAND },  /* Load Pilot */
     { "Attu", CAbilityPassive, AB_PASSIVE },  /* Turret */
@@ -352,7 +353,7 @@ static ability_t abilitylist[] = {
     // TODO: AIas a_unknown  /* Item Attack Speed Bonus */
     // TODO: AIan a_simple_spell  /* Item Animate Dead */
     // TODO: AIrs a_item_reincarnation  /* Item Resurrection */
-    // TODO: AIms a_move_speed_bonus  /* Item Move Speed Bonus */
+    { "AIms", CAbilityMoveSpeedBonus, AB_PASSIVE },  /* Item Move Speed Bonus */
     // TODO: AIgo a_attack_mod  /* Chest of Gold */
     // TODO: AIlu a_item_heal_aoe  /* Bundle of Lumber */
     // TODO: AIfa a_agility_mod  /* Flare Gun */
@@ -489,7 +490,7 @@ static ability_t abilitylist[] = {
     { "Aspl", CAbilitySpiritLink, AB_SPELL, SPELL_TARGET_UNIT },  /* Spirit Link */
     { "Aliq", CAbilityLiquidFire, AB_PASSIVE },  /* Liquid Fire */
     { "Auco", CAbilityUnstableConcoction, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Unstable Concoction */
-    { "Acha", CAbilityChaos, AB_PASSIVE },  /* Chaos */
+    { "Acha", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos */
     { "Achl", CAbilityCargoLoad, AB_COMMAND },  /* Chaos Cargo Load */
     { "Awar", CAbilityPulverize, AB_PASSIVE },  /* Pulverize */
     { "Aens", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
@@ -686,12 +687,12 @@ static ability_t abilitylist[] = {
     { "Awrg", CAbilityStomp, AB_SPELL },  /* War Stomp (sea giant) */
     { "Awrh", CAbilityStomp, AB_SPELL },  /* War Stomp (hydra) */
     { "Awrs", CAbilityStomp, AB_SPELL },  /* War Stomp (creep) */
-    { "Sca1", CAbilityPassive, AB_PASSIVE },  /* Chaos (Grunt) */
-    { "Sca2", CAbilityPassive, AB_PASSIVE },  /* Chaos (Raider) */
-    { "Sca3", CAbilityPassive, AB_PASSIVE },  /* Chaos (Shaman) */
-    { "Sca4", CAbilityPassive, AB_PASSIVE },  /* Chaos (Kodo) */
-    { "Sca5", CAbilityPassive, AB_PASSIVE },  /* Chaos (Peon) */
-    { "Sca6", CAbilityPassive, AB_PASSIVE },  /* Chaos (Grom) */
+    { "Sca1", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Grunt) */
+    { "Sca2", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Raider) */
+    { "Sca3", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Shaman) */
+    { "Sca4", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Kodo) */
+    { "Sca5", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Peon) */
+    { "Sca6", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Grom) */
     { "Sch2", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Meat Wagon) */
     { "Sch3", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Transport) */
     { "Sch4", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Tank) */
@@ -725,6 +726,8 @@ static ability_t abilitylist[] = {
 /* Build a compact unique procedure list once, rather than scan the whole registry per unit tick. */
 static abilityProc_t ability_updates[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static uint32_t num_updates;
+static abilityProc_t owner_updates[sizeof(abilitylist) / sizeof(abilitylist[0])];
+static uint32_t num_owner_updates;
 static abilityitem_t innate_items[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static uint32_t num_innate;
 static abilityProc_t ability_index_procs[sizeof(abilitylist) / sizeof(abilitylist[0])];
@@ -754,6 +757,15 @@ ability_t const *FindAbilityByOrder(cstring_t order) {
             if (!strcmp(*name, order)) return ability;
     }
     return NULL;
+}
+
+/* Owner lists are ability-owned; keep the scheduler independent of concrete movement rules. */
+void S_BeginAbilityOwnerUpdates(void) {
+    FOR_LOOP(i, num_owner_updates) owner_updates[i](NULL, A_OWNER_BEGIN, NULL);
+}
+
+void S_RunAbilityOwnerUpdates(void) {
+    FOR_LOOP(i, num_owner_updates) owner_updates[i](NULL, A_OWNER_UPDATE, NULL);
 }
 
 /* Persistent effects can outlive their active order; the callback owns its per-unit state checks. */
@@ -895,13 +907,17 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     bool handled = false;
 
     if (!ent) return false;
-    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND)
+    if (msg == A_UNIT_TYPE_CHANGING || msg == A_UNIT_TYPE_CHANGED)
+        return unit_dispatch_engine_event_abilities(ent, msg, NULL);
+    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, NULL);
+    if (msg == A_REQUIREMENTS_CHANGED)
+        return unit_dispatch_authored_abilities(ent, msg, NULL, false, false, false) != 0;
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false,
-                                                 msg != A_DEATH, msg == A_MOVE_LEAVE) != 0;
+                                                 msg != A_DEATH, msg == A_MOVE_LEAVE) != 0 || handled;
     if (msg == A_NATURAL_MANA_REGEN_BLOCKED)
         return unit_dispatch_authored_abilities(ent, msg, NULL, true, false, false) != 0;
 
@@ -911,6 +927,19 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
         if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE || msg == A_NO_RETALIATE)) break;
     }
     return handled;
+}
+
+/* Notify active behavior owners after semantic removal, before deferred memory reclamation. */
+void S_UnitTargetRemoved(edict_t *target) {
+    abilityCall_t call = MAKE(abilityCall_t, .removed_target = target);
+    uint32_t count = globals.num_edicts;
+
+    FOR_LOOP(i, count) {
+        edict_t *ent = globals.edicts + i;
+        if (ent == target || !ent->inuse || G_IsDeferredFree(ent) || !ent->currentmove || !ent->currentmove->proc)
+            continue;
+        ent->currentmove->proc(ent, A_TARGET_REMOVED, &call);
+    }
 }
 
 void S_UnitAbilityMoveLeave(edict_t *ent, abilityProc_t next_move_proc) {
@@ -1071,11 +1100,15 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
 
 bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
     uint32_t seen[MAX_ABILITIES * 2 + MAX_HERO_ABILITIES] = {0}, count = 0;
+    bool aggregate = msg == A_MOVE_SPEED_BONUS, handled = false;
     if (!ent) return false;
     FOR_LOOP(i, num_innate) {
         abilityCall_t invoke = call ? *call : MAKE(abilityCall_t, 0);
         invoke.item = innate_items + i;
-        if (S_AbilityMessage(ent, msg, &invoke)) return true;
+        if (S_AbilityMessage(ent, msg, &invoke)) {
+            handled = true;
+            if (!aggregate) return true;
+        }
     }
 #define DISPATCH_UNIT_ABILITY(code_) do { \
         uint32_t const code = (code_); bool duplicate = false; \
@@ -1088,7 +1121,9 @@ bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *c
                 if (item.ability) { \
                     abilityCall_t invoke = call ? *call : MAKE(abilityCall_t, 0); \
                     invoke.item = &item; \
-                    if (S_AbilityMessage(ent, msg, &invoke)) return true; \
+                    if (S_AbilityMessage(ent, msg, &invoke)) { \
+                        handled = true; if (!aggregate) return true; \
+                    } \
                 } \
             } \
         } \
@@ -1105,7 +1140,7 @@ bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *c
         if (ent->heroabilities[i].level && ent->heroabilities[i].code)
             DISPATCH_UNIT_ABILITY(ent->heroabilities[i].code);
 #undef DISPATCH_UNIT_ABILITY
-    return false;
+    return handled;
 }
 
 void S_EnableAbility(edict_t *ent, uint32_t code) {
@@ -1202,7 +1237,7 @@ void S_AbilityCommand(edict_t *clent, ability_t const *ability) {
 
 void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
-    num_updates = 0;
+    num_updates = num_owner_updates = 0;
     num_innate = 0;
     num_ability_index_procs = 0;
     FOR_LOOP(i, game.num_abilities) {
@@ -1217,6 +1252,10 @@ void InitAbilities(void) {
         if (entry->flags & AB_UPDATE) {
             for (n = 0; n < num_updates && ability_updates[n] != entry->proc; n++) {}
             if (n == num_updates) ability_updates[num_updates++] = entry->proc;
+        }
+        if (entry->flags & AB_OWNER_UPDATE) {
+            for (n = 0; n < num_owner_updates && owner_updates[n] != entry->proc; n++) {}
+            if (n == num_owner_updates) owner_updates[num_owner_updates++] = entry->proc;
         }
         for (n = 0; n < num_ability_index_procs && ability_index_procs[n] != entry->proc; n++) {}
         if (n == num_ability_index_procs) {

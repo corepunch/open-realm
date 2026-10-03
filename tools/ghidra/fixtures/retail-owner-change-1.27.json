@@ -1,0 +1,3380 @@
+{
+  "version": 1,
+  "metadata": {
+    "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "owned": true,
+    "source_sha256": {
+      "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+      "wc3_pathfinding.js": "30eaf5e262f55895c4f50888695078eaceb0c37b21405d211875036726b7fcae",
+      "wc3_pathfinding_probe.j": "a0f2405076eece8a5eec042fbc2f550477b073e490fc5df36921b587bd8cb80c",
+      "make_wc3_pathfinding_map.py": "05398d605f666119de7196fa20e1375f86c21f59dea7732b5589d9d5c83146c7",
+      "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+      "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+      "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+      "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+      "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+      "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+      "map": "7c63d982acd751cea3773e8745aaf8c0b9a1a7c860d156e454868a031c5b16dc"
+    },
+    "map": "Maps\\PathingRE-OwnerClass-261002.w3m",
+    "seconds": 170.0,
+    "frida": "17.18.0",
+    "timestamp": 1481263518,
+    "imageSize": 15130624,
+    "samples": 10000,
+    "watchCell": null,
+    "blockers": false,
+    "taskEvents": false,
+    "widgetEvents": false,
+    "motionEvents": true,
+    "velocityEvents": true,
+    "yieldEvents": true,
+    "clockEvents": true,
+    "headingEvents": false,
+    "profileEvents": true,
+    "numericEvents": false,
+    "randomEvents": true,
+    "literalTexts": [],
+    "integerTexts": [],
+    "byteEvents": false
+  },
+  "scope": "Repeated full public ordinary SetUnitOwner journey: all17 velocity commits, both synchronous ownership Stops, player-class publication, and every marker through tick300. Trailing clock observers are checked for completeness, not used as a new primary-clock parity claim. Original base-map static geometry is supplied from the existing independent public-oblique geometry capture. Other ownership abilities/policy buckets remain open.",
+  "source_captures": [
+    "/GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/owner-class-stop-first-261002.jsonl",
+    "/GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/owner-class-stop-repeat-261002.jsonl"
+  ],
+  "capture_sha256": [
+    "0a2fcfcb173562188c0e7bee52653aa5c2426465d72c4589545be2ed5d710c32",
+    "393b429b3820a795fa4a33dc58b101ce6c76a7b43096b1904c953cf551bce895"
+  ],
+  "lifecycle": [
+    {
+      "event": "scheduler-class",
+      "value": 0,
+      "before": 2097152,
+      "after": 2097152
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=0 label=start_owner_change x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=1 label=sample x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=2 label=sample x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=3 label=sample x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=4 label=sample x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=5 label=sample x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=6 label=sample x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=7 label=sample x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=8 label=sample x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=9 label=sample x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=10 label=before_order x=-1936.000 y=-976.000 order=0"
+    },
+    {
+      "event": "mover-stop",
+      "before": [
+        0,
+        0,
+        1126400000,
+        1115881472,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "requestedBefore": [
+        0,
+        0
+      ],
+      "caller": "0x5ca8b",
+      "stack": [
+        "0x5ca8b",
+        "0x171340",
+        "0x69a881",
+        "0x600433",
+        "0x71f17",
+        "0x71ddc",
+        "0x71daf",
+        "0x67403e",
+        "0x673630",
+        "0x206fae",
+        "0x206eee",
+        "0x919123",
+        "0x91ba8a",
+        "0x91c76c",
+        "0x90c9dd",
+        "0x1dd845"
+      ],
+      "after": [
+        1065353200,
+        0,
+        1126400000,
+        1115881472,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "requestedAfter": [
+        0,
+        0
+      ]
+    },
+    {
+      "event": "mover-stop",
+      "before": [
+        1065353200,
+        0,
+        1126400000,
+        1115881472,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "requestedBefore": [
+        0,
+        0
+      ],
+      "caller": "0x5ca8b",
+      "stack": [
+        "0x5ca8b",
+        "0x171340",
+        "0x69a881",
+        "0x600433",
+        "0x71f17",
+        "0x71ddc",
+        "0x71daf",
+        "0x67df7d",
+        "0x67acd1",
+        "0x6935a1",
+        "0x68039e",
+        "0x206fae",
+        "0x206eee",
+        "0x919123",
+        "0x91ba8a",
+        "0x91c76c"
+      ],
+      "after": [
+        1065353200,
+        0,
+        1126400000,
+        1115881472,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "requestedAfter": [
+        0,
+        0
+      ]
+    },
+    {
+      "event": "mover-stop",
+      "before": [
+        1065353200,
+        0,
+        1126400000,
+        1115881472,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "requestedBefore": [
+        0,
+        0
+      ],
+      "caller": "0x5bb54",
+      "stack": [
+        "0x5bb54",
+        "0x171340",
+        "0x5ffdb4",
+        "0x5fdbc3",
+        "0x71f17",
+        "0x71ddc",
+        "0x71daf",
+        "0x67df7d",
+        "0x67acd1",
+        "0x6935a1",
+        "0x68039e",
+        "0x206fae",
+        "0x206eee",
+        "0x919123",
+        "0x91ba8a",
+        "0x91c76c"
+      ],
+      "after": [
+        1065353200,
+        0,
+        1126400000,
+        1115881472,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "requestedAfter": [
+        0,
+        0
+      ]
+    },
+    {
+      "event": "scheduler-class",
+      "value": 0,
+      "before": 6291456,
+      "after": 6291456
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=10 label=order_accepted x=-1936.000 y=-976.000 order=851986"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=10 label=sample x=-1936.000 y=-976.000 order=851986"
+    },
+    {
+      "event": "motion-decision",
+      "speed": 0,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1083572224,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1115881472
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        4294967295,
+        4294967295,
+        0,
+        0,
+        26215100,
+        3145728,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1058,
+      "sourceAfter": [
+        1126400000,
+        1115881472
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1083572224,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1065353200,
+        0,
+        1126400000,
+        1115881472,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1065520980,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 0,
+      "after": [
+        1065520980,
+        0,
+        1126400000,
+        1115881472,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1115899903
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1059,
+      "sourceAfter": [
+        1126400000,
+        1115899903
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1065520980,
+        0,
+        1126400000,
+        1115881472,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1065772638,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1065772638,
+        0,
+        1126400000,
+        1115899903,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1115918334
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1060,
+      "sourceAfter": [
+        1126400000,
+        1115918334
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1065772638,
+        0,
+        1126400000,
+        1115899903,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1066024296,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1066024296,
+        0,
+        1126400000,
+        1115918334,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=11 label=sample x=-1936.000 y=-964.001 order=851986"
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1115936765
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1061,
+      "sourceAfter": [
+        1126400000,
+        1115936765
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1066024296,
+        0,
+        1126400000,
+        1115918334,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1066275954,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1066275954,
+        0,
+        1126400000,
+        1115936765,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1115955196
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1062,
+      "sourceAfter": [
+        1126400000,
+        1115955196
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1066275954,
+        0,
+        1126400000,
+        1115936765,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1066527612,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1066527612,
+        0,
+        1126400000,
+        1115955196,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1115973627
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1063,
+      "sourceAfter": [
+        1126400000,
+        1115973627
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1066527612,
+        0,
+        1126400000,
+        1115955196,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1066779270,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1066779270,
+        0,
+        1126400000,
+        1115973627,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1115992058
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1064,
+      "sourceAfter": [
+        1126400000,
+        1115992058
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1066779270,
+        0,
+        1126400000,
+        1115973627,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1067030928,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1067030928,
+        0,
+        1126400000,
+        1115992058,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=12 label=sample x=-1936.000 y=-949.001 order=851986"
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1116010489
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1065,
+      "sourceAfter": [
+        1126400000,
+        1116010489
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1067030928,
+        0,
+        1126400000,
+        1115992058,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1067282586,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1067282586,
+        0,
+        1126400000,
+        1116010489,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1116028920
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1066,
+      "sourceAfter": [
+        1126400000,
+        1116028920
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1067282586,
+        0,
+        1126400000,
+        1116010489,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1067534244,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1067534244,
+        0,
+        1126400000,
+        1116028920,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1116047351
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1067,
+      "sourceAfter": [
+        1126400000,
+        1116047351
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1067534244,
+        0,
+        1126400000,
+        1116028920,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1067785902,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1067785902,
+        0,
+        1126400000,
+        1116047351,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=13 label=sample x=-1936.000 y=-934.002 order=851986"
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1116065782
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1068,
+      "sourceAfter": [
+        1126400000,
+        1116065782
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1067785902,
+        0,
+        1126400000,
+        1116047351,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1068037560,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1068037560,
+        0,
+        1126400000,
+        1116065782,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1116084213
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1069,
+      "sourceAfter": [
+        1126400000,
+        1116084213
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1068037560,
+        0,
+        1126400000,
+        1116065782,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1068289218,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1068289218,
+        0,
+        1126400000,
+        1116084213,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1116102644
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1070,
+      "sourceAfter": [
+        1126400000,
+        1116102644
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1068289218,
+        0,
+        1126400000,
+        1116084213,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1068540876,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1068540876,
+        0,
+        1126400000,
+        1116102644,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=14 label=sample x=-1936.000 y=-919.003 order=851986"
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1116121075
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1071,
+      "sourceAfter": [
+        1126400000,
+        1116121075
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1068540876,
+        0,
+        1126400000,
+        1116102644,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1068792534,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1068792534,
+        0,
+        1126400000,
+        1116121075,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1116139506
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1072,
+      "sourceAfter": [
+        1126400000,
+        1116139506
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1068792534,
+        0,
+        1126400000,
+        1116121075,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1069044192,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1069044192,
+        0,
+        1126400000,
+        1116139506,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1116157937
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1073,
+      "sourceAfter": [
+        1126400000,
+        1116157937
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1069044192,
+        0,
+        1126400000,
+        1116139506,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1069295850,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1069295850,
+        0,
+        1126400000,
+        1116157937,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "motion-decision",
+      "speed": 1083572252,
+      "heading": 1070141402,
+      "error": 0,
+      "stop": 0,
+      "increment": 1083572224,
+      "turn": 1058642330,
+      "window": 1065749137,
+      "nextSpeed": 1091960846,
+      "nextHeading": 1070141402
+    },
+    {
+      "event": "route-step",
+      "source": [
+        1126400000,
+        1116176368
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "before": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ],
+      "counter": 1074,
+      "sourceAfter": [
+        1126400000,
+        1116176368
+      ],
+      "destinationAfter": [
+        1126400000,
+        1119289344
+      ],
+      "outputs": [
+        1091960846,
+        1070141402,
+        0,
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0,
+        0,
+        0,
+        26215100,
+        35651584,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1069295850,
+        0,
+        1126400000,
+        1116157937,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1069547508,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1069547508,
+        0,
+        1126400000,
+        1116176368,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=15 label=before_owner_change x=-1936.000 y=-904.004 order=851986"
+    },
+    {
+      "event": "mover-stop",
+      "before": [
+        1069547508,
+        0,
+        1126400000,
+        1116176368,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requestedBefore": [
+        1083572224,
+        2147483648
+      ],
+      "caller": "0x5ca8b",
+      "stack": [
+        "0x5ca8b",
+        "0x171340",
+        "0x69a881",
+        "0x600433",
+        "0x71f17",
+        "0x71ddc",
+        "0x71daf",
+        "0x67403e",
+        "0x673630",
+        "0x698d92",
+        "0x21552f",
+        "0x919123",
+        "0x91ba8a",
+        "0x91c76c",
+        "0x90c9dd",
+        "0x1dd845"
+      ],
+      "after": [
+        1069547508,
+        0,
+        1126400000,
+        1116176368,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "requestedAfter": [
+        0,
+        0
+      ]
+    },
+    {
+      "event": "mover-stop",
+      "before": [
+        1069547508,
+        0,
+        1126400000,
+        1116176368,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "requestedBefore": [
+        0,
+        0
+      ],
+      "caller": "0x5ca8b",
+      "stack": [
+        "0x5ca8b",
+        "0x171340",
+        "0x69a881",
+        "0x600433",
+        "0x71f17",
+        "0x71ddc",
+        "0x71daf",
+        "0x67df7d",
+        "0x67acd1",
+        "0x6935a1",
+        "0x68039e",
+        "0x698d92",
+        "0x21552f",
+        "0x919123",
+        "0x91ba8a",
+        "0x91c76c"
+      ],
+      "after": [
+        1069547508,
+        0,
+        1126400000,
+        1116176368,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "requestedAfter": [
+        0,
+        0
+      ]
+    },
+    {
+      "event": "scheduler-class",
+      "value": 1,
+      "before": 3145728,
+      "after": 3211264
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=15 label=after_owner_change x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=15 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=16 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=17 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=18 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=19 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=20 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=21 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=22 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=23 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=24 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=25 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=26 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=27 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=28 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=29 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=30 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=31 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=32 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=33 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=34 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=35 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=36 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=37 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=38 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=39 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=40 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=41 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=42 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=43 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=44 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=45 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=46 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=47 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=48 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=49 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=50 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=51 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=52 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=53 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=54 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=55 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=56 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=57 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=58 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=59 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=60 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=61 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=62 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=63 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=64 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=65 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=66 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=67 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=68 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=69 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=70 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=71 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=72 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=73 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=74 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=75 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=76 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=77 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=78 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=79 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=80 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=81 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=82 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=83 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=84 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=85 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=86 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=87 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=88 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=89 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=90 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=91 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=92 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=93 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=94 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=95 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=96 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=97 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=98 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=99 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=100 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=101 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=102 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=103 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=104 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=105 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=106 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=107 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=108 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=109 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=110 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=111 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=112 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=113 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=114 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=115 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=116 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=117 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=118 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=119 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=120 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=121 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=122 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=123 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=124 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=125 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=126 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=127 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=128 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=129 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=130 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=131 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=132 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=133 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=134 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=135 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=136 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=137 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=138 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=139 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=140 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=141 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=142 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=143 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=144 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=145 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=146 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=147 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=148 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=149 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=150 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=151 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=152 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=153 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=154 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=155 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=156 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=157 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=158 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=159 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=160 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=161 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=162 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=163 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=164 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=165 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=166 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=167 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=168 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=169 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=170 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=171 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=172 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=173 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=174 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=175 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=176 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=177 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=178 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=179 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=180 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=181 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=182 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=183 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=184 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=185 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=186 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=187 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=188 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=189 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=190 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=191 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=192 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=193 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=194 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=195 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=196 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=197 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=198 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=199 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=200 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=201 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=202 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=203 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=204 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=205 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=206 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=207 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=208 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=209 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=210 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=211 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=212 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=213 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=214 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=215 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=216 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=217 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=218 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=219 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=220 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=221 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=222 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=223 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=224 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=225 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=226 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=227 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=228 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=229 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=230 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=231 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=232 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=233 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=234 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=235 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=236 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=237 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=238 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=239 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=240 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=241 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=242 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=243 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=244 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=245 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=246 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=247 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=248 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=249 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=250 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=251 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=252 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=253 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=254 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=255 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=256 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=257 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=258 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=259 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=260 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=261 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=262 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=263 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=264 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=265 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=266 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=267 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=268 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=269 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=270 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=271 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=272 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=273 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=274 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=275 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=276 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=277 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=278 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=279 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=280 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=281 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=282 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=283 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=284 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=285 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=286 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=287 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=288 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=289 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=290 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=291 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=292 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=293 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=294 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=295 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=296 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=297 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=298 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=299 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=300 label=sample x=-1936.000 y=-904.004 order=0"
+    },
+    {
+      "event": "marker",
+      "value": "PATHTRACE tick=300 label=complete x=-1936.000 y=-904.004 order=0"
+    }
+  ],
+  "lifecycle_sha256": "9e172f97f6fe4d2d0253fbea04fda6ab47b298f68f6e14cbd54260dd21a40cd2",
+  "motion": [
+    [
+      1065520980,
+      1126400000,
+      1115881472,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1065772638,
+      1126400000,
+      1115899903,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1066024296,
+      1126400000,
+      1115918334,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1066275954,
+      1126400000,
+      1115936765,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1066527612,
+      1126400000,
+      1115955196,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1066779270,
+      1126400000,
+      1115973627,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1067030928,
+      1126400000,
+      1115992058,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1067282586,
+      1126400000,
+      1116010489,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1067534244,
+      1126400000,
+      1116028920,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1067785902,
+      1126400000,
+      1116047351,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1068037560,
+      1126400000,
+      1116065782,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1068289218,
+      1126400000,
+      1116084213,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1068540876,
+      1126400000,
+      1116102644,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1068792534,
+      1126400000,
+      1116121075,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1069044192,
+      1126400000,
+      1116139506,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1069295850,
+      1126400000,
+      1116157937,
+      823525349,
+      1083572196,
+      1070141402
+    ],
+    [
+      1069547508,
+      1126400000,
+      1116176368,
+      823525349,
+      1083572196,
+      1070141402
+    ]
+  ],
+  "final_pose": [
+    1069547508,
+    0,
+    1126400000,
+    1116176368,
+    0,
+    0,
+    1083572224,
+    1070141402
+  ],
+  "final_requested": [
+    0,
+    0
+  ]
+}

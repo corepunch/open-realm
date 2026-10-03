@@ -1,3 +1,4 @@
+#include "games/warcraft-3/common/wc3_math.h"
 extern player_t *currentplayer;
 
 static uint32_t const order_ugol = BZ_WC3_UNIT_HAUNTED_GOLD_MINE;
@@ -34,14 +35,12 @@ uint32_t GetUnit##NAME(jass_t *j) {  \
 
 #define UNITINFO_ACCESS(FIELD) UNIT_ACCESS(FIELD, unitinfo.FIELD)
 
-#define UNIT_POSITION_ACCESS(NAME, FIELD) \
+#define UNIT_POSITION_ACCESS(NAME, FIELD, AXIS) \
 uint32_t SetUnit##NAME(jass_t *j) { \
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit"); \
     if (whichUnit) { \
         vec2_t old_position = whichUnit->s.origin2; \
-        whichUnit->FIELD = jass_checknumber(j, 2); \
-        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty(); \
-        gi.LinkEntity(whichUnit); \
+        S_SetUnitAxisPosition(whichUnit, AXIS, jass_checknumber(j, 2)); \
         G_UnitPositionChanged(whichUnit, &old_position); \
     } \
     return 0; \
@@ -51,31 +50,29 @@ uint32_t GetUnit##NAME(jass_t *j) { \
     return jass_pushnumber(j, whichUnit ? whichUnit->FIELD : 0); \
 }
 
-UNIT_POSITION_ACCESS(X, s.origin.x);
-UNIT_POSITION_ACCESS(Y, s.origin.y);
+UNIT_POSITION_ACCESS(X, s.origin.x, 0);
+UNIT_POSITION_ACCESS(Y, s.origin.y, 1);
 #undef UNIT_POSITION_ACCESS
 
 uint32_t SetUnitPositionLoc(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     vec2_t const *whichLocation = jass_checkhandle(j, 2, "location");
-    vec2_t position;
-
-    if (whichUnit && whichLocation) {
-        vec2_t old_position = whichUnit->s.origin2;
-        G_FindUnitUnstuckPosition(whichUnit, whichLocation, &position);
-        whichUnit->s.origin.x = position.x;
-        whichUnit->s.origin.y = position.y;
-        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
-        gi.LinkEntity(whichUnit);
-        G_UnitPositionChanged(whichUnit, &old_position);
-    }
+    if (whichUnit && whichLocation) S_SetUnitPosition(whichUnit, whichLocation);
     return 0;
 }
 uint32_t GetUnitPositionLoc(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     return whichUnit ? jass_pushlighthandle(j, &whichUnit->s.origin2, "location") : jass_pushnullhandle(j, "location");
 }
-UNITINFO_ACCESS(MoveSpeed);
+uint32_t SetUnitMoveSpeed(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    S_SetUnitMoveSpeed(unit, jass_checknumber(j, 2));
+    return 0;
+}
+
+uint32_t GetUnitMoveSpeed(jass_t *j) {
+    return jass_pushnumber(j, S_UnitMoveSpeed(jass_checkhandle(j, 1, "unit")));
+}
 
 uint32_t SetUnitFlyHeight(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -94,20 +91,34 @@ uint32_t GetUnitFlyHeight(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.FlyHeight : 0);
 }
-UNITINFO_ACCESS(TurnSpeed);
-UNITINFO_ACCESS(AcquireRange);
-
-/* UnitData.uprw is authored in degrees, while the native setter/getter use
- * radians. Keep the runtime value in native units for movement and JASS. */
-uint32_t SetUnitPropWindow(jass_t *j) {
-    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    if (whichUnit) whichUnit->unitinfo.PropWindow = (float)jass_checknumber(j, 2);
+/* Keep explicit overrides: a zero window must not be mistaken for an unset value. */
+uint32_t SetUnitTurnSpeed(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    float value = wc3_angle(jass_checknumber(j, 2));
+    if (unit) {
+        unit->unitinfo.TurnSpeed = MAX(wc3_float(0x3a83126f), value);
+        unit->unitinfo.move_flags |= BZ_UNIT_TURN_SET;
+    }
     return 0;
 }
-uint32_t GetUnitPropWindow(jass_t *j) {
-    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.PropWindow : 0);
+uint32_t SetUnitPropWindow(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    float value = wc3_angle(jass_checknumber(j, 2));
+    if (unit) {
+        unit->unitinfo.PropWindow = value;
+        unit->unitinfo.move_flags |= BZ_UNIT_WINDOW_SET;
+    }
+    return 0;
 }
+uint32_t GetUnitTurnSpeed(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, unit ? unit_turnspeed(unit) : 0);
+}
+uint32_t GetUnitPropWindow(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, unit ? unit_propwindow(unit) : 0);
+}
+UNITINFO_ACCESS(AcquireRange);
 
 uint32_t GetUnitFacing(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -207,17 +218,7 @@ uint32_t GetUnitState(jass_t *j) {
 uint32_t SetUnitPosition(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     vec2_t requested = MAKE(vec2_t, jass_checknumber(j, 2), jass_checknumber(j, 3));
-    vec2_t position;
-
-    if (whichUnit) {
-        vec2_t old_position = whichUnit->s.origin2;
-        G_FindUnitUnstuckPosition(whichUnit, &requested, &position);
-        whichUnit->s.origin.x = position.x;
-        whichUnit->s.origin.y = position.y;
-        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
-        gi.LinkEntity(whichUnit);
-        G_UnitPositionChanged(whichUnit, &old_position);
-    }
+    if (whichUnit) S_SetUnitPosition(whichUnit, &requested);
     return 0;
 }
 uint32_t GetUnitDefaultAcquireRange(jass_t *j) {
@@ -226,12 +227,12 @@ uint32_t GetUnitDefaultAcquireRange(jass_t *j) {
 }
 uint32_t GetUnitDefaultTurnSpeed(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.TurnSpeed : 0);
+    return jass_pushnumber(j, whichUnit ? whichUnit->data.UnitData->turnRate : 0);
 }
 uint32_t GetUnitDefaultPropWindow(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, whichUnit && whichUnit->data.UnitData
-        ? whichUnit->data.UnitData->propWin : 0);
+    /* Retail's default getter returns authored degrees; the current getter returns radians. */
+    return jass_pushnumber(j, whichUnit && whichUnit->data.UnitData ? whichUnit->data.UnitData->propWin : 0);
 }
 uint32_t GetUnitDefaultFlyHeight(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -530,7 +531,9 @@ uint32_t GetUnitLevel(jass_t *j) {
 }
 uint32_t GetUnitCurrentOrder(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, whichUnit ? (int32_t)G_GetIssuedOrderId(whichUnit) : 0);
+    /* TODO: ORDER-01.6 extends active-head ownership to the remaining command
+     * owners; they require original lifecycle witnesses before integration. */
+    return jass_pushinteger(j, whichUnit ? (int32_t)whichUnit->current_order_id : 0);
 }
 uint32_t UnitInventorySize(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -670,7 +673,7 @@ uint32_t SetUnitInvulnerable(jass_t *j) {
 uint32_t PauseUnit(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     bool flag = jass_checkboolean(j, 2);
-    if (whichUnit) whichUnit->paused = flag;
+    S_SetUnitPaused(whichUnit, flag);
     return 0;
 }
 uint32_t IsUnitPaused(jass_t *j) {
@@ -834,7 +837,7 @@ uint32_t GetUnitLoc(jass_t *j) {
 }
 uint32_t GetUnitDefaultMoveSpeed(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.MoveSpeed : 0);
+    return jass_pushnumber(j, S_UnitDefaultMoveSpeed(whichUnit));
 }
 uint32_t GetOwningPlayer(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

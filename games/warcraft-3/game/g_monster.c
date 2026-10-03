@@ -165,8 +165,32 @@ void monster_think(edict_t *self) {
         return;
     }
     M_MoveFrame(self);
-    if (self->currentmove->think) {
+    if (self->currentmove->think && !(level.scheduled_frame && (self->currentmove->scheduled_think ||
+            self->scheduled_think_frame == level.framenum))) {
         self->currentmove->think(self);
+    }
+}
+
+/* Callback cadence is data on the owning move; the snapshot frame still owns animation. */
+void M_RunScheduledThinks(void) {
+    level.scheduled_think = true;
+    S_BeginAbilityOwnerUpdates();
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *self = g_edicts + i;
+        if (!self->inuse || !G_UnitIsWorldActive(self) || self->paused || self->stunned ||
+            !self->currentmove || !self->currentmove->scheduled_think) continue;
+        self->scheduled_think_frame = level.framenum;
+        SAFE_CALL(self->currentmove->think, self);
+    }
+    S_RunAbilityOwnerUpdates();
+    level.scheduled_think = false;
+}
+
+void M_SamplePoses(void) {
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *self = g_edicts + i;
+        if (self->inuse && G_UnitIsWorldActive(self) && self->currentmove)
+            SAFE_CALL(self->currentmove->sample_pose, self);
     }
 }
 

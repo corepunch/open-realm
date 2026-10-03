@@ -19,6 +19,35 @@ static UnitAbilities_t const bot_attack_hall_abilities = { .abilList = "Argl" };
  * overlay and is intentionally excluded from ordinary worker harvesting. */
 static UnitAbilities_t const bot_mine_abilities = { .abilList = "Agld" };
 
+/* Retail admits the older unit after a real owner round-trip, but a same-owner
+ * call leaves the newer peer first. Edict order cannot represent this pool. */
+TEST(wc3_bot, public_owned_pool_recruitment_tracks_owner_insertion) {
+    FOR_LOOP(transfer,2) {
+        G_BotStop(0); reset_entities(); setup_test_world();
+        char script[1000];
+        snprintf(script,sizeof(script),
+            "globals\nunit first\nunit second\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set first=CreateUnit(Player(0),'hfoo',32,64,90)\n"
+            "set second=CreateUnit(Player(0),'hfoo',128,64,90)\n%s\n"
+            "call SetUnitOwner(first,Player(0),false)\n"
+            "call StartCampaignAI(Player(0),\"test_captain_pool.ai\")\nendfunction\n",
+            transfer ? "call SetUnitOwner(first,Player(1),false)" : "");
+        T_ASSERT(run_test_jass(script));
+        G_BotRunFrame();
+        edict_t *first=NULL,*second=NULL;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id==MAKEFOURCC('h','f','o','o')) {
+            if(!first)first=unit;else second=unit;
+        }
+        T_NOT_NULL(first); T_NOT_NULL(second);
+        T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),1);
+        if(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)))
+            T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[0],transfer ? first : second);
+        T_EQ((transfer ? second : first)->current_order_id,0);
+    }
+    G_BotStop(0); reset_entities(); setup_test_world();
+}
+
 TEST(wc3_bot, display_text_formats_only_authoritative_integer_templates) {
     int32_t values[] = {12, -3, 7};
     char text[64], small[8];
@@ -79,13 +108,16 @@ TEST(wc3_bot, roots_are_independent_and_stop_individually) {
     T_NULL(level.bots[2].vm);
 }
 
-TEST(wc3_bot, replacement_and_missing_script_are_bounded) {
+TEST(wc3_bot, repeated_start_preserves_vm_and_missing_script_is_bounded) {
     player_t *player = &game.clients[0].ps;
 
     T_ASSERT(G_BotStart(player, "test_idle.ai", BOT_CAMPAIGN));
     T_ASSERT(G_BotStart(player, "Scripts\\test_idle.ai", BOT_MELEE));
     T_NOT_NULL(level.bots[0].vm);
-    T_EQ(level.bots[0].mode, BOT_MELEE);
+    T_EQ(level.bots[0].mode, BOT_CAMPAIGN);
+    T_ASSERT(!G_BotStart(player, "missing.ai", BOT_CAMPAIGN));
+    T_NOT_NULL(level.bots[0].vm);
+    G_BotStop(0);
     T_ASSERT(!G_BotStart(player, "missing.ai", BOT_CAMPAIGN));
     T_NULL(level.bots[0].vm);
     T_ASSERT(!G_BotStart(player, "test_no_main.ai", BOT_CAMPAIGN));
@@ -103,12 +135,12 @@ TEST(wc3_bot, deferred_stop_removes_only_requested_player) {
     T_NOT_NULL(level.bots[2].vm);
 }
 
-TEST(wc3_bot, replacement_requested_inside_ai_is_deferred) {
+TEST(wc3_bot, repeated_start_inside_ai_preserves_current_script) {
     T_ASSERT(G_BotStart(&game.clients[1].ps, "test_replace.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(level.bots[1].vm);
     T_EQ(level.bots[1].mode, BOT_CAMPAIGN);
-    T_STREQ(level.bots[1].script, "Scripts\\test_idle.ai");
+    T_STREQ(level.bots[1].script, "Scripts\\test_replace.ai");
     G_BotRunFrame();
     T_NOT_NULL(level.bots[1].vm);
 }
@@ -720,17 +752,17 @@ TEST(wc3_bot, harvest_natives_execute_through_player_bot_vm) {
 TEST(wc3_bot, create_captains_resets_both_bot_owned_captains) {
     bot_t *bot = level.bots + 2;
     bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
-    bot->captains[BOT_CAPTAIN_ATTACK].desired = 6;
+    bot->captains[BOT_CAPTAIN_ATTACK].full = true;
     bot->captains[BOT_CAPTAIN_ATTACK].home.x = 128;
     bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_RETREATING;
-    bot->captains[BOT_CAPTAIN_DEFENSE].desired = 3;
+    bot->captains[BOT_CAPTAIN_DEFENSE].full = true;
     bot->captains[BOT_CAPTAIN_DEFENSE].goal.y = 256;
 
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_create_captains.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
         T_EQ(bot->captains[i].state, BOT_CAPTAIN_IDLE);
-        T_EQ(bot->captains[i].desired, 0);
+        T_ASSERT(!bot->captains[i].full);T_ASSERT(!bot->captains[i].home_set);
         T_EQ(ARRAY_COUNT(bot->captains[i].units), 0);
         T_NULL(bot->captains[i].units);
         T_FEQ(bot->captains[i].home.x, 0, 0.001f);
@@ -995,7 +1027,7 @@ TEST(wc3_bot, add_defenders_fills_idempotently_from_completed_owned_units) {
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 0, type));
 }
 
-TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
+TEST(wc3_bot, assault_init_retains_captains_and_fill_tracks_formation_result) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
     edict_t *first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
@@ -1007,20 +1039,38 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 1, type));
+    /* The original owned pool admits newest first; the defense captain owns second. */
+    T_EQ(bot->captains[BOT_CAPTAIN_DEFENSE].units[0],second);
+    G_BotSetCaptainHome(&game.clients[2].ps, 1, 128, 256);
     G_BotInitAssault(&game.clients[2].ps);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.x, 128, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.y, 256, 0.001f);
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_FORMING);
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 1);
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[0], second);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 2);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[0], first);
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 4);
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
+    bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
+    bot->captains[BOT_CAPTAIN_ATTACK].goal = (vec2_t){-321,456};
+    edict_t **members = bot->captains[BOT_CAPTAIN_ATTACK].units;
+    G_BotInitAssault(&game.clients[2].ps);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units, members);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);T_EQ(members[0], first);
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.x, 128, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.y, 256, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.x, -321, 0.001f);
+    T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.y, 456, 0.001f);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 1);
     T_ASSERT(first != second && building != enemy);
 }
 
-TEST(wc3_bot, add_assault_consumes_each_duplicate_common_ai_entry_additively) {
+TEST(wc3_bot, add_assault_duplicate_entries_reconcile_retained_type_total) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
 
@@ -1031,12 +1081,12 @@ TEST(wc3_bot, add_assault_consumes_each_duplicate_common_ai_entry_additively) {
 
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 3, type));
-    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 5);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 5);
+    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 3);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 3);
     T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
 }
 
-TEST(wc3_bot, set_assault_group_form_group_uses_max_then_appends_duplicate_entry) {
+TEST(wc3_bot, set_assault_group_form_group_uses_max_with_retained_type_total) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
 
@@ -1050,8 +1100,8 @@ TEST(wc3_bot, set_assault_group_form_group_uses_max_then_appends_duplicate_entry
     G_BotRunFrame();
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
-    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 6);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 6);
+    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 5);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 5);
     T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
     G_BotStop(2);
 }
@@ -1140,26 +1190,72 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     T_ASSERT(enemy != NULL);
 }
 
-TEST(wc3_bot, captain_size_empty_and_full_count_only_live_assault_members) {
-    bot_t *bot = level.bots + 2;
+TEST(wc3_bot, public_captain_go_home_near_home_keeps_the_actor_and_roster_request) {
+    setup_test_world();
+    player_t *player=&game.clients[2].ps;
+    edict_t *unit=make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'),32,64,2,NULL);
+    uint64_t before=level.next_move_group_sequence;
+    T_ASSERT(G_BotStart(player,"test_captain_go_home_near.ai",BOT_CAMPAIGN));
+    G_BotRunFrame();
+    botCaptain_t const *captain=level.bots[2].captains+BOT_CAPTAIN_ATTACK;
+    T_NOT_NULL(level.bots[2].vm); T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
+    T_NOT_NULL(captain->home_actor);
+    T_EQ(captain->home_actor->s.origin2.x,128); T_EQ(captain->home_actor->s.origin2.y,256);
+    T_EQ(captain->home_actor->movement.group_id,0);
+    T_EQ(level.next_move_group_sequence,before+1);
+    T_EQ(unit->movement.captain_home.home.x,192);
+    T_EQ(unit->movement.captain_home.roster_actor,captain->home_actor);
+    T_ASSERT(unit->movement.captain_home.active);
+}
+
+TEST(wc3_bot, captain_full_tracks_formation_retry_without_reordering_retained_members) {
+    player_t *player = &game.clients[2].ps;
+    uint32_t type = MAKEFOURCC('h','f','o','o');
+    edict_t *unit = make_bot_harvest_unit(type, 32, 64, 2, NULL);
+    G_BotCreateCaptains(player);
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    G_BotSetCaptainHome(player, 1, 192, 288);
+    G_BotInitAssault(player);
+    T_ASSERT(G_BotCaptainIsFull(player));
+    T_ASSERT(G_BotAddAssault(player, 1, type));
+    T_ASSERT(G_BotCaptainIsFull(player));
+    edict_t *goal = unit->goalentity;
+    T_NOT_NULL(goal);
+    T_ASSERT(!G_BotAddAssault(player, 2, type));
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    T_ASSERT(G_BotAddAssault(player, 1, type));
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    G_BotInitAssault(player);
+    T_ASSERT(G_BotCaptainIsFull(player));
+    T_EQ(G_BotCaptainGroupSize(player), 1);
+    T_EQ(unit->goalentity, goal);
+    T_EQ(unit->current_order_id, G_OrderId("move"));
+    T_ASSERT(G_BotAddAssault(player, 1, type));
+    T_ASSERT(G_BotCaptainIsFull(player));
+    T_EQ(unit->goalentity, goal);
+    G_BotCreateCaptains(player);
+    T_ASSERT(!G_BotCaptainIsFull(player));
+    T_EQ(G_BotCaptainGroupSize(player), 0);
+}
+
+TEST(wc3_bot, captain_size_counts_live_members_separately_from_formation_full) {
     uint32_t type = MAKEFOURCC('h','f','o','o');
     edict_t *first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
     edict_t *second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 0);
-    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
     G_BotInitAssault(&game.clients[2].ps);
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 2);
     T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
     first->svflags |= SVF_DEADMONSTER;
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 1);
-    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
     second->inuse = false;
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 0);
-    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 2);
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
 }
 
 TEST(wc3_bot, remove_injuries_drops_sub_half_health_assault_members_and_sends_them_home) {

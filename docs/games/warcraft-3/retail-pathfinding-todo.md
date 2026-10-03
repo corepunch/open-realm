@@ -1,0 +1,1000 @@
+# Retail pathfinding: executable research backlog
+
+Target: Warcraft III **1.27.1.7085**. [Behavior ledger][ledger] owns the
+contracts and evidence limits; this file owns the work queue. Complete the
+research before declaring the full faithful OpenRealm replacement. Independently
+verified slices can be integrated earlier; the [scalar/turn integration](retail-pathfinding-engine.md)
+has exact C/live evidence without closing the whole-replacement READY gates.
+
+## Progress
+
+**161 done / 336 tasks; 175 remaining.** Payoff79 closes existing MAP-03.3,
+ACC-02.1 and ACC-03.2 without new IDs/splits. Actual terrain setters and complete
+padded hierarchy preserve the reduced size2 veto in all four lanes;54 ordinary
+classification witnesses and all engine map/node/route states match. Producer
+inventory maps remaining lifetime differences to existing tasks. Required
+RoC/TFT suites pass2,492 tests/4,406,232 assertions each,482 Python checks and
+three fresh corpus contracts.
+See [terrain-produced payoff](retail-pathfinding-engine.md#terrain-produced-adaptive-passages-preserve-the-retail-veto).
+
+Next runnable chunk is ACC-03.3: run the now producer-built size2 passage
+through original mover fallback/retry to completion and preserve its complete
+engine journey. FINE-01.6 remains the next dynamic occupancy implementation.
+No new TODO IDs.
+Counts describe this backlog, not a percentage of retail fidelity or an
+estimate of remaining effort.
+The rewrite splits the old 81 acceptance items into independently closable
+leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
+Completed evidence now sits next to its specific remaining extension.
+FORM-02.4 explicitly owns the immediate engine layout integration; FORM-01/03
+retain the original group heading, clock prediction and refresh-to-motion chain.
+
+| Area | Done | Remaining |
+| --- | ---: | ---: |
+| BASE — Baseline and reproducibility | 16 | 10 |
+| MAP — Map construction and lifetime | 15 | 7 |
+| FOOT — Footprints and query policy | 13 | 5 |
+| FINE — Fine search | 8 | 4 |
+| ACC — Adaptive search | 6 | 7 |
+| NUM — Numbers and random state | 24 | 19 |
+| ROUTE — Route progression and yielding | 7 | 9 |
+| TARGET — Pursuit and arrival policy | 6 | 7 |
+| SCHED — Scheduling and owner updates | 4 | 9 |
+| MOVE — Stepping and callbacks | 4 | 11 |
+| ORDER — Orders and reclamation | 12 | 24 |
+| GROUP — Shared movement groups | 35 | 12 |
+| FORM — Formation and regrouping | 4 | 9 |
+| SEP — Repulsion and spatial records | 5 | 10 |
+| GATE — Way Gates | 1 | 10 |
+| E2E — Combined scenarios and handoff | 1 | 18 |
+| READY — Start the faithful replacement | 0 | 4 |
+
+BASE-02.7 explicitly adds the missing ordinary path-activation/adaptive-admission policy; the wider scheduler and group-budget contracts remain open. ROUTE-05.3 explicitly adds the parallel engine ordered-wait port; it does not close05.1/05.2 producer/cycle requirements.
+
+Update these counts when checking, adding or splitting a task. Report progress
+as **IDs closed + artifact + next runnable ID**, not additional raw test counts.
+The denominator changes only when a new task is explicitly added or split.
+MAP-03.7 explicitly adds the inside-footprint engine failure discovered while auditing03.4;
+03.4 now closes the original getter/bridge mask and thirteen-tick journey; public construction/cache notification remain separately owned.
+FOOT-01.4/05 explicitly split engine class-footprint integration into completed
+nearby/direct/endpoint consumers and the now completed long/shared field geometry.
+The shared field algorithm is still not retail hierarchy parity.
+Moving point-Move radius publication is completed FOOT-01.2; local group
+maximum/cache mutation is completed01.3.1. Bound shared7c publication through
+Captain AI request batching and full passage matrices remain FOOT-01.3/02.
+FINE-01.4 explicitly owns incremental engine integration of the completed static
+search policy; it does not replace FINE-01.2/03 dynamic composition or FINE-02
+termination requirements. FINE-01.6 explicitly splits the overlapping target link producer from01.3's completed supplied-chain matrix and separate-target engine port. FINE-01.5 explicitly adds the independently reviewable engine idle-object port; ground/flight original composition is completed within01.2, while its other public lanes remain required.
+NUM-01.4 explicitly splits01.2's paired-trig production consumer from its
+remaining arithmetic/conversion and public-domain inventory; both are required.
+NUM-01.5/06 explicitly split the decimal/public-native engine integration from01.2.
+NUM-01.8 explicitly splits the remaining public angle adapter integration from01.2;
+its pointer-alias producers and other conversions remain required.
+NUM-01.9 explicitly splits Pow/log/exp/public-native integration from the other
+remaining numeric inventory; both leaves are required. NUM-01.10..14 now explicitly
+split01.2 into independent rounding, startup, alias-producer, CRT grammar and VM
+lifetime experiments;01.2 retains their inventory and newly discovered helper ownership.
+NUM-01.7 explicitly adds the distinct compiled-long-literal producer mismatch
+discovered during those captures; it remains required for numerical fidelity.
+NUM-01.15/16 explicitly split newly discovered source-lexer grammar and decimal/hex
+integer-token wrapping from the bounded compiled-real producer. All are required;
+a scalar helper matrix does not establish invalid-token or integer lexer behavior.
+NUM-02.4 was added explicitly to own the previously unassigned committed-facing
+exclusion of NUM-02.2; it is closed independently of whole-trajectory NUM-02.3.
+GROUP-04.1's callback removal/reuse and refreshed survivor requirement is split
+into GROUP-04.1/03/04: callback pruning, generation-safe reuse, and the refreshed
+survivor journey. GROUP-04.4 is now explicitly split further into completed-member
+survivor travel (04.4), actual refresh/new destinations and reuse composition (04.5),
+and full engine group storage/phase integration (04.6). All leaves are required
+to satisfy the original combined acceptance item. GROUP-04.7 explicitly adds the
+owned-path factory/accounting prerequisite discovered during04.5; it does not
+replace the remaining survivor refresh/reuse acceptance. GROUP-04.8 explicitly
+splits04.5's complete released/reused-member survivor journey from its actual
+refresh/new-destination producer requirement; both leaves remain required.
+ORDER-01.5 explicitly splits01.4's immutable issued-event callback ownership
+from the active current-order query; both remain required for the original item.
+ORDER-01.6 explicitly owns non-point command domains discovered during01.4.
+These remain required for faithful public query coverage and BASE-03.1 must
+index their original producers. ORDER-01.6 is explicitly split into its bounded
+owner inventory and01.7..16 domain leaves. Build is separate from Harvest, and
+01.15 owns the discovered synchronous target-removal timing gap; none of those
+requirements is hidden behind the completed inventory or Follow query slice.
+ORDER-01.15 is explicitly split into healthy active Follow loss/queued handoff
+(01.15) and combat-parent/direct-free/reentrant-generation/save lifetime composition
+(01.17). Both are required; the bounded synchronous public query does not close
+the wider lifetime producer graph. ORDER-01.9 is explicitly split into public
+Patrol admission/current ownership, endpoint reversal and queued/save lifecycle
+(01.9), and automatic combat/resume plus full original endpoint/arrival policy
+(01.18). The existing no-enemy reversal witness does not prove the latter.
+
+FOOT-04.6 explicitly splits the ordinary ground public CreateUnit admission and initial native pose from04.1. Other actor/factory, terrain-level and outside-map start policies remain required.
+
+## Work next
+
+Prioritize a verified behavior change in the engine for each work slice. FINE-01.4 now puts the verified fine-search queue, heuristic and neighbor order
+into Move-owned nearby detours, including retention when a generic field is ready.
+FOOT-01.4 now applies the verified class footprint to nearby routing, destination
+correction and actual Move stepping. FOOT-01.5 now uses that geometry for
+long/shared expansion, flow sampling, class-aware cache reuse and unreachable
+fallbacks. ROUTE-02.1 now ports all-class segment sampling, software normalization
+and original next-point/progressively-farther waypoint selection. FINE-01.5 now routes location orders around idle ground units and rechecks retained segments, with exact192 original mixed-chain/C searches and fresh hfoo/hgry profile/velocity evidence. FINE-02.2 now retains nearest partial routes and resumes actual Move after idle blocker removal. BASE-02.4 now ports the captured water/amphibious masks, WPM derivation and ground object categories. ROUTE-01.3 now preserves exact fine-route source/goal coordinates. TARGET-01.4 now ports actual point Move minimum-range/heading arrival and the final previous-velocity stop. MOVE-01.4 now ports ordinary public speed setters/getters, authored integer limits and saved explicit zero. MOVE-01.5 now immediately clamps existing velocity on public speed drops and preserves saved-step words. Continue temporary-effect restoration, target/ability producers and simulation-clock phases; retain FOOT-04 admission scopes.
+Keep dynamic eligibility and full-trajectory gates explicit.
+Numeric inventory/alias leaves remain open, but do not expand them ahead of a
+concrete routing, stepping, collision or arrival payoff. MOVE-02.3 now connects
+authored speed modifiers to actual individual/group movement; NUM-01.20 retains
+the completed vector-heading alias evidence. NUM-01.13 closes the default CRT byte grammar, exact native CRT identity and public high-byte Move inputs. NUM-01.16 closes decimal/octal/hex integer wrapping, native inputs and Move/save-load integration. NUM-01.7 closes the compiled decimal producer, raw native words and engine Move/save/load integration; full source grammar remains01.15. NUM-01.10/11 close rounding and shared scalar startup. NUM-01.9 closes terminating Pow/log/exp arithmetic and its public adapter; original nonreturning VM lifetime remains01.14. MAP-03.7 closes retained solid-footprint failure and engine cleanup; exact retry timing stays NUM-02.3. MAP-03.4 now retains the original Footman mask through thirteen-tick arrival and reclamation. GROUP-04.5 now composes actual survivor point
+replacement through680320, original new-request refresh/layout, new-goal arrival
+and both groups' final reclamation on open/wall maps. The638 velocity commits
+match production exactly; the server-frame engine regression preserves the old
+slot through edict reuse and reaches the replacement goal. Its inactive goal
+cache is separate from active order ownership. The engine's public current-order
+native now reads explicit ordinary point-Move current state, including queued
+activation, Stop, arrival, save/load and reuse (ORDER-01.4). Other command
+owners remain ORDER-01.10..14/16..18. ORDER-01.5 fixes immutable issued-event metadata through
+delayed/reentrant and saved/suspended callbacks; it does not fix current-order
+state. Follow query ownership is integrated through Move, while completed Hold
+correctly retains behavior with current head0 (ORDER-01.7/08). Decimal destinations
+and seven public numeric adapters now share the verified scalar contracts
+(NUM-01.5/06); compiled decimal tokens now retain their separate producer (NUM-01.7). Angle adapters now retain the original inverse/polynomial and public guards
+(NUM-01.8). Ghidra mapping persists528
+names,42 layouts,262 fields,245 x86 prototypes and45 typed globals. The sibling CRT now retains3 partial types,8 function roles,7 globals and a verified context ABI. The strict corpus has267
+declared outcomes, including repeated public order, scalar, angle and complete
+public shared-pair and twelve-member witnesses. Payoff39 extends ordinary public Move-owned physical
+groups with formation destination adjustment, fine FIFO/interval, committed occupancy and retry ordering. Payoff40 extends ordinary fine queues to16 unit-player rows with old-owner cancellation and Save76; wider retail
+eligibility/shared parameters, producers and crowd integration remain GROUP-04.6; supplied
+existing Unit/Move backing and public caller/class traversal remain BASE-01/03.1.
+
+ROUTE-02.3 now reproduces the complete controlled wall detour in the engine,
+including turn-stop stepping and saved fine-curve progress. NUM-02.7 keeps that
+trajectory exact at four world origins. SCHED-02.5 now verifies the complete
+primary-clock detour through actual engine RunFrame and saved continuation.
+ROUTE-02.4 now corrects initial adaptive-to-fine destination selection in the
+engine. ROUTE-03.3 now retains coarse buffers, consumes their own approach
+threshold before fine progression and preserves saved engine motion. ROUTE-03.4
+now verifies five successive refills through nonzero coarse indices and fixes
+the observed-obstruction producer of the initial fine index. Clear legs steer
+at their destination; blocked expansions retain the next parent point. Next
+runnable work: compose a dynamic blocker during that refill (ROUTE-03.1),
+then removal/retry timing (03.2); public admission phase and other clocks remain
+NUM-02.3.
+
+| Order | Task | Starts from | Finish artifact |
+| --- | --- | --- | --- |
+| 1 | GROUP-03.4 / FOOT-01.3 | Complete stationary singleton/pair producer and native12-member batching | Extend the engine through complete shared12+1 home travel, retry/cleanup and saves |
+| 2 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Virtual captain/follower producer plus shared publication and saved travel |
+
+NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
+decimal CRT grammar/locale, source lexer domains and original nonreturning VM
+lifetime. Shared scalar startup and ceil/round conversions are closed01.10/11;
+01.12..19 explicitly own the remaining producer experiments. Completed Pow helper/public input
+evidence is linked below; do not repeat those contracts as new coverage.
+
+## What counts as done
+
+A leaf is one experiment, one finite case matrix, or one reviewable artifact.
+Its sentence names the fixture/input and observable result required for closure.
+Section-level tools and evidence links are the starting point, not extra tasks.
+References to a parent ID mean its listed prerequisite leaves must be complete.
+Later sections extend BASE-06.5 when they require a complete movement scenario;
+isolated helper, inventory and format tasks do not wait for that baseline.
+
+For each closure, add the exact command/fixture, expected versus observed result,
+report path, evidence level (S/O/C/L), and remaining exclusions to the linked
+evidence document. Mark the leaf `[x]` and update the ledger and counts in the
+same change. A proved-unreachable branch may close with its producer proof.
+Do not close from an unexplained mismatch, arbitrary tolerance, incomplete call
+or a passing prefix of the requested lifecycle.
+
+If a leaf uncovers several independent problems, split it into explicit new
+IDs before continuing. Keep the completed part closed; do not silently enlarge
+its acceptance criteria. Record blocked tasks with a concrete prerequisite ID.
+Do not reopen verified work merely because a broader sibling remains open.
+No task may weaken the fidelity gate by hiding a reachable behavior gap.
+
+## Evidence and execution
+
+Checked items carry forward the linked evidence's scope, not a new claim that
+all historical experiments were rerun. The latest motion/order compositions
+were verified at `b90aa33d`; reports under the [documented report root][ledger]
+are `coverage-audit-b90aa33d/motion-oracle.json` (**M**) and
+`coverage-audit-b90aa33d/order-tasks-oracle.json` (**O**). Binary/CRT hashes and
+[reproduction commands](retail-pathfinding.md#reproduction) remain mandatory.
+Other checked mechanisms cite their existing evidence sections and corpora.
+
+Tool suffixes below mean `tools/ghidra/verify_wc3_pathing_<suffix>.py`.
+Captures use `tools/frida/trace_wc3_pathfinding.py`,
+`control_wc3_pathfinding.py` and `analyze_pathfinding_trace.py`. Extend an
+existing fixture where possible; name a new artifact by task ID. An offline
+assertion is sufficient unless that task specifically needs a live witness.
+
+When workers are explicitly assigned, give each exact task IDs, owned files and
+unique report paths. Only one worker edits a given oracle at a time. Serialize
+Ghidra mutations and live retail controls. Integrate one passing result before
+assigning its dependent task; worker availability does not change dependencies.
+
+## BASE — Baseline and reproducibility
+
+Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks, motion; Frida controller/analyzer.
+
+### BASE-01 — Movement entry points
+
+- [ ] **BASE-01.1** Trace one player point order from UI/network admission to 680320; record actual command fields, flags and caller ABI.
+- [ ] **BASE-01.2** Trace one JASS point order and one AI point order to their movement entry; publish whether they share the player path.
+- [ ] **BASE-01.3** Trace one target order and one ability approach; record the differences in range, target identity and routing flags.
+- [ ] **BASE-01.4** List forced-position, teleport and pathing-bypass entry points with callers; assign a separate follow-up ID to each uncovered path.
+- [x] **BASE-01.5** Split public SetUnitX/Y geometry from01.4: recover predicted world query, both-axis fine reprojection and unchanged velocity/facing/order; port committed-pose writes through Move and prove the next step/save resumes. Evidence: [axis-position writes](retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step),576 complete original writes plus576 following Move commits, repeated40 native calls/40 queries/eight writes with actual clocks,32 reproduced engine word failures followed by128 passing native/Move/save checks. Public between-frame clock prediction remains NUM-02.3; SetUnitPosition Stop/placement and other forced writers remain01.4.
+- [x] **BASE-01.6** Split ordinary public SetUnitPosition/Loc Stop and scalar writes from01.4: retire Move/Patrol and queued/group state before placement; retain captured fine/world words and stationary save/load. Evidence: [forced-position Stop reaches the engine](retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine), repeated28 public calls/60 queries/four Stop and placement pairs,99 motion/velocity decisions,167 actual native/frame/save assertions. Live Loc wrapper, blocked/overlapping placement, gold-mine/cargo/dead actors and other forced writers remain01.4/FOOT-04.
+
+BASE-02.4 explicitly splits the stock movement-mask table and engine port from
+BASE-02.1's remaining full authored producer/lane/support-surface inventory.
+
+### BASE-02 — Supported input inventory
+
+- [ ] **BASE-02.1** Build a movement-type table for ground, air, water and amphibious units: authored producer, lane, masks and support surface.
+- [ ] **BASE-02.2** Build an object-category table for units, buildings, destructibles and targets: tags, ownership and eligibility at each query consumer.
+- [ ] **BASE-02.3** Record valid coordinate, radius and map-size domains from public producers; attach rejection or propagation evidence for boundary inputs.
+- [x] **BASE-02.4** Capture stock foot/horse/hover/fly/float/amph/disabled profiles and port their terrain/object masks. Seven public CreateUnit types publish14 paired getter/mask rows; float40/amph80 now reach engine Move validation, routes and command destinations. Original WPM256-byte outputs match C, including02+40 ->80; original widgetc2 now blocks all ground lanes and releases correctly. Evidence: [authored movement masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries). Full authored parsing and support transitions remain02.1.
+- [x] **BASE-02.5** Explicitly add the missing typed UnitData map-row producer discovered by MOVE-01.4: bind original/custom movement types, turn rate and window to created units, inherit original edits, preserve stable distinct rows and free/rebind at map cleanup. Evidence: [authored speed limits reach Move](retail-pathfinding-engine.md#authored-speed-limits-reach-move), actual disabled-owner public setter regression fails before the cache port and passes afterward; public custom amph/float/fly units use their authored terrain masks. Full retail authored producer/support-surface inventory remains02.1.
+
+- [x] **BASE-02.6** Explicitly split public SetUnitPathing's ordinary query/category policy from02.1's larger runtime producer inventory. Trace actual native/bridge getters/setters; false preserves occupancy while zeroing own query, true restores authored masks. Two complete four-toggle live Footman captures preserve categoryca/object010000ca and cross a static wall under queryzero. All182 motion/183 velocity-position-facing commits match C and repeat. Reproduce four engine failures, then preserve disabled neighbours/target identity and bypass a retained detour for the disabled mover; public frames, wall crossing, collision restoration and240 saved continuation words pass261 assertions. Evidence: [engine payoff25](retail-pathfinding-engine.md#public-pathing-toggle-separates-query-from-occupancy). Placement, blocked command destinations, other profiles, repulsion/fallbacks and whole live phase parity remain02.1/FOOT-04/SEP/E2E.
+
+- [x] **BASE-02.7** Explicitly add the ordinary path-activation policy discovered while testing budget exhaustion: recover166060's enabled adaptive flag and packed400/700 limits, distinguish group1678f0's5000 producer, and remove the engine's inherited48-cell adaptive admission gate for ordinary unit location Move. Eight full original maze requests match every coarse/fine word and both indices;16 isolated fine700/2048 requests prove budget-dependent partial endpoints. Reproduce32 full-route failures and a public maze stall; the public Move now reaches its unchanged goal, refills successive legs and repeats600 saved frames exactly. Evidence: [engine payoff29](retail-pathfinding-engine.md#ordinary-path-defaults-enable-adaptive-routing). Group-owned5000 composition, charged-work cadence, admission queues and full physical retail maze motion remain GROUP/SCHED/E2E.
+
+### BASE-03 — Coverage inventory
+
+- [ ] **BASE-03.1** Export a reachable function/branch inventory from the entry points identified in BASE-01; link each known branch to its evidence or task ID.
+- [ ] **BASE-03.2** Publish a field read/write inventory for map, path, mover, group and order state, including virtual callbacks and globals.
+- [ ] **BASE-03.3** Assign every current oracle exclusion to one remaining task; list any unassigned exclusion as a new task before finishing this audit.
+
+### BASE-04 — Shared scenario format
+
+- [x] **BASE-04.1** Define a versioned scenario manifest with build/data hashes, map, entities, handles, clock, seed, commands and expected termination; encode the existing FIFO case. Evidence: [frozen producer baseline](retail-pathfinding-movement.md#producer-built-frozen-baseline), version1 `retail-owner-baseline-1.27.json`.
+- [x] **BASE-04.2** Define normalized snapshots for cells, route indices, budgets, membership, motion and events; encode one tick from each existing motion/order report. Same evidence; frozen complete order states and `retail-motion-snapshot-1.27.json`; missing historical observations stay null.
+
+### BASE-05 — Corpus runner
+
+- [x] **BASE-05.1** Inventory existing oracles/captures in one manifest with command, inputs, report, expected status and evidence level; include intentional adaptive mismatches. Evidence: [corpus inventory](retail-pathfinding-corpus.md#inventory-and-acceptance), version1 `retail-pathfinding-corpus-1.27.json`; all32 oracle scripts,12 variants,61 archives and six stronger live-input replays. Historical source/map provenance limits remain explicit.
+- [x] **BASE-05.2** Add a runner that executes that manifest and fails on a missing report, truncated capture, hash mismatch or unexpected exit/result. Same evidence; `run_wc3_pathfinding_corpus.py` requires fresh outputs and explicit report contracts. Asset-free rejection regressions cover changed/stale/missing inputs and reports; known reference differences cannot become passes.
+- [x] **BASE-05.3** Run the manifest from a fresh output directory; record per-case status and reproducible commands without relying on stale reports. Evidence: [fresh checkpoint](retail-pathfinding-corpus.md#fresh-checkpoint), `base-05.3-fresh-provenance-corpus-20260929/corpus-results.json`: all111 declared outcomes reproduced, including two native adaptive differences, two counterfactual controls and seven rejected archives. Original-code, C and archived-live scope remain separate; no new live capture or whole-replacement claim.
+
+### BASE-06 — One frozen ordinary-move baseline
+
+- [x] **BASE-06.1** Initial unit admission: 34 original 680320 admissions pass predicted task-chain and queue assertions without mid-call provisioning. Evidence: [initial admission][admission], report O `complete_initial_admissions=34`; controlled point commands and seeded pools only.
+- [x] **BASE-06.2** One admitted point order uses original owner updates through arrival/release; route, raw trajectory, arrival tick and reclamation equal the direct-group control. Evidence: [joined owner baseline](retail-pathfinding-movement.md#initial-admission-through-owner-updates), report `base-06.3-owner-fifo.json`, `complete_owner_admissions=1`. Seeded map/mover storage remains BASE-06.4.
+- [x] **BASE-06.3** Four queued-successor cases run only owner updates through both natural arrivals and final idle; both admissions, FIFO targets and all queue/group/path/payload ownership checked. Same evidence/report, `complete_owner_fifo_cases=4`; successor first tick follows owner cadence instead of explicit same-time group calls.
+- [x] **BASE-06.4** After BASE-06.3, construct that fixture's map, mover, group and order through identified original producers; enumerate any remaining seeded storage/class-cache boundary and give it a task ID. Same evidence; original no-file loader/mover construction and setters, report `base-06.4-producer-baseline.json`; allocations/caches/terrain/clock boundaries assigned explicitly.
+- [x] **BASE-06.5** After BASE-06.4 and BASE-04, freeze the baseline manifest and expected intermediate states; repeat twice and assert identical normalized output and initial/final idle invariants. Same evidence; report `base-06.5-frozen-baseline.json`, two scenarios × two runs,42 snapshots and exact output digests. No full-world or RNG claim.
+
+## MAP — Map construction and lifetime
+
+Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_masks, widget_masks, maps.
+
+### MAP-01 — Map coordinates
+
+- [x] **MAP-01.1** Terrain-origin producer and 25 no-file map loads are covered. Evidence: [map construction][map-load]; file-backed loading and non-dyadic inputs are excluded.
+- [x] **MAP-01.2** Sweep negative origins and non-power-of-two dimensions through coordinate conversion; assert fine/proximity/adaptive padding and clipping. Evidence: [constructed map coverage](retail-pathfinding-engine.md#constructed-map-corners-and-padding-reach-engine-regression-coverage),25 complete actual endpoint/no-file constructors, full fine/proximity initialization and four-level padded hierarchy,400 lane corner edits and exact reversals. Engine production terrain APIs/Move adapters compare all literal cells/classes; native proximity allocation is asserted while engine uses BoxEdicts. No added IDs.
+- [x] **MAP-01.3** Test each map corner at below/equal/above boundary coordinates, including non-dyadic values; record exact accepted cells and conversions. Same [evidence](retail-pathfinding-engine.md#constructed-map-corners-and-padding-reach-engine-regression-coverage):2500 complete original constructed-map corner calls use adjacent raw words and decimal offsets on both axes;675 accept/1825 reject, with original fine/integer/cell/inverse words frozen. Full engine regression passes930530 assertions including zero-origin negative-subnormal acceptance, exact-max rejection and complete grid reversal.
+- [x] **MAP-01.4** Explicitly integrate the discovered whole-map normalization mismatch: use direct software world/fine conversion for engine endpoint admission/correction, object positions, segments, fine route points and rectangle goals. Evidence: [direct coordinate conversion](retail-pathfinding-engine.md#direct-world-coordinates-preserve-boundary-cells),576 complete original edits and scalar inverse compositions, repeated O0/O2 raw comparisons, actual Move/point/rectangle/correction regression fails five assertions under the old adapter. Original public domain/padding and complete corner producers remain01.2/3.
+
+### MAP-02 — Initial loading
+
+- [x] **MAP-02.1** Load one file-backed WPM/map through deserialization and map creation; compare decoded masks, fine cells and hierarchy against the no-file fixture. Evidence: [complete file-backed initialization](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation), two full actual Storm/WPM/constructor/hierarchy returns,98304 native decoded cells and145848 classifications per run. Production MPQ reader and direct adapter match all movement masks and allocated hierarchy cells; engine corrects allocation padding, zero untouched cells and coarse ground mask6. Existing negative-origin/corner/image/failure/reload scopes remain their named tasks; no added IDs.
+- [ ] **MAP-02.2** Add one cliff, one water boundary and one bridge fixture; assert each supported movement lane's initial cells and support-height source.
+- [x] **MAP-02.3** Load two overlapping authored pathing textures in both creation orders; assert object/fine/hierarchy state after loading. Evidence: [authored widget creation](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation), complete public LTlt/LTg1 file-backed creation in both orders,18 repeated1024-cell/four-level snapshots. Engine corrects float fixedRot and public clamp/parity snapping before linking, preserves overlap/removal and hidden generated-script binding; all literal native grids match. No new task IDs.
+
+### MAP-03 — Invalidation producers
+
+- [x] **MAP-03.1** Terrain edit/rebuild/reversal corpus passes 11,664 edits, 216 compositions and 30 clipped updates. Evidence: [terrain edits][map-edits]; other invalidation producers remain separate tasks.
+- [x] **MAP-03.2** Widget rasterization covers 144 overlapping sequences and 96 paired reapply/remove lifecycles. Evidence: [widget lifecycle][widgets]; file loading, growth and full gameplay travel remain excluded.
+- [x] **MAP-03.3** List spawn, movement, size/pathing changes, construction and removal producers with affected grids and update timing; assign uncovered work to existing IDs. Evidence: [producer/update inventory](retail-pathfinding-search.md#pathing-producer-and-update-inventory), concrete native call chains, actual engine owners and explicit timing differences for all producer families. FINE-01.6/FOOT-03 retain dynamic link/eligibility, E2E-02.2/06.2 public construction and invalidation timing, MAP-04 exclusions, MAP-05/06 storage/lifetime and GATE special records. Actual terrain/classification producer and owned engine regression close alongside ACC-02.1/03.2; no new IDs or complete-lifetime claim.
+- [x] **MAP-03.4** Continue one widget-produced escape order from accepted admission to arrival/failure; retain its original produced query masks/region state and assert footprint refresh and route state throughout. Evidence: [stock Footman journey](retail-pathfinding-search.md#stock-footman-mask-through-widget-escape), original rawcode/profile getters and05c7e0 bridge publish02000002 before uninterrupted admission; unchanged proposal/footprint,13 exact velocity/position ticks, frozen per-tick route indices/count/flags, arrival, queue drain and complete reclamation. Seven-tick terrain-only control remains explicit. [Idle engine admission](retail-pathfinding-engine.md#widget-escape-idle-admission) is integrated/tested. Observed profile/cache/custom radius and direct group cadence are supplied; full public constructor/notification and authored parsing remain BASE-03.1/MAP-02/03.3; inside-footprint engine integration is03.7.
+- [x] **MAP-03.5** Exercise a resource depletion/removal lifecycle; assert footprint and hierarchy changes before the next request. Evidence: [blocker lifecycle](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation), actual lumber and six-gold mine depletion repeat, preserve an overlapping tree, restore the fine patch and all four hierarchy levels before fresh point requests. Engine partial final gold extraction invalidates the cached field and warmed adaptive map; public building removal refreshes the same-callback Move and reaches its goal.
+- [x] **MAP-03.6** Exercise destructible destruction and cache invalidation through the final free; assert the next route no longer sees the dead blocker. Same [lifecycle evidence](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation): complete original collection retirement through real Storm403 free and Widget+34=NULL; gate Kill/Restore/Remove restores all observed grids before the next request. Reproduce six engine failures, then central direct/deferred free invalidates static fields/classifications while preserving independent terrain, overlap and retained nonempty death textures until actual removal.
+- [x] **MAP-03.7** Explicitly add inside-footprint engine escape integration: retain static terrain/object masks, reproduce idle(0,-64) inside9×9 active construction, verify failure and interruption/Stop cleanup through normal frames. Evidence: [solid recovery](retail-pathfinding-search.md#solid-widget-cant-path-recovery), frozen original stock-mask solid9×9 variant completes after seven stationary1/32 group ticks and restores queues/group/path/task/order/wrapper pools; fresh134/134 corpus. [Engine integration](retail-pathfinding-engine.md#solid-footprint-escape-failure-and-cleanup) reproduces three stuck-lifecycle failures, then uses existing progress budget for statically blocked displacement and normal stand/queue completion. Margin escape, replacement Move, Stop, terrain and unrelated-building blocking pass. Exact engine retry/task cadence remains NUM-02.3; no static collision bypass or whole-trajectory claim.
+
+- [x] **MAP-03.8** Port public terrain pathing queries/writes into the engine, preserve independent bits/cells, compose blocked placement, and retain the mutable terrain through save/load. Evidence: [terrain natives reach the engine](retail-pathfinding-engine.md#terrain-pathing-natives-reach-the-engine), 1,040 complete original public query/write cases (3,130 native calls), exact production scalar/flag helpers at O0/O2 twice, real JASS queries/edits and six frozen public placement endpoints, Save64 terrain/Blight round-trip. Legacy field-cache invalidation is explicit; original adaptive update timing and the broader invalidation producers remain03.3.
+
+### MAP-04 — Temporary exclusions
+
+- [ ] **MAP-04.1** Nest self and target exclusions over two overlapping objects and terrain; restore in reverse order and compare every affected cell/count.
+- [ ] **MAP-04.2** Enumerate early/failure/reentrant exits from exclusion scopes; add one restoration assertion per reachable exit and one edit-during-request case.
+
+### MAP-05 — Map/spatial capacity
+
+- [ ] **MAP-05.1** Cross one map/spatial allocation boundary, then free and reuse the storage; assert record identity, links and cell contents.
+- [x] **MAP-05.2** Force a generation/stamp wrap at its original mutation point; compare the first post-wrap query with a clean equivalent map. Evidence: [fine map stamp wrap](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state), one pre-call seed then original14ad50 increments FFFF/0/1/2 across unchanged fine metadata. All four complete requests and every final node/work/route equal fresh maps and engine C; actual engine storage is reused in both class orders. Spatial/adaptive stamps and allocation capacity retain their existing IDs.
+- [ ] **MAP-05.3** Trigger reachable allocation failure and metadata/dead-record cleanup thresholds; assert failure result and no surviving partial links.
+
+### MAP-06 — Map lifetime
+
+- [ ] **MAP-06.1** Destroy and reload a map with a live mover; record which routes, grids and handles are cleared or rebuilt and assert first subsequent movement.
+- [ ] **MAP-06.2** Save/load during an active route; determine retained versus rebuilt path state and compare resumed movement with the uninterrupted control.
+
+## FOOT — Footprints and query policy
+
+Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers, grid.
+
+### FOOT-01 — Radius production
+
+- [x] **FOOT-01.1** Authored collision conversion and the four fine-class thresholds are recovered and covered by the footprint oracle. Evidence: [footprints][footprints]; runtime producer coverage is not complete.
+- [x] **FOOT-01.2** Change collision radius through a runtime producer; test below/equal/above each class boundary and assert geometry/class changes. Evidence: [payoff51](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines), repeated public Chaos point-Move growth and nine boundary radii, retained canonical mover with new physical owner, exact geometry/class words,1179 ordinary engine commits and4280 Save81 suffix commits. Engine commits old pose, refreshes occupancy/routing, publishes authored speed and defers preserved-task reissue. Other task/locomotion families and group maximum remain their own leaves.
+- [ ] **FOOT-01.3** Trace group maximum and target-radius producers; assert updates after the largest member/target changes size or disappears. Local unbound group sampling/cache integration is explicitly split into01.3.1; bound shared7c accumulation, target families and their live lifetime compositions remain here.
+- [x] **FOOT-01.3.1** Port the local physical group maximum and retained coarse footprint as distinct producers. Repeat public group Move through largest-member Chaos growth/shrink/removal, compare complete motion plus original path+b4 at every owner, correct the pre-movement owner counter/scheduler phase, and restore both live maximum and cached footprint through Save81. The remaining shared7c/target producer scope stays01.3. Evidence: [payoff52](retail-pathfinding-engine.md#local-group-maximum-and-retained-route-footprint-have-separate-lifetimes), twelve repeated base/read-only footprint captures,831 complete engine commits/730 owner states and2207 motion/2193 owner Save81 suffix states per variant; full debug/release/repository checks,263 Python checks,26 fresh capture contracts and saved Ghidra readback pass.
+
+- [x] **FOOT-01.4** Apply the proven static 1/2/3/4-cell classes to engine fine routing, direct/step endpoint checks and point/group destination correction. Original24 cardinal corridor requests and1,184 complete endpoint validations pass; C endpoint geometry matches at O0/O2. The engine first reproduced16 class/corridor failures, then actual Move orders advance with exact destinations in14 fitting cases. Nearest-ring and Bresenham/corner adapters remain explicit partial policies. Evidence: [engine collision classes](retail-pathfinding-engine.md#retail-collision-classes-reach-routing-and-stepping).
+- [x] **FOOT-01.5** Synchronize long/shared routing fields with the same game-owned class geometry. A two-cell winding passage beyond48 cells now admits class1, actual Move ticks advance legally, a one-cell pinch invalidates the generation and separates class0/class1 fields and fallbacks. Correct pending-job scratch lifetime after a synchronous source flood. Existing group/worker/save regressions and both full fixture suites pass. Shared SPFA/interpolation remains the engine algorithm, not retail adaptive hierarchy parity. Evidence: [long field geometry](retail-pathfinding-engine.md#long-fields-use-the-same-class-geometry-as-move).
+
+### FOOT-02 — Passage matrix
+
+- [x] **FOOT-02.1** Run cardinal corridors at width below/equal/above footprint diameter, across four classes, lanes and sub-cell offsets; compare accepted cells and route. Evidence: [complete passage matrix](retail-pathfinding-engine.md#passage-matrix-covers-lanes-footprints-corners-and-offsets), widths0..5 in both axes across four masks/classes/offsets; all original core/repeat/full-request states and C searches agree. Engine compares every original endpoint and admitted complete/partial route; public endpoint correction stays FOOT-04. No added IDs.
+- [x] **FOOT-02.2** Extend that matrix to diagonal corners, touching footprints and map edges; retain one minimized counterexample per distinct mismatch. Same [evidence](retail-pathfinding-engine.md#passage-matrix-covers-lanes-footprints-corners-and-offsets):24 rotated L-corner cases, six touching static rectangle gaps, all four edges and four independent lane-bit controls. Entire50-shape/3200-request matrix freezes exact words/cells/routes;6400 production endpoint decisions and2720 admitted route pairs match. No unresolved matrix mismatch to minimize, no new TODOs.
+
+### FOOT-03 — Object query eligibility
+
+- [ ] **FOOT-03.1** Build a tag/mask/flag/count truth table for fine search, hierarchy, segment checks and endpoint validation using BASE-02 object categories.
+- [ ] **FOOT-03.2** Put two different eligible categories in one cell, then remove each in turn; assert query results and remaining reference counts at all four consumers.
+
+### FOOT-04 — Start and goal policy
+
+- [ ] **FOOT-04.1** Test start inside self, target and unrelated blocker; assert the public caller's clamping, exclusion and first accepted route point.
+- [ ] **FOOT-04.2** Test blocked/outside/overlapping goals and target removal; assert perimeter choice, rejection or fallback with original result codes. Ordinary ground point-Move static blocked-goal lifetime is split into04.7; outside/overlap/target and wider mask/class domains remain here.
+- [x] **FOOT-04.3** Split ordinary in-map blocked ground SetUnitPosition/Loc point admission from04.2: recover policy2 cell rings, initial attempt budget and first-cell tie order; port32-ring admission and authored nearest-vertex terrain level. Evidence: [blocked placement reaches the engine](retail-pathfinding-engine.md#blocked-placement-reaches-the-engine),2304 complete original point calls/1152 endpoints across four masks/classes, two repeated public captures with seven searches/six placements,26 actual public engine assertions with all six retail destinations exact. Bridge overlays, outside-map clipping, rejected-level live controls, broader object categories and terrain-writer native implementation remain04.2/BASE-02/MAP.
+- [x] **FOOT-04.4** Port the ordinary embedded-start Stop recovery observed inside public blocked placement. Actual171340 stack14 limit5 invokes170080 with current query,654060/level6 and policy2. Two complete public Stop repeats retain eight calls, three complete searches and24 exact getter words: clear and disabled stay put, embedded recovers, exhausted five-attempt search stays put. Reproduce two engine destination failures, then apply a native-fine recovery point through Move; public Stop/save/load/exhaustion/map-release regression passes29 assertions. Evidence: [engine payoff27](retail-pathfinding-engine.md#stop-recovers-an-embedded-mover-with-a-bounded-query). Outside-map, bridge/rejected-level/other-actor and broader caller composition remain04.2/BASE-02/E2E; helper result1 is blocked-source status, not success.
+
+- [x] **FOOT-04.5** Explicitly split ordinary in-map SetUnitPathing/SetUnitPosition queryzero from04.2. Recover current-query getter05ac30/685ef0 and radius getter6742f0; false accepts blocked requested coordinates while preserving footprint bounds and level callback. Two complete five-placement repeats match65 public queries, five commits and seven placement searches;576 original zero-mask calls across288 inputs match C against nonzero authored terrain. Reproduce six engine raw destination failures, then pass65 public-native/Loc/save assertions with all five observed destinations. Evidence: [engine payoff26](retail-pathfinding-engine.md#disabled-query-reaches-public-placement). Other actor forms, outside clipping, rejected-level/bridge controls and full live clock parity remain04.2/BASE-02/E2E.
+
+- [x] **FOOT-04.6** Explicitly split ordinary in-map ground public CreateUnit admission from04.1. Two complete eight-spawn captures recover policy2/32 rings,31-unit footprint/self exclusion and fresh mover sentinel cancellation; all eight endpoints, sixteen writes,104 queries and239 motion decisions replay exactly and repeat. Replace public spawn's64-unit circle spiral through Move-owned admission/initial pose; public CreateUnit/AtLoc, native destinations and saved scheduler continuation pass. Evidence: [engine payoff33](retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose). Original Loc, other actors/factory flags, bridge/rejected-level/outside controls and full physical crowd cadence remain04.1/02/BASE-02/MAP/E2E.
+
+- [x] **FOOT-04.7** Split the ordinary ground point-Move static blocked-goal lifetime from04.2: repeat the public five-by-five terrain blocker producer, retain the requested click through intermediate routes, partial endpoint, two retries and natural can't-path task cleanup, and port complete motion plus saved continuations in the engine. Evidence: [payoff53](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival), two fresh originals repeat207 commits; engine mismatch prefixes4/177/203 become207 exact commits plus46 Save82 suffix commits per variant. Stop/replacement clear naturally saved force. Full debug/release/repository checks,274 Python checks,27 fresh capture contracts and saved Ghidra readback pass. Wider masks/classes, outside/overlap and target categories remain their parent tasks.
+
+- [x] **FOOT-04.8** Split the ordinary ground point-Move world-bound clip from04.2: recover05b970's cell-size-times-four margin and ordered scalar bounds, witness before/after near each edge, retain the public click while clipping only routing, and compare original public outside-west full travel plus saved continuations. Evidence: [payoff54](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click), two fresh original journeys match191 normal engine commits/47 saved suffix commits per variant; two12-input public edge matrices retain raw task versus clipped routing words;108 original prefix/C cases pass. Full debug/release/repository checks,284 Python checks,28 fresh capture contracts plus map oracle and saved553-role/251-ABI Ghidra readback pass. Outside placement, other masks/classes, overlaps and target removal remain04.2.
+
+## FINE — Fine search
+
+Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
+
+### FINE-01 — Full searches with objects
+
+- [x] **FINE-01.1** 288 complete static searches plus repeat/stamp reuse pass with exact route/state expectations. Evidence: [static fine searches][fine-static]; mixed dynamic objects remain excluded.
+- [x] **FINE-01.2** Compose stationary/moving/suppressed/mixed object chains in all four published ground/flight/float/amph masks and footprint classes.384 original full searches,384 retained-metadata repeats and384 complete requests match production C cost/work/nodes/parent routes at O0/O2 with reuse. Captured stock getter/publication producers establish the mask table; target exit and public endpoint admission retain01.3/FOOT-04. Evidence: [authored movement masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries).
+- [x] **FINE-01.3** Compose self/suppressed/target identities, collision eligibility, terrain-first rejection and both overlapping cell-link orders across four footprints/masks and budgets0/5/700.2304 original core and complete setup/search/reconstruction requests freeze200 target exits; C matches cost/work/node counts and full parent chains twice at O0/O2. Engine separate active ground targets retain the original approach-node centre, including moving targets; point destinations remain exact. Original public wrapper suppression/restore already has288 composed requests. Evidence: [target identity exits reach the engine](retail-pathfinding-engine.md#target-identity-exits-reach-the-engine). Runtime cell-link chronology is explicitly split into01.6; categories/building targets remain BASE-02/FOOT-04.
+
+- [x] **FINE-01.4** Port the recovered static search policy into the engine and retain its turns through actual Move steering. All288 original cell routes/costs/pops/node counts match C at O0/O2 with reuse; three blocked wall-gap Move cases retain their turn with a ready generic field. Current radius/corner legality, visible-point adapter, long-route fields and dynamic objects remain separate. Evidence: [engine fine routing](retail-pathfinding-engine.md#retail-fine-search-drives-nearby-detours).
+
+- [x] **FINE-01.5** Port idle ground-object occupancy into location-order direct checks, fine search, waypoint selection and retained-segment validation. Initial actual Move failed to detour; all four classes now pass the fixed idle unit. Moving/idle transitions, overlapping objects, self/target exclusion and unchanged static field generation have regressions.192 original mixed-chain routes/costs/pops/nodes match C at O0/O2; fresh read-only hfoo/hgry captures verify profiles and velocity flags. Interaction queues stay ability-owned; full categories, endpoint admission and partial routes remain separate. Evidence: [engine idle objects](retail-pathfinding-engine.md#idle-objects-affect-nearby-move-routes).
+
+- [ ] **FINE-01.6** Preserve actual dynamic cell-link insertion/removal chronology in the engine and observe overlapping target/foreign-blocker queries through public orders. A target before an eligible blocker must report identity even when the cell rejects; a blocker before a target must hide it. Reuse01.3's two original chain-order controls, then capture/repeat the actual producer. The current sorted ground-rectangle adapter checks foreign blockers first; its separate-target integration does not close this task.
+
+### FINE-02 — Search termination
+
+- [x] **FINE-02.1** Compose equal-cost ties, reopenings and stale heap entries in one full request; compare pop order, generations and charged work. Evidence: [full queue composition](retail-pathfinding-engine.md#full-queue-composition-preserves-partial-goal-centres), one natural48x48 request combines886 equal keys, one reopening and190 stale entries;1068 exact ten-word pop records match complete original core/repeat/fractional request, O0/O2 C and repeated actual engine routes. Ordinary700-work control discovers but does not pop the goal, returns50-point centre partial and charges701; two engine endpoint failures are fixed while retaining the click. No new IDs.
+- [x] **FINE-02.2** Force budget exhaustion and nearest-node fallback around final-pop boundaries.1456 complete original requests (four classes, ground/flight masks, mixed objects, blocked goal) freeze result/nearest/distance/parent chain/endpoints/work/nodes; C matches at O0/O2 with reuse.177 failures already admit the goal before its denied final pop. Actual Move retains the idle-wall approach, advances and resumes its original destination after blocker removal; known-disconnected static fields keep their component fallback. Public scheduler budget producers and full-coordinate reconstruction beyond supplied backing remain separate. Evidence: [engine partial routes](retail-pathfinding-engine.md#nearest-partial-routes-survive-blocked-goals). Payoff76 additionally fixes the actual700-work admitted-but-unpopped goal endpoint: preserve native centre instead of substituting the fractional click; two reproduced engine word failures become an exact50-point route and701 charged work. [Queue/partial evidence](retail-pathfinding-engine.md#full-queue-composition-preserves-partial-goal-centres).
+
+### FINE-03 — Fine storage lifetime
+
+- [ ] **FINE-03.1** Cross node and heap growth/capacity boundaries; verify original failure codes and free-list recovery on the next request.
+- [x] **FINE-03.2** Run sequential searches through 16-bit stamp wrap and reuse; compare post-wrap route and node state with a clean control. Same [wrap evidence](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state): complete original148100 executes FFFF/0/1/2 across four lanes/classes;1656 final normalized node states, nearest results, work and full fractional routes equal clean controls and C. Actual G_BuildUnitMoveLocalRoute repeats both request orders over retained backing,23928 assertions. Counter seeding is explicit; no65K-history or capacity claim.
+
+### FINE-04 — Public fine results
+
+- [ ] **FINE-04.1** For each footprint class, run same-cell, blocked-start and blocked-goal requests through public setup and result consumption; assert caller-visible outcomes.
+- [ ] **FINE-04.2** Run disconnected-goal, insufficient-budget and special-object completion through those same callers; assert partial/failure handling and cleanup.
+
+## ACC — Adaptive search
+
+Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fixture under tools/ghidra/fixtures/.
+
+### ACC-01 — Adaptive expansion
+
+- [ ] **ACC-01.1** Enumerate side/corner and level-transition branches from the adaptive expander; record exact input preconditions for each branch.
+- [ ] **ACC-01.2** Build one witness per enumerated branch across lanes/classes and special-marker cells; assert promotion/subdivision and neighbor ordering.
+
+- [x] **ACC-01.3** Split ordinary adaptive reimplementation from01.1/02: port setup, clear-parent promotion, mixed-side subdivision, base/coarse neighbor order, both stored sizes, integer distance, nearest partial route and reconstruction into engine long Move. Evidence: [adaptive long Move](retail-pathfinding-engine.md#adaptive-search-reaches-long-distance-move),712 complete original/C requests across four lanes, exact route words/counts/charged pops/created nodes; actual long detour reaches legal arrival. Branch inventory, special-marker witnesses and producer reachability remain01.1/02 and02.1/02.
+
+### ACC-02 — Classification reachability
+
+- [x] **ACC-02.1** Map classification/flag combinations used by adaptive fixtures back to map producers; classify each as reachable, rejected or unresolved. Evidence: [ordinary reachability inventory](retail-pathfinding-search.md#ordinary-classification-reachability),54 original producer witnesses from16^4 ordinary fine patterns,27 ground/flight-inconsistent tuple rejections and ordinary class3 rejection. Synthetic unrelated-lane words and explicit interventions remain controls; valid selected-lane projections, full constructor/widget/terrain maps and exclusions have identified producers. Special-marker/object domains remain02.2/FOOT-03/GATE. All54 witnesses and full reduced hierarchy match actual engine classification.
+- [ ] **ACC-02.2** For each unresolved combination, provide a producer-built witness or a documented rejection proof; retain separate IDs if further work is discovered.
+
+### ACC-03 — Size-2 east-boundary veto
+
+- [x] **ACC-03.1** The synthetic size-2 east-boundary veto is reduced and causally isolated. Evidence: [adaptive veto][adaptive-veto]; gameplay reachability remains unproven.
+- [x] **ACC-03.2** Construct the reduced veto using real map/request producers, or prove its classification cannot be produced within scope. Evidence: [terrain-produced veto](retail-pathfinding-engine.md#terrain-produced-adaptive-passages-preserve-the-retail-veto),288 actual04d870/054000 setters then full15d360/162cb0 preserve38-pop/56-node partial in all four lanes over2,206 padded hierarchy cells. Ordinary occupancy1/boundary0 and all final nodes/routes equal C; actual owned engine requests repeat twice. Empty storage/headers are supplied explicitly; full mover retry/arrival stays03.3, with known reference difference retained.
+- [ ] **ACC-03.3** If reachable, run that mover through fallback/retry to arrival or failure; preserve the resulting retail route/outcome as a regression.
+
+### ACC-04 — Adaptive costs
+
+- [ ] **ACC-04.1** Compare heuristic, total cost and nearest-node selection with ordinary edges under ties and budget exhaustion; explain each shortest-path difference.
+- [ ] **ACC-04.2** Repeat with an active special edge; assert edge cost, parent chain, tie ordering and partial result without assuming optimality.
+
+### ACC-05 — Adaptive storage lifetime
+
+- [ ] **ACC-05.1** Cross adaptive node/heap/index capacity and growth boundaries; assert failure/partial state and its public consumer result.
+- [x] **ACC-05.2** Reuse storage across stamp wrap and lane/class changes; assert no stale node, route or flag survives into the next request. Evidence: [adaptive reuse/flag restoration](retail-pathfinding-engine.md#adaptive-reuse-restores-the-original-ground-classifications), full original162cb0/164c30 increments DWORD FFFFFFFE/FFFFFFFF/0..5 across four ordinary lanes/sizes1/2;511 final semantic nodes/work/fractional routes equal clean controls and C, with asserted lane/size/warp state.3451 actual lazy lookups warm all searchable metadata before the one counter seed; historical billions of requests/cold zero/capacity/special-edge/public scheduler scopes are excluded. Real engine owned routes repeat twice over retained backing. Three native no-fly-only41/0/41 exclusion controls reproduce eight stale engine ground cells/parents; post-exclusion rebuild now uses coarse6 like initial construction, restoring every cached lane/level with8828 assertions. No new IDs.
+
+- [x] **ACC-05.3** Split the engine derived-hierarchy lifetime from retail storage requirements05.1/02: cache four static lanes by bake epoch, refine adaptive legs with live fine occupancy, free on module shutdown and reproduce saved long-Move continuation. Evidence: [adaptive long Move](retail-pathfinding-engine.md#adaptive-search-reaches-long-distance-move),public terrain-edit lane isolation, repeated lane/size requests,180 saved continuation ticks with exact positions/heading/velocity/order; existing winding-field regression now retains a legal adaptive turn. Retail capacity/growth/stamp-wrap remain05.1/02.
+
+## NUM — Numbers and random state
+
+Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed, range, motion, separation.
+
+### NUM-01 — Arithmetic inventory
+
+- [x] **NUM-01.1** 200,330 exact scalar calls, 2,130 normalizations and 864 bounds prefixes are recorded. Evidence: [scalar arithmetic][numeric]; trig and general trajectories remain open.
+- [ ] **NUM-01.2** Publish the remaining arithmetic/conversion inventory with original caller sites and evidence/task ownership; link verified scalars and completed paired/decimal/public/angle/Pow slices01.4..6/08/09. Explicit extensions01.10..19 own rounding, shared constant initialization, reachable operand aliases, decimal CRT grammar/locale and nonreturning VM lifetime; compiled literal producers remain01.7. Classify any newly discovered numeric helper into existing evidence or an explicit follow-up leaf.
+- [x] **NUM-01.3** Independent integer formula regenerates all 1,025 embedded reciprocal entries exactly; Ghidra references identify a static table consumed by0711e0, with no runtime producer. Same generator also reproduces all 1,025 sine entries. Evidence: [generated tables](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry), report `scalar-trig-engine-exact.json`; historical build-time source is unavailable.
+
+- [x] **NUM-01.4** Split01.2's paired-trig consumer integration: execute original071340 with raw angle words and verified ECX/EDX/stack4/RET4 ABI, independently regenerated sine table, alias/guard/nonvolatile-register controls and optimized/unoptimized C. Integrate shared phase calculation into production velocity without changing any frozen velocity/facing/position words. Evidence: [paired trigonometry](retail-pathfinding-engine.md#generated-tables-and-exact-trigonometry),20,032 distinct raw angles plus80,128 aliases through original code/C with guards, independent table model and-O0/-O2 regression; frozen digest01131f85... and122/122 unchanged-trajectory corpus outcomes. Remaining conversion/angle-helper ABI and public-domain inventory stays01.2.
+
+- [x] **NUM-01.5** Split01.2's public S2R decimal producer and engine destination integration: recover070de0/071180 grammar/ABI, execute original parser with independent scalar reference, capture actual S2R/helper raw words twice, and preserve parsed public Move coordinates. Evidence: [public scalar inputs](retail-pathfinding-engine.md#public-scalar-inputs-and-decimal-destinations),2,024 original/model/C parser cases,67-native/25-parser exact repeats with embedded source/map hashes, failing public decimal/Move regression then five passing checks and optimized/unoptimized C. Non-ASCII grammar/locale and distinct compiled literal parsing remain01.2/07.
+- [x] **NUM-01.6** Split01.2's registered I2R/R2I/Sin/Cos/Acos/SquareRoot public adapters: retain actual cdecl ABI, integer truncation/saturation and public inverse/root guards, execute original wrapper controls, capture decimal-produced raw inputs/outputs and integrate the verified numerical behavior into engine natives. Evidence: [public scalar inputs](retail-pathfinding-engine.md#public-scalar-inputs-and-decimal-destinations),12,210 original raw-wrapper cases, repeated public fixture,21 reproduced engine failures followed by41 exact passing words,289 saved Ghidra names/57 prototypes. Other angle/power natives and whole trajectories remain01.2/NUM-02.3.
+- [x] **NUM-01.7** Recover original compiled JASS decimal-literal parsing/constant storage separately from S2R; reproduce long fractional/integer prefix overflow and ordinary/negative boundary inputs through actual script compilation, freeze raw native input words, and integrate the verified WC3 producer behavior with regressions while preserving Galaxy's distinct source-number contract. Start from exploratory runtime/num-01.5-inputs-raw.jsonl (long0.6 literal reaches Sin asbf85635d); do not treat helper agreement or S2R parsing as compiler proof. Evidence: [compiled JASS real literals](retail-pathfinding-engine.md#compiled-jass-real-literals), identified925260 and lexer+24/+98 storage,4,064 original/model/C calls per-O0/-O2 with ABI/write guards and digest29ddca0c; repeated32 actual compiled R2I argument/output pairs and40 compiler/token/caller observations. Four reproduced engine word failures precede the port; exact Move coordinates, save/load and mixed JASS/Galaxy source policies pass. Prior numeric expectations now use independent C raw words. Saved336 names/23 layouts/100 prototypes and fresh142/142 corpus. Full lexical grammar and integer tokens remain explicit01.15/16.
+
+- [x] **NUM-01.8** Split01.2's Asin/Atan/Atan2/Tan and degree/radian public adapter integration: preserve exact inverse-table/polynomial operation order, public domain/zero guards, constants and cdecl operand ABI; verify original distinct-storage helpers and repeat real public-native words, then integrate engine adapters. Evidence: [public angle adapters](retail-pathfinding-engine.md#public-angle-adapters),81,309 original/model/C helper calls,24,420 registered raw-wrapper calls, two identical48-call live captures,25 reproduced engine failures followed by48 exact passing cases, optimized/unoptimized C and saved299 Ghidra names/67 prototypes. Pointer-alias producers, Pow and remaining conversion inventory remain01.2; compiled literals remain01.7.
+
+- [x] **NUM-01.9** Explicitly split01.2's Pow/log/exp implementation: verify original20f990 public guards and0710e0 branching, integer-power wrapping/termination domain, log070f70/06ff20/06fd50 and exp070c20/06fe10 constants/ABI with independent scalar models and optimized/unoptimized C; repeat public-native raw inputs/results and integrate verified terminating Pow calls into engine with test-first regressions. Preserve signed-zero/near-zero and negative-base fractional behavior. Instruction-budget controls must identify nonterminating converted signed exponents without claiming a numeric result or running unbounded live scripts. Remaining ceil/round/alias/init/grammar inventory stays01.2; full trajectory stays02.3. Evidence: [public Pow and exact log/exp arithmetic](retail-pathfinding-engine.md#public-pow-and-exact-logarithmexponential-arithmetic),24,423 completed original/model/C calls,173 bounded signed-loop controls, two identical40-call public captures and27 reproduced engine failures followed by exact native regressions. Optimized/unoptimized C share digest7cf000cf; engine explicitly reports the unobserved nonreturn domain rather than claiming VM watchdog parity. Saved329 names/93 prototypes/31 globals and fresh138/138 corpus.
+
+- [x] **NUM-01.10** Split01.2's floor/ceil/round/truncate conversion contracts: original ECX/EDX ABI, signed-zero and adjacent-integer boundaries, raw exceptional words, output aliases and independent models/C; retain round's scalar-add-half operation order, original map-dimension caller sites and ceil's actual nonmovement callers. Integrate reusable proven scalar primitives without guessing unobserved gameplay consumers. Evidence: [scalar rounding and shared startup](retail-pathfinding-engine.md#scalar-rounding-and-shared-startup),81,688 exact original/model/C calls per-O0/-O2, unchanged digest0bab35aa, output aliases/ABI guards, saved helper names/prototypes and production raw-word primitives. No unrelated gameplay ceil call is substituted.
+- [x] **NUM-01.11** Split01.2's shared scalar constant startup: recover the actual minus-one/zero/one initializer functions and registration order, execute them from poisoned storage without replacing writes, verify exact words and bounded write regions; annotate producers and remove supplied-constant assumptions where these initializers can execute. Other discovered initialization families stay inventory01.2 until assigned explicitly. Evidence: [scalar rounding and shared startup](retail-pathfinding-engine.md#scalar-rounding-and-shared-startup), original registered001dd0/001a80/001b80 entries execute from poisoned storage in CRT table ordera7cdb8..c0; numeric and power oracles preserve guards/ABI and frozen numerical digests. Saved initializer names, globals and99 prototypes; fresh138/138 corpus.
+- [ ] **NUM-01.12** Split01.2's reachable operand-alias producers: distinguish helper alias tests from actual pointer relationships in movement callers, reproduce each reachable alias or prove its exclusion, and integrate any observed operation-order difference with regressions.
+- [x] **NUM-01.13** Split01.2's decimal CRT grammar/locale: identify the exact sibling CRT digit classifier and active locale producer, compare all relevant byte values and public high-byte inputs, and preserve accepted/rejected domains in the engine parser. Evidence: [public decimal byte grammar](retail-pathfinding-engine.md#public-decimal-byte-grammar-and-crt-locale), exact shipped CRT isdigit0f1d5, original C-table signed prefix and _wsetlocale1335c ever-changed flag producer;1,409 original classifier and1,020 composed parser/model/C calls per-O0/-O2 with guards. Repeated514 public authored-name/SubString/S2R calls and1,040 classifier observations retain bytes80..ff and exact high-byte Move coordinates. Engine public object-name/hashtable/Move regression passes2,054 assertions; existing ASCII parser is already correct in the observed default C locale. Numeric oracle now executes original CRT instead of an ASCII stub. Saved3 CRT types/8 roles/7 globals/context ABI; strict byte verifier rejects missing bytes, changed locale/identity and misplaced case observations. Alternative locale creation and invalid source syntax are explicitly outside this captured domain.
+- [ ] **NUM-01.14** Split01.2's nonreturning power VM lifetime: identify actual public script scheduling/watchdog/error behavior for reachable converted negative signed exponents with bounded process controls, then match the proven engine lifetime/error policy. Keep helper instruction-budget stops separate from VM evidence; no unbounded live script or fabricated numeric result.
+
+
+- [ ] **NUM-01.15** Split01.2's full source-number lexical grammar from the bounded decimal producer01.7: recover original9249d0 numeric DFA/token boundaries and nan/inf/exponent/point/hex-like acceptance or rejection through actual source compilation; preserve source-language distinctions and report invalid syntax in the engine. Current VM explicitly rejects host-strtod nondecimal real tokens instead of feeding unverified bytes into925260's port. Recover original constant-token storage/consumption beyond the verified lexer+24 slot where needed; do not infer full compiler equivalence from public native input words.
+- [x] **NUM-01.16** Split01.2's compiled integer producers925210/925490/925350: decimal/octal/hex lexical token108, ECX lexer/token lengthc4, hex prefix-length stack argument, signed32 accumulation and unary sign boundaries; capture actual oversized decimal/octal/hex constants and I2R native argument words, reproduce host-strtol width/saturation differences, and integrate verified JASS integer parsing while preserving Galaxy and save/load. Keep integer lexer evidence separate from real-token prefix wrapping01.7. Evidence: [compiled JASS integer words](retail-pathfinding-engine.md#compiled-jass-integer-words),16,080 original/model/C calls per-O0/-O2 with guarded token108 and exact digest3affdc0f; repeated44 actual I2R input/output pairs and42 compiler word/radix/prefix/caller observations. Nine engine word failures precede the port; all source/native words, Move/save-load and mixed-language policies pass. Unsigned unary subtraction retains INT_MIN wrapping. Saved340 names/104 prototypes and fresh146/146 corpus. Full invalid-token grammar remains01.15.
+
+- [ ] **NUM-01.17** Split01.12's basic arithmetic/conversion callers: classify reachable Add/Subtract/Multiply/Divide/reciprocal/sqrt/fractional/rounding/integer inputs and destinations, retain composed read/write order, and integrate any difference through Move. The original33-function xref inventory records6,898 references; name-only movement filtering is not reachability proof.
+- [ ] **NUM-01.18** Split01.12's trig/inverse/paired callers: audit all140 direct references across Sin/Cos/Acos/Asin/Atan/Atan2/Tan/SinCos, include vector-heading1d4c80 and indirect wrapper relationships, observe actual producer pointers, reproduce alias-sensitive stores/sign rereads, and preserve reachable behavior in engine regressions. Acos's three sites and Atan2's26 sites must not be confused with Atan's three sites.
+- [ ] **NUM-01.19** Split01.12's Pow/log/exp callers: recover source/output/exponent pointer relationships through all referenced wrappers and internal reductions; compare reachable operation order with guarded original-code witnesses and engine consumers. Original nonreturning VM lifetime remains01.14.
+- [ ] **NUM-01.21** Explicitly add compiled chained-expression producer parity: the engine additive/multiplicative parser currently associates chained operators to the right (`tick-1-i*20` exposed this during02.8). Recover original bytecode/evaluation order for mixed/chained subtract/divide and typed integer/real expressions, compare actual Move/TimerStart input words, then fix the engine grammar with public-order/save regressions. Existing literal and scalar helper parity does not prove expression parsing.
+
+
+- [x] **NUM-01.20** Split01.18's actual vector-heading/Acos producer: prove1d4c80's quotient/destination separation through original pointer observations and negative helper-alias controls, compare complete16f630 with guarded external output aliases, confirm the same live movement call chain, and retain exact engine heading words. Other trig callers remain01.18. Evidence: [vector-heading operand relationships](retail-pathfinding-engine.md#vector-heading-operand-relationships),5488 guarded original/model/C producer cases per-O0/-O2 and repeated191 actual nested heading chains (181 negative inputs). Existing engine heading words remain correct.
+
+### NUM-02 — Branch-sensitive arithmetic
+
+- [x] **NUM-02.1** Sine/cosine and acos compare exact output words across cardinal/oblique inputs and adjacent lookup thresholds; independently generated consumed tables match retail. Signed-zero, cancellation and opposite-heading signs are retained. Evidence: [exact vector headings](retail-pathfinding-engine.md#exact-vector-headings), reports `scalar-trig-engine-exact.json`, `acos-engine-exact.json`, `heading-chain-engine-exact.json`; 1,287 composed heading errors plus 183 live errors. Remaining helper inventory belongs to NUM-01.2, whole trajectory to NUM-02.3.
+- [x] **NUM-02.2** Original 80 velocity commits and 2,384 position integrations now compare exact C output words; fresh live turn capture compares all 192 velocity/position commits, including stopping. Evidence: [exact velocity integration](retail-pathfinding-engine.md#velocity-and-position-integration), reports `velocity-integration-engine-exact.json` and `runtime/velocity-turn-exact.json`. Extension: `world-velocity-engine-exact.json` and `retail-world-velocity-1.27.json` freeze1,040 complete original/world-adapted commits and3,344 integrations, including adjacent tiny-speed guards. Move converts velocity inputs to fine-grid units before its cutoff. Committed facing is closed separately by NUM-02.4; whole-engine cadence remains excluded.
+- [ ] **NUM-02.3** Extend exact movement to fixed long oblique trajectories at small/large valid values; compare every committed position and cell crossing. Partial engine evidence: [payoff34](retail-pathfinding-engine.md#clear-public-routes-retain-native-waypoints) compares247 public spawn-to-Move commits plus21 supplied-phase saved fractional commits; [payoff35](retail-pathfinding-engine.md#public-timer-admission-reaches-move-from-zero) reproduces the same247 rows from zero clock through normal periodic callbacks and76 saved continuation commits. That scene's phase producer closes02.8. Payoff36 closes02.12's three stock-shaped public long-oblique/small-large lifetimes and singleton intermediate handoffs through GROUP-04.9:689 exact commits and260 saved continuation commits under supplied observed scene geometry. Other profiles, general timer deadlines, actual scene/scenery producers and full physical groups remain required.
+- [x] **NUM-02.4** Verify committed facing from resulting velocity, its tiny-speed guard/equality and stopped-heading remainder normalization; compare original/C/live words. Evidence: [committed facing](retail-pathfinding-engine.md#committed-facing-and-remainder-arithmetic), reports `fraction-modulo-engine-exact.json`, `facing-chain-engine-exact.json`, `facing-stock-turn-fresh-exact.json`;810 heading guards,44 angle boundaries,140 full commits and184 fresh live commits. Accepted-step engine regressions cover oblique facing and fine-grid scale; original full owner cadence/steering state remains open.
+- [x] **NUM-02.5** Explicitly split retained native fine pose from the large02.3 clock/trajectory task: integrate and preserve fine words between accepted Move commits, publish through the original scalar world inverse, and retain those words across save/load. Evidence: [retained fine pose](retail-pathfinding-engine.md#retained-fine-pose-reaches-move),288 complete original supplied-.1 commits over18 sequences,139 differ from direct world integration; repeated O0/O2 comparisons and actual16-step Move/save/rejection/reposition/arrival regressions. Original public clock cadence, old-velocity phase and forced-position producers remain02.3/BASE-01.4.
+
+
+- [x] **NUM-02.6** Split the primary source/owner clock and previous-velocity phase from02.3: recover and repeat the5ms source/six-advance owner cadence, port scheduled point Move and between-callback prediction, then preserve clock/pose/phase across save/load and interruptions. Evidence: [primary clock reaches Move](retail-pathfinding-engine.md#primary-clock-reaches-move-and-predicted-positions),6000 complete original/C advances,1944 boundary/pause/epoch controls,1000 original controlled commits,300 original queries, two identical primary/live movement sequences and an actual30-second engine trajectory matching2100 words. Production public Move/save/pause/stun/Stop/region and queued-Patrol regressions pass. Save63, persistent Ghidra clock prefix/prototypes,195-entry corpus and67 frozen fixtures are synchronized. Full original routes, other ability clocks and small/large public producer trajectories remain02.3/ROUTE/MOVE.
+
+- [x] **NUM-02.7** Explicitly split native route-source/heading consumption from02.3's full producer/cadence trajectory. Trace05bdd0→16a790→16fbd0/16fd3b, retain native source through route queries, and reproduce the complete controlled wall detour plus save/load at four world origins. Evidence: [engine payoff21](retail-pathfinding-engine.md#native-route-inputs-survive-world-projection),174 genuine reproduced failures then1,364 exact assertions, saved vector-input ABI/comment readback. Actual original primary-owner timeline, stock profile/other lanes, adaptive refill and cell-boundary admission remain02.3/FOOT/ROUTE.
+
+- [x] **NUM-02.8** Explicitly split ordinary periodic public admission from02.3: start the engine clock/phase at zero, drive eight public RemoveUnit/CreateUnit/Move lifetimes through normal TimerStart, compare all247 original clock/position/velocity/facing commits and preserve the timer across saved fractional travel and later births. Evidence: [payoff35](retail-pathfinding-engine.md#public-timer-admission-reaches-move-from-zero), two repeated6000-primary-advance/1000-owner captures; engine elapsed-time cursor and owner-before-authored-timer primary-quantum fixes;76 exact saved continuation commits. Save72 and persisted TimerStart ABI/comments are synchronized. General scalar timer deadlines, other profiles and long small/large trajectories remain02.3/9..11.
+- [ ] **NUM-02.9** Split the newly exposed timer timeout producer: recover TimerStart's scalar scheduling path and TimerGetElapsed/Remaining/Timeout domains, retain timeout words instead of integer-millisecond truncation, compare short/negative/large input boundaries and port the verified deadlines/getters through actual timer-issued Move.
+- [x] **NUM-02.9.1** Split the long runtime-radius matrix's positive periodic timer dependency: recover scalar rearm from the due timer clock, preserve the authored0.10 timeout word and the separate owner3cf5c290 period, port both deadline cursors with save/load, and compare the complete90-second public Move/radius matrix. Ghidra053630 and new read-only rearm witnesses establish the producer; engine prefix previously diverged after41seconds with integer cadence. Evidence: [payoff51](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines), two repeated read-only original witnesses each retain3000 owner plus899 public scalar rearms; complete1061-commit engine matrix and4026 saved suffix commits per variant now match. General timeout/getter, pause, heap and epoch domains remain02.9.2/10/11.
+- [ ] **NUM-02.9.2** Split remaining scalar timeout/getter boundaries from02.9.1: short, zero, negative, large and adjacent timeout words, TimerGetElapsed/Remaining/Timeout domains, paused remainder and epoch-crossing producers. The positive0.10/owner0.03 matrix does not close these domains or general heap tie/catch-up mutation in02.10.
+- [ ] **NUM-02.10** Split periodic rearm and shared-deadline mutation: recover registration/tie order, overdue catch-up, zero/subquantum periods, restart/pause/destroy inside callbacks and queued generation invalidation; compose original controls, bounded live public Move and saved engine continuation. Ordinary owner-before-map-timer order is02.8, not a full heap-order proof.
+- [ ] **NUM-02.11** Split timer-clock epoch/rebase integration: recover timer deadline/remaining adjustments at span boundaries and paused domains, port the scalar clock ownership with Save/Load and compare public timer-issued trajectories crossing a wrap. The existing5ms primary source oracle and integer countdown cursor do not establish general timer heap parity.
+
+- [x] **NUM-02.12** Explicitly split the normal public long-oblique producer from02.3: drive three baseline/near-zero/large-coordinate CreateUnit/Move lifetimes through a periodic timer from clock/phase zero, compare every original pose/velocity/facing/clock commit and save/reload during first-leg travel and the intermediate stop. Evidence: [payoff36](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination), two complete scene45 captures plus an unchanged read-only geometry witness,689 exact commits and260 original saved continuation commits. Captured stock Misc clamps100 to150; supplied terrain-plus-static scene geometry is explicit. Save73 and Ghidra group/member roles/selector ABI are synchronized. General profiles, timer deadlines, scene/scenery loading and full group phases remain02.3/9..11/GROUP-04.6/MAP.
+
+
+### NUM-03 — Exceptional numeric inputs
+
+- [ ] **NUM-03.1** Drive negative and out-of-range coordinates/radii through public producers; record rejection, sanitization or propagated bit pattern.
+- [ ] **NUM-03.2** Do the same for nonfinite values; document producer unreachability where demonstrated instead of treating synthetic helper calls as gameplay evidence.
+
+### NUM-04 — Random state
+
+- [ ] **NUM-04.1** Trace seed ownership, initialization and draws for overlap and retry consumers; publish a draw-order contract with wrap behavior.
+- [ ] **NUM-04.2** Interleave two entities' overlap/retry events under a fixed seed; repeat and assert identical draws, state and resulting movement.
+- [x] **NUM-04.3** Port the two-word owner generator and exact overlap-direction words.1,408 complete original/C calls and11 seed prefixes, saved Ghidra state/prototypes; [engine payoff17](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).
+- [x] **NUM-04.4** Port public seeded integer/real query consumers and save/load continuation. Actual compiled JASS550 original-word assertions plus saved next results; full-width crash and reversed/near-equal bounds covered; Save65.
+- [ ] **NUM-04.5** Recover map/default seed production and initialization order before the first pathfinding consumer; compare actual actor-startup state.
+- [ ] **NUM-04.6** Recover693710's45 separate unit streams and their TLS producer; replace remaining legacy seed side effects with owned saved states. Do not merge audio/ability streams into the path owner by assumption.
+
+
+## ROUTE — Route progression and yielding
+
+Evidence: [route evidence][R]. Tools/artifacts: routes, refill, segment, yield, transition.
+
+ROUTE-01.3 explicitly splits the engine fine reconstruction port and its expanded
+eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope.
+
+### ROUTE-01 — Reconstruction
+
+- [ ] **ROUTE-01.1** Extend fine/coarse endpoint reconstruction to oblique directions and every class; assert exact coordinates, rounding and route order.
+- [ ] **ROUTE-01.2** Exercise empty/partial buffers, invalid starts and one growth/index limit; assert return code and next public advance state.
+- [x] **ROUTE-01.3** Port fine reconstruction coordinates and endpoint replacement into Move's nearby route adapter.3840 original eight-direction parent chains match raw C coordinate words with reuse at O0/O2; exact source, one-node source-before-goal and matching/nonmatching destination cells are explicit. Eight actual engine endpoint failures are reproduced/fixed across four classes. The partial-wall Move now keeps a fractional original goal through obstruction/removal/resume. Coarse reconstruction and buffer growth remain01.1/01.2. Evidence: [fine route endpoints](retail-pathfinding-engine.md#exact-fine-route-endpoints). Payoff34 also retains native fine waypoints in clear location routes instead of subtracting final published world positions; actual spawn-to-Move regression and repeats are [recorded here](retail-pathfinding-engine.md#clear-public-routes-retain-native-waypoints).
+
+### ROUTE-02 — Segment checks
+
+- [x] **ROUTE-02.1** Sweep static segment direction/length across four classes and ground/flight masks, including exact corner endpoints and length1 boundaries. All43,244 original sampler results/cell sequences match C at O0/O2;8,064 short segments query no cells. Original software normalizer words and123 supplied-chain waypoint selection/commit calls match. Engine direct/step/retention checks and fine waypoint selection consume the port; four first-sample strip misses are reproduced/fixed and actual wall-gap steering retains original choices. Endpoint admission and dynamic eligibility remain FOOT-04/FINE-01.2/03 and02.2. Evidence: [engine sampler and waypoints](retail-pathfinding-engine.md#retail-segment-sampling-and-waypoint-selection).
+- [ ] **ROUTE-02.2** Hit blocker candidate capacity with ordered objects, then change one obstruction between samples; assert cap/order and the resulting waypoint choice.
+
+- [x] **ROUTE-02.3** Explicitly split ordinary fine-curve initial/progress consumption from the remaining route mode, buffer and yielding tasks. Port count-2 initialization,0.49-cell retention and visible-successor progress into Move; match a complete controlled original34-tick wall detour's position/velocity/heading/index words and22 saved continuation ticks. Evidence: [engine payoff20](retail-pathfinding-engine.md#retained-fine-routes-reproduce-a-complete-retail-detour), frozen trajectory and two fresh original replays. Nonzero origin, real original owner cadence, adaptive refill, dynamic yielding and pooled cleanup remain NUM-02.3/ROUTE-01.2/03..05.
+
+- [x] **ROUTE-02.4** Explicitly split initial adaptive-to-fine destination selection from full refill/yield composition. Replace visibility/distance-clamp coarse selection with original167ae0 ten-accelerator-unit reverse-chain consumption and167d70 index-zero current-destination policy. Reproduce64 engine failures, then match all fine-route words in48 complete original165ae0 cases across three64-cell maps, four classes and four lanes. Public Move consumes the original solid-wall local leg while retaining its final order goal. Evidence: [engine payoff23](retail-pathfinding-engine.md#adaptive-handoff-uses-retail-route-length), two full original buffer replays and1,456 original/C selector cases atO0/O2. Retained coarse progress, owner scheduling, dynamic refills/yielding and portal execution remain ROUTE-03..05/SCHED/GATE.
+
+### ROUTE-03 — Dynamic route composition
+
+- [ ] **ROUTE-03.1** After BASE-06.5, insert a blocker during adaptive-to-fine travel; assert refill indices, yield result, timestamps and charged work.
+- [ ] **ROUTE-03.2** Remove that blocker while waiting; assert retry/replan timing and eventual arrival or can't-path event through the full owner tick.
+
+- [x] **ROUTE-03.3** Explicitly split retained ordinary coarse progress and admitted static fine refills from03.1's dynamic blocker/yield composition. Preserve original coarse buffers/indices, test .49-accelerator-unit approach before fine progression, invalidate/refill fine storage at the selected following destination and preserve both buffers across Save68. Reproduce64 engine transition failures; all32 complete original admitted controlled-source refills match every native fine word. The actual long public Move scheduler retains its coarse state and repeats180 saved continuation frames exactly after rebinding the rebuilt world's runtime cache epoch. Evidence: [engine payoff24](retail-pathfinding-engine.md#retained-coarse-progress-refills-the-fine-route). Denied-request timing, nonzero next indices, full retail physical multi-tick motion, dynamic blockers/yielding and portals remain03.1/2/04/05/SCHED/GATE.
+
+- [x] **ROUTE-03.4** Explicitly split03.3's nonzero following-index exclusion and newly discovered fine-index producer from dynamic refill/yield timing. Thirty-two full original128-cell routes retain their complete coarse buffers through160 admitted refills, including5→4→3→2→1→0 and9→8→7→2→1→0. Reproduce160 engine index failures; port original observed-obstruction latch and destination-vs-parent initial index. All192 initial/refill buffers, indices and outputs match every word;480 full original/C latch checks and O0/O2 frozen replay pass. Actual public long Move crosses multiple coarse transitions, reaches the legal goal and repeats260 saved frames with exact native/world pose, velocity, heading, order and both route indices. Evidence: [engine payoff28](retail-pathfinding-engine.md#successive-long-refills-select-the-original-fine-index). Full physical retail motion, denied requests, dynamic blockers/yielding and portals remain03.1/2/SCHED/GATE.
+
+### ROUTE-04 — Route mode combinations
+
+- [ ] **ROUTE-04.1** Create a truth table for cached/exhausted/disabled routes and alternate index initialization; cover every reachable combination through public advance.
+- [ ] **ROUTE-04.2** Exercise queued paths, forced arrival and target-perimeter exit against that table; assert destination, event and retained route state.
+
+### ROUTE-05 — Yielding lifecycle
+
+- [ ] **ROUTE-05.1** Trace blocker identity and group-bit-8 producers; assert delay duration after blocker removal and replacement by a reused handle.
+- [ ] **ROUTE-05.2** Run a two-mover asymmetric yield and a three-mover yield cycle; compare countdown, release order and eventual progress/failure.
+
+- [x] **ROUTE-05.3** Explicitly split the verified ordered velocity decision and ordinary engine wait consumer from05.1's group-bit8/reused-handle producers and05.2's full cycles. Port committed-velocity software comparison, ordered persistent peer side effects and max4/20 delays into Move; collect the native next-step class strips and preserve waits/blocker references through Save69. All8,640 original decision cases and25 gate controls match C. Two fresh source/map-pinned crowd captures repeat2,503 complete ordered decisions,51 duplicates,56 short/10 long assignments and424 retiring advances exactly. The public two-Move/remove/query0/save regression consumes four scheduled waits and repeats48 state words, while field tests reject invalid blocker pointers. Evidence: [engine payoff30](retail-pathfinding-engine.md#ordered-moving-waits-reach-ordinary-move), frozen original fixtures, saved Ghidra names/ABIs and strict four-entry corpus. Lazy overlapping cell-link order, original group-bit8/membership producers, peer-wait retry restoration, denied requests, acquisition-time waypoint composition and full crowd/cycle trajectories remain ROUTE-02.2/03/05.1/05.2/GROUP/SCHED/E2E. Payoff31 strengthens this existing leaf without adding a checkbox:1,008 complete original countdown callers and two424-call live repeats match C; eight world-heading failures are fixed by retaining the predicted native source. The public oblique-wait/save regression repeats120 state words and resumes movement. Evidence: [native waiting headings](retail-pathfinding-engine.md#waiting-headings-preserve-the-native-caller), saved192-prototype Ghidra readback and fresh four-entry corpus. Payoff32 additionally ports actual peer20 fine retry: restore final-goal native heading, stop requester, reset fine buffers while preserving coarse count/index/points and save71 retry state; public scheduler continuation repeats1440 words.336/2016 complete original/C cases and two97-call live repeats certify native distance/owner-state semantics. Terrain/idle/ineligible vector retries still require original source-footprint admission/recovery; terminal/perimeter and full cycles stay open. Evidence: [peer retry payoff](retail-pathfinding-engine.md#payoff32-blocked-fine-leg-retry-and-retained-coarse-plan).
+
+## TARGET — Pursuit and arrival policy
+
+Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh, replan, range.
+
+### TARGET-01 — Arrival inputs
+
+- [x] **TARGET-01.1** Point-task range has 4,957 exact cases; object range has 948 calls and six invalid-handle probes. Evidence: [range predicates][ranges]; this does not close their gameplay producers.
+- [ ] **TARGET-01.2** Trace remaining target/command range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values. Ordinary zero-range point Move is independently closed01.4; Patrol, AttackMove, occupied destinations and force/can't-path producer decisions remain here and their owning order tasks.
+- [ ] **TARGET-01.3** Trace one ability-specific approach producer and contrast its range/stop contract with those commands.
+- [x] **TARGET-01.4** Split ordinary zero-range point Move from01.2: capture actual range publication, predicted-pose predicate and final stop; port them into the owning Move ability. Evidence: [point Move arrival](retail-pathfinding-engine.md#point-move-arrival),2342 complete original/C predicate cases, two identical183-evaluation/commit live witnesses, failing actual-order engine regressions then corrected range/heading gate and previous-velocity final step. Full world/grid/clock phases, other owners and force producers remain01.2/3/NUM-02.3; the rejected first observer capture stays explicit.
+
+### TARGET-02 — Target mutations
+
+- [ ] **TARGET-02.1** Extend the bounded ground Smart Follow producer closed02.4 to delayed changed-cell timestamp producers, target visibility/loss, other target-order families, masks and arbitrary scenes; assert cached destination, refresh cadence and admission/replan timing per tick.
+- [x] **TARGET-02.2** Resize a target during an active Follow route through original public Chaos; verify changed canonical mover radius, retained group range and fresh route acceptance. Evidence: [payoff50](retail-pathfinding-engine.md#follow-retains-active-range-and-admits-resized-targets-with-half-edge-approaches), five twice-captured growth/shrink/control/research journeys,5075 exact normal engine commits and9725 Save80 suffix commits. Ability-owned deferred type rebind consumes authored Cha1/UnitID, inherits or explicitly clears requirements, preserves public/edict identity and updates collision. Fresh growth approach uses half predicted edge distance; persistent range uses the new radii. Moving-unit radius/occupancy and other body/locomotion families remain FOOT-01.2/03; this stationary-target mutation does not close those domains. Teleports are completed02.5.
+- [x] **TARGET-02.3** Kill/remove and then reuse the target handle; assert cancellation/revalidation without adopting the replacement entity. Evidence: [payoff48](retail-pathfinding-engine.md#follow-cancels-synchronously-before-target-pool-reuse), four complete read-only native captures (two per public retirement mode), actual same mover address/public handle with fresh canonical generation,948 exact normal-frame commits per engine journey and3492 total Save80 suffix commits. Move owns death notification and physical-group detachment; replacement stays unadopted until explicit Smart. Wider queued/combat parents and reentrant callbacks remain their owning tasks.
+- [x] **TARGET-02.4** Explicitly split visible friendly ground Smart Follow with target point travel and mid-route speed change from02.1. Integrate physical approach/persistent owners, radius-sum range, cached destination bucket and countdown into Move. Evidence: [payoff47](retail-pathfinding-engine.md#smart-follow-tracks-a-moving-target-through-a-speed-change), two complete read-only native witnesses with identical1015 absolute commits,1015 exact normal-frame engine commits and2595 Save80 suffix commits; ten strict fresh contracts, corrupted-state controls and saved Ghidra role/signature/xref readbacks. Authored Stop bounds Follow; natural user-head completion is not claimed. Delayed timestamps, visibility/loss, structures/flight, combat, wider masks and maps remain02.1/02.2/02.3 and their owning tasks.
+- [x] **TARGET-02.5** Explicitly split public target SetUnitX/Y and SetUnitPosition teleportation from02.2. Exercise jumps during target point travel and after target arrival while Smart Follow remains active; verify accepted cached destinations, retained radius-sum range and setter order policy. Evidence: [payoff49](retail-pathfinding-engine.md#follow-tracks-public-target-teleports-without-premature-point-settling), eight complete read-only native captures,4091 exact engine commits/7872 saved suffix commits, and a reproduced/fixed legacy near-goal Hold after a turn wait. Same-clock movement commits are now observed before JASS timer writes; saved checkpoints end at owner-quantum boundaries. Collision resizing, denied delayed replans, structures/flight and wider queued/combat domains remain their owning tasks.
+
+### TARGET-03 — Visibility policies
+
+- [ ] **TARGET-03.1** Map visibility policy flags/global producers to fog, invisibility and validation results 0xa9/0xaa; publish the reachable branch table.
+- [ ] **TARGET-03.2** Run loss and reacquisition for each listed policy; assert retained pursuit or cancellation and resulting order/route state.
+
+### TARGET-04 — Delayed refresh
+
+- [ ] **TARGET-04.1** Trace refresh-threshold and Captain AI extra-delay producers; assert actual simulation ticks to the next request.
+- [ ] **TARGET-04.2** Run a long-count retry with multiple members and a range change; assert per-member retry/completion/failure events.
+
+## SCHED — Scheduling and owner updates
+
+Evidence: [movement evidence][M] and [routes][R]. Tools/artifacts: scheduler, motion, order_tasks.
+
+### SCHED-01 — Clock domains
+
+- [ ] **SCHED-01.1** Trace both clock selectors and configured spans to simulation time; assert pause, scaling and ordinary advancement against a fixed event timeline.
+- [ ] **SCHED-01.2** Cross clock rollover and a reachable backward-time transition; assert request deadlines, integration and admission behavior.
+
+### SCHED-02 — Owner pass ordering
+
+- [x] **SCHED-02.1** Singleton wall trajectory: 44 complete owner updates, all 64 scheduler buckets, visual settling and unlink pass. Evidence: [singleton owner][owner], report M `move_owner_arrival_cases=1`; shared/separation lists empty.
+- [x] **SCHED-02.2** Active singleton plus eligible repulsor: 43 separation updates and four accepted attempts pass. Evidence: [separation pair][pair], M `move_owner_active_separation_cases=1`; controlled profile, bounded numeric tolerance.
+- [ ] **SCHED-02.3** Populate two groups and the shared-cap/radius lists in one owner tick; assert scheduler/publication/group/movement/separation order and same-tick visibility.
+- [ ] **SCHED-02.4** Mutate membership or remove a mover from one callback during that tick; assert subsequent iteration order and ownership.
+- [x] **SCHED-02.5** Explicitly split primary-clock singleton route composition from02.1/NUM-02.3. Two complete original wall detours agree on all34 pose/velocity/heading/index/elapsed/clock rows under six authentic5ms advances per pass;45 owner updates include the supplied freshclock0 callback and nine settling ticks. Actual engine RunFrame matches every active motion/clock word and22 saved continuation ticks. Evidence: [primary-owner engine differential](retail-pathfinding-engine.md#primary-owner-clocks-reproduce-the-complete-detour), frozen primary-owner route and strict repeat corpus. Initial public order-admission phase, stock profiles, rendered presentation and populated groups remain separately required.
+
+### SCHED-03 — Admission queues
+
+- [ ] **SCHED-03.1** Trace class/priority producers, including non-unit class 15; record which runtime object can enqueue into each policy bucket.
+- [ ] **SCHED-03.2** Reclassify/requeue and delete a request during queue traversal; assert head/tail/count and next admitted request.
+- [ ] **SCHED-03.3** Cross the scheduler work-counter wrap; compare charged work and admission to an equivalent clean-counter run.
+- [x] **SCHED-03.4** Explicitly split ordinary fine player-row ownership from03.1/03.2/04: partition work/FIFO across all16 unit-player classes, cancel ordinary Move while the old owner is published, unlink old requests before class changes and removals, and retain independent work/FIFOs/intervals through save/load. Compare public ownership-change motion/Stop words through complete stationary continuation. Other three policy pools, non-unit class15 producers and mutation during original active traversal remain the parent leaves. Evidence: [payoff40](retail-pathfinding-engine.md#ordinary-fine-search-belongs-to-the-unit-player),365 exactly repeated public lifecycle records/17 arithmetic commits/two native Stops; normal-frame motion/final Stop and before/after saved continuations; all240 different-player changes,16-row removals/independent saves and actual route-consumer charging. Debug/release RoC/TFT each pass189,902 assertions/2,313 tests; production builds, repository suite,175 Python tests and fresh scheduler/live corpus checks pass. Save76 and saved Ghidra roles/types are synchronized.
+
+### SCHED-04 — Contention
+
+- [ ] **SCHED-04.1** Run two owners/classes competing for a fixed exhausted budget; record exact admission order, work and waiting duration.
+- [ ] **SCHED-04.2** Run repeated exhaustion with multiple groups; establish fairness/starvation behavior from queue state over a fixed-length trace.
+
+## MOVE — Stepping and callbacks
+
+Evidence: [movement evidence][M]. Tools/artifacts: motion, speed, numeric.
+
+MOVE-01.4 explicitly splits the ordinary authored/public speed producer port from
+01.1. The remaining hero contribution, special ability/type limits, acceleration
+and turn producers still belong to01.1. MOVE-01.5 explicitly adds the engine
+low-cap transition discovered during the next public travel capture. It closes
+zero-elapsed immediate vector clamping, with nonzero-elapsed owner-clock
+production retained by NUM-02.3 and temporary-effect restoration by01.2.
+MOVE-01.6 explicitly adds the missing flat-bonus engine query and saved
+publication state; it does not close the original bonus writer or other effects.
+
+### MOVE-01 — Movement parameters
+
+- [ ] **MOVE-01.1** Trace authored speed, acceleration and turn/movement-angle data into a new mover; assert converted values and clamp order.
+- [ ] **MOVE-01.2** Apply then remove a temporary speed/turn modifier during travel; assert committed velocity and restoration.
+- [ ] **MOVE-01.3** Record group/request writes to those parameters and test each reachable overwrite order against the authored defaults.
+- [x] **MOVE-01.4** Split ordinary nonhero public speed setter/current/default getters and authored limits from01.1: preserve integer umvs/umis/umas map fields, clamp profile bounds before current speed, retain explicit zero across save/load and ignore movement-disabled setters. Evidence: [authored speed limits reach Move](retail-pathfinding-engine.md#authored-speed-limits-reach-move),1846 original/C clamp/gate cases, repeated120 public calls/26 publications/153 captured commits, actual public-order and saved-step regressions. Hero defaults, special caps/effect-stack ordering, immediate low-cap integration and clock cadence remain01.1/2/NUM-02.3.
+
+- [x] **MOVE-01.5** Explicitly add immediate low-cap vector publication during public Move: reproduce the engine retaining old fast velocity, port verified zero-delta normalization without changing pose/facing, preserve higher-cap velocity and save/load subsequent motion. Evidence: [speed drops clamp existing velocity immediately](retail-pathfinding-engine.md#speed-drops-clamp-existing-velocity-immediately),756 complete original/C transitions and repeated public during-travel zero-elapsed clamp/128 captured commits. Original nonzero-elapsed integration is independently composed; engine owner clocks and temporary-effect restoration remain NUM-02.3/01.2.
+
+- [x] **MOVE-01.6** Explicitly add the missing AIms engine contribution: aggregate the maximum nonnegative authored flat bonus across native/item owners, preserve rawcode aliases and item-use permission, distinguish public query from the bonus last published by a setter/new Move order, and save/reload retained-cap motion. Evidence: [flat bonuses retain their publication state](retail-pathfinding-engine.md#flat-bonuses-retain-their-publication-state),126 complete original/C compositions, repeated quiet and explicit-publication Boots scenes, actual public inventory/Move and eight-step save regression. Original bonus88 writer, broader temporary effects, mixed cohort notification and owner-clock timing remain01.1/2/3 and NUM-02.3.
+
+### MOVE-02 — Stepping
+
+- [ ] **MOVE-02.1** After NUM-02, compare a long oblique trajectory with speed and heading changes at fixed ticks; assert old-velocity integration and exact positions.
+- [ ] **MOVE-02.2** Exercise stationary turn, Stop and restart at a cell boundary; assert facing, zero velocity and occupancy before/after each event.
+
+- [x] **MOVE-02.3** Integrate existing authored status/aura speed consumers into individual Move stepping and active selection-group caps. Evidence: [effective speed reaches movement](retail-pathfinding-engine.md#effective-speed-reaches-actual-movement); four actual Cripple/Bloodlust Move failures precede the shared consumer fix, then individual/group step lengths and expiry pass22 assertions. No field/version/wire change; retail effect-stack ordering and full clock parity remain open.
+
+### MOVE-03 — Spatial and presentation callbacks
+
+- [ ] **MOVE-03.1** Cross a region boundary with nonzero elapsed time; assert enter/exit callback order relative to occupancy and support-height publication.
+- [ ] **MOVE-03.2** Teleport or remove the mover from a region callback; assert no stale post-callback position/occupancy commit.
+- [ ] **MOVE-03.3** Travel over one bridge/water support transition with nonzero UI limits; assert support source, height and clamped presentation transform.
+
+### MOVE-04 — Movement bypasses
+
+- [ ] **MOVE-04.1** Disable then enable pathing during travel; assert route/occupancy invalidation and the first resumed step.
+- [ ] **MOVE-04.2** Pause/resume and force-displace a mover; assert clock, velocity and route retention or reset.
+- [ ] **MOVE-04.3** Teleport and switch movement mode via producers inventoried in BASE-01; assert grids/lanes and next request. Split additional producer paths into new IDs.
+
+## ORDER — Orders and reclamation
+
+Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
+
+### ORDER-01 — Arrival and failure dispatch
+
+- [x] **ORDER-01.1** 24 generated point-order chains arrive and reclaim queues/pools; 288 internal tasks complete. Evidence: [queued arrival][arrival], O `queued_order_arrival_cases=24`; open fine grid and explicit group ticks.
+- [ ] **ORDER-01.2** Enumerate remaining arrival/can't-path early exits and unit-state gates; add one full-dispatch witness per branch, including unit+280 bit40.
+- [ ] **ORDER-01.3** Run one blocked-goal recovery chain through retries and final failure/next-order dispatch; assert unwind and cleanup rather than only notification.
+- [x] **ORDER-01.4** Trace retail `GetUnitCurrentOrder` and separate OpenRealm's ordinary point-Move current query from historical issued-event ID storage. Verify admission, queued Smart activation, replacement/rejection, Stop and natural arrival through public natives/server frames, including save/load and actual edict reuse. Evidence: [current point-order ownership](retail-pathfinding-engine.md#current-point-order-ownership), registered2039d0 full native at42 frozen states plus18 invalid-backing controls, both cases repeated identically (124 executed calls); failing engine regression followed by Move-owned admission/current state and save57. Immutable callbacks are independently closed01.5. Non-point orders are explicitly01.6 and indexed by BASE-03.1; this does not certify those queries or full original JASS/Unit construction.
+- [x] **ORDER-01.5** Preserve accepted issued-order IDs, points and targets in queued and suspended event contexts, independently of subsequent per-unit orders. Verify delayed Move/Smart/Stop, reentrant point replacement, both target event families, unread-event save/load and sleeping-callback save/load; exclude unrelated spell metadata through the retail event-type gates. Evidence: [immutable issued-order callbacks](issued-target-order-events.md#immutable-callback-ownership), failing public-native regression followed by engine fix, JASS snapshot7, persisted Ghidra getters/prototypes and full tests. Ordinary point active query state is separately01.4; complete original event producer/subscriber mutation graph remains ORDER-03/BASE-03.1.
+- [x] **ORDER-01.6** Export the bounded current-command owner matrix and split the original non-point query acceptance into explicit domain leaves01.7..16. Link engine owners, known retail dispatch/interception roots and each remaining witness; persist the known Hold/Patrol/Smart/Attack Move/shared-dispatch names and Hold field/prototypes in Ghidra. Evidence: [owner inventory](retail-pathfinding-engine.md#remaining-command-owner-inventory),277 names/17 layouts/110 fields/44 prototypes with guarded refinement and negative controls. This inventory does not close the remaining domain leaves or BASE-03.1's complete reachable producer graph.
+- [x] **ORDER-01.7** Verify public Hold Position's current head retires to0 while Hold behavior persists, including standing, actual automatic damage and replacement; add engine public-native/server-frame/save/queued-clear witnesses. Evidence: [Follow/Hold ownership](retail-pathfinding-engine.md#current-follow-and-hold-ownership), two complete owned retail captures with identical320 timer/health markers, original Hold task/state instruction map and engine regression. No persistent851993 query is synthesized; full original class/producer construction remains BASE-03.1.
+- [x] **ORDER-01.8** Integrate healthy allied-unit target Move/Smart Follow current IDs through actual activation, persistent standing/pursuit, replacement/rejection, Stop, queued activation/handoff, death, save/load and edict reuse. Evidence: [Follow/Hold ownership](retail-pathfinding-engine.md#current-follow-and-hold-ownership), failing public-native regression followed by Move-owned S_IssueFollowOrder, real server frames and repeated public retail IDs851986/851971. Full target policy/visibility/route branches remain TARGET; synchronous RemoveUnit loss is independently01.15 and metadata/spells/interactions have their own leaves.
+- [x] **ORDER-01.9** Trace and integrate public Patrol point admission and current head851991 across endpoint reversal, rejected/replacing orders, queued activation, Stop/death and save/reuse. Route selected-unit UI/Shift through the same Patrol owner; require actual approach/return travel in the repeated live witness. Evidence: [current Patrol ownership](retail-pathfinding-engine.md#current-patrol-ownership), native/UI regressions fail against the committed engine then pass45 checks; real server frames, save/reuse, repeated live approach/reversal and negative trace controls,18 layouts/115 fields/45 prototypes saved in Ghidra and122/122 fresh strict corpus outcomes. Automatic combat/resume and complete original endpoint/arrival policy are independently01.18.
+- [ ] **ORDER-01.10** Trace and integrate current public Attack/Attack Move/Attack Ground ownership through approach, attack/cooldown, automatic combat sub-behaviors, completion/rejection/replacement, queued handoff, death and save/reuse. Separate internal Move/attack task IDs from the public head; start with shared order dispatch and Move5fe1a0.
+- [ ] **ORDER-01.11** Trace and integrate Repair current-head admission/approach/work/completion/interruption, Smart repair identity and auto-repair/internal approaches, pending activation, death and save/reuse through s_repair.c and the concrete retail owner. Preserve publisher/callback identity separately.
+- [ ] **ORDER-01.12** Trace and integrate Harvest/return-resource current ownership across each race/resource path, Smart admission, mine/cargo entry, internal approaches, completion/interruption, queued activation, death and save/reuse. Inventory early-return publisher paths explicitly; construction is separately01.16.
+- [ ] **ORDER-01.13** Trace and integrate ability current-head ownership through target/point approaches, execution, channels, instant actions, completion/inverse/interruption, rejection, queued policy, death and save/reuse. Concrete abilities own these transitions; internal order_move must not invent public Move identity. Split by bounded cast family as necessary.
+- [ ] **ORDER-01.14** Trace metadata/toggle interception and integrate preservation/replacement of an existing active user head through concrete owning abilities. Cover busy/idle/rejected actions and queue/save state. The public Defend witness while head0 does not establish preservation of a busy head; start with69b2f0 virtual22c and dispatch bypasses.
+- [x] **ORDER-01.15** Match retail's synchronous healthy active Follow head retirement when public RemoveUnit removes its target, while retaining OpenRealm's deferred edict/event lifetime. Verify both Move/Smart IDs, pending point activation, rejection of queued removed targets, unrelated/repeated removal and already-replaced point orders; prove next-frame cleanup and natural queued arrival. Evidence: [synchronous Follow loss](retail-pathfinding-engine.md#current-follow-and-hold-ownership), isolated failing engine regression followed by Move-owned notification/queued handoff,132 passing checks, repeated public retail tick130 current0 and122/122 strict corpus outcomes. Combat-parent/direct-free/reentrant-generation/save composition is split into01.17; runtime/lifetime producers remain BASE-03.1/TARGET.
+- [ ] **ORDER-01.16** Trace and integrate Build current ownership through each construction race strategy, accepted/queued placement, approach/work, interruption/cancel/refund policy, rejected replacement, death and save/reuse. Resolve the actual public command from the construction owner instead of generic Move or publisher history; split the race matrix into bounded leaves if necessary.
+
+- [ ] **ORDER-01.17** Extend01.15 target loss through temporary automatic-combat ownership, direct free/death, callback reentrant removal, generation-safe target/subject reuse and save before deferred drain. Recover the actual removal-to-target-loss caller graph and preserve command/queue/event ownership through each composition; public healthy Follow head0 alone does not establish these policies.
+
+- [ ] **ORDER-01.18** Compose Patrol automatic acquisition, actual damage, enemy loss and endpoint resume while preserving public head851991, then interrupt/reject/save/reuse during combat. Recover original d0175 endpoint progression/arrival and blocked-route policy, including queued-origin capture timing; compare complete original decisions with the owning engine ability. ORDER-01.9 no-enemy reversal does not certify these branches.
+
+### ORDER-02 — User/internal queues
+
+- [x] **ORDER-02.1** Four two-order FIFO cases pass identity, successor timing, callback and final recovery assertions. Evidence: [FIFO][fifo], O `fifo_two_order_cases=4`; controlled command inputs.
+- [ ] **ORDER-02.2** Map user Shift-queue versus internal task ownership and remaining queue control bits to producer/caller contracts.
+- [ ] **ORDER-02.3** Exercise empty queue, rejected successor and canceled pending order through those controls; assert head/tail/count, dispatch result and release.
+
+### ORDER-03 — Callback mutation
+
+- [ ] **ORDER-03.1** Insert/remove a subscription while dispatching to multiple subscribers; assert delivery order, iterator and reference counts.
+- [ ] **ORDER-03.2** Destroy an order or unit from a subscriber, then perform nested dispatch; assert depth/unwind and payload lifetime with no stale callback.
+
+### ORDER-04 — Reference reclamation
+
+- [x] **ORDER-04.1** Eight last-reference release cycles and six factory reuses pass. Evidence: [payload reclamation][reclamation]; preallocated pools and supplied registration, no populated relations/negative domain.
+- [ ] **ORDER-04.2** Construct and release an object with populated relations/children through the real factory; assert child/reference cleanup and free-list recovery.
+- [ ] **ORDER-04.3** Exercise bridge guard failure, stale identity and both handle domains; assert rejection and reference balance.
+- [ ] **ORDER-04.4** Grow an empty factory/pool through its allocator boundary; assert first construction and final payload/wrapper release.
+
+### ORDER-05 — Deferred requests
+
+- [ ] **ORDER-05.1** Populate the deferred heap with different/equal deadlines; assert pop/tie order, cancellation and wrapper reuse.
+- [ ] **ORDER-05.2** Schedule a repeating request and a callback that schedules/cancels another; assert invocation order and final heap/refcount state.
+- [ ] **ORDER-05.3** Restore or switch the request clock with pending deadlines; assert which callbacks fire and when without rebasing deadlines by assumption.
+
+### ORDER-06 — Cancellation and interruption
+
+- [x] **ORDER-06.1** Three mode-1 replacements at tick3 admit only the replacement and recover all three orders. Evidence: [replacement][interrupt], O `replacement_arrival_cases=3`; other phases excluded.
+- [x] **ORDER-06.2** Three mode-0 interrupts reach the temporary destination, resume the original and run its successor. Evidence: [interrupt/resume][interrupt], O `prepend_complete_cases=3`; explicit group scheduling.
+- [ ] **ORDER-06.3** Run Stop/replacement while waiting, searching and turning; assert surviving queue, active flags and reclaimed allocations at each phase.
+- [ ] **ORDER-06.4** Run interruption during group completion and deferred release; assert no duplicate arrival/release and correct resumed order.
+- [ ] **ORDER-06.5** Kill/remove the mover during travel and one pending phase; assert scheduler unlink and all order/group/path lifetimes.
+- [ ] **ORDER-06.6** Exercise one relevant ability transition during movement; assert command preservation/cancellation and routing inverse. Inventory additional distinct transitions as new tasks.
+
+## GROUP — Shared movement groups
+
+Evidence: [group evidence][M]. Tools/artifacts: motion.
+
+### GROUP-01 — Group producers
+
+- [ ] **GROUP-01.1** Issue a multi-selection player order, independent JASS orders and an AI order; record group identity sharing, creation limits and producer flags.
+- [ ] **GROUP-01.2** Trigger join/leave/merge/split through those producers; assert membership and route ownership after each transition.
+
+- [x] **GROUP-01.3** Explicitly split public JASS point-order admission from01.1: map name/ById/Loc/ByIdLoc to one native leaf, verify twelve-member insertion-order admission and all-candidate attach before order validation, and implement the bounded snapshot plus missing numeric/Loc engine dispatch. Evidence: [payoff37](retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members), two complete scene46 admission captures, four shared original requests per capture/48 admitted/eight excluded members; engine regression reproduces the over-limit failure then passes allfour forms and invalid adapters. Ghidra retains nine producer/callback/snapshot roles and the44-byte request context. Persistent physical shared groups and complete trajectories remain04.6; selected/independent JASS/AI distinctions and flags remain01.1. Motion observer cap is explicit and certifies no whole trajectory.
+
+### GROUP-02 — Fresh group movement
+
+- [x] **GROUP-02.1** 144 complete cached-route group ticks and 156 membership prepasses are covered. Evidence: [cached group ticks][cached-groups]; fresh wall-pair search is covered separately by GROUP-02.3; additional failed-route policy remains open.
+- [x] **GROUP-02.2** Two originally admitted units join one original request; fresh shared/member routes run through owner updates and natural tick7 arrival. Evidence: [fresh shared pair](retail-pathfinding-movement.md#fresh-shared-pair-through-owner-arrival), frozen `retail-shared-pair-1.27.json`, report `group-02.2-frozen-shared-pair.json`; both decisions precede both commits, all intermediate words repeat exactly, all orders/groups/paths reclaim. Public selected/JASS/AI callers remain GROUP-01.1.
+- [x] **GROUP-02.3** Original three-cell terrain wall and Footman mask-producing prefix give opposing owned routes under one shared group, tick19/25 arrivals and complete recovery. Evidence: [wall pair and reversal](retail-pathfinding-movement.md#shared-pair-with-terrain-obstruction-and-reversal), report `group-02.3-wall-ground-frozen.json`, four frozen pair fixtures;46 owner commits match C, maskless/open/reversal controls retain all raw differences. Failed routes, runtime edits and full class notification remain separate exclusions.
+
+### GROUP-03 — Shared parameters
+
+- [x] **GROUP-03.1** Shared-cap ownership/publication and group radius lifecycles have original-code coverage. Evidence: [shared parameters][shared-groups]; remaining flag/AI producers and target-speed adjustment are not closed.
+- [ ] **GROUP-03.2** Trace group bit800 and speed-cap exemption producers; exercise target-speed adjustment with both exempt and capped members.
+- [ ] **GROUP-03.3** Grow the shared auxiliary pool, change the largest member radius, then remove it; assert publication and allocation recovery.
+- [ ] **GROUP-03.4** Run Captain AI attach/detach during movement; assert its shared-cap and delay ownership/inverse. Stationary authored-home recruit admission is split into03.4.1; CaptainGoHome, live shared attachment, virtual moving captain and follower task handoffs remain required here.
+- [x] **GROUP-03.4.1** Retain authored captain home/roster/goal through InitAssault, formation flag and AddAssault admission; complete stationary singleton home travel through the private range callback and point handoff. [Payoff56](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy) matches complete178/250 native commits from two source positions and2225 saved suffix commits, including exact2s/3s deadlines, post-owner callback ordering, zero-radius category2 occupancy, retry/forced arrival, Stop/replacement/removal, captain recreation and bot-free restore. Saved Ghidra annotations and strict repeated native/blocker evidence persist. Default AI town homes, moving captains, larger shared batches and wider AI lifetime remain03.4/FOOT-01.3.
+- [x] **GROUP-03.4.2** Compose the stationary two-ground-recruit home journey from the verified actor/timer. [Payoff57](retail-pathfinding-engine.md#stationary-captain-pair-private-followers-to-shared-arrival) matches369 complete native commits and2003 saved suffix commits; both callbacks gate one two-pass shared point request,152 shared7c/pathb4 footprint updates retain the final survivor, and initial followers remain independent. Save84, Stop/replacement/removal, captain recreation, bot-free restoration and invalid membership state are covered. Ghidra591 roles preserve recruitment/roster order and virtual target-region semantics. Native pair path94/98 never consume a retry; that acceptance is explicitly split into03.4.3. Larger mixed-radius rosters, live attach/detach and moving captain lifetimes remain03.4/FOOT-01.3.
+- [x] **GROUP-03.4.3** Extend the stationary shared captain pair to unequal mover radii and a blocked formation endpoint that naturally consumes a retry; compare all native commits, shared7c/pathb4 changes and saved continuations before/after admission and retry. Evidence: [mixed captain pairs and blocked home retries](retail-pathfinding-engine.md#mixed-captain-pairs-and-blocked-home-retries), two uninterrupted repeats per scene; mixed185+184 commits,152 shared updates including live31/cached32 survivor,2003 saved commits; blocked254+270 commits,237 shared updates, fourteen real retries/two forced arrivals,2685 saved commits. Engine now admits the virtual actor beside blocked home, uses its actual range center and temporarily excludes actor rectangles during group/member coarse admission. Full normal-frame/save/cancellation/bot-free journeys match. Larger12+1 batches, live attach/detach and general dynamic coarse publication remain03.4/FOOT-01.3/MAP-03.3.
+- [x] **GROUP-03.4.4** Retain native owned-pool insertion order across RemoveUnit/edict reuse, true owner transfer and same-owner no-op; compose partial AddAssault and captain roster prepend through complete journeys. Evidence: [owned-pool ordering](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots), two complete repeats each for transfer, no-op, delayed lower-slot reuse and AddAssault(1)→(2);908 physical commits and4344 saved suffixes. Engine lifecycle insertion replaces reverse-edict scanning; Save85 retains both64-bit fields and rejects invalid order. Saved Ghidra roles/layouts preserve698ce0→9b9230→9c3660 head insertion and9c32d0 traversal. Larger batches, live membership/continued recruitment after restore and moving captains remain03.4/FOOT-01.3.
+
+- [x] **GROUP-03.4.5** Extend stationary captain admission to three ground recruits, compose all-entered shared point travel through shrinking 3→2→1 membership and retained retry budget; compare complete motion and saved continuations. Evidence: [three-member shared journey](retail-pathfinding-engine.md#stationary-captain-three-member-shared-journey), two complete native repeats; 608 physical commits and 2,352 exact saved suffix commits. The reproduced two-member fallback diverges at commit2/1,020ms; Move admission and Save85 validation now support three, with unchanged numerical kernels. Saved Ghidra comments retain the third-callback gate and single-draw retry lifetime. Full debug/release suites, 342 Python checks and 36 fresh contracts pass. Twelve-plus-one batching remains03.4.6; live attach/detach and moving captain policy remain03.4/FOOT-01.3.
+- [ ] **GROUP-03.4.6** Extend stationary captain admission across the native twelve-member batch boundary with thirteen recruits; retain 12+1 shared parameter ownership, complete motion, natural cleanup and saved continuations. Homogeneous batching closes03.4.6.1; cross-batch mutable shared parameters remain03.4.6.2.
+
+- [x] **GROUP-03.4.6.1** Compose the homogeneous thirteen-Footman stationary home scene through actual W3E-supported birth placement, private followers, 12+1 shared batches, all3,647 physical commits, cleanup and saved continuations. [Complete engine journey](retail-pathfinding-engine.md#stationary-captain-thirteen-member-batch-boundary): two complete retail repeats, all57 retry/PRNG transitions and15,768 exact saved suffix commits. Move batches13 into12+1 and resets replaced-path search admission; Save85 validates retained13-member references. Saved Ghidra notes retain batch cursors, shared wrapper and activation timestamps. Mixed-radius shared ownership remains03.4.6.2.
+- [ ] **GROUP-03.4.6.2** Put the largest mover in the thirteenth/singleton batch and prove the shared parameter owner publishes that maximum into both physical groups through member completion, cancellation and saved continuations. Two complete native mixed13 repeats now match: initial shared63/32 spans both batches, then falls to31/32 after departure while cached path footprints remain independent. Port this mutable cross-batch owner and its lifecycle; homogeneous batches do not establish it.
+
+Private captain range (GROUP-03.4.6.2.1) is split into a verified ground recruit
+increment and the remaining broader producer policies:
+
+- [x] **GROUP-03.4.6.2.1.1** Recover and port ordinary ground recruits' authored private captain approach range independently of collision radius. [Payoff62](retail-pathfinding-engine.md#private-captain-approach-range-is-independent-of-collision) observes original9d86f0/4985c0 and70/600/300 runtime constants in two full mixed13 repeats. Footman maximum90 yields124 authored world units, then physical31/63 gives4.84375/5.84375 fine cells. Engine3471 exact pre-batch/activation commits and17368 saved suffix commits replace the incorrect five-radius shortcut; map-local weapon overrides preserve the actual input. Full mixed engine parity remains open at9.03s.
+- [ ] **GROUP-03.4.6.2.1.2** Verify the private captain range's wider public producers: no attack class versus disabled weapons, Hero minimum, BTLF and native unit5c.40000000, ranged-roster6c.20 bonus, attack-slot suppression and target-adjusted range. Assert creation/replacement and retained physical range across weapon changes and saves. Static body and constants alone do not certify these game lifecycles.
+
+Shared owner publication (GROUP-03.4.6.2.2) is split into the first engine phase
+and the wider mixed cancellation/reclamation control:
+
+- [x] **GROUP-03.4.6.2.2.1** Port prior speed publication/reset, global live radius accumulation before physical routing, cached footprint separation and stable owner references for the mixed13 handoff and largest-member completion. [Payoff63](retail-pathfinding-engine.md#shared-captain-parameters-across-unequal-physical-batches):4560 exact commits through12000ms,127 footprint observations and9618 Save86 suffix commits. Complete native repeats retain353 footprints and325 publications across two distinct generations. Captain admission now composes bounded old-source recovery; saved classification cooldown preserves the existing blocked pair. Full mixed recovery/reentry remains03.4.6.2.3.
+**GROUP-03.4.6.2.2.2 — Mixed13 cancellation and reference lifetime.** Largest-member Stop and explicit last-binding retirement have separate public witnesses.
+- [x] **GROUP-03.4.6.2.2.2.1** Verify largest-recruit public Stop before/after shared admission, retained logical roster, surviving live maximum versus cached footprint, exact surviving references, generation reuse and saved continuation. Complete repeated early/late native captures authenticate retry+a4 as a fine-target record pointer. Engine matches5458/5593 complete commits,353/400 footprints and11764/12572 saved suffix commits. Full debug/release/repository suites,393 Python checks,42 fresh contracts and saved Ghidra readback pass. See [payoff66](retail-pathfinding-engine.md#largest-captain-recruit-stop-before-and-after-shared-admission).
+**GROUP-03.4.6.2.2.2.2 — Final-binding cancellation.** Public Stop and RemoveUnit/retarget with fresh parameter reuse need separate composed witnesses.
+- [x] **GROUP-03.4.6.2.2.2.2.1** Explicitly Stop all13 bound physical movers, retain empty groups until the next physical owner visit, collect their zero-reference shared owner on the following prepass, and reproduce saved pending/zero/collected states. Complete repeated native journeys match3549 commits/12 footprints. Second public StartCampaignAI reloads sources without replaying main; engine Save88 retains its creation gate. See [payoff67](retail-pathfinding-engine.md#final-captain-binding-stop-and-repeated-ai-initialization). Full debug/release/repository suites,404 Python checks,43 fresh contracts and saved Ghidra readback pass.
+- [ ] **GROUP-03.4.6.2.2.2.2.2** Compose final-binding RemoveUnit/retarget controls and fresh parameter reuse with a new generation after explicit cancellation. Verify no retired physical references, correct logical roster ownership and saved continuations. Stop and natural completion do not prove those branches; a second StartCampaignAI cannot provide reuse because the existing VM blocks entry replay.
+
+**GROUP-03.4.7 — Moving captain policies.** Explicitly split initial public native travel, its private retry continuation and wider home/retreat admission from03.4's moving-captain requirement.
+
+- [x] **GROUP-03.4.7.1** Implement public CaptainGoHome through the AI player's attack captain, retain occupied home requests, virtual minimum roster speed/turn/window,500-versus200 request policy, shared12+1 batching, near-home no-op and idle-member private approach. [Payoff68](retail-pathfinding-engine.md#public-captaingohome-and-moving-virtual-captain) compares both uncapped repeats through23.8s:6251 exact engine commits including193 virtual,398 footprints and11228 exact saved suffix commits. Saved Ghidra functions, fields, constants and explicit calling conventions retain the evidence. This closes initial travel only.
+**GROUP-03.4.7.2 — Moving captain retry continuation.** Split accepted destination/wait reset from one-point refill and subsequent complete travel.
+
+- [x] **GROUP-03.4.7.2.1** Reset both member search buffers, retry and pending delay before advancing a newly accepted shifted-cell destination. [Payoff69](retail-pathfinding-engine.md#changed-captain-destination-resets-pending-waits) authenticates native counter1821's20→0 delay reset and three-point refill; the reproduced engine retained delay20 and its old partial route. Public GoHome now matches7419 commits including306 virtual,624 footprints and10606 exact saved suffix commits through27.2s. Saved Ghidra ABIs/comments retain168b80→168740→1687e0 and the native caller ordering. Timestamp producer domains and later refills remain open.
+**GROUP-03.4.7.2.2 — Partial refill and later moving travel.** Split the ordinary engine consumer from the longer observation/journey domain.
+
+- [x] **GROUP-03.4.7.2.2.1** Preserve exact source in one-point exhausted fine reconstruction, consume the retained intermediate coarse waypoint without reducing retry, and stop translation for native status2 independently of heading error. [Payoff70](retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff) authenticates counter1933's701/700 search/source point/adaptive7→2/retry6 and counter1996's2→0 explicit stop. Public GoHome matches7933 motion commits,327 virtual commits,812 shared footprints and7310 saved suffix commits through30s. Both earlier references, fresh strict capture checks and saved Ghidra consumer comments remain exact.
+- [ ] **GROUP-03.4.7.2.2.2** Extend Frida group/footprint observation beyond the authored30-second completion marker, capture/repeat later private retry travel through natural completion, and compose that domain with actual engine motion/save continuations. Existing velocity capture continues past the marker while pair/footprint observation stops at counter2024. Closed uncapped files are not proof of natural completion; a private follower remains active later. Do not silently extend the accepted combined observer domain or change search ordering from an unverified later mismatch.
+- [ ] **GROUP-03.4.7.3** Compose autonomous occupied SetCaptainHome, empty/larger roster defaults, retreat and other public captain goal policies with moving actor/physical roster lifetimes. Near-home and explicit GoHome initial travel do not establish these producers; preserve diagnostics and add actual public-frame/save regressions for each independently recovered policy.
+
+Mixed recovery and reentry (GROUP-03.4.6.2.3) require two separate producers:
+
+- [x] **GROUP-03.4.6.2.3.1** Port the observed captain range-departure callback into a fresh private approach at12.03s: retain actor identity, attack-derived approach range, exact deadline, old-velocity stop/recovery and new physical creation order. [Payoff64](retail-pathfinding-engine.md#captain-range-departure-into-a-private-approach):4867 exact movement commits before15000ms and7917 saved suffix commits. Two complete new captures authenticate34 native inner/outer counter changes and the12-second c8 departure. Save86 validates inactive shared followers and preserves a retired actor through reference transfer. Full logical counters after physical completion and the second shared gate are03.4.6.2.3.2. The broader deferred-member-removal experiment remains excluded after control regressions.
+- [x] **GROUP-03.4.6.2.3.2** Retain logical roster membership and exact inner/outer c4/c8 state independently of completed physical tasks, then compose the later all-entered callback and second shared owner generation through the complete stationary alive5462-commit mixed13 journey. Nine exact native deadline masks/counts,353 footprints and11132 continuation commits across eight Save87 checkpoints agree. New task activation clears stale partial-route flags/counts/indices. Second publication at owner1558 restores63/32; live maximum falls31/32 at1561 while cached footprint stays63/32. Saved Ghidra request fields/function and activation/membership annotations retain the evidence. Dynamic roster/moving captain and mixed cancellation remain separate leaves. Evidence: [payoff65](retail-pathfinding-engine.md#logical-captain-roster-survives-physical-completion).
+
+
+### GROUP-04 — Membership mutation
+
+- [x] **GROUP-04.1** Cancel/detach a member during movement callbacks; verify reverse callback iteration and subsequent identity/ownership re-resolution, swap-removal order and every surviving row word. Preserve the original producers and distinguish controlled callback-boundary requests from a complete gameplay callback graph. Evidence: [callback-timed mutations](retail-pathfinding-movement.md#callback-timed-membership-mutation), frozen `retail-callback-mutations-1.27.json`,68 cases and two fresh strict corpus repeats. Handle reuse, full gameplay notification graph and survivor refresh/arrival remain open.
+- [x] **GROUP-04.2** Complete the last member and run an all-invalid prepass; assert empty-group teardown, owner unlink and retained mover-owned state. Evidence: [callback completion and empty teardown](retail-pathfinding-movement.md#callback-completion-surviving-cohort-and-empty-teardown), open/wall frozen completion fixtures. The last invalid row is pruned, actual group virtual10 runs at count0, group/path pools return and owner unlinks; individual mover/path identities remain owned.
+- [x] **GROUP-04.3** After GROUP-04.1, reclaim and reuse a member's handle through original producers during a callback; prove generation rejection, later iteration and registry/pool accounting. A pre-invalidated slot does not satisfy callback-timed reuse. Evidence: [callback-timed handle reuse](retail-pathfinding-movement.md#callback-timed-handle-reclamation-and-reuse), frozen open/wall reuse fixtures, four trigger/victim combinations each repeated twice, actual destructor/factory/activation, same-address/slot new generation and exact survivor row. Both registry aliases are supplied from the original creation contract; the omitted-alias counterfactual retains stale spatial slots and certifies no fidelity. Full gameplay RemoveUnit callback graph and survivor arrival remain open.
+- [x] **GROUP-04.4** Complete a member at an original callback boundary, then compose the surviving mixed-speed cohort through natural arrival and cleanup; verify repeat raw trajectories and integrate active membership/speed into Move. Evidence: [completion/survivor journeys](retail-pathfinding-movement.md#callback-completion-surviving-cohort-and-empty-teardown), two frozen fixtures, four trigger/victim cases each repeated twice and178 exact C commits; [engine cohort correction](retail-pathfinding-engine.md#active-move-cohort-speed) reproduces six stale-cap failures before fixing them and covers identity wrap, edict reuse and save/load. Fixed-goal survivor offsets/destinations stay unchanged; actual refresh/reuse composition and full engine phases are explicitly split below.
+- [x] **GROUP-04.5** After GROUP-04.1/03/04, compose actual formation refresh and new survivor destinations after callback mutation, using the original mover reclamation/reuse composition in04.8. Run original owner decisions/commits through survivor natural arrival and cleanup, preserving removed/reused Unit/Move/order ownership and repeat raw trajectories. Evidence: [actual point replacement/refresh](retail-pathfinding-movement.md#actual-survivor-point-replacement-and-formation-refresh), two frozen four-case matrices,638 exact production commits,120/120 strict corpus outcomes and a server-frame engine regression. New point requests create a fresh singleton group; mere removal retains the old slot. Same-group moving-target refresh remains TARGET-02.1/02.2 and the full engine phases remain04.6.
+- [ ] **GROUP-04.6** Replace the engine cohort scan/static queued cap with Move-owned persistent retail group/member storage, generation/ownership checks, eligibility flags/shared override, queued activation/detachment and separate all-member decisions then commits. Integrate verified refresh/new destinations, teardown and save/load; compare intermediate group state and complete trajectories under the original clock contract.
+- [x] **GROUP-04.7** Allocate baseline individual paths through original14ec50/150d50 instead of direct registration. Replay frozen singleton, pair and all callback-reuse cases; assert owner958 live/allocation counts and recycled-header links during mover release/reallocation and final group release, without changing frozen raw motion expectations. Evidence: [owned-path factory accounting](retail-pathfinding-movement.md#owned-path-factory-accounting), unchanged frozen expectations and116/116 strict corpus outcomes. Native heap allocation/failure and the full Unit construction graph remain BASE-03.1/MAP-05.3.
+- [x] **GROUP-04.8** Complete a member at the original region callback, destroy/reallocate its mover through original producers, then run the retained survivor through natural arrival and final cleanup. Cover both victim roles and callback positions on open/wall maps with repeated exact trajectories, old-generation rejection, path/mover/spatial accounting and Unit/Move/order ownership; Evidence: [completed-member reuse](retail-pathfinding-movement.md#completed-member-reuse-through-survivor-arrival), two frozen four-case matrices,178 exact production velocity commits and118/118 strict corpus outcomes. Retain04.5 for actual formation refresh/new destinations and BASE-03.1 for the gameplay RemoveUnit graph/replacement actor binding.
+
+- [x] **GROUP-04.9** Explicitly split ordinary singleton point-group routing from04.6: retain the group5000-work adaptive plan separately from the member400/700-work paths, consume the verified distance selector, keep the public final goal active across natural intermediate zero-velocity commits, refill on the next owner update and preserve both stages through Save/Load and replacement cleanup. Evidence: [payoff36](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination), repeated three public journeys with689 exact commits, including two intermediate stops; engine RED1533 word/count failures then exact normal-frame/260 saved continuation commits. Ghidra persists165e30 and group16ce10/1697a0/member16a790 destinations. Shared multi-member ownership, generations/flags/formation, all-member decision/commit phases, physical crowds and hierarchy invalidation remain04.6/TARGET/MAP.
+
+- [x] **GROUP-04.10** Explicitly split ordinary public shared-pair movement from04.6: allocate Move-owned generation-retaining group/member rows, keep the native formation slots and separate all-member decisions/commits, consume exact shared-speed and nearest-route retry/forced-arrival behavior, preserve intermediate owner state and save/load, then compare every clock/pose/velocity/facing commit through both natural arrivals. Evidence: [payoff38](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner), repeated scene47 phases,115 exact engine commits and87 saved continuation commits. Release/debug RoC/TFT, production builds, the normal repository suite and strict corpus validation pass; Save74 and Ghidra annotations are synchronized. Selected/AI producers, queued activation, all eligibility/shared override/cooldown bits, callback mutation, inter-group scheduling, general crowds and scene construction remain04.6/GROUP-01.1/MAP.
+
+- [x] **GROUP-04.11** Explicitly split ordinary public twelve-member class0 movement from04.6: consume formation-offset adaptive adjustment, temporary group-object suppression, committed-pose occupancy, shared fine-work FIFO/interval timing and next-step/partial retry ordering in production Move; compare every normal-frame position/velocity/facing/clock commit through all natural order completions and two saved continuations. Evidence: [payoff39](retail-pathfinding-engine.md#twelve-member-public-group-retains-fine-admission-and-committed-occupancy), two repeated original scene48 captures,1,953 exact engine commits and2,634 saved suffix commits; forced release/debug RoC/TFT, production builds, the normal repository suite,172 Python tests and fresh strict corpus checks pass. Save75 and persistent Ghidra roles/types are synchronized. Other classes/pools, selected/AI producers, queued activation, wider eligibility/override bits, inter-group scheduling, overlapping cell links and arbitrary map/scenery construction remain04.6/SCHED/MAP.
+
+- [x] **GROUP-04.12** Explicitly split ordinary selected ground Move from04.6: recover the live player point producer, reuse Move-owned retained physical cohorts for two through twelve unqueued same-mask ground candidates, and compare actual clicked pair lifetimes through normal engine frames, natural completion and save/load. Evidence: [payoff41](retail-pathfinding-engine.md#selected-ground-move-uses-the-shared-physical-owner), native Win32 input/read-only Frida packet8/attach-before-admit/publication, two separately supplied input clocks,456 exact engine commits and304 saved suffix commits. The unchanged public-pair fixture also matches115 selected-producer commits and87 saved suffix commits. Saved Ghidra roles/types and strict corpus are synchronized. Shift, air/mixed masks, larger selections, wider candidate priority/callback mutation, enabled formation flags and AI producers remain04.6/GROUP-01.1/ORDER; arbitrary scene construction remains BASE/MAP.
+
+- [x] **GROUP-04.13** Explicitly split the first selected ground Shift Move behind an active shared cohort from04.6: retain a common point and one new queued request identity, activate members at their individual natural arrivals, rebuild matching nearby physical membership in original order, preserve normal owner scheduling and save/load, and compare every original absolute clock/pose/velocity/facing word. Evidence: [payoff42](retail-pathfinding-engine.md#selected-shift-move-retains-request-ownership-through-staggered-arrival), two complete external Win32 Shift/read-only Frida captures, singleton then fresh pair,1020 exact normal-frame commits and684 saved suffix commits. Idle/mixed/additional queues, wider spatial neighbor policies, preferred-distance/range90/bypass flags, callbacks and arbitrary scene construction remain04.6/BASE/MAP.
+
+- [x] **GROUP-04.14** Explicitly split selected ground Shift from idle from04.6: verify empty current heads immediately dispatch the newly appended order, start one shared physical Move owner for all idle candidates, and compare complete native packet9 journeys plus saved continuations. Evidence: [payoff43](retail-pathfinding-engine.md#selected-idle-shift-starts-the-shared-physical-owner-immediately), two independent external Win32/read-only captures,456 exact normal-frame commits and304 saved suffix commits; the old independent-walker path fails40 assertions. Additional/mixed queues, other masks, larger selections, full rejection/event/limit graphs, callbacks and arbitrary scene construction remain04.6/ORDER/BASE/MAP.
+- [x] **GROUP-04.15** Explicitly split two pending selected ground Shift moves from04.6: preserve latest submitted unit request history across both FIFO activations, rebuild matching cohorts at staggered arrivals, retain creation-ordered owner generations through slot reuse, and seed formation origin at cohort creation. Evidence: [payoff44](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-history-and-physical-generations), two independent native Win32/read-only captures,1110 exact normal-frame commits,864 saved suffix commits, seven strict fresh contracts and saved Ghidra role/ABI/xref/field readbacks. Save79 retains request history and creation sequences. Mixed active/idle or unrelated orders, repeated identical goals, other masks, larger selections, full rejection/event/limit graphs, wider neighbor policies, callbacks and arbitrary scene construction remain04.6/ORDER/BASE/MAP/SCHED.
+- [x] **GROUP-04.16** Explicitly split mixed active/idle selected ground Shift from04.6: preserve the active head, immediately activate the idle peer under one submitted common context, and acquire or reject that peer at the later physical transition. Evidence: [payoff45](retail-pathfinding-engine.md#mixed-active-and-idle-shift-share-one-submitted-request), four complete native Win32/read-only captures,1510 exact normal-frame commits,1020 saved suffix commits, eight fresh strict contracts and saved Ghidra role/ABI/xref readbacks. Save79 remains unchanged. Unrelated current orders, other masks/air/larger selections, wider rejection/callback/history/limit graphs and arbitrary scene construction remain04.6/ORDER/BASE/MAP/SCHED. A target-object click is explicitly diagnostic outside this ground-point contract. Payoff46 strengthens this leaf with two distinct active singleton point owners, native searches0/1,1022 exact engine commits and844 saved suffix commits. Other combat/work/cast heads remain open; no new checkbox is added.
+
+
+
+
+
+
+## FORM — Formation and regrouping
+
+Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida capture.
+
+### FORM-01 — Formation producers
+
+- [x] **FORM-01.1** The authored formation-rank setter and rank bits are mapped and tested. Evidence: [formation rank][formation-rank]; this does not close live group creation or other policy flags.
+- [ ] **FORM-01.2** Load mixed authored ranks into a newly created group; assert each member's runtime rank and selected layout bucket.
+- [ ] **FORM-01.3** Trace spacing bit20 and remaining formation-policy flags to callers; publish one producer-built witness per reachable value.
+
+### FORM-02 — Layout geometry
+
+- [x] **FORM-02.1** 144 complete layouts and 48 refresh cases are recorded. Evidence: [formation layout][formation-layout]; mixed moving radii and untested size domains remain excluded.
+- [x] **FORM-02.2** Run mixed-radius/oblique layouts with equal sort keys; assert assignments, row dimensions, centering and rotation. Evidence: [exact formation geometry](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders),865 complete original/production C raw-word cases, including720 mixed moving/radius/rank/heading/tie/clock-domain cases. Larger caller domains and live group producer remain02.3/FORM-05.
+- [ ] **FORM-02.3** Test moving members and sizes at/beyond the twelve-member table boundary; establish the original caller precondition or exact supported behavior.
+- [x] **FORM-02.4** Explicit engine integration split from02.2/03: consume the verified twelve-member layout in actual selection Move and Shift queues, using authored ranks, fine-grid radii, strict tie assignment and software centering/rotation. Evidence: [ranked group orders](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders), actual three-member regression fails all six destination coordinates before the port and passes exact destination/queue words afterward. Larger selections retain the diagnosed existing engine policy pending02.3; clock prediction, original heading producer and refresh-to-motion remain FORM-01/03.
+
+### FORM-03 — Layout-to-motion chain
+
+- [ ] **FORM-03.1** Compose refresh, adaptive destination query, held-member classification, all decisions and commit in one unblocked group tick; assert intermediate offsets and speeds.
+- [ ] **FORM-03.2** Repeat with one blocked offset and with cached versus fresh routes; assert held/released members and fallback destination.
+
+### FORM-04 — Regroup triggers
+
+- [ ] **FORM-04.1** Change target, membership and member size at fixed ticks; assert which change rebuilds layout/routes and its timeout in simulation time.
+- [ ] **FORM-04.2** Cause route failure and a warp-marker transition; assert regroup trigger, cached-state invalidation and next layout.
+
+### FORM-05 — Retail formation witnesses
+
+- [ ] **FORM-05.1** Capture one mixed-unit selection order and independently issued controls with the same map/seed; compare group IDs, assignments, caps and trajectories.
+- [ ] **FORM-05.2** Send that selection through a narrow passage and regroup; compare offsets/rebuild timing with the composed fixture.
+
+## SEP — Repulsion and spatial records
+
+Evidence: [separation evidence][P]. Tools/artifacts: separation, spatial, motion.
+
+SEP-01.4 explicitly splits settings/authored category prerequisites from01.2.
+SEP-02.4/05 split numerical engine integration and saved lifecycle from02.2/03;
+complete neighbor traversal, ordering and original full application remain required.
+
+### SEP-01 — Repulsion producers
+
+- [x] **SEP-01.1** Authored Footman-disabled/Gryphon-enabled controls distinguish path blocking from opt-in repulsion. Evidence: [repulsion controls][repulsion]; mixed policy combinations remain open.
+- [ ] **SEP-01.2** Trace nonzero config selectors and category/rank/mask overrides from authored/runtime producers; publish eligible/disabled cases for each.
+- [ ] **SEP-01.3** Exercise the resulting policy table across supported movement types and owners; assert candidate eligibility before displacement.
+
+- [x] **SEP-01.4** Split the shipped settings/category prerequisites from01.2: execute the full004790 initializer with pinned CRT, record all16 rows, verify actual CUnit owner getter/category1024 cases, persist Ghidra structures/names/ABI and integrate authored selector/group/rank into Move. Evidence: [engine repulsion port](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units), custom configuration1/group19/rank3 SLK regression. Runtime override/extra disable semantics remain01.2; all movement/owner policy matrix remains01.3.
+
+### SEP-02 — Separation composition
+
+- [x] **SEP-02.1** Post-arrival pair: 16 ticks, 14 attempts, ten accepted and four blocked. Evidence: [pair][pair], M `move_owner_separation_cases`; controlled profile and bounded numeric tolerance.
+- [ ] **SEP-02.2** Record and independently compare every neighbor contribution for a three-object query through accumulation, clamp/cooldown and application.
+- [ ] **SEP-02.3** After NUM-04, include an exact-overlap pair in that query; assert PRNG draws, endpoint result and actual occupancy changes across subsequent ticks.
+
+- [x] **SEP-02.4** Split ordered numerical pair/tail integration from02.2/03: original600 pair105 tail slices match production C exactly, including owner random overlap; port actual idle owner scheduling and pending fine endpoint application with Footman-disabled control. First overlap pending displacement/random words match through engine RunFrame. Full retail neighbor-chain composition remains02.2/03.
+- [x] **SEP-02.5** Persist repulsion vectors/cooldown/policy and relocated membership/parity; verify actual idle overlap continuation after Save66, public owner transfer, pause and deferred removal. Evidence: [72 engine assertions and Save66](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units). Multi-neighbor query stamps/order remainSEP-03.
+
+### SEP-03 — Spatial records
+
+- [ ] **SEP-03.1** Insert/remove movers in two orders; assert cell chain order, metadata/dead records and cleanup threshold/sampling cadence.
+- [ ] **SEP-03.2** Cross query stamp wrap/repair and a fresh block allocation; assert candidate order and block reclamation after removal.
+- [ ] **SEP-03.3** Force spatial allocation failure/growth during an update; assert no partial membership and the original movement outcome.
+
+### SEP-04 — Retail separation witnesses
+
+- [ ] **SEP-04.1** Replay one live exact-overlap case with recorded seed and neighbors; match contributions, cooldown and trajectory.
+- [ ] **SEP-04.2** Capture a mixed-owner/radius/rank crowd with a blocked endpoint; explain displacement differences against the composed model.
+- [ ] **SEP-04.3** Run disabled-repulse ground controls beside enabled cases; assert retry/Stop outcomes without classifying path blocking as repulsion.
+
+## GATE — Way Gates
+
+Evidence: [gate evidence][L] and [routes][R]. Tools/artifacts: transition, adaptive; Frida capture.
+
+### GATE-01 — Gate eligibility and exit
+
+- [ ] **GATE-01.1** Test activation/approach threshold equality and adjacent values with eligible/ineligible movers; assert route consumer decisions.
+- [ ] **GATE-01.2** Block the exit and test outside-map/unreachable destinations; assert placement rejection, fallback or failure and retained route state.
+
+### GATE-02 — Gate mutation
+
+- [x] **GATE-02.1** Live outside approach, cached retarget and disable-to-walking witnesses are recorded. Evidence: [gate mutation][gate-mutation]; fresh retarget/destroy/impassable cases remain open.
+- [ ] **GATE-02.2** Destroy a gate during approach; assert stale-record handling and subsequent walking/failure.
+- [ ] **GATE-02.3** Retarget then issue a fresh order; compare cached versus fresh destination use through final arrival.
+- [ ] **GATE-02.4** Disable the only edge across impassable terrain; assert retries/failure rather than assuming walking succeeds.
+
+### GATE-03 — Multiple gates
+
+- [ ] **GATE-03.1** Construct two overlapping sources in both orders; assert marker overwrite, cleanup and hierarchy propagation.
+- [ ] **GATE-03.2** Run chained gates with active/inactive combinations and equal-cost alternatives; assert route choice and consumer event order.
+
+### GATE-04 — Gate ID lifetime
+
+- [ ] **GATE-04.1** Allocate through IDs1..255 and one further request; assert zero/exhaustion behavior and pool state.
+- [ ] **GATE-04.2** Free/reuse an ID referenced by an existing route; assert revalidation and destination selection.
+- [ ] **GATE-04.3** Traverse a gate with a group, then fail/skip it; assert regrouping and ordinary fine-route continuation.
+
+## E2E — Combined scenarios and handoff
+
+Evidence: [all contracts][ledger]. Tools/artifacts: corpus manifest/runner and normalized comparison artifacts from BASE.
+
+### E2E-01 — Cross-feature baseline variants
+
+- [ ] **E2E-01.1** After BASE-06.5, freeze static-detour and disconnected-goal variants; assert route, partial/failure events and final ownership.
+- [ ] **E2E-01.2** Add dynamic blocker and pursuit variants to that manifest; reuse ROUTE-03/TARGET-02 evidence and compare intermediate state.
+- [ ] **E2E-01.3** Add contention, cancellation and next-order variants; reuse SCHED-04/ORDER-06 evidence and assert event/queue order.
+- [ ] **E2E-01.4** Add formation/crowd and gate variants; link FORM-05/SEP-04/GATE evidence and freeze expected cross-feature outputs.
+
+### E2E-02 — Observer controls
+
+- [x] **E2E-02.1** Open-ground no-attach control matches 304 markers twice; blocked-goal305, replacement311, fog610 and building310 match once. Evidence: [observer controls][observer]; crowd/mode repeats remain open.
+- [ ] **E2E-02.2** Repeat blocked-goal, replacement, fog and building controls from the recorded manifests; assert matching completion markers and normalized outcomes.
+- [ ] **E2E-02.3** Run equivalent minimal-hook/no-hook crowd and additional movement-mode controls; compare timing and complete trajectories, retaining mismatches.
+
+### E2E-03 — Deterministic generated cases
+
+- [ ] **E2E-03.1** Repeat each frozen scenario with the same seed twice; fail on any unexplained normalized state/event difference.
+- [ ] **E2E-03.2** Generate a fixed-seed boundary corpus over supported lanes/radii/goals; minimize each mismatch and commit its input plus retail explanation.
+
+### E2E-04 — Long-run composition
+
+- [ ] **E2E-04.1** Compose verified stamp/counter/handle/gate-ID wrap and reuse cases into repeated movement; assert no stale ownership or changed route policy.
+- [ ] **E2E-04.2** Compose reload/save-load, callback removal and pool pressure cases with active orders; assert final idle state and uninterrupted-control differences.
+
+### E2E-05 — Unknowns audit
+
+- [ ] **E2E-05.1** Join the BASE-03 inventory to reports and task IDs; emit a concrete list of remaining flags, prefixes, stubs, tolerances and excluded branches.
+- [ ] **E2E-05.2** Resolve each listed row with evidence or documented unreachability; create bounded child tasks for unresolved rows instead of one open-ended investigation.
+
+### E2E-06 — Implementation specification
+
+- [ ] **E2E-06.1** Freeze structures, units, coordinate/lane/footprint and numeric/PRNG contracts with links to runnable evidence.
+- [ ] **E2E-06.2** Freeze state machines, result codes, update/event order, ownership and invalidation contracts with limits/failure behavior and evidence links. Resolve the documented engine/native terrain-edit adaptive-cache timing and dynamic hierarchy publication differences from the completed MAP-03.3 inventory before freezing that contract.
+
+### E2E-07 — OpenRealm integration design
+
+- [ ] **E2E-07.1** Map current Move-owned routing/steering, server clock/order dispatch and world/collision entry points to replacement interfaces; name files and call sites.
+- [ ] **E2E-07.2** Specify group ownership, serialization/rebuild and cleanup boundaries; review against Quake2-style module/function-table contracts without implementing behavior.
+
+### E2E-08 — Differential adapter design
+
+- [ ] **E2E-08.1** Specify identical scenario inputs and normalized identity/state/event outputs for retail and OpenRealm adapters; encode one existing baseline report.
+- [ ] **E2E-08.2** Define exact versus presentation-only tolerance rules and failure diagnostics; validate the comparator against deliberate mutations of that encoded report.
+
+## READY — Start the faithful replacement
+
+Evidence: [scope and contracts][ledger]. Tools/artifacts: frozen corpus, coverage inventory and integration design.
+
+### READY-01 — Evidence coverage gate
+
+- [ ] **READY-01.1** Run the coverage inventory audit: every in-scope branch/exclusion has evidence or a proved-unreachable disposition; zero unassigned behavior gaps.
+
+### READY-02 — Behavior gate
+
+- [ ] **READY-02.1** Run all frozen success/failure and cross-feature scenarios; zero unexplained differences, with retail quirks and numerical thresholds retained as regressions.
+
+### READY-03 — Reproduction gate
+
+- [ ] **READY-03.1** Run the corpus from documented inputs in a fresh output directory; build/hash/seed/observer controls and completion markers all pass.
+
+### READY-04 — Implementation handoff gate
+
+- [ ] **READY-04.1** Review the complete replacement specification and OpenRealm interfaces against the baseline; record no remaining decisions that require guessing. This is the final full-replacement gate; incremental engine integration is already authorized and must continue alongside RE.
+
+## Previous milestone IDs
+
+The prior eight checked slices remain checked under these leaf IDs. The original
+81 parent IDs remain above with their requirements distributed among children.
+
+| Previous slice | Current leaf |
+| --- | --- |
+| BASE-06a / ORDER-02a | BASE-06.1 |
+| ORDER-01a | ORDER-01.1 |
+| ORDER-02b | ORDER-02.1 |
+| ORDER-06a / ORDER-06b | ORDER-06.1 / ORDER-06.2 |
+| SCHED-02a | SCHED-02.1 |
+| SCHED-02b / GROUP-02a | SCHED-02.2 |
+| SEP-02a | SEP-02.1 |
+
+[ledger]: retail-pathfinding.md
+[S]: retail-pathfinding-search.md
+[R]: retail-pathfinding-routes.md
+[M]: retail-pathfinding-movement.md
+[P]: retail-pathfinding-separation.md
+[L]: retail-pathfinding-experiments.md
+[admission]: retail-pathfinding-movement.md#complete-initial-unit-admission
+[arrival]: retail-pathfinding-movement.md#generated-tasks-through-queued-user-order-arrival
+[fifo]: retail-pathfinding-movement.md#two-user-order-fifo-composition
+[interrupt]: retail-pathfinding-movement.md#active-replacement-versus-interruptprepend
+[owner]: retail-pathfinding-movement.md#complete-singleton-owner-updates-and-visual-settling
+[pair]: retail-pathfinding-movement.md#owner-updates-with-a-controlled-separation-pair
+[map-load]: retail-pathfinding-search.md#terrain-origin-producer-and-map-factory-composition
+[map-edits]: retail-pathfinding-search.md#terrain-edit-and-explicit-rebuild-composition
+[widgets]: retail-pathfinding-search.md#widget-rasterization-and-overlapping-occupancy
+[footprints]: retail-pathfinding-search.md#footprints-and-dynamic-occupancy
+[fine-static]: retail-pathfinding-search.md#complete-static-fine-grid-searches-and-stamp-reuse
+[adaptive-veto]: retail-pathfinding-search.md#exact-size-2-east-boundary-veto
+[numeric]: retail-pathfinding-separation.md#exact-scalar-arithmetic-and-occupied-cell-boundaries
+[ranges]: retail-pathfinding-movement.md#exact-point-task-range-predicate
+[reclamation]: retail-pathfinding-movement.md#last-reference-payload-release-and-factory-reuse
+[cached-groups]: retail-pathfinding-movement.md#full-cached-route-group-tick-and-membership-prepass
+[shared-groups]: retail-pathfinding-movement.md#shared-group-parameters-ownership-and-publication
+[formation-rank]: retail-pathfinding-movement.md#authored-formation-rank-producer
+[formation-layout]: retail-pathfinding-movement.md#complete-formation-layout-composition
+[repulsion]: retail-pathfinding-separation.md#authored-repulsion-fields-and-paired-crowd-experiments
+[gate-mutation]: retail-pathfinding-experiments.md#outside-entry-approach-and-live-gate-changes
+[observer]: retail-pathfinding-experiments.md#controls-without-an-attached-observer

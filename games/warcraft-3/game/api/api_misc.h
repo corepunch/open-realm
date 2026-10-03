@@ -1,4 +1,6 @@
 #include "games/warcraft-3/common/minimap.h"
+#include "games/warcraft-3/common/wc3_math.h"
+#include "games/warcraft-3/common/wc3_pathing_masks.h"
 
 extern player_t *currentplayer;
 
@@ -89,19 +91,61 @@ CONVERT_FUNC(TexMapFlags, texmapflags);
 CONVERT_FUNC(FogState, fogstate);
 CONVERT_FUNC(EffectType, effecttype);
 
-MATH_FUNC(Deg2Rad, DEG2RAD, number, number);
-MATH_FUNC(Rad2Deg, RAD2DEG, number, number);
-MATH_FUNC(Sin, sin, number, number);
-MATH_FUNC(Cos, cos, number, number);
-MATH_FUNC(Tan, tan, number, number);
-MATH_FUNC(Asin, asin, number, number);
-MATH_FUNC(Acos, acos, number, number);
-MATH_FUNC(Atan, atan, number, number);
-MATH_FUNC(SquareRoot, sqrt, number, number);
-MATH_FUNC(I2R, (float), integer, number);
-MATH_FUNC(R2I, (int32_t), number, integer);
-MATH_FUNC2(Pow, pow, number);
-MATH_FUNC2(Atan2, atan2, number);
+MATH_FUNC(Deg2Rad, wc3_degrees_to_radians, number, number);
+MATH_FUNC(Rad2Deg, wc3_radians_to_degrees, number, number);
+MATH_FUNC(Sin, wc3_sin, number, number);
+MATH_FUNC(Cos, wc3_cos, number, number);
+MATH_FUNC(Tan, wc3_tan, number, number);
+/* Registered1f8250 uses the same public admission bounds as Acos. */
+uint32_t Asin(jass_t *j) {
+    float value = jass_checknumber(j, 1);
+    return jass_pushnumber(j, value < -1.0f || value > 1.0f ? 0.0f : wc3_asin(value));
+}
+/* Registered1f75d0 keeps the original public [-1,1] admission guard. */
+uint32_t Acos(jass_t *j) {
+    float value = jass_checknumber(j, 1);
+    return jass_pushnumber(j, value < -1.0f || value > 1.0f ? 0.0f : wc3_acos(value));
+}
+MATH_FUNC(Atan, wc3_atan, number, number);
+static bool api_scalar_is_near_zero(float value) {
+    float distance = wc3_float(wc3_float_bits(wc3_sub(value, 0.0f)) & 0x7fffffffu);
+    return distance < wc3_float(0x3a83126f);
+}
+
+/* Registered215d30 compares the scalar difference from zero, strictly below
+ * cd53a0's raw3a83126f threshold; equality still executes the root helper. */
+uint32_t SquareRoot(jass_t *j) {
+    float value = jass_checknumber(j, 1);
+    return jass_pushnumber(j, api_scalar_is_near_zero(value) || value < 0.0f ? 0.0f : wc3_sqrt(value));
+}
+uint32_t I2R(jass_t *j) {
+    return jass_pushnumber(j, wc3_float(wc3_from_int((uint32_t)jass_checkinteger(j, 1))));
+}
+uint32_t R2I(jass_t *j) {
+    uint32_t word = wc3_saturating_int_bits(wc3_float_bits(jass_checknumber(j, 1)));
+    int32_t value;
+    memcpy(&value, &word, sizeof(value));
+    return jass_pushinteger(j, value);
+}
+/* Registered20f990 applies strict scalar near-zero guards before original power arithmetic. */
+uint32_t Pow(jass_t *j) {
+    float base = jass_checknumber(j, 1), power = jass_checknumber(j, 2), result;
+    bool small = api_scalar_is_near_zero(base);
+    if (small && power < 0.0f) return jass_pushnumber(j, 0.0f);
+    if (!small && api_scalar_is_near_zero(power)) return jass_pushnumber(j, 1.0f);
+    if (!wc3_pow(base, power, &result)) {
+        /* TODO: original VM watchdog/lifetime remains NUM-01.2; the isolated
+         * retail helper never returns here. Report it instead of inventing a value. */
+        jass_rterror(j, "Pow: retail integer-power exponent does not terminate");
+        return 0;
+    }
+    return jass_pushnumber(j, result);
+}
+/* Registered1f8290 rejects only when both scalar distances are strictly small. */
+uint32_t Atan2(jass_t *j) {
+    float y = jass_checknumber(j, 1), x = jass_checknumber(j, 2);
+    return jass_pushnumber(j, api_scalar_is_near_zero(y) && api_scalar_is_near_zero(x) ? 0.0f : wc3_atan2(y, x));
+}
 uint32_t OrderId(jass_t *j) {
     return jass_pushinteger(j, (int32_t)G_OrderId(jass_checkstring(j, 1)));
 }
@@ -113,7 +157,7 @@ MATH_FUNC(AbilityId, class_id, string, integer);
 MATH_FUNC(UnitId2String, GetClassName, integer, string);
 MATH_FUNC(AbilityId2String, GetClassName, integer, string);
 MATH_FUNC(S2I, atoi, string, integer);
-MATH_FUNC(S2R, atoi, string, number);
+MATH_FUNC(S2R, wc3_decimal, string, number);
 
 uint32_t I2S(jass_t *j) {
     int32_t i = jass_checkinteger(j, 1);
@@ -343,7 +387,7 @@ uint32_t TimerStart(jass_t *j) {
     bool periodic = jass_checkboolean(j, 3);
     /* Warcraft accepts null to start/reset a timer without an expiration callback. */
     jassFunc_t const *handlerFunc = jass_toboolean(j, 4) ? jass_checkcode(j, 4) : NULL;
-    if (whichTimer) G_TimerStart(whichTimer, (uint32_t)(MAX(0.0f, timeout) * 1000.0f), periodic, handlerFunc);
+    if (whichTimer) G_TimerStartScalar(whichTimer, timeout, periodic, handlerFunc);
     return 0;
 }
 uint32_t TimerGetElapsed(jass_t *j) {
@@ -667,23 +711,38 @@ uint32_t GetOrderedUnit(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 uint32_t GetIssuedOrderId(jass_t *j) {
-    return jass_pushinteger(j, G_GetIssuedOrderId(jass_getcontext(j)->unit));
+    jassContext_t const *context = jass_getcontext(j);
+    switch (context->eventType) {
+    case EVENT_PLAYER_UNIT_ISSUED_ORDER:
+    case EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER:
+    case EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER:
+    case EVENT_UNIT_ISSUED_ORDER:
+    case EVENT_UNIT_ISSUED_POINT_ORDER:
+    case EVENT_UNIT_ISSUED_TARGET_ORDER:
+        return jass_pushinteger(j, context->eventValue);
+    default:
+        return jass_pushinteger(j, 0);
+    }
+}
+static vec2_t api_order_point(jass_t *j) {
+    jassContext_t const *context = jass_getcontext(j);
+    if (context->hasPoint && (context->eventType == EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER ||
+                             context->eventType == EVENT_UNIT_ISSUED_POINT_ORDER))
+        return context->point;
+    return (vec2_t){0, 0};
 }
 uint32_t GetOrderPointX(jass_t *j) {
-    vec2_t point = { 0.0f, 0.0f };
-    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
-    return jass_pushnumber(j, point.x);
+    return jass_pushnumber(j, api_order_point(j).x);
 }
 uint32_t GetOrderPointY(jass_t *j) {
-    vec2_t point = { 0.0f, 0.0f };
-    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
-    return jass_pushnumber(j, point.y);
+    return jass_pushnumber(j, api_order_point(j).y);
 }
 uint32_t GetOrderPointLoc(jass_t *j) {
-    vec2_t point = { 0.0f, 0.0f };
+    EVENTTYPE const type = jass_getcontext(j)->eventType;
+    if (type != EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER && type != EVENT_UNIT_ISSUED_POINT_ORDER)
+        return jass_pushnullhandle(j, "location");
     API_ALLOC(vec2_t, location);
-    G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
-    *location = point;
+    *location = api_order_point(j);
     return 1;
 }
 uint32_t GetOrderTarget(jass_t *j) {
@@ -917,12 +976,19 @@ uint32_t IsPointBlighted(jass_t *j) {
     return jass_pushboolean(j, G_IsPointBlighted(&point));
 }
 uint32_t IsTerrainPathable(jass_t *j) {
-    (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checkhandle(j, 3, "pathingtype");
-    return jass_pushboolean(j, true);
+    vec2_t point = {jass_checknumber(j,1),jass_checknumber(j,2)};
+    uint32_t const *type = jass_checkhandle(j,3,"pathingtype");
+    uint8_t flags = 0, mask = wc3_pathingtype_mask(type ? *type : 0);
+    bool valid = G_GetTerrainPathingFlags(&point,&flags);
+    /* Retail returns blocked status, despite the native's name. */
+    return jass_pushboolean(j,!valid || (flags & mask)!=0);
 }
 uint32_t SetTerrainPathable(jass_t *j) {
-    (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checkhandle(j, 3, "pathingtype");
-    (void)jass_checkboolean(j, 4);
+    terrainPathingEdit_t edit = {.point = {jass_checknumber(j,1),jass_checknumber(j,2)}};
+    uint32_t const *type = jass_checkhandle(j,3,"pathingtype");
+    edit.mask = wc3_pathingtype_mask(type ? *type : 0);
+    edit.blocked = !jass_checkboolean(j,4);
+    G_SetTerrainPathingFlags(&edit);
     return 0;
 }
 static uint32_t TerrainDeformEmit(jass_t *j, terrainDeform_t *deformation) {
@@ -1218,17 +1284,12 @@ uint32_t RestoreUnit(jass_t *j) {
     return unit ? jass_pushlighthandle(j, unit, "unit") : jass_pushnullhandle(j, "unit");
 }
 uint32_t GetRandomInt(jass_t *j) {
-    int32_t lowBound = jass_checkinteger(j, 1);
-    int32_t highBound = jass_checkinteger(j, 2);
-    if (lowBound >= highBound) return jass_pushinteger(j, lowBound);
-    return jass_pushinteger(j, lowBound + rand() % (highBound - lowBound + 1));
+    int32_t lo = jass_checkinteger(j, 1), hi = jass_checkinteger(j, 2);
+    return jass_pushinteger(j, wc3_random_int(&level.pathing_random, lo, hi));
 }
 uint32_t GetRandomReal(jass_t *j) {
-    float lowBound = jass_checknumber(j, 1);
-    float highBound = jass_checknumber(j, 2);
-    if (lowBound >= highBound) return jass_pushnumber(j, lowBound);
-    float t = (float)rand() / (float)RAND_MAX;
-    return jass_pushnumber(j, lowBound + t * (highBound - lowBound));
+    float lo = jass_checknumber(j, 1), hi = jass_checknumber(j, 2);
+    return jass_pushnumber(j, wc3_random_real(&level.pathing_random, lo, hi));
 }
 uint32_t CreateUnitPool(jass_t *j) {
     return jass_pushnullhandle(j, "unitpool");
@@ -1407,6 +1468,9 @@ uint32_t ChooseRandomItemEx(jass_t *j) {
 
 uint32_t SetRandomSeed(jass_t *j) {
     int32_t seed = jass_checkinteger(j, 1);
+    wc3_random_seed(&level.pathing_random, (uint32_t)seed);
+    wc3_random_next(&level.pathing_random); /* 214140 burns one draw before reseeding unit streams. */
+    /* TODO: 693710's separate per-unit streams remain unported; retain their legacy seed until replaced. */
     srand((unsigned int)seed);
     return 0;
 }

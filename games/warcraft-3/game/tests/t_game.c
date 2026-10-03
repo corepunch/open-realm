@@ -1884,6 +1884,29 @@ TEST(wc3_game, loading_layout_preserves_sprite_geometry_and_progress_binding) {
     T_EQ(wire.flags.type, FT_SPRITE); T_EQ(wire.tex.index, 18); T_STREQ(wire.text, "#!6");
 }
 
+/* Release compilation exposed X indexing into the adjacent Y array. Exercise all six authored anchors. */
+TEST(wc3_game, frame_serialization_preserves_both_axis_arrays) {
+    FRAMEDEF parent = { .Type = FT_FRAME }, frame = { .Type = FT_FRAME };
+    uiFrame_t wire; uint8_t data[128]; char text[128];
+    FOR_LOOP(axis, 2) {
+        framePoint_t *point = axis ? frame.Points.y : frame.Points.x;
+        FOR_LOOP(i, FPP_COUNT)
+            point[i] = (framePoint_t){ .used = true, .targetPos = i, .relativeTo = &parent,
+                                      .offset = (float)(axis * FPP_COUNT + i + 1) / 8 };
+    }
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&parent, &wire, data, sizeof(data), text, sizeof(text)));
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, data, sizeof(data), text, sizeof(text)));
+    FOR_LOOP(axis, 2) {
+        uiFramePoint_t const *point = axis ? wire.points.y : wire.points.x;
+        FOR_LOOP(i, FPP_COUNT) {
+            T_ASSERT(point[i].used); T_EQ(point[i].targetPos, i);
+            T_EQ(point[i].relativeTo, 1); T_EQ(point[i].offset, (axis * FPP_COUNT + i + 1) * 4096 - 1);
+        }
+    }
+    UI_ResetFrameWriteList();
+}
+
 TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
     FRAMEDEF frame = { 0 };
     UI_SetPortraitFrameModel(&frame, 42);
@@ -3702,6 +3725,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].magnitude = 9.5f;
     game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].velocity = 3.25f;
     game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].vert_only = true;
+    game.clients[0].ps.viewoffset = (vec3_t){ 1.5f, -2.25f, 3.75f };
+    game.clients[0].ps.eyeoffset = (vec3_t){ -4.5f, 5.25f, -6.75f };
     game.clients[0].modal_flags = WC3_MODAL_CLIENT | WC3_MODAL_QUEST;
     game.clients[0].quest_dialog_open = true;
     game.clients[0].canvas = UI_CANVAS_WIDE;
@@ -3741,6 +3766,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.target_mode = CAMERA_TARGET_FOLLOW;
     game.clients[0].camera.orient_eye = (vec3_t){ 0.0f, 0.0f, 0.0f };
     memset(game.clients[0].camera.noise, 0, sizeof(game.clients[0].camera.noise));
+    game.clients[0].ps.viewoffset = (vec3_t){ 0 };
+    game.clients[0].ps.eyeoffset = (vec3_t){ 0 };
     G_ClearCameraPan(&game.clients[0]);
     game.clients[0].rally_indicator = NULL;
     saved_quest->discovered = saved_quest->required = saved_quest->enabled = false;
@@ -3843,6 +3870,12 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].velocity, 3.25f, 0.001f);
     T_ASSERT(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].vert_only);
     T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_TARGET].magnitude, 0.0f, 0.001f);
+    T_FEQ(game.clients[0].ps.viewoffset.x, 1.5f, 0.001f);
+    T_FEQ(game.clients[0].ps.viewoffset.y, -2.25f, 0.001f);
+    T_FEQ(game.clients[0].ps.viewoffset.z, 3.75f, 0.001f);
+    T_FEQ(game.clients[0].ps.eyeoffset.x, -4.5f, 0.001f);
+    T_FEQ(game.clients[0].ps.eyeoffset.y, 5.25f, 0.001f);
+    T_FEQ(game.clients[0].ps.eyeoffset.z, -6.75f, 0.001f);
     T_EQ(game.clients[0].modal_flags, 0);
     T_ASSERT(!game.clients[0].quest_dialog_open);
     /* The window class belongs to the reconnecting client, which reports it again before begin. */
@@ -3864,7 +3897,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     remove(filename);
 }
 
-/* A load restores the Q2-style server tick; timers are clock-free countdowns and need no rebase. */
+/* Load restores the Q2 server tick and the timer countdown cursor together. */
 TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-clock.bin";
     gtimer_t *timer;
@@ -3887,6 +3920,8 @@ TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
     T_ASSERT(timer->running && !timer->paused);
     T_EQ(G_TimerRemaining(timer), 2000u);
     G_RunTimers();
+    T_EQ(G_TimerRemaining(timer), 2000u);
+    level.time += FRAMETIME; G_RunTimers();
     T_EQ(G_TimerRemaining(timer), 2000u - FRAMETIME);
     remove(filename);
 }
@@ -3976,6 +4011,7 @@ SAVE_INT_FIELD_TEST(field_class_id_round_trip, class_id, MAKEFOURCC('h', 'p', 'e
 SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
 SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
 SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
+SAVE_INT_FIELD_TEST(field_current_order_id_round_trip, current_order_id, 851986)
 SAVE_INT_FIELD_TEST(field_summon_ability_round_trip, summon_ability, MAKEFOURCC('A', 'O', 's', 'f'))
 SAVE_INT_FIELD_TEST(field_shared_vision_round_trip, shared_vision, (1u << 0) | (1u << 7))
 SAVE_INT_FIELD_TEST(field_harvested_lumber_round_trip, harvested_lumber, 37)
@@ -4524,6 +4560,9 @@ SAVE_PTR_FIELD_TEST(field_cargo_round_trip, "cargo->units", cargo->units[4], MAX
 SAVE_PTR_FIELD_TEST(field_item_carrier_round_trip, "item->carrier", item->carrier, 0)
 SAVE_PTR_FIELD_TEST(field_ground_next_round_trip, "ground_next", ground_next, 0)
 SAVE_PTR_FIELD_TEST(field_attackmove_waypoint_round_trip, "movement.attackmove_waypoint", movement.attackmove_waypoint, 0)
+SAVE_PTR_FIELD_TEST(field_move_wait_blocker_round_trip, "movement.wait_blocker", movement.wait_blocker, 0)
+SAVE_INT_FIELD_TEST(field_move_wait_delay_round_trip, movement.wait_delay, 25)
+SAVE_INT_FIELD_TEST(field_move_retry_count_round_trip, movement.retry_count, 7)
 SAVE_PTR_FIELD_TEST(field_patrol_a_round_trip, "movement.patrol_a", movement.patrol_a, 0)
 SAVE_PTR_FIELD_TEST(field_patrol_b_round_trip, "movement.patrol_b", movement.patrol_b, 0)
 SAVE_PTR_FIELD_TEST(field_patrol_target_round_trip, "movement.patrol_target", movement.patrol_target, 0)
@@ -4979,6 +5018,113 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     level.events = old_events; remove(filename);
 }
 
+TEST(wc3_save, issued_order_context_survives_unread_and_sleeping_callbacks) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-issued-order-context-save-test.bin";
+    reset_entities(); setup_test_world();
+    /* Player events register on the reserved client edict, outside world use. */
+    g_edicts[0].client = &game.clients[0];
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "  integer started = 0\n"
+        "  integer finished = 0\n"
+        "endglobals\n"
+        "function checkOrder takes integer index returns nothing\n"
+        "  if index <= 2 then\n"
+        "    call BJassAssert(GetIssuedOrderId() == OrderId(\"move\"), \"first callback retains Move ID\")\n"
+        "    call BJassAssert(GetOrderPointX() == 192.0 and GetOrderPointY() == 64.0, \"first callback retains Move point\")\n"
+        "  else\n"
+        "    call BJassAssert(GetIssuedOrderId() == OrderId(\"smart\"), \"second callback retains Smart ID\")\n"
+        "    call BJassAssert(GetOrderPointX() == 256.0 and GetOrderPointY() == 96.0, \"second callback retains Smart point\")\n"
+        "  endif\n"
+        "  call BJassAssert(GetOrderedUnit() == testUnit, \"saved callback retains its ordered unit\")\n"
+        "endfunction\n"
+        "function onPoint takes nothing returns nothing\n"
+        "  local integer index\n"
+        "  set started = started + 1\n"
+        "  set index = started\n"
+        "  call checkOrder(index)\n"
+        "  call TriggerSleepAction(0.1)\n"
+        "  call checkOrder(index)\n"
+        "  set finished = finished + 1\n"
+        "endfunction\n"
+        "function verifySleeping takes nothing returns nothing\n"
+        "  call BJassAssert(started == 4 and finished == 0, \"both event families suspend for both submissions\")\n"
+        "endfunction\n"
+        "function verifyFinished takes nothing returns nothing\n"
+        "  call BJassAssert(started == 4 and finished == 4, \"all saved callbacks resume exactly once\")\n"
+        "endfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"move\", 192.0, 64.0), \"Move accepted\")\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"smart\", 256.0, 96.0), \"Smart accepted\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, null)\n"
+        "  call TriggerRegisterUnitEvent(t, testUnit, EVENT_UNIT_ISSUED_POINT_ORDER)\n"
+        "  call TriggerAddAction(t, function onPoint)\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) {
+            unit = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->stand = unit_stand; unit_stand(unit);
+    jass_callbyname(level.vm, "issue", true); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(WriteGame(filename)); T_ASSERT(ReadGame(filename));
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifySleeping", true); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_ASSERT(WriteGame(filename)); T_ASSERT(ReadGame(filename));
+    level.time += 200; jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyFinished", true); jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+TEST(wc3_save, round_trip_active_move_group) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-move-group-save-test.bin";
+    reset_entities(); setup_test_world();
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
+    edict_t *fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    fast->stand = slow->stand = unit_stand;
+    unit_stand(fast); unit_stand(slow);
+    fast->unitinfo.MoveSpeed = 300; slow->unitinfo.MoveSpeed = 100;
+    fast->selected = slow->selected = 1 << clent->client->ps.number;
+    T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+    T_EQ(fast->current_order_id, G_OrderId("move"));
+    T_EQ(slow->current_order_id, G_OrderId("move"));
+    uint32_t group_id = fast->movement.group_id;
+    T_ASSERT(group_id && slow->movement.group_id == group_id);
+    uint32_t next_id = level.next_move_group_id;
+    T_ASSERT(WriteGame(filename));
+    fast->movement.group_id = slow->movement.group_id = 0;
+    level.next_move_group_id = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(fast->movement.group_id, group_id); T_EQ(slow->movement.group_id, group_id);
+    T_EQ(fast->current_order_id, G_OrderId("move"));
+    T_EQ(slow->current_order_id, G_OrderId("move"));
+    T_EQ(level.next_move_group_id, next_id);
+    T_EQ(ARRAY_COUNT(level.move_groups),1); T_EQ(level.move_groups[0]->count,2);
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),100,0.001f);
+    T_ASSERT(unit_issueimmediateorder(slow, "stop"));
+    T_EQ(slow->current_order_id, 0);
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates(); T_EQ(level.move_groups[0]->count,1);
+    T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),300,0.001f);
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_waypoint_references) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-waypoint-save-test.bin";
     vec2_t destination = { 192.0f, 96.0f };
@@ -5358,18 +5504,18 @@ TEST(wc3_save, round_trip_jass_timers) {
         "  call TriggerRegisterTimerExpireEvent(timerTrigger, runningTimer)\n"
         "endfunction\n"));
     level.time = 100;
-    level.timers[1].duration = 4 * FRAMETIME; level.timers[1].remaining = 4 * FRAMETIME;
+    G_TimerStart(&level.timers[1], 4 * FRAMETIME, true, level.timers[1].handler);
     T_ASSERT(WriteGame(filename));
     jass_callbyname(level.vm, "mutate", false);
     T_ASSERT(ReadGame(filename));
     T_EQ(level.time, 100);
     T_EQ(G_TimerRemaining(&level.timers[1]), 4 * FRAMETIME);
     jass_callbyname(level.vm, "verifyRestored", false);
-    /* Countdown timers ignore level.time entirely: only elapsed frames expire them. */
-    FOR_LOOP(i, 4) G_RunTimers();
+    /* The restored cursor consumes actual time once, independent of drain count. */
+    FOR_LOOP(i, 4) { level.time += FRAMETIME; G_RunTimers(); }
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyExpired", false);
-    FOR_LOOP(i, 4) G_RunTimers();
+    FOR_LOOP(i, 4) { level.time += FRAMETIME; G_RunTimers(); }
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyPeriodic", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -5424,6 +5570,48 @@ TEST(wc3_save, restores_triggers_and_events_created_after_main) {
     jass_callbyname(level.vm, "verify", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     remove(filename);
+}
+
+TEST(wc3_jass, timer_countdown_uses_elapsed_time_and_pause_cursor) {
+    level.time = 1000;
+    gtimer_t *timer = G_AllocJassTimer(); T_NOT_NULL(timer); if (!timer) return;
+    G_TimerStart(timer, 100, false, NULL);
+    FOR_LOOP(i, 10) G_RunTimers();
+    T_EQ(G_TimerRemaining(timer), 100u); T_EQ(timer->updated, 1000u);
+    level.time = 1035; G_TimerPause(timer);
+    T_EQ(timer->remaining, 65u); T_EQ(timer->updated, 1035u);
+    level.time = 2000; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 65u);
+    G_TimerResume(timer); T_EQ(timer->updated, 2000u);
+    level.time = 2025; G_RunTimers(); G_RunTimers(); T_EQ(G_TimerRemaining(timer), 40u);
+    G_TimerStart(timer, 12, false, NULL); T_EQ(G_TimerRemaining(timer), 12u);
+    level.time = 2035; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 2u); T_ASSERT(timer->running);
+    level.time = 2037; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 0u); T_ASSERT(!timer->running);
+    G_TimerStart(timer, 100, true, NULL); G_TimerDestroy(timer);
+    level.time = 3000; G_RunTimers(); T_ASSERT(!timer->running && timer->paused);
+    T_EQ(G_TimerRemaining(timer), 100u);
+}
+
+TEST(wc3_save, timer_callback_restart_and_unconsumed_elapsed_round_trip) {
+    cstring_t file = "/tmp/openwarcraft3-timer-elapsed-save.bin";
+    cstring_t script = "globals\ntimer moverTimer\ninteger calls=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset calls=calls+1\n"
+        "if calls==1 then\ncall TimerStart(GetExpiredTimer(),0.2,false,function on_tick)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset moverTimer=CreateTimer()\n"
+        "call TimerStart(moverTimer,0.1,true,function on_tick)\nendfunction\n"
+        "function first takes nothing returns nothing\ncall BJassAssert(calls==1,\"timer restarted early\")\nendfunction\n"
+        "function second takes nothing returns nothing\ncall BJassAssert(calls==2,\"timer restart deadline missed\")\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    level.time = 100; G_RunTimers(); jass_runevents(level.vm); jass_callbyname(level.vm, "first", false);
+    gtimer_t *timer = &level.timers[0]; T_EQ(timer->duration, 200u); T_EQ(timer->updated, 100u);
+    level.time = 145; T_EQ(G_TimerRemaining(timer), 155u); T_ASSERT(WriteGame(file));
+    G_TimerDestroy(timer); level.time = 1000; T_ASSERT(ReadGame(file));
+    timer = &level.timers[0]; T_EQ(level.time, 145u); T_EQ(timer->updated, 100u);
+    T_EQ(timer->remaining, 200u); T_EQ(G_TimerRemaining(timer), 155u);
+    G_RunTimers(); G_RunTimers(); T_EQ(timer->remaining, 155u);
+    level.time = 299; G_RunTimers(); jass_runevents(level.vm); jass_callbyname(level.vm, "first", false);
+    T_EQ(G_TimerRemaining(timer), 1u);
+    level.time = 300; G_RunTimers(); jass_runevents(level.vm); jass_callbyname(level.vm, "second", false);
+    T_ASSERT(!timer->running); T_ASSERT(!jass_rterror_pending(level.vm)); remove(file);
 }
 
 TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {

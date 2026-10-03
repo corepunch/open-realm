@@ -60,10 +60,13 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
      * a generic test unit must not silently start life as a corpse. */
     ent->health.max_value = MAX(ent->data.UnitBalance->maxHealth, 1.0f);
     ent->health.value = ent->health.max_value;
+    G_UnitOwnerInsert(ent);
     return ent;
 }
 
 void reset_entities(void) {
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
     uint32_t cap = globals.max_edicts;
     G_ResetDeferredFrees();
     G_ResetHeroPassiveCaches();
@@ -75,7 +78,10 @@ void reset_entities(void) {
      * test shrinks max_edicts to num_edicts+1 (26 in the full suite); walking 16000
      * edicts first would G_FreeActorSkills stale high slots. */
     if (cap > MAX_ENTITIES) cap = MAX_ENTITIES;
-    FOR_LOOP(i, cap) G_FreeActorSkills(g_edicts + i);
+    FOR_LOOP(i, cap) {
+        S_FreeMoveRoute(g_edicts+i);
+        G_FreeActorSkills(g_edicts+i);
+    }
     G_PoolsReset();
     memset(g_edicts, 0, sizeof(edict_t) * cap);
     globals.max_edicts = MAX_ENTITIES;
@@ -150,6 +156,7 @@ static void reset_test_state(void) {
     G_FowShutdown();
     G_BlightShutdown();
     globals.max_edicts = MAX_ENTITIES;
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
@@ -185,6 +192,7 @@ static void reset_test_state(void) {
     G_ClearRegionRegistry();
     G_ClearHashtableRegistry();
     memset(&level, 0, sizeof(level));
+    level.pathing_clock.span = 300;
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
     memset(&test_mapinfo, 0, sizeof(test_mapinfo));

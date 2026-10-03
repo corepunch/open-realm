@@ -776,7 +776,9 @@ static void SinglePlayer_PopulateCampaignList(void) {
         }
         item = &campaign_list.items[campaign_list.count++];
         if (campaign->header[0] && campaign->name[0]) {
-            snprintf(item->name, sizeof(item->name), "%.80s: %.46s", campaign->header, campaign->name);
+            char name[47]; strlcpy(name, campaign->name, sizeof(name));
+            snprintf(item->name, sizeof(item->name), "%.80s: ", campaign->header);
+            strlcat(item->name, name, sizeof(item->name));
         } else {
             snprintf(item->name, sizeof(item->name), "%s", campaign->name[0] ? campaign->name : campaign->key);
         }

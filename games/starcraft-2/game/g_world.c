@@ -2,6 +2,7 @@
 
 /* SC2 edicts have no dynamic walkable surfaces; the shared router must not inspect WC3-only fields. */
 static bool entity_is_live_walkable_surface(edict_t const *ent) { (void)ent; return false; }
+static uint8_t entity_static_pathing_flags(edict_t const *ent) { (void)ent; return CM_PATHING_UNWALKABLE; }
 static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) { (void)ent; return CM_PATHING_UNWALKABLE; }
 static bool entity_is_pathing_ignored(edict_t const *ent) { (void)ent; return false; }
 /* SC2 has no bridges; identity transform. */

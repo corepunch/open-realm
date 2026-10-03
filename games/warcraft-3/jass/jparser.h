@@ -34,6 +34,7 @@ enum {
     TF_ARRAY = 4,
     TF_FUNCTION = 8,
     TF_DEBUG = 16,
+    TF_RETAIL_NUMBER = 32, /* Numeric producer belongs to the source token, including mixed-language VMs. */
 };
 
 struct token {

@@ -97,12 +97,17 @@ void G_FormatTimerDialogValue(gtimer_t const *timer, string_t out, size_t out_si
     snprintf(out, out_size, "%02u:%02u", (unsigned)minutes, (unsigned)(seconds % 60u));
 }
 
-uint32_t G_TimerRemaining(gtimer_t const *timer) { return timer ? timer->remaining : 0; }
+uint32_t G_TimerRemaining(gtimer_t const *timer) {
+    if (!timer) return 0;
+    uint32_t elapsed = timer->running && !timer->paused ? level.time - timer->updated : 0;
+    return timer->remaining > elapsed ? timer->remaining - elapsed : 0;
+}
 
 void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, jassFunc_t const *handler) {
     if (!timer) return;
     timer->generation++;
-    timer->handler = handler; timer->duration = timeout; timer->remaining = timeout;
+    timer->scalar_timing=false;
+    timer->handler = handler; timer->duration = timeout; timer->remaining = timeout; timer->updated = level.time;
     timer->periodic = periodic; timer->paused = false; timer->running = true;
     FOR_LOOP(i, MAX_TIMERDIALOGS) if (level.timer_dialogs[i].inuse && level.timer_dialogs[i].timer == timer)
         WC3_TIMERDIALOG_LOG("start dialog=%d duration=%u periodic=%d visible=0x%08x\n",
@@ -110,15 +115,32 @@ void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, jassFunc_t c
                             (unsigned)level.timer_dialogs[i].visible_clients);
 }
 
+/* Original249ca0/053630 preserve scalar timeout and rearm from the due clock.
+ * The integer API remains useful to C callers; public JASS retains its word. */
+void G_TimerStartScalar(gtimer_t *timer, float timeout, bool periodic, jassFunc_t const *handler) {
+    G_TimerStart(timer,(uint32_t)(MAX(0.0f,timeout)*1000.0f),periodic,handler);
+    if (!timer) return;
+    timer->scalar_timeout=timeout;
+    timer->scalar_deadline=level.pathing_clock;
+    timer->scalar_timing=isfinite(timeout) && timeout>0 && timeout<level.pathing_clock.span;
+    if (timer->scalar_timing) wc3_clock_advance(&timer->scalar_deadline,timeout,0);
+    /* TODO NUM-02.9/11: general zero/negative/long timeout and epoch producers
+     * still use the prior countdown policy until original boundary controls. */
+    else if (timeout>0 && level.pathing_clock.span>0)
+        fprintf(stderr,"WC3 timer: scalar timeout %.9g outside verified single-span scheduling\n",timeout);
+}
+
 void G_TimerPause(gtimer_t *timer) {
     if (!timer || !timer->running || timer->paused) return;
+    timer->remaining = G_TimerRemaining(timer); timer->updated = level.time;
     timer->generation++;
     timer->paused = true;
+    timer->scalar_timing=false; /* TODO NUM-02.10: retain original scalar paused remainder. */
 }
 
 void G_TimerResume(gtimer_t *timer) {
     if (!timer || !timer->running || !timer->paused) return;
-    timer->paused = false;
+    timer->updated = level.time; timer->paused = false;
 }
 
 void G_TimerDestroy(gtimer_t *timer) {
@@ -126,6 +148,9 @@ void G_TimerDestroy(gtimer_t *timer) {
     timer->generation++;
     timer->running = false;
     timer->paused = true;
+    /* Destroy releases the callback as well as cancelling its generation.
+     * Save/load serializes every allocated timer slot, including retired ones. */
+    timer->handler = NULL;
 }
 
 bool G_TimerCoroutineValid(handle_t handle, uint32_t generation) {
@@ -173,10 +198,21 @@ void G_RunTimers(void) {
     FOR_LOOP(i, level.num_timers) {
         gtimer_t *timer = &level.timers[i];
         if (!timer->running || timer->paused) continue;
-        /* Countdown rather than a level.time deadline: a save carries no clock-absolute
-         * state, so a loaded timer resumes with exactly the time it had left. */
-        timer->remaining = timer->remaining > FRAMETIME ? timer->remaining - FRAMETIME : 0;
-        if (timer->remaining) continue;
+        /* RunFrame drains before every primary quantum and again at publication.
+         * Consume elapsed simulation time once; repeated drains cannot age a timer.
+         * Save restores both the countdown cursor and the owning server clock. */
+        timer->remaining = G_TimerRemaining(timer); timer->updated = level.time;
+        if (timer->scalar_timing && level.scheduled_frame) {
+            /* Original timer stage advances and drains before primary publication. */
+            wc3Clock_t next=level.pathing_clock;
+            wc3_clock_advance(&next,wc3_float(0x3ba3d70a),0);
+            wc3Clock_t const *due=&timer->scalar_deadline;
+            bool ready=next.epoch==due->epoch ? next.time>=due->time :
+                (int32_t)(next.epoch-due->epoch)>0;
+            if (!ready) continue;
+            if (timer->periodic) wc3_clock_advance(&timer->scalar_deadline,timer->scalar_timeout,0);
+        } else if (timer->remaining) continue;
+        /* TODO NUM-02.10: registration/tie order and overdue catch-up remain open. */
         timer->remaining = timer->periodic ? timer->duration : 0;
         timer->running = timer->periodic;
         if (timer->handler)

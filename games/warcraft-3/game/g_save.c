@@ -78,8 +78,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Version 64 removes redundant pooled active/initialized flags. */
-static uint32_t const save_version = 64;
+/* Format90 combines retained retail movement state with all sparse lifecycle pools. */
+static uint32_t const save_version = 90;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -317,8 +317,14 @@ static field_t const trigger_fields[] = {
 };
 
 static field_t const timer_fields[] = {
+    F(gtimer_s, scalar_timeout, F_FLOAT),
+    F(gtimer_s, scalar_timing, F_INT),
+    F(gtimer_s, scalar_deadline.time, F_FLOAT),
+    F(gtimer_s, scalar_deadline.epoch, F_INT),
+    F(gtimer_s, scalar_deadline.span, F_FLOAT),
     F(gtimer_s, duration, F_INT),
     F(gtimer_s, remaining, F_INT),
+    F(gtimer_s, updated, F_INT),
     F(gtimer_s, generation, F_INT),
     F(gtimer_s, periodic, F_INT),
     F(gtimer_s, paused, F_INT),
@@ -442,9 +448,36 @@ static fieldRing_t const game_event_ring = {
     FOFS(level_locals, events.write) - (handle_t)NULL
 };
 
+static field_t const move_fine_budget_fields[] = {
+    TF(moveFineBudget_t, work, F_INT),
+    TF(moveFineBudget_t, countdown, F_INT),
+    TF(moveFineBudget_t, count, F_INT),
+    TF(moveFineBudget_t, head, F_EDICT, 0, FIELD_NONE),
+    TF(moveFineBudget_t, tail, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const level_fields[] = {
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
+    F(level_locals, repulse_head, F_EDICT, 0, FIELD_NONE),
+    F(level_locals, repulse_phase, F_INT),
+    F(level_locals, pathing_random.sum, F_INT),
+    F(level_locals, pathing_random.index, F_INT),
+    F(level_locals, pathing_counter, F_INT),
+    F(level_locals, move_fine_budgets, F_STRUCT, MAX_PLAYERS, move_fine_budget_fields),
+    F(level_locals, pathing_clock.time, F_FLOAT),
+    F(level_locals, pathing_clock.epoch, F_INT),
+    F(level_locals, pathing_clock.span, F_FLOAT),
+    F(level_locals, pathing_msec, F_INT),
+    F(level_locals, pathing_owner_deadline.time, F_FLOAT),
+    F(level_locals, pathing_owner_deadline.epoch, F_INT),
+    F(level_locals, pathing_owner_deadline.span, F_FLOAT),
+    F(level_locals, pathing_owner_clock_valid, F_INT),
+    F(level_locals, pathing_phase, F_INT),
+    F(level_locals, pathing_due, F_INT),
+    F(level_locals, scheduled_frame, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, scheduled_think, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, stock.item_slots, F_INT),
     F(level_locals, stock.unit_slots, F_INT),
     F(level_locals, timeofday.elapsed, F_FLOAT),
@@ -471,10 +504,21 @@ static field_t const level_fields[] = {
     F(level_locals, started, F_INT),
     F(level_locals, scriptsConfigured, F_INT),
     F(level_locals, scriptsStarted, F_INT),
+    F(level_locals, ai_vm_initialized, F_INT),
     F(level_locals, pending_consumed_item_cleanup, F_INT),
     F(level_locals, waypoints.base, F_INT),
     F(level_locals, waypoints.cursor, F_INT),
     F(level_locals, waypoints.count, F_INT),
+    F(level_locals, next_move_group_id, F_INT),
+    F(level_locals, next_move_group_sequence, F_INT, 2),
+    F(level_locals, next_move_shared_id, F_INT, 2),
+    F(level_locals, next_unit_seq, F_INT, 2),
+    F(level_locals, move_shared, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, move_shared_count, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, move_shared_capacity, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, move_groups, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, move_groups_count, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, move_group_capacity, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, next_weather_id, F_INT),
     F(level_locals, weather_effects, F_STRUCT, MAX_WEATHER_EFFECTS, weather_fields),
     F(level_locals, next_lightning_id, F_INT),
@@ -660,7 +704,128 @@ static field_t const ancient_root_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const repulse_fields[] = {
+    TF(struct edictRepulse_s, state.vector, F_VECTOR),
+    TF(struct edictRepulse_s, state.packed, F_INT),
+    TF(struct edictRepulse_s, next, F_EDICT, 0, FIELD_NONE),
+    TF(struct edictRepulse_s, active, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const queued_order_fields[] = {
+    TF(unitOrder_t, owner_context, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const move_route_fields[] = {
+    TF(moveFineRoute_t, points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, count, F_INT),
+    TF(moveFineRoute_t, index, F_INT),
+    TF(moveFineRoute_t, mask, F_INT),
+    TF(moveFineRoute_t, partial, F_INT),
+    TF(moveFineRoute_t, adaptive_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, adaptive_count, F_INT),
+    TF(moveFineRoute_t, adaptive_index, F_INT),
+    TF(moveFineRoute_t, adaptive_goal, F_VECTOR),
+    TF(moveFineRoute_t, adaptive_radius, F_FLOAT),
+    TF(moveFineRoute_t, adaptive_revision, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, group_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, group_count, F_INT),
+    TF(moveFineRoute_t, group_index, F_INT),
+    TF(moveFineRoute_t, group_goal, F_VECTOR),
+    TF(moveFineRoute_t, group_radius, F_FLOAT),
+    TF(moveFineRoute_t, group_revision, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const move_member_fields[] = {
+    TF(moveGroupMember_t, unit, F_EDICT, 0, FIELD_NONE),
+    TF(moveGroupMember_t, spawn, F_INT),
+    TF(moveGroupMember_t, flags, F_INT),
+    TF(moveGroupMember_t, offset, F_VECTOR),
+    TF(moveGroupMember_t, destination, F_VECTOR),
+    TF(moveGroupMember_t, world_destination, F_VECTOR),
+    TF(moveGroupMember_t, speed, F_FLOAT),
+    TF(moveGroupMember_t, heading, F_FLOAT),
+    TF(moveGroupMember_t, arrival_range, F_FLOAT),
+    TF(moveGroupMember_t, arrived, F_INT),
+    TF(moveGroupMember_t, in_range, F_INT),
+    TF(moveGroupMember_t, forced_arrival, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const move_shared_fields[] = {
+    TF(moveShared_t, id, F_INT, 2),
+    TF(moveShared_t, references, F_INT),
+    TF(moveShared_t, inuse, F_INT),
+    TF(moveShared_t, speed, F_FLOAT),
+    TF(moveShared_t, next_speed, F_FLOAT),
+    TF(moveShared_t, radius, F_FLOAT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const move_group_fields[] = {
+    TF(moveGroup_t, id, F_INT),
+    TF(moveGroup_t, request_id, F_INT),
+    TF(moveGroup_t, sequence, F_INT, 2),
+    TF(moveGroup_t, shared_id, F_INT, 2),
+    TF(moveGroup_t, flags, F_INT),
+    TF(moveGroup_t, age, F_INT),
+    TF(moveGroup_t, completion_counter, F_INT),
+    TF(moveGroup_t, cooldown, F_INT),
+    TF(moveGroup_t, inuse, F_INT),
+    TF(moveGroup_t, initialized, F_INT),
+    TF(moveGroup_t, ticking, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveGroup_t, goal, F_VECTOR),
+    TF(moveGroup_t, point, F_VECTOR),
+    TF(moveGroup_t, target, F_EDICT, 0, FIELD_NONE),
+    TF(moveGroup_t, target_spawn, F_INT),
+    TF(moveGroup_t, target_refresh, F_INT),
+    TF(moveGroup_t, heading, F_FLOAT),
+    TF(moveGroup_t, radius, F_FLOAT),
+    TF(moveGroup_t, route, F_STRUCT, 1, move_route_fields),
+    { "members", offsetof(moveGroup_t,members), F_STRUCT, sizeof(((moveGroup_t *)0)->members), BZ_WC3_GROUP_ORDER_UNITS, (uintptr_t)move_member_fields, offsetof(moveGroup_t,count) },
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const movement_fields[] = {
+    TF(edictMovement_s, fine_prev, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, fine_next, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, fine_queued, F_INT),
+    TF(edictMovement_s, fine_class, F_INT),
+    TF(edictMovement_s, fine_request_time, F_INT),
+    TF(struct edictMovement_s, fine_route.points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.count, F_INT),
+    TF(struct edictMovement_s, fine_route.index, F_INT),
+    TF(struct edictMovement_s, fine_route.mask, F_INT),
+    TF(struct edictMovement_s, fine_route.partial, F_INT),
+    TF(struct edictMovement_s, fine_route.adaptive_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.adaptive_count, F_INT),
+    TF(struct edictMovement_s, fine_route.adaptive_index, F_INT),
+    TF(struct edictMovement_s, fine_route.adaptive_goal, F_VECTOR),
+    TF(struct edictMovement_s, fine_route.adaptive_radius, F_FLOAT),
+    TF(struct edictMovement_s, fine_route.adaptive_revision, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.group_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.group_count, F_INT),
+    TF(struct edictMovement_s, fine_route.group_index, F_INT),
+    TF(struct edictMovement_s, fine_route.group_goal, F_VECTOR),
+    TF(struct edictMovement_s, fine_route.group_radius, F_FLOAT),
+    TF(struct edictMovement_s, fine_route.group_revision, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, repulse, F_STRUCT, 1, repulse_fields),
+    TF(edictMovement_s, fine_pose, F_VECTOR),
+    TF(edictMovement_s, pose_valid, F_INT),
+    TF(edictMovement_s, pose_world, F_VECTOR),
+    TF(edictMovement_s, sampled_pose, F_VECTOR),
+    TF(edictMovement_s, pose_clock.time, F_FLOAT),
+    TF(edictMovement_s, pose_clock.epoch, F_INT),
+    TF(edictMovement_s, pose_clock.span, F_FLOAT),
+    TF(edictMovement_s, clock_valid, F_INT),
+    TF(edictMovement_s, wait_delay, F_INT),
+    TF(edictMovement_s, retry_count, F_INT),
+    TF(edictMovement_s, point_forced_arrival, F_INT),
+    TF(edictMovement_s, wait_blocker, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, group_id, F_INT),
+    TF(edictMovement_s, previous_request_id, F_INT),
     /* Shared route jobs and resumable movement directions are process-local
      * caches. In particular route_resume_goal is an edict pointer, so clear
      * the complete route-resume/wait record on save and rebuild it after load. */
@@ -689,10 +854,10 @@ static field_t const movement_fields[] = {
     F(edictMovement_s, guard_position, F_VECTOR),
     F(edictMovement_s, guard_state, F_INT),
     F(edictMovement_s, explicit_allied_attack, F_INT),
-    F(edictMovement_s, cargo_unload_pending, F_INT),
-    F(edictMovement_s, cargo_unload_ability, F_INT),
+    TF(edictMovement_s, cargo_unload_pending, F_INT),
+    TF(edictMovement_s, cargo_unload_ability, F_INT),
     TF(edictMovement_s, cargo_unload_goal, F_EDICT, 0, FIELD_NONE),
-    F(edictMovement_s, cargo_unload_goal_spawn_time, F_INT),
+    TF(edictMovement_s, cargo_unload_goal_spawn_time, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -771,6 +936,8 @@ static field_t const stock_fields[] = {
 
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
 field_t edict_fields[] = {
+    F(edict_s, order_queue.entries, F_STRUCT, MAX_UNIT_ORDER_QUEUE, queued_order_fields),
+    F(edict_s, scheduled_think_frame, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, construction, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, research, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, rally, F_IGNORE, 0, FIELD_RUNTIME),
@@ -804,6 +971,7 @@ field_t edict_fields[] = {
     F(edict_s, build_project, F_INT),
     F(edict_s, build_preview, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spawn_time, F_INT),
+    F(edict_s, own_seq, F_INT, 2),
     F(edict_s, summon_ability, F_INT),
     F(edict_s, permanent_invisibility_reveal_until, F_INT),
     F(edict_s, forced_visibility_count, F_INT),
@@ -824,6 +992,29 @@ field_t edict_fields[] = {
     F(edict_s, attack_cooldown_end_time, F_INT),
     F(edict_s, attack_backswing_end_time, F_INT),
     F(edict_s, unitinfo, F_STRUCT, 1, unit_info_fields),
+    F(edict_s, movement.captain_home.actor, F_EDICT, 0, 0),
+    F(edict_s, movement.captain_home.roster_actor, F_EDICT, 0, 0),
+    F(edict_s, movement.captain_actor_members, F_INT),
+    F(edict_s, movement.captain_actor_type, F_INT),
+    F(edict_s, movement.captain_actor_owned, F_INT),
+    F(edict_s, movement.captain_home.active, F_INT),
+    F(edict_s, movement.captain_home.entered, F_INT),
+    F(edict_s, movement.captain_home.outer, F_INT),
+    F(edict_s, movement.captain_home.member_index, F_INT),
+    F(edict_s, movement.captain_home.home.x, F_FLOAT),
+    F(edict_s, movement.captain_home.home.y, F_FLOAT),
+    F(edict_s, movement.captain_home.due.time, F_FLOAT),
+    F(edict_s, movement.captain_home.due.epoch, F_INT),
+    F(edict_s, movement.captain_home.due.span, F_FLOAT),
+    F(edict_s, movement.type_rebind_pending, F_INT),
+    F(edict_s, movement.type_rebind_deadline.time, F_FLOAT),
+    F(edict_s, movement.type_rebind_deadline.epoch, F_INT),
+    F(edict_s, movement.type_rebind_deadline.span, F_FLOAT),
+    F(edict_s, chaos.code, F_INT),
+    F(edict_s, chaos.phase, F_INT),
+    F(edict_s, chaos.deadline.time, F_FLOAT),
+    F(edict_s, chaos.deadline.epoch, F_INT),
+    F(edict_s, chaos.deadline.span, F_FLOAT),
     F(edict_s, attack1, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, attack2, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
@@ -831,6 +1022,7 @@ field_t edict_fields[] = {
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
     F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
+    F(edict_s, current_order_id, F_INT),
     F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),
     F(edict_s, attack_target_spawn_time, F_INT),
     F(edict_s, item_drop, F_EDICT, 0, FIELD_NONE),
@@ -1580,7 +1772,10 @@ static bool ReadMappedFields(FILE *f, field_t const *fields, uint8_t *base) {
             string_t name = NULL;
             if (!ReadString(f, &name)) return false;
             *(jassFunc_t const * *)(base + fields->ofs) = name ? jass_functionbyname(level.vm, name) : NULL;
-            if (name && !*(jassFunc_t const * *)(base + fields->ofs)) { free(name); return false; }
+            if (name && !*(jassFunc_t const * *)(base + fields->ofs)) {
+                fprintf(stderr,"WC3 LoadGame: unresolved function field %s name='%s'\n",fields->name,name);
+                free(name); return false;
+            }
             free(name);
             break;
         }
@@ -1755,6 +1950,222 @@ static bool ReadHashtables(FILE *f) {
     return true;
 }
 
+/* Route buffers use one bounded, finite-point payload contract for both Move owners. */
+static bool WriteMoveRouteBuffers(FILE *f, moveFineRoute_t const *route) {
+    if (route->count > BZ_WC3_FINE_NODES || (route->count && (!route->points || route->index >= route->count))) {
+        fprintf(stderr,"WC3 SaveGame: invalid fine route count=%u index=%u\n",route->count,route->index);
+        return false;
+    }
+    if (route->adaptive_count>BZ_WC3_FINE_NODES ||
+        (route->adaptive_count && (!route->adaptive_points || route->adaptive_index>=route->adaptive_count))) {
+        fprintf(stderr,"WC3 SaveGame: invalid adaptive route count=%u index=%u\n",route->adaptive_count,route->adaptive_index);
+        return false;
+    }
+    if (route->group_count>BZ_WC3_FINE_NODES ||
+        (route->group_count && (!route->group_points || route->group_index>=route->group_count))) {
+        fprintf(stderr,"WC3 SaveGame: invalid group route count=%u index=%u\n",route->group_count,route->group_index);
+        return false;
+    }
+    return (!route->count || SaveBytes(f,route->points,route->count*sizeof(*route->points))) &&
+        (!route->adaptive_count || SaveBytes(f,route->adaptive_points,route->adaptive_count*sizeof(*route->adaptive_points))) &&
+        (!route->group_count || SaveBytes(f,route->group_points,route->group_count*sizeof(*route->group_points)));
+}
+
+static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
+    route->points = NULL; route->adaptive_points=NULL; route->group_points=NULL;
+    if (route->count > BZ_WC3_FINE_NODES || (route->count && route->index >= route->count)) return false;
+    if (route->count) {
+        route->points = malloc(route->count*sizeof(*route->points));
+        if (!route->points || !LoadBytes(f,route->points,route->count*sizeof(*route->points))) {
+            free(route->points); route->points = NULL; return false;
+        }
+        FOR_LOOP(i,route->count) if (!isfinite(route->points[i].x) || !isfinite(route->points[i].y)) {
+            free(route->points); route->points = NULL; return false;
+        }
+    }
+    if (route->adaptive_count) {
+        if (route->adaptive_count>BZ_WC3_FINE_NODES || route->adaptive_index>=route->adaptive_count ||
+            !isfinite(route->adaptive_goal.x) || !isfinite(route->adaptive_goal.y) || !isfinite(route->adaptive_radius)) {
+            free(route->points); route->points=NULL; return false;
+        }
+        route->adaptive_points=malloc(route->adaptive_count*sizeof(*route->adaptive_points));
+        if (!route->adaptive_points || !LoadBytes(f,route->adaptive_points,route->adaptive_count*sizeof(*route->adaptive_points))) {
+            free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
+        }
+        FOR_LOOP(i,route->adaptive_count) if (!isfinite(route->adaptive_points[i].x) || !isfinite(route->adaptive_points[i].y)) {
+            free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
+        }
+    }
+    if (route->group_count) {
+        if (route->group_count>BZ_WC3_FINE_NODES || route->group_index>=route->group_count ||
+            !isfinite(route->group_goal.x) || !isfinite(route->group_goal.y) || !isfinite(route->group_radius)) {
+            free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
+        }
+        route->group_points=malloc(route->group_count*sizeof(*route->group_points));
+        if (!route->group_points || !LoadBytes(f,route->group_points,route->group_count*sizeof(*route->group_points))) {
+            free(route->points); free(route->adaptive_points); free(route->group_points);
+            route->points=route->adaptive_points=route->group_points=NULL; return false;
+        }
+        FOR_LOOP(i,route->group_count) if (!isfinite(route->group_points[i].x) || !isfinite(route->group_points[i].y)) {
+            free(route->points); free(route->adaptive_points); free(route->group_points);
+            route->points=route->adaptive_points=route->group_points=NULL; return false;
+        }
+    }
+    return true;
+}
+
+/* Verify the intrusive admission graph before following any saved pointer.
+ * Counts bound traversal, including cycles and disconnected queued edicts. */
+static bool ValidMoveFineRequests(void) {
+    uint32_t total=0,queued=0;
+    FOR_LOOP(i,MAX_PLAYERS) {
+        moveFineBudget_t const *budget=level.move_fine_budgets+i;
+        if (budget->count>globals.num_edicts || budget->countdown>1) return false;
+        edict_t const *prev=NULL,*unit=budget->head;
+        uint32_t count=0;
+        while (unit) {
+            uintptr_t ptr=(uintptr_t)unit,base=(uintptr_t)g_edicts;
+            if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
+            if (++count>budget->count || !unit->inuse || G_IsDeferredFree(unit) ||
+                *(uint8_t const *)&unit->movement.fine_queued!=1 || unit->movement.fine_prev!=prev ||
+                unit->movement.fine_class!=i || unit->s.player!=i) return false;
+            prev=unit; unit=unit->movement.fine_next;
+        }
+        if (count!=budget->count || prev!=budget->tail) return false;
+        total+=count;
+        if (total>globals.num_edicts) return false;
+    }
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t const *unit=g_edicts+i;
+        if (*(uint8_t const *)&unit->movement.fine_queued>1 || unit->movement.fine_class>=MAX_PLAYERS) return false;
+        if (unit->movement.fine_queued) queued++;
+        else if (unit->movement.fine_prev || unit->movement.fine_next) return false;
+    }
+    return queued==total;
+}
+
+/* A saved group must own live, generation-matched members exactly once. The
+ * JASS collection is independent: destroying it does not cancel this Move. */
+static bool ValidMoveGroup(moveGroup_t const *group) {
+    if (!group->id || !group->sequence || group->sequence>level.next_move_group_sequence ||
+        (!group->count && !group->shared_id) || group->count>BZ_WC3_GROUP_ORDER_UNITS || group->cooldown>66 ||
+        *(uint8_t const *)&group->inuse!=1 || *(uint8_t const *)&group->initialized>1 || group->ticking ||
+        !isfinite(group->goal.x) || !isfinite(group->goal.y) || !isfinite(group->point.x) ||
+        !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)
+        return false;
+    if (group->shared_id && !S_FindMoveShared(group->shared_id)) return false;
+    if (group->target) {
+        uintptr_t ptr=(uintptr_t)group->target,base=(uintptr_t)g_edicts;
+        if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts) ||
+            !group->target->inuse || G_IsDeferredFree(group->target) ||
+            group->target->spawn_time!=group->target_spawn || !(group->flags&0x1000) ||
+            group->target_refresh<0 || group->target_refresh>297) return false;
+    } else if (group->target_spawn || group->target_refresh || (group->flags&0x1000)) return false;
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t const *member=group->members+i;
+        uintptr_t ptr=(uintptr_t)member->unit,base=(uintptr_t)g_edicts;
+        if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
+        edict_t const *unit=member->unit;
+        if (!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=member->spawn ||
+            unit->movement.group_id!=group->id || !unit->goalentity ||
+            !isfinite(member->offset.x) || !isfinite(member->offset.y) ||
+            !isfinite(member->destination.x) || !isfinite(member->destination.y) ||
+            !isfinite(member->world_destination.x) || !isfinite(member->world_destination.y) ||
+            !isfinite(member->speed) || member->speed<0 || !isfinite(member->heading) ||
+            !isfinite(member->arrival_range) || member->arrival_range<0 ||
+            *(uint8_t const *)&member->arrived>1 || *(uint8_t const *)&member->in_range>1 ||
+            *(uint8_t const *)&member->forced_arrival>1) return false;
+        if (group->target) {
+            if (group->target->movement.captain_actor_type) {
+                if (!unit->movement.captain_home.active || unit->movement.captain_home.actor!=group->target) return false;
+            } else if (unit->movement.follow_target!=group->target || unit->goalentity!=group->target) return false;
+        }
+        FOR_LOOP(j,i) if (group->members[j].unit==unit) return false;
+    }
+    return true;
+}
+
+/* Shared parameters precede groups so every restored binding can resolve.
+ * Zero references remain valid until the next Move owner prepass collects them. */
+static bool WriteMoveShared(FILE *f) {
+    if (!S_ValidateMoveShared()) return false;
+    uint32_t count=0;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) if (level.move_shared[i].inuse) count++;
+    if (count>MAX_SAVE_GROUP_HANDLES || !SaveBytes(f,&count,sizeof(count))) return false;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
+        moveShared_t temp=level.move_shared[i];
+        if (temp.inuse && !WriteMappedFields(f,move_shared_fields,(uint8_t *)&temp)) return false;
+    }
+    return true;
+}
+
+static bool ReadMoveShared(FILE *f) {
+    uint32_t count=0;
+    if (!LoadBytes(f,&count,sizeof(count)) || count>MAX_SAVE_GROUP_HANDLES) goto failed;
+    if (!count) return true;
+    level.move_shared=calloc(count,sizeof(*level.move_shared));
+    if (!level.move_shared) goto failed;
+    ARRAY_COUNT(level.move_shared)=level.move_shared_capacity=count;
+    FOR_LOOP(i,count) {
+        moveShared_t *shared=level.move_shared+i;
+        if (!ReadMappedFields(f,move_shared_fields,(uint8_t *)shared) ||
+            *(uint8_t const *)&shared->inuse!=1 || !shared->id || shared->id>level.next_move_shared_id ||
+            !isfinite(shared->speed) || shared->speed<0 || !isfinite(shared->next_speed) || shared->next_speed<0 ||
+            !isfinite(shared->radius) || shared->radius<0) goto failed;
+        FOR_LOOP(j,i) if (level.move_shared[j].id==shared->id) goto failed;
+    }
+    return true;
+failed:
+    S_ClearMoveGroups();
+    return false;
+}
+
+/* Store active owners after edicts so loading can validate restored generations. */
+static bool WriteMoveGroups(FILE *f) {
+    uint32_t count=0;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if (level.move_groups[i]->inuse) count++;
+    if (count>globals.num_edicts || !SaveBytes(f,&count,sizeof(count))) return false;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t const *group=level.move_groups[i];
+        if (!group->inuse) continue;
+        if (!ValidMoveGroup(group)) return false;
+        FOR_LOOP(j,i) if (level.move_groups[j]->inuse && (level.move_groups[j]->id==group->id || level.move_groups[j]->sequence==group->sequence)) return false;
+        moveGroup_t temp=*group;
+        ClearRuntimeFields(&temp,move_group_fields,FIELD_RUNTIME);
+        if (!WriteMappedFields(f,move_group_fields,(uint8_t *)&temp) || !WriteMoveRouteBuffers(f,&group->route)) return false;
+    }
+    return true;
+}
+
+/* Rebuild process-owned allocations; failed payloads release every partial owner. */
+static bool ReadMoveGroups(FILE *f) {
+    uint32_t count=0;
+    if (!LoadBytes(f,&count,sizeof(count)) || count>globals.num_edicts) goto failed;
+    if (!count) return true;
+    level.move_groups=calloc(count,sizeof(*level.move_groups));
+    if (!level.move_groups) goto failed;
+    level.move_group_capacity=count;
+    FOR_LOOP(i,count) {
+        moveGroup_t *group=calloc(1,sizeof(*group));
+        if (!group) goto failed;
+        level.move_groups[ARRAY_COUNT(level.move_groups)++]=group;
+        bool mapped=ReadMappedFields(f,move_group_fields,(uint8_t *)group);
+        /* Clear even a partial record before cleanup can touch curve addresses. */
+        ClearRuntimeFields(group,move_group_fields,FIELD_RUNTIME);
+        if (!mapped || !ValidMoveGroup(group) || !ReadMoveRouteBuffers(f,&group->route)) goto failed;
+        FOR_LOOP(j,i) {
+            moveGroup_t const *other=level.move_groups[j];
+            if (other->id==group->id || other->sequence==group->sequence) goto failed;
+            FOR_LOOP(m,group->count) FOR_LOOP(n,other->count)
+                if (group->members[m].unit && group->members[m].unit==other->members[n].unit) goto failed;
+        }
+    }
+    return true;
+failed:
+    S_ClearMoveGroups();
+    return false;
+}
+
 static bool WriteEdict(FILE *f, edict_t const *ent) {
     edict_t temp = *ent;
     field_t const *field;
@@ -1762,7 +2173,7 @@ static bool WriteEdict(FILE *f, edict_t const *ent) {
     ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
     for (field = edict_fields; field->name; field++)
         if (!WriteField1(field, (uint8_t *)&temp)) return false;
-    return SaveBytes(f, &temp, sizeof(temp));
+    return SaveBytes(f, &temp, sizeof(temp)) && WriteMoveRouteBuffers(f,&ent->movement.fine_route);
 }
 
 static bool WriteClient(FILE *f, gameClient_t const *client) {
@@ -1831,6 +2242,36 @@ static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
     return true;
 }
 
+static bool WriteTerrainPathing(FILE *f) {
+    uint32_t const size = G_GetTerrainPathingStateSize();
+    uint8_t *data = NULL;
+    bool ok;
+
+    if (!SaveBytes(f, &size, sizeof(size))) return false;
+    if (!size) return true;
+    data = gi.MemAlloc(size);
+    if (!data) return false;
+    ok = G_GetTerrainPathingState(data, size) && SaveBytes(f, data, size);
+    gi.MemFree(data);
+    return ok;
+}
+
+static bool ReadTerrainPathing(FILE *f) {
+    uint32_t size, expected;
+    uint8_t *data = NULL;
+    bool ok;
+
+    if (!LoadBytes(f, &size, sizeof(size))) return false;
+    expected = G_GetTerrainPathingStateSize();
+    if (size != expected) return false;
+    if (!size) return true;
+    data = gi.MemAlloc(size);
+    if (!data) return false;
+    ok = LoadBytes(f, data, size) && G_SetTerrainPathingState(data, size);
+    gi.MemFree(data);
+    return ok;
+}
+
 static bool WriteBlight(FILE *f) {
     uint32_t const size = G_GetBlightStateSize();
     uint8_t *data = NULL;
@@ -1866,6 +2307,8 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
 
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
     ClearRuntimeFields(ent, edict_fields, FIELD_RUNTIME);
+    moveFineRoute_t *route = &ent->movement.fine_route;
+    if (!ReadMoveRouteBuffers(f,route)) return false;
     for (field = edict_fields; field->name; field++)
         if (!ReadField(field, (uint8_t *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
@@ -1879,6 +2322,30 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
     return true;
 }
 
+static int CompareOwnerSequence(void const *a, void const *b) {
+    uint64_t x=*(uint64_t const *)a,y=*(uint64_t const *)b;
+    return (x>y)-(x<y);
+}
+
+/* Pool order is unique, nonzero for spawned units and bounded by the saved
+ * allocator. Sorting avoids a quadratic scan when saving crowded maps. */
+static bool ValidOwnedUnits(void) {
+    uint64_t *seq=gi.MemAlloc(globals.num_edicts*sizeof(*seq));
+    uint32_t count=0;
+    bool valid=true;
+    FILTER_EDICTS(unit,unit->inuse) {
+        if (!unit->own_seq) {
+            if (unit->svflags&SVF_MONSTER) valid=false;
+            continue;
+        }
+        if (unit->own_seq>level.next_unit_seq || unit->s.player>=MAX_PLAYERS) valid=false;
+        seq[count++]=unit->own_seq;
+    }
+    qsort(seq,count,sizeof(*seq),CompareOwnerSequence);
+    FOR_LOOP(i,count) if (i && seq[i]==seq[i-1]) valid=false;
+    gi.MemFree(seq);
+    return valid;
+}
 
 /* Pool records use the same raw-record and pointer-fixup contract as edicts. */
 typedef struct {
@@ -2030,10 +2497,15 @@ bool WriteGame(cstring_t filename) {
     }
     bool ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
+    if (level.ai_vm_initialized >> MAX_PLAYERS) { fprintf(stderr,"WC3 SaveGame: invalid AI initialization players\n"); goto done; }
+    if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 SaveGame: invalid unit owned-pool order\n"); goto done; }
+    if (!S_ValidateCaptainHomeActors(false)) { fprintf(stderr,"WC3 SaveGame: invalid captain actor references\n"); goto done; }
+    if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 SaveGame: invalid fine-request FIFO\n"); goto done; }
     if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
     if (!WriteMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
     }
+    if (!WriteTerrainPathing(f)) { fprintf(stderr, "WC3 SaveGame: failed at terrain pathing state\n"); goto done; }
     if (!WriteBlight(f)) { fprintf(stderr, "WC3 SaveGame: failed at blight state\n"); goto done; }
     if (!WriteGroups(f)) goto done;
     FOR_LOOP(i, game.max_clients) {
@@ -2048,6 +2520,8 @@ bool WriteGame(cstring_t filename) {
         }
     }
     if (!WritePools(f)) { fprintf(stderr, "WC3 SaveGame: failed at lifecycle pools\n"); goto done; }
+    if (!WriteMoveShared(f)) { fprintf(stderr,"WC3 SaveGame: failed at shared Move parameters\n"); goto done; }
+    if (!WriteMoveGroups(f)) { fprintf(stderr,"WC3 SaveGame: failed at physical Move groups\n"); goto done; }
     /* After edicts: nested HT_HANDLE unit/item slots call G_LoadJassHandle, which
      * requires restored inuse bits. SV_Map runs main() first, so a pre-edict
      * resolve would see baseline slots and drop script-created units. */
@@ -2112,9 +2586,13 @@ bool ReadGame(cstring_t filename) {
         current_nonregion_event_slots[i] = event->inuse &&
             event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION;
     }
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
     if (!ReadMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
+    ClearRuntimeFields(&level, level_fields, FIELD_RUNTIME);
+    if (level.ai_vm_initialized >> MAX_PLAYERS) { fprintf(stderr,"WC3 LoadGame: invalid AI initialization players\n"); fclose(f); return false; }
     FOR_LOOP(i, MAX_EVENTS) if (current_nonregion_event_slots[i] && !level.events.handlers[i].inuse) {
         fprintf(stderr, "WC3 LoadGame: saved event registry dropped live non-region slot %u\n", (unsigned)i);
         fclose(f); return false;
@@ -2136,6 +2614,7 @@ bool ReadGame(cstring_t filename) {
         fprintf(stderr, "WC3 LoadGame: invalid event handle generation at slot %u\n", (unsigned)i);
         fclose(f); return false;
     }
+    if (!ReadTerrainPathing(f)) { fprintf(stderr, "WC3 LoadGame: failed at terrain pathing state\n"); fclose(f); return false; }
     if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
     G_ResetJassGroupDebug();
     if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
@@ -2148,6 +2627,8 @@ bool ReadGame(cstring_t filename) {
      * spatial tree before raw records overwrite their area links, then rebuild
      * one authoritative set below; retaining both creates cyclic area lists. */
     gi.ClearWorld();
+    /* Release process-owned curve allocations before raw edict records replace their addresses. */
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = header.num_edicts;
     FOR_LOOP(i, header.num_edicts) {
@@ -2161,6 +2642,15 @@ bool ReadGame(cstring_t filename) {
         }
     }
     if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
+    if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 LoadGame: invalid unit owned-pool order\n"); fclose(f); return false; }
+    if (!S_ValidateCaptainHomeActors(true)) { fprintf(stderr,"WC3 LoadGame: invalid captain actor references\n"); fclose(f); return false; }
+    if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
+    if (!ReadMoveShared(f)) { fprintf(stderr,"WC3 LoadGame: failed at shared Move parameters\n"); fclose(f); return false; }
+    if (!ReadMoveGroups(f)) { fprintf(stderr,"WC3 LoadGame: failed at physical Move groups\n"); fclose(f); return false; }
+    if (!S_ValidateMoveShared()) {
+        fprintf(stderr,"WC3 LoadGame: invalid shared Move references\n");
+        S_ClearMoveGroups(); fclose(f); return false;
+    }
     /* Nested hashtable unit/item handles resolve here, after edict inuse is restored. */
     if (!ReadHashtables(f)) { fprintf(stderr, "WC3 LoadGame: failed at hashtables\n"); fclose(f); return false; }
     /* Sound-handle presentation state is part of the VM-owned handle payload;
@@ -2191,6 +2681,8 @@ bool ReadGame(cstring_t filename) {
         if (ent->destructable) G_RestoreDestructableData(ent);
         if (gi.LinkEntity) gi.LinkEntity(ent);
     }
+    CM_BakeStaticObstacles();
+    G_RebindSavedMoveRoutes();
     fclose(f);
     /* Cinefilters are transient client presentation, not part of the save
      * contract. Map reload can leave its baseline black filter displayed;
@@ -2289,6 +2781,273 @@ fail:
     return false;
 }
 
+TEST(wc3_save, rejects_invalid_captain_actor_reference) {
+    cstring_t names[]={"movement.captain_home.actor","movement.captain_home.roster_actor"};
+    FOR_LOOP(i,2) {
+        field_t const *field=NULL;
+        for(field_t const *f=edict_fields;f->name;f++)if(!strcmp(f->name,names[i]))field=f;
+        T_NOT_NULL(field);if(!field)continue;
+        edict_t raw={0};
+        int index=globals.num_edicts;
+        memcpy((uint8_t *)&raw+field->ofs,&index,sizeof(index));
+        T_ASSERT(!ReadField(field,(uint8_t *)&raw));
+        index=-2;
+        memcpy((uint8_t *)&raw+field->ofs,&index,sizeof(index));
+        T_ASSERT(!ReadField(field,(uint8_t *)&raw));
+    }
+}
+
+/* Save before recruitment, then insert a new unit after loading: both high
+ * sequence words and allocator state must survive, with corrupt order rejected. */
+TEST(wc3_save, owned_pool_order_survives_save_and_rejects_invalid_sequences) {
+    reset_entities(); setup_test_world();
+    level.next_unit_seq=(uint64_t)UINT32_MAX+42;
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
+    G_SetUnitPlayer(first,1); G_SetUnitPlayer(first,0);
+    uint64_t order=first->own_seq,next=level.next_unit_seq,peer=second->own_seq;
+    T_ASSERT(order>peer);
+    cstring_t file="/tmp/wc3-owned-pool-order.bin";
+    T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
+    T_EQ(first->own_seq,order); T_EQ(second->own_seq,peer); T_EQ(level.next_unit_seq,next);
+    G_SetUnitPlayer(first,0); T_EQ(first->own_seq,order); T_EQ(level.next_unit_seq,next);
+    edict_t *new=alloc_test_unit(MAKEFOURCC('h','f','o','o'),384,128);
+    T_EQ(new->own_seq,next+1); T_ASSERT(ValidOwnedUnits());
+    new->own_seq=first->own_seq; T_ASSERT(!ValidOwnedUnits()); T_ASSERT(!WriteGame(file));
+    new->own_seq=level.next_unit_seq+1; T_ASSERT(!ValidOwnedUnits()); T_ASSERT(!WriteGame(file));
+    new->own_seq=0; new->svflags|=SVF_MONSTER;
+    T_ASSERT(!ValidOwnedUnits()); T_ASSERT(!WriteGame(file));
+    remove(file); reset_entities(); setup_test_world();
+}
+
+/* The raw curve tail is untrusted even after the outer checksum succeeds.
+ * Reject impossible extents/indices, nonfinite points and truncated payloads
+ * without retaining serialized process addresses or failed allocations. */
+TEST(wc3_save, rejects_invalid_fine_route_payloads) {
+    FOR_LOOP(i,12) {
+        FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
+        edict_t raw={0},restored={0};
+        raw.movement.fine_route=(moveFineRoute_t){.points=(vec2_t *)(uintptr_t)1,.count=1,.mask=2};
+        if (i==0) raw.movement.fine_route.count=BZ_WC3_FINE_NODES+1;
+        if (i==1) raw.movement.fine_route.index=1;
+        if (i>=4 && i<8) {
+            raw.movement.fine_route.adaptive_points=(vec2_t *)(uintptr_t)1;
+            raw.movement.fine_route.adaptive_count=1;
+            if (i==4) raw.movement.fine_route.adaptive_count=BZ_WC3_FINE_NODES+1;
+            if (i==5) raw.movement.fine_route.adaptive_index=1;
+        }
+        if (i>=8) {
+            raw.movement.fine_route.group_points=(vec2_t *)(uintptr_t)1;
+            raw.movement.fine_route.group_count=1;
+            if (i==8) raw.movement.fine_route.group_count=BZ_WC3_FINE_NODES+1;
+            if (i==9) raw.movement.fine_route.group_index=1;
+        }
+        T_ASSERT(SaveBytes(file,&raw,sizeof(raw)));
+        if (i==2) T_ASSERT(SaveBytes(file,&(vec2_t){NAN,0},sizeof(vec2_t)));
+        if (i>=4 && i<8) T_ASSERT(SaveBytes(file,&(vec2_t){1,2},sizeof(vec2_t)));
+        if (i==6) T_ASSERT(SaveBytes(file,&(vec2_t){NAN,0},sizeof(vec2_t)));
+        if (i>=8) T_ASSERT(SaveBytes(file,&(vec2_t){1,2},sizeof(vec2_t)));
+        if (i==10) T_ASSERT(SaveBytes(file,&(vec2_t){NAN,0},sizeof(vec2_t)));
+        rewind(file);
+        T_ASSERT(!ReadEdict(file,&restored));
+        T_ASSERT(!restored.movement.fine_route.points);
+        T_ASSERT(!restored.movement.fine_route.adaptive_points);
+        T_ASSERT(!restored.movement.fine_route.group_points);
+        fclose(file);
+    }
+}
+
+/* A pending fine FIFO and its independent interval clock must survive a real save. */
+TEST(wc3_save, fine_request_fifo_and_interval_continue_after_restore) {
+    reset_entities(); setup_test_world();
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
+    cstring_t file="/tmp/openwarcraft3-fine-request-fifo.bin";
+    level.pathing_counter=2000;
+    level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK+1;
+    level.move_fine_budgets[0].countdown=1;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    T_EQ(level.move_fine_budgets[0].count,2);
+    T_EQ(first->movement.fine_request_time,0);
+    T_ASSERT(WriteGame(file));
+    S_ClearMoveFineRequests();
+    T_ASSERT(ReadGame(file));
+    T_ASSERT(ValidMoveFineRequests());
+    T_EQ(level.pathing_counter,2000); T_EQ(level.move_fine_budgets[0].countdown,1);
+    T_EQ(level.move_fine_budgets[0].work,BZ_WC3_FINE_OWNER_WORK+1);
+    T_EQ(level.move_fine_budgets[0].head,first); T_EQ(level.move_fine_budgets[0].tail,second);
+    T_EQ(first->movement.fine_next,second); T_EQ(second->movement.fine_prev,first);
+    level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
+    T_ASSERT(S_AdmitUnitMoveFineRequest(first));
+    T_EQ(first->movement.fine_request_time,2000);
+    T_ASSERT(WriteGame(file));
+    first->movement.fine_request_time=0; level.pathing_counter=0;
+    T_ASSERT(ReadGame(file));
+    T_EQ(first->movement.fine_request_time,2000); T_EQ(level.pathing_counter,2000);
+    T_EQ(level.move_fine_budgets[0].head,second); T_EQ(level.move_fine_budgets[0].count,1);
+    T_ASSERT(S_AdmitUnitMoveFineRequest(second));
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    level.pathing_counter=2009; T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    level.pathing_counter=2010; T_ASSERT(S_AdmitUnitMoveFineRequest(first));
+    T_EQ(first->movement.fine_request_time,2010);
+    level.pathing_counter=5; T_ASSERT(S_AdmitUnitMoveFineRequest(first));
+    T_EQ(first->movement.fine_request_time,5);
+    T_ASSERT(ValidMoveFineRequests());
+    remove(file); reset_entities(); setup_test_world();
+}
+
+TEST(wc3_save, rejects_invalid_fine_request_graphs) {
+    reset_entities(); setup_test_world();
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
+    level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK+1;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first)); T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
+    typeof(level.move_fine_budgets[0]) original=level.move_fine_budgets[0];
+    FOR_LOOP(i,12) {
+        level.move_fine_budgets[0]=original;
+        first->movement.fine_prev=NULL; first->movement.fine_next=second; first->movement.fine_queued=true;
+        second->movement.fine_prev=first; second->movement.fine_next=NULL; second->movement.fine_queued=true;
+        if (i==0) level.move_fine_budgets[0].count=1;
+        if (i==1) level.move_fine_budgets[0].tail=first;
+        if (i==2) level.move_fine_budgets[0].head=(edict_t *)(uintptr_t)1;
+        if (i==3) first->movement.fine_next=(edict_t *)(uintptr_t)1;
+        if (i==4) second->movement.fine_prev=NULL;
+        if (i==5) second->movement.fine_next=first;
+        if (i==6) first->movement.fine_next=NULL;
+        if (i==7) second->movement.fine_queued=false;
+        if (i==8) *(uint8_t *)&second->movement.fine_queued=2;
+        if (i==9) level.move_fine_budgets[0].countdown=2;
+        if (i==10) level.move_fine_budgets[0].count=globals.num_edicts+1;
+        if (i==11) second->inuse=false;
+        T_ASSERT(!ValidMoveFineRequests());
+        T_ASSERT(!WriteGame("/tmp/openwarcraft3-invalid-fine-request.bin"));
+        second->inuse=true;
+    }
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+TEST(wc3_save, rejects_invalid_shared_move_payloads) {
+    reset_entities(); setup_test_world(); S_ClearMoveGroups();
+    uint64_t old_id=level.next_move_shared_id; level.next_move_shared_id=7;
+    FOR_LOOP(i,13) {
+        FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
+        uint32_t count=i==0 ? MAX_SAVE_GROUP_HANDLES+1 : i==10 ? 2 : 1;
+        moveShared_t raw={.id=7,.inuse=true,.speed=150,.next_speed=270,.radius=63};
+        if(i==1)raw.id=0;
+        if(i==2)raw.id=8;
+        if(i==3)raw.inuse=false;
+        if(i==4)raw.speed=NAN;
+        if(i==5)raw.speed=-1;
+        if(i==6)raw.next_speed=INFINITY;
+        if(i==7)raw.next_speed=-1;
+        if(i==8)raw.radius=NAN;
+        if(i==9)raw.radius=-1;
+        if(i==12)*(uint8_t *)&raw.inuse=2;
+        T_ASSERT(SaveBytes(file,&count,sizeof(count)));
+        if(i!=11)T_ASSERT(WriteMappedFields(file,move_shared_fields,(uint8_t *)&raw));
+        if(i==10)T_ASSERT(WriteMappedFields(file,move_shared_fields,(uint8_t *)&raw));
+        rewind(file); T_ASSERT(!ReadMoveShared(file));
+        T_NULL(level.move_shared); T_EQ(ARRAY_COUNT(level.move_shared),0); T_EQ(level.move_shared_capacity,0);
+        fclose(file);
+    }
+    FILE *file=tmpfile(); T_NOT_NULL(file);
+    if(file) {
+        uint32_t count=1;
+        moveShared_t raw={.id=7,.references=1,.inuse=true,.speed=FLT_MAX,.next_speed=150,.radius=31};
+        T_ASSERT(SaveBytes(file,&count,sizeof(count)));
+        T_ASSERT(WriteMappedFields(file,move_shared_fields,(uint8_t *)&raw));
+        rewind(file); T_ASSERT(ReadMoveShared(file));
+        /* The record is readable, but an orphan reference must reject the
+         * completed registry. Zero references await the next owner prepass. */
+        T_ASSERT(!S_ValidateMoveShared()); T_ASSERT(!WriteMoveShared(file));
+        level.move_shared[0].references=0; T_ASSERT(S_ValidateMoveShared());
+        rewind(file); T_ASSERT(WriteMoveShared(file));
+        S_ClearMoveGroups(); rewind(file); T_ASSERT(ReadMoveShared(file));
+        T_ASSERT(S_ValidateMoveShared()); T_EQ(level.move_shared[0].id,7);
+        T_EQ(level.move_shared[0].speed,FLT_MAX); T_EQ(level.move_shared[0].next_speed,150);
+        T_EQ(level.move_shared[0].radius,31); fclose(file);
+    }
+    S_ClearMoveGroups(); level.next_move_shared_id=old_id;
+    reset_entities(); setup_test_world();
+}
+
+/* Current mapped group records reject bad ownership, generations and curve
+ * tails even when their outer container can be read successfully. */
+TEST(wc3_save, rejects_invalid_physical_group_payloads) {
+    reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','p','e','a'),256,128);
+    vec2_t point={512,512};
+    groupPointOrder_t request={.units={{first,first->spawn_time},{second,second->spawn_time}},
+        .count=2,.order="move",.order_id=G_OrderId("move"),.point=&point};
+    T_ASSERT(G_IssueGroupPointOrder(&request)); T_EQ(ARRAY_COUNT(level.move_groups),1);
+    moveGroup_t original=*level.move_groups[0];
+    S_ClearMoveGroups();
+    FOR_LOOP(i,22) {
+        FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
+        moveGroup_t raw=original; uint32_t count=i==0 ? globals.num_edicts+1 : i==13 ? 2 : 1;
+        raw.route.points=raw.route.adaptive_points=raw.route.group_points=(vec2_t *)(uintptr_t)1;
+        if (i==1) raw.count=0;
+        if (i==2) raw.members[0].spawn++;
+        if (i==3) raw.members[0].unit=NULL;
+        if (i==4) raw.members[1]=raw.members[0];
+        if (i==5) raw.id++;
+        if (i==6) raw.goal.x=NAN;
+        if (i==14) raw.sequence=0;
+        if (i==15) raw.sequence=level.next_move_group_sequence+1;
+        if (i==16) raw.members[0].arrival_range=NAN;
+        if (i==17) raw.members[0].arrival_range=-1;
+        if (i==18) raw.target_refresh=16;
+        if (i==19) raw.flags|=0x1000;
+        if (i==20) raw.shared_id=1;
+        if (i==21) raw.cooldown=67;
+        if (i>=7 && i<13) { raw.route.group_count=1; raw.route.group_index=0; }
+        if (i==7) raw.route.group_count=BZ_WC3_FINE_NODES+1;
+        if (i==8) raw.route.group_index=1;
+        T_ASSERT(SaveBytes(file,&count,sizeof(count)));
+        T_ASSERT(WriteMappedFields(file,move_group_fields,(uint8_t *)&raw));
+        if (i==9) T_ASSERT(SaveBytes(file,&(vec2_t){NAN,0},sizeof(vec2_t)));
+        if (i==11 || i==12) {
+            /* The counted member payload has one extent and stable indices. */
+            field_t prefix[sizeof(move_group_fields)/sizeof(*move_group_fields)];
+            memcpy(prefix,move_group_fields,sizeof(prefix));
+            FOR_LOOP(f,sizeof(prefix)/sizeof(*prefix)) if (prefix[f].name && !strcmp(prefix[f].name,"members")) {
+                prefix[f].name=NULL; break;
+            }
+            FILE *head=tmpfile(); T_NOT_NULL(head);
+            if (head) {
+                T_ASSERT(WriteMappedFields(head,prefix,(uint8_t *)&raw));
+                long offset=sizeof(count)+ftell(head)+(i==11 ? sizeof(raw.count) : 0);
+                fclose(head); T_EQ(fseek(file,offset,SEEK_SET),0);
+                int index=i==11 ? (int)globals.max_edicts : BZ_WC3_GROUP_ORDER_UNITS+1;
+                T_ASSERT(SaveBytes(file,&index,sizeof(index)));
+            }
+        }
+        if (i==13) T_ASSERT(WriteMappedFields(file,move_group_fields,(uint8_t *)&raw));
+        rewind(file); T_ASSERT(!ReadMoveGroups(file));
+        T_NULL(level.move_groups); T_EQ(ARRAY_COUNT(level.move_groups),0); T_EQ(level.move_group_capacity,0);
+        fclose(file);
+    }
+    moveGroup_t follow=original;
+    follow.count=1; follow.target=second; follow.target_spawn=second->spawn_time;
+    follow.target_refresh=16; follow.flags|=0x1000;
+    first->movement.follow_target=first->goalentity=second;
+    T_ASSERT(ValidMoveGroup(&follow));
+    FOR_LOOP(i,5) {
+        moveGroup_t invalid=follow;
+        if(i==0)invalid.target_spawn++;
+        if(i==1)invalid.target_refresh=-1;
+        if(i==2)invalid.target_refresh=298;
+        if(i==3)invalid.flags&=~0x1000u;
+        if(i==4)first->movement.follow_target=NULL;
+        T_ASSERT(!ValidMoveGroup(&invalid));
+    }
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_save, rejects_previous_combat_cargo_format_before_restoring_world) {
     cstring_t filename = "/tmp/openwarcraft3-save-current-format.bin";
     cstring_t old_filename = "/tmp/openwarcraft3-save-previous-combat-cargo-format.bin";
@@ -2352,8 +3111,34 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-61.bin",
         "/tmp/openwarcraft3-wc3-save-version-62.bin",
         "/tmp/openwarcraft3-wc3-save-version-63.bin",
+        "/tmp/openwarcraft3-wc3-save-version-64.bin",
+        "/tmp/openwarcraft3-wc3-save-version-65.bin",
+        "/tmp/openwarcraft3-wc3-save-version-66.bin",
+        "/tmp/openwarcraft3-wc3-save-version-67.bin",
+        "/tmp/openwarcraft3-wc3-save-version-68.bin",
+        "/tmp/openwarcraft3-wc3-save-version-69.bin",
+        "/tmp/openwarcraft3-wc3-save-version-70.bin",
+        "/tmp/openwarcraft3-wc3-save-version-71.bin",
+        "/tmp/openwarcraft3-wc3-save-version-72.bin",
+        "/tmp/openwarcraft3-wc3-save-version-73.bin",
+        "/tmp/openwarcraft3-wc3-save-version-74.bin",
+        "/tmp/openwarcraft3-wc3-save-version-75.bin",
+        "/tmp/openwarcraft3-wc3-save-version-76.bin",
+        "/tmp/openwarcraft3-wc3-save-version-77.bin",
+        "/tmp/openwarcraft3-wc3-save-version-78.bin",
+        "/tmp/openwarcraft3-wc3-save-version-79.bin",
+        "/tmp/openwarcraft3-wc3-save-version-80.bin",
+        "/tmp/openwarcraft3-wc3-save-version-81.bin",
+        "/tmp/openwarcraft3-wc3-save-version-82.bin",
+        "/tmp/openwarcraft3-wc3-save-version-83.bin",
+        "/tmp/openwarcraft3-wc3-save-version-84.bin",
+        "/tmp/openwarcraft3-wc3-save-version-85.bin",
+        "/tmp/openwarcraft3-wc3-save-version-86.bin",
+        "/tmp/openwarcraft3-wc3-save-version-87.bin",
+        "/tmp/openwarcraft3-wc3-save-version-88.bin",
+        "/tmp/openwarcraft3-wc3-save-version-89.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89 };
 
     reset_entities();
     setup_test_world();
@@ -2487,6 +3272,57 @@ TEST(wc3_save, rejects_mismatched_entity_layout) {
 #endif
 
 #ifdef BZ_TESTS
+/* All ordinary player rows retain their own work, FIFO order and interval clock. */
+TEST(wc3_save, fine_player_rows_continue_independently_after_restore) {
+    reset_entities(); setup_test_world();
+    edict_t *units[MAX_PLAYERS][2];
+    cstring_t file="/tmp/openwarcraft3-fine-player-rows.bin";
+    level.pathing_counter=2000;
+    FOR_LOOP(i,MAX_PLAYERS) {
+        moveFineBudget_t *budget=level.move_fine_budgets+i;
+        budget->work=BZ_WC3_FINE_OWNER_WORK+1+i; budget->countdown=i%2;
+        FOR_LOOP(k,2) {
+            units[i][k]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128+64*i,128+64*k);
+            units[i][k]->s.player=i;
+            T_ASSERT(!S_AdmitUnitMoveFineRequest(units[i][k]));
+        }
+    }
+    T_ASSERT(ValidMoveFineRequests()); T_ASSERT(WriteGame(file));
+    S_ClearMoveFineRequests(); T_ASSERT(ReadGame(file)); T_ASSERT(ValidMoveFineRequests());
+    FOR_LOOP(i,MAX_PLAYERS) {
+        moveFineBudget_t *budget=level.move_fine_budgets+i;
+        T_EQ(budget->work,BZ_WC3_FINE_OWNER_WORK+1+i); T_EQ(budget->countdown,i%2);
+        T_EQ(budget->head,units[i][0]); T_EQ(budget->tail,units[i][1]); T_EQ(budget->count,2);
+        T_EQ(units[i][0]->movement.fine_class,i);
+        budget->work=BZ_WC3_FINE_OWNER_WORK;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(units[i][1]));
+        T_ASSERT(S_AdmitUnitMoveFineRequest(units[i][0]));
+        T_EQ(units[i][0]->movement.fine_request_time,2000);
+        T_ASSERT(S_AdmitUnitMoveFineRequest(units[i][1]));
+        T_EQ(budget->count,0);
+    }
+    T_ASSERT(ValidMoveFineRequests()); remove(file); reset_entities(); setup_test_world();
+}
+
+TEST(wc3_save, rejects_fine_queues_in_wrong_player_rows) {
+    reset_entities(); setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK+1;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(unit));
+    moveFineBudget_t original=level.move_fine_budgets[0];
+    FOR_LOOP(i,4) {
+        unit->s.player=unit->movement.fine_class=0;
+        level.move_fine_budgets[0]=original; level.move_fine_budgets[1]=(moveFineBudget_t){0};
+        if (i==0) unit->movement.fine_class=1;
+        if (i==1) unit->s.player=1;
+        if (i==2) level.move_fine_budgets[1]=original;
+        if (i==3) unit->movement.fine_class=MAX_PLAYERS;
+        T_ASSERT(!ValidMoveFineRequests());
+        T_ASSERT(!WriteGame("/tmp/openwarcraft3-invalid-fine-player.bin"));
+    }
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
 TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     cstring_t const filename = "/tmp/openwarcraft3-wc3-pools.bin";
     reset_entities();

@@ -186,6 +186,8 @@ BZ_ABILITY_PROC(CAbilityItemHeal);
 BZ_ABILITY_PROC(CAbilityItemManaRestore);
 BZ_ABILITY_PROC(CAbilityItemInvis);
 BZ_ABILITY_PROC(CAbilityAttackBonus);
+BZ_ABILITY_PROC(CAbilityMoveSpeedBonus);
+float S_MoveSpeedBonus(edict_t *unit);
 BZ_ABILITY_PROC(CAbilityAttributeBonus);
 BZ_ABILITY_PROC(CAbilityStrengthMod);
 BZ_ABILITY_PROC(CAbilityDefenseBonus);

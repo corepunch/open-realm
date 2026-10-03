@@ -14,6 +14,8 @@ typedef void (*cmLoadYield_t)(void);
  * need another movement class pass the appropriate blocked bit explicitly. */
 #define CM_PATHING_UNWALKABLE 0x02
 #define CM_PATHING_UNFLYABLE  0x04
+#define CM_PATHING_UNFLOATABLE 0x40
+#define CM_PATHING_UNAMPHIBIOUS 0x80
 
 typedef struct {
     vec2_t const *from, *target;

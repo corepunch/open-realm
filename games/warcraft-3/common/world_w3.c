@@ -1,5 +1,6 @@
 #include "common/common.h"
 #include "games/warcraft-3/common/terrain.h"
+#include "games/warcraft-3/common/wc3_pathing_masks.h"
 #include "common/ui_constants.h"
 #include <float.h>
 #include <math.h>
@@ -488,6 +489,7 @@ void CM_ReadPathMap(handle_t archive) {
     cells = MemAlloc(width * height);
     SFileReadFile(file, cells, width * height, 0, 0);
     SFileCloseFile(file);
+    FOR_LOOP(i, width * height) cells[i] = wc3_wpm_movement_flags(cells[i]);
     CM_SetupPathMap(width, height, cells);
     MemFree(cells);
 }

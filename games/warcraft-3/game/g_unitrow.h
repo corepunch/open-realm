@@ -428,7 +428,7 @@ typedef struct {
     bool    useClickHelper;
     bool    showInMM;
     bool    useMMColor;
-    bool    fixedRot;
+    float   fixedRot;                /* degrees; negative retains caller facing */
     bool    selectable;              /* TFT-only                           */
     int32_t    MMRed, MMGreen, MMBlue;
     int32_t    buildTime;               /* TFT-only                           */

@@ -188,6 +188,7 @@ bool unit_affectingcombat(edict_t *self) {
 }
 
 static void unit_prepare_stand(edict_t *self) {
+    self->current_order_id = 0;
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
     self->s.ability = 255;
@@ -340,6 +341,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * death, but retire the reversible morph contract immediately. */
     G_FreePolymorph(self);
     G_ClearUnitOrderQueue(self);
+    self->current_order_id = 0;
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);
     /* Marks belong to their applying abilities, even when another unit lands the killing blow. */
@@ -645,8 +647,12 @@ void G_PublishIssuedPointOrder(edict_t *self, uint32_t order_id, vec2_t const *p
                 (cstring_t)&self->class_id, debug_order ? debug_order : "",
                 (unsigned)order_id, point->x, point->y);
     }
-    G_PublishEvent(self, EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER);
-    G_PublishEvent(self, EVENT_UNIT_ISSUED_POINT_ORDER);
+    G_PublishEventWithPoint(&(gameEventPointParams_t){
+        .edict = self, .type = EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,
+        .value = order_id, .point = point });
+    G_PublishEventWithPoint(&(gameEventPointParams_t){
+        .edict = self, .type = EVENT_UNIT_ISSUED_POINT_ORDER,
+        .value = order_id, .point = point });
 }
 
 void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
@@ -654,8 +660,8 @@ void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
     if (!self || self->s.number >= MAX_ENTITIES) return;
     issued_order_ids[self->s.number] = order_id;
     issued_order_point_valid[self->s.number] = false;
-    G_PublishEvent(self, EVENT_PLAYER_UNIT_ISSUED_ORDER);
-    G_PublishEvent(self, EVENT_UNIT_ISSUED_ORDER);
+    G_PublishEventWithValue(self, EVENT_PLAYER_UNIT_ISSUED_ORDER, NULL, order_id);
+    G_PublishEventWithValue(self, EVENT_UNIT_ISSUED_ORDER, NULL, order_id);
 }
 
 static void unit_publish_target_order(edict_t *self, cstring_t order,
@@ -673,8 +679,8 @@ static void unit_publish_target_order(edict_t *self, cstring_t order,
                 (unsigned)order_id, target ? (unsigned)target->s.number : 0u,
                 target ? (cstring_t)&target->class_id : "----");
     }
-    G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, target);
-    G_PublishEventWithSource(self, EVENT_UNIT_ISSUED_TARGET_ORDER, target);
+    G_PublishEventWithValue(self, EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, target, order_id);
+    G_PublishEventWithValue(self, EVENT_UNIT_ISSUED_TARGET_ORDER, target, order_id);
 }
 
 bool G_UnitHasActiveOrder(edict_t const *self) {
@@ -801,14 +807,12 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
             return true;
         }
         if ((target->svflags & SVF_MONSTER) && unit_smart_target_is_followable(self, target)) {
-            order_follow(self, target);
-            return self->movement.follow_target == target;
+            return S_IssueFollowOrder(self, target, G_OrderId(order));
         }
         return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f);
     }
     if (!strcmp(order, "move") && (target->svflags & SVF_MONSTER)) {
-        order_follow(self, target);
-        return self->movement.follow_target == target;
+        return S_IssueFollowOrder(self, target, G_OrderId(order));
     }
     if (!strcmp(order, "attack")) {
         if (S_UnitPolymorphed(self)) return false;
@@ -843,24 +847,28 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     if (self->aiflags & AI_IMMOBILE) return false;
     if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) return false;
 
-    target = *point;
-    CM_ClosestPathablePointForRadiusFlags(point, self->collision, M_UnitStaticPathingFlags(self), &target);
-    waypoint = Waypoint_add(&target);
-    if (!waypoint) return false;
-    if (!strcmp(order, "patrol")) {
-        order_patrol(self, waypoint);
-        return true;
-    }
-    self->movement.holding_position = false;
     if (!strcmp(order, "smart") || !strcmp(order, "move")) {
-        order_move(self, waypoint);
+        /* A point Move retains the public click. Its owning path/formation
+         * code admits intermediate and adjusted destinations; correcting the
+         * user head here erases retail's blocked-goal retry lifetime. */
+        waypoint = Waypoint_add(point);
+        if (!waypoint) return false;
+        self->movement.holding_position = false;
+        S_IssueMoveOrder(self, waypoint, G_OrderId(order));
         self->movement.group_speed = group_speed;
         return true;
     }
+    target = *point;
+    pathAccelParams_t query = { point, NULL, self->collision, M_UnitStaticPathingFlags(self) };
+    G_ClosestMovePathPoint(&query, &target);
+    waypoint = Waypoint_add(&target);
+    if (!waypoint) return false;
+    self->movement.holding_position = false;
     if (!strcmp(order, "attack")) {
         order_attackmove(self, waypoint);
         return true;
     }
+    if (!strcmp(order, "patrol")) return S_IssuePatrolOrder(self, waypoint, G_OrderId(order));
     return false;
 }
 
@@ -962,8 +970,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         }
     }
     if ((self->aiflags & AI_IMMOBILE) && strcmp(order, "attackground")) return false;
-    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
-        strcmp(order, "patrol") &&
+    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") && strcmp(order, "patrol") &&
         strcmp(order, "attackground")) return false;
 
     if (queue && G_UnitHasActiveOrder(self)) {
@@ -992,6 +999,13 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
 
     if (!self || M_IsDead(self) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
+        if (queued.owner_context) {
+            if (S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START)) {
+                S_UnitAbilityOrderAccepted(self,queued.order);
+                return true;
+            }
+            continue;
+        }
         if (queued.target_type == UNIT_ORDER_TARGET_POINT) {
             if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed)) {
                 S_UnitAbilityOrderAccepted(self, queued.order);
@@ -1001,7 +1015,7 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
             edict_t *target;
             if (queued.target_number >= globals.num_edicts) continue;
             target = globals.edicts + queued.target_number;
-            if (!target->inuse || target->spawn_time != queued.target_spawn_time) continue;
+            if (!target->inuse || G_IsDeferredFree(target) || target->spawn_time != queued.target_spawn_time) continue;
             if (unit_issuetargetorder_now(self, queued.order, target)) {
                 S_UnitAbilityOrderAccepted(self, queued.order);
                 return true;
@@ -1032,6 +1046,28 @@ bool unit_issueorder(edict_t *self, cstring_t order, vec2_t const *point) {
                                  self ? self->s.player : 0, 0.0f);
 }
 
+/* Give the registered order owner the retained batch before ordinary per-unit
+ * admission. Unhandled orders keep the same spell/build/point dispatch. */
+bool G_IssueGroupPointOrder(groupPointOrder_t const *request) {
+    if (!request || !request->point || request->count>BZ_WC3_GROUP_ORDER_UNITS) return false;
+    ability_t const *owner=FindAbilityByOrder(request->order);
+    if (owner) {
+        abilityitem_t item={.code=FS_SLKKey(owner->classname),.ability=owner};
+        abilityCall_t call={.item=&item,.group_order=request};
+        intptr_t result=S_AbilityMessage(NULL,A_GROUP_POINT_ORDER,&call);
+        if (result!=ABILITY_ORDER_UNHANDLED) return result==ABILITY_ORDER_ACCEPTED;
+    }
+    bool any=false;
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=request->units[i].unit;
+        if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) continue;
+        if (G_UnitIsBuilding(request->order_id)) {
+            if (G_IssueBuildOrder(unit,request->order_id,request->point)) any=true;
+        } else if (unit_issueorder(unit,request->order,request->point)) any=true;
+    }
+    return any;
+}
+
 /* Rebind an existing edict to another WC3 unit type while retaining its
  * authoritative identity and runtime ownership.  Transformation abilities
  * use this instead of CreateUnit/RemoveUnit so JASS handles, selection, and
@@ -1049,6 +1085,7 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     /* Keep pathing/lifecycle ownership coherent: morphs may stay within the
      * mobile-unit family or within the building family, but never cross it. */
     if (source_building != target_building) return false;
+    S_UnitAbilityEvent(unit, A_UNIT_TYPE_CHANGING);
     health_ratio = unit->health.max_value > 0.0f ? unit->health.value / unit->health.max_value : 1.0f;
     mana_ratio = unit->mana.max_value > 0.0f ? unit->mana.value / unit->mana.max_value : 0.0f;
     temporary_armor = unit->temporary_armor_bonus;
@@ -1093,6 +1130,7 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     G_InvalidateUnitInfoPanel(unit);
     G_InvalidateUnitPortrait(unit);
     G_InvalidateUnitShortcutsForUnit(unit);
+    S_UnitAbilityEvent(unit, A_UNIT_TYPE_CHANGED);
     return true;
 }
 
@@ -1176,22 +1214,15 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     if (!unit) {
         return NULL;
     }
-    /* Warsmash CreateUnit delegates to createUnitSimple, which checks the
-     * spawned unit against static pathing and nudges it to a legal point. */
-    vec2_t position;
-    if (G_FindUnitUnstuckPosition(unit, location, &position)) {
-        unit->s.origin2 = position;
-        unit->s.origin.x = position.x;
-        unit->s.origin.y = position.y;
-        M_CheckGround(unit);
-        gi.LinkEntity(unit);
-    } else fprintf(stderr, "WC3 CreateUnit: no legal spawn point for %c%c%c%c player %u at (%.1f, %.1f); retaining requested position\n",
-                   unitid & 255, (unitid >> 8) & 255, (unitid >> 16) & 255, (unitid >> 24) & 255,
-                   player, location->x, location->y);
+    /* Retail public creation uses Move's32-ring admission and initial scalar
+     * commit; the former64-unit circle spiral chose different destinations. */
+    S_InitUnitPosition(unit,location);
     if (unit->stand) {
         unit->stand(unit);
     }
-    unit->s.angle = facing * M_PI / 180;
+    /* Public1fc930 multiplies by cd5444 with software truncation; host radians
+     * leave the first group-request heading one word apart from retail. */
+    unit->s.angle = wc3_mul(facing,wc3_float(0x3c8efa35));
     G_ActivateUnitFood(unit);
     G_BotUnitReady(unit);
     return unit;

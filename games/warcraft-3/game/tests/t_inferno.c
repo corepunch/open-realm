@@ -129,6 +129,10 @@ TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
     bool accepted, saved;
 
     inferno_setup(&fix, code);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=level.pathing_phase=0; level.pathing_due=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
     caster_slot = (uint32_t)(fix.caster - g_edicts);
     fix.caster->think = monster_think; fix.caster->movetype = MOVETYPE_STEP;
     fix.caster->collision = 16.0f; fix.caster->unitinfo.MoveSpeed = 300.0f;
@@ -162,7 +166,7 @@ TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
 
         for (frame = 0; frame < 200 && approach->inuse; frame++) {
             level.time += FRAMETIME;
-            G_RunEntities();
+            globals.RunFrame();
         }
         T_ASSERT(frame < 200);
         T_ASSERT(!approach->inuse);
@@ -173,6 +177,7 @@ TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
     }
 
 cleanup_point_spell_approach:
+    level.started=false;
     remove(path);
     inferno_done(fix);
 }

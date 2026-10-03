@@ -263,3 +263,22 @@ and model cleanup with intercepted GL buffer/VAO calls in `tests/test_renderer_m
 The SPN fixture loads a real model through `R_LoadModelMDLX`; compiling the loader/buffer sources
 separately bypasses those intercepts and crashes in macOS `glGenBuffers` without a current context.
 Keep their test compilation inside the intercepted translation unit; production builds remain unchanged.
+
+
+## Headless SDL input regression runtime
+
+On Linux, `sdl2-compat`2.32.72 over SDL3 crashes when the input fixture pushes
+an SDL2 `SDL_TEXTINPUT` event. A standalone events-only reproducer and GDB show
+the compatibility converter returning null, followed by the SDL3 event call.
+The [upstream converter](https://github.com/libsdl-org/sdl2-compat/blob/main/src/sdl2_compat.c)
+explicitly rejects text events in this direction. Initializing video does not
+fix the reproduction. Native SDL2.32.10 accepts the same event and the unchanged
+menu input regression passes28 assertions.
+
+For this environment, the installed Steam native SDL2 runtime is copied alone
+into `/GitHub/wc3-analysis/native-sdl2`; its SONAME link is
+`libSDL2-2.0.so.0`. Running `LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 make test`
+uses that native ABI for headless input coverage. Keep the fixture's queue and
+text assertions intact; do not remove text coverage or alter gameplay input to
+accommodate the compatibility library. This is a validation runtime selection,
+not a project-owned replacement library or a required production deployment.

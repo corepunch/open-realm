@@ -434,10 +434,11 @@ static void G_ApplyTechLevelToOwnedUnits(gameClient_t *client, uint32_t techid,
 
     if (!client || !techid || old_level == new_level) return;
     upgrade = G_UpgradeData(techid);
-    if (!upgrade || upgrade->id != techid) return;
     player = client->ps.number;
     FILTER_EDICTS(unit, unit->inuse && unit->s.player == player && unit->data.UnitBalance) {
-        G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
+        if (upgrade && upgrade->id == techid)
+            G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
+        S_UnitAbilityEvent(unit, A_REQUIREMENTS_CHANGED);
     }
 }
 
@@ -810,6 +811,14 @@ static bool G_RequirementsListSatisfied(gameClient_t *client, uint32_t type_id, 
     }
 
     return true;
+}
+
+bool G_AbilityRequirementsSatisfied(edict_t const *unit, uint32_t code) {
+    cstring_t requirements = G_AbilityRequirementField(code, false);
+    if (!requirements || !*requirements || !strcmp(requirements, "_") || !strcmp(requirements, "-")) return true;
+    if (!unit) return false;
+    return G_RequirementsListSatisfied(G_GetPlayerClientByNumber(unit->s.player), code,
+                                      requirements, G_AbilityRequirementField(code, true), NULL, 0);
 }
 
 static bool G_RequirementsSatisfied(gameClient_t *client, uint32_t type_id, string_t reason, uint32_t reason_size) {

@@ -1,0 +1,467 @@
+{
+  "version": 1,
+  "capture_sha256": "c38a7a68a39e6c1cfd07d36608d261810c36a0745a7d9e00a6e6262c7da746df",
+  "observations": [
+    {
+      "event": "metadata",
+      "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "pid": 872,
+      "owned": true,
+      "source_sha256": {
+        "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+        "wc3_pathfinding.js": "48f20c156b5b4e44af613ca6800e9c1b03027939b3fb631499e7fcad3603d58f",
+        "wc3_pathfinding_probe.j": "bdec3692c5c16c074c5870a7a65f0a87c369a0da86841fdad27b9b1511656283",
+        "make_wc3_pathfinding_map.py": "a6ec530c34ec02f5b92bed8cf0baf62b6444a52c175740685cb1fbf1a601821d",
+        "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+        "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+        "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+        "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+        "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+        "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+        "map": "1983ddf4cc28a1c4a71ad2af61a484304ab1d6fafbc128ba579d09a64799c0b9"
+      },
+      "map": "Maps\\PathingRE-Profiles-260930.w3m",
+      "seconds": 75.0,
+      "frida": "17.18.0",
+      "timestamp": 1481263518,
+      "imageSize": 15130624,
+      "samples": 4000,
+      "watchCell": null,
+      "blockers": false,
+      "taskEvents": false,
+      "widgetEvents": false,
+      "motionEvents": false,
+      "velocityEvents": false,
+      "headingEvents": false,
+      "profileEvents": true,
+      "numericEvents": false,
+      "literalTexts": [],
+      "integerTexts": [],
+      "byteEvents": false
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036857,
+      "kind": "query-mask",
+      "rawcode": 1751543663,
+      "value": 2
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036857,
+      "kind": "category",
+      "rawcode": 1751543663,
+      "value": 202
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036857,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1109,
+        1109
+      ],
+      "mover": "0x12d40098",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036867,
+      "kind": "query-mask",
+      "rawcode": 1751543663,
+      "value": 2
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036867,
+      "kind": "category",
+      "rawcode": 1751543663,
+      "value": 202
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036867,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1109,
+        1109
+      ],
+      "mover": "0x12d40098",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036869,
+      "kind": "query-mask",
+      "rawcode": 1751871081,
+      "value": 2
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036869,
+      "kind": "category",
+      "rawcode": 1751871081,
+      "value": 202
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036869,
+      "rawcode": 1751871081,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1127,
+        1127
+      ],
+      "mover": "0x12d40178",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036884,
+      "kind": "query-mask",
+      "rawcode": 1751871081,
+      "value": 2
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036884,
+      "kind": "category",
+      "rawcode": 1751871081,
+      "value": 202
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036885,
+      "rawcode": 1751871081,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1127,
+        1127
+      ],
+      "mover": "0x12d40178",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036885,
+      "kind": "query-mask",
+      "rawcode": 1751609977,
+      "value": 4
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036885,
+      "kind": "category",
+      "rawcode": 1751609977,
+      "value": 0
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036885,
+      "rawcode": 1751609977,
+      "category": 0,
+      "queryMask": 4,
+      "identity": [
+        1144,
+        1144
+      ],
+      "mover": "0x12d40258",
+      "objectCategory": 16777216,
+      "pathMask": 67108868
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036898,
+      "kind": "query-mask",
+      "rawcode": 1751609977,
+      "value": 4
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036898,
+      "kind": "category",
+      "rawcode": 1751609977,
+      "value": 0
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036899,
+      "rawcode": 1751609977,
+      "category": 0,
+      "queryMask": 4,
+      "identity": [
+        1144,
+        1144
+      ],
+      "mover": "0x12d40258",
+      "objectCategory": 16777216,
+      "pathMask": 67108868
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036899,
+      "kind": "query-mask",
+      "rawcode": 1752395634,
+      "value": 2
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036899,
+      "kind": "category",
+      "rawcode": 1752395634,
+      "value": 202
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036900,
+      "rawcode": 1752395634,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1164,
+        1164
+      ],
+      "mover": "0x12d40338",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036907,
+      "kind": "query-mask",
+      "rawcode": 1752395634,
+      "value": 2
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036907,
+      "kind": "category",
+      "rawcode": 1752395634,
+      "value": 202
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036908,
+      "rawcode": 1752395634,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1164,
+        1164
+      ],
+      "mover": "0x12d40338",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036908,
+      "kind": "query-mask",
+      "rawcode": 1751281524,
+      "value": 64
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036908,
+      "kind": "category",
+      "rawcode": 1751281524,
+      "value": 202
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036909,
+      "rawcode": 1751281524,
+      "category": 202,
+      "queryMask": 64,
+      "identity": [
+        1189,
+        1189
+      ],
+      "mover": "0x12d40418",
+      "objectCategory": 16777418,
+      "pathMask": 1073741888
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036927,
+      "kind": "query-mask",
+      "rawcode": 1751281524,
+      "value": 64
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036927,
+      "kind": "category",
+      "rawcode": 1751281524,
+      "value": 202
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036927,
+      "rawcode": 1751281524,
+      "category": 202,
+      "queryMask": 64,
+      "identity": [
+        1189,
+        1189
+      ],
+      "mover": "0x12d40418",
+      "objectCategory": 16777418,
+      "pathMask": 1073741888
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036927,
+      "kind": "query-mask",
+      "rawcode": 1970302055,
+      "value": 128
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036927,
+      "kind": "category",
+      "rawcode": 1970302055,
+      "value": 202
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036927,
+      "rawcode": 1970302055,
+      "category": 202,
+      "queryMask": 128,
+      "identity": [
+        1209,
+        1209
+      ],
+      "mover": "0x12d404f8",
+      "objectCategory": 16777418,
+      "pathMask": 2147483776
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036929,
+      "kind": "query-mask",
+      "rawcode": 1970302055,
+      "value": 128
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036929,
+      "kind": "category",
+      "rawcode": 1970302055,
+      "value": 202
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036929,
+      "rawcode": 1970302055,
+      "category": 202,
+      "queryMask": 128,
+      "identity": [
+        1209,
+        1209
+      ],
+      "mover": "0x12d404f8",
+      "objectCategory": 16777418,
+      "pathMask": 2147483776
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036930,
+      "kind": "query-mask",
+      "rawcode": 1751215220,
+      "value": 0
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036930,
+      "kind": "category",
+      "rawcode": 1751215220,
+      "value": 0
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036930,
+      "rawcode": 1751215220,
+      "category": 0,
+      "queryMask": 0,
+      "identity": [
+        1224,
+        1224
+      ],
+      "mover": "0x12d405d8",
+      "objectCategory": 16777216,
+      "pathMask": 0
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036943,
+      "kind": "query-mask",
+      "rawcode": 1751215220,
+      "value": 0
+    },
+    {
+      "event": "movement-profile",
+      "ms": 1790795036943,
+      "kind": "category",
+      "rawcode": 1751215220,
+      "value": 0
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790795036943,
+      "rawcode": 1751215220,
+      "category": 0,
+      "queryMask": 0,
+      "identity": [
+        1224,
+        1224
+      ],
+      "mover": "0x12d405d8",
+      "objectCategory": 16777216,
+      "pathMask": 0
+    },
+    {
+      "event": "trace-end",
+      "installed": true,
+      "samples": 3,
+      "counts": {
+        "maps-create": 1,
+        "hierarchy-update": 4,
+        "base-rebuild": 4,
+        "parent-rebuild": 12,
+        "path-destination": 14,
+        "profile-query-mask": 14,
+        "profile-category": 14,
+        "movement-mask-publication": 14,
+        "scheduler-class": 8,
+        "separation-update": 1496,
+        "separation-state": 2,
+        "spatial-clean-dirty": 896,
+        "mover-stop": 5,
+        "group-target": 1,
+        "replan-check": 365,
+        "scheduler-target": 183,
+        "acc-request": 2,
+        "scheduler-admission": 3,
+        "acc-search": 2,
+        "arrival-test": 183,
+        "fine-request": 1,
+        "fine-search": 1,
+        "target-refresh-update": 183,
+        "group-completion-test": 183,
+        "group-completion": 2
+      }
+    }
+  ]
+}

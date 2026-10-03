@@ -754,7 +754,8 @@ static wow_target_t *get_wow_target(wow_target_t *targets, size_t *count, char c
 
     wow_target_t *target = &targets[(*count)++];
     memset(target, 0, sizeof(*target));
-    strncpy(target->container, container, sizeof(target->container) - 1);
+    snprintf(target->container, sizeof(target->container), "%.*s",
+             (int)sizeof(target->container) - 1, container);
     output_path_for_container(target->path, sizeof(target->path), out_dir, container);
     if (ensure_parent_dir(target->path) != 0) {
         fprintf(stderr, "Cannot create output directory for %s\n", target->path);
@@ -940,8 +941,8 @@ static int    data_archive_count;
 static void data_collect_archive(cstring_t path, void *ud) {
     (void)ud;
     if (data_archive_count >= DATA_MAX_ARCHIVES) return;
-    strncpy(data_archive_paths[data_archive_count], path,
-            sizeof(data_archive_paths[0]) - 1);
+    snprintf(data_archive_paths[data_archive_count], sizeof(data_archive_paths[0]), "%.*s",
+             (int)sizeof(data_archive_paths[0]) - 1, path);
     data_archive_count++;
 }
 
@@ -1178,15 +1179,9 @@ int main(int argc, char **argv) {
             fprintf(stderr, "pack requires <src> <archive-file> pairs\n");
             return 1;
         }
-        {
-            char *pairs[256];
-            int pair_count = 0;
-            pairs[pair_count++] = (char *)arg;
-            for (int i = 0; i < extra_count && pair_count < (int)(sizeof(pairs) / sizeof(pairs[0])); i++) {
-                pairs[pair_count++] = extra[i];
-            }
-            return cmd_pack(mpq, pair_count, pairs);
-        }
+        /* The first source immediately precedes extra in argv. Consume all
+         * pairs: a fixed array silently dropped later fixture archive files. */
+        return cmd_pack(mpq, extra_count + 1, extra - 1);
     }
 
     if (!SFileOpenArchive(mpq, 0, 0, &archive)) {

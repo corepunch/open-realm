@@ -57,6 +57,79 @@ The missing contract was not a trigger-queue or coroutine failure: OpenRealm's c
 
 `wc3_api.build_placement_publishes_point_order_event_context` submits a real accepted build order and verifies that a player-unit point-order callback sees the builder, building rawcode, and accepted X/Y coordinates exactly once.
 
+## Immutable callback ownership
+
+ORDER-01.5 fixes a concrete lifetime error: issued-order getters previously read
+mutable arrays indexed by the unit edict. Submitting Move, then Smart, then
+Stop before draining events made the older point callbacks report Stop and
+lose their points. An action issuing another order also overwrote its own
+callback values. The public-native regression failed before the fix in
+`/tmp/wc3-order-01.5-context-valid-lifecycle-before-fix.log`.
+
+The existing `gameEvent_t.value/point/has_point/source` now owns each accepted
+submission's ID, point and target. Event dispatch copies them into the condition
+and action context. The C historical publishers/getters remain separate;
+JASS issued-event getters use the callback snapshot, never the historical
+arrays. Dequeuing a Shift order still does not publish a second submission.
+
+The recovered retail entries are independently registered from placeholder
+native727800:
+
+| Native | Entry | Authoritative source |
+| --- | --- | --- |
+| `GetUnitCurrentOrder` | `2039d0` | Resolved Unit19c/1a0 live user head; order24 command, or0 |
+| `GetIssuedOrderId` | `2005b0` | Event-held order via201d20/265f90 or200f40;685cd0 reads command24 |
+| `GetOrderPointX/Y` | `201010/201060` | Event-held COrderTarget;685cf0/685d30 read48/50 scalar values |
+| `GetOrderPointLoc` | `200f70` | Same event-held point; original20e630 location construction |
+
+Issued IDs accept player events38/39/40 and unit events75/76/77. Point getters
+accept only39/76. Unrelated events return0 for ID and scalar queries, and a
+null order location; their spell metadata remains available to spell getters.
+The regression for the unrelated location failed before its separate guard in
+`/tmp/wc3-order-01.5-unrelated-location-before-fix.log`.
+
+JASS context now also preserves `eventType`, so the domain guard survives
+suspension. Semantic JASS snapshot version7 saves that discriminator with the
+existing value and point; version6 snapshots are rejected. The network protocol
+were unchanged by the callback fix (outer W3SV56); the subsequent current-head
+field in ORDER-01.4 uses W3SV57. No historical-array fallback is used on
+restore. See [save/load](save-load.md).
+
+Tests cover delayed and reentrant point conditions/actions, target snapshots in
+both event families, immediate Stop snapshots, unrelated spell metadata, and
+both unread events and sleeping actions across save/load. The save fixture
+installs the reserved player edict's client pointer and supplies stock unit
+event constants76/77 in `Scripts/common.j`; a missing player subject or constant
+does not reproduce a valid gameplay registration. Actors supply their normal
+health and stand callbacks because the minimal archive has no actor model.
+
+Ghidra's hash-guarded `MapPathfinding.java` and type schema persist the native
+names, exact register/stack signatures and partial Unit/order/wrapper layouts.
+The saved/read-back artifact is
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/order-01.5-ghidra-order-query-types.json`.
+Evidence is S plus production engine regressions; this leaf does not claim
+the complete original callback producer/subscriber graph. Full `make -j8 test` passed (`/tmp/wc3-order-01.5-full-suite.log`):
+36742/36742 engine assertions across2131 tests in each WC3 schema, alongside
+the tool/shared/game suites. Production WC3 and SC2 builds passed. Rebuilding JASS with `CC='gcc -DDEBUG_JASS'`
+and running both issued-context API and save tests also passed; the normal
+JASS library was then rebuilt. The fresh
+strict corpus is120/120 at
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/order-01.5-issued-context-corpus/corpus-results.json`
+(manifest SHA256 `7ada8e7da79716b18097fbc72d37804a4be03ecef12b6b7367d9a8103e30c1b1`;
+summary SHA256 `9c02b58de22f36882871d5c001853fbd5fc29ede107ce9cea3c2dcfe9a3bbfc4`).
+All recorded sources matched at completion. These retain existing original/live
+corpus expectations; the new callback fix is proved by S and engine tests.
+The ordinary point-Move active
+unit query is independently [ORDER-01.4](retail-pathfinding-todo.md#order-01--arrival-and-failure).
+
+Validation commands:
+
+```sh
+LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test-wc3-engine WC3_PATTERN='wc3_api.issued*'
+LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test-wc3-engine WC3_PATTERN='wc3_save.issued_order_context*'
+LD_LIBRARY_PATH=/tmp/wc3-sdl2-build make -j8 test
+```
+
 ## JASS spell orders
 
 `IssueImmediateOrder`, `IssuePointOrder`, and `IssueTargetOrder` now resolve stock spell order names against abilities actually owned by the caster and dispatch through the existing spell pipeline. The corresponding `Issue*OrderById` natives convert canonical Warcraft order IDs through the same table. Point casts currently require the requested point to be in authored cast range; unit-target casts may use the existing walk-into-range behavior. Toggle/autocast semantics are intentionally not synthesized through one-shot spell casting.

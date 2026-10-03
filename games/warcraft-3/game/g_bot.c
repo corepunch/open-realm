@@ -227,6 +227,7 @@ static bool G_BotIsHostile(player_t *, edict_t *);
 
 static void G_BotClearCaptains(bot_t *bot) {
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
+        S_ReleaseCaptainHomeActor(bot->captains[i].home_actor);
         if (bot->captains[i].units) gi.MemFree(bot->captains[i].units);
         memset(bot->captains + i, 0, sizeof(bot->captains[i]));
     }
@@ -1038,11 +1039,12 @@ void G_BotHarvest(player_t *player, int32_t town_id, int32_t peons, bool gold) {
     }
 }
 
-/* Blizzard AI owns one assault and one defense captain; recreation drops all prior membership and orders. */
+/* Recreation drops logical membership; live physical tasks retain their retired virtual actor. */
 void G_BotCreateCaptains(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
     G_BotClearCaptains(bot);
+    FOR_LOOP(i, BOT_CAPTAIN_COUNT) bot->captains[i].created = level.pathing_clock;
 }
 
 /* Captain members remain in TownCount, so common.ai adds this count when requesting their replacements. */
@@ -1221,14 +1223,16 @@ static bool G_BotCaptainHasUnit(bot_t *bot, edict_t *unit) {
     return false;
 }
 
-/* Script formation retries rebuild only the assault roster; the defense captain remains independent. */
+/* InitAssault requests formation without resetting either captain. */
 void G_BotInitAssault(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     botCaptain_t *captain;
     if (!bot) return;
     captain = bot->captains + BOT_CAPTAIN_ATTACK;
-    if (captain->units) gi.MemFree(captain->units);
-    memset(captain, 0, sizeof(*captain)); captain->state = BOT_CAPTAIN_FORMING;
+    /* Native 9c7b10 only sets the formation flag; it retains the roster,
+     * member count, home and active captain task. */
+    captain->full = true;
+    if (captain->state == BOT_CAPTAIN_IDLE) captain->state = BOT_CAPTAIN_FORMING;
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI assault init player=%u\n", PLAYER_NUM(player));
 #endif
@@ -1237,13 +1241,14 @@ void G_BotInitAssault(player_t *player) {
 static void G_BotCaptainAdd(botCaptain_t *captain, edict_t *unit) {
     uint32_t count = ARRAY_COUNT(captain->units);
     edict_t * *units = gi.MemAlloc((count + 1) * sizeof(*units));
-    if (count) memcpy(units, captain->units, count * sizeof(*units));
+    /* Native9cf680 prepends the retained captain roster link. */
+    if (count) memcpy(units + 1, captain->units, count * sizeof(*units));
     if (captain->units) gi.MemFree(captain->units);
-    captain->units = units; ARRAY_COUNT(captain->units) = count + 1; captain->units[count] = unit;
+    captain->units = units; ARRAY_COUNT(captain->units) = count + 1; captain->units[0] = unit;
 }
 
-/* Persistent defender requests are totals by type: repeated AddDefenders calls reconcile
- * the same desired count instead of consuming additional units. */
+/* Captain requests reconcile totals by type, including retained assault recruits.
+ * Repeated requests do not consume the same demand as additional units. */
 static bool G_BotCaptainFill(player_t *player, botCaptainType_t type, int32_t qty, uint32_t class_id) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     botCaptain_t *captain;
@@ -1252,39 +1257,44 @@ static bool G_BotCaptainFill(player_t *player, botCaptainType_t type, int32_t qt
     captain = bot->captains + type;
     FOR_EACH_ARRAY(edict_t *, unit, captain->units)
         if (G_BotUnitAlive(*unit) && (*unit)->class_id == class_id) have++;
-    FILTER_EDICTS(unit, have < qty && G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
-        unit->class_id == class_id && !unit->construction && !unit->training && !G_BotCaptainHasUnit(bot, unit)) {
+    /* Native9c32d0 walks newest owned insertion first. Reverse edict order
+     * incorrectly selects the peer after owner round-trip or low-slot reuse. */
+    while (have<qty) {
+        edict_t *unit=NULL;
+        FILTER_EDICTS(cur,G_BotUnitAlive(cur) && cur->s.player==PLAYER_NUM(player) && cur->class_id==class_id &&
+            !cur->construction && !cur->training && !G_BotCaptainHasUnit(bot,cur)) {
+            if (!cur->own_seq) {
+                fprintf(stderr,"WC3 AI: unregistered owned unit player=%u unit=%u\n",PLAYER_NUM(player),cur->s.number);
+                return false;
+            }
+            if (!unit || cur->own_seq>unit->own_seq) unit=cur;
+        }
+        if (!unit) break;
         G_BotCaptainAdd(captain, unit); have++;
+        if (type == BOT_CAPTAIN_ATTACK && captain->home_set) {
+            if (!S_IssueCaptainHomeMove(unit, captain))
+                fprintf(stderr, "WC3 AI: captain home Move rejected player=%u unit=%u home=%g,%g\n",
+                    PLAYER_NUM(player), unit->s.number, captain->home.x, captain->home.y);
+        } else if (type == BOT_CAPTAIN_ATTACK) {
+            /* TODO: native CreateCaptains derives two homes from the AI town
+             * object (9c5360/9bb750); that producer is not ported yet. */
+            fprintf(stderr, "WC3 AI: unresolved default captain home player=%u unit=%u; SetCaptainHome required for recruit travel\n",
+                PLAYER_NUM(player), unit->s.number);
+        }
     }
     return have >= qty;
-}
-
-/* AddAssault is additive per common.ai harass entry, not a per-type total. SetAssaultGroup
- * intentionally allows duplicate entries (Interleave helpers can emit them), and FormGroup
- * calls AddAssault once for each entry. Each call therefore consumes up to qty additional
- * eligible units of that type while returning whether the whole entry was satisfied. */
-static bool G_BotCaptainTakeAssault(player_t *player, int32_t qty, uint32_t class_id) {
-    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    botCaptain_t *captain;
-    int32_t added = 0;
-    if (!bot || qty <= 0 || !class_id) return qty <= 0;
-    captain = bot->captains + BOT_CAPTAIN_ATTACK;
-    FILTER_EDICTS(unit, added < qty && G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
-        unit->class_id == class_id && !unit->construction && !unit->training && !G_BotCaptainHasUnit(bot, unit)) {
-        G_BotCaptainAdd(captain, unit); added++;
-    }
-    return added >= qty;
 }
 
 bool G_BotAddAssault(player_t *player, int32_t qty, uint32_t class_id) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     bool ready;
-    if (bot && qty > 0 && class_id) bot->captains[BOT_CAPTAIN_ATTACK].desired += qty;
-    ready = G_BotCaptainTakeAssault(player, qty, class_id);
+    ready = G_BotCaptainFill(player, BOT_CAPTAIN_ATTACK, qty, class_id);
+    /* A shortage clears native formation bit1; successful calls never set it. */
+    if (bot && !ready) bot->captains[BOT_CAPTAIN_ATTACK].full = false;
 #ifdef WC3_DEBUG_AI
-    fprintf(stderr, "WC3_DEBUG_AI assault add player=%u qty=%d id=%.4s ready=%d size=%u desired=%d\n",
+    fprintf(stderr, "WC3_DEBUG_AI assault add player=%u qty=%d id=%.4s ready=%d size=%u full=%d\n",
         player ? PLAYER_NUM(player) : MAX_PLAYERS, qty, (cstring_t)&class_id, ready,
-        G_BotCaptainGroupSize(player), bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0);
+        G_BotCaptainGroupSize(player), bot ? bot->captains[BOT_CAPTAIN_ATTACK].full : false);
 #endif
     return ready;
 }
@@ -1300,7 +1310,7 @@ uint32_t G_BotCaptainGroupSize(player_t *player) {
 
 bool G_BotCaptainIsFull(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    return bot && G_BotCaptainGroupSize(player) >= bot->captains[BOT_CAPTAIN_ATTACK].desired;
+    return bot && bot->captains[BOT_CAPTAIN_ATTACK].full;
 }
 
 /* CaptainRetreating is a query over the assault captain's engine-owned state.
@@ -1461,8 +1471,21 @@ void G_BotSetCaptainHome(player_t *player, int32_t which, float x, float y) {
     vec2_t home;
     if (!bot) return;
     home = MAKE(vec2_t, x, y);
-    if (which == 1 || which == 3) bot->captains[BOT_CAPTAIN_ATTACK].home = home;
-    if (which == 2 || which == 3) bot->captains[BOT_CAPTAIN_DEFENSE].home = home;
+    if (which == 1 || which == 3) {
+        bot->captains[BOT_CAPTAIN_ATTACK].home = home;
+        bot->captains[BOT_CAPTAIN_ATTACK].home_set = true;
+        S_SetCaptainHomeActor(bot->captains+BOT_CAPTAIN_ATTACK,PLAYER_NUM(player),1);
+    }
+    if (which == 2 || which == 3) {
+        bot->captains[BOT_CAPTAIN_DEFENSE].home = home;
+        bot->captains[BOT_CAPTAIN_DEFENSE].home_set = true;
+        S_SetCaptainHomeActor(bot->captains+BOT_CAPTAIN_DEFENSE,PLAYER_NUM(player),2);
+    }
+}
+
+void G_BotCaptainGoHome(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (bot) S_CaptainGoHome(bot->captains+BOT_CAPTAIN_ATTACK);
 }
 
 void G_BotSetStagePoint(player_t *player, float x, float y) {
@@ -2017,6 +2040,7 @@ static bool G_BotScriptPath(cstring_t script, string_t path, size_t size) {
 void G_BotStop(uint32_t player) {
     bot_t *bot = G_BotState(player);
     if (!bot) return;
+    level.ai_vm_initialized &= ~(1u << player);
     G_BotTraceClearWaits(player);
     if (bot->vm) jass_close(bot->vm);
     G_BotClearCaptains(bot);
@@ -2052,12 +2076,24 @@ bool G_BotStart(player_t *player, cstring_t script, botMode_t mode) {
         fprintf(stderr, "WC3 AI: player %u is out of range\n", playernum);
         return false;
     }
-    if (bot->vm && jass_isrunning(bot->vm)) {
-        bot->restart_requested = true;
-        bot->pending_mode = mode;
-        strlcpy(bot->pending_script, path, sizeof(bot->pending_script));
-        jass_haltevents(bot->vm);
-        return true;
+    /* Original9cbc00 reads sources on every call, but creates/enters the VM
+     * only when AI+248 is null. A second public call must not replay main. */
+    if (level.ai_vm_initialized & (1u << playernum)) {
+        cstring_t sources[] = {"Scripts\\common.j", "Scripts\\common.ai", path};
+        bool loaded = true;
+        FOR_LOOP(i, sizeof(sources) / sizeof(*sources)) {
+            uint32_t size;
+            handle_t data = gi.ReadFile(sources[i], &size);
+            if (data) gi.MemFree(data);
+            else {
+                fprintf(stderr, "WC3 AI: player %u could not load %s\n", playernum, sources[i]);
+                loaded = false;
+            }
+        }
+        /* TODO: Save/load does not yet restore private AI VM continuations.
+         * Preserve their creation gate rather than executing main again. */
+        if (!bot->vm) fprintf(stderr, "WC3 AI: player %u retains saved initialization; private VM continuation is unavailable\n", playernum);
+        return loaded;
     }
 
     G_BotStop(playernum);
@@ -2088,6 +2124,7 @@ bool G_BotStart(player_t *player, cstring_t script, botMode_t mode) {
         G_BotStop(playernum);
         return false;
     }
+    level.ai_vm_initialized |= 1u << playernum;
     G_BOT_TRACE(playernum, NULL, "script_main_started", "entry=main");
     fprintf(stderr, "WC3 AI: player %u started %s\n", playernum, path);
     return true;
@@ -2112,15 +2149,6 @@ void G_BotRunFrame(void) {
 #endif
         G_BOT_TRACE_WAITS(player);
         if (bot->stop_requested) { G_BotStop(player); continue; }
-        if (bot->restart_requested) {
-            player_t *owner = bot->player;
-            botMode_t mode = bot->pending_mode;
-            char script[MAX_PATHLEN];
-            strlcpy(script, bot->pending_script, sizeof(script));
-            G_BotStop(player);
-            G_BotStart(owner, script, mode);
-            continue;
-        }
         if (jass_rterror_pending(bot->vm)) {
             fprintf(stderr, "WC3 AI: player %u script %s stopped: %s\n", player, bot->script,
                 jass_rterror_message(bot->vm));

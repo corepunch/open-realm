@@ -262,8 +262,10 @@ wordExtractor_t(read_single_identifier) {
         left = parse_logical_expression(p);
     } else if (is_integer(tok)) {
         left = alloc_ident_token(p, TT_INTEGER);
+        if (!c_operators) left->flags |= TF_RETAIL_NUMBER;
     } else if (is_float(tok)) {
         left = alloc_ident_token(p, TT_REAL);
+        if (!c_operators) left->flags |= TF_RETAIL_NUMBER;
     } else if (is_string(tok)) {
         left = alloc_ident_token(p, TT_STRING);
         jass_remove_quotes(left->primary, '\"');

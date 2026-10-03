@@ -345,11 +345,18 @@ void G_UnitPositionChanged(edict_t *ent, vec2_t const *old_position) {
     ent->old_origin = ent->s.origin2;
 }
 
+void G_BeginEntityFrame(void) {
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (ent->inuse) ent->old_origin = ent->s.origin2;
+    }
+}
+
 void G_RunEntities(void) {
+    if (!level.scheduled_frame) G_BeginEntityFrame();
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = globals.edicts+i;
         if (!ent->inuse) continue; /* freed edicts are memset and never re-sent; skip the per-frame clear */
-        ent->old_origin = ent->s.origin2;
         if (ent->sound.pending) {
             G_PlaySound(NULL, ent, CHAN_VOICE | CHAN_OWNER | CHAN_RELIABLE, ent->sound.pending,
                      G_SoundIndexVolume(ent->sound.pending), 0.0f, 0.0f);

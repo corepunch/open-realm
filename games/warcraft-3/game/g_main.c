@@ -25,6 +25,7 @@
  */
 #include "common/common.h"
 #include "g_local.h"
+#include "games/warcraft-3/common/wc3_math.h"
 
 #define WC3_PATH_WORK_BUDGET 65536
 #include "common/ui_constants.h"
@@ -318,6 +319,17 @@ static void InitMiscValueDefault(cstring_t name, float *dest, float fallback) {
     *dest = strvalue && *strvalue ? (float)atof(strvalue) : fallback;
 }
 
+/* Original016210..240 copies the immutable1/522 bounds as initial defaults.
+ * Real map/Misc data replaces them; retain startup only when the key is absent. */
+static void InitMoveSpeedLimit(cstring_t name, float *dest, float startup) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", name);
+    if (value && *value) *dest = wc3_decimal(value);
+    else {
+        *dest = startup;
+        fprintf(stderr, "WC3 movement: missing Misc.%s; retaining retail startup limit %.0f\n", name, startup);
+    }
+}
+
 static uint32_t InitMiscList(cstring_t name, float *dest, uint32_t capacity) {
     cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", name);
     uint32_t count = 0;
@@ -384,6 +396,10 @@ static void InitConstants(void) {
      * distinct from AcquireRange; map Misc overrides remain authoritative. */
     InitMiscValueDefault("FollowRange", &game.constants.followRange, 300.0f);
     InitMiscValueDefault("StructureFollowRange", &game.constants.structureFollowRange, 100.0f);
+    InitMoveSpeedLimit("MinUnitSpeed", &game.constants.minUnitSpeed, 1.f);
+    InitMoveSpeedLimit("MaxUnitSpeed", &game.constants.maxUnitSpeed, 522.f);
+    InitMoveSpeedLimit("MinBldgSpeed", &game.constants.minBldgSpeed, 1.f);
+    InitMoveSpeedLimit("MaxBldgSpeed", &game.constants.maxBldgSpeed, 522.f);
     /* Stock WC3 Units\MiscData.txt values. war3mapMisc.txt remains authoritative. */
     InitMiscValueDefault("AttackNotifyDelay", &game.constants.attackNotifyDelay, 30.0f);
     InitMiscValueDefault("AttackNotifyRange", &game.constants.attackNotifyRange, 1250.0f);
@@ -529,6 +545,7 @@ static void G_InitGame(void) {
 }
 
 static void G_ShutdownGame(void) {
+    G_FreeMovePathCache();
     if (g_edicts == NULL) {
         return;
     }
@@ -544,6 +561,9 @@ static void G_ShutdownGame(void) {
     G_FowShutdown();
     G_BlightShutdown();
     G_FreeModels();
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     if (game.clients) FOR_LOOP(i, game.max_clients) G_ClearPlayerAbilityAvailability(game.clients + i);
     gi.MemFree(g_edicts);
     g_edicts = NULL;
@@ -963,6 +983,7 @@ static void G_StartScripts(void) {
     if (level.scriptsStarted) {
         return;
     }
+    G_InitLockedMapRandom();
 
     /*
      * war3map.doo objects already exist in OpenRealm before generated
@@ -1072,6 +1093,21 @@ void G_RequestCampaignSelect(void) {
  * Skipped until the first map has been started; on the very first frame after
  * a map loads, the JASS "main" function is invoked to run map initialization
  * triggers. */
+/* PathOwner uses its own periodic scalar timer, not an integer six-phase
+ * counter. The two cadences diverge beyond32 seconds as the source truncates. */
+static bool G_PathOwnerDue(void) {
+    wc3Clock_t next=level.pathing_clock;
+    wc3_clock_advance(&next,wc3_float(0x3ba3d70a),0);
+    wc3Clock_t const *due=&level.pathing_owner_deadline;
+    return next.epoch==due->epoch ? next.time>=due->time : (int32_t)(next.epoch-due->epoch)>0;
+}
+
+static void G_RunPathOwner(void) {
+    M_RunScheduledThinks();
+    wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3cf5c290),0);
+    level.pathing_due=false;
+}
+
 static void G_RunFrame(void) {
     int path_work_budget = WC3_PATH_WORK_BUDGET;
     cstring_t path_work_value;
@@ -1079,14 +1115,44 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
+    if (!level.pathing_owner_clock_valid) {
+        level.pathing_owner_deadline=level.pathing_clock;
+        if (!level.pathing_clock.time && !level.pathing_phase)
+            wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3cf5c290),0);
+        else FOR_LOOP(i,6-level.pathing_phase)
+            wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3ba3d70a),0);
+        level.pathing_owner_clock_valid=true;
+    }
     level.framenum++;
-    level.time = gi.GetTime();
-
+    uint32_t end_time = gi.GetTime();
+    G_BeginEntityFrame();
+    level.time = level.pathing_msec;
+    level.scheduled_frame = true;
     G_StartScripts();
+    /* Timer actions and the owner update precede the next primary advance.
+     * The game clock is private; the engine still sends its ordinary snapshots. */
+    while (end_time - level.pathing_msec >= 5) {
+        /* Observed public spawns at phases0/2/4 see the due owner before
+         * authored map-timer callbacks in the same primary quantum. */
+        if (level.pathing_due) {
+            G_RunPathOwner();
+        }
+        S_RunMoveTimers();
+        G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
+        wc3_clock_advance(&level.pathing_clock, wc3_float(0x3ba3d70a), 0);
+        level.pathing_phase = (level.pathing_phase + 1) % 6;
+        level.pathing_due = G_PathOwnerDue();
+        level.pathing_msec += 5; level.time = level.pathing_msec;
+        M_SamplePoses();
+    }
+    level.time = end_time;
     G_UpdateTimeOfDay();
-    G_RunTimers();
-    G_RunEvents();
-    jass_runevents(level.vm);
+    if (level.pathing_due) {
+        G_RunPathOwner();
+        M_SamplePoses();
+    }
+    S_RunMoveTimers();
+    G_RunTimers(); G_RunEvents(); jass_runevents(level.vm);
     G_UpdateTimerDialogs();
     G_UpdateLeaderboards();
 
@@ -1100,6 +1166,7 @@ static void G_RunFrame(void) {
     G_RunClients();
 
     G_RunEntities();
+    level.scheduled_frame = false;
 
     /* Flow-field cache misses are resumable so arbitrary reachable move orders
      * never depend on a lifetime quota of synchronous whole-map floods.  Keep

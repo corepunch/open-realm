@@ -176,6 +176,9 @@ audit-wc3-hero-saveload: $(BINARY) mpqtool
 test-wc3-hero-saveload-audit:
 	python3 tests/test_wc3_hero_saveload_audit.py
 
+test-pathfinding-tools:
+	python3 -m unittest discover -s tests -p 'test*pathfinding*.py'
+
 TRACE_FILE := build/profile-map.trace
 
 profile-map: $(BINARY) xctraceprof
@@ -293,7 +296,7 @@ TEST_JOBS ?= 16
 	@$(MAKE) -j$(TEST_JOBS) test-commands test-jass-build test-galaxy test-server-net test-sound \
 		test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
-		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-render-harness test-mpq-compression
+		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-pathfinding-tools test-render-harness test-mpq-compression
 
 $(eval $(call test_schema,test-mpq-compression,$(SHARED_LIB),$(TEST_CFLAGS) -DMPQ_TEST_API -DBZ_TESTS,$(BIN_DIR)/test_mpq_compression$(EXE_EXT),tests/test_runner.c tests/test_mpq_compression.c common/mpq.c,-lshared -lm -lz,))
 
@@ -415,7 +418,7 @@ $(ZIP_FILE):
 WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map dump-wc3-jass \
 	audit-wc3-maps test-wc3-map-audit audit-wc3-hero-saveload test-wc3-hero-saveload-audit test \
 	test-commands test-server-net test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
-	update-render-golden openwarcraft3-tests test-wc3-engine download
+	update-render-golden openwarcraft3-tests test-wc3-engine test-pathfinding-tools download
 
 .PHONY: test-menu-boundary
 test-menu-boundary:

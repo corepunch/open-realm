@@ -1,0 +1,281 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "asin_0",
+      "native": "Asin",
+      "input": -2.0
+    },
+    {
+      "id": "asin_1",
+      "native": "Asin",
+      "input": -1.0
+    },
+    {
+      "id": "asin_2",
+      "native": "Asin",
+      "input": -0.999
+    },
+    {
+      "id": "asin_3",
+      "native": "Asin",
+      "input": -0.994140625
+    },
+    {
+      "id": "asin_4",
+      "native": "Asin",
+      "input": -0.6
+    },
+    {
+      "id": "asin_5",
+      "native": "Asin",
+      "input": 0.0
+    },
+    {
+      "id": "asin_6",
+      "native": "Asin",
+      "input": 0.6
+    },
+    {
+      "id": "asin_7",
+      "native": "Asin",
+      "input": 0.994140625
+    },
+    {
+      "id": "asin_8",
+      "native": "Asin",
+      "input": 0.999
+    },
+    {
+      "id": "asin_9",
+      "native": "Asin",
+      "input": 1.0
+    },
+    {
+      "id": "asin_10",
+      "native": "Asin",
+      "input": 2.0
+    },
+    {
+      "id": "atan_0",
+      "native": "Atan",
+      "input": -10000.0
+    },
+    {
+      "id": "atan_1",
+      "native": "Atan",
+      "input": -1.0
+    },
+    {
+      "id": "atan_2",
+      "native": "Atan",
+      "input": -0.6
+    },
+    {
+      "id": "atan_3",
+      "native": "Atan",
+      "input": -0.2679492
+    },
+    {
+      "id": "atan_4",
+      "native": "Atan",
+      "input": 0.0
+    },
+    {
+      "id": "atan_5",
+      "native": "Atan",
+      "input": 0.2679492
+    },
+    {
+      "id": "atan_6",
+      "native": "Atan",
+      "input": 0.6
+    },
+    {
+      "id": "atan_7",
+      "native": "Atan",
+      "input": 1.0
+    },
+    {
+      "id": "atan_8",
+      "native": "Atan",
+      "input": 10000.0
+    },
+    {
+      "id": "tan_0",
+      "native": "Tan",
+      "input": 0.0
+    },
+    {
+      "id": "tan_1",
+      "native": "Tan",
+      "input": 0.6
+    },
+    {
+      "id": "tan_2",
+      "native": "Tan",
+      "input": -0.6
+    },
+    {
+      "id": "tan_3",
+      "native": "Tan",
+      "input": 1.5707963267948966
+    },
+    {
+      "id": "tan_4",
+      "native": "Tan",
+      "input": 3.141592653589793
+    },
+    {
+      "id": "atan2_0",
+      "native": "Atan2",
+      "input": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "atan2_1",
+      "native": "Atan2",
+      "input": [
+        0.0009,
+        0.0009
+      ]
+    },
+    {
+      "id": "atan2_2",
+      "native": "Atan2",
+      "input": [
+        0.001,
+        0.0009
+      ]
+    },
+    {
+      "id": "atan2_3",
+      "native": "Atan2",
+      "input": [
+        0.0009,
+        0.001
+      ]
+    },
+    {
+      "id": "atan2_4",
+      "native": "Atan2",
+      "input": [
+        -0.001,
+        0.0
+      ]
+    },
+    {
+      "id": "atan2_5",
+      "native": "Atan2",
+      "input": [
+        0.0,
+        -0.001
+      ]
+    },
+    {
+      "id": "atan2_6",
+      "native": "Atan2",
+      "input": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "id": "atan2_7",
+      "native": "Atan2",
+      "input": [
+        -1.0,
+        1.0
+      ]
+    },
+    {
+      "id": "atan2_8",
+      "native": "Atan2",
+      "input": [
+        1.0,
+        -1.0
+      ]
+    },
+    {
+      "id": "atan2_9",
+      "native": "Atan2",
+      "input": [
+        -1.0,
+        -1.0
+      ]
+    },
+    {
+      "id": "atan2_10",
+      "native": "Atan2",
+      "input": [
+        10.0,
+        1.0
+      ]
+    },
+    {
+      "id": "atan2_11",
+      "native": "Atan2",
+      "input": [
+        1.0,
+        10.0
+      ]
+    },
+    {
+      "id": "deg2rad_0",
+      "native": "Deg2Rad",
+      "input": 0.0
+    },
+    {
+      "id": "deg2rad_1",
+      "native": "Deg2Rad",
+      "input": 90.0
+    },
+    {
+      "id": "deg2rad_2",
+      "native": "Deg2Rad",
+      "input": 180.0
+    },
+    {
+      "id": "deg2rad_3",
+      "native": "Deg2Rad",
+      "input": 360.0
+    },
+    {
+      "id": "deg2rad_4",
+      "native": "Deg2Rad",
+      "input": -45.0
+    },
+    {
+      "id": "deg2rad_5",
+      "native": "Deg2Rad",
+      "input": 0.1
+    },
+    {
+      "id": "rad2deg_0",
+      "native": "Rad2Deg",
+      "input": 0.0
+    },
+    {
+      "id": "rad2deg_1",
+      "native": "Rad2Deg",
+      "input": 3.141592653589793
+    },
+    {
+      "id": "rad2deg_2",
+      "native": "Rad2Deg",
+      "input": 6.283185307179586
+    },
+    {
+      "id": "rad2deg_3",
+      "native": "Rad2Deg",
+      "input": -0.6
+    },
+    {
+      "id": "rad2deg_4",
+      "native": "Rad2Deg",
+      "input": 0.001
+    }
+  ]
+}

@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "literal_0",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.0"
+    },
+    {
+      "id": "literal_1",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-0.0"
+    },
+    {
+      "id": "literal_2",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.6"
+    },
+    {
+      "id": "literal_3",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-0.6"
+    },
+    {
+      "id": "literal_4",
+      "native": "R2I",
+      "producer": "literal",
+      "input": ".5"
+    },
+    {
+      "id": "literal_5",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-.5"
+    },
+    {
+      "id": "literal_6",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0."
+    },
+    {
+      "id": "literal_7",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-0."
+    },
+    {
+      "id": "literal_8",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "1.25"
+    },
+    {
+      "id": "literal_9",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-1.25"
+    },
+    {
+      "id": "literal_10",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "1936.25"
+    },
+    {
+      "id": "literal_11",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "144.125"
+    },
+    {
+      "id": "literal_12",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.59999999999999998"
+    },
+    {
+      "id": "literal_13",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-0.59999999999999998"
+    },
+    {
+      "id": "literal_14",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.56463992595672607421875"
+    },
+    {
+      "id": "literal_15",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "1.99999999999999999"
+    },
+    {
+      "id": "literal_16",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "2147483647.0"
+    },
+    {
+      "id": "literal_17",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "2147483648.0"
+    },
+    {
+      "id": "literal_18",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-2147483648.0"
+    },
+    {
+      "id": "literal_19",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "4294967295.5"
+    },
+    {
+      "id": "literal_20",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "4294967296.5"
+    },
+    {
+      "id": "literal_21",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "4294967297.5"
+    },
+    {
+      "id": "literal_22",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "9999999999999999999999999999999999999999.25"
+    },
+    {
+      "id": "literal_23",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.0000000001"
+    },
+    {
+      "id": "literal_24",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.00000000001"
+    },
+    {
+      "id": "literal_25",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.1234567890"
+    },
+    {
+      "id": "literal_26",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.12345678901"
+    },
+    {
+      "id": "literal_27",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.12345678901234567890123456789012"
+    },
+    {
+      "id": "literal_28",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.00000000000000000000000000000001"
+    },
+    {
+      "id": "literal_29",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-0.00000000000000000000000000000001"
+    },
+    {
+      "id": "literal_30",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "1.00000000000000000000000000000000"
+    },
+    {
+      "id": "literal_31",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "2147483648.00000000000000000000000000000001"
+    }
+  ]
+}

@@ -913,7 +913,7 @@ TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
     game.constants.structureFollowRange = 100.0f;
 
     T_FEQ(G_AcquisitionRange(follower), 600.0f, 0.001f);
-    T_FEQ(G_FollowStopRange(follower, target), 300.0f, 0.001f);
+    T_FEQ(G_FollowStopRange(follower, target), 332.0f, 0.001f);
 
     target->s.flags |= EF_BUILDING;
     T_FEQ(G_FollowStopRange(follower, target), 100.0f, 0.001f);
@@ -1601,7 +1601,7 @@ TEST(wc3_unit, issueorder_unknown_returns_false) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
     vec2_t dest = {100.0f, 0.0f};
-    bool result = unit_issueorder(ent, "notarealorder", &dest);
+    bool result = unit_issueorder(ent, "missingorder", &dest);
     T_ASSERT(!result);
 }
 

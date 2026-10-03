@@ -74,6 +74,7 @@ struct jass_context {
     trigger_t *trigger;
     edict_t *unit;
     edict_t *source;
+    EVENTTYPE eventType;
     int32_t eventValue;
     vec2_t point;
     uint8_t hasPoint;

@@ -1,0 +1,648 @@
+{
+  "version": 1,
+  "build": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
+  },
+  "map": {
+    "kind": "no_file",
+    "bounds_bits": [
+      0,
+      0,
+      1140850688,
+      1140850688
+    ],
+    "terrain_words": [
+      [
+        2151686144,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2160074752,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2168463360,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2176851968,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2185240576,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2151702528,
+        5,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2160091136,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2168479744,
+        7,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2176868352,
+        8,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2185256960,
+        9,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2151718912,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2160107520,
+        11,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2168496128,
+        12,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2176884736,
+        13,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2185273344,
+        14,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2151735296,
+        15,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2160123904,
+        16,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2168512512,
+        17,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2176901120,
+        18,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2185289728,
+        19,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2151751680,
+        20,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2160140288,
+        21,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2168528896,
+        22,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2176917504,
+        23,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2185306112,
+        24,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "sha256": "a3d7f89d82a1141a923bbf6741b5e4c2b628415e1bbf059812fd16da820f6ff3",
+    "support_height_bits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "entities": [
+    {
+      "role": "mover",
+      "rawcode": "hfoo",
+      "unit_identity": [
+        126,
+        900
+      ],
+      "ability_identity": [
+        124,
+        902
+      ],
+      "mover_identity": [
+        8,
+        108
+      ],
+      "position_bits": [
+        1124073472,
+        1124073472
+      ],
+      "radius_world_bits": 1090519040,
+      "speed_world_bits": 1132462080,
+      "turn_bits": 1056964608,
+      "window_bits": 1056964608
+    }
+  ],
+  "handles": {
+    "map_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "map_epochs": [
+      100,
+      101,
+      102,
+      103,
+      104,
+      105
+    ],
+    "fine": [
+      6,
+      106
+    ],
+    "adaptive": [
+      7,
+      107
+    ],
+    "region_ids": [
+      [
+        9,
+        109
+      ],
+      [
+        10,
+        110
+      ]
+    ],
+    "owned_path": [
+      11,
+      111
+    ]
+  },
+  "clock": {
+    "initial_bits": 0,
+    "epoch": 0,
+    "span_bits": 1090519040,
+    "advance_bits": 1023410176,
+    "configured_interval_bits": 1022739088,
+    "terrain_step_bits": 1107296256,
+    "owner_tick": 100
+  },
+  "seed": {
+    "mapped_storage": "zero",
+    "retail_image": "fresh original pages per case",
+    "rng": "not exercised; no RNG seed contract claimed"
+  },
+  "scenarios": [
+    {
+      "id": "ordinary_point",
+      "commands": [
+        {
+          "entry": "680320",
+          "mode": 1,
+          "dispatch": 1,
+          "command": 851986,
+          "target_bits": [
+            1128267776,
+            1124073472
+          ]
+        }
+      ],
+      "termination": "queues_empty_pools_reclaimed_visual_idle"
+    },
+    {
+      "id": "queued_successor",
+      "commands": [
+        {
+          "entry": "680320",
+          "mode": 1,
+          "dispatch": 1,
+          "command": 851986,
+          "target_bits": [
+            1128267776,
+            1124073472
+          ]
+        },
+        {
+          "entry": "693490",
+          "command": 851986,
+          "target_bits": [
+            1132462080,
+            1132462080
+          ]
+        }
+      ],
+      "termination": "queues_empty_pools_reclaimed_visual_idle"
+    }
+  ],
+  "expectations": {
+    "file": "retail-owner-baseline-states-1.27.json",
+    "sha256": "cdb2e6e146042d40d3983d3be9c7e12145ed20cce606d6a32ec9e919eee1871b"
+  },
+  "boundaries": {
+    "BASE-03.1": [
+      "unit/ability construction, owner construction, class caches, mover-owned path binding"
+    ],
+    "ORDER-04.4": [
+      "first wrapper/task/group allocation and external heap growth"
+    ],
+    "MAP-05.1": [
+      "map/spatial allocator growth, reused search objects and supplied node/heap storage"
+    ],
+    "GROUP-03.3": [
+      "shared auxiliary capacity growth"
+    ],
+    "MAP-02.1": [
+      "file-backed deserialization; supplied terrain vertices and support heights"
+    ],
+    "SCHED-01.1": [
+      "real simulation advancement instead of controlled 1/32; maintenance clock remains unchanged"
+    ]
+  }
+}

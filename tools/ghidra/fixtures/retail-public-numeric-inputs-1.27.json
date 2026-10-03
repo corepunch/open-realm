@@ -1,0 +1,466 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "s2r_0",
+      "native": "S2R",
+      "input": "1.25",
+      "output": 1067450368
+    },
+    {
+      "id": "s2r_1",
+      "native": "S2R",
+      "input": "-1.25",
+      "output": 3214934016
+    },
+    {
+      "id": "s2r_2",
+      "native": "S2R",
+      "input": "+1.25",
+      "output": 1067450368
+    },
+    {
+      "id": "s2r_3",
+      "native": "S2R",
+      "input": ".125",
+      "output": 1040187392
+    },
+    {
+      "id": "s2r_4",
+      "native": "S2R",
+      "input": "1936.25",
+      "output": 1156712449
+    },
+    {
+      "id": "s2r_5",
+      "native": "S2R",
+      "input": "-1936.25",
+      "output": 3304196097
+    },
+    {
+      "id": "s2r_6",
+      "native": "S2R",
+      "input": "144.125",
+      "output": 1125130240
+    },
+    {
+      "id": "s2r_7",
+      "native": "S2R",
+      "input": "123456789.123456789",
+      "output": 1290500514
+    },
+    {
+      "id": "s2r_8",
+      "native": "S2R",
+      "input": "0.000000123456789",
+      "output": 872714122
+    },
+    {
+      "id": "s2r_9",
+      "native": "S2R",
+      "input": "1234567890",
+      "output": 1318267909
+    },
+    {
+      "id": "s2r_10",
+      "native": "S2R",
+      "input": "2147483648",
+      "output": 1325400063
+    },
+    {
+      "id": "s2r_11",
+      "native": "S2R",
+      "input": "1.25e2",
+      "output": 1067450368
+    },
+    {
+      "id": "s2r_12",
+      "native": "S2R",
+      "input": "1.25;more",
+      "output": 1067450368
+    },
+    {
+      "id": "s2r_13",
+      "native": "S2R",
+      "input": "1..25",
+      "output": 1065353216
+    },
+    {
+      "id": "s2r_14",
+      "native": "S2R",
+      "input": "1e3",
+      "output": 1065353216
+    },
+    {
+      "id": "s2r_15",
+      "native": "S2R",
+      "input": "abc",
+      "output": 0
+    },
+    {
+      "id": "s2r_16",
+      "native": "S2R",
+      "input": "nan",
+      "output": 0
+    },
+    {
+      "id": "s2r_17",
+      "native": "S2R",
+      "input": "inf",
+      "output": 0
+    },
+    {
+      "id": "s2r_18",
+      "native": "S2R",
+      "input": " 1.25",
+      "output": 0
+    },
+    {
+      "id": "s2r_19",
+      "native": "S2R",
+      "input": "",
+      "output": 0
+    },
+    {
+      "id": "s2r_20",
+      "native": "S2R",
+      "input": ".",
+      "output": 0
+    },
+    {
+      "id": "s2r_21",
+      "native": "S2R",
+      "input": "-0.0",
+      "output": 0
+    },
+    {
+      "id": "s2r_22",
+      "native": "S2R",
+      "input": "+0",
+      "output": 0
+    },
+    {
+      "id": "s2r_23",
+      "native": "S2R",
+      "input": "12345678901234567890123456789012345678901234567890",
+      "output": 0
+    },
+    {
+      "id": "i2r_0",
+      "native": "I2R",
+      "input": 0,
+      "output": 0,
+      "input_word": 0
+    },
+    {
+      "id": "i2r_1",
+      "native": "I2R",
+      "input": 1,
+      "output": 1065353216,
+      "input_word": 1
+    },
+    {
+      "id": "i2r_2",
+      "native": "I2R",
+      "input": -1,
+      "output": 3212836864,
+      "input_word": 4294967295
+    },
+    {
+      "id": "i2r_3",
+      "native": "I2R",
+      "input": 16777217,
+      "output": 1266679808,
+      "input_word": 16777217
+    },
+    {
+      "id": "i2r_4",
+      "native": "I2R",
+      "input": 2147483647,
+      "output": 1325400063,
+      "input_word": 2147483647
+    },
+    {
+      "id": "i2r_5",
+      "native": "I2R",
+      "input": -2147483647,
+      "output": 3472883711,
+      "input_word": 2147483649
+    },
+    {
+      "id": "r2i_0",
+      "native": "R2I",
+      "input": 0.0,
+      "output": 0,
+      "input_word": 0
+    },
+    {
+      "id": "r2i_1",
+      "native": "R2I",
+      "input": 0.5,
+      "output": 0,
+      "input_word": 1056964608
+    },
+    {
+      "id": "r2i_2",
+      "native": "R2I",
+      "input": -0.5,
+      "output": 0,
+      "input_word": 3204448256
+    },
+    {
+      "id": "r2i_3",
+      "native": "R2I",
+      "input": 1.75,
+      "output": 1,
+      "input_word": 1071644673
+    },
+    {
+      "id": "r2i_4",
+      "native": "R2I",
+      "input": -1.75,
+      "output": 4294967295,
+      "input_word": 3219128321
+    },
+    {
+      "id": "r2i_5",
+      "native": "R2I",
+      "input": 2147483648.0,
+      "output": 2147483520,
+      "input_word": 1325400063
+    },
+    {
+      "id": "r2i_6",
+      "native": "R2I",
+      "input": -2147483648.0,
+      "output": 2147483776,
+      "input_word": 3472883711
+    },
+    {
+      "id": "r2i_7",
+      "native": "R2I",
+      "input": 10000000000.0,
+      "output": 2147483647,
+      "input_word": 1343554297
+    },
+    {
+      "id": "r2i_8",
+      "native": "R2I",
+      "input": -10000000000.0,
+      "output": 2147483648,
+      "input_word": 3491037945
+    },
+    {
+      "id": "sin_0",
+      "native": "Sin",
+      "input": 0.0,
+      "output": 0,
+      "input_word": 0
+    },
+    {
+      "id": "sin_1",
+      "native": "Sin",
+      "input": 0.6,
+      "output": 1058049086,
+      "input_word": 1058642330
+    },
+    {
+      "id": "sin_2",
+      "native": "Sin",
+      "input": -0.6,
+      "output": 3205532651,
+      "input_word": 3206125978
+    },
+    {
+      "id": "sin_3",
+      "native": "Sin",
+      "input": 3.141592653589793,
+      "output": 805306368,
+      "input_word": 1078530011
+    },
+    {
+      "id": "sin_4",
+      "native": "Sin",
+      "input": 6.283185307179586,
+      "output": 2952790016,
+      "input_word": 1086918619
+    },
+    {
+      "id": "cos_0",
+      "native": "Cos",
+      "input": 0.0,
+      "output": 1065353215,
+      "input_word": 0
+    },
+    {
+      "id": "cos_1",
+      "native": "Cos",
+      "input": 0.6,
+      "output": 1062422860,
+      "input_word": 1058642330
+    },
+    {
+      "id": "cos_2",
+      "native": "Cos",
+      "input": -0.6,
+      "output": 1062422917,
+      "input_word": 3206125978
+    },
+    {
+      "id": "cos_3",
+      "native": "Cos",
+      "input": 3.141592653589793,
+      "output": 3212836863,
+      "input_word": 1078530011
+    },
+    {
+      "id": "cos_4",
+      "native": "Cos",
+      "input": 6.283185307179586,
+      "output": 1065353215,
+      "input_word": 1086918619
+    },
+    {
+      "id": "acos_0",
+      "native": "Acos",
+      "input": -2.0,
+      "output": 0,
+      "input_word": 3221225472
+    },
+    {
+      "id": "acos_1",
+      "native": "Acos",
+      "input": -1.0,
+      "output": 1078530011,
+      "input_word": 3212836864
+    },
+    {
+      "id": "acos_2",
+      "native": "Acos",
+      "input": -0.6,
+      "output": 1074640653,
+      "input_word": 3206125978
+    },
+    {
+      "id": "acos_3",
+      "native": "Acos",
+      "input": 0.0,
+      "output": 1070141402,
+      "input_word": 0
+    },
+    {
+      "id": "acos_4",
+      "native": "Acos",
+      "input": 0.6,
+      "output": 1064133429,
+      "input_word": 1058642330
+    },
+    {
+      "id": "acos_5",
+      "native": "Acos",
+      "input": 1.0,
+      "output": 0,
+      "input_word": 1065353216
+    },
+    {
+      "id": "acos_6",
+      "native": "Acos",
+      "input": 2.0,
+      "output": 0,
+      "input_word": 1073741824
+    },
+    {
+      "id": "squareroot_0",
+      "native": "SquareRoot",
+      "input": -4.0,
+      "output": 0,
+      "input_word": 3229614080
+    },
+    {
+      "id": "squareroot_1",
+      "native": "SquareRoot",
+      "input": -0.0005,
+      "output": 0,
+      "input_word": 3120763503
+    },
+    {
+      "id": "squareroot_2",
+      "native": "SquareRoot",
+      "input": 0.0,
+      "output": 0,
+      "input_word": 0
+    },
+    {
+      "id": "squareroot_3",
+      "native": "SquareRoot",
+      "input": 0.0009999999,
+      "output": 1023510279,
+      "input_word": 981668463
+    },
+    {
+      "id": "squareroot_4",
+      "native": "SquareRoot",
+      "input": 0.001,
+      "output": 1023510279,
+      "input_word": 981668463
+    },
+    {
+      "id": "squareroot_5",
+      "native": "SquareRoot",
+      "input": 0.0010000002,
+      "output": 1023510279,
+      "input_word": 981668465
+    },
+    {
+      "id": "squareroot_6",
+      "native": "SquareRoot",
+      "input": 0.5,
+      "output": 1060439283,
+      "input_word": 1056964608
+    },
+    {
+      "id": "squareroot_7",
+      "native": "SquareRoot",
+      "input": 2.0,
+      "output": 1068827891,
+      "input_word": 1073741824
+    },
+    {
+      "id": "squareroot_8",
+      "native": "SquareRoot",
+      "input": 4.0,
+      "output": 1073741824,
+      "input_word": 1082130432
+    },
+    {
+      "id": "move_x",
+      "native": "S2R",
+      "input": "-1936.25",
+      "output": 3304196097
+    },
+    {
+      "id": "move_y",
+      "native": "S2R",
+      "input": "-144.125",
+      "output": 3272613888
+    }
+  ],
+  "target_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "trace_wc3_pathfinding.py": "fb1a94e0a26bd1c865ffb11e3ffb2adf6bbb0e88f3cd35c2a1e40cd4b71bd29e",
+    "wc3_pathfinding.js": "c8592586263352d257766b64406a08ae653110d24ae2d5e16c44a4a74ef536e9",
+    "wc3_pathfinding_probe.j": "55263671fe28cb59471c48b6579196cb3caad33e14a340a7f488a5238e4ac40b",
+    "make_wc3_pathfinding_map.py": "cd4140a2fee24b77c6df846c7c3cbe88e2897ed72f7ecf56fc83e924b1d3b57f",
+    "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+    "map": "8eb2b0d82b0f58b9b2f0d874be2275bea33abbd0f64b86a5139c25f30ff0e0ec"
+  },
+  "capture": "runtime/num-01.5-inputs2-raw.jsonl",
+  "capture_sha256": "ece99081d4c7797b717e4a28d22aec2d0e03943dbf6b46d07e410efcd8fe1842",
+  "parser_cases": 25,
+  "native_cases": 67,
+  "move_destination_words": [
+    3304196097,
+    3272613888
+  ],
+  "scope": "Original registered public natives on inputs from S2R decimal text (I2R consumes signed integers). Raw output and original parser witness, followed by public Move destination admission. Original JASS long-literal parser, non-ASCII grammar and whole engine trajectory excluded."
+}
