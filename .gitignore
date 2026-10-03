@@ -22,3 +22,4 @@ __pycache__/
 
 # Private EOS player-client configuration (never cvars or committed credentials).
 eos.cfg
+dist-scripts/flathub/eos-release.yml
