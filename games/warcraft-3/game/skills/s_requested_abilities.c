@@ -729,16 +729,10 @@ static void animate_dead_execute(edict_t *caster, spellTarget_t st, abilityitem_
         if (!selected) break;
 
         /* Animated Dead reuses the corpse handle but does not reactivate food.
-         * Retire the same death-state owners as ordinary resurrection first so
-         * the old decay callback/order state cannot remove or drive the raised unit.
-         * Its original corpse is consumed: when the temporary unit later dies or
-         * times out it must not create another raisable corpse. */
-        selected->svflags &= ~SVF_DEADMONSTER; selected->s.flags &= ~EF_NOT_SELECTABLE;
-        selected->aiflags &= ~AI_HOLD_FRAME; selected->s.renderfx &= ~RF_HIDDEN;
-        selected->combatentity = selected->goalentity = selected->secondarygoal = NULL;
-        selected->wait = 0; G_ClearUnitOrderQueue(selected);
-        selected->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
-        G_SetHealth(selected, selected->health.max_value);
+         * The shared temporary-revival primitive retires decay/order ownership
+         * and consumes the original corpse so the timed summon cannot be raised
+         * again when it later dies or expires. */
+        G_ReviveCorpseAsSummon(selected, 1.0f);
         /* Hre2 / ABILITY_BLF_RAISED_UNITS_ARE_INVULNERABLE is authored
          * per Resurrection-family ability. Grant it when requested without
          * forcibly clearing other invulnerability sources when it is false. */
@@ -746,8 +740,6 @@ static void animate_dead_execute(edict_t *caster, spellTarget_t st, abilityitem_
         selected->s.player = caster->s.player; selected->owner = caster;
         selected->summon_ability = spell->code;
         unit_addtimedstatus(selected, "BTLF", level, duration);
-        if (selected->stand) selected->stand(selected);
-        gi.LinkEntity(selected);
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, selected, NULL, true);
         count++;
     }

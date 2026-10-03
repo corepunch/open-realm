@@ -8,6 +8,7 @@
 #define ID_SPIKED_BARRICADES MAKEFOURCC('A', 's', 'p', 'i')
 #define ID_PULVERIZE MAKEFOURCC('A', 'w', 'a', 'r')
 #define ID_UNHOLY_AURA MAKEFOURCC('A', 'U', 'a', 'u')
+#define ID_ENDURANCE_AURA MAKEFOURCC('A', 'O', 'a', 'e')
 #define ID_EVASION MAKEFOURCC('A', 'E', 'e', 'v')
 #define ID_VAMPIRIC_AURA MAKEFOURCC('A', 'U', 'a', 'v')
 #define ID_THORNS_AURA MAKEFOURCC('A', 'E', 'a', 'h')
@@ -34,13 +35,15 @@ typedef struct {
     uint32_t code, data;
 } aura_cache_key_t;
 
-enum { HERO_AURA_CACHE_KEYS = 10 };
+enum { HERO_AURA_CACHE_KEYS = 12 };
 
 static aura_cache_key_t const aura_cache_keys[HERO_AURA_CACHE_KEYS] = {
     { ID_BRILLIANCE, 1 },
     { ID_DEVOTION_AURA, 1 },
     { ID_UNHOLY_AURA, 1 },
     { ID_UNHOLY_AURA, 2 },
+    { ID_ENDURANCE_AURA, 1 },
+    { ID_ENDURANCE_AURA, 2 },
     { ID_VAMPIRIC_AURA, 1 },
     { ID_TRUESHOT_AURA, 1 },
     { ID_THORNS_AURA, 1 }
@@ -569,6 +572,8 @@ static float hero_aura_bonus(edict_t *unit, uint32_t code, uint32_t data) {
                          * not realdef, agility, upgrades, or current runtime armor. */
                         amount *= balance ? (float)balance->baseArmor : 0.0f;
                     }
+                    if (aura_cache_keys[j].code == ID_ENDURANCE_AURA)
+                        amount *= 0.01f; /* AOae DataA/DataB are authored as percentages. */
                     aura_cache[unit->s.number][j] = MAX(aura_cache[unit->s.number][j], amount);
                 }
             }
@@ -676,6 +681,8 @@ float S_BrillianceManaRegen(edict_t *unit) { return hero_aura_bonus(unit, ID_BRI
 float S_DevotionArmorBonus(edict_t *unit) { return hero_aura_bonus(unit, ID_DEVOTION_AURA, 1); }
 float S_UnholyHealthRegen(edict_t *unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 2); }
 float S_UnholyMoveBonus(edict_t *unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 1); }
+float S_EnduranceMoveBonus(edict_t *unit) { return hero_aura_bonus(unit, ID_ENDURANCE_AURA, 1); }
+float S_EnduranceAttackBonus(edict_t *unit) { return hero_aura_bonus(unit, ID_ENDURANCE_AURA, 2); }
 float S_VampiricLifeSteal(edict_t *unit) { return hero_aura_bonus(unit, ID_VAMPIRIC_AURA, 1); }
 
 static float slow_aura_bonus(edict_t const *unit, uint32_t data) {

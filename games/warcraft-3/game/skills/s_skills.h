@@ -393,6 +393,8 @@ float S_BrillianceManaRegen(edict_t *unit);
 float S_DevotionArmorBonus(edict_t *unit);
 float S_UnholyHealthRegen(edict_t *unit);
 float S_UnholyMoveBonus(edict_t *unit);
+float S_EnduranceMoveBonus(edict_t *unit);
+float S_EnduranceAttackBonus(edict_t *unit);
 float S_VampiricLifeSteal(edict_t *unit);
 float S_TrueshotAttackBonus(edict_t *unit);
 int S_SearingArrowDamage(edict_t *attacker, int damage);

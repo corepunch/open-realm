@@ -841,17 +841,7 @@ static float attack_speed_divisor(edict_t *self) {
                       + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
                       - S_CrippleAttackReduction(self) - S_SlowPoisonAttackReduction(self)
                       - S_DefendAttackReduction(self) - S_CreepAttackSpeedReduction(self) - S_SlowAuraAttackReduction(self);
-    if (S_AuraUnitActive(self)) {
-        FOR_LOOP(i, globals.num_edicts) {
-            edict_t *aura = g_edicts + i;
-            uint32_t level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
-            abilityLevel_t const *ability_level;
-            if (!S_AuraUnitActive(aura) || !level || !S_SpellIsFriend(aura, self)) continue;
-            ability_level = G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), level);
-            if (Vector2_distance(&aura->s.origin2, &self->s.origin2) <= ability_level->area)
-                total_bonus += ability_level->data[1].number * 0.01f;
-        }
-    }
+    total_bonus += S_EnduranceAttackBonus(self);
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
      * combines authored buffs/debuffs with Agility before applying the same
      * timing bounds. */

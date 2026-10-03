@@ -115,6 +115,21 @@ Concrete ability procedures remain the owners of Warcraft-specific policy, but r
 
 The first shared acquisition family is `S_AutocastAcquireUnit()`. Ordinary unit-target autocast abilities supply whether they want friendly or enemy candidates, whether candidates must be wounded, and the fallback acquisition radius. The helper then performs the common live-unit scan, authored target-mask check, nearest-candidate selection, and calls `S_CastUnitTargetSpell()` so mana, cooldown, validation, spell events, and execution stay on the normal cast path. Human, Undead, and general melee spell procedures use this one implementation. Abilities with genuinely different acquisition contracts (for example Barkskin's existing-buff exclusion or Moon Well's Area/threshold rules) keep their specialized acquisition code.
 
+The combat-aura cache in `s_hero_passives.c` is the shared resolver for authored
+alias/rank, range, target masks and strongest non-stacking numeric contributions.
+Endurance Aura now uses that same resolver for both movement and attack speed
+instead of rescanning all entities independently in `s_move.c` and `s_attack.c`.
+Its DataA/DataB percentage authoring is normalized inside the shared resolver;
+consumers receive fractional bonuses just like the existing
+Unholy/Brilliance/Devotion family consumers.
+
+Corpse revival likewise has one death-state teardown primitive in `m_unit.c`.
+`G_ReviveCorpse()` restores an ordinary permanent unit and reactivates food;
+`G_ReviveCorpseAsSummon()` performs the same identity-preserving teardown for
+temporary raised units while keeping them out of food accounting and marking the
+consumed corpse unraisable/no-decay. Resurrection and Animate Dead therefore
+differ in post-revival policy without duplicating decay/order cleanup.
+
 Use the same rule for future consolidation:
 
 - target/projectile families share cast, target and impact machinery but keep ability-specific effects;

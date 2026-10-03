@@ -141,7 +141,11 @@ For example, ordinary unit-target autocast acquisition uses
 ability procedure still decides relation, wounded-only policy and fallback
 radius, while the helper owns nearest-candidate scanning and re-enters the normal
 `S_CastUnitTargetSpell` path. Do not force special acquisition rules such as Moon
-Well thresholds or Barkskin's existing-buff exclusion through that helper. See
+Well thresholds or Barkskin's existing-buff exclusion through that helper. The
+same rule applies to passive and lifecycle families: Endurance Aura now consumes
+the shared aura cache instead of open-coding recipient scans, and temporary corpse
+revival uses `G_ReviveCorpseAsSummon()` rather than repeating the ordinary corpse
+teardown. See
 [Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families).
 
 ### 6. Verify the focused pattern, then the family
