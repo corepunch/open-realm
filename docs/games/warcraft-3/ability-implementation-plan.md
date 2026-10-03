@@ -145,7 +145,12 @@ Well thresholds or Barkskin's existing-buff exclusion through that helper. The
 same rule applies to passive and lifecycle families: Endurance Aura now consumes
 the shared aura cache instead of open-coding recipient scans, and temporary corpse
 revival uses `G_ReviveCorpseAsSummon()` rather than repeating the ordinary corpse
-teardown. See
+teardown. Ordinary target-status procedures may share
+`S_SpellApplyTimedTargetStatus()` only after the owner has resolved its own BuffID
+fallback and exact normal/resistant duration. `S_SpellBuffToken()` only parses
+ordered BuffID fields; the owning ability still decides which token is correct.
+Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with
+animation, expiry, or other side effects retain their own wrappers. See
 [Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families).
 
 ### 6. Verify the focused pattern, then the family

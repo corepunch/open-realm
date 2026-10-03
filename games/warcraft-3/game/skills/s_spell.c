@@ -1078,6 +1078,44 @@ bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool w
     return best && S_CastUnitTargetSpell(caster, code, best);
 }
 
+/* AbilityData BuffID fields can contain an ordered comma-separated list. Return
+ * the requested token without allocating: Warcraft rawcodes are four bytes, so
+ * callers may pass the returned pointer directly to FS_SLKKey/status helpers. */
+cstring_t S_SpellBuffToken(cstring_t list, uint32_t index) {
+    uint32_t current = 0;
+    if (!list) return NULL;
+    for (;;) {
+        if (strlen(list) < 4) return NULL;
+        if (current == index) return list;
+        list = strchr(list, ',');
+        if (!list) return NULL;
+        list++;
+        current++;
+    }
+}
+
+/* Shared lifecycle for ordinary target buffs whose caller has already resolved
+ * validation, BuffID fallback and the exact duration class. */
+void S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration) {
+    if (!target || !buff || strlen(buff) < 4) return;
+    unit_addtimedstatus(target, buff, level, duration);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+}
+
+/* Simple persistent on/off status family. Specialized toggles such as Defend
+ * keep their own wrapper so animation and expiry policy remain ability-owned. */
+void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level) {
+    if (!unit || !code) return;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = unit->abilstatus + i;
+        if (status->level && status->code == code) {
+            memset(status, 0, sizeof(*status));
+            return;
+        }
+    }
+    unit_addstatus(unit, GetClassName(code), level);
+}
+
 bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     uint32_t level;
     float range;

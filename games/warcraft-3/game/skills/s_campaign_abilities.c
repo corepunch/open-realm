@@ -21,11 +21,8 @@ static void campaign_area_damage_execute(edict_t *caster, spellTarget_t st, abil
 }
 
 static void campaign_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        heroabilitystatus_t *status = caster->abilstatus + i;
-        if (status->level && status->code == spell->code) { memset(status, 0, sizeof(*status)); return; }
-    }
-    unit_addstatus(caster, GetClassName(spell->code), S_SpellLevel(caster, spell->code));
+    (void)st;
+    S_ToggleUnitAbilityStatus(caster, spell->code, S_SpellLevel(caster, spell->code));
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityAttributeModSkill) { campaign_toggle_execute(caster, st, spell); }
@@ -72,19 +69,6 @@ BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
 BZ_SIMPLE_SPELL_PROC(AbilitySubmergeMyrmidon) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySubmergeRoyalGuard) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySubmergeSnapDragon) { campaign_toggle_execute(caster, st, spell); }
-
-/* BuffID is "Bena,Beng"; index 0 is air, index 1 is ground. Empty ROC BuffID falls back to Bens. */
-static cstring_t ensnare_buff_token(cstring_t list, uint32_t index) {
-    uint32_t i = 0;
-    if (!list) return NULL;
-    for (;;) {
-        if (strlen(list) < 4) return NULL;
-        if (i == index) return list;
-        list = strchr(list, ',');
-        if (!list) return NULL;
-        list++; i++;
-    }
-}
 
 static bool ensnare_is_flyer(edict_t const *unit) {
     cstring_t movetp;
@@ -252,8 +236,8 @@ static void ensnare_execute(edict_t *caster, spellTarget_t st, abilityitem_t con
     (void)caster;
     if (!st.entity) return;
     list = G_AbilityLevel(spell->code, level)->buffID;
-    buff = ensnare_buff_token(list, ensnare_is_flyer(st.entity) ? 0 : 1);
-    if (!buff || strlen(buff) < 4) buff = ensnare_buff_token(list, 0);
+    buff = S_SpellBuffToken(list, ensnare_is_flyer(st.entity) ? 0 : 1);
+    if (!buff || strlen(buff) < 4) buff = S_SpellBuffToken(list, 0);
     /* ROC omits BuffID. Use each family's authored TFT token, preserving Web's air bind. */
     if (!buff || strlen(buff) < 4) buff = spell->ability->proc == CAbilityWeb ? "Bwea" : "Bens";
     unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));

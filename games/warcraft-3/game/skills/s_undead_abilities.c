@@ -11,25 +11,12 @@ static cstring_t undead_buff(abilityitem_t const *spell, uint32_t level) {
     return buff && strlen(buff) >= 4 ? buff : NULL;
 }
 
-/* BuffID is "Bams,Bam2"; DataC selects the token. Index 0 is Bams, index 1 is Bam2. */
-static cstring_t ams_buff_token(cstring_t list, uint32_t index) {
-    uint32_t i = 0;
-    if (!list) return NULL;
-    for (;;) {
-        if (strlen(list) < 4) return NULL;
-        if (i == index) return list;
-        list = strchr(list, ',');
-        if (!list) return NULL;
-        list++; i++;
-    }
-}
-
 /* DataC > 0 is the TFT melee shield (Aam2); empty DataC is ROC-style targeting immunity (Aams/ACam). */
 static void anti_magic_shell_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float absorb = S_SpellData(spell->code, level, 3);
     cstring_t list = G_AbilityLevel(spell->code, level)->buffID;
-    cstring_t buff = ams_buff_token(list, absorb > 0.0f ? 1 : 0);
+    cstring_t buff = S_SpellBuffToken(list, absorb > 0.0f ? 1 : 0);
     heroabilitystatus_t *slot;
     (void)caster;
     if (!st.entity) return;

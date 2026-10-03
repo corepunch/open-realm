@@ -35,8 +35,8 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = melee_buff(spell, level);
     if (!st.entity || !buff) return;
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+    S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+                                  S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
 }
 
 static bool bloodlust_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {

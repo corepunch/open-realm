@@ -45,16 +45,13 @@ static void target_status_execute(edict_t *caster, spellTarget_t st, abilityitem
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = spell_buff(spell, level);
     if (!st.entity || !buff) return;
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+    S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+                                  S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
 }
 
 static void toggle_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        heroabilitystatus_t *status = caster->abilstatus + i;
-        if (status->level && status->code == spell->code) { memset(status, 0, sizeof(*status)); return; }
-    }
-    unit_addstatus(caster, GetClassName(spell->code), S_SpellLevel(caster, spell->code));
+    (void)st;
+    S_ToggleUnitAbilityStatus(caster, spell->code, S_SpellLevel(caster, spell->code));
 }
 
 static void radial_damage_status(edict_t *caster, vec2_t point, abilityitem_t const *spell, uint32_t data) {
