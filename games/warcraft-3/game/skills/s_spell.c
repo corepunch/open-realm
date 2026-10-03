@@ -1170,6 +1170,25 @@ edict_t *S_SpellProjectileTarget(edict_t *missile) {
     return target->spawn_time == missile->channel->target_spawn_time ? target : NULL;
 }
 
+/* Shared eligibility for chained/bouncing unit spells. Selection order,
+ * timing, visited-state storage, and damage/heal progression remain with the
+ * owning ability. */
+bool S_SpellBounceTargetAllowed(edict_t *caster, uint32_t code, edict_t const *from, edict_t *target,
+                                float radius, bool friendly) {
+    if (!caster || !from || !S_SpellIsAliveTarget(target)) return false;
+    if (friendly != S_SpellIsFriend(caster, target)) return false;
+    if (!S_SpellAllowsTarget(code, caster, target)) return false;
+    return radius <= 0.0f || Vector2_distance(&target->s.origin2, &from->s.origin2) <= radius;
+}
+
+/* Synchronous bounce families keep a small local visited array. Asynchronous
+ * save-safe chains may use persistent marker edicts instead. */
+bool S_SpellTargetVisited(edict_t *const *visited, uint32_t count, edict_t const *target) {
+    if (!visited || !target) return false;
+    FOR_LOOP(i, count) if (visited[i] == target) return true;
+    return false;
+}
+
 /* Common authored metadata used by status-family procedures.  Keep fallback
  * policy in the owning ability; this only validates the primary BuffID field. */
 cstring_t S_SpellBuffId(uint32_t code, uint32_t level) {

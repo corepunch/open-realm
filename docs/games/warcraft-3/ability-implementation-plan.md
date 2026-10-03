@@ -175,6 +175,15 @@ inside the owning ability: Death Coil still owns Undead heal/non-Undead damage
 semantics, while Thunder/Fire Bolt owns damage and stun duration. Do not extend
 this helper to artillery/fixed-point attacks or add flags for unrelated missile
 policies.
+For chained/bouncing unit spells, use `S_SpellBounceTargetAllowed()` for the
+demonstrated common candidate contract (alive, authored target mask, friendly or
+enemy relation, and jump radius) and `S_SpellTargetVisited()` for small
+synchronous visited arrays. Keep selection and lifecycle in the owner: Chain
+Lightning uses persistent marker edicts because delayed jumps must survive save
+state and chooses the nearest unvisited target; Forked Lightning retains its
+candidate/random policy; Healing Wave remains synchronous and chooses its next
+friendly according to its existing scan order. Do not replace those policies
+with a callback- or flag-driven generic chain interpreter.
 For relocation abilities, resolve destination legality and fallback in the owner,
 then use `S_SpellRelocateUnit()` only for the demonstrated common commit step:
 source/destination `SpecialArt`, FOW blocker invalidation, relink, and

@@ -269,12 +269,10 @@ static void bounce_execute(bounceParams_t const *params) {
         S_SpellDamage(current, caster, (int)MAX(1.0f, damage));
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, current, NULL, true);
         visited[nvisited++] = current; damage *= scale;
-        FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
-                      S_SpellAllowsTarget(spell->code, caster, target) &&
-                      Vector2_distance(&target->s.origin2, &current->s.origin2) <= S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)) {
-            bool seen = false;
-            FOR_LOOP(j, nvisited) seen |= target == visited[j];
-            if (!seen && candidate_count < MAX_GROUP_SIZE) candidates[candidate_count++] = target;
+        FILTER_EDICTS(target, S_SpellBounceTargetAllowed(caster, spell->code, current, target,
+                                                        S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), false)) {
+            if (!S_SpellTargetVisited(visited, nvisited, target) && candidate_count < MAX_GROUP_SIZE)
+                candidates[candidate_count++] = target;
         }
         current = candidate_count ? candidates[random_jumps ? rand() % candidate_count : 0] : NULL;
     }
@@ -329,9 +327,8 @@ void chain_lightning_think(edict_t *thinker) {
     }
     if (G_Time() < thinker->freetime) return;
 
-    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
-                  S_SpellAllowsTarget(thinker->class_id, caster, target) &&
-                  Vector2_distance(&target->s.origin2, &thinker->s.origin2) <= thinker->collision) {
+    FILTER_EDICTS(target, S_SpellBounceTargetAllowed(caster, thinker->class_id, thinker, target,
+                                                    thinker->collision, false)) {
         float distance;
         if (chain_lightning_visited(thinker, target)) continue;
         distance = Vector2_distance(&target->s.origin2, &thinker->s.origin2);
@@ -955,10 +952,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityHealingWave) {
         if (!current || !S_SpellIsAliveTarget(current) || !S_SpellIsFriend(caster, current)) break;
         S_SpellHeal(current, amount); visited[i] = current; amount *= 1.0f - loss;
         current = NULL;
-        FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
-                      Vector2_distance(&target->s.origin2, &visited[i]->s.origin2) <= S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)) {
-            bool seen = false; FOR_LOOP(j, i + 1) seen |= target == visited[j];
-            if (!seen) { current = target; break; }
+        FILTER_EDICTS(target, S_SpellBounceTargetAllowed(caster, spell->code, visited[i], target,
+                                                        S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), true)) {
+            if (!S_SpellTargetVisited(visited, i + 1, target)) { current = target; break; }
         }
     }
 }
