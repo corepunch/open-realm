@@ -31,7 +31,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkConversion) {
     cstring_t buff;
 
     if (!caster || !st.entity || !unit) return;
-    summon = S_SummonAt(caster, unit, &st.entity->s.origin2, 0.0f);
+    summon = S_SummonAbilityAt(caster, spell->code, unit, &st.entity->s.origin2, 0.0f);
     if (!summon) return;
     buff = S_SpellBuffId(spell->code, level);
     if (buff) S_SpellApplyTimedStatus(summon, buff, level, S_SpellDuration(spell->code, level, false));

@@ -4477,6 +4477,34 @@ TEST(wc3_spell, moon_glaive_stock_zeros_bounce_inside_attack_range) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, healing_ward_records_concrete_summon_ability) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"UnitID1\"\nC;Y1;X5;K\"targs\"\n"
+        "C;Y2;X1;K\"Ahwd\"\nC;Y2;X2;K\"Ahwd\"\n"
+        "C;Y2;X3;K\"7\"\nC;Y2;X4;K\"hfoo\"\nC;Y2;X5;K\"point\"\nE\n";
+    uint32_t const code = MAKEFOURCC('A','h','w','d');
+    slkTestData_t *rows, *old;
+    edict_t *caster, *ward = NULL;
+    spellTarget_t target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = { 128.0f, 64.0f });
+
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('O','f','a','r'), 0, 0);
+    caster->s.player = 0; caster->svflags |= SVF_MONSTER;
+    T_ASSERT(test_execute_code(caster, "Ahwd", target));
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == caster && unit->class_id == MAKEFOURCC('h','f','o','o')) {
+        ward = unit; break;
+    }
+    T_NOT_NULL(ward);
+    if (ward) {
+        T_EQ(ward->summon_ability, code);
+        T_EQ(G_UnitStatusLevel(ward, MAKEFOURCC('B','T','L','F')), 1);
+    }
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, purge_and_lightning_shield_registration_aliases) {
 	T_EQ(S_AbilityItem(FS_SLKKey("Aprg")).ability->proc, CAbilityPurge);
 	T_EQ(S_AbilityItem(FS_SLKKey("Apg2")).ability->proc, CAbilityPurge);

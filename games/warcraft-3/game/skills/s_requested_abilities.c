@@ -199,8 +199,9 @@ int S_BlackArrowDamage(edict_t *attacker, int damage) {
 void S_BlackArrowDeath(edict_t *attacker, edict_t *target) {
     uint32_t level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','N','b','a'));
     if (level && target && M_IsDead(target))
-        S_SummonAt(attacker, S_SpellUnitId(MAKEFOURCC('A','N','b','a'), level), &target->s.origin2,
-                   S_SpellData(MAKEFOURCC('A','N','b','a'), level, 3));
+        S_SummonAbilityAt(attacker, MAKEFOURCC('A','N','b','a'),
+                          S_SpellUnitId(MAKEFOURCC('A','N','b','a'), level), &target->s.origin2,
+                          S_SpellData(MAKEFOURCC('A','N','b','a'), level, 3));
 }
 
 static void death_coil_projectile_hit(edict_t *missile);
@@ -581,8 +582,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityCarrionScarabs) {
     FILTER_EDICTS(unit, G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) &&
                   Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= range) { corpse = unit; break; }
     if (!corpse) return;
-    FOR_LOOP(i, count) S_SummonAt(caster, S_SpellDataId(spell->code, level, 3), &corpse->s.origin2,
-                                  S_SpellDuration(spell->code, level, false));
+    FOR_LOOP(i, count) S_SummonAbilityAt(caster, spell->code, S_SpellDataId(spell->code, level, 3),
+                                          &corpse->s.origin2, S_SpellDuration(spell->code, level, false));
     G_FreeEdict(corpse);
 }
 /* Name=Impale
@@ -830,7 +831,8 @@ BZ_ABILITY_PROC(CAbilityFingerOfDeath) {
 BZ_SIMPLE_SPELL_PROC(AbilityDreadLordInferno) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     radial_damage_status(caster, st.point, spell, 1);
-    S_SummonAt(caster, S_SpellUnitId(spell->code, level), &st.point, S_SpellData(spell->code, level, 2));
+    S_SummonAbilityAt(caster, spell->code, S_SpellUnitId(spell->code, level), &st.point,
+                      S_SpellData(spell->code, level, 2));
 }
 /* Name=Chain Lightning
  * Ubertip="Hurls a bolt of lightning that jumps between enemy units."

@@ -153,7 +153,11 @@ presentation-neutral status writes after the owner has resolved its own BuffID
 fallback and exact duration; lifecycle tokens remain deliberately separate from
 ordinary buffs. Use `S_SpellApplyTimedLife()` for the shared `BTLF` token while
 the owner decides whether zero duration means permanent lifecycle state or no
-marker at all. Skill procedures should not call `unit_addtimedstatus()` directly:
+marker at all. Direct ability-created summons should likewise use
+`S_SummonAbilityAt()` (or `S_SummonAbilityUnits()` for the simple authored family)
+so the concrete rawcode is preserved in `summon_ability`; keep secondary units
+spawned by another summon on generic `S_SummonAt()` when that immediate entity
+ownership is the intended contract. Skill procedures should not call `unit_addtimedstatus()` directly:
 even presentation-neutral special state such as Militia expiry, Wind Walk, and
 ability-owned timed toggles now uses `S_SpellApplyTimedStatus()`, while each owner
 still keeps its transform, invisibility, animation, expiry, and payload policy. This

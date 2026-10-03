@@ -170,7 +170,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityLightningShield) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityHealingWard) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    S_SummonAt(caster, S_SpellUnitId(spell->code, level), &st.point, S_SpellDuration(spell->code, level, false));
+    S_SummonAbilityAt(caster, spell->code, S_SpellUnitId(spell->code, level), &st.point,
+                      S_SpellDuration(spell->code, level, false));
 }
 
 /* Passive marker for the regen-life aura families (Aoar/Aabr).

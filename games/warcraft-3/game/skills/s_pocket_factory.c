@@ -41,7 +41,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityPocketFactory) {
     float duration = S_SpellDuration(spell->code, level, false);
     edict_t *factory, *thinker;
     if (!interval || !clockwerk || duration <= 0.0f) return;
-    factory = S_SummonAt(caster, S_SpellUnitId(spell->code, level), &st.point, duration);
+    factory = S_SummonAbilityAt(caster, spell->code, S_SpellUnitId(spell->code, level), &st.point, duration);
     if (!factory) return;
     thinker = G_Spawn();
     if (!thinker) { G_FreeEdict(factory); return; }

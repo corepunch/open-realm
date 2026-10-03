@@ -133,7 +133,7 @@ static void inferno_impact(edict_t *caster, uint32_t code, uint32_t level, vec2_
         fprintf(stderr, "WC3 Inferno: missing UnitID for %.4s\n", (cstring_t)&code);
         return;
     }
-    S_SummonAt(caster, unit_id, point, life);
+    S_SummonAbilityAt(caster, code, unit_id, point, life);
 }
 
 void inferno_think(edict_t *ent) {
