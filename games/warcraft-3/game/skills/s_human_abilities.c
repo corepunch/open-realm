@@ -55,7 +55,7 @@ static void human_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_
     if (human_has_status(caster, spell->code)) {
         human_remove_status(caster, spell->code); S_HumanStatusExpired(caster, spell->code, level); return;
     }
-    unit_addtimedstatus(caster, GetClassName(spell->code), level, duration);
+    (void)S_SpellApplyTimedStatus(caster, GetClassName(spell->code), level, duration);
     if (G_AbilityCode(spell->code) == MAKEFOURCC('A','d','e','f'))
         G_AddUnitAnimationProperties(caster, "defend", true);
 }

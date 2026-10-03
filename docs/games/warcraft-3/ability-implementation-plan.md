@@ -153,8 +153,10 @@ presentation-neutral status writes after the owner has resolved its own BuffID
 fallback and exact duration; lifecycle tokens remain deliberately separate from
 ordinary buffs. Use `S_SpellApplyTimedLife()` for the shared `BTLF` token while
 the owner decides whether zero duration means permanent lifecycle state or no
-marker at all; direct `unit_addtimedstatus()` remains appropriate for other
-deliberately special state such as morph expiry. This
+marker at all. Skill procedures should not call `unit_addtimedstatus()` directly:
+even presentation-neutral special state such as Militia expiry, Wind Walk, and
+ability-owned timed toggles now uses `S_SpellApplyTimedStatus()`, while each owner
+still keeps its transform, invisibility, animation, expiry, and payload policy. This
 presentation-neutral primitive returns the authoritative status slot, so special
 abilities can attach payload without rescanning `abilstatus`; this also replaces
 manual post-apply status lookups in Avatar/Polymorph and preserves presentation-
