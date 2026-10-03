@@ -8,22 +8,22 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**148 done / 336 tasks; 188 remaining.** Payoff71 closes existing MAP-03.5
-and MAP-03.6 together, with no new TODO IDs: actual resource depletion,
-destructible destruction/restoration and final removal preserve overlapping
-footprints and restore the hierarchy before the next request. The engine now
-owns static invalidation in direct/deferred free, including public same-callback
-Move after building removal. Two retail repeats agree on26 geometry snapshots,
-eight fresh fine requests and764 exact velocity/position/facing commits.
-Release RoC/TFT each pass2481 tests/2804207 assertions; required `make test`,
-454 Python checks and four fresh lifecycle/widget contracts pass. Saved Ghidra
-readback has616 roles,53 layouts/328 fields,284 explicit ABIs and58 globals.
-Inventory290 entries/132 fixtures/73 strict live contracts. See
-[blocker lifecycle integration](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation).
-Next work prioritizes existing ordinary map/footprint tasks. MAP-02.3's authored
-creation-order experiment already exposes public destructible position snapping
-and the engine's missing authored fixed-rotation angle; neither is counted as
-completed yet. Extended captain travel and its existing follow-ups remain open.
+**149 done / 336 tasks; 187 remaining.** Payoff72 closes existing MAP-02.3,
+with no new TODO IDs: file-backed overlapping tree/gate creation in both orders
+now matches public snapped pose,1024 static fine masks and all four hierarchy
+levels. The engine parses authored rotation as degrees, applies the retail
+map clamp/dimension-parity snap before linking and binds hidden preplaced
+objects against that same snapped point. Two retail repeats agree on18 full
+patch snapshots. Production helpers match288 original snap and27 clamp cases.
+Release RoC/TFT each pass2482 tests/2830478 assertions; required `make test`,
+461 Python checks and five fresh widget/lifecycle contracts pass. Saved Ghidra
+readback has620 roles,53 layouts/328 fields,284 explicit ABIs and58 globals.
+Inventory291 entries/133 fixtures/74 strict live contracts. See
+[authored widget creation](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation).
+Payoff71's existing MAP-03.5/03.6 lifecycle closures remain in place. Next
+runnable ID is MAP-02.1: a complete file-backed retail load already exposes
+an incorrect engine hierarchy allocation/initialization; both captures and
+all98304 decoded fine cells agree. Extended captain follow-ups remain open.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -35,7 +35,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | Area | Done | Remaining |
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
-| MAP — Map construction and lifetime | 9 | 13 |
+| MAP — Map construction and lifetime | 10 | 12 |
 | FOOT — Footprints and query policy | 11 | 7 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
@@ -283,7 +283,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 
 - [ ] **MAP-02.1** Load one file-backed WPM/map through deserialization and map creation; compare decoded masks, fine cells and hierarchy against the no-file fixture.
 - [ ] **MAP-02.2** Add one cliff, one water boundary and one bridge fixture; assert each supported movement lane's initial cells and support-height source.
-- [ ] **MAP-02.3** Load two overlapping authored pathing textures in both creation orders; assert object/fine/hierarchy state after loading.
+- [x] **MAP-02.3** Load two overlapping authored pathing textures in both creation orders; assert object/fine/hierarchy state after loading. Evidence: [authored widget creation](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation), complete public LTlt/LTg1 file-backed creation in both orders,18 repeated1024-cell/four-level snapshots. Engine corrects float fixedRot and public clamp/parity snapping before linking, preserves overlap/removal and hidden generated-script binding; all literal native grids match. No new task IDs.
 
 ### MAP-03 — Invalidation producers
 

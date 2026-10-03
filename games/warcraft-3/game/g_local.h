@@ -3702,6 +3702,8 @@ bool G_DestructableApplyDamage(edict_t *ent, edict_t *attacker, float damage);
 bool G_KillDestructable(edict_t *ent, edict_t *killer);
 bool G_SetDestructableDeadState(edict_t *ent, bool process_death);
 bool G_RemoveDestructable(edict_t *ent);
+void G_ApplyDestructableCreationPose(edict_t *ent);
+vec2_t G_DestructableCreationPoint(edict_t const *ent, vec2_t point, float facing);
 bool G_SetDestructableLife(edict_t *ent, float life);
 bool G_RestoreDestructable(edict_t *ent, float life, bool birth);
 uint32_t G_SelectDropItem(droppableItem_t const *entries, uint32_t count, uint32_t roll);

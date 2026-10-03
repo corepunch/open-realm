@@ -11,6 +11,18 @@
 #include "games/warcraft-3/common/wc3_pathing_adaptive.h"
 #include "games/warcraft-3/common/wc3_pathing_yield.h"
 #include "games/warcraft-3/common/wc3_pathing_retry.h"
+#include "games/warcraft-3/common/wc3_pathing_widget.h"
+
+void pathing_widget_snap(uint32_t const input[5], uint32_t output[2]) {
+    float point[]={wc3_float(input[0]),wc3_float(input[1])};
+    wc3_widget_snap(point,input[input[4]&1 ? 3 : 2],input[input[4]&1 ? 2 : 3]);
+    output[0]=wc3_float_bits(point[0]); output[1]=wc3_float_bits(point[1]);
+}
+
+void pathing_widget_clamp(uint32_t const input[6], uint32_t output[2]) {
+    for(unsigned k=0;k<2;k++)
+        output[k]=wc3_float_bits(wc3_widget_clamp_axis(wc3_float(input[k]),wc3_float(input[2+k]),wc3_float(input[4+k])));
+}
 
 /* Original05b970 world bounds clipping and subsequent fixed32-cell input. */
 void pathing_point_order_clip(uint32_t const input[7], uint32_t output[4]) {

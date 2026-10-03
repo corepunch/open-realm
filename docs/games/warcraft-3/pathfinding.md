@@ -759,3 +759,10 @@ Internet multiplayer. The SDK-free production/test build and required release
 pathfinding checks and9 release-preparation checks. All143 payoff70 corpus
 source fingerprints remain unchanged; this networking merge does not alter
 the verified movement consumers.
+
+
+Authored destructible creation now applies float `fixedRot` degrees and the
+retail map clamp/dimension-parity snap before linking. Both creation orders of
+file-backed overlapping tree/gate textures match captured fine masks and all
+four static hierarchy levels; removal preserves terrain and the surviving
+footprint. See [authored widget creation](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation).

@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "games/warcraft-3/common/wc3_pathing_widget.h"
 
 #define DESTRUCTABLE_DROP_RADIUS 32.0f // world units; separates multiple drops around one destroyed object
 #define NO_RANDOM_ITEM_TABLE ((uint32_t)-1) // table index; war3map.doo sentinel meaning no random-item table
@@ -30,10 +31,29 @@ static void G_ApplyDestructableDeathPathing(edict_t *ent) {
     ent->s.flags &= ~EF_GROUND_SURFACE;
 }
 
-/*
- * Activate a preplaced war3map.doo placeholder when generated war3map.j
- * creates the corresponding destructable through CreateDestructable().
- */
+/* The authored constructor selects rotation and snaps pose before publishing
+ * its footprint. Apply this equally to fresh creation and map-script binding. */
+vec2_t G_DestructableCreationPoint(edict_t const *ent, vec2_t point, float facing) {
+    pathTex_t const *pt=ent->destructable.alive_pathtex;
+    if(!pt) return point;
+    if(ent->data.DestructableData->fixedRot>=0)
+        facing=wc3_degrees_to_radians(ent->data.DestructableData->fixedRot);
+    unsigned turn=wc3_widget_texture_turn(facing,pt->width,pt->height);
+    box2_t bounds=CM_GetWorldBounds();
+    float snapped[]={wc3_widget_clamp_axis(point.x,bounds.min.x,bounds.max.x),
+        wc3_widget_clamp_axis(point.y,bounds.min.y,bounds.max.y)};
+    wc3_widget_snap(snapped,turn&1 ? pt->height : pt->width,turn&1 ? pt->width : pt->height);
+    return (vec2_t){snapped[0],snapped[1]};
+}
+
+void G_ApplyDestructableCreationPose(edict_t *ent) {
+    if (!G_IsDestructable(ent)) return;
+    if (ent->data.DestructableData->fixedRot>=0)
+        ent->s.angle=wc3_degrees_to_radians(ent->data.DestructableData->fixedRot);
+    ent->s.origin2=G_DestructableCreationPoint(ent,ent->s.origin2,ent->s.angle);
+}
+
+/* Activate a war3map.doo placeholder when generated war3map.j creates it. */
 void G_ActivateScriptedDestructable(edict_t *ent,
                                     float x,
                                     float y,
@@ -71,6 +91,7 @@ void G_ActivateScriptedDestructable(edict_t *ent,
     ent->health.value = ent->health.max_value;
 
     G_ApplyDestructableAlivePathing(ent);
+    G_ApplyDestructableCreationPose(ent);
     G_DestructableStartAliveAnimation(ent, false);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
 

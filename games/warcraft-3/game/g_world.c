@@ -3,6 +3,7 @@
 #include "../common/wc3_pathing_coordinates.h"
 #include "../common/wc3_pathing_placement.h"
 #include "../common/wc3_pathing_adaptive.h"
+#include "../common/wc3_pathing_widget.h"
 
 typedef struct {
     int size;
@@ -52,11 +53,9 @@ static bool entity_is_pathing_ignored(edict_t const *ent) {
 static void entity_pathtex_transform(pathTexTransformParams_t const *params, pathTexTransform_t *transform) {
     pathTex_t const *pt = params ? params->pathtex : NULL;
     float const angle = params && params->ent ? params->ent->s.angle : 0.0f;
-    int quarter;
 
     if (!transform || !pt) return;
-    quarter = (pt->width != pt->height) + (int)lroundf(angle / ((float)M_PI / 2.0f));
-    transform->turn = ((quarter % 4) + 4) % 4;
+    transform->turn = wc3_widget_texture_turn(angle,pt->width,pt->height);
     transform->width = transform->turn & 1 ? pt->height : pt->width;
     transform->height = transform->turn & 1 ? pt->width : pt->height;
     if (!params->ent || !params->ent->destructable.initialized)
@@ -169,6 +168,22 @@ static void move_acc_prepare(void) {
      * invalidation producers remain separate. This cache follows the engine's static bake epoch. */
     move_acc_revision = pathmap.revision;
 }
+
+#ifdef BZ_TESTS
+unsigned G_TestStaticPathMask(unsigned x, unsigned y) {
+    unsigned result=0;
+    FOR_LOOP(bit,8) if(!is_pathable_node_original_flags(x,y,1u<<bit)) result|=1u<<bit;
+    return result;
+}
+/* Compare the production cached hierarchy directly with frozen retail cells. */
+int G_TestMovePathClass(uint8_t mask, unsigned level, unsigned x, unsigned y) {
+    move_acc_prepare();
+    FOR_LOOP(lane,4) if(move_acc_masks[lane]==mask && level<4 &&
+        x<move_acc.maps[level].width && y<move_acc.maps[level].height)
+        return move_acc_classes[lane][level][y*move_acc.maps[level].width+x];
+    return -1;
+}
+#endif
 
 /* Original 16ee80 checks a class-sized square, biased left/up for even sizes.
  * ceil(radius) instead imposed 3/5-cell squares on retail's 1/2/3/4 classes. */

@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--captain-approach-events', action='store_true', help='observe authored Captain AI approach ranges and enabled attack maxima without calling or changing game state')
     parser.add_argument('--captain-membership-events', action='store_true', help='observe Captain range departures, membership counters and private reissues without changing game state')
     parser.add_argument('--profile-events', action='store_true', help='capture original unit movement categories, masks and bridge publication')
+    parser.add_argument('--blocker-patch-size', type=int, choices=(16,32), default=16, help='32 observes all static movement masks on a parent-aligned patch')
     parser.add_argument('--widget-events', action='store_true', help='observe widget methods after the widget lifecycle scenario starts')
     parser.add_argument('--blockers', action='store_true', help='aggregate original fine-cell blocker decisions per request')
     parser.add_argument('--watch-cell', type=int, nargs=2, metavar=('X', 'Y'), help='fine-grid cell and its parents at scenario markers')
@@ -89,7 +90,7 @@ def main():
     pe = struct.unpack_from('<I', binary, 0x3c)[0]
     config = {'timestamp': struct.unpack_from('<I', binary, pe + 8)[0],
               'imageSize': struct.unpack_from('<I', binary, pe + 80)[0], 'samples': args.samples,
-              'watchCell': args.watch_cell, 'blockers': args.blockers, 'taskEvents': args.task_events,
+              'watchCell': args.watch_cell, 'blockerPatchSize': args.blocker_patch_size, 'blockers': args.blockers, 'taskEvents': args.task_events,
               'widgetEvents': args.widget_events, 'motionEvents': args.motion_events,
               'velocityEvents': args.velocity_events, 'yieldEvents': args.yield_events, 'clockEvents': args.clock_events, 'headingEvents': args.heading_events,
               'captainApproachEvents': args.captain_approach_events, 'captainMembershipEvents': args.captain_membership_events,
@@ -106,7 +107,7 @@ def main():
                              imageSize=struct.unpack_from('<I', crt, cp+80)[0],
                              path='Z:' + str((args.data / 'msvcr120.dll').resolve()).replace('/', '\\'))
     source_paths = [Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
-                    Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'),
+                    Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'), Path(__file__).with_name('wc3_widget_overlap_probe.j'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),
                     Path(__file__).with_name('wc3_angle_inputs.json'),

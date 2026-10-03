@@ -165,6 +165,7 @@ def main():
     sources.update((REPO/'tools/frida').glob('*pathfinding*'))
     sources.update((REPO/'tools/frida').glob('wc3_captain*.ai'))
     sources.add(REPO/'tools/frida/wc3_blocker_lifecycle_probe.j')
+    sources.add(REPO/'tools/frida/wc3_widget_overlap_probe.j')
     sources.update(REPO/entry['command'][1] for entry in manifest['entries'])
     sources.add(REPO/'tools/ghidra/generate_wc3_math_tables.py')
     sources.add(REPO/'tools/ghidra/wc3_shipped_crt.py')

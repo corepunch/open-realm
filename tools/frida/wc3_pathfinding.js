@@ -1702,13 +1702,15 @@ function install(module) {
         const owner = base.add(0xd53a48).readPointer();
         if (owner.isNull()) throw new Error('Blocker snapshot without pathing owner');
         const fine = owner.add(0x238).readPointer(), [width,height] = ints(fine.add(0x3c),2);
-        const minX=config.watchCell[0]-8, minY=config.watchCell[1]-8, size=16;
+        const size=config.blockerPatchSize||16;
+        const minX=size===32 ? Math.floor((config.watchCell[0]-8)/16)*16 : config.watchCell[0]-8;
+        const minY=size===32 ? Math.floor((config.watchCell[1]-8)/16)*16 : config.watchCell[1]-8;
         if (minX<0 || minY<0 || minX+size>width || minY+size>height)
             throw new Error('Blocker snapshot outside fine grid');
         const data=fine.add(0x28).readPointer(), links=fine.add(0x78).readPointer(), masks=[];
         for (let y=minY;y<minY+size;y++) for (let x=minX;x<minX+size;x++) {
             const word=data.add((y*width+x)*4).readU32(), seen=new Set();
-            let blocked=(word>>>24)&2, at=word&0xffffff, count=0;
+            let blocked=(word>>>24)&(size===32 ? 0xc6 : 2), at=word&0xffffff, count=0;
             while (at!==0xffffff) {
                 if (++count>4096) throw new Error('Blocker snapshot link chain did not terminate');
                 const link=links.add(at*8), head=link.readU32(), kind=head>>>24;
@@ -1719,8 +1721,9 @@ function install(module) {
                         // 1489a0 visits before testing kind: a retired newer link
                         // suppresses older active history for this same region.
                         seen.add(key);
-                        if (kind===1 && (category&255)===0xc2 &&
-                            !(object.add(0x40).readU32()&0xefffffff)) blocked=2;
+                        if (kind===1 && ((category&255)===0xc2 || (size===32 && (category&255)===4)) &&
+                            !(object.add(0x40).readU32()&0xefffffff))
+                            blocked|=size===32 ? category&0xc6 : 2;
                     }
                 }
                 at=head&0xffffff;

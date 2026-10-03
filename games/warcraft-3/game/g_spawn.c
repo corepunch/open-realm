@@ -551,6 +551,7 @@ static void SP_SpawnDestructable(edict_t *edict) {
     }
     edict->movetype = MOVETYPE_NONE;
     edict->svflags |= SVF_STATIC_SCENERY;
+    G_ApplyDestructableCreationPose(edict);
     G_BlightInitializeDestructable(edict);
 }
 
@@ -965,8 +966,7 @@ void G_SetDestructableScriptBinding(bool enabled) {
  * Destructables are neutral-passive, like the map-placed ones.  facing is in
  * radians (the native converts from JASS degrees).
  *
- * Parity note (Ghidra): the original CreateDestructable (FUN_003f80b0 ->
- * worker FUN_00621d90) always creates a fresh instance — its hash lookup
+ * Parity note (Ghidra1.27): constructor6c0d90 always creates a fresh instance — its hash lookup
  * resolves the destructable *type* by objectid, not an existing entity by
  * position.  We diverge with find-or-create because OUR engine already spawns
  * every war3map.doo destructable in G_SpawnEntities, and the map's generated
@@ -974,7 +974,8 @@ void G_SetDestructableScriptBinding(bool enabled) {
  * gg_dest_* handles + death triggers.  Reusing the pre-placed entity (like
  * unit_createorfind does for CreateUnit) yields the same observable result as
  * the original — one crate/gate carrying the trigger — instead of a stacked
- * duplicate.  Match a same-type destructable within 10 units of the spot. */
+ * duplicate. Match a same-type destructable within10 units of the constructor's
+ * snapped spot, including a hidden placeholder's retained alive texture. */
 /* HACK: Positional binding is required until the map parser exposes the
  * generated script variable's editor creation ID. */
 edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation) {
@@ -994,9 +995,8 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
                 continue;
             }
 
-            distance = Vector2_distance(
-                &MAKE(vec2_t, x, y),
-                &existing->s.origin2);
+            vec2_t point=G_DestructableCreationPoint(existing,(vec2_t){x,y},facing);
+            distance = Vector2_distance(&point,&existing->s.origin2);
 
             if (distance >= best_distance) {
                 continue;

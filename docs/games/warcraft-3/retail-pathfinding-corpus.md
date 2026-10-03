@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **290 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **73**
+The inventory now has **291 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **74**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1215,3 +1215,16 @@ controls reject retained footprints/hierarchy, missing depletion, missing fine
 requests, incomplete collection retirement and failed/late observation.
 The inventory now has290 entries/132 fixtures/73 strict live contracts.
 See [the engine removal fix](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation).
+
+
+Payoff72 adds `live-widget-overlap-captures-261003`: two complete file-backed
+creation-order repeats retain all18 public pose/fine/hierarchy snapshots and
+six actual nonnull collection retirements per run. `retail-widget-overlap-1.27.json`
+is the133rd pinned fixture. The three existing widget oracles additionally
+check288 production snap and27 map-clamp cases against full original functions.
+The canonical creation-order builder reproduces the historical map byte hash;
+its optional32-cell observer patch retains all static movement lanes and
+complete highest-parent coverage. Historical source identity remains pinned to
+the immutable external package. Five fresh strict contracts pass in
+`runtime/widget-overlap-strict-c11-261003/`. See
+[engine creation integration](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation).

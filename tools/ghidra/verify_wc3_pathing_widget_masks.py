@@ -16,6 +16,7 @@ retains02000002 through thirteen ticks. Cache/unit backing and radius8 remain
 supplied; full6945a0 class notification and public creation are separate scopes.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -33,6 +34,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine-library', type=Path)
     parser.add_argument('--fixture', type=Path, default=Path(__file__).with_name('fixtures') / 'retail-widget-escape-journey-1.27.json')
     parser.add_argument('--stock-mask', action='store_true', help='publish observed Footman profile masks through original getters/bridge before admission')
     parser.add_argument('--solid-footprint', action='store_true', help='retain a supplied solid9x9 widget and verify original cannot-path recovery')
@@ -92,6 +94,7 @@ def main():
         floats(address, value)
     run(0x6f006e90, 0)
     run(0x6f006ea0, 0)
+    run(0x6f070d80, 0x6fd3c7a8, edx=32)  # actual CRT initializer001c70
     write(0x6fd53a48, owner)
     write(0x6fd3c82c, game)
     write(owner + 0x24c, system)
@@ -132,6 +135,44 @@ def main():
     uc.hook_add(UC_HOOK_CODE, insertion, begin=0x6f14d9e0, end=0x6f14d9e0)
     for entry in [0x6f652b40, 0x6f650a70]:
         uc.hook_add(UC_HOOK_CODE, callback, begin=entry, end=entry)
+
+    snap_engine_cases = 0
+    clamp_engine_cases = 0
+    if args.engine_library:
+        # Original22f410 first calls04c330 (map-bound clamp). Keep these
+        # independent snap inputs inside real, provisioned map bounds.
+        floats(game+0x6c, -2147483648., -2147483648., 2147483648., 2147483648.)
+        engine = ctypes.CDLL(str(args.engine_library.resolve()))
+        word = ctypes.c_uint32
+        engine.pathing_widget_snap.argtypes = [ctypes.POINTER(word), ctypes.POINTER(word)]
+        positions = [(0., -0.), (.001, -.001), (31.75, -31.75), (32., -32.),
+                     (63.75, -63.75), (64., -64.), (64.25, -64.25),
+                     (-1936., -560.), (-7168., -3072.), (5119.875, 5119.125),
+                     (65535.75, -65535.75), (1073741824., -1073741824.)]
+        for (w, h), orientation, (x, y) in itertools.product(
+                [(1,1), (2,3), (3,2), (4,4), (20,4), (4,20)], range(4), positions):
+            write(texture+8, w, h)
+            floats(xptr, x); floats(yptr, y)
+            inputs = (word*5)(*words(xptr,1), *words(yptr,1), w, h, orientation)
+            result = (word*2)()
+            engine.pathing_widget_snap(inputs, result)
+            run(0x6f22f410, texture, xptr, yptr, orientation)
+            original = words(xptr,1) + words(yptr,1)
+            assert list(result) == original, ('production widget snap', w, h, orientation, x, y, list(result), original)
+            snap_engine_cases += 1
+        engine.pathing_widget_clamp.argtypes = [ctypes.POINTER(word), ctypes.POINTER(word)]
+        for box in [(0.,0.,1024.,1024.), (-7168.,-3072.,5120.,5120.), (-32.,-64.,32.,64.)]:
+            floats(game+0x6c,*box)
+            for at in range(9):
+                axes = [[lo-128,lo-.001,lo,lo+.001,(lo+hi)/2,hi-32,hi-31.999,hi,hi+128]
+                        for lo,hi in zip(box[:2],box[2:])]
+                floats(center,axes[0][at],axes[1][at])
+                inputs = (word*6)(*words(center,2),*words(game+0x6c,4))
+                result = (word*2)()
+                engine.pathing_widget_clamp(inputs,result)
+                run(0x6f04c330,center)
+                assert list(result)==words(center,2), ('production widget clamp',box,at)
+                clamp_engine_cases += 1
 
     def levels():
         return [words(data, w * h * 2) for data, (w, h) in zip(storage, sizes)]
@@ -1119,7 +1160,8 @@ def main():
         run(0x6f15d360, owner, 0, 0)
         assert levels() == expected_levels({key: value for key, value in active.items() if key[2] == 1})
         assert levels() != blocked
-    report = dict(binary_sha256=digest, lifecycle_cases=cases, raster_bounds_rebuild_stages=stages,
+    report = dict(binary_sha256=digest, snap_engine_cases=snap_engine_cases, clamp_engine_cases=clamp_engine_cases,
+                  lifecycle_cases=cases, raster_bounds_rebuild_stages=stages,
                   actual_callback_calls=total_callbacks, actual_cell_records=total_records,
                   widget_escape_arrival_tick=arrival_tick, widget_escape_supplied_query_mask=travel_mask,
                   widget_escape_solid_footprint=args.solid_footprint, widget_escape_recovery=recovery_observations,

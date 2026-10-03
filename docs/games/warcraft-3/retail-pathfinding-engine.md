@@ -6564,3 +6564,74 @@ without `SVF_MONSTER`; the corrected helper mirrors runtime dynamic occupancy.
 pass with145 source fingerprints. Backlog148 done/188 remaining; no task IDs
 were added. This validates removal and next-request behavior, not a complete
 OpenRealm reproduction of the retail worker trajectories.
+
+
+## Authored widget creation preserves snapped pose and rotation
+
+Payoff72 completes existing MAP-02.3. Retail `CreateDestructable` for stock
+`LTlt` and `LTg1` at(-1936,-560), requested facing0, publishes(-1920,-512).
+The shipped rows supply `fixedRot=270` degrees. OpenRealm previously parsed
+that field as Boolean and published the unsnapped request: the rectangular
+gate blocked the wrong axis. The new engine regression reproduces18 failures
+before the creation fix.
+
+`Destructable_CreateAuthored` (`6c0d90`) obtains the scalar degrees through
+`Destructable_GetAuthoredFixedRotation` (`6c1770`, cached row+90), overrides
+facing only when that value is nonnegative, and publishes through its widget.
+`PathTexture_SnapWidgetPoint` (`22f410`) first calls
+`Widget_ClampWorldPoint` (`04c330`). The latter's upper margin is32, established
+by the actual CRT initializer001c70; it is not an arbitrary epsilon.
+Snapping uses wrapped integer conversion, signed truncation to multiples of64,
+and signed32/16 offsets selected by the rotated texture dimensions' parity.
+Production scalar helpers match288 snap cases and27 lower/upper clamp cases
+against complete original functions, including fractional negative coordinates,
+odd/even rectangular dimensions, orientation and large finite inputs.
+
+The game module now parses `fixedRot` as float degrees, retains the caller's
+angle for negative values, clamps and snaps the public object pose before
+linking. Fresh spawning and map-script placeholder activation share this
+constructor policy. Generated-script binding compares the requested snapped
+point against the preplaced snapped pose, including a hidden placeholder's
+retained alive texture; an off-grid request must reuse the same object rather
+than duplicate the blocker. Missing optional `fixedRot` columns explicitly default to-1
+in the engine schema; the native stock witness uses authored270. No save,
+network or universal-client layout changes are needed.
+
+Two complete retail captures create the actual file-backed tree and gate in
+both orders, then remove the first and remaining objects. All18 observed
+snapshots agree: each contains1024 static fine masks and1360 classifications
+across four lanes and four hierarchy levels. The32-cell patch is aligned to
+its16-cell highest parents, preserving every child required to reproduce the
+captured hierarchy. Baseline has340 ground-blocked cells, tree356 and
+gate/both380. Independent terrain remains after both removals. Remove invokes
+alive retirement and the authored death-widget stage before final retirement:
+each run observes eight destroy calls, six nonnull collections actually freed.
+
+The engine test loads minimal4x4 and20x4 TGA numeric fixtures at the archive's
+actual `PathTextures\4x4Default.tga` / `PathTextures\Gate1Path.tga` paths,
+uses the same map dimensions/bounds and captured terrain, and compares all fine
+masks and all four cached hierarchy levels after every creation/removal. The
+literal C arrays are checked against frozen native JSON, so changing the
+engine does not regenerate its expected answer. The patch excludes dynamic
+unit occupancy; arbitrary angle/colored mask decoding and walkable surfaces
+retain their existing backlog scope.
+
+Frozen acceptance is `retail-widget-overlap-1.27.json` and strict entry
+`live-widget-overlap-captures-261003`. Historical controller/observer sources
+are immutable under `runtime/widget-overlap-source-v2-261003/`; captures are
+`runtime/widget-overlap-v2-{first,repeat}-261003.jsonl`. The canonical builder
+now provides `--scenario widget_overlap_orders`; the observer's
+`--blocker-patch-size 32` reproduces the aligned all-static-lane patch.
+Default16 retains the earlier blue-only lifecycle contract. Historical source
+hashes authenticate the external package, not the subsequently extended
+canonical scripts. The canonical builder reproduces the historical map byte
+hash515c0b0195401a765d64401b0e2f20424ced8a573b60bda49b3d6577385f1b3e.
+Ghidra saves four new verified function roles,620 total;
+existing53 layouts/328 fields,284 ABIs and58 globals remain unchanged.
+
+
+Payoff72 validation:46 affected destructible tests/26589 assertions pass;
+required release `make test` passes RoC/TFT with2482 tests/2830478 assertions
+each, plus461 Python pathfinding checks. Strict C11 O0 compilation and five
+fresh widget/lifecycle contracts pass. Saved Ghidra readback is unchanged after
+save (`unsaved=false`). The backlog is149 done/187 remaining, with no added IDs.

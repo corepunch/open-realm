@@ -746,7 +746,7 @@ static slkField_t const dest_schema[] = {
     { "useClickHelper",   offsetof(DestructableData_t, useClickHelper),   STB_SLK_BOOL  },
     { "showInMM",         offsetof(DestructableData_t, showInMM),         STB_SLK_BOOL  },
     { "useMMColor",       offsetof(DestructableData_t, useMMColor),       STB_SLK_BOOL  },
-    { "fixedRot",         offsetof(DestructableData_t, fixedRot),         STB_SLK_BOOL  },
+    { "fixedRot",         offsetof(DestructableData_t, fixedRot),         STB_SLK_FLOAT, NULL, "-1" },
     { "selectable",       offsetof(DestructableData_t, selectable),       STB_SLK_BOOL  }, /* TFT */
     { "MMRed",            offsetof(DestructableData_t, MMRed),            STB_SLK_INT   },
     { "MMGreen",          offsetof(DestructableData_t, MMGreen),          STB_SLK_INT   },

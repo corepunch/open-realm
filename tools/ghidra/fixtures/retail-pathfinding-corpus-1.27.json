@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "96 executable original oracle contracts,121 archive audits and71 strict live contracts;288 total entries.",
+  "scope": "96 executable original oracle contracts,121 archive audits and74 strict live contracts;291 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -1127,7 +1127,9 @@
         "--binary",
         "{binary}",
         "--report",
-        "{report}"
+        "{report}",
+        "--engine-library",
+        "{engine}"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -1153,13 +1155,19 @@
         },
         "widget_escape_original_mask_publication": {
           "equal": false
+        },
+        "snap_engine_cases": {
+          "equal": 288
+        },
+        "clamp_engine_cases": {
+          "equal": 27
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return, then executes fresh search and seven elapsed direct group ticks to arrival with the widget footprint retained. Frozen exact position/velocity words, callback identity, drained queues and reclaimed group/path/order/task storage are checked. Full owner cadence and public widget creation remain excluded. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free. Travel explicitly supplies terrain-only individual query mask02000000; the separate stock-mask variant executes original profile getter/bridge publication before admission. This default does not certify that variant. Retained widget records do not prove they block this query.",
+      "scope": "Full original raster/callback/record/bounds/rebuild functions and CUnit inherited reapply/removal; authentic vtables, cached resource lookup, registered stationary poses, original snapping and refresh gate. Four orientations, odd/even nonsquare dimensions, two world origins, fractional offsets, mixed masks and overlapping distinct region collections. Independent geometry and hierarchy models. Preallocated cache, terrain, collections and query storage. Excludes widget creation and completed destruction, authored resource decoding, cache-miss allocation, snapping at map edges, independent RNG model, multiple displacement targets and crowds with multiple query occupants. Nonempty callback geometry and actual order rejection are included; one attached-Move case constructs the real COrderTarget, publishes the user order and accepts its generated movement task before full6544f0 return, then executes fresh search and seven elapsed direct group ticks to arrival with the widget footprint retained. Frozen exact position/velocity words, callback identity, drained queues and reclaimed group/path/order/task storage are checked. Full owner cadence and public widget creation remain excluded. Two destruction prefixes stop at genuine Storm403 after registry retirement and before collection free. Travel explicitly supplies terrain-only individual query mask02000000; the separate stock-mask variant executes original profile getter/bridge publication before admission. This default does not certify that variant. Retained widget records do not prove they block this query. Production widget snap matches original22f410 in288 independent scalar/dimension/orientation cases within supplied map bounds.",
       "exclusions": []
     },
     {
@@ -6050,7 +6058,9 @@
         "{report}",
         "--stock-mask",
         "--fixture",
-        "tools/ghidra/fixtures/retail-widget-footman-escape-1.27.json"
+        "tools/ghidra/fixtures/retail-widget-footman-escape-1.27.json",
+        "--engine-library",
+        "{engine}"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -6084,13 +6094,19 @@
             "query": 2,
             "radius_world_bits": 1090519040
           }
+        },
+        "snap_engine_cases": {
+          "equal": 288
+        },
+        "clamp_engine_cases": {
+          "equal": 27
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Observed live Footman category/query in supplied profile cache; original getters and05c7e0 bridge publish mask02000002 before uninterrupted widget admission. Retain that mask/registered footprint through fresh search and13 direct group ticks to arrival and complete queue/task/order/group/path reclamation; frozen raw positions/velocities and identities. Existing Unit/Move/class/pools, radius8 and blank presentation cache supplied. Excludes full6945a0 notification, public widget creation, authored resource decode, full-owner cadence and independent RNG seed model.",
+      "scope": "Observed live Footman category/query in supplied profile cache; original getters and05c7e0 bridge publish mask02000002 before uninterrupted widget admission. Retain that mask/registered footprint through fresh search and13 direct group ticks to arrival and complete queue/task/order/group/path reclamation; frozen raw positions/velocities and identities. Existing Unit/Move/class/pools, radius8 and blank presentation cache supplied. Excludes full6945a0 notification, public widget creation, authored resource decode, full-owner cadence and independent RNG seed model. Production widget snap matches original22f410 in288 independent scalar/dimension/orientation cases within supplied map bounds.",
       "exclusions": []
     },
     {
@@ -6594,7 +6610,9 @@
         "--stock-mask",
         "--fixture",
         "tools/ghidra/fixtures/retail-widget-solid-failure-1.27.json",
-        "--solid-footprint"
+        "--solid-footprint",
+        "--engine-library",
+        "{engine}"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -6647,13 +6665,19 @@
               ]
             }
           ]
+        },
+        "snap_engine_cases": {
+          "equal": 288
+        },
+        "clamp_engine_cases": {
+          "equal": 27
         }
       },
       "evidence": [
         "O",
         "C"
       ],
-      "scope": "Original retained solid9x9 stock Footman widget cannot-path recovery. Uninterrupted admission, empty initial route, seven unchanged raw position/zero velocity ticks, original recovery/task drain and complete reclamation. Supplied RTTI parent ord., profile/cache/radius8/pools; whole owner cadence/authored public producer excluded.",
+      "scope": "Original retained solid9x9 stock Footman widget cannot-path recovery. Uninterrupted admission, empty initial route, seven unchanged raw position/zero velocity ticks, original recovery/task drain and complete reclamation. Supplied RTTI parent ord., profile/cache/radius8/pools; whole owner cadence/authored public producer excluded. Production widget snap matches original22f410 in288 independent scalar/dimension/orientation cases within supplied map bounds.",
       "exclusions": []
     },
     {
@@ -24466,6 +24490,157 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-widget-overlap-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_widget_overlap_trace.py",
+        "{archive}/runtime/widget-overlap-v2-first-261003.jsonl",
+        "{archive}/runtime/widget-overlap-v2-repeat-261003.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-widget-overlap-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "report": "widget-overlap-captures.json",
+      "inputs": {
+        "capture": "runtime/widget-overlap-v2-first-261003.jsonl",
+        "sha256": "fcf4683011c6f6cf98e761983045dd692d2ad572c149fc69a9c8f8d46b34c9d1",
+        "bytes": 106111,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "d0bcfb3647d9aa3768ec5ed32301bad34c6bf31c980cfbca697e488b92f48f1a",
+            "wc3_pathfinding.js": "14dbb2da129b71b8b1537e29d03be5d0bf25e490ca2113d8a3f5a9873827899f",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "make_wc3_pathfinding_map.py": "c9355da4b91165342c581f62507c5db783cd38be1b8c3a6f1456b07550ad6c51",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "515c0b0195401a765d64401b0e2f20424ced8a573b60bda49b3d6577385f1b3e"
+          },
+          "map": "Maps\\PathingRE-WidgetOverlapV1-261003.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": [
+            163,
+            78
+          ],
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": true,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "cases": {
+          "equal": 2
+        },
+        "snapshots": {
+          "equal": 18
+        },
+        "fine_cells": {
+          "equal": 18432
+        },
+        "hierarchy_classes": {
+          "equal": 24480
+        },
+        "whole_retail_pathfinder": {
+          "equal": false
+        }
+      },
+      "evidence": [
+        "L",
+        "O",
+        "C"
+      ],
+      "scope": "File-backed overlapping authored textures in both creation orders; public pose, static masks and four hierarchy levels",
+      "exclusions": [
+        "Arbitrary angle/colored authored-mask decoding, walkable surfaces and dynamic occupants remain outside this stock pair."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/widget-overlap-v2-repeat-261003.jsonl",
+            "sha256": "aa59a73a194c0c05b424beac0549af56470ac2705f90d97fd952eb9b8575a07f",
+            "bytes": 106111,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "d0bcfb3647d9aa3768ec5ed32301bad34c6bf31c980cfbca697e488b92f48f1a",
+                "wc3_pathfinding.js": "14dbb2da129b71b8b1537e29d03be5d0bf25e490ca2113d8a3f5a9873827899f",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "make_wc3_pathfinding_map.py": "c9355da4b91165342c581f62507c5db783cd38be1b8c3a6f1456b07550ad6c51",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "515c0b0195401a765d64401b0e2f20424ced8a573b60bda49b3d6577385f1b3e"
+              },
+              "map": "Maps\\PathingRE-WidgetOverlapV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": [
+                163,
+                78
+              ],
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": true,
+              "motionEvents": false,
+              "velocityEvents": false,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true,
+          "capture_failures": []
+        }
+      ],
+      "capture_complete": true,
+      "capture_failures": []
     }
   ],
   "fixtures": [
@@ -24997,6 +25172,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-blocker-lifecycle-1.27.json",
       "sha256": "f49503524935ac76f3935491c86cb05a5c06cc266f6fff8c9c472138be6792d6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-widget-overlap-1.27.json",
+      "sha256": "8ad56611654a65bb15ec874de15098b11cb2899b81a4b22346c626b25bce486f"
     }
   ]
 }

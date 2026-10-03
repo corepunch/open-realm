@@ -616,3 +616,12 @@ globals, no unsaved changes. The engine invalidates static fields and adaptive
 classifications in direct and deferred free, including same-callback public
 Move after building removal. Two repeats preserve26 geometry snapshots and764
 exact numerical commits. See [blocker lifecycle integration](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation).
+
+
+Payoff72 closes existing MAP-02.3 with repeated public, file-backed overlapping
+`LTlt`/`LTg1` creation in both orders. Saved roles identify authored fixed-angle
+lookup/constructor, map clamp and dimension-parity widget snap. The engine
+corrects `fixedRot` from Boolean to degrees and applies the original public
+pose policy before linking; complete captured static fine masks and all four
+hierarchy levels agree after creation and removal. Saved readback has620
+roles with the existing layouts/ABIs/globals. See [authored widget creation](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation).
