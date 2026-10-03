@@ -197,6 +197,7 @@ void UI_SendInfoPanel(edict_t *ent, edict_t * *selected, uint32_t count);
 void UI_WriteSelectedPortraitLayer(edict_t *ent);
 #ifdef BZ_TESTS
 bool UI_TestUsesBuildingQueuePanel(gameClient_t *viewer, edict_t *unit);
+void UI_TestWriteHeroLevelBar(frameDef_t *bar, edict_t *ent);
 #endif
 
 /* Quests (hud_quests.c) */

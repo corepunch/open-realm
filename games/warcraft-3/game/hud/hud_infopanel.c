@@ -711,6 +711,32 @@ static float HeroLevelProgress(edict_t *ent) {
     return MIN(1.0f, (float)(ent->hero.xp - have) / (float)(need - have));
 }
 
+static void WriteHeroLevelBar(frameDef_t *bar, edict_t *ent) {
+    char tooltip[64];
+    uint32_t const level = MAX(1u, ent->hero.level);
+    uint32_t const have = G_HeroXPForLevel(level);
+    uint32_t const need = G_HeroXPForLevel(level + 1);
+    uint32_t const span = need > have ? need - have : 0;
+    uint32_t const earned = span && ent->hero.xp > have
+        ? MIN(ent->hero.xp - have, span) : 0;
+    cstring_t const old_tip = bar->Tip;
+    cstring_t const old_ubertip = bar->Ubertip;
+
+    snprintf(tooltip, sizeof(tooltip), "XP: %lu / %lu",
+             (unsigned long)earned, (unsigned long)span);
+    bar->Tip = tooltip;
+    bar->Ubertip = NULL;
+    UI_WriteFrameValue(bar, HeroLevelProgress(ent));
+    bar->Tip = old_tip;
+    bar->Ubertip = old_ubertip;
+}
+
+#ifdef BZ_TESTS
+void UI_TestWriteHeroLevelBar(frameDef_t *bar, edict_t *ent) {
+    WriteHeroLevelBar(bar, ent);
+}
+#endif
+
 static void WriteSimpleUnitHeader(edict_t *ent, cstring_t display_name, bool is_hero, gameClient_t *viewer) {
     char class_text[128];
     frameDef_t *unit_action_label;
@@ -797,7 +823,7 @@ static void WriteSimpleUnitHeader(edict_t *ent, cstring_t display_name, bool is_
 
     if (is_hero) {
         UI_SetHidden(hud.simple.SimpleHeroLevelBar, false);
-        UI_WriteFrameValue(hud.simple.SimpleHeroLevelBar, HeroLevelProgress(ent));
+        WriteHeroLevelBar(hud.simple.SimpleHeroLevelBar, ent);
     } else {
         UI_SetHidden(hud.simple.SimpleHeroLevelBar, true);
     }
