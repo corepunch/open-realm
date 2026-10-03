@@ -84,7 +84,7 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
     if (!ent->inuse || !ent->blight_growth || M_IsDead(ent) || !(code = ent->blight_growth->ability)) return false;
     /* Construction owns the building's incomplete lifecycle.  Passive Abli
      * ticks resume only after the structure is complete. */
-    if ((ent->construction && ent->construction->active)) return false;
+    if (ent->construction) return false;
     if (!G_IsUnitAbilityAvailable(ent, code)) return false;
     level = G_UnitAbilityLevel(ent, code);
     if (!level) {

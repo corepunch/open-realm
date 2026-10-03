@@ -4355,7 +4355,6 @@ TEST(wc3_save, construction_payment_round_trip) {
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
     if (!unit->construction) unit->construction = G_AllocConstruction();
     assert(unit->construction);
-    unit->construction->active = true;
     unit->construction->type = CONSTRUCTION_ORC;
     unit->construction->worker = worker;
     unit->construction->worker_spawn_time = 1234;

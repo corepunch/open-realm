@@ -984,7 +984,7 @@ static uint32_t haunted_active_miners(edict_t *mine) {
 /* Validate ownership, construction state, parent lifetime, and remaining gold for a worker order. */
 static bool haunted_mine_valid_for(edict_t *worker, edict_t *mine) {
     edict_t *parent;
-    if (!worker || !mine || !mine->inuse || M_IsDead(mine) || (mine->construction && mine->construction->active) ||
+    if (!worker || !mine || !mine->inuse || M_IsDead(mine) || mine->construction ||
         worker->s.player != mine->s.player || !haunted_mine_alias(mine)) return false;
     parent = mineoverlay_parent(mine);
     return parent && parent->resources > 0;
@@ -1128,7 +1128,7 @@ void blight_mine_think(edict_t *mine) {
      * the authoritative mine thinker gives preplaced, constructed, and loaded
      * mines the same presentation without a second unit-lifecycle hook. */
     haunted_mine_ensure_effects(mine);
-    if ((mine->construction && mine->construction->active) || !(alias = haunted_mine_alias(mine))) return;
+    if (mine->construction || !(alias = haunted_mine_alias(mine))) return;
     parent = mineoverlay_parent(mine);
     player = G_GetPlayerByNumber(mine->s.player);
     maximum = haunted_mine_max_miners(mine);
@@ -1418,7 +1418,7 @@ static void entangled_mine_update(edict_t *mine) {
     edict_t *parent;
     player_t *player;
 
-    if (!mine || !mine->inuse || M_IsDead(mine) || (mine->construction && mine->construction->active) ||
+    if (!mine || !mine->inuse || M_IsDead(mine) || mine->construction ||
         !(alias = goldmine_actor_ability_alias(mine, MAKEFOURCC('A','e','g','m')))) return;
     parent = mineoverlay_parent(mine);
     player = G_GetPlayerByNumber(mine->s.player);

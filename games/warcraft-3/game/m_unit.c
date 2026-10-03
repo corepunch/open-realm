@@ -349,7 +349,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * A structure upgrade is the same edict rather than a queued child; death
      * abandons it without the player-cancel refund. */
     if (G_BuildingUpgradeActive(self)) G_StopBuildingUpgrade(self, false);
-    if ((self->construction && self->construction->active)) G_StopConstruction(self);
+    if (self->construction) G_StopConstruction(self);
     else if (self->build == self) {
         G_SetConstructionLoopSound(self, false);
         /* Legacy construction uses a self-link as a marker, not a production

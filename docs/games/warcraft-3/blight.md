@@ -33,7 +33,7 @@ The unit stores the concrete alias, current radius, and next expansion deadline 
 
 The implementation intentionally does not erase Blight when the source dies or disappears. `Abli` paints world state; removal is an explicit Blight operation, not reference-counted aura teardown.
 
-Growth is suspended while `construction.active` is true. If authored `Area` data is reduced while a source is alive, its stored progress is clamped for future growth; previously painted world cells are not removed.
+Growth is suspended while `ent->construction` is non-null. If authored `Area` data is reduced while a source is alive, its stored progress is clamped for future growth; previously painted world cells are not removed.
 
 ## Placement and regeneration
 

@@ -94,7 +94,7 @@ void M_MoveFrame(edict_t *self) {
      * independently of authoritative construction progress. Human progress is
      * Repair-driven; Orc/Undead/Night Elf progress is advanced by
      * G_RunConstructionFrame(). */
-    if ((self->aiflags & AI_HOLD_FRAME) && (self->construction && self->construction->active)) {
+    if ((self->aiflags & AI_HOLD_FRAME) && self->construction) {
         G_UpdateConstructionAnimation(self);
         return;
     }

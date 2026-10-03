@@ -3668,14 +3668,14 @@ TEST(wc3_api, human04_intro_cancel_preserves_unit_lifecycle_until_frame_end) {
     if (!mine || !worker || !building) goto cleanup;
     mine->birth(mine);
     T_ASSERT(G_StartUndeadConstruction(worker, mine));
-    T_ASSERT(mine->construction->active);
+    T_ASSERT(mine->construction);
     T_STREQ(mine->currentmove->animation, "birth");
 
     jass_callbyname(level.vm, "cancelIntro", false);
     jass_runevents(level.vm);
     T_ASSERT(mine->svflags & SVF_DEADMONSTER);
     T_STREQ(mine->currentmove->animation, "death");
-    T_ASSERT(!mine->construction || !mine->construction->active);
+    T_ASSERT(!mine->construction);
     T_ASSERT(worker->inuse);
     T_ASSERT(G_IsDeferredFree(worker));
     T_ASSERT(G_IsDeferredFree(building));
@@ -4197,7 +4197,6 @@ TEST(wc3_api, construct_finish_fires_player_and_unit_events_with_structure_conte
     building->stand = unit_stand;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     saved = g_edicts[0].client;
     g_edicts[0].client = NULL;
     G_CompleteConstruction(building);

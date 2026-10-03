@@ -1907,7 +1907,6 @@ TEST(wc3_spell, moon_well_natural_mana_regen_starts_after_construction) {
     well->mana.value = 50.0f;
     if (!well->construction) well->construction = G_AllocConstruction();
     assert(well->construction);
-    well->construction->active = true;
     well->construction->type = CONSTRUCTION_NIGHTELF;
 
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
@@ -1915,10 +1914,10 @@ TEST(wc3_spell, moon_well_natural_mana_regen_starts_after_construction) {
     T_ASSERT(G_IsNight());
 
     FOR_LOOP(tick, 9) G_RunEntity(well);
-    T_ASSERT(well->construction->active);
+    T_ASSERT(well->construction);
     T_FEQ(well->mana.value, 50.0f, 0.001f);
     G_RunEntity(well);
-    T_ASSERT(!well->construction || !well->construction->active);
+    T_ASSERT(!well->construction);
     T_FEQ(well->mana.value, 50.2f, 0.001f);
 
     G_SetTimeOfDay(12.0f);
@@ -1972,7 +1971,6 @@ TEST(wc3_spell, moon_well_missing_ability_data_does_not_restore_natural_regen) {
     well->mana.value = 50.0f;
     if (!well->construction) well->construction = G_AllocConstruction();
     assert(well->construction);
-    well->construction->active = true;
     well->construction->paused = true;
     well->construction->type = CONSTRUCTION_NIGHTELF;
     G_SetTimeOfDay(12.0f);

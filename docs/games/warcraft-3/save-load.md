@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 62, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 63, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -31,7 +31,9 @@ The server's map-selection read checks both the format version and entity size b
 
 Version 40 added the region registry and region/event context. Its rejection of version 39 saves was intentional; later versions follow the same exact-match policy.
 
-Version 62 writes the complete allocated record for every lifecycle pool, including scalar fields that have no fixup descriptor. Edict pool pointers are cleared from the raw edict record. The loader allocates fresh slots and fixes `F_EDICT` references after all entity records exist. It rejects duplicate owners, inactive owners, out-of-range indexes and invalid pool counts. Version 61's partial field streams and omitted pools cannot be loaded. See [pooled entity state](pooled-entity-state.md) for allocation and access rules.
+Version 63 removes the redundant construction `active` flag: the record exists only during construction and is released on completion or stop. Version 62 saves are rejected because the serialized construction layout changed.
+
+Version 62 introduced serialization that writes the complete allocated record for every lifecycle pool, including scalar fields that have no fixup descriptor. Edict pool pointers are cleared from the raw edict record. The loader allocates fresh slots and fixes `F_EDICT` references after all entity records exist. It rejects duplicate owners, inactive owners, out-of-range indexes and invalid pool counts. Version 61's partial field streams and omitted pools cannot be loaded. See [pooled entity state](pooled-entity-state.md) for allocation and access rules.
 
 Version 59 adds Stop guard movement state to the entity record: `guard_position` and one `guard_state` enum (`NONE`, `IDLE`, `COMBAT`, or `RETURNING`). The exact-version guard rejects earlier saves because their entity records lack these fields.
 

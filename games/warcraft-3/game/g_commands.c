@@ -575,7 +575,7 @@ void G_QueueSelectionSound(edict_t *ent, bool reset_sequence) {
     int sound = 0;
 
     if (!ent || !(state = G_SelectionSoundState(ent, reset_sequence))) return;
-    if ((ent->construction && ent->construction->active)) {
+    if (ent->construction) {
         gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player);
         cstring_t alias = client ? Theme_PlayerString(client, "ConstructingBuilding", NULL) : NULL;
         int sound_index = G_UISoundIndex(alias);
@@ -688,7 +688,7 @@ void CMD_CancelCommand(edict_t *ent) {
             }
             return;
         }
-        if (producer->construction && producer->construction->active && G_CancelStructureConstruction(producer)) {
+        if (producer->construction && G_CancelStructureConstruction(producer)) {
             if (ent->client->connected) {
                 G_RefreshResourceBar(ent);
                 Get_Portrait_f(ent);

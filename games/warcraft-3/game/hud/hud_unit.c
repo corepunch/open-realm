@@ -467,13 +467,13 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
 
     /* Construction has its own command-card state.  Returning no buttons for
      * every birth move made spawned Human buildings impossible to cancel. */
-    if ((ent->construction && ent->construction->active)) {
+    if (ent->construction) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancelBuild, false, 0);
         return count;
     }
     /* Map-start buildings play their Birth move even though they are already
      * complete and usable. Only suppress the ordinary unit command card for
-     * a mobile unit's birth presentation; construction.active above owns the
+     * a mobile unit's birth presentation; the construction pointer above owns the
      * actual unfinished-building command state. */
     if (ent->currentmove && ent->currentmove->think == ai_birth && !G_UnitIsStructure(ent)) {
         return 0;

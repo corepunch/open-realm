@@ -1353,7 +1353,6 @@ typedef enum {
 } ancientRootMode_t;
 
 typedef struct {
-    bool active;
     bool paused;
     constructionType_t type;
     edict_t *primary_builder; /* Human Repair owner; only meaningful for Human construction */

@@ -463,7 +463,6 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
     building->build = building;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     building->currentmove = &birth;
     building->health.value = building->health.max_value * 0.5f;
     gi.Write = building_queue_capture_write;
@@ -480,7 +479,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
     T_ASSERT(building_queue_endtime > building_queue_starttime);
 
     building->build = NULL;
-    building->construction->active = false;
+    G_FreeConstruction(building);
     building->currentmove = NULL;
     if (!building->research) building->research = G_AllocResearch();
     assert(building->research);
@@ -533,7 +532,6 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
     building->build = building;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     building->currentmove = &birth;
     G_InvalidateUnitInfoPanel(building);
     T_ASSERT(G_GetMainSelectedUnit(client) == building);
@@ -547,7 +545,7 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
     T_EQ(building_queue_frame_count, 1);
 
     building->build = NULL;
-    building->construction->active = false;
+    G_FreeConstruction(building);
     building->currentmove = NULL;
     if (!building->research) building->research = G_AllocResearch();
     assert(building->research);
@@ -2828,7 +2826,6 @@ TEST(wc3_building, construction_blocks_after_site_indicator) {
     building->s.flags &= ~EF_NOT_SELECTABLE;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     CM_BakeStaticObstacles();
     T_ASSERT(!CM_PointIsPathableForRadius(&point, 0.0f));
     building->pathtex = NULL;
@@ -2980,7 +2977,7 @@ TEST(wc3_building, human_construction_start_sets_explicit_state_and_start_life) 
 
     T_ASSERT(!G_StartHumanConstruction(builder, builder));
     T_ASSERT(G_StartHumanConstruction(builder, building));
-    T_ASSERT(building->construction->active);
+    T_ASSERT(building->construction);
     T_ASSERT(building->construction->paused);
     T_EQ(building->construction->type, CONSTRUCTION_HUMAN);
     T_ASSERT(building->construction->primary_builder == builder);
@@ -3027,7 +3024,16 @@ TEST(wc3_building, construction_sound_label_drives_snapshot_loop_until_stop) {
     T_FEQ(G_SoundIndexVolume(91), 96.0f / 127.0f, 0.001f);
 
     G_StopConstruction(building);
+    T_NULL(building->construction);
     T_EQ(building->s.sound, 0);
+
+    T_ASSERT(G_StartHumanConstruction(builder, building));
+    T_NOT_NULL(building->construction);
+    T_FEQ(building->construction->progress, 0.0f, 0.001f);
+    T_ASSERT(!building->construction->paid);
+    T_EQ(building->s.sound, 91);
+    G_StopConstruction(building);
+    T_NULL(building->construction);
 
     gi.SoundIndex = old_soundindex; gi.SoundIndexAlias = old_sound_alias;
     G_SetSLKRows("AmbienceSounds", old_rows); free_slk_rows(rows);
@@ -3051,12 +3057,12 @@ TEST(wc3_building, instant_build_cheat_completes_started_human_construction_on_n
     client->cheat_instant_build = true;
 
     T_ASSERT(G_StartHumanConstruction(builder, building));
-    T_ASSERT(building->construction->active);
+    T_ASSERT(building->construction);
     T_ASSERT(building->construction->paused);
 
     G_RunConstructionFrame(building);
 
-    T_ASSERT(!building->construction || !building->construction->active);
+    T_ASSERT(!building->construction);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
 
     client->cheat_instant_build = false;
@@ -3080,11 +3086,11 @@ TEST(wc3_building, instant_build_cheat_completes_autonomous_construction_on_next
     client->cheat_instant_build = true;
 
     T_ASSERT(G_StartOrcConstruction(worker, building));
-    T_ASSERT(building->construction->active);
+    T_ASSERT(building->construction);
 
     G_RunConstructionFrame(building);
 
-    T_ASSERT(!building->construction || !building->construction->active);
+    T_ASSERT(!building->construction);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
     T_NULL(worker->build);
 
@@ -3134,7 +3140,7 @@ TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
 
     T_ASSERT(G_StartOrcConstruction(worker, building));
     T_EQ(building->construction->type, CONSTRUCTION_ORC);
-    T_ASSERT(building->construction->active);
+    T_ASSERT(building->construction);
     T_ASSERT(!building->construction || !building->construction->paused);
     T_ASSERT(building->construction->worker == worker);
     T_ASSERT(building->construction->worker_inside);
@@ -3295,7 +3301,7 @@ TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) 
 
     level.time = release_time;
     G_RunConstructionFrame(building);
-    T_ASSERT(building->construction->active);
+    T_ASSERT(building->construction);
     T_NULL(building->construction->worker);
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
@@ -3383,9 +3389,9 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
         level.time += FRAMETIME;
         G_RunEntities();
         CM_ProcessPathJobs(65536);
-        if ((!ziggurat->construction || !ziggurat->construction->active)) break;
+        if (!ziggurat->construction) break;
     }
-    T_ASSERT(!ziggurat->construction || !ziggurat->construction->active);
+    T_ASSERT(!ziggurat->construction);
     T_ASSERT(acolyte->inuse);
     T_NULL(acolyte->build);
     T_ASSERT(acolyte->goalentity && acolyte->goalentity->s.origin2.x == build_point.x);
@@ -3442,8 +3448,7 @@ TEST(wc3_building, cancelling_undead_construction_releases_summoner) {
     T_ASSERT(building->construction->worker == worker);
 
     G_StopConstruction(building);
-    T_ASSERT(!building->construction || !building->construction->active);
-    T_NULL(building->construction->worker);
+    T_NULL(building->construction);
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 }
@@ -3477,7 +3482,7 @@ TEST(wc3_building, night_elf_ancient_cancel_restores_wisp_and_food) {
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
     T_ASSERT(!worker->paused);
     T_EQ(worker->food->used, worker_balance.foodUsed);
-    T_EQ(building->construction->type, CONSTRUCTION_NONE);
+    T_NULL(building->construction);
 }
 
 TEST(wc3_building, night_elf_ancient_completion_consumes_wisp) {
@@ -3503,8 +3508,7 @@ TEST(wc3_building, night_elf_ancient_completion_consumes_wisp) {
     g_edicts[0].client = saved_client;
 
     T_ASSERT(!worker->inuse);
-    T_ASSERT(!building->construction || !building->construction->active);
-    T_EQ(building->construction->type, CONSTRUCTION_NONE);
+    T_NULL(building->construction);
     T_EQ(building_stand_calls, 1);
 }
 
@@ -3620,8 +3624,7 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 75);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 60);
     T_ASSERT(building->svflags & SVF_DEADMONSTER);
-    T_ASSERT(!building->construction || !building->construction->active);
-    T_NULL(building->construction->primary_builder);
+    T_NULL(building->construction);
     T_NULL(building->build);
     T_NULL(builder->build);
     T_ASSERT(!builder->buildwork || builder->buildwork->ability == 0);
@@ -3680,7 +3683,6 @@ TEST(wc3_building, cancel_command_cancels_selected_spawned_construction) {
     building->stand = unit_stand;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     building->construction->paid = true;
     building->construction->payer = client->ps.number;
     building->construction->gold = 100;
@@ -3791,7 +3793,6 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     building->health.value = 400.0f;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     building->construction->paused = true;
     building->construction->type = CONSTRUCTION_HUMAN;
     building->construction->primary_builder = builder;
@@ -3818,14 +3819,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
         g_edicts[0].client = saved_client;
     }
 
-    T_ASSERT(!building->construction || !building->construction->active);
-    T_ASSERT(!building->construction || !building->construction->paused);
-    T_EQ(building->construction->type, CONSTRUCTION_NONE);
-    T_NULL(building->construction->primary_builder);
-    T_FEQ(building->construction->progress, 0.0f, 0.001f);
-    T_ASSERT(!building->construction || !building->construction->paid);
-    T_ASSERT(!building->construction || building->construction->gold == 0);
-    T_ASSERT(!building->construction || building->construction->lumber == 0);
+    T_NULL(building->construction);
     T_ASSERT(!(building->aiflags & AI_HOLD_FRAME));
     T_EQ(building->s.sound, 0);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
@@ -4943,7 +4937,6 @@ TEST(wc3_building, standard_repair_rejects_construction_and_human_requires_pause
     building->svflags |= SVF_MONSTER;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     building->construction->paused = true;
     building->construction->type = CONSTRUCTION_ORC;
 
@@ -5645,7 +5638,6 @@ TEST(wc3_building, held_construction_birth_animation_tracks_progress) {
     building->animation = &birth;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     building->construction->paused = true;
     building->aiflags |= AI_HOLD_FRAME;
 

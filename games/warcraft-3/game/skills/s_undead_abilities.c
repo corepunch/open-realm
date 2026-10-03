@@ -199,7 +199,7 @@ BZ_ABILITY_PROC(CAbilityReplenishMana) {
 #define ID_GRAVEYARD_CORPSE MAKEFOURCC('A','g','y','d')
 
 static bool graveyard_is_under_construction(edict_t *graveyard) {
-    return graveyard && ((graveyard->construction && graveyard->construction->active) || graveyard->build == graveyard);
+    return graveyard && (graveyard->construction || graveyard->build == graveyard);
 }
 
 static edict_t *graveyard_find_thinker(edict_t *graveyard) {

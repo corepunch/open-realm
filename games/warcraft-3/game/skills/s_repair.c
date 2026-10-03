@@ -198,7 +198,7 @@ static void repair_stop_reason(edict_t *ent, cstring_t reason) {
     bool resume_harvest = building && ent && building->s.player == ent->s.player &&
                           building->class_id == MAKEFOURCC('h','t','o','w') && reason &&
                           (!strcmp(reason, "construction_complete") || !strcmp(reason, "repair_complete") ||
-                           (!strcmp(reason, "work_target_invalid") && !(building->construction && building->construction->active) &&
+                           (!strcmp(reason, "work_target_invalid") && !building->construction &&
                             building->health.value >= building->health.max_value));
 #ifdef WC3_DEBUG_AUTOCAST
     if (G_AutocastDebugLevel() >= 1 && ent) {
@@ -219,7 +219,7 @@ static void repair_stop_reason(edict_t *ent, cstring_t reason) {
             ent && g_edicts ? (long)(ent - g_edicts) : -1L, reason ? reason : "unknown",
             building && g_edicts ? (long)(building - g_edicts) : -1L,
             building ? (cstring_t)&building->class_id : "----",
-            building ? (int)(building->construction && building->construction->active) : 0,
+            building ? (building->construction != NULL) : 0,
             building ? building->health.value : 0.0f, building ? building->health.max_value : 0.0f,
             ent && ent->buildwork->primary ? 1 : 0,
             ent && ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
@@ -303,7 +303,7 @@ static bool repair_target_valid(edict_t *ent, edict_t *target, uint32_t code, bo
     if (!target->data.UnitBalance || !repair_target_category_allowed(target, data)) return false;
     if (!repair_target_relation_allowed(ent, target, data)) return false;
 
-    if ((target->construction && target->construction->active)) {
+    if (target->construction) {
         /* Human power building is construction ownership, not ordinary Friend
          * Repair. Do not let an allied worker become another player's primary
          * or additional builder through this completed-unit target expansion. */
@@ -467,7 +467,7 @@ static void ai_repair(edict_t *ent) {
     hp = &building->health;
     unit_changeangle(ent);
 
-    if ((building->construction && building->construction->active)) {
+    if (building->construction) {
         float ratio;
         float duration;
         float hp_gain;
@@ -695,7 +695,7 @@ bool S_OrderRepair(edict_t *ent, edict_t *target, uint32_t preferred) {
     code = repair_find_code(ent, wanted, preferred);
     if (!code) return false;
 
-    if ((target->construction && target->construction->active)) {
+    if (target->construction) {
         /* Friend permits ordinary allied Repair, not construction ownership.
          * Reject before touching primary_builder so an allied Repair click can
          * never detach the owning player's Human builder. */
@@ -743,7 +743,7 @@ static cstring_t repair_autocast_reject_reason(edict_t *ent, edict_t *target, ui
     data = G_AbilityData(code);
     if (!repair_target_category_allowed(target, data)) return "target_category";
     if (!repair_target_relation_allowed(ent, target, data)) return "target_relation";
-    if ((target->construction && target->construction->active)) {
+    if (target->construction) {
         if (handler != CAbilityRepair) return "construction_requires_human_repair";
         if (!target->construction->paused) return "construction_not_paused";
         if (!repair_primary_active(target)) primary = true;
@@ -912,11 +912,11 @@ static bool repair_selecttarget(edict_t *clent, edict_t *target) {
         return false;
     }
 
-    if (!(target->construction && target->construction->active) && target->health.value >= target->health.max_value) {
+    if (!target->construction && target->health.value >= target->health.max_value) {
         G_ShowCommandErrorKey(clent, "RepairHPmaxed", "Target is not damaged.");
         return false;
     }
-    if ((target->construction && target->construction->active) &&
+    if (target->construction &&
         (handler != CAbilityRepair || !target->construction->paused)) {
         G_ShowCommandErrorKey(clent, "UnderConstruction", "That building is currently under construction.");
         return false;

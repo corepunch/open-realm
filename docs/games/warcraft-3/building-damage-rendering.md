@@ -6,7 +6,7 @@ Building combat damage is presentation-only. The server remains authoritative fo
 
 The game module keeps the building's normal MDX model and selects the authored building-fire model and attachment slots. The renderer overlays that model at the building model's `Sprite ... Ref` attachment pivots. The fire does not create a game entity, change HP, affect pathing, or participate in combat.
 
-Construction is deliberately separate. Human construction begins at low HP, so the server keeps fire disabled while `construction.active` is set. Once construction completes, ordinary health thresholds apply.
+Construction is deliberately separate. Human construction begins at low HP, so the server keeps fire disabled while `ent->construction` is non-null. Once construction completes, ordinary health thresholds apply.
 
 ## Data Flow
 

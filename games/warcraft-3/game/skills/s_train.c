@@ -556,7 +556,7 @@ void G_CancelHeroRevives(edict_t *altar) {
     /* This cleanup is also called for ordinary units on death/removal. Their
      * build pointer can name a construction target, whose self-link is not a
      * production queue. Construction itself cannot own an active revive queue. */
-    if (!altar || !G_UnitCanReviveHeroes(altar) || (altar->construction && altar->construction->active) || altar->build == altar) return;
+    if (!altar || !G_UnitCanReviveHeroes(altar) || altar->construction || altar->build == altar) return;
     item = altar->build;
     while (item) {
         for (uint32_t i = 0; i < visited_count; i++) {

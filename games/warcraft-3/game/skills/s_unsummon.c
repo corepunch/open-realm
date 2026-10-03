@@ -107,7 +107,7 @@ static bool unsummon_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
         G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return false;
     /* Retail rejects incomplete structures before mana spend; the old path
      * treated every allied building as a valid Unsummon target. */
-    if ((building->construction && building->construction->active)) {
+    if (building->construction) {
         G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
                               "UnderConstruction", "That building is currently under construction.");
         return false;
