@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **297 entries**: **45** distinct original-code oracle
-scripts plus **56** declared variants, **121** archived JSONL audits and **75**
+The inventory now has **298 entries**: **45** distinct original-code oracle
+scripts plus **56** declared variants, **121** archived JSONL audits and **76**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1346,3 +1346,21 @@ with149 source pins. Native/engine comparisons match at O0/O2; required complete
 RoC/TFT suites pass2,492 tests/4,406,232 assertions per edition and482 Python
 checks. These totals certify the current merged branch and this fixture chunk,
 not complete Warcraft III pathfinding fidelity.
+
+## Producer-built passage completion
+
+Payoff80 adds `live-adaptive-passage-captures-261003`, with two full original
+file-backed/public-order captures and `retail-adaptive-passage-1.27.json`.
+Its strict verifier checks all nine complete/partial searches, two retries,
+forced arrival and task/order retirement,434 numerical decisions/heading errors,
+437 complete raw motion/facing commits,6000 primary advances and1000 owner
+callbacks per capture. The known coarse reference difference remains in its
+separate oracle contract; it is not reclassified as successful routing.
+
+The engine literal is generated from frozen original words. Normal game frames
+and six Save90 continuations agree in RoC/TFT (12,420 assertions,437 ordinary
+and800 suffix commits per edition). Failed loading/input and incomplete sample
+attempts are retained as external experiments, not accepted fixtures.
+Inventory is298 entries/45 original oracle scripts/101 oracle contracts
+(56 variants)/121 archived audits/76 strict live contracts/141 fixtures.
+See [whole journey payoff](retail-pathfinding-engine.md#producer-built-size2-passage-reaches-full-retail-failure).

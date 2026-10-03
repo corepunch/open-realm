@@ -684,3 +684,12 @@ reproduce the reduced size2 east veto; all54 ordinary classification witnesses,
 requests. Ground/flight inclusion rejects27 ordinary tuples; special records
 remain unresolved explicitly. The reference mismatch is preserved as expected
 exit1. See [terrain-produced payoff](retail-pathfinding-engine.md#terrain-produced-adaptive-passages-preserve-the-retail-veto).
+
+Payoff80 closes existing ACC-03.3 with the actual file-backed reduced passage
+and public collision40 Footman Move. The38-pop coarse veto persists, but group
+waypoint progression and member fine routes continue before two700-work budget
+failures end short of the click. Both full original captures repeat437 complete
+motion/facing commits and cleanup; normal engine frames and six saved
+continuations agree without a scene-specific production branch. The complete
+failure is preserved as an engine regression, not confused with a coarse result
+or a reachable reference graph. See [full passage journey](retail-pathfinding-engine.md#producer-built-size2-passage-reaches-full-retail-failure).

@@ -8,18 +8,19 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**161 done / 336 tasks; 175 remaining.** Payoff79 closes existing MAP-03.3,
-ACC-02.1 and ACC-03.2 without new IDs/splits. Actual terrain setters and complete
-padded hierarchy preserve the reduced size2 veto in all four lanes;54 ordinary
-classification witnesses and all engine map/node/route states match. Producer
-inventory maps remaining lifetime differences to existing tasks. Required
-RoC/TFT suites pass2,492 tests/4,406,232 assertions each,482 Python checks and
-three fresh corpus contracts.
-See [terrain-produced payoff](retail-pathfinding-engine.md#terrain-produced-adaptive-passages-preserve-the-retail-veto).
+**162 done / 336 tasks; 174 remaining.** Payoff80 closes existing ACC-03.3
+without new IDs/splits. A real file-backed reduced passage and public collision40
+Footman Move repeat the38-pop coarse veto, subsequent group/member/fine routing,
+two retries and terminal failure short of the click. Both complete retail
+captures repeat437 raw movement/facing commits; actual engine frames and six
+Save90 continuations match12,420 assertions per edition. The general Move
+implementation already agrees; the complete outcome is now a regression.
+Required full RoC/TFT suites pass2,493 tests/4,418,652 assertions each,491
+Python checks and both fresh selected corpus contracts.
+See [whole passage payoff](retail-pathfinding-engine.md#producer-built-size2-passage-reaches-full-retail-failure).
 
-Next runnable chunk is ACC-03.3: run the now producer-built size2 passage
-through original mover fallback/retry to completion and preserve its complete
-engine journey. FINE-01.6 remains the next dynamic occupancy implementation.
+Next runnable implementation chunk is FINE-01.6: preserve dynamic cell-link
+chronology and actual overlapping target/foreign-blocker public orders.
 No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
@@ -35,7 +36,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | MAP — Map construction and lifetime | 15 | 7 |
 | FOOT — Footprints and query policy | 13 | 5 |
 | FINE — Fine search | 8 | 4 |
-| ACC — Adaptive search | 6 | 7 |
+| ACC — Adaptive search | 7 | 6 |
 | NUM — Numbers and random state | 24 | 19 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
@@ -400,7 +401,7 @@ Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fix
 
 - [x] **ACC-03.1** The synthetic size-2 east-boundary veto is reduced and causally isolated. Evidence: [adaptive veto][adaptive-veto]; gameplay reachability remains unproven.
 - [x] **ACC-03.2** Construct the reduced veto using real map/request producers, or prove its classification cannot be produced within scope. Evidence: [terrain-produced veto](retail-pathfinding-engine.md#terrain-produced-adaptive-passages-preserve-the-retail-veto),288 actual04d870/054000 setters then full15d360/162cb0 preserve38-pop/56-node partial in all four lanes over2,206 padded hierarchy cells. Ordinary occupancy1/boundary0 and all final nodes/routes equal C; actual owned engine requests repeat twice. Empty storage/headers are supplied explicitly; full mover retry/arrival stays03.3, with known reference difference retained.
-- [ ] **ACC-03.3** If reachable, run that mover through fallback/retry to arrival or failure; preserve the resulting retail route/outcome as a regression.
+- [x] **ACC-03.3** Run the producer-built mover through fallback/retry to arrival or failure and preserve its retail journey. Evidence: [whole passage failure](retail-pathfinding-engine.md#producer-built-size2-passage-reaches-full-retail-failure), two actual file-backed/public Move captures reproduce38-pop group veto, nine searches, two retries, forced arrival and full task/order cleanup short of the click.437 raw motion/facing commits and434 decisions repeat; actual engine normal frames plus six Save90 continuations match437 ordinary/800 suffix commits with12,420 assertions per edition. No scene-conditioned production code or new task IDs. Other task families/objects/portals retain their existing scopes.
 
 ### ACC-04 — Adaptive costs
 

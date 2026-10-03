@@ -25137,6 +25137,178 @@
       ],
       "scope": "Original fine-cell/base/parent/rectangle producers build64x64 terrain and padded hierarchy.54 ordinary classification witnesses and27 rejected tuples; complete size2 reduced passage still returns38-pop56-node partial in all four lanes, exact C final state and route. Supplied headers/terrain; no public fallback/motion or special edges.",
       "exclusions": []
+    },
+    {
+      "id": "live-adaptive-passage-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_adaptive_passage_trace.py",
+        "{archive}/runtime/adaptive-passage80-final-first.jsonl",
+        "{archive}/runtime/adaptive-passage80-final-repeat.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-adaptive-passage-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_adaptive_passage.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "adaptive-passage-captures.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "searches": {
+          "equal": 18
+        },
+        "retries": {
+          "equal": 4
+        },
+        "forced_arrivals": {
+          "equal": 2
+        },
+        "exact_decisions": {
+          "equal": 868
+        },
+        "exact_velocity_commits": {
+          "equal": 874
+        },
+        "owner_callbacks": {
+          "equal": 2000
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Actual file-backed 64x64 reduced terrain passage, public Footman clone collision40, ordinary point Move, full group/member/fine fallback and retry to failure short of goal. Exact complete retail decisions, poses, velocities, facing, clock and task cleanup; engine normal-frame and saved continuations are separate regression checks. Other tasks, objects, portals and altered terrain are excluded.",
+      "exclusions": [
+        "Other task families, dynamic objects, portals and terrain-edit update timing. Engine regression consumes the observed fine terrain snapshot."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/adaptive-passage80-final-repeat.jsonl",
+            "sha256": "09f6e14aa733af84d2060059daa6c590623815a99c3127764c4f8d55d0cde3e4",
+            "bytes": 7175911,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "e92ec00c835981cc3eedf3a530f75bab00785e6f2c8abc77fd7a61c375e8a38c",
+                "wc3_pathfinding.js": "b93802dd34aa327a6f9b119d91c52ff0604a691f488616cfb882d294575ff3c1",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "make_wc3_pathfinding_map.py": "66dbab251a99a210af1dca9d62fa41738630c0b3ba3f9adb538e93a3e0aa89ff",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "28ad1c57e3809f6ad5789bce59ae3834c915072d4d267efe65a54b807a945a43"
+              },
+              "map": "Maps\\PathingRE-AdaptivePassage80-261003.w3m",
+              "seconds": 150.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": [
+                18,
+                26
+              ],
+              "blockerPatchSize": 16,
+              "blockers": true,
+              "taskEvents": true,
+              "mapLoadEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": true,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "inputs": {
+        "capture": "runtime/adaptive-passage80-final-first.jsonl",
+        "sha256": "13a9da14117672b5a64a6f604dbab2d70a4c9b7b9bf7a618376cdff63bace657",
+        "bytes": 7260995,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "e92ec00c835981cc3eedf3a530f75bab00785e6f2c8abc77fd7a61c375e8a38c",
+            "wc3_pathfinding.js": "b93802dd34aa327a6f9b119d91c52ff0604a691f488616cfb882d294575ff3c1",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "make_wc3_pathfinding_map.py": "66dbab251a99a210af1dca9d62fa41738630c0b3ba3f9adb538e93a3e0aa89ff",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "28ad1c57e3809f6ad5789bce59ae3834c915072d4d267efe65a54b807a945a43"
+          },
+          "map": "Maps\\PathingRE-AdaptivePassage80-261003.w3m",
+          "seconds": 150.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": [
+            18,
+            26
+          ],
+          "blockerPatchSize": 16,
+          "blockers": true,
+          "taskEvents": true,
+          "mapLoadEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": true,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true
     }
   ],
   "fixtures": [
@@ -25700,6 +25872,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-adaptive-terrain-producer-1.27.json",
       "sha256": "577f262c3cf1e62238d8d9e3b48a1167c37e7056c79ae5172320a6569f5dca4d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-adaptive-passage-1.27.json",
+      "sha256": "44f9ac8bd122373f4507685c8a30412b64fea0ec1a75dfbcec599becf0ff103e"
     }
   ]
 }

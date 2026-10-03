@@ -441,6 +441,7 @@ uint32_t AddAssault(jass_t *j) {
     int32_t qty = jass_checkinteger(j, 1);
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
     bool ready = G_BotAddAssault(player, qty, class_id);
+    (void)bot; /* Used by optional AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_form_progress",
                "qty=%d unit=%.4s ready=%d group_size=%u desired=%u", qty,
                (cstring_t)&class_id, (int)ready, G_BotCaptainGroupSize(player),
@@ -552,6 +553,7 @@ uint32_t SuicideUnit(jass_t *j) {
     int32_t qty = jass_checkinteger(j, 1);
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
     bool accepted = G_BotSuicideUnits(player, qty, class_id, -1);
+    (void)accepted; /* Used by optional AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
                "api=SuicideUnit qty=%d unit=%.4s target=any_hostile accepted=%d group_size=%u",
                qty, (cstring_t)&class_id, (int)accepted, G_BotCaptainGroupSize(player));
@@ -564,6 +566,7 @@ uint32_t SuicideUnitEx(jass_t *j) {
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
     int32_t target = jass_checkinteger(j, 3);
     bool accepted = G_BotSuicideUnits(player, qty, class_id, target);
+    (void)accepted; /* Used by optional AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
                "api=SuicideUnitEx qty=%d unit=%.4s target_player=%d accepted=%d group_size=%u",
                qty, (cstring_t)&class_id, target, (int)accepted, G_BotCaptainGroupSize(player));
@@ -576,6 +579,7 @@ uint32_t SuicidePlayer(jass_t *j) {
     player_t *target = jass_checkhandle(j, 1, "player");
     bool check_full = jass_checkboolean(j, 2);
     bool accepted = G_BotSuicidePlayer(player, target ? PLAYER_NUM(target) : 0, check_full);
+    (void)bot; /* Used by optional AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
                "api=SuicidePlayer target_player=%u check_full=%d accepted=%d group_size=%u desired=%u shortfall=%u",
                target ? PLAYER_NUM(target) : 0, (int)check_full, (int)accepted,

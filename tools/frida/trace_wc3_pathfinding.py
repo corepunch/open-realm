@@ -43,6 +43,7 @@ def main():
     parser.add_argument('--watch-cell', type=int, nargs=2, metavar=('X', 'Y'), help='fine-grid cell and its parents at scenario markers')
     parser.add_argument('--x11-display', help='owned isolated X display for the loading-screen key')
     parser.add_argument('--continue-at', type=float, help='send Space once at this elapsed second; requires --x11-display')
+    parser.add_argument('--continue-after-start', type=float, help='send a second loading key this many seconds after the observed script start marker')
     parser.add_argument('--point-click-at', type=float, help='issue an explicit player Move using the owned X11 window at this elapsed second')
     parser.add_argument('--point-click', type=int, nargs=2, metavar=('X','Y'), help='window-relative pixel coordinates for the explicit Move click')
     parser.add_argument('--point-input-helper', type=Path, help='external Winelib SendInput helper; requires the explicit owned Move click')
@@ -59,6 +60,8 @@ def main():
         parser.error('watch-cell coordinates must be in [0, 65535]')
     if args.continue_at is not None and (not args.x11_display or not 0 < args.continue_at < args.seconds or args.pid):
         parser.error('--continue-at requires an owned spawn, --x11-display, and a time within the capture')
+    if args.continue_after_start is not None and (args.continue_at is None or not 0 < args.continue_after_start < args.seconds):
+        parser.error('--continue-after-start requires --continue-at and a positive in-capture delay')
     point_limit = 301 if args.point_click_sample_ticks else args.seconds
     if ((args.point_click_at is None) != (args.point_click is None) or
             (args.point_click_at is not None and (args.pid or not args.x11_display or
@@ -108,7 +111,7 @@ def main():
                              imageSize=struct.unpack_from('<I', crt, cp+80)[0],
                              path='Z:' + str((args.data / 'msvcr120.dll').resolve()).replace('/', '\\'))
     source_paths = [Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
-                    Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'), Path(__file__).with_name('wc3_widget_overlap_probe.j'),
+                    Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'), Path(__file__).with_name('wc3_widget_overlap_probe.j'), Path(__file__).with_name('wc3_adaptive_passage_probe.j'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),
                     Path(__file__).with_name('wc3_angle_inputs.json'),
@@ -185,14 +188,19 @@ def main():
             start = time.monotonic()
             deadline = start + args.seconds
             sent = False
+            marker_key_sent = False
             clicked = 0
             while time.monotonic() < deadline and not errors:
-                if args.continue_at is not None and not sent and time.monotonic() - start >= args.continue_at:
+                fixed_key = args.continue_at is not None and not sent and time.monotonic() - start >= args.continue_at
+                marker_key = args.continue_after_start is not None and not marker_key_sent and scenario_start is not None and time.monotonic() - scenario_start >= args.continue_after_start
+                if fixed_key or marker_key:
                     subprocess.run(['xdotool', 'search', '--onlyvisible', '--name', 'Warcraft III',
                                     'windowfocus', '--sync', 'key', 'space'], check=True, timeout=5,
                                    env={**os.environ, 'DISPLAY': args.x11_display}, stdout=subprocess.DEVNULL)
-                    record({'event': 'loading-key', 'elapsed': time.monotonic() - start, 'key': 'space'})
-                    sent = True
+                    record({'event': 'loading-key', 'elapsed': time.monotonic() - start,
+                            'from_script_start': marker_key, 'key': 'space'})
+                    if fixed_key: sent = True
+                    if marker_key: marker_key_sent = True
                 point_start = scenario_start if args.point_click_from_start else start
                 if (clicked < len(point_plan) and
                         ((args.point_click_sample_ticks and scenario_tick >= point_plan[clicked]['at']) or

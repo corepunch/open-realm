@@ -6973,7 +6973,7 @@ compare every final56-node record, work, size and all six partial-route points,
 and preserve the issued goal independently of that partial centre. This extends
 the real routing regression surface without changing the retail veto or
 inventing an algorithm correction. The existing implementation already agrees.
-Public mover retries and complete native arrival/failure remain ACC-03.3;
+Payoff80 below resolves the ordinary public mover retry/failure journey;
 map headers/backing and original empty fine occupancy are supplied explicitly.
 
 Ghidra retains the class inclusion/rejection proof, producer-built veto and
@@ -6997,3 +6997,102 @@ entries and the prior adaptive wrap control. The producer comparison also
 passes at O0. The first repository run caught a stale expected oracle count;
 updating the inventory regression to101/four known differences and rerunning
 resolved it. No native mismatch was converted into a pass.
+
+## Producer-built size2 passage reaches full retail failure
+
+Payoff80 closes existing **ACC-03.3**. The reduced east-boundary veto is now
+executed by an actual Footman clone through file-backed map loading, public
+`CreateUnit`/`IssuePointOrder`, ordinary ownership, all route consumers and final
+task cleanup. There is no supplied mover/path state or patched predicate.
+`make_wc3_pathfinding_map.py --scenario adaptive_passage` preserves the original
+campaign container and tileset tables, authors a flat17×17-vertex W3E at origin0,
+a64×64 WPM with the reduced18 coarse blocks expanded to72 fine cells, empty
+placement members, and an authored collision40 Footman clone. Retail's loader
+publishes0xd7 for these WPM0xc6 cells and0 elsewhere; the traversal projection
+and padded41/20/10/5 hierarchy agree with the prior producer-built witness.
+
+The public source is(272,304), goal(1744,1776), initial facing90 degrees and
+requested speed100 (the ordinary minimum makes the effective speed150).
+The native group5000-work search reproduces **38 pops,56 nodes and the same
+six-point partial plan**. Its intermediate selected fine destinations are
+(26.5,26.5), then(34.5,50.5), then the preserved click(54.5,55.5).
+Group progression, the member400-work accelerator and the member700-work fine
+search are independent state machines. A coarse partial result is not itself
+the final movement outcome, and consuming its index0 does not replace the click
+with that partial endpoint.
+
+| Search | Kind | Budget | Pops | Result | Route points |
+| --- | --- | ---: | ---: | --- | ---: |
+|1 | Group adaptive |5000 |38 | Partial |6 |
+|2 | Member adaptive |400 |3 | Complete |3 |
+|3 | Fine |700 |52 | Complete |19 |
+|4 | Member adaptive |400 |4 | Complete |4 |
+|5 | Fine |700 |225 | Complete |24 |
+|6 | Fine |700 |6 | Complete |6 |
+|7 | Member adaptive |400 |32 | Partial source |1 |
+|8 | Fine |700 |701 | Partial |10 |
+|9 | Fine retry |700 |701 | Partial source |1 |
+
+At owner1492, the reached partial fine endpoint initializes retry2 and consumes
+it to1, resets only the fine buffer and stops for that visit. Owner1493 refills,
+returns terminal4 with retry1 retained and enables forced arrival. Owner1494
+accepts the heading and retires the task/order. The terminal world position is
+**(1220.7265625,1838.97265625)**, short of the click, with zero velocity. The
+adjusted retry goal is the failed member accelerator's retained source,
+(34.42889404296875,50.11320877075195) fine; the click remains independent.
+No owner random draw is consumed in these two retries.
+
+Two complete Frida captures repeat all nine searches/routes,434 speed/heading
+and heading-error decisions,437 position/velocity/facing commits,6000 primary
+advances,1000 owner callbacks,300 timer samples and final cleanup.
+`retail-adaptive-passage-1.27.json` freezes this contract;
+`verify_wc3_adaptive_passage_trace.py` rejects missing completion, changed
+provenance, truncated routes, moved terminal position or surviving order heads.
+Its literal C header is checked byte-for-byte against the frozen motion.
+
+The actual engine test
+`wc3_movement.public_size2_passage_matches_original_fallback_and_failure`
+executes JASS admission and normal `RunFrame`, then six Save90 continuations at
+1200/6000/11200/14055/14085/14115ms. **12,420 assertions** compare all437
+uninterrupted commits and800 saved suffix commits, in both RoC and TFT. The
+existing general Move implementation already matches; this adds a complete
+engine regression rather than a scene-conditioned algorithm change. No save,
+network or game-module ABI changes are required. Four release diagnostics that
+used variables only inside the optional AI trace and one misleading test-loop
+indentation were also corrected without changing behavior.
+
+Reproduce the bounded original capture with the existing original campaign map:
+
+```sh
+python3 tools/frida/make_wc3_pathfinding_map.py \
+  --base "$RUNTIME/Human02Interlude-original.w3m" --scenario adaptive_passage \
+  --output "$WC3DATA/Maps/PathingRE-AdaptivePassage.w3m"
+"$FRIDAPY" tools/frida/trace_wc3_pathfinding.py --data "$WC3DATA" \
+  --map 'Maps\PathingRE-AdaptivePassage.w3m' --seconds 150 --samples 10000 \
+  --motion-events --velocity-events --heading-events --clock-events \
+  --task-events --profile-events --map-load-events --blockers \
+  --watch-cell 18 26 --continue-at 80 --continue-after-start 2 \
+  --x11-display :94 --output "$RUNTIME/adaptive-passage.jsonl"
+```
+
+The owned Wine loading flow needed an initial key before map initialization and
+a second key after the observed script start. `--continue-after-start` provides
+that second external key without guessing a second absolute deadline. Three
+exploratory captures with incomplete246-sample or unsuccessful startup
+outcomes are not accepted evidence. Only the two complete frozen captures are registered.
+Presentation subdivisions vary; each closes its own observed counters while
+primary clocks and movement repeat exactly. Limited spatial-clean/replan trace
+samples do not certify their full chronology.
+
+Ghidra's existing623 roles now retain the group/member/fine distinction and
+these final consumers/counters. Other task families, dynamic overlapping object
+chronology, portals and terrain-update timing remain their existing tasks. See
+[search evidence](retail-pathfinding-search.md#ordinary-classification-reachability),
+[corpus contract](retail-pathfinding-corpus.md#producer-built-passage-completion)
+and the [backlog](retail-pathfinding-todo.md).
+
+Required `make BUILD=release -j4 test` passes RoC/TFT **2,493 tests and
+4,418,652 assertions each**, plus **491 Python checks**. Fresh
+`runtime/passage80-strict/corpus-results.json` verifies the complete repeated
+live contract and preserves the producer oracle's expected known-reference
+difference. No incomplete capture is accepted.
