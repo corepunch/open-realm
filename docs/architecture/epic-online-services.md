@@ -523,6 +523,12 @@ The paired lobby check also exposed `SV_LobbySayClient_f` generating generic
 server client and shown in its slot. It now broadcasts that authoritative name;
 the server command regression checks sender text and ownership on both clients.
 
+The gameplay pump follows the normal engine loop's `SV_IsActive()` guard.
+Continuing to call `SV_Frame` while waiting for asynchronous EOS departure after
+`SV_Shutdown` runs the game callback against freed state. A local diagnostic
+reproduced that crash and now checks menu recovery and idle frames after shutdown
+without advancing the stopped server.
+
 Keep deployment failures as failing CI results. Acceptance is bounded and
 explicit; ordinary unit tests never authenticate or contact the live service.
 
