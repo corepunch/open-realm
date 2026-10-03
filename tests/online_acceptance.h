@@ -132,13 +132,16 @@ static bool Online_LiveRun(cstring_t role, cstring_t room, cstring_t map) {
 
     if (host) {
         Online_Host(map, room, 1, 2, 1);
-        if (!Online_LivePublished() || !Online_LiveFind(room, true)) return false;
+        if (!Online_LivePublished()) return false;
         if (solo) {
-            if (!Online_LiveAdmission() || !Online_LiveDeparture() || !Online_LiveLogin()) return false;
+            if (!Online_LiveFind(room, true) || !Online_LiveAdmission() ||
+                !Online_LiveDeparture() || !Online_LiveLogin()) return false;
             if (online.user != identity) return false;
             Online_Host(map, room, 1, 2, 2);
             return Online_LivePublished() && Online_LiveDeparture() && Online_LiveLogin() && Online_LiveFind(room, false);
         }
+        /* The guest proves public discovery. Once it joins this two-member
+         * room is full, so the browser correctly excludes it from searches. */
     } else {
         if (!Online_LiveFind(room, true)) return false;
         uint32_t index;
