@@ -4662,3 +4662,17 @@ TEST(client_screen, signal_minimap_click_sends_point_without_camera_drag) {
     cl.playerstate.stats[UI_PLAYERSTAT_CURSOR_FLAGS] = 0;
     cls.netchan.message = (sizeBuf_t){0};
 }
+
+TEST(net, eos_addresses_round_trip_and_compare_complete_identity) {
+    netadr_t first, second, copy, udp = { .type = NA_IP };
+    T_ASSERT(NET_StringToAdr("eos:0123456789ABCDEF0123456789abcdef", 6112, &first));
+    T_STREQ(first.peer, "0123456789abcdef0123456789abcdef");
+    T_EQ(first.type, NA_EOS);
+    T_ASSERT(NET_StringToAdr(NET_AdrToString(&first), 0, &copy));
+    T_ASSERT(NET_CompareAdr(&first, &copy));
+    T_ASSERT(NET_StringToAdr("eos:0123456789abcdef0123456789abcde0", 0, &second));
+    T_ASSERT(!NET_CompareAdr(&first, &second));
+    T_ASSERT(!NET_CompareAdr(&first, &udp));
+    T_ASSERT(!NET_StringToAdr("eos:123", 0, &copy));
+    T_ASSERT(!NET_StringToAdr("eos:0123456789abcdef0123456789abcdeg", 0, &copy));
+}

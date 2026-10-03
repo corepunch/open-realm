@@ -19,3 +19,6 @@ site/
 .idea/
 __pycache__/
 *.pyc
+
+# Private EOS player-client configuration (never cvars or committed credentials).
+eos.cfg

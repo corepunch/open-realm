@@ -79,6 +79,17 @@ typedef struct {
     bool (*LAN_Server)(uint32_t index, menuLanGame_t *out);
     void (*LAN_ConnectServer)(uint32_t index);
    
+    /* Internet room service; the game menu chooses the flow. */
+    bool (*Online_Begin)(void);
+    cstring_t (*Online_Status)(void);
+    bool (*Online_Ready)(void);
+    bool (*Online_HostReady)(void);
+    void (*Online_Refresh)(void);
+    uint32_t (*Online_NumGames)(void);
+    bool (*Online_Game)(uint32_t index, menuLanGame_t *out);
+    void (*Online_Join)(uint32_t index);
+    void (*Online_Leave)(void);
+
     /* Renderer access for frame drawing */
     refExport_t * (*GetRenderer)(void);
     

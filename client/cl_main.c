@@ -25,6 +25,7 @@
 #include "ui_layout.h"
 #include "sound/s_local.h"
 #include "common/server_api.h"
+#include "common/online.h"
 #ifdef BZ_TESTS
 #include "shared/test.h"
 #endif
@@ -45,6 +46,7 @@ static clMenuLife_t cl_menu_life;
 
 static uint32_t cl_last_packet_time = 0;
 static uint32_t cl_realtime = 0;
+static uint32_t cl_connect_started, cl_connect_retry;
 
 uint32_t CL_RealTime(void) { return cl_realtime; }
 
@@ -197,6 +199,7 @@ static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu
         Netchan_Transmit(NS_CLIENT, &cls.netchan);
     }
 
+    if (cls.netchan.remote_address.type == NA_EOS) Online_Leave();
     CL_ClearState();
     cls.state = ca_disconnected;
     cl_last_packet_time = 0;
@@ -445,6 +448,26 @@ static void CL_LANConnectServer(uint32_t index) {
     game = &cl_lan_servers[index];
     Cvar_Set("connect", game->address);
     CL_Connect(game->address, port);
+}
+
+static bool CL_OnlineGame(uint32_t index, menuLanGame_t *out) {
+    onlineGame_t game;
+    if (!out || !Online_Game(index, &game)) return false;
+    /* The menu API owns its public structure; copy fields across that boundary. */
+    snprintf(out->address, sizeof(out->address), "%s", game.address);
+    snprintf(out->hostname, sizeof(out->hostname), "%s", game.hostname);
+    snprintf(out->mapname, sizeof(out->mapname), "%s", game.mapname);
+    out->players = game.players; out->maxPlayers = game.maxPlayers;
+    out->speed = game.speed; out->slots = game.slots;
+    return true;
+}
+
+static void CL_OnlineLeave(void) {
+    bool const host = Online_IsHost();
+    if (host || cls.netchan.remote_address.type == NA_EOS)
+        CL_DisconnectInternal("Left Internet room.", false, false);
+    if (host) SV_Shutdown();
+    Online_Leave();
 }
 
 static void CL_AddLANServer(netadr_t const *from, cstring_t info) {
@@ -948,6 +971,15 @@ void CL_Init(void) {
         .LAN_NumServers = CL_LANNumServers,
         .LAN_Server = CL_LANServer,
         .LAN_ConnectServer = CL_LANConnectServer,
+        .Online_Begin = Online_Begin,
+        .Online_Status = Online_Status,
+        .Online_Ready = Online_Ready,
+        .Online_HostReady = Online_HostReady,
+        .Online_Refresh = Online_Refresh,
+        .Online_NumGames = Online_NumGames,
+        .Online_Game = CL_OnlineGame,
+        .Online_Join = Online_Join,
+        .Online_Leave = CL_OnlineLeave,
         .GetRenderer = CL_UIGetRenderer,
         .Printf = CON_printf,
         .PlaySound = S_PlaySound,
@@ -996,7 +1028,7 @@ void CL_ConnectionlessPacket(netadr_t const *from, sizeBuf_t *msg) {
     sscanf(payload, "%255s %d", command, &protocol);
     if (!strcmp(command, "info")) {
         info = strchr(payload, '\n');
-        CL_AddLANServer(from, info ? info + 1 : "");
+        if (from->type == NA_IP) CL_AddLANServer(from, info ? info + 1 : "");
         return;
     }
     if (strcmp(command, "client_connect")) {
@@ -1049,6 +1081,11 @@ TEST(client_session, connection_reply_requires_matching_protocol) {
 #endif
 
 static void CL_ReadPacketMessage(netadr_t const *from, sizeBuf_t *msg, int length) {
+    if ((from->type == NA_EOS || (cls.state != ca_disconnected && cls.netchan.remote_address.type == NA_EOS)) &&
+        !NET_CompareAdr(from, &cls.netchan.remote_address)) {
+        fprintf(stderr, "CL_ReadPackets: rejected packet outside the connected Internet host\n");
+        return;
+    }
     cl_last_packet_time = cl_realtime;
     if (length >= 4) {
         int hdr;
@@ -1061,6 +1098,33 @@ static void CL_ReadPacketMessage(netadr_t const *from, sizeBuf_t *msg, int lengt
     }
     CL_ParseServerMessage(msg);
 }
+
+#ifdef BZ_TESTS
+TEST(client_session, lan_discovery_survives_leaving_online_but_foreign_host_packets_are_rejected) {
+    struct client_static old_cls = cls;
+    uint32_t old_count = cl_num_lan_servers, old_time = cl_last_packet_time;
+    menuLanGame_t *saved = malloc(sizeof(cl_lan_servers));
+    T_NOT_NULL(saved); if (!saved) return;
+    memcpy(saved, cl_lan_servers, sizeof(cl_lan_servers));
+    cl_num_lan_servers = 0;
+    netadr_t udp = { .type = NA_IP, .ip = {127, 0, 0, 1}, .port = htons(28000) };
+    uint8_t bytes[128]; sizeBuf_t message;
+    SZ_Init(&message, bytes, sizeof(bytes));
+    MSG_WriteLong(&message, -1);
+    MSG_WriteString(&message, "info\n\\hostname\\LAN Test\\mapname\\Test.w3m");
+    cls.state = ca_disconnected;
+    T_ASSERT(NET_StringToAdr("eos:0123456789abcdef0123456789abcdef", 0, &cls.netchan.remote_address));
+    CL_ReadPacketMessage(&udp, &message, message.cursize);
+    T_EQ(cl_num_lan_servers, 1); T_STREQ(cl_lan_servers[0].hostname, "LAN Test");
+    cls.state = ca_connecting; udp.port = htons(28001); cl_last_packet_time = 37;
+    CL_ReadPacketMessage(&udp, &message, message.cursize);
+    T_EQ(cl_num_lan_servers, 1); T_EQ(cl_last_packet_time, 37);
+    CL_ReadPacketMessage(&cls.netchan.remote_address, &message, message.cursize);
+    T_EQ(cl_num_lan_servers, 1); /* EOS info cannot enter LAN discovery. */
+    cls = old_cls; cl_last_packet_time = old_time; cl_num_lan_servers = old_count;
+    memcpy(cl_lan_servers, saved, sizeof(cl_lan_servers)); free(saved);
+}
+#endif
 
 /* Read all available server packets from the network buffer and dispatch each
  * message type to the appropriate CL_Parse* handler in cl_parse.c. */
@@ -1143,9 +1207,14 @@ static void CL_SanitizeUserinfoValue(cstring_t in, string_t out, uint32_t out_si
     out[write] = '\0';
 }
 
+static void CL_SendConnectRequest(netadr_t address) {
+    UINAME name;
+    CL_SanitizeUserinfoValue(Cvar_String("name", "Player"), name, sizeof(name));
+    Netchan_OutOfBandPrint(NS_CLIENT, address, "connect %d\n\\name\\%s", BZ_PROTOCOL_VERSION, name[0] ? name : "Player");
+}
+
 void CL_Connect(cstring_t host, unsigned short port) {
     netadr_t adr;
-    UINAME name;
 
     if (!NET_StringToAdr(host, port, &adr)) {
         fprintf(stderr, "CL_Connect: bad server address \"%s\"\n", host);
@@ -1153,7 +1222,11 @@ void CL_Connect(cstring_t host, unsigned short port) {
     }
     // Loopback (localhost) needs no UDP socket — packets go through the
     // in-memory ring buffer.  Only open the socket for remote addresses.
-    if (adr.type != NA_LOOPBACK) {
+    if (adr.type == NA_EOS && (!Online_Ready() || !Online_InLobby())) {
+        fprintf(stderr, "CL_Connect: join an Internet room before connecting to its host\n");
+        return;
+    }
+    if (adr.type == NA_IP || adr.type == NA_BROADCAST) {
         NET_ConfigSource(NS_CLIENT, true);
         if (!NET_IsConfigured(NS_CLIENT)) {
             fprintf(stderr, "CL_Connect: client UDP socket is closed, cannot connect\n");
@@ -1166,13 +1239,12 @@ void CL_Connect(cstring_t host, unsigned short port) {
     cls.state = ca_connecting;
     // Send an out-of-band "connect" request; the server will register this
     // client slot and reply with "client_connect".
-    CL_SanitizeUserinfoValue(Cvar_String("name", "Player"), name, sizeof(name));
-    Netchan_OutOfBandPrint(NS_CLIENT, adr, "connect %d\n\\name\\%s", BZ_PROTOCOL_VERSION, name[0] ? name : "Player");
+    cl_connect_started = cl_connect_retry = cl_realtime;
+    CL_SendConnectRequest(adr);
     if (adr.type == NA_LOOPBACK)
         fprintf(stderr, "CL_Connect: connecting to local server via loopback\n");
     else
-        fprintf(stderr, "CL_Connect: connecting to %d.%d.%d.%d:%u\n",
-                adr.ip[0], adr.ip[1], adr.ip[2], adr.ip[3], ntohs(adr.port));
+        fprintf(stderr, "CL_Connect: connecting to %s\n", NET_AdrToString(&adr));
 }
 
 void CL_Shutdown(void) {
@@ -1217,11 +1289,27 @@ void CL_Frame(uint32_t msec) {
     cl_realtime += msec;
     cl.time += msec;
 
+    netadr_t online_host;
+    if (Online_TakeConnection(&online_host)) {
+        cstring_t address = NET_AdrToString(&online_host);
+        Cvar_Set("connect", address);
+        CL_Connect(address, 0);
+    }
+    if (cls.netchan.remote_address.type == NA_EOS && cls.state != ca_disconnected && !Online_InLobby())
+        CL_Disconnect("The Internet room has closed.", true);
     CL_ProcessPendingMenuAction();
     CL_Input();
     CL_CanvasFrame(cl_realtime);
     CL_MovieUpdate();
     CL_ReadPackets();
+    if (cls.state == ca_connecting && cls.netchan.remote_address.type == NA_EOS) {
+        if (cl_realtime - cl_connect_started > CL_TIMEOUT_MSEC) {
+            CL_Disconnect("Internet host connection timed out.", true);
+        } else if (cl_realtime - cl_connect_retry >= 1000) {
+            cl_connect_retry = cl_realtime;
+            CL_SendConnectRequest(cls.netchan.remote_address);
+        }
+    }
     CL_MusicUpdate();
     S_SetUserVolume(Cvar_Integer("s_sound", 1)
         ? Cvar_Value("s_volume", 1.0f) : 0.0f);

@@ -2148,6 +2148,13 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
     T_ASSERT(global_exit_button != exit_button);
     T_ASSERT(!exit_button->hidden);
     T_STREQ(exit_button->OnClick, "menu_quit");
+    frameDef_t *internet = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "BattleNetButton");
+    frameDef_t *local = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "LocalAreaNetworkButton");
+    T_NOT_NULL(internet); T_NOT_NULL(local);
+    if (internet && local) {
+        T_STREQ(internet->OnClick, "menu_online");
+        T_STREQ(local->OnClick, "menu_multiplayer");
+    }
     logo = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "WarCraftIIILogo");
     if (!require_not_null(logo)) { mi = saved; return; }
     T_FEQ(logo->Points.x[FPP_MIN].offset, 0.13f, 0.001f);

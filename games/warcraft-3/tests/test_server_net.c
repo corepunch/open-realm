@@ -1735,3 +1735,26 @@ TEST(server_net, review_snapshot_keeps_nearby_world_entity_among_distant_contact
     T_ASSERT(found);
     SV_Shutdown();
 }
+
+TEST(server_net, eos_clients_compare_complete_identity_and_skip_free_slots) {
+    netadr_t first, second;
+    T_ASSERT(NET_StringToAdr("eos:0123456789abcdef0123456789abcdef", 0, &first));
+    T_ASSERT(NET_StringToAdr("eos:0123456789abcdef0123456789abcde0", 0, &second));
+    reset_server_state(4); svs.num_clients = 3;
+    svs.clients[0].state = cs_free;
+    svs.clients[0].netchan.remote_address = first;
+    svs.clients[1].state = cs_connected;
+    svs.clients[1].netchan.remote_address = first;
+    svs.clients[2].state = cs_connected;
+    svs.clients[2].netchan.remote_address = second;
+    T_ASSERT(SV_FindClientByAddr(&first) == &svs.clients[1]);
+    T_ASSERT(SV_FindClientByAddr(&second) == &svs.clients[2]);
+}
+
+TEST(server_net, eos_game_rejects_new_connections_after_match_start) {
+    netadr_t remote;
+    T_ASSERT(NET_StringToAdr("eos:0123456789abcdef0123456789abcdef", 0, &remote));
+    reset_server_state(4); sv.state = ss_game;
+    SV_DirectConnect(&remote, "\\name\\Late");
+    T_EQ(svs.num_clients, 0);
+}
