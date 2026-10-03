@@ -18,7 +18,7 @@ The reference is id Software's [Quake II edict definition](https://github.com/id
 
 ## Lifetime
 
-Each pool currently has 2,048 slots, with slot zero reserved: 2,047 simultaneous records per lifecycle. Allocation zeroes the selected record. Exhaustion logs the pool name and fails through `gi.error`; it never provides a shared writable fallback. `G_FreeAncientRoot(ent)` releases that record and clears its member. `G_PoolsReleaseEdict()` releases every attached record during entity teardown. Game initialization and map replacement reset all pools and detach all edict pool pointers.
+Each pool has `MAX_ENTITIES` slots, with slot zero reserved. This lets persistent records such as map-placed destructables cover the server's full entity capacity; sparse ability pools use only the records their active lifecycles need. Allocation zeroes the selected record. Exhaustion logs the pool name and fails through `gi.error`; it never provides a shared writable fallback. `G_FreeAncientRoot(ent)` releases that record and clears its member. `G_PoolsReleaseEdict()` releases every attached record during entity teardown. Game initialization and map replacement reset all pools and detach all edict pool pointers.
 
 Construction state exists only while construction is in progress, including paused Human construction. Completion and stop release it after worker cleanup; `ent->construction != NULL` is the active-state check. There is no separate `active` flag.
 

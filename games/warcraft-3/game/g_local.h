@@ -3526,7 +3526,9 @@ extern struct level_locals level;
 /* Sparse lifecycles live in pools (Quake's gclient_t pattern). The edict holds
  * a null pointer until the behavior starts. Movement, attacks, and health stay
  * inline because almost every unit touches them. */
-#define LIFECYCLE_POOL_CAP 2048
+/* A pool must be able to represent every entity the server can allocate. In
+ * particular, map-placed destructables each own a persistent pool record. */
+#define LIFECYCLE_POOL_CAP MAX_ENTITIES
 void G_PoolsReset(void);
 void G_PoolsReleaseEdict(edict_t *ent);
 void G_FreeConstruction(edict_t *ent);
