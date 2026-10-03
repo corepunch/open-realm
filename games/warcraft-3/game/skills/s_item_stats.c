@@ -97,7 +97,7 @@ static void orb_apply(edict_t *attacker, edict_t *target, uint32_t orb, uint32_t
     if (!buff) return;
     level = MAX(1, G_UnitAbilityLevel(attacker, orb));
     seen[(*count)++] = orb;
-    unit_addtimedstatus(target, buff, level, S_SpellHeroDuration(orb, level, target));
+    S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(orb, level, target));
 }
 
 /* Called from S_ResolveAttackHit after a hit lands on an enemy. Checks native

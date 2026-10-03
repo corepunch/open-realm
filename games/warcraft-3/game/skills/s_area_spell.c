@@ -304,7 +304,7 @@ static void area_damage_status_execute(edict_t *caster, spellTarget_t st, abilit
                   S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius) {
         if (S_SpellDamage(target, caster, damage) && !M_IsDead(target) && buff && strlen(buff) >= 4 && duration > 0.0f)
-            unit_addtimedstatus(target, buff, level, duration);
+            S_SpellApplyTimedStatus(target, buff, level, duration);
     }
 }
 
@@ -325,7 +325,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostNova) {
         float damage = S_SpellData(spell->code, rank, 1);
         if (target == st.entity) damage += S_SpellData(spell->code, rank, 2);
         if (S_SpellDamage(target, caster, (int)damage) && !M_IsDead(target) && buff && strlen(buff) >= 4)
-            unit_addtimedstatus(target, buff, rank, S_SpellHeroDuration(spell->code, rank, target));
+            S_SpellApplyTimedStatus(target, buff, rank, S_SpellHeroDuration(spell->code, rank, target));
     }
 }
 

@@ -315,6 +315,11 @@ static bool unit_is_raisable_corpse(edict_t const *ent, bool stored) {
 
 bool G_UnitIsRaisableCorpse(edict_t const *ent) { return unit_is_raisable_corpse(ent, false); }
 bool G_UnitIsRaisableStoredCorpse(edict_t const *ent) { return unit_is_raisable_corpse(ent, true); }
+int32_t G_CorpseUnitLevel(edict_t const *ent) {
+    UnitBalance_t const *balance = ent ? ent->data.UnitBalance : NULL;
+    if (!balance && ent) balance = G_UnitBalance(ent->class_id);
+    return balance ? balance->level : 0;
+}
 
 /* Corpse revival keeps handle identity while retiring every death-state owner.
  * Permanent revival restores ordinary corpse/food policy; temporary raised

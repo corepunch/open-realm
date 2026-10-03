@@ -142,11 +142,17 @@ ability procedure still decides relation, wounded-only policy and fallback
 radius, while the helper owns nearest-candidate scanning and re-enters the normal
 `S_CastUnitTargetSpell` path. Do not force special acquisition rules such as Moon
 Well thresholds or Barkskin's existing-buff exclusion through that helper. The
-same rule applies to passive and lifecycle families: Endurance Aura now consumes
-the shared aura cache instead of open-coding recipient scans, and temporary corpse
-revival uses `G_ReviveCorpseAsSummon()` rather than repeating the ordinary corpse
-teardown. Timed-status procedures may share `S_SpellApplyTimedStatus()` after the
-owner has resolved its own BuffID fallback and exact duration. This
+same rule applies to passive and lifecycle families: Endurance Aura and hostile
+Slow Aura consume the shared aura cache instead of open-coding recipient scans;
+the cache key owns source relation while the consumer retains value-specific
+normalization/clamping. Temporary corpse revival uses `G_ReviveCorpseAsSummon()`
+rather than repeating the ordinary corpse teardown, and corpse-ranking policy
+reads the shared `G_CorpseUnitLevel()` accessor while each ability keeps its own
+highest/lowest and tie-break selection rule. Timed-status procedures should use `S_SpellApplyTimedStatus()` for ordinary
+presentation-neutral status writes after the owner has resolved its own BuffID
+fallback and exact duration; direct `unit_addtimedstatus()` remains appropriate
+for lifecycle tokens such as timed life, morph expiry, or other deliberately
+special state. This
 presentation-neutral primitive returns the authoritative status slot, so special
 abilities can attach payload without rescanning `abilstatus`. Ordinary target buffs
 that also use standard authored TargetArt layer `S_SpellApplyTimedTargetStatus()`

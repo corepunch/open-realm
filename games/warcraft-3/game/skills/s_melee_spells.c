@@ -108,7 +108,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityRoar) {
     if (!buff) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
-        unit_addtimedstatus(target, buff, level, duration);
+        S_SpellApplyTimedStatus(target, buff, level, duration);
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
 }
 

@@ -162,8 +162,7 @@ static void poison_apply(edict_t *attacker, edict_t *target, uint32_t code, uint
             if (slot && slot->data == code && slot->source == attacker &&
                 slot->source_spawn_time == attacker->spawn_time) next_tick = slot->next_tick;
         }
-        unit_addtimedstatus(target, buff, level, S_SpellResistantDuration(code, level, target));
-        slot = unit_findstatus(target, FS_SLKKey(buff));
+        slot = S_SpellApplyTimedStatus(target, buff, level, S_SpellResistantDuration(code, level, target));
         /* Both authored buff tokens remain visible state, but only the first
          * owns the poison pulse so a Bpoi/Bpsd pair does not double DataA DPS.
          * Same-source refresh keeps its existing pulse deadline; a new source

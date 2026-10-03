@@ -3,7 +3,7 @@
 static void campaign_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = S_SpellBuffId(spell->code, level);
-    if (st.entity && buff) unit_addtimedstatus(st.entity, buff, level, S_SpellHeroDuration(spell->code, level, st.entity));
+    if (st.entity && buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellHeroDuration(spell->code, level, st.entity));
 }
 
 static void campaign_area_damage_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -34,7 +34,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkConversion) {
     summon = S_SummonAt(caster, unit, &st.entity->s.origin2, 0.0f);
     if (!summon) return;
     buff = S_SpellBuffId(spell->code, level);
-    if (buff) unit_addtimedstatus(summon, buff, level, S_SpellDuration(spell->code, level, false));
+    if (buff) S_SpellApplyTimedStatus(summon, buff, level, S_SpellDuration(spell->code, level, false));
     G_FreeEdict(st.entity);
 }
 BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCampaign) { campaign_area_damage_execute(caster, st, spell); }
@@ -283,7 +283,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityBattleRoar) {
     uint32_t level = S_SpellLevel(caster, spell->code); cstring_t buff = S_SpellBuffId(spell->code, level);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
-        if (buff) unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, false));
+        if (buff) S_SpellApplyTimedStatus(target, buff, level, S_SpellDuration(spell->code, level, false));
 }
 BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign) {
     uint32_t level = S_SpellLevel(caster, spell->code);

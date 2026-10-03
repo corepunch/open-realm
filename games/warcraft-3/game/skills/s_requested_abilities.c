@@ -62,7 +62,7 @@ static void radial_damage_status(edict_t *caster, vec2_t point, abilityitem_t co
                   Vector2_distance(&target->s.origin2, &point) <= area) {
         S_SpellDamage(target, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, data)));
         if (buff && !M_IsDead(target))
-            unit_addtimedstatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
+            S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
     }
 }
 
@@ -644,7 +644,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityImpale) {
             fabsf(across) > S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)) continue;
         S_SpellDamage(target, caster, (int)S_SpellData(spell->code, level, 3));
         if (!M_IsDead(target) && buff)
-            unit_addtimedstatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
+            S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
     }
 }
 /* Name=Locust Swarm
@@ -672,23 +672,17 @@ BZ_SIMPLE_SPELL_PROC(AbilitySilence) {
     cstring_t buff = spell_buff(spell, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        if (buff) unit_addtimedstatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
+        if (buff) S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
     }
 }
 /* Corpse ultimates prefer higher-level units before lower-level ones. Equal-level
  * ties retain the stable entity-enumeration order until a stricter retail tie-break
  * is established. */
-static int32_t corpse_unit_level(edict_t const *unit) {
-    UnitBalance_t const *balance = unit ? unit->data.UnitBalance : NULL;
-    if (!balance && unit) balance = G_UnitBalance(unit->class_id);
-    return balance ? balance->level : 0;
-}
-
 static bool corpse_preferred(edict_t const *candidate, edict_t const *current, edict_t const *caster, bool nearest_tie) {
     int32_t candidate_level, current_level;
 
     if (!current) return true;
-    candidate_level = corpse_unit_level(candidate); current_level = corpse_unit_level(current);
+    candidate_level = G_CorpseUnitLevel(candidate); current_level = G_CorpseUnitLevel(current);
     if (candidate_level != current_level) return candidate_level > current_level;
     return nearest_tie && caster &&
         Vector2_distance(&candidate->s.origin2, &caster->s.origin2) <
@@ -971,7 +965,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror) {
     cstring_t buff = S_SpellBuffId(spell->code, level);
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius)
-        if (buff && strlen(buff) >= 4) unit_addtimedstatus(target, buff, level, duration);
+        if (buff && strlen(buff) >= 4) S_SpellApplyTimedStatus(target, buff, level, duration);
 }
 /* Name=Drunken Haze
  * Ubertip="Slows enemy units and gives them a chance to miss on attacks."
@@ -1011,14 +1005,14 @@ BZ_SIMPLE_SPELL_PROC(AbilityVoodoo) {
     if (!buff) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
-        unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, false));
+        S_SpellApplyTimedStatus(target, buff, level, S_SpellDuration(spell->code, level, false));
 }
 BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = spell_buff(spell, level);
     edict_t *thinker;
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
-    if (buff) unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
+    if (buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
     thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 3));
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f); thinker->think = acid_bomb_think;
 }

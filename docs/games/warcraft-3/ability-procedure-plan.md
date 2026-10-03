@@ -121,7 +121,10 @@ Endurance Aura now uses that same resolver for both movement and attack speed
 instead of rescanning all entities independently in `s_move.c` and `s_attack.c`.
 Its DataA/DataB percentage authoring is normalized inside the shared resolver;
 consumers receive fractional bonuses just like the existing
-Unholy/Brilliance/Devotion family consumers.
+Unholy/Brilliance/Devotion family consumers. Slow Aura also uses the same cache:
+cache keys declare whether a contribution comes from friendly or enemy sources,
+so hostile movement/attack reductions no longer need their own entity scans. The
+consumer keeps Slow Aura's 90% reduction clamp.
 
 Corpse revival likewise has one death-state teardown primitive in `m_unit.c`.
 `G_ReviveCorpse()` restores an ordinary permanent unit and reactivates food;
@@ -129,12 +132,15 @@ Corpse revival likewise has one death-state teardown primitive in `m_unit.c`.
 temporary raised units while keeping them out of food accounting and marking the
 consumed corpse unraisable/no-decay. Resurrection and Animate Dead therefore
 differ in post-revival policy without duplicating decay/order cleanup.
+`G_CorpseUnitLevel()` is the shared corpse-value accessor used by both the
+high-level Resurrection/Animate Dead preference and Raise Dead's inverse
+low-level preference; selection order remains ability-owned.
 
 Use the same rule for future consolidation:
 
 - target/projectile families share cast, target and impact machinery but keep ability-specific effects;
 - channel families share channel ownership/interruption and thinker lifecycle but keep tick policy;
-- aura families share source/recipient reconciliation but keep the numeric modifier consumer;
+- aura families share source/recipient reconciliation, including friendly-vs-hostile source relation, but keep the numeric modifier consumer and any final clamp;
 - summon families share unit creation/timed-life ownership but keep recast, replacement and corpse policies; simple `UnitID` + DataA count + Dur summons use `S_SummonAbilityUnits()`;
 - corpse families share eligibility/reservation/revival primitives but keep ownership and post-revival policy;
 - timed status families share lifecycle/presentation only when their duration and resistance semantics are identical. `S_SpellBuffId()` centralizes validation of an authored primary BuffID while each owner retains ROC/TFT fallback policy; `S_SpellHeroDuration()` and `S_SpellResistantDuration()` make the two existing duration-selection policies explicit without a mode flag. `S_SpellApplyTimedStatus()` is the presentation-neutral primitive: it applies/replaces a timed status and returns the authoritative slot so special families such as Disease Cloud, Ensnare/Web, Entangling Roots, Incinerate, Cyclone, and item invisibility can attach payload without rescanning `abilstatus`. `S_SpellApplyTimedTargetStatus()` layers standard authored TargetArt on that primitive for ordinary target buffs. `S_SpellBuffToken()` centralizes ordered comma-separated BuffID selection without deciding which token an ability wants. Simple persistent on/off statuses use `S_ToggleUnitAbilityStatus()`, while specialized toggles such as Defend retain their animation/expiry wrapper.

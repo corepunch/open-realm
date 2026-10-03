@@ -52,12 +52,12 @@ void S_CreepAttackOnHit(edict_t *attacker, edict_t *target) {
     code = G_UnitAbilityLevel(attacker, ID_LIQUID_FIRE) ? ID_LIQUID_FIRE : 0;
     if (code) {
         level = MAX(1u, G_UnitAbilityLevel(attacker, code));
-        unit_addtimedstatus(target, "Bliq", level, S_SpellHeroDuration(code, level, target));
+        S_SpellApplyTimedStatus(target, "Bliq", level, S_SpellHeroDuration(code, level, target));
     }
     code = G_UnitAbilityLevel(attacker, ID_CORROSIVE_BREATH) ? ID_CORROSIVE_BREATH : 0;
     if (code) {
         level = MAX(1u, G_UnitAbilityLevel(attacker, code));
-        unit_addtimedstatus(target, "Bcor", level, S_SpellHeroDuration(code, level, target));
+        S_SpellApplyTimedStatus(target, "Bcor", level, S_SpellHeroDuration(code, level, target));
     }
 }
 

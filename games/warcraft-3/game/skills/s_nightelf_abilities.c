@@ -58,7 +58,7 @@ void S_SlowPoisonOnHit(edict_t *attacker, edict_t *target) {
     uint32_t level = G_UnitAbilityLevel(attacker, ID_SLOW_POISON);
     if (!level || !target || !S_SpellIsEnemy(attacker, target)) return;
     /* DataA DPS / BuffID Bssd are leftover; this slice only applies Bspo slow. */
-    unit_addtimedstatus(target, "Bspo", level, S_SpellResistantDuration(ID_SLOW_POISON, level, target));
+    S_SpellApplyTimedStatus(target, "Bspo", level, S_SpellResistantDuration(ID_SLOW_POISON, level, target));
 }
 
 /* DataB/DataC are fractions (stock 0.5 / 0.25), same %>% convention as Bloodlust. */

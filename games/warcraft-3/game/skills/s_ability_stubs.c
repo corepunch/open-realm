@@ -129,7 +129,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     caster->invulnerable = true;
     thinker->think = divine_shield_think;
-    if (buff && strlen(buff) >= 4) unit_addtimedstatus(caster, buff, level, duration);
+    if (buff && strlen(buff) >= 4) S_SpellApplyTimedStatus(caster, buff, level, duration);
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
 }
 

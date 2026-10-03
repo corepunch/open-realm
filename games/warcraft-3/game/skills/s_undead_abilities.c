@@ -497,12 +497,6 @@ static float raise_dead_search_range(edict_t const *caster) {
     return caster ? MAX(0.0f, caster->runtime.acquisition_range) : 0.0f;
 }
 
-static int32_t raise_dead_corpse_rank(edict_t const *unit) {
-    UnitBalance_t const *balance = unit ? unit->data.UnitBalance : NULL;
-    if (!balance && unit) balance = G_UnitBalance(unit->class_id);
-    return balance ? balance->level : 0;
-}
-
 /* Retail Raise Dead preserves more valuable corpses by preferring the lowest-
  * ranked eligible corpse; distance is only the tie-breaker.  UnitBalance.level
  * is already the engine's corpse-power rank for Resurrection/Animate Dead. */
@@ -513,7 +507,7 @@ static edict_t *raise_dead_corpse(edict_t *caster, uint32_t code, float range) {
 
     FILTER_EDICTS(unit, !G_UnitIsHero(unit) && S_SpellAllowsCorpseTarget(code, caster, unit)) {
         float const distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
-        int32_t const rank = raise_dead_corpse_rank(unit);
+        int32_t const rank = G_CorpseUnitLevel(unit);
         if (distance > range) continue;
         if (!corpse || rank < best_rank || (rank == best_rank && distance < best_distance)) {
             corpse = unit; best_rank = rank; best_distance = distance;
@@ -530,7 +524,7 @@ static edict_t *raise_dead_corpse(edict_t *caster, uint32_t code, float range) {
                 !S_SpellAllowsStoredCorpseTarget(code, caster, unit) ||
                 !S_CorpseCargoPosition(unit, &position)) continue;
             distance = Vector2_distance(&position, &caster->s.origin2);
-            rank = raise_dead_corpse_rank(unit);
+            rank = G_CorpseUnitLevel(unit);
             if (distance > range) continue;
             if (!corpse || rank < best_rank || (rank == best_rank && distance < best_distance)) {
                 corpse = unit; best_rank = rank; best_distance = distance;

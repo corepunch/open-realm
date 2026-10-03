@@ -152,7 +152,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityLightningShield) {
     cstring_t buff = S_SpellBuffId(spell->code, level);
     edict_t *thinker;
     if (!st.entity || !buff || strlen(buff) < 4) return;
-    unit_addtimedstatus(st.entity, buff, level, dur);
+    S_SpellApplyTimedStatus(st.entity, buff, level, dur);
     thinker = G_Spawn();
     thinker->owner = st.entity; thinker->goalentity = caster;
     thinker->spawn_time = G_Time() + (uint32_t)(dur * 1000.0f);
