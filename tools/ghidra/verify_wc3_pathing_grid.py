@@ -59,7 +59,7 @@ def reference(blocked, width, height, start, goal, size_class):
 
 
 def main():
-    from unicorn import Uc, UC_ARCH_X86, UC_MODE_32
+    from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE
     from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EAX
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
@@ -71,8 +71,10 @@ def main():
     parser.add_argument('--objects', action='store_true', help='full mixed object chains for ground/flight query masks')
     parser.add_argument('--corridors', action='store_true', help='cardinal corridors of width 0..5 across four classes')
     parser.add_argument('--passages', action='store_true', help='four-lane cardinal/corner/edge passage matrix with exact fractional requests')
+    parser.add_argument('--queue-composition',action='store_true',help='one natural full request with ties/reopening/stale entries')
     args = parser.parse_args()
     if args.passages and (args.objects or args.partials or args.corridors): parser.error('passages is a separate matrix')
+    if args.queue_composition and (args.passages or args.objects or args.partials or args.corridors): parser.error('queue composition is a separate fixture')
     if args.movement_profiles and not args.objects: parser.error('--movement-profiles requires --objects')
     if args.corridors and (args.objects or args.partials): parser.error('corridors is a separate matrix')
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
@@ -144,6 +146,24 @@ def main():
         fixtures = [(f'corridor_{span}', {(x, y) for y in range(height) for x in range(width)
                                          if not 8 - span // 2 <= x < 8 - span // 2 + span}) for span in range(6)]
     profiles = {}
+    queue_input = None
+    if args.queue_composition:
+        queue_input=json.loads(Path(__file__).with_name('fixtures').joinpath('retail-fine-queue-1.27.json').read_text())['input']
+        width=height=queue_input['dim']; start=tuple(queue_input['start']); goal=tuple(queue_input['goal'])
+        cells=0x10060000
+        blocked={(x,y) for y in range(height) for x in range(width) if bytes.fromhex(queue_input['cells'])[y*width+x]}
+        fixtures=[('queue_composition',blocked)]
+        profiles['queue_composition']=dict(mask=0x02000002,objects=[])
+    pop_records=[]; trace_active=False
+    def observe_pop(m,address,size,data):
+        if not trace_active or m.reg_read(UC_X86_REG_ECX)!=system+0x44: return
+        key,index,generation=read(heap+12,3)
+        n=read(nodes+index*36,9)
+        state=0 if n[3]==0xffffffff else 1 if n[3]==0xfffffffe else 2
+        pop_records.append([key,index,generation,n[2],read(system+0x6c)[0],n[5],n[6],n[7],state,read(system+0x60)[0]-1])
+    if args.queue_composition:
+        machine.hook_add(UC_HOOK_CODE,observe_pop,begin=0x6f148240,end=0x6f148240)
+
     if args.passages:
         width = height = 16
         shapes = []
@@ -215,7 +235,7 @@ def main():
                     not flags & 0x60000000 and object['mask'] & query_mask & 0xffffff):
                 x0,y0,x1,y1 = object['bounds']
                 effective.update((x,y) for y in range(y0,y1) for x in range(x0,x1))
-        for size_class in range(4):
+        for size_class in (range(1) if args.queue_composition else range(4)):
             machine.mem_write(system, bytes(0x400))
             machine.mem_write(bitmap, bytes(1024))
             machine.mem_write(cells, b''.join(struct.pack('<I', (terrain_flags << 24) | 0xffffff if (x, y) in blocked else 0x00ffffff)
@@ -252,10 +272,14 @@ def main():
             start_index = run(0x6f147af0, system, *start)
             goal_index = run(0x6f147af0, system, *goal)
             write(system + 0x90, start_index, goal_index)
+            trace_active=args.queue_composition
+            pop_records.clear()
             result = run(0x6f14aa10, system)
+            trace_active=False
+            core_pops=pop_records[:]
             expected, reachable = reference(effective, width, height, start, goal, size_class)
             actual = None if result == 0xffffffff else read(nodes + result * 36 + 0x14)[0]
-            if (result != 0xffffffff and result != goal_index) or actual != expected:
+            if (result != 0xffffffff and result != goal_index) or (actual != expected and not args.queue_composition):
                 raise RuntimeError(f'grid mismatch {name} class={size_class} result={result} cost={actual} wanted={expected}')
             chain, points = [], []
             if result != 0xffffffff:
@@ -339,7 +363,11 @@ def main():
             write(mask_ptr, query_mask)
             write(route + 0xc, route_data)
             write(route + 0x18, 1024, 0)
+            trace_active=args.queue_composition
+            pop_records.clear()
             request_result = run(0x6f148100, system, route, source_ptr, target_ptr, mask_ptr, 100000, radius_ptr, 0)
+            trace_active=False
+            if args.queue_composition: assert pop_records==core_pops
             route_count = read(route + 0x1c)[0]
             if not 1 <= route_count <= 1024:
                 raise RuntimeError('request produced invalid route length')
@@ -427,9 +455,42 @@ def main():
             print(f'{len(records)} retail footprint searches and repeats checked', flush=True)
     report = dict(binary_sha256=digest, cases=len(records), repeated_searches=len(records), complete_requests=len(records), request_edge_cases=edge_cases, mismatches=[],
                   reached=sum(r['cost'] is not None for r in records), exhausted=sum(r['cost'] is None for r in records),
-                  seed=None if args.corridors or args.objects or args.passages else 12717085, dimensions=[width, height], start=start, goal=goal,
+                  seed=None if args.corridors or args.objects or args.passages or args.queue_composition else 12717085, dimensions=[width, height], start=start, goal=goal,
                   scope='original core loop and full setup/search/reconstruction request; allocation/reset/stamp reuse; direct initialized storage and -1/0/1 runtime constants; static terrain and optional mixed object chains; Dijkstra reference uses recovered footprint graph; no path-owned admission or smoothing',
                   searches=records, budget_cases=len(budget_cases))
+    if args.queue_composition:
+        report.update(queue_pop_records=pop_records,queue_stale=sum(r[2]!=r[3] for r in pop_records),
+            queue_reopens=len([r for r in pop_records if r[2]==r[3]])-len({r[1] for r in pop_records if r[2]==r[3]}),
+            queue_equal_keys=len(pop_records)-len({r[0] for r in pop_records}),
+            queue_route_words=read(route_data,route_count*2),shortest_reference_cost=expected)
+        if engine:
+            engine.pathing_fine_queue_trace.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.POINTER(ObjectInput),ctypes.POINTER(ctypes.c_uint32)]
+            terrain=(ctypes.c_uint8*(width*height))(*(2 if (x,y) in blocked else 0 for y in range(height) for x in range(width)))
+            out=(ctypes.c_uint32*(1+10*2048))()
+            q=(ctypes.c_uint32*11)(width,height,*start,*goal,2048,0,0x02000002,0,0)
+            engine.pathing_fine_queue_trace(q,ctypes.byref(ObjectInput(terrain,None)),out)
+            actual=[list(out[1+10*i:11+10*i]) for i in range(out[0])]
+            assert actual==pop_records,(next(((i,a,b) for i,(a,b) in enumerate(zip(actual,pop_records)) if a!=b),None))
+            report['queue_engine_pops']=len(actual)
+        frozen=json.loads(Path(__file__).with_name('fixtures').joinpath('retail-fine-queue-1.27.json').read_text())
+        assert pop_records==frozen['pops'] and report['queue_route_words']==frozen['route_words']
+        budget_input=frozen['budget_goal_input']
+        terrain=bytes.fromhex(budget_input['cells'])
+        machine.mem_write(cells,b''.join(struct.pack('<I',(v<<24)|0xffffff) for v in terrain))
+        machine.mem_write(bitmap,bytes(1024))
+        budget_result=run(0x6f148100,system,route,source_ptr,target_ptr,mask_ptr,700,radius_ptr,0)
+        count=read(route+0x1c)[0]
+        budget_words=read(route_data,count*2)
+        assert budget_result==0 and read(system+0x6c)[0]==701 and read(system+0x98)[0]==0
+        assert budget_words[:2]==[0x422e0000,0x422e0000] #43.5,43.5; fractional goal not published.
+        report.update(budget_goal_result=budget_result,budget_goal_work=701,budget_goal_route_words=budget_words)
+        if engine:
+            engine.pathing_fine_request_words.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.POINTER(ObjectInput),ctypes.POINTER(ctypes.c_uint32)]
+            terrain_c=(ctypes.c_uint8*len(terrain)).from_buffer_copy(terrain)
+            q=(ctypes.c_uint32*15)(width,height,*start,*goal,700,0,0x02000002,0,0,*read(source_ptr,2),*read(target_ptr,2))
+            out=(ctypes.c_uint32*(6+2*16386))()
+            engine.pathing_fine_request_words(q,ctypes.byref(ObjectInput(terrain_c,None)),out)
+            assert out[0]==0 and out[1]==701 and list(out[6:6+2*out[3]])==budget_words
     if args.passages:
         report.update(passage_cases=len(records),passage_shapes=len(shapes),movement_lanes=4,subcell_offsets=4,
             passage_endpoint_cases=2*len(passage_records),
@@ -441,7 +502,7 @@ def main():
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     if args.fixture:
-        fixture = dict(binary_sha256=digest, seed=None if args.corridors or args.objects or args.passages else 12717085, dimensions=[width, height], start=start, goal=goal,
+        fixture = dict(binary_sha256=digest, seed=None if args.corridors or args.objects or args.passages or args.queue_composition else 12717085, dimensions=[width, height], start=start, goal=goal,
                        scope='original full fine-search cell route, cost, pops and allocated nodes; initialized static/object chains; excludes public admission and smoothing',
                        profiles=profiles,
                        budget_cases=budget_cases,

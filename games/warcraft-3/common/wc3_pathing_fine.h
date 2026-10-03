@@ -34,6 +34,11 @@ typedef struct {
     uint32_t hash[BZ_WC3_FINE_HASH];
     uint32_t count, queued, pops, reopens, stale, nearest, dist2;
     bool observed_obstruction;
+#if defined(BZ_TESTS) || defined(BZ_WC3_FINE_TRACE)
+    /* Read-only exact queue diagnostics; absent from ordinary game builds. */
+    void (*pop_trace)(void *data, uint32_t const words[10]);
+    void *trace_data;
+#endif
 } wc3FineSearch_t;
 
 static wc3FinePoint_t const wc3_fine_dirs[] = {
@@ -150,6 +155,14 @@ static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req)
     wc3_fine_enqueue(search, (uint32_t)start);
     while (search->queued) {
         if (search->pops++ >= req->budget) return -1;
+#if defined(BZ_TESTS) || defined(BZ_WC3_FINE_TRACE)
+        if(search->pop_trace) {
+            wc3FineEntry_t e=search->heap[1]; wc3FineNode_t const *n=search->nodes+e.node;
+            uint32_t words[]={e.key,e.node,e.gen,n->gen,search->pops,n->g,n->h,
+                              (uint32_t)n->parent,n->state,search->queued};
+            search->pop_trace(search->trace_data,words);
+        }
+#endif
         wc3FineEntry_t entry = wc3_fine_pop(search);
         wc3FineNode_t *node = &search->nodes[entry.node];
         if (node->gen != entry.gen) { search->stale++; continue; }

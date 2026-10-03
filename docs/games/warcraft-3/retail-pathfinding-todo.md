@@ -8,15 +8,16 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**154 done / 336 tasks; 182 remaining.** Payoff75 closes existing FOOT-02.1
-and FOOT-02.2 together without adding or splitting IDs. The complete3200-case
-four-lane/class/offset passage matrix now compares original full searches,
-repeats, fractional requests and6400 endpoint decisions. All engine endpoint
-results and complete/partial admitted routes match;55776 production assertions
-pass. See [passage coverage](retail-pathfinding-engine.md#passage-matrix-covers-lanes-footprints-corners-and-offsets).
+**155 done / 336 tasks; 181 remaining.** Payoff76 closes existing FINE-02.1
+without adding or splitting IDs. A complete native request naturally combines
+ties, reopening and190 stale entries; all1068 queue pops/generations/work
+match engine C and repeated production routes. Its700-work companion exposes
+and fixes a partial goal-centre bug in the actual engine route builder;
+the click remains unchanged and denied work701 is charged correctly. See
+[full queue/partial payoff](retail-pathfinding-engine.md#full-queue-composition-preserves-partial-goal-centres).
 
-Next runnable chunk is fine-search queue composition/storage reuse: use
-existing full searches to finish FINE-02.1 and FINE-03.2 without new IDs.
+Next runnable ID is FINE-03.2: complete original stamp-wrap/reuse searches
+and engine clean-control equivalence. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -30,7 +31,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | BASE — Baseline and reproducibility | 16 | 10 |
 | MAP — Map construction and lifetime | 13 | 9 |
 | FOOT — Footprints and query policy | 13 | 5 |
-| FINE — Fine search | 6 | 6 |
+| FINE — Fine search | 7 | 5 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 24 | 19 |
 | ROUTE — Route progression and yielding | 7 | 9 |
@@ -363,8 +364,8 @@ Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
 
 ### FINE-02 — Search termination
 
-- [ ] **FINE-02.1** Compose equal-cost ties, reopenings and stale heap entries in one full request; compare pop order, generations and charged work.
-- [x] **FINE-02.2** Force budget exhaustion and nearest-node fallback around final-pop boundaries.1456 complete original requests (four classes, ground/flight masks, mixed objects, blocked goal) freeze result/nearest/distance/parent chain/endpoints/work/nodes; C matches at O0/O2 with reuse.177 failures already admit the goal before its denied final pop. Actual Move retains the idle-wall approach, advances and resumes its original destination after blocker removal; known-disconnected static fields keep their component fallback. Public scheduler budget producers and full-coordinate reconstruction beyond supplied backing remain separate. Evidence: [engine partial routes](retail-pathfinding-engine.md#nearest-partial-routes-survive-blocked-goals).
+- [x] **FINE-02.1** Compose equal-cost ties, reopenings and stale heap entries in one full request; compare pop order, generations and charged work. Evidence: [full queue composition](retail-pathfinding-engine.md#full-queue-composition-preserves-partial-goal-centres), one natural48x48 request combines886 equal keys, one reopening and190 stale entries;1068 exact ten-word pop records match complete original core/repeat/fractional request, O0/O2 C and repeated actual engine routes. Ordinary700-work control discovers but does not pop the goal, returns50-point centre partial and charges701; two engine endpoint failures are fixed while retaining the click. No new IDs.
+- [x] **FINE-02.2** Force budget exhaustion and nearest-node fallback around final-pop boundaries.1456 complete original requests (four classes, ground/flight masks, mixed objects, blocked goal) freeze result/nearest/distance/parent chain/endpoints/work/nodes; C matches at O0/O2 with reuse.177 failures already admit the goal before its denied final pop. Actual Move retains the idle-wall approach, advances and resumes its original destination after blocker removal; known-disconnected static fields keep their component fallback. Public scheduler budget producers and full-coordinate reconstruction beyond supplied backing remain separate. Evidence: [engine partial routes](retail-pathfinding-engine.md#nearest-partial-routes-survive-blocked-goals). Payoff76 additionally fixes the actual700-work admitted-but-unpopped goal endpoint: preserve native centre instead of substituting the fractional click; two reproduced engine word failures become an exact50-point route and701 charged work. [Queue/partial evidence](retail-pathfinding-engine.md#full-queue-composition-preserves-partial-goal-centres).
 
 ### FINE-03 — Fine storage lifetime
 

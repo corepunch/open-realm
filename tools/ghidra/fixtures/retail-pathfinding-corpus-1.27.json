@@ -24870,6 +24870,71 @@
       ],
       "scope": "Complete static original core/reuse/full fractional request and footprint consumers across50 cardinal/corner/touching/map-edge/lane-control shapes, four classes/lanes/offsets. Production search and eligibility compared; initialized map storage, public admission/clock/steering excluded.",
       "exclusions": []
+    },
+    {
+      "id": "oracle-grid-queue-composition-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_grid.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}",
+        "--queue-composition"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-queue-composition-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "queue_pop_records": {
+          "length": 1068
+        },
+        "cases": {
+          "equal": 1
+        },
+        "complete_requests": {
+          "equal": 1
+        },
+        "repeated_searches": {
+          "equal": 1
+        },
+        "queue_engine_pops": {
+          "equal": 1068
+        },
+        "queue_stale": {
+          "equal": 190
+        },
+        "queue_reopens": {
+          "equal": 1
+        },
+        "queue_equal_keys": {
+          "equal": 886
+        },
+        "shortest_reference_cost": {
+          "equal": 990
+        },
+        "budget_goal_result": {
+          "equal": 0
+        },
+        "budget_goal_work": {
+          "equal": 701
+        },
+        "budget_goal_route_words": {
+          "length": 100
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete original48x48 core/repeat/fractional request;1068 unchanged queue pops, one natural reopening,190 stale pops,886 equal keys; seeded static map storage. Public admission/clock/steering excluded.",
+      "exclusions": []
     }
   ],
   "fixtures": [
@@ -24935,7 +25000,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "99b35ff54c1553dcb4173b4059d96e5b02a75720f999a1a2b55615bb64c2ddaa"
+      "sha256": "23d3c975c29de23d5c068250731ad1f873fd46da004e6872e849fd49719c4aa1"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -25417,6 +25482,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-passage-matrix-1.27.json",
       "sha256": "671e0512fa4f35507ca8cdf8ee3ca2b1062ce12656c492418e90edea847f86c4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-queue-1.27.json",
+      "sha256": "5f377f9b758355cdb7bfc60902b0c689e8dfd0122b5a11082494d7e67a622f6e"
     }
   ]
 }

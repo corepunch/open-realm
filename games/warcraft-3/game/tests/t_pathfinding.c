@@ -32,6 +32,7 @@
 #include "retail_map_load.h"
 #include "retail_constructed_maps.h"
 #include "retail_passages.h"
+#include "retail_fine_queue.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -937,6 +938,71 @@ TEST(wc3_pathfinding, nearby_detour_accelerator_respects_collision_radius) {
 
 /* Original 14ad50/16ee80 use widths 1/2/3/4 at radius .5/1/1.5 cells;
  * ceil(radius) around a centre requires wider corridors than retail. */
+void G_TestMoveFinePopTrace(void (*trace)(void *,uint32_t const[10]),void *data);
+typedef struct { unsigned count,stale,reopens; bool seen[1024]; } fineQueueTrace_t;
+static void assert_retail_fine_pop(void *data,uint32_t const words[10]) {
+    fineQueueTrace_t *trace=data;
+    unsigned i=trace->count++;
+    T_ASSERT(i<sizeof(retail_queue_pops)/sizeof(*retail_queue_pops));
+    if(i>=sizeof(retail_queue_pops)/sizeof(*retail_queue_pops)) return;
+    FOR_LOOP(k,10) T_EQ(words[k],retail_queue_pops[i][k]);
+    if(words[2]!=words[3]) trace->stale++;
+    else {
+        T_ASSERT(words[1]<1024);
+        if(words[1]<1024) { trace->reopens+=trace->seen[words[1]]; trace->seen[words[1]]=true; }
+    }
+}
+
+TEST(pathfinding, full_fine_request_matches_retail_ties_reopening_stale_generations_and_work) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[48*48];
+    FOR_LOOP(y,48) FOR_LOOP(x,48) cells[y*48+x]=(retail_queue_rows[y]&(1ULL<<x)) ? 2 : 0;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{1536,1536}});
+    CM_SetupTestPathmap(48,48,cells);
+    vec2_t source={4.25f*32,4.75f*32},target={43.25f*32,43.75f*32},selected;
+    movePathQuery_t query={.geometry={&source,&target,8,2},.units=true};
+    /* Reuse the same production search/cache without clearing its backing. */
+    FOR_LOOP(pass,2) {
+        fineQueueTrace_t trace={0}; moveFineRoute_t route={0};
+        G_TestMoveFinePopTrace(assert_retail_fine_pop,&trace);
+        bool built=G_BuildUnitMoveLocalRoute(&query,&route,&selected);
+        G_TestMoveFinePopTrace(NULL,NULL);
+        T_ASSERT(built); T_EQ(trace.count,1068); T_EQ(trace.stale,190); T_EQ(trace.reopens,1);
+        T_ASSERT(!route.partial); T_EQ(route.count,sizeof(retail_queue_route)/sizeof(*retail_queue_route));
+        if(route.count==sizeof(retail_queue_route)/sizeof(*retail_queue_route)) FOR_LOOP(i,route.count) {
+            T_EQ(wc3_float_bits(route.points[i].x),retail_queue_route[i][0]);
+            T_EQ(wc3_float_bits(route.points[i].y),retail_queue_route[i][1]);
+        }
+        free(route.points);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(pathfinding, exhausted_fine_budget_keeps_discovered_goal_centre_and_charges_denied_pop) {
+    reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+    uint8_t cells[48*48];
+    FOR_LOOP(y,48) FOR_LOOP(x,48) cells[y*48+x]=(retail_budget_goal_rows[y]&(1ULL<<x)) ? 2 : 0;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{1536,1536}});
+    CM_SetupTestPathmap(48,48,cells);
+    vec2_t source={4.25f*32,4.75f*32},target={43.25f*32,43.75f*32},selected;
+    edict_t *unit=make_unit_at(source.x,source.y); unit->collision=8;
+    uint32_t old_counter=level.pathing_counter; level.pathing_counter=400;
+    movePathQuery_t query={.geometry={&source,&target,8,2},.units=true,.mover=unit};
+    moveFineRoute_t route={0};
+    T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&selected));
+    T_ASSERT(route.partial); T_EQ(level.move_fine_budgets[0].work,701);
+    T_EQ(route.count,sizeof(retail_budget_goal_route)/sizeof(*retail_budget_goal_route));
+    if(route.count==sizeof(retail_budget_goal_route)/sizeof(*retail_budget_goal_route)) FOR_LOOP(i,route.count) {
+        T_EQ(wc3_float_bits(route.points[i].x),retail_budget_goal_route[i][0]);
+        T_EQ(wc3_float_bits(route.points[i].y),retail_budget_goal_route[i][1]);
+    }
+    /* The user's click remains available for subsequent refill/arrival. */
+    T_EQ(wc3_float_bits(target.x),wc3_float_bits(43.25f*32));
+    T_EQ(wc3_float_bits(target.y),wc3_float_bits(43.75f*32));
+    free(route.points); level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
 TEST(pathfinding, retail_passages_match_all_lanes_classes_offsets_corners_and_edges) {
     reset_entities(); setup_test_world();
     CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});

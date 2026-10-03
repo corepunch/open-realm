@@ -1169,6 +1169,84 @@
       "length": 216,
       "fields": [
         {
+          "offset": 28,
+          "name": "map",
+          "type": "ptr:WC3PathMapHeader",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 32,
+          "name": "search_stamp",
+          "type": "u16",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 48,
+          "name": "nodes",
+          "type": "ptr:WC3FineNodePrefix",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 64,
+          "name": "node_count",
+          "type": "u32",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 80,
+          "name": "heap_entries",
+          "type": "ptr:WC3OpenEntry",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 96,
+          "name": "heap_slots",
+          "type": "u32",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 100,
+          "name": "closed_head",
+          "type": "i32",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 104,
+          "name": "work_limit",
+          "type": "u32",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 108,
+          "name": "charged_work",
+          "type": "u32",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 144,
+          "name": "source_node",
+          "type": "i32",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 148,
+          "name": "goal_node",
+          "type": "i32",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 152,
+          "name": "nearest_distance",
+          "type": "u32",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
+          "offset": 156,
+          "name": "nearest_node",
+          "type": "i32",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+        },
+        {
           "offset": 160,
           "name": "size_class",
           "type": "u16",
@@ -2475,6 +2553,84 @@
           "name": "inverse_scale",
           "type": "WC3PathScalar",
           "evidence": "15ab60 original software scale/reciprocal; full live WPM load"
+        }
+      ]
+    },
+    {
+      "name": "WC3FineNodePrefix",
+      "length": 36,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "x",
+          "type": "i32",
+          "evidence": "Complete natural1068-pop core/repeat/full request: node words read before real148240;146/148 linked closed-list relaxation and exact C generations/work. Last four bytes remain undefined."
+        },
+        {
+          "offset": 4,
+          "name": "y",
+          "type": "i32",
+          "evidence": "Complete natural1068-pop core/repeat/full request: node words read before real148240;146/148 linked closed-list relaxation and exact C generations/work. Last four bytes remain undefined."
+        },
+        {
+          "offset": 8,
+          "name": "generation",
+          "type": "u32",
+          "evidence": "Complete natural1068-pop core/repeat/full request: node words read before real148240;146/148 linked closed-list relaxation and exact C generations/work. Last four bytes remain undefined."
+        },
+        {
+          "offset": 12,
+          "name": "closed_next",
+          "type": "i32",
+          "evidence": "Complete natural1068-pop core/repeat/full request: node words read before real148240;146/148 linked closed-list relaxation and exact C generations/work. Last four bytes remain undefined."
+        },
+        {
+          "offset": 16,
+          "name": "closed_prev",
+          "type": "i32",
+          "evidence": "Complete natural1068-pop core/repeat/full request: node words read before real148240;146/148 linked closed-list relaxation and exact C generations/work. Last four bytes remain undefined."
+        },
+        {
+          "offset": 20,
+          "name": "cost",
+          "type": "u32",
+          "evidence": "Complete natural1068-pop core/repeat/full request: node words read before real148240;146/148 linked closed-list relaxation and exact C generations/work. Last four bytes remain undefined."
+        },
+        {
+          "offset": 24,
+          "name": "heuristic",
+          "type": "u32",
+          "evidence": "Complete natural1068-pop core/repeat/full request: node words read before real148240;146/148 linked closed-list relaxation and exact C generations/work. Last four bytes remain undefined."
+        },
+        {
+          "offset": 28,
+          "name": "parent",
+          "type": "i32",
+          "evidence": "Complete natural1068-pop core/repeat/full request: node words read before real148240;146/148 linked closed-list relaxation and exact C generations/work. Last four bytes remain undefined."
+        }
+      ]
+    },
+    {
+      "name": "WC3OpenEntry",
+      "length": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "key",
+          "type": "u32",
+          "evidence": "Actual148240 root entries in1068 unchanged full-request pops; original insertion/pop unsigned keys and generations; queue slot0 is sentinel."
+        },
+        {
+          "offset": 4,
+          "name": "node",
+          "type": "u32",
+          "evidence": "Actual148240 root entries in1068 unchanged full-request pops; original insertion/pop unsigned keys and generations; queue slot0 is sentinel."
+        },
+        {
+          "offset": 8,
+          "name": "generation",
+          "type": "u32",
+          "evidence": "Actual148240 root entries in1068 unchanged full-request pops; original insertion/pop unsigned keys and generations; queue slot0 is sentinel."
         }
       ]
     }

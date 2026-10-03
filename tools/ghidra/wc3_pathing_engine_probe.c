@@ -708,3 +708,18 @@ uint32_t pathing_yield_decision(uint32_t const input[10]) {
 uint32_t pathing_yield_advance(uint32_t *delay, uint32_t disabled) {
     return wc3_yield_advance(delay,disabled!=0);
 }
+
+#ifdef BZ_WC3_FINE_TRACE
+static void fine_probe_pop_trace(void *data, uint32_t const words[10]) {
+    uint32_t *out=data;
+    uint32_t at=out[0]++;
+    assert(at<BZ_WC3_FINE_WORK);
+    memcpy(out+1+10*at,words,10*sizeof(*words));
+}
+void pathing_fine_queue_trace(uint32_t const *input,fineObjectInput_t const *data,uint32_t *out) {
+    int32_t result[6+2*BZ_WC3_FINE_NODES];
+    out[0]=0; fine_probe.pop_trace=fine_probe_pop_trace; fine_probe.trace_data=out;
+    pathing_fine_objects(input,data,result);
+    fine_probe.pop_trace=NULL; fine_probe.trace_data=NULL;
+}
+#endif

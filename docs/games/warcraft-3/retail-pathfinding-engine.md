@@ -6795,3 +6795,63 @@ contract adds one Python check; all476 pass afterward, and all five fresh
 strict variants pass with final source fingerprints in
 `runtime/passage-strict-final75/`. No C changes follow the full suite.
 Backlog154 done/182 open, no new IDs.
+
+## Full queue composition preserves partial goal centres
+
+Payoff76 closes existing FINE-02.1 and strengthens the already completed
+FINE-02.2 integration. One48x48 static map naturally combines886 equal
+queue keys, one cheaper closed-node reopening and190 stale records. The
+complete original core, retained-storage repeat and fractional148100 request
+produce1068 identical pops. Each frozen pop records unsigned key, node
+identity, entry/current generation, charged work, g/h, parent, node state and
+queue count. Production C at O0/O2 and the real engine local-route builder
+match every word, full reconstructed route and repeated backing reuse.
+No expansion, queue, relaxation or allocator call is stubbed; storage and
+static input cells are provisioned. Public admission and movement clocks
+are separate existing tasks.
+
+A second complete original request uses the actual ordinary700 work limit.
+The goal43/43 is already admitted when the denied next iteration charges
+work701. Original148100 returns failure and a50-point nearest partial route
+whose endpoint is43.5/43.5, despite the supplied click43.25/43.75. The engine
+previously reconstructed against that click and replaced the partial centre
+because both occupy the same cell. The regression reproduces exactly two
+wrong endpoint words through the actual mover's700-work producer and fine
+owner accounting. In world coordinates, the wrong endpoint was1384/1400
+rather than1392/1392.
+
+Move now supplies the native nearest-node centre to reconstruction for a
+non-source partial chain. A one-node failure retains its precise original
+source; the requested click remains available for refill/retry. Complete
+routes and target exits keep their existing exact-destination policy. All
+frozen expectations remain original words, including the complete queue
+record and source/goal poses. The new regression also requires exactly701
+charged owner work; a discovered goal is not successful until its valid pop.
+
+A read-only pop observer exists only under BZ_TESTS/BZ_WC3_FINE_TRACE. Ordinary
+production builds have no observer fields or branch. The strict corpus
+runner enables the probe define only for queue-composition variants. Ghidra
+now retains36-byte fine-node and12-byte heap-entry prefixes, and actual
+fine-header stamp/table/count/budget/nearest fields:622 roles,57 layouts/
+381 fields,289 explicit ABIs and59 globals. Unknown node+0x20 bytes remain
+undefined. No edict, save or network layout changes.
+
+Numeric acceptance is `retail-fine-queue-1.27.json`/`retail_fine_queue.h`.
+Run existing `verify_wc3_pathing_grid.py --queue-composition` through the
+strict runner's `oracle-grid-queue-composition-engine` variant. Frozen original
+pop/route words are reasserted before C comparison. The original48x48
+complete request costs990, equal to its independent Dijkstra reference;
+this does not assume heuristic optimality for other scenes. The engine
+regressions repeat25500 exact queue/route assertions and106 limited-work
+assertions; all five current pathfinding acceptance tests pass1521427
+assertions. See [corpus](retail-pathfinding-corpus.md#full-queue-composition)
+and [backlog](retail-pathfinding-todo.md#fine-02--search-termination).
+
+Required release `make test` passes RoC and TFT with2487 tests/4351906
+assertions each, plus479 Python checks. Four fresh fine/partial/passage/queue
+contracts pass with149 source fingerprints; the original queue/control also
+passes production C at O0. The ordinary release game target builds with the
+observer absent. Artifact logs are `runtime/fine-queue-{make-test,production-build}76.log`;
+strict output is `runtime/fine-queue-strict76/`. Backlog155 done/181 remaining;
+no added IDs. Original path-owned166e90 calls148100, so its partial centre
+policy applies to the mover consumer as well as the direct request fixture.

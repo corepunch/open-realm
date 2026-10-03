@@ -175,6 +175,9 @@ static void move_acc_prepare(void) {
 }
 
 #ifdef BZ_TESTS
+void G_TestMoveFinePopTrace(void (*trace)(void *,uint32_t const[10]),void *data) {
+    move_fine.pop_trace=trace; move_fine.trace_data=data;
+}
 vec2_t G_TestMoveWorldGrid(vec2_t point, bool inverse) {
     return inverse ? move_world_from_grid(point.x,point.y) : move_grid_from_world(point.x,point.y);
 }
@@ -816,11 +819,14 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     if (at < 0) return false;
     wc3FinePoint_t endpoint = move_fine.nodes[at].pos;
 
-    /* Native147dc0 receives the requested goal even for a partial chain.
-     * Replacing it with the nearest cell centre snaps a one-node route away
-     * from its exact source; only the real goal can replace that source. */
+    /* Original148100 adjusts a non-source nearest endpoint to its centre on
+     * failure, even if the goal was admitted before its denied final pop.
+     * Preserve the exact source for a one-node failure and retain the click. */
+    wc3FineVector_t end = {b.x,b.y};
+    if (!complete && (endpoint.x != start.x || endpoint.y != start.y))
+        end = wc3_route_center(endpoint);
     wc3FineReconstruct_t route = {move_fine.nodes, move_fine.count, at,
-        {a.x, a.y}, {b.x, b.y}};
+        {a.x, a.y}, end};
     uint32_t count = wc3_fine_reconstruct(&route, move_fine_points, BZ_WC3_FINE_NODES);
     if (count < 2 && !input->fine_target) return false;
     if (curve) {

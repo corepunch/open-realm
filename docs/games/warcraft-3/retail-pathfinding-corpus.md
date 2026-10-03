@@ -1268,3 +1268,19 @@ Inventory is293 entries/45 scripts/97 oracle variants/121 archives/75 strict
 live contracts/136 fixtures. Five fresh static/mixed/partial/all-lane/passage
 contracts pass in `runtime/passage-strict75/`. See
 [engine coverage](retail-pathfinding-engine.md#passage-matrix-covers-lanes-footprints-corners-and-offsets).
+
+## Full queue composition
+
+Payoff76 adds one variant of the existing fine-grid oracle:
+`oracle-grid-queue-composition-engine` uses one natural48x48 static input,
+complete core/reuse/fractional consumers and1068 original/C queue records.
+Frozen `retail-fine-queue-1.27.json` includes the700-work admitted-but-unpopped
+goal control and50-point partial centre route. The strict runner compiles
+the optional read-only C pop observer and requires190 stale pops, one
+reopening,886 equal keys, exact original records and701 charged partial work.
+The engine reproduces two endpoint errors before the fix, then its full
+queue/reuse and ordinary mover-budget regressions match all literal words.
+Inventory is294 entries/45 scripts/98 oracle variants/121 archives/75 strict
+live contracts/137 fixtures. Four fresh fine/partial/passage/queue variants
+pass in `runtime/fine-queue-strict76/`; the queue comparison passes separately
+at O0. See [engine payoff](retail-pathfinding-engine.md#full-queue-composition-preserves-partial-goal-centres).

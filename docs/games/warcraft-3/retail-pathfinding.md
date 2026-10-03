@@ -649,3 +649,12 @@ admitted complete/partial route match the frozen words;6400 footprint calls
 and55776 engine assertions retain the acceptance. Ghidra149370 now has its
 verified thiscall ABI, saved among289 explicit signatures. See
 [passage coverage](retail-pathfinding-engine.md#passage-matrix-covers-lanes-footprints-corners-and-offsets).
+
+Payoff76 closes FINE-02.1 with1068 exact natural full-request queue pops
+covering ties, reopening, stale generations and charged work. The ordinary
+700-work companion reproduces two engine endpoint errors: a discovered
+goal remains partial at its cell centre when the final pop is denied. Move
+now preserves that centre while retaining the requested click. Original
+complete/partial words and repeated production routes match; Ghidra saves
+fine-node/heap-entry/header fields among57 layouts/381 fields. See
+[full queue payoff](retail-pathfinding-engine.md#full-queue-composition-preserves-partial-goal-centres).
