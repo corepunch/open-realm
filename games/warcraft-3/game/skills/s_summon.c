@@ -29,6 +29,13 @@ static edict_t *summon_unit(edict_t *caster, uint32_t unit_id, uint32_t index, u
     return summon;
 }
 
+static edict_t *summon_ability_unit(edict_t *caster, uint32_t code, uint32_t unit_id, uint32_t index,
+                                    uint32_t count, float duration) {
+    edict_t *summon = summon_unit(caster, unit_id, index, count, duration);
+    if (summon) summon->summon_ability = code;
+    return summon;
+}
+
 void S_SummonUnits(edict_t *caster, uint32_t unit_id, uint32_t count, float duration) {
     if (!count) count = 1;
     FOR_LOOP(i, count) (void)summon_unit(caster, unit_id, i, count, duration);
@@ -43,6 +50,15 @@ edict_t *S_SummonAt(edict_t *caster, uint32_t unit_id, vec2_t const *loc, float 
     if (summon->stand) summon->stand(summon);
     if (duration > 0.0f) unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
     G_PublishSummonEvents(caster, summon);
+    return summon;
+}
+
+/* Ability-owned summons carry the concrete ability alias separately from the
+ * generic owner pointer. Limit/recast/ward/dispel policy can then identify the
+ * creating ability without every caller repeating this assignment. */
+edict_t *S_SummonAbilityAt(edict_t *caster, uint32_t code, uint32_t unit_id, vec2_t const *loc, float duration) {
+    edict_t *summon = S_SummonAt(caster, unit_id, loc, duration);
+    if (summon) summon->summon_ability = code;
     return summon;
 }
 
@@ -191,9 +207,8 @@ static void summon_execute(edict_t *caster, spellTarget_t st, abilityitem_t cons
 
     if (!caster || !unit_id || !count) return;
     FOR_LOOP(i, count) {
-        edict_t *summon = summon_unit(caster, unit_id, i, count, duration);
+        edict_t *summon = summon_ability_unit(caster, spell->code, unit_id, i, count, duration);
         if (!summon) continue;
-        summon->summon_ability = spell->code;
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
     }
 }
@@ -217,7 +232,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
         float const angle = caster->s.angle + 2.0f * (float)M_PI * (float)i / (float)count;
         vec2_t spawn = { loc.x + cosf(angle) * MAX(32.0f, caster->collision),
                           loc.y + sinf(angle) * MAX(32.0f, caster->collision) };
-        edict_t *summon = S_SummonAt(caster, unit_id, &spawn, duration);
+        edict_t *summon = S_SummonAbilityAt(caster, spell->code, unit_id, &spawn, duration);
         if (!summon) continue;
         if (G_FindUnitUnstuckPosition(summon, &spawn, &summon->s.origin2)) {
             summon->s.origin.x = summon->s.origin2.x;
@@ -228,7 +243,6 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
          * the authoritative position rather than the original spawn point. */
         summon->s.angle = caster->s.angle;
         gi.LinkEntity(summon);
-        summon->summon_ability = spell->code;
         /* Warsmash's CBuffTimedLife uses the ability's authored BuffID.
          * OpenRealm keeps BTLF as the authoritative timed-life clock (needed
          * by UnitPauseTimedLife/the timed-life bar), while this persistent
@@ -268,9 +282,8 @@ BZ_SIMPLE_SPELL_PROC(AbilitySpiritWolf) {
     loc.x += cosf(caster->s.angle) * distance;
     loc.y += sinf(caster->s.angle) * distance;
     FOR_LOOP(i, count) {
-        edict_t *summon = S_SummonAt(caster, unit_id, &loc, duration);
+        edict_t *summon = S_SummonAbilityAt(caster, spell->code, unit_id, &loc, duration);
         if (!summon) continue;
-        summon->summon_ability = spell->code;
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, summon, NULL, true);
     }
 }

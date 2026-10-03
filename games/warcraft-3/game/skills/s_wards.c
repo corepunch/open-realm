@@ -74,9 +74,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityStasisTrap) {
 		fprintf(stderr, "WC3 Stasis Trap: missing UnitID for %.4s\n", (cstring_t)&spell->code);
 		return;
 	}
-	ward = S_SummonAt(caster, unit_id, &st.point, life);
+	ward = S_SummonAbilityAt(caster, spell->code, unit_id, &st.point, life);
 	if (!ward) return;
-	ward->summon_ability = spell->code;
 	ward->s.renderfx |= RF_HIDDEN;
 	thinker = G_Spawn();
 	if (!thinker) { G_FreeEdict(ward); return; }
@@ -103,9 +102,8 @@ BZ_ABILITY_PROC(CAbilityPlaceMine) {
 		float life;
 		if (!ent || !call || !call->target || call->target->type != SPELL_TARGET_POINT || !unit_id) return false;
 		life = S_SpellDuration(code, level, false);
-		mine = S_SummonAt(ent, unit_id, &call->target->point, life);
+		mine = S_SummonAbilityAt(ent, code, unit_id, &call->target->point, life);
 		if (!mine) return false;
-		mine->summon_ability = code;
 		return true;
 	}
 	default:
@@ -464,9 +462,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityEvilEye) {
 		fprintf(stderr, "WC3 Sentry Ward: missing UnitID for %.4s\n", (cstring_t)&spell->code);
 		return;
 	}
-	ward = S_SummonAt(caster, unit_id, &st.point, life);
+	ward = S_SummonAbilityAt(caster, spell->code, unit_id, &st.point, life);
 	if (!ward) return;
-	ward->summon_ability = spell->code;
 	ward->s.renderfx |= RF_HIDDEN;
 	ward->wait = S_SpellRange(ID_ADT1, 1);
 	if (ward->wait <= 0.0f)

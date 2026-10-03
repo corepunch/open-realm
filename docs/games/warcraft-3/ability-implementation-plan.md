@@ -200,7 +200,11 @@ destination/search, grouping, failure, and order-cleanup policy. Channel-owned
 presentation should use the existing owned-effect helpers where possible rather
 than maintaining a parallel effect registry.
 Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with
-animation, expiry, or other side effects retain their own wrappers. See
+animation, expiry, or other side effects retain their own wrappers. Specialized
+point summons that already carry ability-owned identity use
+`S_SummonAbilityAt()` instead of open-coding `summon_ability`; the owning
+ability still controls effects, buffs, facing, corpse handling, replacement and
+other summon policy. See
 [Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families).
 
 ### 6. Verify the focused pattern, then the family

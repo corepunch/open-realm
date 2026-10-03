@@ -513,10 +513,9 @@ static void raise_dead_spawn_group(edict_t *caster, abilityitem_t const *spell, 
 
     if (!unit_id || !count || !corpse || !S_CorpseCargoPosition(corpse, &position)) return;
     FOR_LOOP(i, count) {
-        edict_t *summon = S_SummonAt(caster, unit_id, &position, duration);
+        edict_t *summon = S_SummonAbilityAt(caster, spell->code, unit_id, &position, duration);
         if (!summon) continue;
         summon->s.angle = corpse->s.angle;
-        summon->summon_ability = spell->code;
         raise_dead_add_authored_buff(summon, buff, level);
         G_SpawnAbilityEffectAtPoint(spell->code, WC3_EFFECT_EFFECT, 0, &summon->s.origin2, true);
         gi.LinkEntity(summon);

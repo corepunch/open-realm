@@ -417,6 +417,7 @@ int S_ManaShieldDamage(edict_t *target, int damage);
 void S_SummonUnits(edict_t *caster, uint32_t unit_id, uint32_t count, float duration);
 void S_SummonAbilityUnits(edict_t *caster, uint32_t code, spellTarget_t const *target);
 edict_t *S_SummonAt(edict_t *caster, uint32_t unit_id, vec2_t const *loc, float duration);
+edict_t *S_SummonAbilityAt(edict_t *caster, uint32_t code, uint32_t unit_id, vec2_t const *loc, float duration);
 uint32_t S_EnforceSummonedUnitTypeLimit(edict_t *caster, uint32_t unit_id, uint32_t max_count);
 bool S_UnitHasStatus(edict_t const *unit, uint32_t code);
 bool S_UnitPolymorphed(edict_t const *unit);
