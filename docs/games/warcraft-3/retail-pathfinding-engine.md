@@ -7421,3 +7421,78 @@ Save93 rejects incompatible streams; load does not synthesize missing state.
 Remaining original full teardown/allocator, cross-feature save and nested-query
 lifetimes retain MAP-04/05/06 and E2E-04 IDs. Their unresolved behavior is not
 filled by a compatibility bridge or scene-dependent choice.
+
+## Timed speed changes, stationary turns and boundary restarts
+
+Payoff84 completes existing MOVE-02.1/02.2 with one repeated public30-second
+journey on the empty file-backed64×64 map. Seven ordinary point Moves combine
+long oblique travel, timed speed150→250→400 changes, two moving retargets,
+turns spanning the stationary movement window, two Stop/axis-boundary resets
+and restarts, and the final natural arrival. Two native captures agree on all
+763 commits,762 steering decisions,21 searches,300 timer callbacks, primary
+clock/owner phases,24 event-boundary states and23 complete watched-cell chains.
+
+A public speed request0 is **not** zero velocity for this profile: the getter
+and cap publish the authored/default minimum150. Stationary phases are the
+separate turn-window decision: several successive commits retain exact XY and
+zero velocity while facing changes. Lowering a cap first integrates elapsed
+old velocity, then clamps its vector without changing facing. A public retarget
+first stops/integrates the old mover, then admits a new physical group; it must
+not continue the old velocity through the new turn. Stop publishes zero and
+clears the current order while retaining ordinary fine occupancy.
+
+The two axis resets place the center at exact fine coordinates20,19 (world
+640,608), retaining facing and a stationary active3×3 fine record. Both restarts
+use that boundary position rather than rounding it to a cell center. The first
+owner decisions, all later positions/facing and final zero commit match the
+engine's existing general movement implementation; no scene branch or alternate
+routing rule is required. The regression checks committed state separately from
+predicted public GetUnitX/Y samples, and verifies every complete public marker.
+
+The same real JASS/normal5ms RunFrame journey reproduces763 commits plus4877
+suffix commits across eleven Save93 states:2495/2500/5495/5500/7540/11000/12000/
+15000/18000/21000/22000ms. Saved continuations cover speed publication, point
+replacement, stationary turns, Stop and both boundary restarts. The native
+motion, state and chain literals are `retail-movement-lifecycle-1.27.json` /
+`retail_movement_lifecycle.h`. Original allocation/refcount/stamp storage and
+other movement lanes remain separate contracts.
+
+This comparison exposed the engine's default `R2S` mismatch: it used host
+six-place `%f`, while original2103b0 requests width0/precision3 from0701d0.
+The game native now uses software fractional multiplication, add-half rounding
+and carry, plus the original leading-integer/zero reduction for large words.
+COMISS's unordered carry makes NaNs take that reduction; exact max-finite and
+infinity emit `inf`. Signed zero omits its sign; negative nonzero underflow
+retains it. No arithmetic is inferred from the decimal marker text.
+
+Thirty-four original raw formatter controls execute0701d0 with the actual scalar
+startup and arithmetic, delegating only its integer `sprintf` import. They
+cover adjacent rounding/carry values, both zero signs, subnormal words,
+integer/large boundaries, max-finite, infinities and NaNs. The engine calls the
+real JASS native on those exact words. All324 public markers now compare
+exactly, including predicted coordinates. R2SW width/precision and the complete
+formatter/public numeric inventory remain NUM-01.2; these bounded controls do
+not close that broader task. Save layout and JSVM version are unchanged.
+
+Ghidra persists631 function roles and298 typed ABIs with the existing65
+layouts/437 fields/60 globals. The new registrations, scalar-pointer adapters,
+formatter fastcall registers/stack and exceptional comparison are annotated.
+`verify_wc3_movement_lifecycle_trace.py` checks provenance, complete producer and
+owner lifetimes, literal motion, occupancy, default formatter controls and the
+primary clock. O0/O2 reports and the fresh three-contract corpus pass. See
+[corpus reproduction](retail-pathfinding-corpus.md#speed-turn-and-boundary-restart-lifecycle).
+
+```sh
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test wc3_movement.public_speed_turn_stop_and_boundary_restart_match_original_and_saved_continuations \
+  +com_frame_limit 100
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test wc3_api.pathfinding_default_real_strings_match_original_scalar_formatter \
+  +com_frame_limit 100
+```
+
+Add `-tft` for the second edition. Native `--scenario movement_lifecycle`
+selects `wc3_movement_lifecycle_probe.j`. Both full edition suites pass2503
+tests/5,007,391 assertions each;522 Python checks and the release production
+build pass. The external `lifecycle84-validation.json` pins the commit, logs
+and fresh strict/O0/O2 reports.

@@ -707,3 +707,8 @@ Payoff83 freezes the [ordinary update/ownership contract](retail-pathfinding-eng
 and [OpenRealm replacement interfaces](retail-pathfinding-engine.md#openrealm-replacement-interfaces-and-lifecycle-boundaries).
 Fine terrain edits and regional adaptive publication are separate simulation
 lifetimes; Save93 retains the latter without prematurely rebuilding it.
+
+The complete [timed speed/heading and boundary restart journey](retail-pathfinding-engine.md#timed-speed-changes-stationary-turns-and-boundary-restarts)
+now repeats exact normal-frame movement and saved continuations. Its native
+marker comparison also ports default R2S software rounding; no scene-specific
+pathing rule is introduced.

@@ -54,6 +54,7 @@
 #include "retail_target_overlap.h"
 #include "retail_expressions.h"
 #include "retail_terrain_cache.h"
+#include "retail_movement_lifecycle.h"
 #include "retail_outside_goal.h"
 #include "retail_captain_home.h"
 #include "retail_captain_range_far.h"
@@ -12052,6 +12053,188 @@ TEST(wc3_movement, public_terrain_edits_match_original_regional_publication_and_
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
     G_SetSLKRows("DestructableData",old_rows);free_slk_rows(rows);
+}
+
+
+static unsigned lifecycle84_stage,lifecycle84_marker;
+static cstring_t lifecycle84_format_expected;
+
+static void lifecycle84_assert_format(cstring_t text) { T_STREQ(text,lifecycle84_format_expected); }
+
+TEST(wc3_api, pathfinding_default_real_strings_match_original_scalar_formatter) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("globals\nhashtable values=null\nendglobals\n"
+        "function format_value takes nothing returns nothing\ncall Preload(R2S(LoadReal(values,0,0)))\nendfunction\n"
+        "function main takes nothing returns nothing\nset values=InitHashtable()\ncall SaveReal(values,0,0,0.0)\nendfunction\n"));
+    T_EQ(level.hashtables[0].num_entries,1);
+    test_preload_marker=lifecycle84_assert_format;
+    FOR_LOOP(i,sizeof(lifecycle84_format)/sizeof(*lifecycle84_format)) {
+        level.hashtables[0].entries[0].value.real=wc3_float(lifecycle84_format[i].word);
+        lifecycle84_format_expected=lifecycle84_format[i].text;
+        jass_callbyname(level.vm,"format_value",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    test_preload_marker=NULL;reset_entities();setup_test_world();
+}
+
+static void lifecycle84_assert_state(cstring_t marker) {
+    if (strncmp(marker,"PATHTRACE ",10)) return;
+    unsigned index=lifecycle84_marker++;
+    T_ASSERT(index<sizeof(lifecycle84_markers)/sizeof(*lifecycle84_markers));
+    if(index<sizeof(lifecycle84_markers)/sizeof(*lifecycle84_markers))T_STREQ(marker,lifecycle84_markers[index]);
+    if (strstr(marker,"label=sample ")) return;
+    unsigned stage=lifecycle84_stage++;
+    T_ASSERT(stage<(sizeof(lifecycle84_states)/sizeof(*lifecycle84_states)));if(stage>=(sizeof(lifecycle84_states)/sizeof(*lifecycle84_states)))return;
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','V','8','0'))if(!unit)unit=ent;
+    T_NOT_NULL(unit);if(!unit)return;
+    typeof(lifecycle84_states[0]) *expected=lifecycle84_states+stage;
+    T_STREQ(marker,expected->marker);
+    uint32_t state[]={wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,6) {
+        if(state[k]!=expected->state[k])fprintf(stderr,"Movement lifecycle stage%u word%u actual%08x expected%08x\n",stage,k,state[k],expected->state[k]);
+        T_EQ(state[k],expected->state[k]);
+    }
+    wc3SpatialActive_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    T_EQ(wc3_spatial_rank(links,(wc3FinePoint_t){20,19})!=0,expected->occupied);
+}
+
+TEST(wc3_movement, public_speed_turn_stop_and_boundary_restart_match_original_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    lifecycle84_stage=lifecycle84_marker=0;test_preload_marker=lifecycle84_assert_state;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathProbeSpeed takes real speed returns nothing\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,speed)\n"
+        " call Preload(\"PATHSPEEDVALUE tick=\"+I2S(udg_PathProbeTick)+\" value=\"+R2S(GetUnitMoveSpeed(udg_PathProbeUnit)))\n"
+        " call PathProbeRecord(\"speed_change\")\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==10 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1616.0,1712.0)\n"
+        "  call PathProbeRecord(\"initial_move\")\n"
+        " elseif udg_PathProbeTick==25 then\n"
+        "  call PathProbeSpeed(250.0)\n"
+        " elseif udg_PathProbeTick==45 then\n"
+        "  call PathProbeSpeed(400.0)\n"
+        " elseif udg_PathProbeTick==55 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",480.0,1760.0)\n"
+        "  call PathProbeRecord(\"moving_retarget\")\n"
+        " elseif udg_PathProbeTick==70 or udg_PathProbeTick==175 then\n"
+        "  call PathProbeSpeed(0.0)\n"
+        " elseif udg_PathProbeTick==75 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1440.0,384.0)\n"
+        "  call PathProbeRecord(\"stationary_retarget\")\n"
+        " elseif udg_PathProbeTick==95 or udg_PathProbeTick==205 then\n"
+        "  call PathProbeSpeed(150.0)\n"
+        " elseif udg_PathProbeTick==110 or udg_PathProbeTick==210 then\n"
+        "  call PathProbeRecord(\"before_stop\")\n"
+        "  call IssueImmediateOrder(udg_PathProbeUnit,\"stop\")\n"
+        "  call PathProbeRecord(\"after_stop\")\n"
+        "  call Preload(\"PATHPOSE case=boundary_reset\")\n"
+        "  call SetUnitX(udg_PathProbeUnit,640.0)\n"
+        "  call SetUnitY(udg_PathProbeUnit,608.0)\n"
+        "  call Preload(\"PATHPOSE done=boundary_reset\")\n"
+        "  call PathProbeRecord(\"boundary_reset\")\n"
+        " elseif udg_PathProbeTick==120 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1760.0,448.0)\n"
+        "  call PathProbeRecord(\"boundary_restart\")\n"
+        " elseif udg_PathProbeTick==135 then\n"
+        "  call PathProbeSpeed(200.0)\n"
+        " elseif udg_PathProbeTick==150 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",320.0,1728.0)\n"
+        "  call PathProbeRecord(\"moving_retarget\")\n"
+        " elseif udg_PathProbeTick==180 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1504.0,320.0)\n"
+        "  call PathProbeRecord(\"stationary_retarget\")\n"
+        " elseif udg_PathProbeTick==195 then\n"
+        "  call PathProbeSpeed(300.0)\n"
+        " elseif udg_PathProbeTick==220 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1040.0,1040.0)\n"
+        "  call PathProbeRecord(\"boundary_restart\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call Preload(\"PATHSPEED done=long_lifecycle\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " call PathProbeRecord(\"start_movement_lifecycle\")\n"
+        " call Preload(\"PATHSPEED case=long_lifecycle\")\n"
+        " call PathProbeSpeed(150.0)\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        " call PathProbeInit()\n"
+        "endfunction\n"
+        ));
+    G_FinishMovePathingInitialization();
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={2495,2500,5495,5500,7540,11000,12000,15000,18000,21000,22000};
+    char files[11][64];unsigned saved[11]={0},saved_stage[11]={0},saved_marker[11]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"/tmp/wc3-movement-lifecycle-%u.bin",times[i]);
+    FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+1) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];lifecycle84_stage=saved_stage[pass-1];lifecycle84_marker=saved_marker[pass-1];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<(sizeof(lifecycle84_motion)/sizeof(*lifecycle84_motion)));
+                if(steps>=(sizeof(lifecycle84_motion)/sizeof(*lifecycle84_motion))){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=lifecycle84_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Movement lifecycle commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,(sizeof(times)/sizeof(*times)))if(level.time==times[i]){saved[i]=steps;saved_stage[i]=lifecycle84_stage;saved_marker[i]=lifecycle84_marker;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,(sizeof(lifecycle84_motion)/sizeof(*lifecycle84_motion)));T_EQ(lifecycle84_stage,(sizeof(lifecycle84_states)/sizeof(*lifecycle84_states)));
+        T_EQ(lifecycle84_marker,sizeof(lifecycle84_markers)/sizeof(*lifecycle84_markers));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch)T_EQ(unit->current_order_id,0);
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"Movement lifecycle native commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 
 TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {

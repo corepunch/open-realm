@@ -25985,41 +25985,357 @@
       "captures": [
         {
           "inputs": {
-            "capture": "runtime/expression82-final-first.jsonl",
-            "sha256": "220d7a72c098d676852c480808357b6745d965f893ae3569408340b182567875",
-            "bytes": 7813436,
+            "capture": "runtime/terrain83-first.jsonl",
+            "sha256": "dfea189cb3643e9b458a894d0573fb803f61ad5403936018b5b8ee82a2f82f55",
+            "bytes": 8893346,
             "metadata": {
               "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
               "owned": true,
               "source_sha256": {
                 "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
-                "trace_wc3_pathfinding.py": "ad4dc2862f9e47f68a02822d0c42f900e7f1550f7c41c194a80e698aa3301403",
-                "wc3_pathfinding.js": "3a3fef3d034e76a8d9a384d3b31ccf94f66c0be89bfb78cab3891b30448e2ba9",
+                "trace_wc3_pathfinding.py": "a2d1d827d988e34f387dc3aa4299e29cbc39bb6f445f0e5ba0522d844532e54c",
+                "wc3_pathfinding.js": "56eea7efc754a356fb8333112f3adf6e4fc7430b85c8f715ab0de3d527aad69d",
                 "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
                 "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
                 "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
                 "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
                 "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
                 "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
                 "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
-                "make_wc3_pathfinding_map.py": "aaf5759296c89e086837a17125a12e8df8c71a26fb35bccdfd3f083f06596c8d",
+                "make_wc3_pathfinding_map.py": "27a7c1f7c30f79d511c9723dc775d2380744b3a34821156304c3195f4919a253",
                 "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
                 "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
                 "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
                 "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
                 "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
                 "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
-                "map": "4d784c9945a09fa6e7f5e9c828a42736b8c3b7726562e8715b592ff2e0f78a90"
+                "map": "4a7440fce9091a560ddd995ab92d6faa042cdd874cae739755c14f3a9ebb5e1d"
               },
-              "map": "Maps\\PathingRE-ChainedExpression82-Final-261003.w3m",
+              "map": "Maps\\PathingRE-TerrainCache83-261003.w3m",
               "seconds": 170.0,
               "frida": "17.18.0",
               "timestamp": 1481263518,
               "imageSize": 15130624,
               "samples": 10000,
-              "watchCell": null,
+              "watchCell": [
+                32,
+                32
+              ],
+              "blockerPatchSize": 32,
+              "blockers": true,
+              "taskEvents": true,
+              "mapLoadEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": true,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/terrain83-repeat.jsonl",
+            "sha256": "0d33f9b11ec7b82d12f867748f717f406e49d542ff63b4d5a952ae4aa4978e3f",
+            "bytes": 9082820,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "a2d1d827d988e34f387dc3aa4299e29cbc39bb6f445f0e5ba0522d844532e54c",
+                "wc3_pathfinding.js": "56eea7efc754a356fb8333112f3adf6e4fc7430b85c8f715ab0de3d527aad69d",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "27a7c1f7c30f79d511c9723dc775d2380744b3a34821156304c3195f4919a253",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "4a7440fce9091a560ddd995ab92d6faa042cdd874cae739755c14f3a9ebb5e1d"
+              },
+              "map": "Maps\\PathingRE-TerrainCache83-261003.w3m",
+              "seconds": 170.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": [
+                32,
+                32
+              ],
+              "blockerPatchSize": 32,
+              "blockers": true,
+              "taskEvents": true,
+              "mapLoadEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": true,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
+    },
+    {
+      "id": "live-movement-lifecycle-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_movement_lifecycle_trace.py",
+        "--binary",
+        "{binary}",
+        "{archive}/runtime/lifecycle84-first.jsonl",
+        "{archive}/runtime/lifecycle84-repeat.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-movement-lifecycle-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_movement_lifecycle.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "movement-lifecycle-captures.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "exact_decisions": {
+          "equal": 1524
+        },
+        "exact_velocity_commits": {
+          "equal": 1526
+        },
+        "owner_callbacks": {
+          "equal": 2000
+        },
+        "boundary_states": {
+          "equal": 48
+        },
+        "cell_chains": {
+          "equal": 46
+        },
+        "point_orders": {
+          "equal": 14
+        },
+        "original_format_controls": {
+          "equal": 34
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Complete ordinary public speed/heading, turn-stop, Stop/axis-boundary/restart inputs and final arrival. Original allocator/refcount/stamp representation and other movement lanes excluded.",
+      "exclusions": [
+        "Original allocator/refcounts/stamps and other movement lanes are excluded. Presentation subdivisions are individually pinned; primary clocks must repeat exactly."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/lifecycle84-repeat.jsonl",
+            "sha256": "be16516de68d55faf97b7f0ca990c178d099a8eb21bad0aaf4c33405ea15e81c",
+            "bytes": 9205378,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "04da8c0565bf7ccf6a41d8a305efb15ab7485e0af167d6dc2361af5e2cf3c3d0",
+                "wc3_pathfinding.js": "42c08d89948714bd228a0ce6ddafeba5ac485b9210da8890ba9bd5690ca4320b",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "701c0cd064ab315b740929f7cf1c40a7212f4473efbda2fb725a3e9d49389f0e",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "529a41638c47f3de2bb5d2fcdb602b2fb08f7531af97a22da3df66329be6a9ef"
+              },
+              "map": "Maps\\PathingRE-MovementLifecycle84-261003.w3m",
+              "seconds": 170.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": [
+                20,
+                19
+              ],
               "blockerPatchSize": 16,
-              "blockers": false,
+              "blockers": true,
+              "taskEvents": true,
+              "mapLoadEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": true,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "numericEvents": true,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "inputs": {
+        "capture": "runtime/lifecycle84-first.jsonl",
+        "sha256": "5aac0ace84f5bfa0849db80a882b8535011fa88a42384b1028de2453400fc7bc",
+        "bytes": 9154920,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "04da8c0565bf7ccf6a41d8a305efb15ab7485e0af167d6dc2361af5e2cf3c3d0",
+            "wc3_pathfinding.js": "42c08d89948714bd228a0ce6ddafeba5ac485b9210da8890ba9bd5690ca4320b",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+            "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+            "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+            "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+            "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+            "make_wc3_pathfinding_map.py": "701c0cd064ab315b740929f7cf1c40a7212f4473efbda2fb725a3e9d49389f0e",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "529a41638c47f3de2bb5d2fcdb602b2fb08f7531af97a22da3df66329be6a9ef"
+          },
+          "map": "Maps\\PathingRE-MovementLifecycle84-261003.w3m",
+          "seconds": 170.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": [
+            20,
+            19
+          ],
+          "blockerPatchSize": 16,
+          "blockers": true,
+          "taskEvents": true,
+          "mapLoadEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": true,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": true,
+          "numericEvents": true,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true,
+      "captures": [
+        {
+          "inputs": {
+            "capture": "runtime/lifecycle84-first.jsonl",
+            "sha256": "5aac0ace84f5bfa0849db80a882b8535011fa88a42384b1028de2453400fc7bc",
+            "bytes": 9154920,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "04da8c0565bf7ccf6a41d8a305efb15ab7485e0af167d6dc2361af5e2cf3c3d0",
+                "wc3_pathfinding.js": "42c08d89948714bd228a0ce6ddafeba5ac485b9210da8890ba9bd5690ca4320b",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "701c0cd064ab315b740929f7cf1c40a7212f4473efbda2fb725a3e9d49389f0e",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "529a41638c47f3de2bb5d2fcdb602b2fb08f7531af97a22da3df66329be6a9ef"
+              },
+              "map": "Maps\\PathingRE-MovementLifecycle84-261003.w3m",
+              "seconds": 170.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": [
+                20,
+                19
+              ],
+              "blockerPatchSize": 16,
+              "blockers": true,
               "taskEvents": true,
               "mapLoadEvents": true,
               "widgetEvents": false,
@@ -26042,41 +26358,46 @@
         },
         {
           "inputs": {
-            "capture": "runtime/expression82-final-repeat.jsonl",
-            "sha256": "abd5216098495605b4bc5f34466971e3c934ebfadd3ffe1ab3f1b7cd790d96ca",
-            "bytes": 7502711,
+            "capture": "runtime/lifecycle84-repeat.jsonl",
+            "sha256": "be16516de68d55faf97b7f0ca990c178d099a8eb21bad0aaf4c33405ea15e81c",
+            "bytes": 9205378,
             "metadata": {
               "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
               "owned": true,
               "source_sha256": {
                 "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
-                "trace_wc3_pathfinding.py": "ad4dc2862f9e47f68a02822d0c42f900e7f1550f7c41c194a80e698aa3301403",
-                "wc3_pathfinding.js": "3a3fef3d034e76a8d9a384d3b31ccf94f66c0be89bfb78cab3891b30448e2ba9",
+                "trace_wc3_pathfinding.py": "04da8c0565bf7ccf6a41d8a305efb15ab7485e0af167d6dc2361af5e2cf3c3d0",
+                "wc3_pathfinding.js": "42c08d89948714bd228a0ce6ddafeba5ac485b9210da8890ba9bd5690ca4320b",
                 "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
                 "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
                 "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
                 "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
                 "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
                 "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
                 "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
-                "make_wc3_pathfinding_map.py": "aaf5759296c89e086837a17125a12e8df8c71a26fb35bccdfd3f083f06596c8d",
+                "make_wc3_pathfinding_map.py": "701c0cd064ab315b740929f7cf1c40a7212f4473efbda2fb725a3e9d49389f0e",
                 "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
                 "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
                 "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
                 "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
                 "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
                 "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
-                "map": "4d784c9945a09fa6e7f5e9c828a42736b8c3b7726562e8715b592ff2e0f78a90"
+                "map": "529a41638c47f3de2bb5d2fcdb602b2fb08f7531af97a22da3df66329be6a9ef"
               },
-              "map": "Maps\\PathingRE-ChainedExpression82-Final-261003.w3m",
+              "map": "Maps\\PathingRE-MovementLifecycle84-261003.w3m",
               "seconds": 170.0,
               "frida": "17.18.0",
               "timestamp": 1481263518,
               "imageSize": 15130624,
               "samples": 10000,
-              "watchCell": null,
+              "watchCell": [
+                20,
+                19
+              ],
               "blockerPatchSize": 16,
-              "blockers": false,
+              "blockers": true,
               "taskEvents": true,
               "mapLoadEvents": true,
               "widgetEvents": false,
@@ -26163,7 +26484,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "4115f9ad089c31d7990d7e12963d04cf8d6f958b0ef390f86eacee233ae94936"
+      "sha256": "4d43fc21252d7faf5b858e1b80f90917ece6325166afd19ec51bb4b4f6d7fbe3"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -26677,6 +26998,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-terrain-cache-1.27.json",
       "sha256": "a1714dd5a343fe7995b74193433d23ea03d34e2c07f79e8453aa97afb8673bca"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-movement-lifecycle-1.27.json",
+      "sha256": "25faedd8d9cbbf4b1ab7f3ff03b8b20b10d520fdf2b781c94b7307578768ec79"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_movement_lifecycle.h",
+      "sha256": "f34fbc342ec35d050a1c044bfc21290d562a26c783ac6f1aa5542c7e5452bd03"
     }
   ]
 }

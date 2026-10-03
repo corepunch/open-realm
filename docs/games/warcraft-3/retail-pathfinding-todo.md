@@ -8,23 +8,22 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**167 done / 336 tasks; 169 remaining.** Payoff83 closes existing E2E-06.2,
-E2E-07.1 and E2E-07.2 without new IDs/splits. Public terrain edits now preserve
-retail's independently published regional hierarchy and retained routes; the
-engine performs the witnessed full post-main initialization publication.
-Save93 preserves pending terrain publication instead of rebuilding it away.
-Two complete original captures repeat all geometry/search/motion events. The
-production regression matches724 commits, all seven fine/hierarchy snapshots
-and4164 suffix commits from eight saves in both editions. Required full suites
-pass2501 tests/4,944,161 assertions per edition and514 Python checks; seven fresh
-strict corpus contracts and O0/O2 comparisons pass. Ghidra retains628 function
-roles,65 layouts/437 fields,295 ABIs and60 globals. See [terrain payoff](retail-pathfinding-engine.md#fine-terrain-edits-retain-regional-hierarchy-publication),
-[state/ownership contract](retail-pathfinding-engine.md#pathing-update-state-and-ownership-contract)
-and [replacement interfaces](retail-pathfinding-engine.md#openrealm-replacement-interfaces-and-lifecycle-boundaries).
+**169 done / 336 tasks; 167 remaining.** Payoff84 closes existing MOVE-02.1
+and MOVE-02.2 without new IDs/splits. Two complete original public journeys
+repeat763 motion commits,762 steering decisions,24 event-boundary states and
+23 complete cell chains. The engine reproduces timed speed/heading changes,
+stationary turns, Stop and exact cell-boundary restarts, plus4877 suffix commits
+from eleven Save93 states. Comparing every public marker exposed the default
+R2S formatter mismatch; the native now follows original software rounding and
+large-value reduction, verified with34 original raw-word controls. Required
+full suites pass2503 tests/5,007,391 assertions per edition and522 Python checks;
+three fresh strict corpus contracts and O0/O2 comparisons pass. Ghidra retains
+631 function roles,65 layouts/437 fields,298 ABIs and60 globals. See
+[movement lifecycle payoff](retail-pathfinding-engine.md#timed-speed-changes-stationary-turns-and-boundary-restarts).
 
-Next runnable chunk is MOVE-02.1 and MOVE-02.2: complete long oblique motion
-with timed speed/heading changes and stationary-turn/Stop/boundary restart,
-including committed occupancy and saved continuations in the engine.
+Next runnable chunk is MOVE-03.1 and MOVE-03.2: actual region enter/leave
+publication during movement, then teleport/remove inside a callback, with
+exact public state, committed occupancy and engine continuation checks.
 No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
@@ -45,7 +44,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
 | SCHED — Scheduling and owner updates | 4 | 9 |
-| MOVE — Stepping and callbacks | 4 | 11 |
+| MOVE — Stepping and callbacks | 6 | 9 |
 | ORDER — Orders and reclamation | 12 | 24 |
 | GROUP — Shared movement groups | 35 | 12 |
 | FORM — Formation and regrouping | 4 | 9 |
@@ -622,8 +621,8 @@ publication state; it does not close the original bonus writer or other effects.
 
 ### MOVE-02 — Stepping
 
-- [ ] **MOVE-02.1** After NUM-02, compare a long oblique trajectory with speed and heading changes at fixed ticks; assert old-velocity integration and exact positions.
-- [ ] **MOVE-02.2** Exercise stationary turn, Stop and restart at a cell boundary; assert facing, zero velocity and occupancy before/after each event.
+- [x] **MOVE-02.1** Compare a long oblique trajectory with speed and heading changes at fixed ticks; assert old-velocity integration and exact positions. [Payoff84](retail-pathfinding-engine.md#timed-speed-changes-stationary-turns-and-boundary-restarts): two complete native journeys repeat763 commits/762 decisions and all timed public speed/retarget producers. Normal engine RunFrame matches every raw position/velocity/facing/clock word and4877 saved suffix commits; all324 public markers compare exactly after correcting default R2S software rounding. General timer/scalar inventories and other movement profiles retain their existing NUM/MOVE tasks.
+- [x] **MOVE-02.2** Exercise stationary turn, Stop and restart at a cell boundary; assert facing, zero velocity and occupancy before/after each event. Same [Payoff84](retail-pathfinding-engine.md#timed-speed-changes-stationary-turns-and-boundary-restarts):24 literal committed event states and23 complete watched-cell chains retain active ordinary occupancy during zero-translation facing changes and both exact world640,608 resets. Eleven Save93 continuations span cap publication, retarget, stationary turn, Stop and restarts. No scene-dependent movement rule is introduced; full both-edition suites, fresh strict contracts and saved Ghidra annotations pass.
 
 - [x] **MOVE-02.3** Integrate existing authored status/aura speed consumers into individual Move stepping and active selection-group caps. Evidence: [effective speed reaches movement](retail-pathfinding-engine.md#effective-speed-reaches-actual-movement); four actual Cripple/Bloodlust Move failures precede the shared consumer fix, then individual/group step lengths and expiry pass22 assertions. No field/version/wire change; retail effect-stack ordering and full clock parity remain open.
 

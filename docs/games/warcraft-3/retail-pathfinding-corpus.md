@@ -10,7 +10,7 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **302 entries**: **45** distinct original-code oracle
+The inventory now has **303 entries**: **45** distinct original-code oracle
 scripts plus **57** declared variants, **121** archived JSONL audits and **79**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
@@ -1461,3 +1461,41 @@ python3 tools/ghidra/run_wc3_pathfinding_corpus.py \
 
 The output directory must not exist. The archive contains both recorded native
 captures; observer/source/map/binary hashes and completion controls are required.
+
+## Speed, turn and boundary restart lifecycle
+
+Payoff84 adds `live-movement-lifecycle-captures-261003`. Two complete captures
+`runtime/lifecycle84-first.jsonl` / `runtime/lifecycle84-repeat.jsonl` match all
+763 motion commits,762 steering decisions,21 searches,24 event-boundary states,
+23 complete cell chains and all324 public markers. Their speed/retarget/Stop,
+axis/native placement and owner lifetimes are independently pinned. Native
+ordinary speed0 requests clamp to150; stationary zero velocity comes from the
+turn window. The verifier rejects changed Stop velocity, boundary pose,
+occupancy, stationary facing, clamps and incomplete lifetimes.
+
+The same verifier executes34 original default decimal formatter controls with
+real startup/software arithmetic; only integer `sprintf` is delegated. R2SW
+and shipped CRT string registration are explicitly excluded. The actual engine
+JASS native checks those raw words, and the ordinary frame regression compares
+all movement and4877 suffix commits from eleven saves. See [engine lifecycle](retail-pathfinding-engine.md#timed-speed-changes-stationary-turns-and-boundary-restarts).
+
+Strict O0/O2 reports are `runtime/lifecycle84-o0-final-verification.json` /
+`runtime/lifecycle84-o2-final-verification.json`. Fresh
+`runtime/lifecycle84-strict-first/corpus-results.json` passes numeric-engine,
+terrain publication and movement lifecycle (3/3). This addition gives303 entries,
+45 original oracle scripts/102 oracle contracts,121 archives,80 strict live
+contracts and146 pinned fixtures. The terrain entry's unused ancillary `captures`
+list now names its own two actual captures; its primary/second inputs and strict
+verifier were already correctly pinned.
+
+```sh
+python3 tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /path/to/game.dll --archive /path/to/pathfinding-1.27 \
+  --output /new/output/directory \
+  --only numeric-engine-exact \
+  --only live-terrain-cache-captures-261003 \
+  --only live-movement-lifecycle-captures-261003
+```
+
+The output directory must not exist. All actual capture/source/map/binary hashes,
+observer completion/counts and original formatter controls are required.

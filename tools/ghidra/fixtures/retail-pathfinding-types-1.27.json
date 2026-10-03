@@ -8633,6 +8633,70 @@
           "storage": "ECX"
         }
       ]
+    },
+    {
+      "address": "6f2103b0",
+      "name": "Jass_RealToString",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f2103f0",
+      "name": "Jass_RealToWidthString",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "width",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "precision",
+          "type": "i32",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f0701d0",
+      "name": "Math_FormatScalarDecimal",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:u8",
+          "storage": "EDX"
+        },
+        {
+          "name": "width",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "precision",
+          "type": "i32",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [

@@ -166,10 +166,30 @@ uint32_t I2S(jass_t *j) {
     return jass_pushstring(j, buffer);
 }
 uint32_t R2S(jass_t *j) {
-    float r = jass_checknumber(j, 1);
-    char buffer[64] = { 0 };
-    snprintf(buffer, sizeof(buffer), "%f", r);
-    return jass_pushstring(j, buffer);
+    /* Original2103b0 requests width0/precision3 from0701d0. Its fractional
+     * multiply and add-half rounding use software scalars, not host printf. */
+    uint32_t word=wc3_float_bits(jass_checknumber(j,1)),magnitude=word&0x7fffffff;
+    char buffer[64],*out=buffer;
+    if ((word&0x80000000u) && magnitude) *out++='-';
+    float value=wc3_float(magnitude);
+    if (magnitude>0x4effffffu) {
+        /* COMISS's unordered carry takes the reduction branch for NaNs.
+         * Only exact max-finite/infinity emit inf; reduction retains the
+         * leading truncated integer plus zeroes. */
+        if (magnitude==0x7f7fffffu || magnitude==0x7f800000u) memcpy(out,"inf",4);
+        else {
+            unsigned zeroes=0;
+            do { value=wc3_div(value,10);zeroes++; } while(wc3_float_bits(value)>0x4effffffu);
+            out+=snprintf(out,sizeof(buffer)-(out-buffer),"%d",(int32_t)wc3_int_bits(wc3_float_bits(value)));
+            memset(out,'0',zeroes);out+=zeroes;memcpy(out,".000",5);
+        }
+    } else {
+        uint32_t whole=wc3_int_bits(magnitude);
+        uint32_t fraction=wc3_int_bits(wc3_round_bits(wc3_float_bits(wc3_mul(wc3_fraction(value),1000))));
+        if (fraction>=1000) { whole++;fraction-=1000; }
+        snprintf(out,sizeof(buffer)-(out-buffer),"%d.%03d",(int32_t)whole,(int32_t)fraction);
+    }
+    return jass_pushstring(j,buffer);
 }
 uint32_t R2SW(jass_t *j) {
     float r = jass_checknumber(j, 1);
