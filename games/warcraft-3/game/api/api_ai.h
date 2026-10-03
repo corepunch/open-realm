@@ -70,7 +70,7 @@ static int32_t BotUnitCount(player_t *player, uint32_t unitid, bool done) {
     if (!player || !unitid) return 0;
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && ent->class_id == unitid &&
                          ent->s.player == PLAYER_NUM(player) && !(ent->svflags & SVF_DEADMONSTER)) {
-        if (!done || (!ent->construction.active && !ent->training)) count++;
+        if (!done || (!ent->construction && !ent->training)) count++;
     }
     if (!done) FILTER_EDICTS(builder, G_BotUnitAlive(builder) && builder->s.player == PLAYER_NUM(player) &&
                                       builder->build_project == unitid) count++;
@@ -110,7 +110,7 @@ static void BotTraceAssaultSupply(jass_t *j, player_t *player, uint32_t unitid,
     bot = &level.bots[playernum];
     FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == playernum && ent->class_id == unitid) {
         owned++;
-        if (ent->construction.active) constructing++;
+        if (ent->construction) constructing++;
         else if (ent->training) training++;
         else {
             complete++;

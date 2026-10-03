@@ -14,7 +14,7 @@ static uint32_t shadowmeld_fade_ms(edict_t const *unit);
  * player-relative invisibility query decide owner/detector visibility without
  * colliding with RF_HIDDEN uses such as cargo, mines, training, or revival. */
 bool S_ShadowMeldActive(edict_t const *unit) {
-    return unit && unit->inuse && unit->shadowmeld.active;
+    return unit && unit->inuse && unit->shadowmeld && unit->shadowmeld->active;
 }
 
 /* Presentation-only opacity for a viewer that is allowed to perceive the unit.
@@ -25,13 +25,13 @@ float S_ShadowMeldPresentationAlpha(edict_t const *unit) {
     float t, eased;
     uint32_t elapsed, fade_ms;
 
-    if (!unit || !unit->inuse) return 1.0f;
-    if (unit->shadowmeld.active) return WC3_SHADOWMELD_FRIENDLY_ALPHA;
-    if (!unit->shadowmeld.fading) return 1.0f;
+    if (!unit || !unit->inuse || !unit->shadowmeld) return 1.0f;
+    if (unit->shadowmeld->active) return WC3_SHADOWMELD_FRIENDLY_ALPHA;
+    if (!unit->shadowmeld->fading) return 1.0f;
 
     fade_ms = shadowmeld_fade_ms(unit);
     if (!fade_ms) return 1.0f;
-    elapsed = G_Time() - unit->shadowmeld.fade_start;
+    elapsed = G_Time() - unit->shadowmeld->fade_start;
     t = MIN(1.0f, MAX(0.0f, (float)elapsed / (float)fade_ms));
     eased = t * t * (3.0f - 2.0f * t);
     return 1.0f - (1.0f - WC3_SHADOWMELD_FRIENDLY_ALPHA) * eased;
@@ -40,17 +40,18 @@ float S_ShadowMeldPresentationAlpha(edict_t const *unit) {
 static void shadowmeld_set_hide_order(edict_t *unit, bool active) {
     gameClient_t *client;
 
-    if (!unit || unit->shadowmeld.hide_order_active == active) return;
-    unit->shadowmeld.hide_order_active = active;
+    assert(unit && unit->shadowmeld);
+    if (unit->shadowmeld->hide_order_active == active) return;
+    unit->shadowmeld->hide_order_active = active;
     client = G_GetPlayerClientByNumber(unit->s.player);
     if (client) G_InvalidateCommands(client);
 }
 
 void S_ShadowMeldBreak(edict_t *unit) {
-    if (!unit) return;
-    unit->shadowmeld.fade_start = 0;
-    unit->shadowmeld.fading = false;
-    unit->shadowmeld.active = false;
+    if (!unit || !unit->shadowmeld) return;
+    unit->shadowmeld->fade_start = 0;
+    unit->shadowmeld->fading = false;
+    unit->shadowmeld->active = false;
     shadowmeld_set_hide_order(unit, false);
 }
 
@@ -85,7 +86,7 @@ static uint32_t shadowmeld_fade_ms(edict_t const *unit) {
 }
 
 static bool shadowmeld_stationary(edict_t const *unit) {
-    if (!unit || M_IsDead((edict_t *)unit) || unit->training || unit->construction.active ||
+    if (!unit || M_IsDead((edict_t *)unit) || unit->training || unit->construction ||
         (unit->svflags & SVF_NOCLIENT) || S_GoldMineWorkerIsInside((edict_t *)unit))
         return false;
     /* Ordinary idle and Hold Position stand moves do not own an ability proc.
@@ -103,25 +104,28 @@ static void shadowmeld_update(edict_t *unit) {
     bool eligible;
 
     if (!unit || !unit->inuse) return;
+    if (!unit->shadowmeld && !shadowmeld_has_ability(unit)) return;
+    if (!unit->shadowmeld) unit->shadowmeld = G_AllocShadowMeld();
+    assert(unit->shadowmeld);
     fade_ms = shadowmeld_fade_ms(unit);
     eligible = fade_ms && shadowmeld_eligible(unit);
     if (!eligible) {
-        unit->shadowmeld.fade_start = 0;
-        unit->shadowmeld.fading = false;
-        unit->shadowmeld.active = false;
+        unit->shadowmeld->fade_start = 0;
+        unit->shadowmeld->fading = false;
+        unit->shadowmeld->active = false;
         return;
     }
-    if (unit->shadowmeld.active) return;
+    if (unit->shadowmeld->active) return;
 
     now = G_Time();
-    if (!unit->shadowmeld.fading) {
-        unit->shadowmeld.fade_start = now;
-        unit->shadowmeld.fading = true;
+    if (!unit->shadowmeld->fading) {
+        unit->shadowmeld->fade_start = now;
+        unit->shadowmeld->fading = true;
         return;
     }
-    if ((uint32_t)(now - unit->shadowmeld.fade_start) >= fade_ms) {
-        unit->shadowmeld.fading = false;
-        unit->shadowmeld.active = true;
+    if ((uint32_t)(now - unit->shadowmeld->fade_start) >= fade_ms) {
+        unit->shadowmeld->fading = false;
+        unit->shadowmeld->active = true;
     }
 }
 
@@ -136,13 +140,13 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
         shadowmeld_update(ent);
         return ent && shadowmeld_has_ability(ent);
     case A_NO_ACQUIRE:
-        return ent && (ent->shadowmeld.hide_order_active || (akama && shadowmeld_has_akama(ent)));
+        return ent && ((ent->shadowmeld && ent->shadowmeld->hide_order_active) || (akama && shadowmeld_has_akama(ent)));
     case A_NO_RETALIATE:
-        return ent && ent->shadowmeld.hide_order_active;
+        return ent && ent->shadowmeld && ent->shadowmeld->hide_order_active;
     case A_TOGGLE_ON:
-        return ent && ent->shadowmeld.hide_order_active;
+        return ent && ent->shadowmeld && ent->shadowmeld->hide_order_active;
     case A_MOVE_LEAVE:
-        if (ent && (ent->shadowmeld.active || ent->shadowmeld.fading || ent->shadowmeld.hide_order_active)) {
+        if (ent && ent->shadowmeld && (ent->shadowmeld->active || ent->shadowmeld->fading || ent->shadowmeld->hide_order_active)) {
             S_ShadowMeldBreak(ent);
             return true;
         }
@@ -165,10 +169,12 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
     case A_EXECUTE:
         if (!ent || !G_IsNight()) return false;
         order_stop_cleanup(ent);
+        if (!ent->shadowmeld) ent->shadowmeld = G_AllocShadowMeld();
+        assert(ent->shadowmeld);
         shadowmeld_set_hide_order(ent, true);
-        if (!ent->shadowmeld.active) {
-            ent->shadowmeld.fade_start = 0;
-            ent->shadowmeld.fading = false;
+        if (!ent->shadowmeld->active) {
+            ent->shadowmeld->fade_start = 0;
+            ent->shadowmeld->fading = false;
         }
         return true;
     default:

@@ -70,19 +70,19 @@ static bool neutral_hostile_sleep_disabled(void) {
 
 /* Report whether a unit retains the runtime permission to enter natural sleep. */
 bool G_UnitCanSleep(edict_t const *unit) {
-    return unit_is_neutral_sleep_candidate(unit) && unit->sleep.can_sleep;
+    return unit_is_neutral_sleep_candidate(unit) && unit->sleep && unit->sleep->can_sleep;
 }
 
 /* Distinguish the authored creep sleep move from other animation moves. */
 bool G_UnitIsSleeping(edict_t const *unit) {
-    return unit && unit->sleep.sleeping && unit->currentmove == &creep_sleep_move;
+    return unit && unit->sleep && unit->sleep->sleeping && unit->currentmove == &creep_sleep_move;
 }
 
 /* Clear natural sleep and remove its persistent target presentation effect. */
 static void creep_sleep_leave(edict_t *unit) {
-    if (!unit || !unit->sleep.sleeping)
+    if (!unit || !unit->sleep || !unit->sleep->sleeping)
         return;
-    unit->sleep.sleeping = false;
+    unit->sleep->sleeping = false;
     remove_creep_sleep_overlay(unit);
 }
 
@@ -104,7 +104,7 @@ static bool creep_sleep_enter(edict_t *unit, uint32_t code) {
     }
 
     unit_setmove(unit, &creep_sleep_move);
-    unit->sleep.sleeping = true;
+    unit->sleep->sleeping = true;
     add_creep_sleep_overlay(unit, code);
     return true;
 }
@@ -133,15 +133,21 @@ BZ_ABILITY_PROC(CAbilitySleepAlways) {
 BZ_ABILITY_PROC(CAbilityCreepSleep) {
     switch (msg) {
     case A_UNIT_INIT:
-        ent->sleep.can_sleep = ent->data.UnitData->canSleep;
-        if (!ent->sleep.can_sleep || !G_UnitIsSleeping(ent)) creep_sleep_leave(ent);
+        if (!ent->sleep && !ent->data.UnitData->canSleep) return true;
+        if (!ent->sleep) ent->sleep = G_AllocSleep();
+        assert(ent->sleep);
+        ent->sleep->can_sleep = ent->data.UnitData->canSleep;
+        if (!ent->sleep->can_sleep || !G_UnitIsSleeping(ent)) creep_sleep_leave(ent);
         return true;
     case A_IDLE: return call && call->item && creep_sleep_enter(ent, call->item->code);
     case A_ENABLE:
     case A_DISABLE:
         if (!unit_is_neutral_sleep_candidate(ent)) return false;
-        ent->sleep.can_sleep = msg == A_ENABLE;
-        if (!ent->sleep.can_sleep) creep_sleep_wake(ent);
+        if (!ent->sleep && msg == A_DISABLE) return true;
+        if (!ent->sleep) ent->sleep = G_AllocSleep();
+        assert(ent->sleep);
+        ent->sleep->can_sleep = msg == A_ENABLE;
+        if (!ent->sleep->can_sleep) creep_sleep_wake(ent);
         return true;
     default: return CAbilitySleepAlways(ent, msg, call);
     }

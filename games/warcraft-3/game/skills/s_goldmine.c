@@ -169,7 +169,7 @@ static uint32_t goldmine_actor_ability_alias(edict_t const *ent, uint32_t base_c
 
 /* Classify overlay mines separately so they cannot be harvested as neutral mines. */
 static bool goldmine_is_overlay_type(edict_t const *mine) {
-    return mine && (mine->mineoverlay.parent || G_ActorHasSkill(mine, "Agl2") ||
+    return mine && ((mine->mineoverlay && mine->mineoverlay->parent) || G_ActorHasSkill(mine, "Agl2") ||
                     G_ActorHasSkill(mine, "Abgm") || G_ActorHasSkill(mine, "Aegm"));
 }
 
@@ -228,7 +228,7 @@ bool S_GoldMineCanHarvest(edict_t const *mine) {
 }
 
 bool S_GoldMineWorkerIsInside(edict_t const *worker) {
-    return worker && worker->goldmine.mine != NULL;
+    return worker && worker->goldmine && worker->goldmine->mine != NULL;
 }
 
 void S_GoldMineInitUnit(edict_t *mine) {
@@ -243,14 +243,16 @@ void S_GoldMineInitUnit(edict_t *mine) {
 }
 
 static bool goldmine_membership_valid(edict_t const *worker, edict_t const *mine) {
-    return worker && mine && worker->goldmine.mine == mine && mine->inuse &&
-        worker->goldmine.mine_spawn_time == mine->spawn_time;
+    return worker && worker->goldmine && mine && worker->goldmine->mine == mine && mine->inuse &&
+        worker->goldmine->mine_spawn_time == mine->spawn_time;
 }
 
 static void goldmine_register_miner(edict_t *worker, edict_t *mine) {
-    worker->goldmine.mine = mine;
-    worker->goldmine.mine_spawn_time = mine->spawn_time;
-    worker->goldmine.restore_invulnerable = worker->invulnerable;
+    if (!worker->goldmine) worker->goldmine = G_AllocGoldMine();
+    assert(worker->goldmine);
+    worker->goldmine->mine = mine;
+    worker->goldmine->mine_spawn_time = mine->spawn_time;
+    worker->goldmine->restore_invulnerable = worker->invulnerable;
     worker->invulnerable = true;
     worker->s.renderfx |= RF_HIDDEN;
     mine->peonsinside++;
@@ -260,16 +262,16 @@ static void goldmine_register_miner(edict_t *worker, edict_t *mine) {
 static edict_t *goldmine_unregister_miner(edict_t *worker) {
     edict_t *mine;
 
-    if (!worker || !(mine = worker->goldmine.mine))
+    if (!worker || !worker->goldmine || !(mine = worker->goldmine->mine))
         return NULL;
     if (goldmine_membership_valid(worker, mine) && mine->peonsinside > 0) {
         mine->peonsinside--;
         if (mine->peonsinside == 0) G_AddUnitAnimationProperties(mine, "work", false);
     }
-    worker->goldmine.mine = NULL;
-    worker->goldmine.mine_spawn_time = 0;
-    worker->invulnerable = worker->goldmine.restore_invulnerable;
-    worker->goldmine.restore_invulnerable = false;
+    worker->goldmine->mine = NULL;
+    worker->goldmine->mine_spawn_time = 0;
+    worker->invulnerable = worker->goldmine->restore_invulnerable;
+    worker->goldmine->restore_invulnerable = false;
     worker->s.renderfx &= ~RF_HIDDEN;
     return mine;
 }
@@ -544,7 +546,7 @@ void harvestgold_walkback(edict_t *ent) {
     uint32_t amount = 0;
     uint32_t carry_capacity;
 
-    if (!ent || !(mine = ent->goldmine.mine)) {
+    if (!ent || !ent->goldmine || !(mine = ent->goldmine->mine)) {
         if (ent) ent->stand(ent);
         return;
     }
@@ -626,19 +628,19 @@ static void entangle_remove_caster_effects(edict_t *overlay);
 static edict_t *mineoverlay_parent(edict_t *overlay) {
     edict_t *parent;
 
-    if (!overlay || !(parent = overlay->mineoverlay.parent)) return NULL;
-    if (!parent->inuse || parent->spawn_time != overlay->mineoverlay.parent_spawn_time ||
+    if (!overlay || !overlay->mineoverlay || !(parent = overlay->mineoverlay->parent)) return NULL;
+    if (!parent->inuse || parent->spawn_time != overlay->mineoverlay->parent_spawn_time ||
         M_IsDead(parent) || !S_GoldMineIsMine(parent)) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING parent-invalid overlay=%ld parent=%ld parent_inuse=%d "
                 "spawn=%u/%u dead=%d goldmine=%d hidden=%d noclient=%d model=%d gold=%u\n",
                 (long)(overlay - globals.edicts), (long)(parent - globals.edicts), parent->inuse,
-                (unsigned)parent->spawn_time, (unsigned)overlay->mineoverlay.parent_spawn_time,
+                (unsigned)parent->spawn_time, (unsigned)overlay->mineoverlay->parent_spawn_time,
                 M_IsDead(parent), S_GoldMineIsMine(parent), !!(parent->s.renderfx & RF_HIDDEN),
                 !!(parent->svflags & SVF_NOCLIENT), !!parent->s.model, (unsigned)parent->resources);
 #endif
-        overlay->mineoverlay.parent = NULL;
-        overlay->mineoverlay.parent_spawn_time = 0;
+        overlay->mineoverlay->parent = NULL;
+        overlay->mineoverlay->parent_spawn_time = 0;
         return NULL;
     }
     return parent;
@@ -648,16 +650,16 @@ static edict_t *mineoverlay_parent(edict_t *overlay) {
 static edict_t *mineoverlay_release_parent(edict_t *overlay) {
     edict_t *parent;
 
-    if (!overlay || !(parent = overlay->mineoverlay.parent) || !parent->inuse ||
-        parent->spawn_time != overlay->mineoverlay.parent_spawn_time) return NULL;
+    if (!overlay || !overlay->mineoverlay || !(parent = overlay->mineoverlay->parent) || !parent->inuse ||
+        parent->spawn_time != overlay->mineoverlay->parent_spawn_time) return NULL;
     return parent;
 }
 
 /* Check whether another overlay already owns the candidate parent mine. */
 static bool mineoverlay_parent_in_use(edict_t *parent, edict_t *except) {
     if (!parent) return false;
-    FILTER_EDICTS(ent, ent != except && ent->inuse && ent->mineoverlay.parent == parent &&
-                  ent->mineoverlay.parent_spawn_time == parent->spawn_time) {
+    FILTER_EDICTS(ent, ent != except && ent->inuse && ent->mineoverlay && ent->mineoverlay->parent == parent &&
+                  ent->mineoverlay->parent_spawn_time == parent->spawn_time) {
         return true;
     }
     return false;
@@ -670,8 +672,8 @@ void S_ReleaseEntangledMineForTree(edict_t *tree) {
     if (!tree) return;
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *overlay = globals.edicts + i;
-        if (!overlay->inuse || overlay == tree || overlay->mineoverlay.entangle_tree != tree ||
-            overlay->mineoverlay.entangle_tree_spawn_time != tree->spawn_time) continue;
+        if (!overlay->inuse || !overlay->mineoverlay || overlay == tree || overlay->mineoverlay->entangle_tree != tree ||
+            overlay->mineoverlay->entangle_tree_spawn_time != tree->spawn_time) continue;
         unit_die(overlay, NULL);
     }
 }
@@ -693,11 +695,13 @@ bool S_MineOverlayBind(edict_t *overlay, edict_t *parent) {
         return false;
     }
 
-    if (overlay->mineoverlay.parent) S_MineOverlayRelease(overlay);
-    overlay->mineoverlay.parent = parent;
-    overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
-    overlay->mineoverlay.income_time = 0;
-    overlay->mineoverlay.active_interval_index = 0;
+    if (!overlay->mineoverlay) overlay->mineoverlay = G_AllocMineOverlay();
+    assert(overlay->mineoverlay);
+    if (overlay->mineoverlay->parent) S_MineOverlayRelease(overlay);
+    overlay->mineoverlay->parent = parent;
+    overlay->mineoverlay->parent_spawn_time = parent->spawn_time;
+    overlay->mineoverlay->income_time = 0;
+    overlay->mineoverlay->active_interval_index = 0;
     parent->s.renderfx |= RF_HIDDEN;
     parent->paused = true;
     G_InvalidateUnitShortcutsForUnit(parent);
@@ -724,7 +728,7 @@ void S_MineOverlayBindPreplaced(void) {
         edict_t *best = NULL;
         float best_distance = FLT_MAX;
 
-        if (!overlay->inuse || !goldmine_is_overlay_type(overlay) || overlay->mineoverlay.parent) continue;
+        if (!overlay->inuse || !goldmine_is_overlay_type(overlay) || (overlay->mineoverlay && overlay->mineoverlay->parent)) continue;
         FOR_LOOP(j, globals.num_edicts) {
             edict_t *parent = &globals.edicts[j];
             float distance;
@@ -775,7 +779,7 @@ edict_t *S_CreateBlightedGoldmine(uint32_t player, vec2_t const *origin, float f
     if (!overlay) return NULL;
     overlay->s.angle = facing;
     S_MineOverlayBindPreplaced();
-    if (!overlay->mineoverlay.parent) {
+    if (!overlay->mineoverlay || !overlay->mineoverlay->parent) {
         G_FreeEdict(overlay);
         return NULL;
     }
@@ -790,18 +794,19 @@ void S_GoldMineSetResourceAmount(edict_t *mine, uint32_t amount) {
 
 bool S_AcolyteHarvestIsActive(edict_t const *worker) {
     edict_t const *mine;
-    if (!worker || !(mine = worker->acolyte_mine.mine)) return false;
-    return mine->inuse && mine->spawn_time == worker->acolyte_mine.mine_spawn_time &&
-           worker->acolyte_mine.slot >= 0;
+    if (!worker || !worker->acolyte_mine || !(mine = worker->acolyte_mine->mine)) return false;
+    return mine->inuse && mine->spawn_time == worker->acolyte_mine->mine_spawn_time &&
+           worker->acolyte_mine->slot >= 0;
 }
 
 void S_AcolyteHarvestRelease(edict_t *worker) {
     edict_t *mine;
     if (!worker) return;
-    mine = worker->acolyte_mine.mine;
-    worker->acolyte_mine.mine = NULL;
-    worker->acolyte_mine.mine_spawn_time = 0;
-    worker->acolyte_mine.slot = -1;
+    if (!worker->acolyte_mine) return;
+    mine = worker->acolyte_mine->mine;
+    worker->acolyte_mine->mine = NULL;
+    worker->acolyte_mine->mine_spawn_time = 0;
+    worker->acolyte_mine->slot = -1;
     if (worker->goalentity == mine) worker->goalentity = NULL;
     if (worker->secondarygoal == mine) worker->secondarygoal = NULL;
 }
@@ -809,7 +814,7 @@ void S_AcolyteHarvestRelease(edict_t *worker) {
 void S_MineOverlayRelease(edict_t *overlay) {
     edict_t *parent;
 
-    if (!overlay) return;
+    if (!overlay || !overlay->mineoverlay) return;
     /* Warsmash removes the persistent Abgm EffectArt ring on both ability
      * removal and mine death. Do this before clearing the overlay identity so
      * the effect-owner markers remain available to the cleanup scan. */
@@ -817,8 +822,8 @@ void S_MineOverlayRelease(edict_t *overlay) {
     entangle_remove_caster_effects(overlay);
     /* A Haunted Mine owns fixed Acolyte relationships. Retiring the mine must
      * free those slots before its edict can be reused. */
-    FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine.mine == overlay &&
-                  worker->acolyte_mine.mine_spawn_time == overlay->spawn_time) {
+    FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine && worker->acolyte_mine->mine == overlay &&
+                  worker->acolyte_mine->mine_spawn_time == overlay->spawn_time) {
         S_AcolyteHarvestRelease(worker);
         if (worker->currentmove && worker->currentmove->proc == CAbilityAcolyteHarvest)
             unit_stand(worker);
@@ -830,15 +835,15 @@ void S_MineOverlayRelease(edict_t *overlay) {
 #ifdef WC3_DEBUG_MINING
     fprintf(stderr, "WC3_MINING release overlay=%ld id=%.4s parent=%ld result=%ld "
             "parent_spawn=%u/%u\n", (long)(overlay - globals.edicts), (cstring_t)&overlay->class_id,
-            overlay->mineoverlay.parent ? (long)(overlay->mineoverlay.parent - globals.edicts) : -1L,
+            overlay->mineoverlay->parent ? (long)(overlay->mineoverlay->parent - globals.edicts) : -1L,
             parent ? (long)(parent - globals.edicts) : -1L,
             parent ? (unsigned)parent->spawn_time : 0u,
-            (unsigned)overlay->mineoverlay.parent_spawn_time);
+            (unsigned)overlay->mineoverlay->parent_spawn_time);
 #endif
-    overlay->mineoverlay.parent = NULL;
-    overlay->mineoverlay.parent_spawn_time = 0;
-    overlay->mineoverlay.income_time = 0;
-    overlay->mineoverlay.active_interval_index = 0;
+    overlay->mineoverlay->parent = NULL;
+    overlay->mineoverlay->parent_spawn_time = 0;
+    overlay->mineoverlay->income_time = 0;
+    overlay->mineoverlay->active_interval_index = 0;
     if (!parent) return;
     parent->s.renderfx &= ~RF_HIDDEN;
     parent->paused = false;
@@ -956,9 +961,9 @@ static void haunted_mine_remove_effects(edict_t *mine) {
 
 /* Test whether an Acolyte already owns a particular mining-ring slot. */
 static bool haunted_slot_occupied(edict_t *mine, int32_t slot) {
-    FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine.mine == mine &&
-                  worker->acolyte_mine.mine_spawn_time == mine->spawn_time &&
-                  worker->acolyte_mine.slot == slot) {
+    FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine && worker->acolyte_mine->mine == mine &&
+                  worker->acolyte_mine->mine_spawn_time == mine->spawn_time &&
+                  worker->acolyte_mine->slot == slot) {
         return true;
     }
     return false;
@@ -968,9 +973,9 @@ static bool haunted_slot_occupied(edict_t *mine, int32_t slot) {
 static uint32_t haunted_active_miners(edict_t *mine) {
     uint32_t count = 0;
     if (!mine) return 0;
-    FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine.mine == mine &&
-                  worker->acolyte_mine.mine_spawn_time == mine->spawn_time &&
-                  worker->acolyte_mine.slot >= 0) {
+    FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine && worker->acolyte_mine->mine == mine &&
+                  worker->acolyte_mine->mine_spawn_time == mine->spawn_time &&
+                  worker->acolyte_mine->slot >= 0) {
         count++;
     }
     return count;
@@ -979,7 +984,7 @@ static uint32_t haunted_active_miners(edict_t *mine) {
 /* Validate ownership, construction state, parent lifetime, and remaining gold for a worker order. */
 static bool haunted_mine_valid_for(edict_t *worker, edict_t *mine) {
     edict_t *parent;
-    if (!worker || !mine || !mine->inuse || M_IsDead(mine) || mine->construction.active ||
+    if (!worker || !mine || !mine->inuse || M_IsDead(mine) || mine->construction ||
         worker->s.player != mine->s.player || !haunted_mine_alias(mine)) return false;
     parent = mineoverlay_parent(mine);
     return parent && parent->resources > 0;
@@ -1019,9 +1024,11 @@ static bool acolyte_claim_slot(edict_t *worker, edict_t *mine) {
     }
     if (best < 0) return false;
 
-    worker->acolyte_mine.mine = mine;
-    worker->acolyte_mine.mine_spawn_time = mine->spawn_time;
-    worker->acolyte_mine.slot = best;
+    if (!worker->acolyte_mine) worker->acolyte_mine = G_AllocAcolyteMine();
+    assert(worker->acolyte_mine);
+    worker->acolyte_mine->mine = mine;
+    worker->acolyte_mine->mine_spawn_time = mine->spawn_time;
+    worker->acolyte_mine->slot = best;
     return true;
 }
 
@@ -1030,10 +1037,10 @@ static void acolyte_snap_to_slot(edict_t *worker) {
     edict_t *mine;
     uint32_t capacity;
     vec2_t point;
-    if (!S_AcolyteHarvestIsActive(worker) || !(mine = worker->acolyte_mine.mine)) return;
+    if (!S_AcolyteHarvestIsActive(worker) || !(mine = worker->acolyte_mine->mine)) return;
     capacity = haunted_mine_max_miners(mine);
-    if (!capacity || worker->acolyte_mine.slot < 0 || (uint32_t)worker->acolyte_mine.slot >= capacity) return;
-    haunted_mine_slot_position(mine, (uint32_t)worker->acolyte_mine.slot, capacity, &point);
+    if (!capacity || worker->acolyte_mine->slot < 0 || (uint32_t)worker->acolyte_mine->slot >= capacity) return;
+    haunted_mine_slot_position(mine, (uint32_t)worker->acolyte_mine->slot, capacity, &point);
     worker->s.origin2 = point;
     worker->s.origin.x = point.x;
     worker->s.origin.y = point.y;
@@ -1076,7 +1083,7 @@ static void ai_acolyte_harvest_walk(edict_t *worker) {
 
 /* Maintain the Acolyte's position while it is working in the Haunted Mine ring. */
 static void ai_acolyte_harvest_work(edict_t *worker) {
-    edict_t *mine = worker ? worker->acolyte_mine.mine : NULL;
+    edict_t *mine = worker && worker->acolyte_mine ? worker->acolyte_mine->mine : NULL;
     if (!haunted_mine_valid_for(worker, mine) || !S_AcolyteHarvestIsActive(worker)) {
         if (worker) unit_stand(worker);
         return;
@@ -1121,7 +1128,7 @@ void blight_mine_think(edict_t *mine) {
      * the authoritative mine thinker gives preplaced, constructed, and loaded
      * mines the same presentation without a second unit-lifecycle hook. */
     haunted_mine_ensure_effects(mine);
-    if (mine->construction.active || !(alias = haunted_mine_alias(mine))) return;
+    if (mine->construction || !(alias = haunted_mine_alias(mine))) return;
     parent = mineoverlay_parent(mine);
     player = G_GetPlayerByNumber(mine->s.player);
     maximum = haunted_mine_max_miners(mine);
@@ -1135,11 +1142,11 @@ void blight_mine_think(edict_t *mine) {
     interval_ms = (uint32_t)(MAX(0.0f, G_AbilityLevel(alias, 1)->data[1].number) * 1000.0f);
     interval_ms = MAX(1u, interval_ms * multiplier);
     now = G_Time();
-    if (now < mine->mineoverlay.income_time + interval_ms) return;
+    if (now < mine->mineoverlay->income_time + interval_ms) return;
 
     gold_per_interval = (int32_t)MAX(0.0f, G_AbilityLevel(alias, 1)->data[0].number);
     gold = MIN((int32_t)parent->resources, gold_per_interval);
-    mine->mineoverlay.income_time = now;
+    mine->mineoverlay->income_time = now;
     if (gold <= 0) return;
     parent->resources -= (uint32_t)gold;
     G_CreditResourceIncome(player, mine, PLAYERSTATE_RESOURCE_GOLD, gold);
@@ -1157,11 +1164,11 @@ BZ_ABILITY_PROC(CAbilityBlightedGoldMine) {
  * CasterArt still get the same gameplay/UI lifecycle and save/load behavior. */
 static edict_t *entangle_overlay_caster(edict_t *overlay) {
     edict_t *caster;
-    if (!overlay || !(caster = overlay->mineoverlay.caster)) return NULL;
-    if (!caster->inuse || caster->spawn_time != overlay->mineoverlay.caster_spawn_time) {
-        overlay->mineoverlay.caster = NULL;
-        overlay->mineoverlay.caster_spawn_time = 0;
-        overlay->mineoverlay.entangle_ability = 0;
+    if (!overlay || !overlay->mineoverlay || !(caster = overlay->mineoverlay->caster)) return NULL;
+    if (!caster->inuse || caster->spawn_time != overlay->mineoverlay->caster_spawn_time) {
+        overlay->mineoverlay->caster = NULL;
+        overlay->mineoverlay->caster_spawn_time = 0;
+        overlay->mineoverlay->entangle_ability = 0;
         return NULL;
     }
     return caster;
@@ -1169,12 +1176,12 @@ static edict_t *entangle_overlay_caster(edict_t *overlay) {
 
 static bool entangle_overlay_has_caster(edict_t const *overlay, edict_t const *caster,
                                         uint32_t alias, edict_t const *except) {
-    return overlay && overlay != except && overlay->inuse && !M_IsDead(overlay) &&
-           overlay->mineoverlay.caster == caster &&
-           overlay->mineoverlay.caster_spawn_time == caster->spawn_time &&
-           overlay->mineoverlay.entangle_ability == alias &&
-           overlay->mineoverlay.parent && overlay->mineoverlay.parent->inuse &&
-           overlay->mineoverlay.parent->spawn_time == overlay->mineoverlay.parent_spawn_time;
+    return overlay && overlay != except && overlay->inuse && overlay->mineoverlay && !M_IsDead(overlay) &&
+           overlay->mineoverlay->caster == caster &&
+           overlay->mineoverlay->caster_spawn_time == caster->spawn_time &&
+           overlay->mineoverlay->entangle_ability == alias &&
+           overlay->mineoverlay->parent && overlay->mineoverlay->parent->inuse &&
+           overlay->mineoverlay->parent->spawn_time == overlay->mineoverlay->parent_spawn_time;
 }
 
 /* A Tree can maintain one mine link. Overlay ownership is generation-guarded
@@ -1184,8 +1191,8 @@ static edict_t *entangle_tree_overlay(edict_t const *caster) {
     if (!caster || !caster->inuse) return NULL;
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *overlay = globals.edicts + i;
-        if (entangle_overlay_has_caster(overlay, caster,
-                                        overlay->mineoverlay.entangle_ability, NULL))
+        if (overlay->mineoverlay && entangle_overlay_has_caster(overlay, caster,
+                                        overlay->mineoverlay->entangle_ability, NULL))
             return overlay;
     }
     return NULL;
@@ -1197,7 +1204,7 @@ static bool entangle_existing_permanent_state(edict_t const *caster, uint32_t al
     FOR_LOOP(i, globals.num_edicts) {
         edict_t const *overlay = globals.edicts + i;
         if (!entangle_overlay_has_caster(overlay, caster, alias, NULL)) continue;
-        *permanent_before = overlay->mineoverlay.entangle_permanent_before;
+        *permanent_before = overlay->mineoverlay->entangle_permanent_before;
         return true;
     }
     return false;
@@ -1205,10 +1212,10 @@ static bool entangle_existing_permanent_state(edict_t const *caster, uint32_t al
 
 static void entangle_remove_caster_effects(edict_t *overlay) {
     uint32_t const base = MAKEFOURCC('A','e','n','t');
-    uint32_t const alias = overlay ? overlay->mineoverlay.entangle_ability : 0;
+    uint32_t const alias = overlay && overlay->mineoverlay ? overlay->mineoverlay->entangle_ability : 0;
     edict_t *caster = entangle_overlay_caster(overlay);
 
-    if (!overlay) return;
+    if (!overlay || !overlay->mineoverlay) return;
     if (caster && alias) {
         bool other_overlay_active = false;
         FOR_LOOP(i, globals.num_edicts) {
@@ -1218,7 +1225,7 @@ static void entangle_remove_caster_effects(edict_t *overlay) {
             }
         }
         if (!other_overlay_active)
-            G_ActorSetSkillPermanent(caster, alias, overlay->mineoverlay.entangle_permanent_before);
+            G_ActorSetSkillPermanent(caster, alias, overlay->mineoverlay->entangle_permanent_before);
         gameClient_t *client = G_GetPlayerClientByNumber(caster->s.player);
         if (client) G_InvalidateCommands(client);
     }
@@ -1231,12 +1238,12 @@ static void entangle_remove_caster_effects(edict_t *overlay) {
         effect->summon_ability = 0;
         G_DestroyEffect(effect);
     }
-    overlay->mineoverlay.caster = NULL;
-    overlay->mineoverlay.caster_spawn_time = 0;
-    overlay->mineoverlay.entangle_tree = NULL;
-    overlay->mineoverlay.entangle_tree_spawn_time = 0;
-    overlay->mineoverlay.entangle_ability = 0;
-    overlay->mineoverlay.entangle_permanent_before = false;
+    overlay->mineoverlay->caster = NULL;
+    overlay->mineoverlay->caster_spawn_time = 0;
+    overlay->mineoverlay->entangle_tree = NULL;
+    overlay->mineoverlay->entangle_tree_spawn_time = 0;
+    overlay->mineoverlay->entangle_ability = 0;
+    overlay->mineoverlay->entangle_permanent_before = false;
 }
 
 bool S_EntangleCommandHidden(edict_t const *caster, uint32_t ability_code) {
@@ -1246,12 +1253,12 @@ bool S_EntangleCommandHidden(edict_t const *caster, uint32_t ability_code) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t const *overlay = globals.edicts + i;
         uint32_t alias;
-        if (!overlay->inuse || M_IsDead(overlay) || overlay->mineoverlay.caster != caster ||
-            overlay->mineoverlay.caster_spawn_time != caster->spawn_time ||
-            !(alias = overlay->mineoverlay.entangle_ability)) continue;
+        if (!overlay->inuse || !overlay->mineoverlay || M_IsDead(overlay) || overlay->mineoverlay->caster != caster ||
+            overlay->mineoverlay->caster_spawn_time != caster->spawn_time ||
+            !(alias = overlay->mineoverlay->entangle_ability)) continue;
         if (alias != ability_code && G_AbilityCode(alias) != base) continue;
-        if (overlay->mineoverlay.parent && overlay->mineoverlay.parent->inuse &&
-            overlay->mineoverlay.parent->spawn_time == overlay->mineoverlay.parent_spawn_time)
+        if (overlay->mineoverlay->parent && overlay->mineoverlay->parent->inuse &&
+            overlay->mineoverlay->parent->spawn_time == overlay->mineoverlay->parent_spawn_time)
             return true;
     }
     return false;
@@ -1328,13 +1335,13 @@ static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool insta
         bool permanent_before;
         if (!entangle_existing_permanent_state(caster, alias, &permanent_before))
             permanent_before = G_ActorSkillPermanent(caster, alias);
-        entangled->mineoverlay.entangle_permanent_before = permanent_before;
+        entangled->mineoverlay->entangle_permanent_before = permanent_before;
     }
-    entangled->mineoverlay.caster = caster;
-    entangled->mineoverlay.caster_spawn_time = caster->spawn_time;
-    entangled->mineoverlay.entangle_tree = caster;
-    entangled->mineoverlay.entangle_tree_spawn_time = caster->spawn_time;
-    entangled->mineoverlay.entangle_ability = alias;
+    entangled->mineoverlay->caster = caster;
+    entangled->mineoverlay->caster_spawn_time = caster->spawn_time;
+    entangled->mineoverlay->entangle_tree = caster;
+    entangled->mineoverlay->entangle_tree_spawn_time = caster->spawn_time;
+    entangled->mineoverlay->entangle_ability = alias;
     G_ActorSetSkillPermanent(caster, alias, true);
     {
         gameClient_t *client = G_GetPlayerClientByNumber(caster->s.player);
@@ -1411,7 +1418,7 @@ static void entangled_mine_update(edict_t *mine) {
     edict_t *parent;
     player_t *player;
 
-    if (!mine || !mine->inuse || M_IsDead(mine) || mine->construction.active ||
+    if (!mine || !mine->inuse || M_IsDead(mine) || mine->construction ||
         !(alias = goldmine_actor_ability_alias(mine, MAKEFOURCC('A','e','g','m')))) return;
     parent = mineoverlay_parent(mine);
     player = G_GetPlayerByNumber(mine->s.player);
@@ -1419,17 +1426,17 @@ static void entangled_mine_update(edict_t *mine) {
     if (!parent || !player || !capacity) return;
 
     now = G_Time();
-    if (now < mine->mineoverlay.income_time) return;
+    if (now < mine->mineoverlay->income_time) return;
     interval_ms = (uint32_t)(MAX(0.0f, G_AbilityLevel(alias, 1)->data[1].number) * 1000.0f);
-    mine->mineoverlay.income_time = now + MAX(1u, interval_ms);
+    mine->mineoverlay->income_time = now + MAX(1u, interval_ms);
 
     if (parent->resources == 0) {
         unit_die(mine, NULL);
         return;
     }
-    index = (mine->mineoverlay.active_interval_index + 1) % capacity;
-    mine->mineoverlay.active_interval_index = index;
-    if (index >= mine->cargo.count) return;
+    index = (mine->mineoverlay->active_interval_index + 1) % capacity;
+    mine->mineoverlay->active_interval_index = index;
+    if (!mine->cargo || index >= mine->cargo->count) return;
 
     gold_per_interval = (int32_t)MAX(0.0f, G_AbilityLevel(alias, 1)->data[0].number);
     gold = MIN((int32_t)parent->resources, gold_per_interval);

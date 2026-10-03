@@ -290,7 +290,7 @@ TEST(wc3_spell, unsummon_approach_uses_matching_channel_and_target) {
     uns_tick(fix.caster, 2);
     first = uns_thinker(fix.caster);
     T_NOT_NULL(first);
-    T_ASSERT(!first->unsummon.approaching);
+    T_ASSERT(!first->unsummon || !first->unsummon->approaching);
     unit_issueimmediateorder(fix.caster, "stop");
 
     /* Leave the first demolition alive, then approach a second structure. */
@@ -383,7 +383,7 @@ TEST(wc3_save, unsummon_live_channel_thinker_round_trips) {
     thinker = uns_thinker(fix.caster);
     T_NOT_NULL(thinker);
     T_ASSERT(thinker->goalentity == fix.building);
-    T_EQ(thinker->channel.target_spawn_time, fix.building->spawn_time);
+    T_EQ(thinker->channel->target_spawn_time, fix.building->spawn_time);
     remove(filename);
     uns_done(&fix);
 }

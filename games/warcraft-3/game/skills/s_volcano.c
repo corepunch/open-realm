@@ -15,7 +15,7 @@ static bool volcano_hits(edict_t *caster, edict_t *target, float radius, vec2_t 
 static bool volcano_hits_destructable(edict_t *skip, edict_t *target, float radius, vec2_t const *origin) {
     if (!target || target == skip || !target->inuse) return false;
     if (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS) return false;
-    if (!G_IsDestructable(target) || target->destructable.dead) return false;
+    if (!G_IsDestructable(target) || target->destructable->dead) return false;
     return Vector2_distance(&target->s.origin2, origin) <= radius;
 }
 

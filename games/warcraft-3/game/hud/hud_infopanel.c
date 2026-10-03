@@ -854,7 +854,7 @@ void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
          * custom maps can author a different number of visible slots. The
          * stock FDF has no slot frame definitions, so these native proxy
          * frames use inline authored values as permitted for native controls. */
-        if (ent->cargo.count > 0 && S_CargoCapacity(ent) > 0) {
+        if (ent->cargo && ent->cargo->count > 0 && S_CargoCapacity(ent) > 0) {
             uint32_t const capacity = S_CargoCapacity(ent);
             cstring_t const slot_art = Theme_String("CargoBackdrop", NULL);
             uint32_t slot_image;
@@ -969,7 +969,7 @@ static bool UI_UsesBuildingQueuePanel(gameClient_t *viewer, edict_t *unit) {
         return false;
     if (!G_UnitCanControl(viewer, unit))
         return false;
-    return unit->construction.active || G_BuildingUpgradeActive(unit) || unit->build != NULL;
+    return unit->construction || G_BuildingUpgradeActive(unit) || unit->build != NULL;
 }
 
 #ifdef BZ_TESTS

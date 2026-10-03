@@ -159,7 +159,8 @@ TEST(wc3_bot, query_natives_read_authoritative_player_state) {
     other->s.player = 1;
     done->svflags |= SVF_MONSTER; building->svflags |= SVF_MONSTER; training->svflags |= SVF_MONSTER;
     dead->svflags |= SVF_MONSTER | SVF_DEADMONSTER; other->svflags |= SVF_MONSTER;
-    building->construction.active = true;
+    if (!building->construction) building->construction = G_AllocConstruction();
+    assert(building->construction);
     training->training = true;
     builder->s.player = 2; builder->health.value = 100; builder->build_project = MAKEFOURCC('h','b','a','r');
     mine->resources = 1000;
@@ -182,7 +183,8 @@ TEST(wc3_bot, town_unit_count_scopes_owned_units_and_completion_to_nearest_town)
     hall1 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 1000, 0, 2, &bot_hall_abilities);
     done = alloc_test_unit(footman, 64, 0); done->s.player = 2; done->svflags |= SVF_MONSTER;
     building = alloc_test_unit(footman, 96, 0); building->s.player = 2; building->svflags |= SVF_MONSTER;
-    building->construction.active = true;
+    if (!building->construction) building->construction = G_AllocConstruction();
+    assert(building->construction);
     training = alloc_test_unit(footman, 1024, 0); training->s.player = 2; training->svflags |= SVF_MONSTER;
     training->training = true;
     pending_builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128, 0);
@@ -474,8 +476,8 @@ TEST(wc3_bot, set_upgrade_uses_normal_research_queue_and_rejects_duplicate_reque
     if (level.bots[2].vm) T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
     T_NOT_NULL(producer->build);
     if (producer->build) {
-        T_EQ(producer->build->research.upgrade, MAKEFOURCC('R','h','m','e'));
-        T_EQ(producer->build->research.level, 1);
+        T_EQ(producer->build->research->upgrade, MAKEFOURCC('R','h','m','e'));
+        T_EQ(producer->build->research->level, 1);
     }
     T_EQ(G_GetPlayerTechInProgress(client, MAKEFOURCC('R','h','m','e')), 1);
     T_EQ(player->stats[PLAYERSTATE_RESOURCE_GOLD], 900);
@@ -652,7 +654,9 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
     lumber->stand = gold->stand = other->stand = fighter->stand = unit_stand;
     lumber->currentmove = &lumber_move; gold->currentmove = &gold_move;
     other->currentmove = &lumber_move; fighter->currentmove = &attack_move;
-    gold->goldmine.mine = mine; gold->goldmine.mine_spawn_time = mine->spawn_time;
+    if (!gold->goldmine) gold->goldmine = G_AllocGoldMine();
+    assert(gold->goldmine);
+    gold->goldmine->mine = mine; gold->goldmine->mine_spawn_time = mine->spawn_time;
     gold->invulnerable = true; gold->s.renderfx |= RF_HIDDEN; mine->peonsinside = 1;
     lumber->harvested_lumber = 7; gold->harvested_gold = 5;
 
@@ -662,7 +666,7 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
     T_NULL(gold->currentmove->proc);
     T_EQ(lumber->harvested_lumber, 7);
     T_EQ(gold->harvested_gold, 5);
-    T_NULL(gold->goldmine.mine);
+    T_NULL(gold->goldmine->mine);
     T_EQ(mine->peonsinside, 0);
     T_ASSERT(!(gold->s.renderfx & RF_HIDDEN));
     T_ASSERT(!gold->invulnerable);
@@ -1030,7 +1034,8 @@ TEST(wc3_bot, assault_init_retains_captains_and_fill_tracks_formation_result) {
     edict_t *second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
     edict_t *building = make_bot_harvest_unit(type, 64, 0, 2, NULL);
     edict_t *enemy = make_bot_harvest_unit(type, 96, 0, 1, NULL);
-    building->construction.active = true;
+    if (!building->construction) building->construction = G_AllocConstruction();
+    assert(building->construction);
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 1, type));
@@ -1680,13 +1685,15 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     lab->s.player = PLAYER_NEUTRAL_PASSIVE;
     lab->data.UnitProfile = &lab_profile;
     lab->data.UnitAbilities = &lab_abilities;
-    lab->stock.unit_slots = 11;
+    if (!lab->stock) lab->stock = G_AllocStock();
+    assert(lab->stock);
+    lab->stock->unit_slots = 11;
     lab->spawn_time = G_Time();
     lab->collision = 32.0f;
     gi.LinkEntity(lab);
-    lab->stock.units_initialized = true;
-    lab->stock.unit_count = 1;
-    lab->stock.units[0] = (edictShopStockItem_t){ .id = MAKEFOURCC('n','z','e','p'), .current = 1, .maximum = 1 };
+    lab->stock->units_initialized = true;
+    lab->stock->unit_count = 1;
+    lab->stock->units[0] = (shopStockItem_t){ .id = MAKEFOURCC('n','z','e','p'), .current = 1, .maximum = 1 };
     lab->movetype = MOVETYPE_NONE;
 
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 1000, 0);
@@ -1715,7 +1722,7 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     T_EQ(zeppelins, 1);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 760);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 440);
-    T_EQ(lab->stock.units[0].current, 0);
+    T_EQ(lab->stock->units[0].current, 0);
 }
 
 TEST(wc3_bot, get_mega_target_requires_watch_and_vulnerable_hostile_main) {
@@ -1766,7 +1773,9 @@ TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_build
     hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 1, &bot_hall_abilities);
     target = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 128, 0, 1, NULL);
     tower = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 256, 0, 1, NULL);
-    tower->ancient_root.ability = 0;
+    if (!tower->ancient_root) tower->ancient_root = G_AllocAncientRoot();
+    assert(tower->ancient_root);
+    tower->ancient_root->ability = 0;
     hall->data.UnitAbilities = &bot_hall_abilities;
     tower->data.UnitWeapons = &enabled_attack; tower->attack1.type = ATK_PIERCE; tower->attack1.range = 0;
 

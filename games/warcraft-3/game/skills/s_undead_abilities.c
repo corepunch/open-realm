@@ -199,7 +199,7 @@ BZ_ABILITY_PROC(CAbilityReplenishMana) {
 #define ID_GRAVEYARD_CORPSE MAKEFOURCC('A','g','y','d')
 
 static bool graveyard_is_under_construction(edict_t *graveyard) {
-    return graveyard && (graveyard->construction.active || graveyard->build == graveyard);
+    return graveyard && (graveyard->construction || graveyard->build == graveyard);
 }
 
 static edict_t *graveyard_find_thinker(edict_t *graveyard) {
@@ -319,9 +319,9 @@ static edict_t *cannibalize_corpse(edict_t *caster, abilityitem_t const *spell) 
         float const distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
         if (distance <= range && distance < best) { corpse = unit; best = distance; }
     }
-    FILTER_EDICTS(transport, S_CargoIsCorpseHolder(transport) &&
+    FILTER_EDICTS(transport, transport->cargo && S_CargoIsCorpseHolder(transport) &&
                   transport->s.player == caster->s.player) {
-        FOR_LOOP(i, transport->cargo.count) {
+        FOR_LOOP(i, transport->cargo->count) {
             edict_t *unit = S_CargoUnitAt(transport, i);
             vec2_t position;
             float distance;
@@ -392,7 +392,7 @@ void cannibalize_approach_think(edict_t *thinker) {
     edict_t *approach = cannibalize_approach_target(corpse);
 
     if (!thinker || !caster || !caster->inuse || M_IsDead(caster) || !corpse || !corpse->inuse ||
-        corpse->spawn_time != thinker->channel.target_spawn_time || !approach ||
+        corpse->spawn_time != thinker->channel->target_spawn_time || !approach ||
         !cannibalize_corpse_allowed(caster, thinker->class_id, corpse)) {
         cannibalize_approach_cancel(thinker);
         return;
@@ -436,14 +436,16 @@ static bool cannibalize_command(edict_t *caster, edict_t *clent, abilityitem_t c
     thinker->owner = caster;
     thinker->goalentity = corpse;
     thinker->class_id = spell->code;
-    thinker->channel.target_spawn_time = corpse->spawn_time;
+    if (!thinker->channel) thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->target_spawn_time = corpse->spawn_time;
     thinker->think = cannibalize_approach_think;
     return true;
 }
 
 static bool cannibalize_reserved_corpse_valid(edict_t const *thinker, edict_t const *corpse) {
     return thinker && corpse && corpse->inuse &&
-        corpse->spawn_time == thinker->channel.target_spawn_time &&
+        corpse->spawn_time == thinker->channel->target_spawn_time &&
         (corpse->svflags & SVF_DEADMONSTER) && M_IsDead(corpse);
 }
 
@@ -513,7 +515,9 @@ BZ_ABILITY_PROC(CAbilityCannibalize) {
         unit_addstatus(corpse, GetClassName(spell->code), level);
         thinker = S_SpellChannelThinker(ent, spell->code);
         thinker->goalentity = corpse;
-        thinker->channel.target_spawn_time = corpse->spawn_time;
+        if (!thinker->channel) thinker->channel = G_AllocChannel();
+        assert(thinker->channel);
+        thinker->channel->target_spawn_time = corpse->spawn_time;
         thinker->velocity = MAX(0.0f, S_SpellData(spell->code, level, 1));
         thinker->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellDuration(spell->code, level, false)) * 1000.0f);
         thinker->think = cannibalize_think;
@@ -554,9 +558,9 @@ static edict_t *raise_dead_corpse(edict_t *caster, uint32_t code, float range) {
             corpse = unit; best_rank = rank; best_distance = distance;
         }
     }
-    FILTER_EDICTS(transport, S_CargoIsCorpseHolder(transport) &&
+    FILTER_EDICTS(transport, transport->cargo && S_CargoIsCorpseHolder(transport) &&
                   transport->s.player == caster->s.player) {
-        FOR_LOOP(i, transport->cargo.count) {
+        FOR_LOOP(i, transport->cargo->count) {
             edict_t *unit = S_CargoUnitAt(transport, i);
             vec2_t position;
             float distance;
@@ -718,19 +722,19 @@ static void possession_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
 
 static void possession_strip_channel(edict_t *thinker) {
     edict_t *caster = thinker->owner, *target = thinker->goalentity;
-    if (target && target->inuse && target->spawn_time == thinker->channel.target_spawn_time) {
+    if (target && target->inuse && target->spawn_time == thinker->channel->target_spawn_time) {
         possession_clear_status(target, BZ_BPOS);
         possession_refresh_stun(target);
         if (thinker->damage) target->invulnerable = thinker->invulnerable;
     }
-    if (caster && caster->inuse && caster->spawn_time == thinker->channel.owner_spawn_time)
+    if (caster && caster->inuse && caster->spawn_time == thinker->channel->owner_spawn_time)
         possession_clear_status(caster, BZ_BPOC);
 }
 
 void possession_two_think(edict_t *thinker) {
     edict_t *caster = thinker->owner, *target = thinker->goalentity;
     if (!S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target) ||
-        target->spawn_time != thinker->channel.target_spawn_time) {
+        target->spawn_time != thinker->channel->target_spawn_time) {
         possession_strip_channel(thinker);
         S_SpellEndChannel(thinker);
         return;
@@ -759,7 +763,9 @@ static void possession_two_execute(edict_t *caster, spellTarget_t st, abilityite
 
     thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->goalentity = st.entity;
-    thinker->channel.target_spawn_time = st.entity->spawn_time;
+    if (!thinker->channel) thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->target_spawn_time = st.entity->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     thinker->damage = invuln > 0.0f ? 1 : 0;
     thinker->invulnerable = st.entity->invulnerable;

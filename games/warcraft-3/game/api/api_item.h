@@ -62,12 +62,12 @@ uint32_t SetItemCharges(jass_t *j) {
 uint32_t SetItemDropID(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
     int32_t unit_id = jass_checkinteger(j, 2);
-    if (item && G_IsItem(item)) item->item.drop_id = (uint32_t)unit_id;
+    if (item && G_IsItem(item)) item->item->drop_id = (uint32_t)unit_id;
     return 0;
 }
 uint32_t GetItemDropID(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
-    return jass_pushinteger(j, item && G_IsItem(item) ? (int32_t)item->item.drop_id : 0);
+    return jass_pushinteger(j, item && G_IsItem(item) ? (int32_t)item->item->drop_id : 0);
 }
 uint32_t GetItemX(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
@@ -81,7 +81,7 @@ uint32_t SetItemPosition(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
     float x = jass_checknumber(j, 2);
     float y = jass_checknumber(j, 3);
-    if (item && item->item.in_world) {
+    if (item && item->item->in_world) {
         item->s.origin.x = x;
         item->s.origin.y = y;
         item->s.origin.z = CM_GetHeightAtPoint(x, y);
@@ -99,8 +99,8 @@ uint32_t SetItemDroppable(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
     bool flag = jass_checkboolean(j, 2);
     if (item && G_IsItem(item)) {
-        item->item.droppable_set = true;
-        item->item.droppable = flag;
+        item->item->droppable_set = true;
+        item->item->droppable = flag;
     }
     return 0;
 }
@@ -141,7 +141,7 @@ uint32_t EnumItemsInRect(jass_t *j) {
     if (!r) return 0;
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &globals.edicts[i];
-        if (G_IsItem(ent) && ent->item.in_world && Box2_containsPoint(r, &ent->s.origin2)) {
+        if (G_IsItem(ent) && ent->item->in_world && Box2_containsPoint(r, &ent->s.origin2)) {
             currentenumitem = ent;
             if (actionFunc) { jass_pushfunction(j, actionFunc); jass_call(j, 0); }
         }
@@ -156,11 +156,11 @@ uint32_t GetItemName(jass_t *j) {
 }
 uint32_t GetItemUserData(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
-    return jass_pushinteger(j, whichItem ? whichItem->item.user_data : 0);
+    return jass_pushinteger(j, whichItem ? whichItem->item->user_data : 0);
 }
 uint32_t SetItemUserData(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
-    if (whichItem) whichItem->item.user_data = jass_checkinteger(j, 2);
+    if (whichItem) whichItem->item->user_data = jass_checkinteger(j, 2);
     return 0;
 }
 uint32_t SetItemVisible(jass_t *j) {
@@ -183,7 +183,7 @@ uint32_t IsItemVisible(jass_t *j) {
 }
 uint32_t IsItemOwned(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
-    return jass_pushboolean(j, whichItem && whichItem->item.carrier && !whichItem->item.in_world);
+    return jass_pushboolean(j, whichItem && whichItem->item->carrier && !whichItem->item->in_world);
 }
 uint32_t IsItemPowerup(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
@@ -195,8 +195,8 @@ uint32_t SetItemPawnable(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
     bool flag = jass_checkboolean(j, 2);
     if (whichItem) {
-        whichItem->item.pawnable_set = true;
-        whichItem->item.pawnable = flag;
+        whichItem->item->pawnable_set = true;
+        whichItem->item->pawnable = flag;
     }
     return 0;
 }

@@ -6,13 +6,14 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 89, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 90, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
 - the quest and quest-item graph's strings and status flags;
 - the fixed point-order waypoint edict ring and its circular allocation cursor;
 - one used flag per entity slot, a raw `edict_t` block for used slots, and its retained native fine-route points;
+- sparse lifecycle records for all 27 edict pools, written after the edicts, with per-pool counts and owning-edict indexes;
 - basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
@@ -105,6 +106,10 @@ The server's map-selection read checks both the format version and entity size b
 Version 40 added the region registry and region/event context. Its rejection of version 39 saves was intentional; later versions follow the same exact-match policy.
 
 Version 77 adds Stop guard movement state to the entity record: `guard_position` and one `guard_state` enum (`NONE`, `IDLE`, `COMBAT`, or `RETURNING`). The exact-version guard rejects earlier saves because their entity records lack these fields.
+
+Format 90 merges the retained pathfinding/AI state with the full27-pool lifecycle layout.
+It rejects both branch format89 and upstream format64: entity layouts and streams differ.
+The upstream63/64 pool-presence and redundant-flag changes are retained in the combined format.
 
 Version 41 persists region and region-event handle generations and exhaustion state. This keeps each recycled handle's `GetHandleId` unique during a session and stable across save/load. The exact-version guard rejects version 40 saves as well as earlier versions.
 

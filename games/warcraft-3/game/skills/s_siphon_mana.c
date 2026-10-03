@@ -18,7 +18,7 @@ void siphon_mana_think(edict_t *ent) {
     uint32_t now = G_Time(), code = ent->class_id, rank = ent->resources;
     float amount, before;
     if (!S_SpellChannelActive(ent) || !S_SpellIsAliveTarget(target) ||
-        target->spawn_time != ent->channel.target_spawn_time || !S_SpellAllowsTarget(code, caster, target) ||
+        target->spawn_time != ent->channel->target_spawn_time || !S_SpellAllowsTarget(code, caster, target) ||
         !S_SpellTargetInRange(caster, target, ent->collision)) { S_SpellEndChannel(ent); return; }
     if (now < ent->freetime) return;
     if (S_SpellIsFriend(caster, target)) {
@@ -45,7 +45,9 @@ void siphon_mana_think(edict_t *ent) {
 static void siphon_mana_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
     edict_t *ent = S_SpellChannelThinker(caster, spell->code);
-    ent->goalentity = st.entity; ent->channel.target_spawn_time = st.entity->spawn_time;
+    if (!ent->channel) ent->channel = G_AllocChannel();
+    assert(ent->channel);
+    ent->goalentity = st.entity; ent->channel->target_spawn_time = st.entity->spawn_time;
     ent->resources = rank; ent->velocity = S_SpellData(spell->code, rank, 3);
     ent->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
     ent->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, rank, G_UnitIsHero(st.entity)) * 1000.0f);

@@ -6,27 +6,27 @@
 #define RANDOM_ITEM_PREFIX_MASK 0x00ffffff // bits; compare the YYI prefix while ignoring its encoded selector byte
 
 static void G_ApplyDestructableAlivePathing(edict_t *ent) {
-    ent->pathtex = ent->destructable.placement_solid
-        ? ent->destructable.alive_pathtex
+    ent->pathtex = ent->destructable->placement_solid
+        ? ent->destructable->alive_pathtex
         : NULL;
-    ent->collision = ent->destructable.placement_solid
-        ? ent->destructable.alive_collision
+    ent->collision = ent->destructable->placement_solid
+        ? ent->destructable->alive_collision
         : 0.0f;
-    ent->destructable.pathing_active = ent->destructable.placement_solid &&
+    ent->destructable->pathing_active = ent->destructable->placement_solid &&
         (ent->pathtex || ent->collision > 0.0f);
     if (ent->data.DestructableData && ent->data.DestructableData->walkable &&
-        ent->destructable.placement_solid && !ent->destructable.dead)
+        ent->destructable->placement_solid && !ent->destructable->dead)
         ent->s.flags |= EF_GROUND_SURFACE;
     else
         ent->s.flags &= ~EF_GROUND_SURFACE;
 }
 
 static void G_ApplyDestructableDeathPathing(edict_t *ent) {
-    ent->pathtex = ent->destructable.placement_solid
-        ? ent->destructable.death_pathtex
+    ent->pathtex = ent->destructable->placement_solid
+        ? ent->destructable->death_pathtex
         : NULL;
     ent->collision = 0.0f;
-    ent->destructable.pathing_active = ent->destructable.placement_solid &&
+    ent->destructable->pathing_active = ent->destructable->placement_solid &&
         ent->pathtex != NULL;
     ent->s.flags &= ~EF_GROUND_SURFACE;
 }
@@ -34,7 +34,7 @@ static void G_ApplyDestructableDeathPathing(edict_t *ent) {
 /* The authored constructor selects rotation and snaps pose before publishing
  * its footprint. Apply this equally to fresh creation and map-script binding. */
 vec2_t G_DestructableCreationPoint(edict_t const *ent, vec2_t point, float facing) {
-    pathTex_t const *pt=ent->destructable.alive_pathtex;
+    pathTex_t const *pt=ent->destructable->alive_pathtex;
     if(!pt) return point;
     if(ent->data.DestructableData->fixedRot>=0)
         facing=wc3_degrees_to_radians(ent->data.DestructableData->fixedRot);
@@ -53,7 +53,41 @@ void G_ApplyDestructableCreationPose(edict_t *ent) {
     ent->s.origin2=G_DestructableCreationPoint(ent,ent->s.origin2,ent->s.angle);
 }
 
-/* Activate a war3map.doo placeholder when generated war3map.j creates it. */
+/* Saved records retain logical placement state; map/model pointers are rebuilt. */
+void G_RestoreDestructableData(edict_t *ent) {
+    DestructableData_t const *row;
+    assert(ent && ent->destructable);
+    row = ent->data.DestructableData;
+    if (!row || !row->file) {
+        fprintf(stderr, "WC3 LoadGame: missing DestructableData %.4s\n", (char const *)&ent->class_id);
+        gi.error("WC3 LoadGame: missing destructable data");
+        return;
+    }
+    ent->destructable->alive_pathtex = M_LoadPathTex(row->pathingTexture);
+    ent->destructable->death_pathtex = M_LoadPathTex(row->deathPathingTexture);
+    if (ent->destructable->map_placed) {
+        bool found = false;
+        FOR_EACH_LIST(doodad_t const, placement, CM_GetDoodads()) {
+            if (placement->unitID != ent->destructable->editor_id || placement->doodID != ent->class_id) continue;
+            ent->destructable->drop_sets = placement->droppableItemSets;
+            ARRAY_COUNT(ent->destructable->drop_sets) = placement->num_droppedItemSets;
+            found = true;
+            break;
+        }
+        if (!found) {
+            fprintf(stderr, "WC3 LoadGame: missing destructable placement %u %.4s\n",
+                    ent->destructable->editor_id, (char const *)&ent->class_id);
+            gi.error("WC3 LoadGame: missing destructable placement");
+        }
+    }
+    if (ent->destructable->dead) G_ApplyDestructableDeathPathing(ent);
+    else G_ApplyDestructableAlivePathing(ent);
+}
+
+/*
+ * Activate a preplaced war3map.doo placeholder when generated war3map.j
+ * creates the corresponding destructable through CreateDestructable().
+ */
 void G_ActivateScriptedDestructable(edict_t *ent,
                                     float x,
                                     float y,
@@ -73,14 +107,14 @@ void G_ActivateScriptedDestructable(edict_t *ent,
     ent->s.angle = facing;
     ent->s.scale = scale;
 
-    ent->destructable.dead = false;
-    ent->destructable.loot_processed = false;
+    ent->destructable->dead = false;
+    ent->destructable->loot_processed = false;
 
     /*
      * CreateDestructable creates the normal active form, even when the
      * war3map.doo entry used as its placeholder had flags=0.
      */
-    ent->destructable.placement_solid = true;
+    ent->destructable->placement_solid = true;
 
     ent->svflags &= ~SVF_DEADMONSTER;
 
@@ -102,7 +136,7 @@ bool G_IsDestructable(edict_t const *ent) {
     if (!ent || !ent->inuse || !ent->class_id) {
         return false;
     }
-    if (ent->destructable.initialized) {
+    if (ent->destructable) {
         return true;
     }
     /* Spawned units are never destructables.  Besides avoiding an object-data
@@ -115,7 +149,7 @@ bool G_IsDestructable(edict_t const *ent) {
 }
 
 bool G_DestructableIsAttackable(edict_t const *ent) {
-    return G_IsDestructable(ent) && !ent->destructable.dead &&
+    return G_IsDestructable(ent) && !ent->destructable->dead &&
         ent->health.value > 0.0f && ent->targtype != TARG_NONE &&
         !(ent->s.renderfx & RF_HIDDEN) &&
         !(ent->s.flags & EF_NOT_SELECTABLE);
@@ -123,7 +157,7 @@ bool G_DestructableIsAttackable(edict_t const *ent) {
 
 bool G_DestructableIsWalkable(edict_t const *ent) {
     return G_IsDestructable(ent) && ent->data.DestructableData->walkable &&
-        ent->destructable.placement_solid && !ent->destructable.dead;
+        ent->destructable->placement_solid && !ent->destructable->dead;
 }
 
 /* Warcraft target flags are shared with ordinary unit weapon targeting;
@@ -244,20 +278,20 @@ void G_SpawnDestructableLoot(edict_t *ent) {
     uint32_t selected_count = 0;
     uint32_t max_selected;
 
-    if (!ent || !G_IsDestructable(ent) || !ent->destructable.dead || ent->destructable.loot_processed) return;
-    ent->destructable.loot_processed = true;
-    table = G_FindRandomItemTable(ent->destructable.item_table);
-    if (ent->destructable.item_table != NO_RANDOM_ITEM_TABLE && !table) {
+    if (!ent || !G_IsDestructable(ent) || !ent->destructable->dead || ent->destructable->loot_processed) return;
+    ent->destructable->loot_processed = true;
+    table = G_FindRandomItemTable(ent->destructable->item_table);
+    if (ent->destructable->item_table != NO_RANDOM_ITEM_TABLE && !table) {
         fprintf(stderr, "G_SpawnDestructableLoot: missing random item table %u\n",
-                (unsigned)ent->destructable.item_table);
+                (unsigned)ent->destructable->item_table);
     }
-    max_selected = ARRAY_COUNT(ent->destructable.drop_sets) +
+    max_selected = ARRAY_COUNT(ent->destructable->drop_sets) +
         (table && table->sets ? table->num_sets : 0);
     if (!max_selected) return;
 
     selected = gi.MemAlloc(sizeof(*selected) * max_selected);
-    FOR_LOOP(i, ARRAY_COUNT(ent->destructable.drop_sets)) {
-        droppableItemSet_t const *set = ent->destructable.drop_sets + i;
+    FOR_LOOP(i, ARRAY_COUNT(ent->destructable->drop_sets)) {
+        droppableItemSet_t const *set = ent->destructable->drop_sets + i;
         uint32_t item_id, roll;
 
         if (!set->droppableItems || set->num_droppableItems <= 0) continue;
@@ -298,9 +332,9 @@ static bool G_EnterDestructableDeathState(edict_t *ent,
                                           bool rebuild_pathing) {
     void (*callback)(edict_t *, edict_t *);
 
-    if (!G_IsDestructable(ent) || ent->destructable.dead) return false;
+    if (!G_IsDestructable(ent) || ent->destructable->dead) return false;
 
-    ent->destructable.dead = true;
+    ent->destructable->dead = true;
     ent->health.value = 0.0f;
     ent->svflags |= SVF_DEADMONSTER;
     ent->s.flags |= EF_NOT_SELECTABLE;
@@ -323,7 +357,7 @@ static bool G_EnterDestructableDeathState(edict_t *ent,
         /* Initially dead and CreateDeadDestructable instances did not die in
          * gameplay, so they must not expose deferred loot. Restoration starts
          * a fresh lifecycle and clears this guard. */
-        ent->destructable.loot_processed = true;
+        ent->destructable->loot_processed = true;
     }
 
     /* The lifecycle is complete before an optional compatibility callback is
@@ -339,19 +373,19 @@ void G_InitializeDestructablePlacement(edict_t *ent, doodad_t const *placement) 
     float life_fraction;
     bool visible;
 
-    if (!ent || !placement || !ent->destructable.initialized) {
+    if (!ent || !placement || !ent->destructable) {
         return;
     }
 
-    ent->destructable.map_placed = true;
-    ent->destructable.script_bound = false;
+    ent->destructable->map_placed = true;
+    ent->destructable->script_bound = false;
 
-    ent->destructable.editor_id = placement->unitID;
-    ent->destructable.item_table = placement->droppedItemSetPtr;
-    ent->destructable.drop_sets = placement->droppableItemSets;
-    ARRAY_COUNT(ent->destructable.drop_sets) = placement->num_droppedItemSets;
-    ent->destructable.loot_processed = false;
-    ent->destructable.placement_solid = (placement->flags & 2) != 0;
+    ent->destructable->editor_id = placement->unitID;
+    ent->destructable->item_table = placement->droppedItemSetPtr;
+    ent->destructable->drop_sets = placement->droppableItemSets;
+    ARRAY_COUNT(ent->destructable->drop_sets) = placement->num_droppedItemSets;
+    ent->destructable->loot_processed = false;
+    ent->destructable->placement_solid = (placement->flags & 2) != 0;
     visible = placement->flags != 0;
     if (visible) {
         ent->s.renderfx &= ~RF_HIDDEN;
@@ -361,7 +395,7 @@ void G_InitializeDestructablePlacement(edict_t *ent, doodad_t const *placement) 
         ent->s.flags |= EF_NOT_SELECTABLE;
     }
 
-    ent->destructable.dead = false;
+    ent->destructable->dead = false;
     ent->svflags &= ~SVF_DEADMONSTER;
     ent->s.renderfx &= ~RF_NO_SHADOW;
     G_ApplyDestructableAlivePathing(ent);
@@ -401,12 +435,12 @@ bool G_RestoreDestructable(edict_t *ent, float life, bool birth) {
         return false;
     }
     ent->health.value = restored_life;
-    if (!ent->destructable.dead) {
+    if (!ent->destructable->dead) {
         return true;
     }
 
-    ent->destructable.dead = false;
-    ent->destructable.loot_processed = false;
+    ent->destructable->dead = false;
+    ent->destructable->loot_processed = false;
     ent->svflags &= ~SVF_DEADMONSTER;
     ent->aiflags &= ~AI_HOLD_FRAME;
 
@@ -428,13 +462,13 @@ bool G_SetDestructableLife(edict_t *ent, float life) {
         return false;
     }
     if (life <= 0.0f) {
-        if (ent->destructable.dead) {
+        if (ent->destructable->dead) {
             ent->health.value = 0.0f;
             return true;
         }
         return G_KillDestructable(ent, NULL);
     }
-    if (ent->destructable.dead) {
+    if (ent->destructable->dead) {
         return G_RestoreDestructable(ent, life, false);
     }
     ent->health.value = MAX(0.0f, MIN(life, ent->health.max_value));
@@ -442,7 +476,7 @@ bool G_SetDestructableLife(edict_t *ent, float life) {
 }
 
 bool G_DestructableApplyDamage(edict_t *ent, edict_t *attacker, float damage) {
-    if (!G_IsDestructable(ent) || ent->destructable.dead || ent->invulnerable || damage <= 0.0f) return false;
+    if (!G_IsDestructable(ent) || ent->destructable->dead || ent->invulnerable || damage <= 0.0f) return false;
 
     if (damage >= ent->health.value) {
         return G_KillDestructable(ent, attacker);

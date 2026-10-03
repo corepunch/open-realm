@@ -428,7 +428,7 @@ static bool move_has_active_construction(void) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &g_edicts[i];
         if (ent->inuse && !(ent->s.flags & EF_NOT_SELECTABLE) &&
-            G_UnitIsStructure(ent) && ent->construction.active)
+            G_UnitIsStructure(ent) && ent->construction)
             return true;
     }
     return false;
@@ -536,8 +536,8 @@ static bool filter_blockers(edict_t const *ent) {
         return false;
     /* An alive walkable destructable is a ground surface, not a circle-shaped
      * obstacle. Its authored path texture remains responsible for deck edges. */
-    if (G_IsDestructable(ent) && !ent->destructable.dead &&
-        ent->destructable.placement_solid && ent->pathtex &&
+    if (G_IsDestructable(ent) && !ent->destructable->dead &&
+        ent->destructable->placement_solid && ent->pathtex &&
         ent->data.DestructableData && ent->data.DestructableData->walkable) return false;
     /* Trees have collisionSize 0 (they block only via their baked footprint) so
      * they are already excluded above; buildings keep a real collision circle
@@ -1707,7 +1707,7 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
 }
 
 static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
-    if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root.rooted_turning))
+    if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root->rooted_turning))
         return;
     if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
         wc3_yield_advance(&self->movement.wait_delay,false)) {
@@ -1882,7 +1882,7 @@ void unit_changeangle_worker(edict_t *self) {
 static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
                                                moveAvoidPolicy_t policy,
                                                bool continue_to_target) {
-    if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root.rooted_turning))
+    if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root->rooted_turning))
         return;
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
     vec2_t to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
@@ -2093,8 +2093,8 @@ void M_CheckGround(edict_t *self) {
         for (edict_t *surface = level.ground_surfaces; surface; surface = surface->ground_next) {
             pathTex_t const *pathtex = surface->pathtex;
             pathTexTransform_t const transform = CM_GetPathTexTransform(surface);
-            if (!surface->inuse || surface->destructable.dead ||
-                !surface->destructable.placement_solid || !pathtex) continue;
+            if (!surface->inuse || surface->destructable->dead ||
+                !surface->destructable->placement_solid || !pathtex) continue;
             if (fabsf(self->s.origin.x - surface->s.origin.x) > transform.width * cell * 0.5f ||
                 fabsf(self->s.origin.y - surface->s.origin.y) > transform.height * cell * 0.5f) continue;
             height = MAX(height, surface->s.origin.z);

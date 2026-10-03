@@ -83,9 +83,9 @@ static void soul_trap_release_target(edict_t *target, vec2_t const *position, bo
     target->soul_trap_item = NULL;
     target->soul_trap_item_spawn_time = 0;
     if (item && item->inuse && item->spawn_time == item_spawn &&
-        item->item.soul_target == target && item->item.soul_target_spawn_time == target->spawn_time) {
-        item->item.soul_target = NULL;
-        item->item.soul_target_spawn_time = 0;
+        item->item->soul_target == target && item->item->soul_target_spawn_time == target->spawn_time) {
+        item->item->soul_target = NULL;
+        item->item->soul_target_spawn_time = 0;
         G_RemoveItem(item);
     }
     remove_asou = target->soul_trapped_ability_added;
@@ -190,9 +190,9 @@ BZ_ABILITY_PROC(CAbilitySoulTrap) {
             !soul_trap_capture(ent, call->target->entity)) return false;
         if (call->source_item && call->source_item->inuse &&
             call->source_item->spawn_time == call->source_item_spawn_time &&
-            call->source_item->item.carrier == ent) {
-            call->source_item->item.soul_target = call->target->entity;
-            call->source_item->item.soul_target_spawn_time = call->target->entity->spawn_time;
+            call->source_item->item->carrier == ent) {
+            call->source_item->item->soul_target = call->target->entity;
+            call->source_item->item->soul_target_spawn_time = call->target->entity->spawn_time;
         }
         return true;
     default:
@@ -202,9 +202,9 @@ BZ_ABILITY_PROC(CAbilitySoulTrap) {
 
 static bool soul_trap_item_linked(edict_t const *carrier, edict_t const *item) {
     edict_t const *target;
-    if (!carrier || !G_IsItem(item) || !item->item.soul_target) return false;
-    target = item->item.soul_target;
-    return target->inuse && target->spawn_time == item->item.soul_target_spawn_time &&
+    if (!carrier || !G_IsItem(item) || !item->item->soul_target) return false;
+    target = item->item->soul_target;
+    return target->inuse && target->spawn_time == item->item->soul_target_spawn_time &&
         target->soul_trap_item == item && target->soul_trap_item_spawn_time == item->spawn_time &&
         soul_trap_valid_link(carrier, target);
 }
@@ -213,24 +213,24 @@ static void soul_trap_finalize_consumed_item(edict_t *item) {
     edict_t *carrier, *target, *filled;
     uint32_t carrier_spawn, target_spawn;
     int32_t slot;
-    if (!item || !item->item.soul_target) return;
-    target = item->item.soul_target;
-    target_spawn = item->item.soul_target_spawn_time;
-    carrier = item->item.pending_use_carrier;
-    carrier_spawn = item->item.pending_use_carrier_spawn_time;
-    item->item.soul_target = NULL;
-    item->item.soul_target_spawn_time = 0;
+    if (!item || !item->item->soul_target) return;
+    target = item->item->soul_target;
+    target_spawn = item->item->soul_target_spawn_time;
+    carrier = item->item->pending_use_carrier;
+    carrier_spawn = item->item->pending_use_carrier_spawn_time;
+    item->item->soul_target = NULL;
+    item->item->soul_target_spawn_time = 0;
     if (!target->inuse || target->spawn_time != target_spawn || !(target->aiflags & AI_SOUL_TRAPPED) ||
         !carrier || !carrier->inuse || carrier->spawn_time != carrier_spawn || M_IsDead(carrier)) return;
-    slot = item->item.pending_use_slot;
+    slot = item->item->pending_use_slot;
     filled = slot >= 0 && slot < (int32_t)G_InventoryCapacity(carrier) ? carrier->inventory[slot] : NULL;
-    if (filled && filled->class_id == ID_FILLED_SOUL && !filled->item.soul_target) {
-        filled->item.soul_target = target;
-        filled->item.soul_target_spawn_time = target_spawn;
+    if (filled && filled->class_id == ID_FILLED_SOUL && !filled->item->soul_target) {
+        filled->item->soul_target = target;
+        filled->item->soul_target_spawn_time = target_spawn;
         target->soul_trap_item = filled;
         target->soul_trap_item_spawn_time = filled->spawn_time;
-        filled->item.droppable_set = true;
-        filled->item.droppable = false;
+        filled->item->droppable_set = true;
+        filled->item->droppable = false;
         return;
     }
     if (!G_ItemData(ID_FILLED_SOUL)->file) {
@@ -239,14 +239,14 @@ static void soul_trap_finalize_consumed_item(edict_t *item) {
     }
     filled = SP_SpawnAtLocationNoBirth(ID_FILLED_SOUL, carrier->s.player, &carrier->s.origin2);
     if (!filled) return;
-    filled->item.droppable_set = true;
-    filled->item.droppable = false;
-    slot = item->item.pending_use_slot;
+    filled->item->droppable_set = true;
+    filled->item->droppable = false;
+    slot = item->item->pending_use_slot;
     if (slot < 0 || slot >= (int32_t)G_InventoryCapacity(carrier) || carrier->inventory[slot])
         slot = G_FindFreeInventorySlot(carrier);
     if (slot >= 0 && G_AddItemToSlotInternal(carrier, filled, (uint32_t)slot, false)) {
-        filled->item.soul_target = target;
-        filled->item.soul_target_spawn_time = target_spawn;
+        filled->item->soul_target = target;
+        filled->item->soul_target_spawn_time = target_spawn;
         target->soul_trap_item = filled;
         target->soul_trap_item_spawn_time = filled->spawn_time;
     } else {
@@ -262,21 +262,21 @@ BZ_ABILITY_PROC(CAbilitySoulTrapped) {
     case A_ITEM_FINALIZE:
         if (call && call->source_item && call->source_item->inuse &&
             call->source_item->spawn_time == call->source_item_spawn_time &&
-            call->source_item->item.pending_use_carrier == ent)
+            call->source_item->item->pending_use_carrier == ent)
             soul_trap_finalize_consumed_item(call->source_item);
         return true;
     case A_ITEM_SCRIPT_REMOVE: {
         edict_t *item = call ? call->source_item : NULL;
-        if (!soul_trap_item_linked(ent, item) || item->item.carrier != ent ||
-            item->item.inventory_slot < 0 || item->item.inventory_slot >= MAX_INVENTORY ||
-            ent->inventory[item->item.inventory_slot] != item) return false;
-        return G_DetachItemAtScripted(ent, (uint32_t)item->item.inventory_slot);
+        if (!soul_trap_item_linked(ent, item) || item->item->carrier != ent ||
+            item->item->inventory_slot < 0 || item->item->inventory_slot >= MAX_INVENTORY ||
+            ent->inventory[item->item->inventory_slot] != item) return false;
+        return G_DetachItemAtScripted(ent, (uint32_t)item->item->inventory_slot);
     }
     case A_ITEM_SCRIPT_REATTACH: {
         edict_t *item = call ? call->source_item : NULL;
         int32_t slot;
-        if (!soul_trap_item_linked(ent, item) || item->item.carrier != ent ||
-            item->item.inventory_slot != -1 || item->item.in_world) return false;
+        if (!soul_trap_item_linked(ent, item) || item->item->carrier != ent ||
+            item->item->inventory_slot != -1 || item->item->in_world) return false;
         slot = G_FindFreeInventorySlot(ent);
         return slot >= 0 && G_ReattachItemAtScripted(ent, item, (uint32_t)slot);
     }

@@ -378,7 +378,6 @@ void SP_monster_tree(edict_t *edict);
 static void G_InitEdict(edict_t *e) {
     memset(e, 0, sizeof(edict_t));
     e->inuse = true;
-    e->item.inventory_slot = -1;
     e->s.scale = 1;
     e->animation_speed = 1.0f;
     e->s.number = (int)(e - g_edicts);
@@ -523,21 +522,22 @@ static void SP_SpawnDestructable(edict_t *edict) {
     edict->s.image = tex && *tex && strcmp(tex, "_") ? gi.ImageIndex(tex) : 0;
     SP_DestructableModelFilename(row, edict->variation, buffer, sizeof(buffer));
     edict->s.model = G_RegisterModel(buffer);
-    edict->destructable.alive_pathtex = M_LoadPathTex(path_tex);
-    edict->destructable.death_pathtex = M_LoadPathTex(row->deathPathingTexture);
-    edict->pathtex = edict->destructable.alive_pathtex;
+    if (!edict->destructable) edict->destructable = G_AllocDestructable();
+    assert(edict->destructable);
+    edict->destructable->alive_pathtex = M_LoadPathTex(path_tex);
+    edict->destructable->death_pathtex = M_LoadPathTex(row->deathPathingTexture);
+    edict->pathtex = edict->destructable->alive_pathtex;
     edict->s.radius = radius > 0.0f ? radius : 50.0f;  /* selection/UI circle only */
     /* WC3 trees have collisionSize 0 and block solely via their baked pathing
      * footprint; only destructables with a real radius (bridges, gates) get a
      * collision circle.  Fabricating a 50-unit circle on every tree was a prime
      * cause of units sticking on trunks. */
     edict->collision = radius > 0.0f ? radius : 0.0f;
-    edict->destructable.alive_collision = edict->collision;
-    edict->destructable.initialized = true;
-    edict->destructable.dead = false;
-    edict->destructable.item_table = (uint32_t)-1;
-    edict->destructable.placement_solid = true;
-    edict->destructable.pathing_active = edict->pathtex || edict->collision > 0.0f;
+    edict->destructable->alive_collision = edict->collision;
+    edict->destructable->dead = false;
+    edict->destructable->item_table = (uint32_t)-1;
+    edict->destructable->placement_solid = true;
+    edict->destructable->pathing_active = edict->pathtex || edict->collision > 0.0f;
 #ifndef USE_SHADOWMAPS
     edict->s.shadow = G_LoadShadowTexture(row->shadow, false);
     edict->s.shadow_rect = 0;
@@ -839,6 +839,7 @@ void G_SpawnEntities(void) {
         G_SetCameraBounds(mapinfo->cameraBounds.bounds);
     G_WeatherInitMap();
 
+    G_PoolsReset();
     globals.num_edicts = game.max_clients;
     /* Quake II's body queue reserves real edicts before map entities, keeping all entity pointers in one address domain. */
     G_InitWaypoints();
@@ -990,8 +991,8 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
             if (!existing->inuse ||
                 existing->class_id != class_id ||
                 !G_IsDestructable(existing) ||
-                !existing->destructable.map_placed ||
-                existing->destructable.script_bound) {
+                !existing->destructable->map_placed ||
+                existing->destructable->script_bound) {
                 continue;
             }
 
@@ -1007,7 +1008,7 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
         }
 
         if (best) {
-            best->destructable.script_bound = true;
+            best->destructable->script_bound = true;
 
             G_ActivateScriptedDestructable(best,
                                            x,
@@ -1105,7 +1106,7 @@ static bool SP_CanPlaceUnitAt(edict_t *unit, vec2_t const *point) {
 static bool G_RepositionBlocker(edict_t const *other) {
     float dx, dy, reach;
     edict_t *unit = reposition_unit;
-    if (other == unit || (G_IsItem(unit) && other == unit->item.carrier) ||
+    if (other == unit || (G_IsItem(unit) && other == unit->item->carrier) ||
         IS_HOLLOW(other) || other->collision <= 0.0f ||
         !!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) return false;
     dx = other->s.origin2.x - reposition_point->x;

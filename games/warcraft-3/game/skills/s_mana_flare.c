@@ -48,7 +48,7 @@ BZ_ABILITY_PROC(CAbilityManaFlare) {
 		unit_addtimedstatus(ent, buff, level, S_SpellDuration(code, level, G_UnitIsHero(ent)));
 		return true;
 	case A_UPDATE:
-		if (ent && ent->channel.code == code && !G_UnitStatusLevel(ent, ID_BMFL))
+		if (ent && ent->channel && ent->channel->code == code && !G_UnitStatusLevel(ent, ID_BMFL))
 			S_SpellCancelChannel(ent);
 		return true;
 	case A_CANCEL:
@@ -57,7 +57,7 @@ BZ_ABILITY_PROC(CAbilityManaFlare) {
 		if (G_UnitStatusLevel(ent, ID_BMFL)) mana_flare_strip(ent);
 		return true;
 	case A_MOVE_LEAVE:
-		if (ent && ent->channel.code == code) {
+		if (ent && ent->channel && ent->channel->code == code) {
 			S_SpellCancelChannel(ent);
 			return true;
 		}

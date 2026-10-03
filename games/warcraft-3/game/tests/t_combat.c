@@ -292,7 +292,9 @@ TEST(wc3_effects, natural_creep_sleep_uses_persistent_acsp_overhead_target_art) 
     setup_test_world();
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    target->sleep.can_sleep = true;
+    if (!target->sleep) target->sleep = G_AllocSleep();
+    assert(target->sleep);
+    target->sleep->can_sleep = true;
     target->s.radius = 32.0f;
     game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
 
@@ -341,7 +343,9 @@ TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    target->sleep.can_sleep = true;
+    if (!target->sleep) target->sleep = G_AllocSleep();
+    assert(target->sleep);
+    target->sleep->can_sleep = true;
     attacker->s.player = 0;
     game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
 
@@ -817,9 +821,10 @@ TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
     gate->targtype = TARG_DEBRIS;
     gate->health.value = gate->health.max_value = 500.0f;
     gate->collision = 50.0f;
-    gate->destructable.initialized = true;
-    gate->destructable.placement_solid = true;
-    gate->destructable.pathing_active = true;
+    if (!gate->destructable) gate->destructable = G_AllocDestructable();
+    assert(gate->destructable);
+    gate->destructable->placement_solid = true;
+    gate->destructable->pathing_active = true;
     attacker->s.player = 0;
     attacker->collision = 16.0f;
     attacker->attack1.type = ATK_NORMAL;
@@ -854,7 +859,8 @@ TEST(wc3_combat, secondary_attack_can_target_destructables) {
     gate = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 128.0f, 0.0f);
     gate->svflags &= ~SVF_MONSTER;
     gate->targtype = TARG_DEBRIS;
-    gate->destructable.initialized = true;
+    if (!gate->destructable) gate->destructable = G_AllocDestructable();
+    assert(gate->destructable);
     attacker->attack1.type = ATK_NORMAL;
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     attacker->attack2.type = ATK_SIEGE;
@@ -1752,7 +1758,7 @@ TEST(wc3_combat, hero_revive) {
     T_ASSERT((h->svflags & SVF_DEADMONSTER) == 0);       /* alive again */
     T_FEQ(h->s.origin2.x, 100.0f, 0.01f);
     T_FEQ(h->s.origin2.y, 200.0f, 0.01f);
-    T_EQ(h->food.used, h->data.UnitBalance->foodUsed);
+    T_EQ(h->food->used, h->data.UnitBalance->foodUsed);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], h->data.UnitBalance->foodUsed);
 }
 
@@ -2442,11 +2448,11 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
     if (missile) {
         T_ASSERT(missile->aiflags & AI_PROJECTILE_FIXED_TARGET);
         T_ASSERT(missile->goalentity == target);
-        T_EQ(missile->channel.target_spawn_time, target->spawn_time);
-        T_FEQ(missile->channel.origin.x, 200.0f, 0.001f);
-        T_FEQ(missile->channel.origin.y, 0.0f, 0.001f);
-        T_EQ(missile->artillery.attack_type, ATK_NORMAL);
-        T_EQ(missile->artillery.area_targets, WC3_TARGET_FLAG_GROUND);
+        T_EQ(missile->channel->target_spawn_time, target->spawn_time);
+        T_FEQ(missile->channel->origin.x, 200.0f, 0.001f);
+        T_FEQ(missile->channel->origin.y, 0.0f, 0.001f);
+        T_EQ(missile->artillery->attack_type, ATK_NORMAL);
+        T_EQ(missile->artillery->area_targets, WC3_TARGET_FLAG_GROUND);
 
         attacker->goalentity = retarget; /* impact must retain the launch profile */
         target->s.origin2.x = target->s.origin.x = 400.0f;
@@ -2480,8 +2486,8 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
     attacker->aiflags |= AI_IMMOBILE; /* in-range static artillery may still fire */
 
     T_ASSERT(S_OrderAttackGround(attacker, &point));
-    T_FEQ(attacker->channel.origin.x, point.x, 0.001f);
-    T_FEQ(attacker->channel.origin.y, point.y, 0.001f);
+    T_FEQ(attacker->channel->origin.x, point.x, 0.001f);
+    T_FEQ(attacker->channel->origin.y, point.y, 0.001f);
     T_NOT_NULL(attacker->currentmove);
     attacker->currentmove->think(attacker); /* walk state -> attack windup */
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttackGround);
@@ -2495,8 +2501,8 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
     T_NOT_NULL(missile);
     if (missile) {
         T_ASSERT(missile->aiflags & AI_PROJECTILE_FIXED_TARGET);
-        T_FEQ(missile->channel.origin.x, point.x, 0.001f);
-        T_FEQ(missile->channel.origin.y, point.y, 0.001f);
+        T_FEQ(missile->channel->origin.x, point.x, 0.001f);
+        T_FEQ(missile->channel->origin.y, point.y, 0.001f);
     }
 }
 
@@ -2966,23 +2972,23 @@ TEST(wc3_combat, blight_growth_uses_authored_expansion_and_availability) {
     unit->s.player = 0; unit->think = monster_think;
     unit->abilities.added[0] = code; ARRAY_COUNT(unit->abilities.added) = 1;
     T_ASSERT(S_UnitAbilityEvent(unit, A_UNIT_INIT));
-    T_FEQ(unit->blight_growth.radius, 0.0f, 0.001f);
+    T_FEQ(unit->blight_growth->radius, 0.0f, 0.001f);
     T_ASSERT(!G_IsPointBlighted(&first_ring));
 
     level.time = 200; G_RunEntities();
-    T_FEQ(unit->blight_growth.radius, 73.0f, 0.001f);
+    T_FEQ(unit->blight_growth->radius, 73.0f, 0.001f);
     T_ASSERT(G_IsPointBlighted(&first_ring)); T_ASSERT(!G_IsPointBlighted(&second_ring));
 
     level.time = 400; G_RunEntities();
-    T_FEQ(unit->blight_growth.radius, 146.0f, 0.001f);
+    T_FEQ(unit->blight_growth->radius, 146.0f, 0.001f);
     T_ASSERT(G_IsPointBlighted(&second_ring));
 
     G_SetPlayerAbilityAvailable(&game.clients[0], code, false);
     level.time = 600; G_RunEntities();
-    T_FEQ(unit->blight_growth.radius, 146.0f, 0.001f);
+    T_FEQ(unit->blight_growth->radius, 146.0f, 0.001f);
     G_SetPlayerAbilityAvailable(&game.clients[0], code, true);
     G_RunEntities();
-    T_FEQ(unit->blight_growth.radius, 219.0f, 0.001f);
+    T_FEQ(unit->blight_growth->radius, 219.0f, 0.001f);
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -3013,7 +3019,7 @@ TEST(wc3_combat, blight_growth_reads_roc_data_columns) {
     unit->s.player = 0; unit->abilities.added[0] = code; ARRAY_COUNT(unit->abilities.added) = 1;
     T_ASSERT(S_UnitAbilityEvent(unit, A_UNIT_INIT));
     level.time = 200; S_RunAbilityUpdates(unit);
-    T_FEQ(unit->blight_growth.radius, 73.0f, 0.001f);
+    T_FEQ(unit->blight_growth->radius, 73.0f, 0.001f);
     T_ASSERT(G_IsPointBlighted(&first_ring));
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -3562,7 +3568,7 @@ TEST(wc3_combat, attack_ground_locked_still_fires_in_range) {
     unit->currentmove->think(unit);
     FILTER_EDICTS(ent, ent->owner == unit && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
     T_NOT_NULL(missile);
-    if (missile) T_FEQ(missile->channel.origin.x, point.x, 0.001f);
+    if (missile) T_FEQ(missile->channel->origin.x, point.x, 0.001f);
 }
 
 /* Expiry removes the restriction; the retained order then progresses. */
@@ -3607,10 +3613,10 @@ TEST(wc3_combat, attack_ground_stop_and_replace_while_locked) {
     T_ASSERT(!unit->currentmove || unit->currentmove->proc != CAbilityAttackGround);
     S_OrderAttackGround(unit, &point);
     T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttackGround);
-    T_FEQ(unit->channel.origin.x, point.x, 0.001f);
+    T_FEQ(unit->channel->origin.x, point.x, 0.001f);
     S_OrderAttackGround(unit, &other);
     T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttackGround);
-    T_FEQ(unit->channel.origin.x, other.x, 0.001f);
+    T_FEQ(unit->channel->origin.x, other.x, 0.001f);
 }
 
 

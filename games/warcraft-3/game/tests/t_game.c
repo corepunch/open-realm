@@ -3598,7 +3598,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->harvested_gold = 37;
     first->shared_vision = (1u << 0) | (1u << 7);
     first->projectile_reflected = true;
-    first->sleep.can_sleep = true;
+    if (!first->sleep) first->sleep = G_AllocSleep();
+    assert(first->sleep);
+    first->sleep->can_sleep = true;
     first->collision = 42.5f;
     first->s.origin.x = 96.0f;
     first->s.origin.y = 128.0f;
@@ -3606,7 +3608,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->movement.follow_target = second;
     first->movement.explicit_allied_attack = true;
     first->inventory[2] = second;
-    first->cargo.units[3] = second;
+    if (!first->cargo) first->cargo = G_AllocCargo();
+    assert(first->cargo);
+    first->cargo->units[3] = second;
     first->stand = unit_stand; first->birth = unit_birth; first->die = unit_die; first->think = monster_think;
     unit_stand(first);
     first->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
@@ -3702,13 +3706,13 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->harvested_gold = 0;
     first->shared_vision = 0;
     first->projectile_reflected = false;
-    first->sleep.can_sleep = false;
-    first->sleep.sleeping = false;
+    first->sleep->can_sleep = false;
+    first->sleep->sleeping = false;
     first->owner = NULL;
     first->movement.follow_target = NULL;
     first->movement.explicit_allied_attack = false;
     first->inventory[2] = NULL;
-    first->cargo.units[3] = NULL;
+    first->cargo->units[3] = NULL;
     first->animation_props[0] = '\0';
     first->animation_request[0] = '\0';
     memset(first->abilstatus, 0, sizeof(first->abilstatus));
@@ -3747,8 +3751,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
     T_EQ(g_edicts[first - g_edicts].shared_vision, (1u << 0) | (1u << 7));
     T_ASSERT(g_edicts[first - g_edicts].projectile_reflected);
-    T_ASSERT(g_edicts[first - g_edicts].sleep.can_sleep);
-    T_ASSERT(g_edicts[first - g_edicts].sleep.sleeping);
+    T_ASSERT(g_edicts[first - g_edicts].sleep->can_sleep);
+    T_ASSERT(g_edicts[first - g_edicts].sleep->sleeping);
     T_EQ(g_edicts[first - g_edicts].collision, 42.5f);
     T_EQ(g_edicts[first - g_edicts].s.origin.x, 96.0f);
     T_EQ(g_edicts[first - g_edicts].s.origin.y, 128.0f);
@@ -3797,7 +3801,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(g_edicts[first - g_edicts].movement.follow_target == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].movement.explicit_allied_attack);
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
-    T_ASSERT(g_edicts[first - g_edicts].cargo.units[3] == &g_edicts[second - g_edicts]);
+    T_ASSERT(g_edicts[first - g_edicts].cargo->units[3] == &g_edicts[second - g_edicts]);
     T_STREQ(g_edicts[first - g_edicts].animation_props, "alternate,work");
     T_STREQ(g_edicts[first - g_edicts].animation_request, "stand ready");
     T_ASSERT(g_edicts[first - g_edicts].stand == unit_stand);
@@ -3904,7 +3908,30 @@ static field_t const *find_save_field_in(field_t const *schema, cstring_t name) 
     return NULL;
 }
 
-static field_t const *find_save_field(cstring_t name) { return find_save_field_in(edict_fields, name); }
+static savePool_t const *find_save_pool(cstring_t name) {
+    FOR_LOOP(i, sizeof(save_pools) / sizeof(save_pools[0])) {
+        size_t len = strlen(save_pools[i].name);
+        if (!strncmp(name, save_pools[i].name, len) &&
+            (name[len] == '.' || (name[len] == '-' && name[len + 1] == '>')))
+            return save_pools + i;
+    }
+    return NULL;
+}
+
+static field_t const *find_save_field(cstring_t name) {
+    savePool_t const *pool = find_save_pool(name);
+    if (!pool) return find_save_field_in(edict_fields, name);
+    size_t len = strlen(pool->name);
+    return find_save_field_in(pool->fields, name + len + (name[len] == '.' ? 1 : 2));
+}
+
+static void prepare_save_field(edict_t *unit, cstring_t name) {
+    savePool_t const *pool = find_save_pool(name);
+    if (pool && !SavePoolSlot(unit, pool)) {
+        void *slot = pool->alloc();
+        memcpy((uint8_t *)unit + pool->offset, &slot, sizeof(slot));
+    }
+}
 
 /* Keep every g_save.c edict schema entry independently covered so adding or removing a fixup cannot hide in a broad save. */
 #define SAVE_INT_FIELD_TEST(name, field, saved) \
@@ -3914,6 +3941,7 @@ TEST(wc3_save, name) { \
     reset_entities(); \
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_INT); T_EQ(desc->array_size, 0); } \
+    prepare_save_field(unit, #field); \
     unit->field = saved; \
     T_ASSERT(WriteGame(filename)); unit->field = 0; T_ASSERT(ReadGame(filename)); T_EQ(unit->field, saved); \
     remove(filename); \
@@ -3927,6 +3955,7 @@ TEST(wc3_save, name) { \
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
     edict_t *target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f); \
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, count); } \
+    prepare_save_field(unit, #field); \
     unit->field = target; \
     T_ASSERT(WriteGame(filename)); unit->field = NULL; T_ASSERT(ReadGame(filename)); T_ASSERT(unit->field == target); \
     unit->field = (edict_t *)((uint8_t *)g_edicts + 1); T_ASSERT(!WriteGame(filename)); \
@@ -3940,6 +3969,7 @@ TEST(wc3_save, name) { \
     reset_entities(); \
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_FLOAT); T_EQ(desc->array_size, 0); } \
+    prepare_save_field(unit, #field); \
     unit->field = saved; \
     T_ASSERT(WriteGame(filename)); unit->field = 0; T_ASSERT(ReadGame(filename)); T_FEQ(unit->field, saved, 0.001f); \
     remove(filename); \
@@ -3969,23 +3999,25 @@ TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     field_t const *desc = find_save_field("artillery");
     reset_entities();
     edict_t *projectile = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    projectile->artillery = (edictArtillery_t) { ATK_SIEGE, WC3_TARGET_FLAG_GROUND, WC3_TARGET_FLAG_GROUND,
+    if (!projectile->artillery) projectile->artillery = G_AllocArtillery();
+    assert(projectile->artillery);
+    *projectile->artillery = (artillery_t) { ATK_SIEGE, WC3_TARGET_FLAG_GROUND, WC3_TARGET_FLAG_GROUND,
                                                   40.0f, 80.0f, 120.0f, 0.5f, 0.25f };
-    T_NOT_NULL(desc); if (desc) T_EQ(desc->type, F_STRUCT);
-    T_ASSERT(WriteGame(filename)); memset(&projectile->artillery, 0, sizeof(projectile->artillery));
+    T_NOT_NULL(desc); if (desc) T_EQ(desc->type, F_IGNORE);
+    T_ASSERT(WriteGame(filename)); G_FreeArtillery(projectile);
     T_ASSERT(ReadGame(filename));
-    T_EQ(projectile->artillery.attack_type, ATK_SIEGE);
-    T_EQ(projectile->artillery.area_targets, WC3_TARGET_FLAG_GROUND);
-    T_FEQ(projectile->artillery.area_full, 40.0f, 0.001f);
-    T_FEQ(projectile->artillery.area_medium, 80.0f, 0.001f);
-    T_FEQ(projectile->artillery.area_small, 120.0f, 0.001f);
-    T_FEQ(projectile->artillery.factor_medium, 0.5f, 0.001f);
-    T_FEQ(projectile->artillery.factor_small, 0.25f, 0.001f);
+    T_EQ(projectile->artillery->attack_type, ATK_SIEGE);
+    T_EQ(projectile->artillery->area_targets, WC3_TARGET_FLAG_GROUND);
+    T_FEQ(projectile->artillery->area_full, 40.0f, 0.001f);
+    T_FEQ(projectile->artillery->area_medium, 80.0f, 0.001f);
+    T_FEQ(projectile->artillery->area_small, 120.0f, 0.001f);
+    T_FEQ(projectile->artillery->factor_medium, 0.5f, 0.001f);
+    T_FEQ(projectile->artillery->factor_small, 0.25f, 0.001f);
     remove(filename);
 }
 SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, autocast_code, MAKEFOURCC('A', 'h', 'e', 'a'))
-SAVE_INT_FIELD_TEST(field_channel_code_round_trip, channel.code, MAKEFOURCC('A', 'H', 'd', 'r'))
-SAVE_INT_FIELD_TEST(field_channel_serial_round_trip, channel.serial, 7)
+SAVE_INT_FIELD_TEST(field_channel_code_round_trip, channel->code, MAKEFOURCC('A', 'H', 'd', 'r'))
+SAVE_INT_FIELD_TEST(field_channel_serial_round_trip, channel->serial, 7)
 
 TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
     uint32_t const formats[] = { 24, 25 };
@@ -4005,20 +4037,22 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         shop = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
         level.stock.item_slots = 11;
         level.stock.unit_slots = 9;
-        shop->stock.item_slots = 11;
-        shop->stock.unit_slots = 9;
-        shop->stock.items_initialized = true;
-        shop->stock.item_count = 1;
-        shop->stock.items[0] = (edictShopStockItem_t){
+        if (!shop->stock) shop->stock = G_AllocStock();
+        assert(shop->stock);
+        shop->stock->item_slots = 11;
+        shop->stock->unit_slots = 9;
+        shop->stock->items_initialized = true;
+        shop->stock->item_count = 1;
+        shop->stock->items[0] = (shopStockItem_t){
             .id = MAKEFOURCC('s','p','r','o'),
             .current = 1,
             .maximum = 3,
             .delay_start = 5000,
             .delay_end = 65000,
         };
-        shop->stock.units_initialized = true;
-        shop->stock.unit_count = 1;
-        shop->stock.units[0] = (edictShopStockItem_t){
+        shop->stock->units_initialized = true;
+        shop->stock->unit_count = 1;
+        shop->stock->units[0] = (shopStockItem_t){
             .id = MAKEFOURCC('n','m','e','r'),
             .current = 0,
             .maximum = 2,
@@ -4027,12 +4061,12 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         };
 
         stock_desc = find_save_field("stock");
-        items_desc = find_save_field("stock.items");
-        units_desc = find_save_field("stock.units");
+        items_desc = find_save_field("stock->items");
+        units_desc = find_save_field("stock->units");
         T_NOT_NULL(stock_desc);
         T_NOT_NULL(items_desc);
         T_NOT_NULL(units_desc);
-        if (stock_desc) T_EQ(stock_desc->type, F_STRUCT);
+        if (stock_desc) T_EQ(stock_desc->type, F_IGNORE);
         if (items_desc) {
             T_EQ(items_desc->type, F_STRUCT);
             T_EQ(items_desc->array_size, MAX_SHOP_STOCK);
@@ -4045,51 +4079,50 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         T_ASSERT(WriteGame(filename));
         level.stock.item_slots = 0;
         level.stock.unit_slots = 0;
-        memset(&shop->stock, 0, sizeof(shop->stock));
+        G_FreeStock(shop);
         T_ASSERT(ReadGame(filename));
         T_EQ(level.stock.item_slots, 11);
         T_EQ(level.stock.unit_slots, 9);
-        T_EQ(shop->stock.item_slots, 11);
-        T_EQ(shop->stock.unit_slots, 9);
-        T_ASSERT(shop->stock.items_initialized);
-        T_EQ(shop->stock.item_count, 1);
-        T_EQ(shop->stock.items[0].id, MAKEFOURCC('s','p','r','o'));
-        T_EQ(shop->stock.items[0].current, 1);
-        T_EQ(shop->stock.items[0].maximum, 3);
-        T_EQ(shop->stock.items[0].delay_start, 5000);
-        T_EQ(shop->stock.items[0].delay_end, 65000);
-        T_ASSERT(shop->stock.units_initialized);
-        T_EQ(shop->stock.unit_count, 1);
-        T_EQ(shop->stock.units[0].id, MAKEFOURCC('n','m','e','r'));
-        T_EQ(shop->stock.units[0].current, 0);
-        T_EQ(shop->stock.units[0].maximum, 2);
-        T_EQ(shop->stock.units[0].delay_start, 9000);
-        T_EQ(shop->stock.units[0].delay_end, 14000);
+        T_EQ(shop->stock->item_slots, 11);
+        T_EQ(shop->stock->unit_slots, 9);
+        T_ASSERT(shop->stock->items_initialized);
+        T_EQ(shop->stock->item_count, 1);
+        T_EQ(shop->stock->items[0].id, MAKEFOURCC('s','p','r','o'));
+        T_EQ(shop->stock->items[0].current, 1);
+        T_EQ(shop->stock->items[0].maximum, 3);
+        T_EQ(shop->stock->items[0].delay_start, 5000);
+        T_EQ(shop->stock->items[0].delay_end, 65000);
+        T_ASSERT(shop->stock->units_initialized);
+        T_EQ(shop->stock->unit_count, 1);
+        T_EQ(shop->stock->units[0].id, MAKEFOURCC('n','m','e','r'));
+        T_EQ(shop->stock->units[0].current, 0);
+        T_EQ(shop->stock->units[0].maximum, 2);
+        T_EQ(shop->stock->units[0].delay_start, 9000);
+        T_EQ(shop->stock->units[0].delay_end, 14000);
         remove(filename);
     }
 }
-SAVE_INT_FIELD_TEST(field_channel_owner_spawn_round_trip, channel.owner_spawn_time, 200)
-SAVE_INT_FIELD_TEST(field_channel_target_spawn_round_trip, channel.target_spawn_time, 300)
-SAVE_INT_FIELD_TEST(field_avatar_level_round_trip, avatar.level, 2)
-SAVE_INT_FIELD_TEST(field_avatar_damage_round_trip, avatar.damage, 31)
-SAVE_FLOAT_FIELD_TEST(field_avatar_armor_round_trip, avatar.armor, 7.0f)
-SAVE_FLOAT_FIELD_TEST(field_avatar_health_round_trip, avatar.health, 600.0f)
-SAVE_FLOAT_FIELD_TEST(field_raven_height_round_trip, raven.fly_height, 125.0f)
+SAVE_INT_FIELD_TEST(field_channel_owner_spawn_round_trip, channel->owner_spawn_time, 200)
+SAVE_INT_FIELD_TEST(field_channel_target_spawn_round_trip, channel->target_spawn_time, 300)
+SAVE_INT_FIELD_TEST(field_avatar_level_round_trip, avatar->level, 2)
+SAVE_INT_FIELD_TEST(field_avatar_damage_round_trip, avatar->damage, 31)
+SAVE_FLOAT_FIELD_TEST(field_avatar_armor_round_trip, avatar->armor, 7.0f)
+SAVE_FLOAT_FIELD_TEST(field_avatar_health_round_trip, avatar->health, 600.0f)
+SAVE_FLOAT_FIELD_TEST(field_raven_height_round_trip, raven->fly_height, 125.0f)
 SAVE_FLOAT_FIELD_TEST(field_unitinfo_prop_window_round_trip, unitinfo.PropWindow, 37.5f)
 SAVE_FLOAT_FIELD_TEST(field_attack1_backswing_round_trip, attack1.backswingPoint, 0.35f)
 SAVE_FLOAT_FIELD_TEST(field_attack1_range_buffer_round_trip, attack1.rangeBuffer, 42.0f)
 SAVE_FLOAT_FIELD_TEST(field_attack2_backswing_round_trip, attack2.backswingPoint, 0.45f)
 SAVE_FLOAT_FIELD_TEST(field_attack2_range_buffer_round_trip, attack2.rangeBuffer, 84.0f)
-SAVE_FLOAT_FIELD_TEST(field_raven_start_round_trip, raven.rise_start, 1000.0f)
-SAVE_FLOAT_FIELD_TEST(field_raven_duration_round_trip, raven.rise_duration, 2.0f)
-SAVE_INT_FIELD_TEST(field_raven_state_round_trip, raven.rise_state, RAVEN_RISE_ACTIVE)
-SAVE_INT_FIELD_TEST(field_polymorph_ability_round_trip, polymorph.ability, MAKEFOURCC('A', 'p', 'l', 'y'))
-SAVE_INT_FIELD_TEST(field_polymorph_buff_round_trip, polymorph.buff, MAKEFOURCC('B', 'p', 'l', 'y'))
-SAVE_INT_FIELD_TEST(field_polymorph_form_type_round_trip, polymorph.form_type, MAKEFOURCC('o', 'p', 'e', 'o'))
-SAVE_INT_FIELD_TEST(field_polymorph_original_model_round_trip, polymorph.original_model, 37)
-SAVE_FLOAT_FIELD_TEST(field_polymorph_original_scale_round_trip, polymorph.original_scale, 1.35f)
-SAVE_FLOAT_FIELD_TEST(field_polymorph_original_move_speed_round_trip, polymorph.original_move_speed, 270.0f)
-SAVE_INT_FIELD_TEST(field_polymorph_active_round_trip, polymorph.active, 1)
+SAVE_FLOAT_FIELD_TEST(field_raven_start_round_trip, raven->rise_start, 1000.0f)
+SAVE_FLOAT_FIELD_TEST(field_raven_duration_round_trip, raven->rise_duration, 2.0f)
+SAVE_INT_FIELD_TEST(field_raven_state_round_trip, raven->rise_state, RAVEN_RISE_ACTIVE)
+SAVE_INT_FIELD_TEST(field_polymorph_ability_round_trip, polymorph->ability, MAKEFOURCC('A', 'p', 'l', 'y'))
+SAVE_INT_FIELD_TEST(field_polymorph_buff_round_trip, polymorph->buff, MAKEFOURCC('B', 'p', 'l', 'y'))
+SAVE_INT_FIELD_TEST(field_polymorph_form_type_round_trip, polymorph->form_type, MAKEFOURCC('o', 'p', 'e', 'o'))
+SAVE_INT_FIELD_TEST(field_polymorph_original_model_round_trip, polymorph->original_model, 37)
+SAVE_FLOAT_FIELD_TEST(field_polymorph_original_scale_round_trip, polymorph->original_scale, 1.35f)
+SAVE_FLOAT_FIELD_TEST(field_polymorph_original_move_speed_round_trip, polymorph->original_move_speed, 270.0f)
 SAVE_FLOAT_FIELD_TEST(field_temporary_health_bonus_round_trip, temporary_health_bonus, 600.0f)
 SAVE_FLOAT_FIELD_TEST(field_temporary_mana_bonus_round_trip, temporary_mana_bonus, 125.0f)
 SAVE_FLOAT_FIELD_TEST(field_animation_speed_round_trip, animation_speed, 0.5f)
@@ -4120,23 +4153,27 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
 
     setup_test_world(); reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    unit->blight_growth.ability = ability;
-    unit->blight_growth.radius = 146.0f;
-    unit->blight_growth.next_update = 12345;
-    unit->destructable.blighted = true;
+    if (!unit->blight_growth) unit->blight_growth = G_AllocBlightGrowth();
+    assert(unit->blight_growth);
+    unit->blight_growth->ability = ability;
+    unit->blight_growth->radius = 146.0f;
+    unit->blight_growth->next_update = 12345;
+    if (!unit->destructable) unit->destructable = G_AllocDestructable();
+    assert(unit->destructable);
+    unit->destructable->blighted = true;
     G_SetBlightPoint(&point, true);
     T_ASSERT(G_IsPointBlighted(&point));
     T_ASSERT(WriteGame(filename));
 
     G_SetBlightPoint(&point, false);
-    memset(&unit->blight_growth, 0, sizeof(unit->blight_growth));
-    unit->destructable.blighted = false;
+    G_FreeBlightGrowth(unit);
+    unit->destructable->blighted = false;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(G_IsPointBlighted(&point));
-    T_EQ(unit->blight_growth.ability, ability);
-    T_FEQ(unit->blight_growth.radius, 146.0f, 0.001f);
-    T_EQ(unit->blight_growth.next_update, 12345u);
-    T_ASSERT(unit->destructable.blighted);
+    T_EQ(unit->blight_growth->ability, ability);
+    T_FEQ(unit->blight_growth->radius, 146.0f, 0.001f);
+    T_EQ(unit->blight_growth->next_update, 12345u);
+    T_ASSERT(unit->destructable->blighted);
     remove(filename);
 }
 
@@ -4163,17 +4200,19 @@ TEST(wc3_save, field_origin_round_trip) {
     T_FEQ(unit->s.origin.z, 56.5f, 0.001f); remove(filename);
 }
 
-/* Movement cancellation must compare against the saved cast position after restoring a live channel. */
+/* Movement cancellation must compare against the saved cast position after restoring a live channel-> */
 TEST(wc3_save, field_channel_origin_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-channel-origin.bin";
-    field_t const *desc = find_save_field("channel.origin");
+    field_t const *desc = find_save_field("channel->origin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     T_NOT_NULL(desc);
     if (desc) T_EQ(desc->type, F_VECTOR);
-    unit->channel.origin = (vec2_t){ 12.5f, 34.5f };
-    T_ASSERT(WriteGame(filename)); unit->channel.origin = (vec2_t){0}; T_ASSERT(ReadGame(filename));
-    T_FEQ(unit->channel.origin.x, 12.5f, 0.001f); T_FEQ(unit->channel.origin.y, 34.5f, 0.001f);
+    if (!unit->channel) unit->channel = G_AllocChannel();
+    assert(unit->channel);
+    unit->channel->origin = (vec2_t){ 12.5f, 34.5f };
+    T_ASSERT(WriteGame(filename)); unit->channel->origin = (vec2_t){0}; T_ASSERT(ReadGame(filename));
+    T_FEQ(unit->channel->origin.x, 12.5f, 0.001f); T_FEQ(unit->channel->origin.y, 34.5f, 0.001f);
     remove(filename);
 }
 
@@ -4349,49 +4388,50 @@ TEST(wc3_save, construction_payment_round_trip) {
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
-    unit->construction.active = true;
-    unit->construction.type = CONSTRUCTION_ORC;
-    unit->construction.worker = worker;
-    unit->construction.worker_spawn_time = 1234;
-    unit->construction.worker_inside = true;
-    unit->construction.consumes_worker = true;
-    unit->construction.restore_invulnerable = true;
-    unit->construction.worker_release_time = 5678;
-    unit->construction.restore_paused = true;
-    unit->construction.restore_hidden = true;
-    unit->construction.paid = true;
-    unit->construction.payer = 3;
-    unit->construction.gold = 100;
-    unit->construction.lumber = 80;
+    if (!unit->construction) unit->construction = G_AllocConstruction();
+    assert(unit->construction);
+    unit->construction->type = CONSTRUCTION_ORC;
+    unit->construction->worker = worker;
+    unit->construction->worker_spawn_time = 1234;
+    unit->construction->worker_inside = true;
+    unit->construction->consumes_worker = true;
+    unit->construction->restore_invulnerable = true;
+    unit->construction->worker_release_time = 5678;
+    unit->construction->restore_paused = true;
+    unit->construction->restore_hidden = true;
+    unit->construction->paid = true;
+    unit->construction->payer = 3;
+    unit->construction->gold = 100;
+    unit->construction->lumber = 80;
 
     T_ASSERT(WriteGame(filename));
-    unit->construction.type = CONSTRUCTION_NONE;
-    unit->construction.worker = NULL;
-    unit->construction.worker_spawn_time = 0;
-    unit->construction.worker_inside = false;
-    unit->construction.consumes_worker = false;
-    unit->construction.restore_invulnerable = false;
-    unit->construction.restore_paused = false;
-    unit->construction.restore_hidden = false;
-    unit->construction.worker_release_time = 0;
-    unit->construction.paid = false;
-    unit->construction.payer = 0;
-    unit->construction.gold = 0;
-    unit->construction.lumber = 0;
+    unit->construction->type = CONSTRUCTION_NONE;
+    unit->construction->worker = NULL;
+    unit->construction->worker_spawn_time = 0;
+    unit->construction->worker_inside = false;
+    unit->construction->consumes_worker = false;
+    unit->construction->restore_invulnerable = false;
+    unit->construction->restore_paused = false;
+    unit->construction->restore_hidden = false;
+    unit->construction->worker_release_time = 0;
+    unit->construction->paid = false;
+    unit->construction->payer = 0;
+    unit->construction->gold = 0;
+    unit->construction->lumber = 0;
     T_ASSERT(ReadGame(filename));
-    T_EQ(unit->construction.type, CONSTRUCTION_ORC);
-    T_ASSERT(unit->construction.worker == worker);
-    T_EQ(unit->construction.worker_spawn_time, 1234);
-    T_ASSERT(unit->construction.worker_inside);
-    T_ASSERT(unit->construction.consumes_worker);
-    T_ASSERT(unit->construction.restore_invulnerable);
-    T_ASSERT(unit->construction.restore_paused);
-    T_ASSERT(unit->construction.restore_hidden);
-    T_EQ(unit->construction.worker_release_time, 5678);
-    T_ASSERT(unit->construction.paid);
-    T_EQ(unit->construction.payer, 3);
-    T_EQ(unit->construction.gold, 100);
-    T_EQ(unit->construction.lumber, 80);
+    T_EQ(unit->construction->type, CONSTRUCTION_ORC);
+    T_ASSERT(unit->construction->worker == worker);
+    T_EQ(unit->construction->worker_spawn_time, 1234);
+    T_ASSERT(unit->construction->worker_inside);
+    T_ASSERT(unit->construction->consumes_worker);
+    T_ASSERT(unit->construction->restore_invulnerable);
+    T_ASSERT(unit->construction->restore_paused);
+    T_ASSERT(unit->construction->restore_hidden);
+    T_EQ(unit->construction->worker_release_time, 5678);
+    T_ASSERT(unit->construction->paid);
+    T_EQ(unit->construction->payer, 3);
+    T_EQ(unit->construction->gold, 100);
+    T_EQ(unit->construction->lumber, 80);
     remove(filename);
 }
 
@@ -4404,80 +4444,88 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     overlay = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     acolyte = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
     parent->resources = 7777;
-    overlay->mineoverlay.parent = parent;
-    overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
-    overlay->mineoverlay.income_time = 12345;
-    overlay->mineoverlay.active_interval_index = 3;
-    overlay->mineoverlay.entangle_permanent_before = true;
-    acolyte->acolyte_mine.mine = overlay;
-    acolyte->acolyte_mine.mine_spawn_time = overlay->spawn_time;
-    acolyte->acolyte_mine.slot = 4;
+    if (!overlay->mineoverlay) overlay->mineoverlay = G_AllocMineOverlay();
+    assert(overlay->mineoverlay);
+    overlay->mineoverlay->parent = parent;
+    overlay->mineoverlay->parent_spawn_time = parent->spawn_time;
+    overlay->mineoverlay->income_time = 12345;
+    overlay->mineoverlay->active_interval_index = 3;
+    overlay->mineoverlay->entangle_permanent_before = true;
+    if (!acolyte->acolyte_mine) acolyte->acolyte_mine = G_AllocAcolyteMine();
+    assert(acolyte->acolyte_mine);
+    acolyte->acolyte_mine->mine = overlay;
+    acolyte->acolyte_mine->mine_spawn_time = overlay->spawn_time;
+    acolyte->acolyte_mine->slot = 4;
 
     T_ASSERT(WriteGame(filename));
-    overlay->mineoverlay.parent = NULL;
-    overlay->mineoverlay.parent_spawn_time = 0;
-    overlay->mineoverlay.income_time = 0;
-    overlay->mineoverlay.active_interval_index = 0;
-    overlay->mineoverlay.entangle_permanent_before = false;
-    acolyte->acolyte_mine.mine = NULL;
-    acolyte->acolyte_mine.mine_spawn_time = 0;
-    acolyte->acolyte_mine.slot = -1;
+    overlay->mineoverlay->parent = NULL;
+    overlay->mineoverlay->parent_spawn_time = 0;
+    overlay->mineoverlay->income_time = 0;
+    overlay->mineoverlay->active_interval_index = 0;
+    overlay->mineoverlay->entangle_permanent_before = false;
+    acolyte->acolyte_mine->mine = NULL;
+    acolyte->acolyte_mine->mine_spawn_time = 0;
+    acolyte->acolyte_mine->slot = -1;
     parent->resources = 0;
     T_ASSERT(ReadGame(filename));
 
-    T_ASSERT(overlay->mineoverlay.parent == parent);
-    T_EQ(overlay->mineoverlay.parent_spawn_time, parent->spawn_time);
-    T_EQ(overlay->mineoverlay.income_time, 12345);
-    T_EQ(overlay->mineoverlay.active_interval_index, 3);
-    T_ASSERT(overlay->mineoverlay.entangle_permanent_before);
-    T_ASSERT(acolyte->acolyte_mine.mine == overlay);
-    T_EQ(acolyte->acolyte_mine.mine_spawn_time, overlay->spawn_time);
-    T_EQ(acolyte->acolyte_mine.slot, 4);
+    T_ASSERT(overlay->mineoverlay->parent == parent);
+    T_EQ(overlay->mineoverlay->parent_spawn_time, parent->spawn_time);
+    T_EQ(overlay->mineoverlay->income_time, 12345);
+    T_EQ(overlay->mineoverlay->active_interval_index, 3);
+    T_ASSERT(overlay->mineoverlay->entangle_permanent_before);
+    T_ASSERT(acolyte->acolyte_mine->mine == overlay);
+    T_EQ(acolyte->acolyte_mine->mine_spawn_time, overlay->spawn_time);
+    T_EQ(acolyte->acolyte_mine->slot, 4);
     T_EQ(parent->resources, 7777);
     remove(filename);
 }
 
 TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-entangle-tree.bin";
-    field_t const *desc = find_save_field("mineoverlay.entangle_tree");
+    field_t const *desc = find_save_field("mineoverlay->entangle_tree");
     edict_t *overlay, *tree;
 
     reset_entities();
     tree = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
     overlay = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 0.0f);
-    overlay->mineoverlay.entangle_tree = tree;
-    overlay->mineoverlay.entangle_tree_spawn_time = tree->spawn_time;
+    if (!overlay->mineoverlay) overlay->mineoverlay = G_AllocMineOverlay();
+    assert(overlay->mineoverlay);
+    overlay->mineoverlay->entangle_tree = tree;
+    overlay->mineoverlay->entangle_tree_spawn_time = tree->spawn_time;
     T_NOT_NULL(desc);
     if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, 0); }
     T_ASSERT(WriteGame(filename));
-    overlay->mineoverlay.entangle_tree = NULL;
-    overlay->mineoverlay.entangle_tree_spawn_time = 0;
+    if (!overlay->mineoverlay) overlay->mineoverlay = G_AllocMineOverlay();
+    assert(overlay->mineoverlay);
+    overlay->mineoverlay->entangle_tree = NULL;
+    overlay->mineoverlay->entangle_tree_spawn_time = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT(overlay->mineoverlay.entangle_tree == tree);
-    T_EQ(overlay->mineoverlay.entangle_tree_spawn_time, tree->spawn_time);
+    T_ASSERT(overlay->mineoverlay->entangle_tree == tree);
+    T_EQ(overlay->mineoverlay->entangle_tree_spawn_time, tree->spawn_time);
 
     /* A recycled edict slot must not inherit the previous tree identity. */
     tree->spawn_time++;
-    T_ASSERT(overlay->mineoverlay.entangle_tree == tree);
-    T_NE(overlay->mineoverlay.entangle_tree_spawn_time, tree->spawn_time);
+    T_ASSERT(overlay->mineoverlay->entangle_tree == tree);
+    T_NE(overlay->mineoverlay->entangle_tree_spawn_time, tree->spawn_time);
     remove(filename);
 }
 
-SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction.primary_builder", construction.primary_builder, 0)
+SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction->primary_builder", construction->primary_builder, 0)
 SAVE_PTR_FIELD_TEST(creep_status_source_round_trip, "abilstatus.source", abilstatus[3].source, 0)
-SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction.worker", construction.worker, 0)
-SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally.entity", rally.entity, 0)
-SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival.producer", revival.producer, 0)
-SAVE_PTR_FIELD_TEST(field_revival_queue_next_round_trip, "revival.queue_next", revival.queue_next, 0)
-SAVE_PTR_FIELD_TEST(field_sacrifice_worker_round_trip, "sacrifice.worker", sacrifice.worker, 0)
-SAVE_PTR_FIELD_TEST(field_goldmine_round_trip, "goldmine.mine", goldmine.mine, 0)
-SAVE_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, "mineoverlay.parent", mineoverlay.parent, 0)
-SAVE_PTR_FIELD_TEST(field_mineoverlay_caster_round_trip, "mineoverlay.caster", mineoverlay.caster, 0)
-SAVE_PTR_FIELD_TEST(field_mineoverlay_entangle_tree_round_trip, "mineoverlay.entangle_tree", mineoverlay.entangle_tree, 0)
-SAVE_PTR_FIELD_TEST(field_acolyte_mine_round_trip, "acolyte_mine.mine", acolyte_mine.mine, 0)
+SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction->worker", construction->worker, 0)
+SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally->entity", rally->entity, 0)
+SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival->producer", revival->producer, 0)
+SAVE_PTR_FIELD_TEST(field_revival_queue_next_round_trip, "revival->queue_next", revival->queue_next, 0)
+SAVE_PTR_FIELD_TEST(field_sacrifice_worker_round_trip, "sacrifice->worker", sacrifice->worker, 0)
+SAVE_PTR_FIELD_TEST(field_goldmine_round_trip, "goldmine->mine", goldmine->mine, 0)
+SAVE_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, "mineoverlay->parent", mineoverlay->parent, 0)
+SAVE_PTR_FIELD_TEST(field_mineoverlay_caster_round_trip, "mineoverlay->caster", mineoverlay->caster, 0)
+SAVE_PTR_FIELD_TEST(field_mineoverlay_entangle_tree_round_trip, "mineoverlay->entangle_tree", mineoverlay->entangle_tree, 0)
+SAVE_PTR_FIELD_TEST(field_acolyte_mine_round_trip, "acolyte_mine->mine", acolyte_mine->mine, 0)
 SAVE_PTR_FIELD_TEST(field_inventory_round_trip, "inventory", inventory[3], MAX_INVENTORY)
-SAVE_PTR_FIELD_TEST(field_cargo_round_trip, "cargo.units", cargo.units[4], MAX_CARGO)
-SAVE_PTR_FIELD_TEST(field_item_carrier_round_trip, "item.carrier", item.carrier, 0)
+SAVE_PTR_FIELD_TEST(field_cargo_round_trip, "cargo->units", cargo->units[4], MAX_CARGO)
+SAVE_PTR_FIELD_TEST(field_item_carrier_round_trip, "item->carrier", item->carrier, 0)
 SAVE_PTR_FIELD_TEST(field_ground_next_round_trip, "ground_next", ground_next, 0)
 SAVE_PTR_FIELD_TEST(field_attackmove_waypoint_round_trip, "movement.attackmove_waypoint", movement.attackmove_waypoint, 0)
 SAVE_PTR_FIELD_TEST(field_move_wait_blocker_round_trip, "movement.wait_blocker", movement.wait_blocker, 0)
@@ -4492,16 +4540,16 @@ SAVE_PTR_FIELD_TEST(field_spell_item_round_trip, "spell_item", spell_item, 0)
 SAVE_PTR_FIELD_TEST(field_soul_trap_head_round_trip, "soul_trap_head", soul_trap_head, 0)
 SAVE_PTR_FIELD_TEST(field_soul_trap_carrier_round_trip, "soul_trap_carrier", soul_trap_carrier, 0)
 SAVE_PTR_FIELD_TEST(field_soul_trap_next_round_trip, "soul_trap_next", soul_trap_next, 0)
-SAVE_PTR_FIELD_TEST(field_item_pending_use_carrier_round_trip, "item.pending_use_carrier", item.pending_use_carrier, 0)
-SAVE_PTR_FIELD_TEST(field_item_soul_target_round_trip, "item.soul_target", item.soul_target, 0)
+SAVE_PTR_FIELD_TEST(field_item_pending_use_carrier_round_trip, "item->pending_use_carrier", item->pending_use_carrier, 0)
+SAVE_PTR_FIELD_TEST(field_item_soul_target_round_trip, "item->soul_target", item->soul_target, 0)
 SAVE_INT_FIELD_TEST(field_soul_trap_head_spawn_round_trip, soul_trap_head_spawn_time, 210)
 SAVE_INT_FIELD_TEST(field_soul_trap_carrier_spawn_round_trip, soul_trap_carrier_spawn_time, 220)
 SAVE_INT_FIELD_TEST(field_soul_trap_next_spawn_round_trip, soul_trap_next_spawn_time, 230)
 SAVE_INT_FIELD_TEST(field_soul_trapped_ability_added_round_trip, soul_trapped_ability_added, 1)
 SAVE_INT_FIELD_TEST(field_soul_possession_added_round_trip, soul_possession_added, 1)
-SAVE_INT_FIELD_TEST(field_item_pending_use_carrier_spawn_round_trip, item.pending_use_carrier_spawn_time, 240)
-SAVE_INT_FIELD_TEST(field_item_pending_use_slot_round_trip, item.pending_use_slot, 4)
-SAVE_INT_FIELD_TEST(field_item_soul_target_spawn_round_trip, item.soul_target_spawn_time, 250)
+SAVE_INT_FIELD_TEST(field_item_pending_use_carrier_spawn_round_trip, item->pending_use_carrier_spawn_time, 240)
+SAVE_INT_FIELD_TEST(field_item_pending_use_slot_round_trip, item->pending_use_slot, 4)
+SAVE_INT_FIELD_TEST(field_item_soul_target_spawn_round_trip, item->soul_target_spawn_time, 250)
 SAVE_PTR_FIELD_TEST(field_combat_entity_round_trip, "combatentity", combatentity, 0)
 SAVE_PTR_FIELD_TEST(field_secondary_goal_round_trip, "secondarygoal", secondarygoal, 0)
 SAVE_PTR_FIELD_TEST(field_owner_round_trip, "owner", owner, 0)
@@ -4523,7 +4571,9 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     carrier->soul_trap_head = target; carrier->soul_trap_head_spawn_time = target->spawn_time;
     target->soul_trap_carrier = carrier; target->soul_trap_carrier_spawn_time = carrier->spawn_time;
     target->soul_trap_item = filled; target->soul_trap_item_spawn_time = filled->spawn_time;
-    filled->item.soul_target = target; filled->item.soul_target_spawn_time = target->spawn_time;
+    if (!filled->item) filled->item = G_AllocItem();
+    assert(filled->item);
+    filled->item->soul_target = target; filled->item->soul_target_spawn_time = target->spawn_time;
     G_AddUnitForcedVisibility(carrier, target->s.player);
     target->aiflags |= AI_SOUL_TRAPPED;
     target->s.renderfx |= RF_HIDDEN; target->svflags |= SVF_NOCLIENT; target->s.flags |= EF_NOT_SELECTABLE;
@@ -4532,7 +4582,7 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     carrier->soul_trap_head = NULL; carrier->soul_trap_head_spawn_time = 0;
     target->soul_trap_carrier = NULL; target->soul_trap_carrier_spawn_time = 0;
     target->soul_trap_item = NULL; target->soul_trap_item_spawn_time = 0;
-    filled->item.soul_target = NULL; filled->item.soul_target_spawn_time = 0;
+    filled->item->soul_target = NULL; filled->item->soul_target_spawn_time = 0;
     carrier->forced_visibility_count[1] = 0;
     target->aiflags = 0; target->s.renderfx = 0; target->svflags = 0; target->s.flags = 0;
     T_ASSERT(ReadGame(filename));
@@ -4542,8 +4592,8 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     T_EQ(target->soul_trap_carrier_spawn_time, carrier->spawn_time);
     T_ASSERT(target->soul_trap_item == filled);
     T_EQ(target->soul_trap_item_spawn_time, filled->spawn_time);
-    T_ASSERT(filled->item.soul_target == target);
-    T_EQ(filled->item.soul_target_spawn_time, target->spawn_time);
+    T_ASSERT(filled->item->soul_target == target);
+    T_EQ(filled->item->soul_target_spawn_time, target->spawn_time);
     T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);
     T_ASSERT(target->s.renderfx & RF_HIDDEN);
     T_ASSERT(!M_IsDead(target));
@@ -4557,15 +4607,19 @@ TEST(wc3_save, clears_nested_process_owned_fields) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-nested-runtime.bin";
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    unit->militia.partner = (edict_t *)(uintptr_t)1;
-    unit->destructable.drop_sets = (droppableItemSet_t *)(uintptr_t)1;
-    ARRAY_COUNT(unit->destructable.drop_sets) = 7;
+    if (!unit->militia) unit->militia = G_AllocMilitia();
+    assert(unit->militia);
+    unit->militia->partner = (edict_t *)(uintptr_t)1;
+    if (!unit->destructable) unit->destructable = G_AllocDestructable();
+    assert(unit->destructable);
+    unit->destructable->drop_sets = (droppableItemSet_t *)(uintptr_t)1;
+    ARRAY_COUNT(unit->destructable->drop_sets) = 7;
     T_ASSERT(WriteGame(filename));
-    unit->militia.partner = NULL; unit->destructable.drop_sets = NULL;
-    ARRAY_COUNT(unit->destructable.drop_sets) = 0;
+    unit->militia->partner = NULL; unit->destructable->drop_sets = NULL;
+    ARRAY_COUNT(unit->destructable->drop_sets) = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT(!unit->militia.partner && !unit->destructable.drop_sets);
-    T_EQ(ARRAY_COUNT(unit->destructable.drop_sets), 0);
+    T_ASSERT((!unit->militia || !unit->militia->partner) && (!unit->destructable || !unit->destructable->drop_sets));
+    T_EQ(ARRAY_COUNT(unit->destructable->drop_sets), 0);
     remove(filename);
 }
 
@@ -4640,11 +4694,15 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     unit->permanent_invisibility_reveal_until = 97531;
     unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
     chain->think = chain_lightning_think; chain->owner = unit; chain->class_id = MAKEFOURCC('A', 'O', 'c', 'l');
-    chain->channel.owner_spawn_time = unit->spawn_time;
+    if (!chain->channel) chain->channel = G_AllocChannel();
+    assert(chain->channel);
+    chain->channel->owner_spawn_time = unit->spawn_time;
     chain->s.origin2 = (vec2_t){ 321.0f, 654.0f }; chain->collision = 500.0f; chain->wait = 45.0f;
     chain->velocity = 0.9f; chain->resources = 3; chain->freetime = 4321;
     chain_marker->class_id = MAKEFOURCC('C', 'L', 'v', 's'); chain_marker->svflags |= SVF_NOCLIENT;
-    chain_marker->owner = chain; chain_marker->channel.owner_spawn_time = chain->spawn_time;
+    if (!chain_marker->channel) chain_marker->channel = G_AllocChannel();
+    assert(chain_marker->channel);
+    chain_marker->owner = chain; chain_marker->channel->owner_spawn_time = chain->spawn_time;
     chain_marker->goalentity = mine; chain_marker->resources = mine->spawn_time;
     T_ASSERT(WriteGame(filename));
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
@@ -4652,7 +4710,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     cargo_approach->think = cannibalize_approach->think = monster_think;
     land_mine->think = death_aoe->think = monster_think;
     chain->resources = chain->freetime = 0;
-    chain_marker->class_id = chain_marker->svflags = chain_marker->channel.owner_spawn_time = chain_marker->resources = 0;
+    chain_marker->class_id = chain_marker->svflags = chain_marker->channel->owner_spawn_time = chain_marker->resources = 0;
     chain_marker->owner = chain_marker->goalentity = NULL;
     unit->permanent_invisibility_reveal_until = 0; unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
     unit->stand = mine->stand = idle->stand = tree->stand = NULL;
@@ -4678,13 +4736,13 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_EQ(far_sight->spawn_time, 9876);
     T_ASSERT(chain->think == chain_lightning_think && chain->owner == unit);
     T_EQ(chain->class_id, MAKEFOURCC('A', 'O', 'c', 'l'));
-    T_EQ(chain->channel.owner_spawn_time, unit->spawn_time);
+    T_EQ(chain->channel->owner_spawn_time, unit->spawn_time);
     T_FEQ(chain->s.origin2.x, 321.0f, 0.001f); T_FEQ(chain->s.origin2.y, 654.0f, 0.001f);
     T_FEQ(chain->collision, 500.0f, 0.001f); T_FEQ(chain->wait, 45.0f, 0.001f);
     T_FEQ(chain->velocity, 0.9f, 0.001f); T_EQ(chain->resources, 3); T_EQ(chain->freetime, 4321);
     T_EQ(chain_marker->class_id, MAKEFOURCC('C', 'L', 'v', 's')); T_ASSERT(chain_marker->svflags & SVF_NOCLIENT);
     T_ASSERT(chain_marker->owner == chain && chain_marker->goalentity == mine);
-    T_EQ(chain_marker->channel.owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
+    T_EQ(chain_marker->channel->owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
     remove(filename);
 }
 

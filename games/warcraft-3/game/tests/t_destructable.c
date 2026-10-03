@@ -151,10 +151,11 @@ static edict_t *make_test_destructable(float life, float x, float y) {
     ent->targtype = TARG_DEBRIS;
     ent->health.value = life;
     ent->health.max_value = life;
-    ent->destructable.initialized = true;
-    ent->destructable.placement_solid = true;
-    ent->destructable.alive_collision = 1.0f;
-    ent->destructable.pathing_active = true;
+    if (!ent->destructable) ent->destructable = G_AllocDestructable();
+    assert(ent->destructable);
+    ent->destructable->placement_solid = true;
+    ent->destructable->alive_collision = 1.0f;
+    ent->destructable->pathing_active = true;
     ent->collision = 1.0f;
     return ent;
 }
@@ -169,14 +170,14 @@ TEST(wc3_destructable, blight_presentation_is_initial_and_one_way) {
     T_ASSERT(G_IsPointBlighted(&point));
     T_ASSERT(G_IsDestructable(tree));
     G_BlightInitializeDestructable(tree);
-    T_ASSERT(tree->destructable.blighted);
+    T_ASSERT(tree->destructable->blighted);
     T_ASSERT(tree->vertex_color_set);
     T_EQ(tree->vertex_color.r, 120);
     T_EQ(tree->vertex_color.g, 185);
     T_EQ(tree->vertex_color.b, 72);
     T_EQ(tree->vertex_color.a, 255);
     G_SetBlightPoint(&point, false);
-    T_ASSERT(tree->destructable.blighted);
+    T_ASSERT(tree->destructable->blighted);
 }
 
 static edict_t *make_destructable_test_attacker(float x, float y) {
@@ -259,9 +260,9 @@ TEST(wc3_destructable, placement_applies_life_flags_and_editor_id) {
     G_InitializeDestructablePlacement(dest, &placement);
 
     T_FEQ(dest->health.value, 80.0f, 0.01f);
-    T_EQ(dest->destructable.editor_id, 12345);
-    T_ASSERT(dest->destructable.placement_solid);
-    T_ASSERT(dest->destructable.pathing_active);
+    T_EQ(dest->destructable->editor_id, 12345);
+    T_ASSERT(dest->destructable->placement_solid);
+    T_ASSERT(dest->destructable->pathing_active);
     T_ASSERT(!(dest->s.renderfx & RF_HIDDEN));
     T_ASSERT(G_DestructableIsAttackable(dest));
 }
@@ -274,8 +275,8 @@ TEST(wc3_destructable, hidden_nonsolid_placement_is_not_targetable) {
 
     T_ASSERT(dest->s.renderfx & RF_HIDDEN);
     T_ASSERT(dest->s.flags & EF_NOT_SELECTABLE);
-    T_ASSERT(!dest->destructable.placement_solid);
-    T_ASSERT(!dest->destructable.pathing_active);
+    T_ASSERT(!dest->destructable || !dest->destructable->placement_solid);
+    T_ASSERT(!dest->destructable || !dest->destructable->pathing_active);
     T_ASSERT(!G_DestructableIsAttackable(dest));
 }
 
@@ -294,8 +295,8 @@ TEST(wc3_destructable, generated_script_reuses_and_activates_hidden_placement) {
 
     T_ASSERT(created == dest);
     T_EQ(globals.num_edicts, count);
-    T_ASSERT(dest->destructable.script_bound);
-    T_ASSERT(dest->destructable.placement_solid);
+    T_ASSERT(dest->destructable->script_bound);
+    T_ASSERT(dest->destructable->placement_solid);
     T_ASSERT(!(dest->s.renderfx & (RF_HIDDEN | RF_NO_SHADOW)));
     T_ASSERT(!(dest->s.flags & EF_NOT_SELECTABLE));
     T_FEQ(dest->health.value, dest->health.max_value, 0.01f);
@@ -318,13 +319,13 @@ TEST(wc3_destructable, instant_kill_cheat_makes_gate_damage_lethal) {
 
     dest->s.renderfx |= RF_HIDDEN;
     T_Damage(dest, attacker, 1);
-    T_ASSERT(!dest->destructable.dead);
+    T_ASSERT(!dest->destructable || !dest->destructable->dead);
     T_FEQ(dest->health.value, 499.0f, 0.01f);
 
     dest->s.renderfx &= ~RF_HIDDEN;
     T_Damage(dest, attacker, 1);
 
-    T_ASSERT(dest->destructable.dead);
+    T_ASSERT(dest->destructable->dead);
     T_FEQ(dest->health.value, 0.0f, 0.01f);
 }
 
@@ -335,7 +336,7 @@ TEST(wc3_destructable, lethal_damage_does_not_require_die_callback) {
     dest->die = NULL;
     T_Damage(dest, attacker, 25);
 
-    T_ASSERT(dest->destructable.dead);
+    T_ASSERT(dest->destructable->dead);
     T_FEQ(dest->health.value, 0.0f, 0.01f);
     T_ASSERT(dest->svflags & SVF_DEADMONSTER);
     T_ASSERT(dest->s.flags & EF_NOT_SELECTABLE);
@@ -461,11 +462,13 @@ TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {
 
     setup_test_pathmap(8, 8, cells);
     dest = make_test_destructable(10.0f, center.x, center.y);
-    dest->destructable.death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
+    if (!dest->destructable) dest->destructable = G_AllocDestructable();
+    assert(dest->destructable);
+    dest->destructable->death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
 
     G_KillDestructable(dest, NULL);
 
-    T_ASSERT(dest->destructable.pathing_active);
+    T_ASSERT(dest->destructable->pathing_active);
     T_ASSERT(dest->pathtex == (pathTex_t *)&destructable_blocked_death_pathtex);
     T_ASSERT(!CM_PointIsPathableForRadius(&center, 0.0f));
 }
@@ -643,10 +646,12 @@ TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
     setup_test_pathmap(8, 8, cells);
     bridge = make_test_destructable(10.0f, center.x, center.y);
     bridge->data.DestructableData = &bridge_data;
-    bridge->destructable.alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
-    bridge->destructable.death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
-    bridge->pathtex = bridge->destructable.alive_pathtex;
-    bridge->collision = bridge->destructable.alive_collision = 32.0f;
+    if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
+    assert(bridge->destructable);
+    bridge->destructable->alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
+    bridge->destructable->death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
+    bridge->pathtex = bridge->destructable->alive_pathtex;
+    bridge->collision = bridge->destructable->alive_collision = 32.0f;
     /* Start on the clear deck lane; approaching from x=2 would cross the
      * authored rail at x=3 and should correctly be rejected. */
     unit = make_destructable_test_attacker(center.x, center.y - 1.0f);
@@ -679,8 +684,10 @@ TEST(wc3_destructable, alive_walkable_bridge_preserves_clear_padding_outside_rai
     setup_test_pathmap(9, 7, cells);
     bridge = make_test_destructable(10.0f, center.x, center.y);
     bridge->data.DestructableData = &bridge_data;
-    bridge->destructable.alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
-    bridge->pathtex = bridge->destructable.alive_pathtex;
+    if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
+    assert(bridge->destructable);
+    bridge->destructable->alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
+    bridge->pathtex = bridge->destructable->alive_pathtex;
     bridge->targtype = TARG_BRIDGE;
     bridge->s.angle = (float)M_PI / 2.0f;
 
@@ -719,7 +726,9 @@ TEST(wc3_destructable, human06_bridge_fixtures_cross_from_both_sides) {
         bridge->s.class_id = fixture->id;
         bridge->s.origin2 = (vec2_t){ 0.0f, 0.0f };
         bridge->data.DestructableData = &bridge_data;
-        bridge->destructable.alive_pathtex = (pathTex_t *)&pathtex;
+        if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
+        assert(bridge->destructable);
+        bridge->destructable->alive_pathtex = (pathTex_t *)&pathtex;
         bridge->pathtex = (pathTex_t *)&pathtex;
         bridge->targtype = TARG_BRIDGE;
         G_RegisterGroundSurface(bridge);
@@ -759,7 +768,9 @@ TEST(wc3_destructable, human06_yt20_runtime_bridge_crosses_north_to_south) {
     bridge = make_test_destructable(2500.0f, 0.0f, 0.0f);
     bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0'); bridge->s.class_id = bridge->class_id;
     bridge->s.origin2 = (vec2_t){ 0.0f, 0.0f }; bridge->data.DestructableData = &bridge_data;
-    bridge->destructable.alive_pathtex = (pathTex_t *)&pathtex; bridge->pathtex = (pathTex_t *)&pathtex;
+    if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
+    assert(bridge->destructable);
+    bridge->destructable->alive_pathtex = (pathTex_t *)&pathtex; bridge->pathtex = (pathTex_t *)&pathtex;
     bridge->targtype = TARG_BRIDGE; G_RegisterGroundSurface(bridge); CM_BakeStaticObstacles();
 
     T_ASSERT(CM_PointIsPathableForRadius(&deck, 0.0f));
@@ -787,7 +798,9 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
         bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0'); bridge->s.class_id = bridge->class_id;
         bridge->s.origin2 = (vec2_t){ 0.0f, 0.0f }; bridge->s.angle = angle * (float)M_PI / 2.0f;
         bridge->data.DestructableData = &bridge_data;
-        bridge->destructable.alive_pathtex = (pathTex_t *)&pathtex; bridge->pathtex = (pathTex_t *)&pathtex;
+        if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
+        assert(bridge->destructable);
+        bridge->destructable->alive_pathtex = (pathTex_t *)&pathtex; bridge->pathtex = (pathTex_t *)&pathtex;
         bridge->targtype = TARG_BRIDGE; G_RegisterGroundSurface(bridge); CM_BakeStaticObstacles();
         transform = CM_GetPathTexTransform(bridge);
 
@@ -813,7 +826,9 @@ TEST(wc3_destructable, gate_path_texture_rotation_covers_all_quarter_turns) {
         gate->class_id = MAKEFOURCC('D', 'T', 'g', '3');
         gate->s.class_id = gate->class_id;
         gate->s.angle = angle * (float)M_PI / 2.0f;
-        gate->destructable.alive_pathtex = (pathTex_t *)&pathtex;
+        if (!gate->destructable) gate->destructable = G_AllocDestructable();
+        assert(gate->destructable);
+        gate->destructable->alive_pathtex = (pathTex_t *)&pathtex;
         gate->pathtex = (pathTex_t *)&pathtex;
 
         transform = CM_GetPathTexTransform(gate);
@@ -851,7 +866,9 @@ TEST(wc3_destructable, non_gate_path_texture_orientation_follows_facing_in_pathi
         elevator->s.class_id = elevator->class_id;
         elevator->s.origin2 = center;
         elevator->s.angle = angle * (float)M_PI / 2.0f;
-        elevator->destructable.alive_pathtex = (pathTex_t *)&pathtex;
+        if (!elevator->destructable) elevator->destructable = G_AllocDestructable();
+        assert(elevator->destructable);
+        elevator->destructable->alive_pathtex = (pathTex_t *)&pathtex;
         elevator->pathtex = (pathTex_t *)&pathtex;
 
         CM_BakeStaticObstacles();
@@ -926,10 +943,10 @@ TEST(wc3_destructable, placement_retains_inline_drop_sets) {
 
     G_InitializeDestructablePlacement(dest, &placement);
 
-    T_ASSERT(dest->destructable.drop_sets == sets);
-    T_EQ(ARRAY_COUNT(dest->destructable.drop_sets), 1);
-    T_EQ(dest->destructable.item_table, (uint32_t)-1);
-    T_ASSERT(!dest->destructable.loot_processed);
+    T_ASSERT(dest->destructable->drop_sets == sets);
+    T_EQ(ARRAY_COUNT(dest->destructable->drop_sets), 1);
+    T_EQ(dest->destructable->item_table, (uint32_t)-1);
+    T_ASSERT(!dest->destructable || !dest->destructable->loot_processed);
 }
 
 TEST(wc3_destructable, weighted_inline_drop_selection_honors_boundaries_and_remainder) {
@@ -982,11 +999,11 @@ TEST(wc3_destructable, death_spawns_each_inline_result_once_as_world_item) {
     T_EQ(first->class_id, first_entries[0].itemID);
     T_EQ(second->class_id, second_entries[0].itemID);
     T_ASSERT(G_IsItem(first) && G_IsItem(second));
-    T_ASSERT(first->item.in_world && second->item.in_world);
+    T_ASSERT(first->item->in_world && second->item->in_world);
     T_EQ(first->s.player, PLAYER_NEUTRAL_PASSIVE);
     T_EQ(second->s.player, PLAYER_NEUTRAL_PASSIVE);
     T_ASSERT(Vector2_distance(&first->s.origin2, &second->s.origin2) > 0.0f);
-    T_ASSERT(dest->destructable.loot_processed);
+    T_ASSERT(dest->destructable->loot_processed);
 
     T_ASSERT(!G_KillDestructable(dest, NULL));
     G_SpawnDestructableLoot(dest);
@@ -1017,7 +1034,7 @@ TEST(wc3_destructable, empty_probability_remainder_spawns_no_item) {
 
     T_ASSERT(G_KillDestructable(dest, NULL));
     T_EQ(globals.num_edicts, before);
-    T_ASSERT(dest->destructable.loot_processed);
+    T_ASSERT(dest->destructable->loot_processed);
 }
 
 TEST(wc3_destructable, weighted_random_table_selection_honors_boundaries_and_remainder) {
@@ -1115,7 +1132,7 @@ TEST(wc3_destructable, missing_random_item_table_spawns_nothing) {
 
     T_ASSERT(G_KillDestructable(dest, NULL));
     T_EQ(globals.num_edicts, before);
-    T_ASSERT(dest->destructable.loot_processed);
+    T_ASSERT(dest->destructable->loot_processed);
 }
 
 TEST(wc3_destructable, empty_encoded_and_invalid_table_entries_spawn_nothing) {
@@ -1154,15 +1171,15 @@ TEST(wc3_destructable, empty_encoded_and_invalid_table_entries_spawn_nothing) {
 
     T_ASSERT(G_KillDestructable(dest, NULL));
     T_EQ(globals.num_edicts, before);
-    T_ASSERT(dest->destructable.loot_processed);
+    T_ASSERT(dest->destructable->loot_processed);
 }
 
 TEST(wc3_destructable, silent_dead_state_has_no_event_or_loot) {
     edict_t *dest = make_test_destructable(100.0f, 0.0f, 0.0f);
 
     T_ASSERT(G_SetDestructableDeadState(dest, false));
-    T_ASSERT(dest->destructable.dead);
-    T_ASSERT(dest->destructable.loot_processed);
+    T_ASSERT(dest->destructable->dead);
+    T_ASSERT(dest->destructable->loot_processed);
     T_EQ(level.events.write, 0);
     T_FEQ(dest->health.value, 0.0f, 0.01f);
 }
@@ -1173,12 +1190,12 @@ TEST(wc3_destructable, restore_reenables_targeting_pathing_and_second_death) {
 
     T_ASSERT(G_KillDestructable(dest, attacker));
     T_ASSERT(G_RestoreDestructable(dest, 150.0f, true));
-    T_ASSERT(!dest->destructable.dead);
-    T_ASSERT(!dest->destructable.loot_processed);
+    T_ASSERT(!dest->destructable || !dest->destructable->dead);
+    T_ASSERT(!dest->destructable || !dest->destructable->loot_processed);
     T_ASSERT(!(dest->svflags & SVF_DEADMONSTER));
     T_ASSERT(!(dest->s.flags & EF_NOT_SELECTABLE));
     T_ASSERT(!(dest->s.renderfx & RF_NO_SHADOW));
-    T_ASSERT(dest->destructable.pathing_active);
+    T_ASSERT(dest->destructable->pathing_active);
     T_ASSERT(G_DestructableIsAttackable(dest));
     T_FEQ(dest->health.value, 100.0f, 0.01f);
     T_NOT_NULL(dest->currentmove);
@@ -1193,12 +1210,12 @@ TEST(wc3_destructable, set_life_uses_death_and_restore_transitions) {
     edict_t *dest = make_test_destructable(100.0f, 0.0f, 0.0f);
 
     T_ASSERT(G_SetDestructableLife(dest, 0.0f));
-    T_ASSERT(dest->destructable.dead);
+    T_ASSERT(dest->destructable->dead);
     T_EQ(level.events.write, 1);
     T_NULL(level.events.queue[0].source);
 
     T_ASSERT(G_SetDestructableLife(dest, 40.0f));
-    T_ASSERT(!dest->destructable.dead);
+    T_ASSERT(!dest->destructable || !dest->destructable->dead);
     T_FEQ(dest->health.value, 40.0f, 0.01f);
     T_STREQ(dest->currentmove->animation, "stand");
     T_EQ(level.events.write, 1);
@@ -1269,8 +1286,8 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
     }
 
     T_NOT_NULL(dest);
-    T_ASSERT(dest->destructable.dead);
-    T_ASSERT(dest->destructable.loot_processed);
+    T_ASSERT(dest->destructable->dead);
+    T_ASSERT(dest->destructable->loot_processed);
     T_FEQ(dest->health.value, 0.0f, 0.01f);
     T_EQ(level.events.write, 1);
 
@@ -1412,7 +1429,7 @@ TEST(wc3_destructable, orc07_gemstone_restores_named_bridge) {
         }
     }
     T_NOT_NULL(bridge);
-    T_ASSERT(!bridge->destructable.dead);
+    T_ASSERT(!bridge->destructable || !bridge->destructable->dead);
     T_ASSERT(G_DestructableIsWalkable(bridge));
     T_FEQ(bridge->health.value, 2500.0f, 0.01f);
     G_SetSLKRows("DestructableData", saved);

@@ -83,13 +83,13 @@ bool S_SpellDamage(edict_t *target, edict_t *caster, int damage) {
 
 /* Retail removes the stored deltas and clamps current health instead of subtracting it. */
 void S_AvatarExpire(edict_t *unit) {
-    if (!unit || !unit->avatar.level) return;
-    G_ApplyTemporaryArmorBonus(unit, -unit->avatar.armor);
-    G_ApplyTemporaryAttackDamageBonus(unit, -(float)unit->avatar.damage);
-    unit->temporary_health_bonus -= unit->avatar.health;
-    unit->health.max_value = MAX(1.0f, unit->health.max_value - unit->avatar.health);
+    if (!unit || !unit->avatar || !unit->avatar->level) return;
+    G_ApplyTemporaryArmorBonus(unit, -unit->avatar->armor);
+    G_ApplyTemporaryAttackDamageBonus(unit, -(float)unit->avatar->damage);
+    unit->temporary_health_bonus -= unit->avatar->health;
+    unit->health.max_value = MAX(1.0f, unit->health.max_value - unit->avatar->health);
     G_SetHealth(unit, MIN(unit->health.value, unit->health.max_value));
-    memset(&unit->avatar, 0, sizeof(unit->avatar));
+    G_FreeAvatar(unit);
     human_remove_status(unit, BZ_AVATAR_BUFF);
     G_AddUnitAnimationProperties(unit, "alternate", false); G_InvalidateUnitInfoPanel(unit);
 }
@@ -99,7 +99,7 @@ static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t
     (void)spell;
     uint32_t slots = 0;
     (void)target; unit_updatestatuses(caster);
-    if (!S_SpellIsAliveTarget(caster) || caster->avatar.level) return false;
+    if (!S_SpellIsAliveTarget(caster) || (caster->avatar && caster->avatar->level)) return false;
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (!caster->abilstatus[i].level) slots++;
     if (slots >= 1) return true;
@@ -110,18 +110,20 @@ static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t
 static void avatar_execute(edict_t *caster, spellTarget_t target, abilityitem_t const *spell) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
     (void)target;
-    if (caster->avatar.level) return;
+    if ((caster->avatar && caster->avatar->level)) return;
     unit_addtimedstatus(caster, "BHav", rank, S_SpellDuration(spell->code, rank, false));
     if (!G_UnitStatusLevel(caster, BZ_AVATAR_BUFF)) {
         fprintf(stderr, "WC3 Avatar: failed to allocate BHav status\n"); return;
     }
-    caster->avatar.level = rank; caster->avatar.armor = S_SpellData(spell->code, rank, 1);
-    caster->avatar.health = S_SpellData(spell->code, rank, 2); caster->avatar.damage = (int32_t)S_SpellData(spell->code, rank, 3);
-    G_ApplyTemporaryArmorBonus(caster, caster->avatar.armor);
-    G_ApplyTemporaryAttackDamageBonus(caster, (float)caster->avatar.damage);
-    caster->temporary_health_bonus += caster->avatar.health;
-    caster->health.max_value = MAX(1.0f, caster->health.max_value + caster->avatar.health);
-    G_SetHealth(caster, MIN(caster->health.max_value, caster->health.value + MAX(0.0f, caster->avatar.health)));
+    if (!caster->avatar) caster->avatar = G_AllocAvatar();
+    assert(caster->avatar);
+    caster->avatar->level = rank; caster->avatar->armor = S_SpellData(spell->code, rank, 1);
+    caster->avatar->health = S_SpellData(spell->code, rank, 2); caster->avatar->damage = (int32_t)S_SpellData(spell->code, rank, 3);
+    G_ApplyTemporaryArmorBonus(caster, caster->avatar->armor);
+    G_ApplyTemporaryAttackDamageBonus(caster, (float)caster->avatar->damage);
+    caster->temporary_health_bonus += caster->avatar->health;
+    caster->health.max_value = MAX(1.0f, caster->health.max_value + caster->avatar->health);
+    G_SetHealth(caster, MIN(caster->health.max_value, caster->health.value + MAX(0.0f, caster->avatar->health)));
     G_AddUnitAnimationProperties(caster, "alternate", true); G_InvalidateUnitInfoPanel(caster);
 }
 
@@ -217,9 +219,9 @@ static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_
     st.entity->s.renderfx |= RF_HIDDEN;
 }
 
-/* Expose the authoritative runtime flag used by order validation and JASS. */
+/* Record presence is the authoritative Polymorph state for orders and JASS. */
 bool S_UnitPolymorphed(edict_t const *unit) {
-    return unit && unit->polymorph.active;
+    return unit && unit->polymorph;
 }
 
 /* Select the authored Ply2-Ply5 form from the target's movement class. */
@@ -271,11 +273,11 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
 void S_PolymorphRemove(edict_t *unit) {
     gameClient_t *client;
 
-    if (!unit || !unit->polymorph.active) return;
-    unit->s.model = unit->polymorph.original_model;
-    unit->s.scale = unit->polymorph.original_scale;
-    unit->unitinfo.MoveSpeed = unit->polymorph.original_move_speed;
-    memset(&unit->polymorph, 0, sizeof(unit->polymorph));
+    if (!unit || !unit->polymorph) return;
+    unit->s.model = unit->polymorph->original_model;
+    unit->s.scale = unit->polymorph->original_scale;
+    unit->unitinfo.MoveSpeed = unit->polymorph->original_move_speed;
+    G_FreePolymorph(unit);
     unit->animation = NULL;
     if (!M_IsDead(unit)) {
         G_ClearUnitOrderQueue(unit);
@@ -335,15 +337,17 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
         return;
     }
 
-    if (!st.entity->polymorph.active) {
-        st.entity->polymorph.original_model = st.entity->s.model;
-        st.entity->polymorph.original_scale = st.entity->s.scale;
-        st.entity->polymorph.original_move_speed = st.entity->unitinfo.MoveSpeed;
+    if (!st.entity->polymorph) {
+        st.entity->polymorph = G_AllocPolymorph();
+        assert(st.entity->polymorph);
+        st.entity->polymorph->original_model = st.entity->s.model;
+        st.entity->polymorph->original_scale = st.entity->s.scale;
+        st.entity->polymorph->original_move_speed = st.entity->unitinfo.MoveSpeed;
     }
-    st.entity->polymorph.active = true;
-    st.entity->polymorph.ability = spell->code;
-    st.entity->polymorph.buff = buff_code;
-    st.entity->polymorph.form_type = form_type;
+    assert(st.entity->polymorph);
+    st.entity->polymorph->ability = spell->code;
+    st.entity->polymorph->buff = buff_code;
+    st.entity->polymorph->form_type = form_type;
     st.entity->s.model = model;
     st.entity->s.scale = ui->modelScale > 0.0f ? ui->modelScale : 1.0f;
     if (balance->speed > 0.0f) st.entity->unitinfo.MoveSpeed = balance->speed;
@@ -370,7 +374,9 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
 static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     edict_t *thinker = S_SpellChannelThinker(caster, spell->code);
-    thinker->goalentity = st.entity; thinker->channel.target_spawn_time = st.entity->spawn_time;
+    if (!thinker->channel) thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->goalentity = st.entity; thinker->channel->target_spawn_time = st.entity->spawn_time;
     thinker->resources = shackles_buff(spell->code, level);
     thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1); thinker->spawn_time = G_Time() +
         (uint32_t)(S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)) * 1000.0f);
@@ -383,9 +389,9 @@ static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityit
 static void shackles_end(edict_t *thinker) {
     edict_t *target = thinker->goalentity;
     bool retained = false;
-    if (target && target->inuse && target->spawn_time == thinker->channel.target_spawn_time) {
+    if (target && target->inuse && target->spawn_time == thinker->channel->target_spawn_time) {
         FILTER_EDICTS(other, other != thinker && other->think == human_ability_think && other->goalentity == target &&
-            other->resources == thinker->resources && other->channel.target_spawn_time == target->spawn_time) {
+            other->resources == thinker->resources && other->channel->target_spawn_time == target->spawn_time) {
             if (S_SpellChannelActive(other)) { retained = true; break; }
         }
         if (!retained) human_remove_status(target, thinker->resources);
@@ -403,7 +409,7 @@ void human_ability_think(edict_t *thinker) {
     }
     if (now >= thinker->spawn_time || !S_SpellChannelActive(thinker) ||
         !S_SpellIsAliveTarget(thinker->goalentity) ||
-        thinker->goalentity->spawn_time != thinker->channel.target_spawn_time) {
+        thinker->goalentity->spawn_time != thinker->channel->target_spawn_time) {
         shackles_end(thinker); return;
     }
     if (!thinker->freetime || now >= thinker->freetime) {
@@ -722,5 +728,5 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
         !S_UnitHasTemporaryInvisibility(unit, unit_findstatus(unit, code)))
         unit->s.renderfx &= ~RF_HIDDEN;
     if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
-    if (unit->polymorph.active && code == unit->polymorph.buff) S_PolymorphRemove(unit);
+    if (unit->polymorph && code == unit->polymorph->buff) S_PolymorphRemove(unit);
 }

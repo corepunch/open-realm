@@ -105,8 +105,9 @@ void SV_Physics_Toss(edict_t *ent) {
     if (!fixed_target && (!ent->goalentity || !ent->goalentity->inuse)) { G_FreeEdict(ent); return; }
     distance = ent->velocity * FRAMETIME;
     if (fixed_target) {
-        target = MAKE(vec3_t, ent->channel.origin.x, ent->channel.origin.y,
-                      CM_GetHeightAtPoint(ent->channel.origin.x, ent->channel.origin.y));
+        assert(ent->channel);
+        target = MAKE(vec3_t, ent->channel->origin.x, ent->channel->origin.y,
+                      CM_GetHeightAtPoint(ent->channel->origin.x, ent->channel->origin.y));
     } else {
         target = ent->goalentity->s.origin;
         /* s.origin already contains support surface + current FlyHeight.  ImpactZ
@@ -125,11 +126,11 @@ void SV_Physics_Toss(edict_t *ent) {
              * in-flight armor/defense changes to affect the hit. Spell
              * missiles install currentmove/endfunc and bypass this branch. */
             if (fixed_target) {
-                vec2_t impact = fixed_target ? ent->channel.origin : ent->goalentity->s.origin2;
+                vec2_t impact = fixed_target ? ent->channel->origin : ent->goalentity->s.origin2;
                 edict_t *primary = ent->goalentity;
                 if (fixed_target && primary &&
-                    (!primary->inuse || primary->spawn_time != ent->channel.target_spawn_time)) primary = NULL;
-                S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage, &ent->artillery);
+                    (!primary->inuse || primary->spawn_time != ent->channel->target_spawn_time)) primary = NULL;
+                S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage, ent->artillery);
             } else {
                 int const damage = G_AttackDamageWithType(ent->owner, ent->goalentity, ent->damage,
                                                           ent->projectile_attack_type);

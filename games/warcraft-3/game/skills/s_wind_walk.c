@@ -101,8 +101,7 @@ BZ_ABILITY_PROC(CAbilityWindWalk) {
         return true;
     case A_SPELL_COMMIT:
         if (!wind_walk_event_status(call)) return false;
-        if (call && call->item && call->item->ability &&
-            call->item->ability->proc == CAbilityWindWalk) return true;
+        if (call && call->item && call->item->ability && call->item->ability->proc == CAbilityWindWalk) return true;
         wind_walk_end(ent);
         return true;
     default:

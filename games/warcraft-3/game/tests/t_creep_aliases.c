@@ -216,6 +216,7 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
     UnitBalance_t creep = { .level = 5 };
     slkTestData_t *rows = parse_slk_string(slk), *old;
     edict_t *caster, *target;
+    uint32_t original_model, morphed_model;
 
     creep_alias_world();
     old = G_SetSLKRows("AbilityData", rows);
@@ -226,8 +227,27 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
     caster->svflags |= SVF_MONSTER;
     target->data.UnitData = &ground; target->data.UnitBalance = &creep;
     target->s.player = 1; target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    original_model = target->s.model;
+    target->s.scale = 1.37f;
+    target->unitinfo.MoveSpeed = 234.0f;
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
     T_EQ(G_UnitStatusLevel(target, BZ_BPLY), 1);
+    T_NOT_NULL(target->polymorph);
+    /* Refreshing the morph must preserve the first application's inverse. */
+    T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
+    S_PolymorphRemove(target);
+    T_NULL(target->polymorph);
+    T_EQ(target->s.model, original_model);
+    T_FEQ(target->s.scale, 1.37f, 0.001f);
+    T_FEQ(target->unitinfo.MoveSpeed, 234.0f, 0.001f);
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
+    morphed_model = target->s.model;
+    unit_die(target, NULL);
+    T_NULL(target->polymorph);
+    T_ASSERT(!S_UnitPolymorphed(target));
+    S_PolymorphRemove(target);
+    T_EQ(target->s.model, morphed_model);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

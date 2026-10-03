@@ -12,23 +12,27 @@ static bool shop_warned_pawn_rate, shop_warned_give_range;
 
 static void G_ResetItemStock(edict_t *unit) {
     if (!unit) return;
-    unit->stock.items_initialized = false;
-    unit->stock.item_count = 0;
-    memset(unit->stock.items, 0, sizeof(unit->stock.items));
+    unit->stock->items_initialized = false;
+    unit->stock->item_count = 0;
+    memset(unit->stock->items, 0, sizeof(unit->stock->items));
 }
 
 static void G_ResetUnitStock(edict_t *unit) {
     if (!unit) return;
-    unit->stock.units_initialized = false;
-    unit->stock.unit_count = 0;
-    memset(unit->stock.units, 0, sizeof(unit->stock.units));
+    unit->stock->units_initialized = false;
+    unit->stock->unit_count = 0;
+    memset(unit->stock->units, 0, sizeof(unit->stock->units));
 }
 
 /* Units created after a global slot change inherit the current capacities. */
 void G_InitStockSlots(edict_t *unit) {
-    if (!unit) return;
-    unit->stock.item_slots = level.stock.item_slots;
-    unit->stock.unit_slots = level.stock.unit_slots;
+    if (!unit || (!unit->stock && !G_IsItemShop(unit) && !G_IsUnitShop(unit) &&
+        !G_ActorHasSkill(unit, "Asid") && !G_ActorHasSkill(unit, "Asud"))) return;
+    if (!unit->stock) unit->stock = G_AllocStock();
+    assert(unit->stock);
+
+    unit->stock->item_slots = level.stock.item_slots;
+    unit->stock->unit_slots = level.stock.unit_slots;
     G_ResetItemStock(unit);
     G_ResetUnitStock(unit);
 }
@@ -38,14 +42,14 @@ void G_SetAllStockSlots(bool items, int32_t slots) {
     uint32_t value = (uint32_t)MAX(0, slots);
     if (items) level.stock.item_slots = value;
     else level.stock.unit_slots = value;
-    FILTER_EDICTS(unit, unit->inuse) {
+    FILTER_EDICTS(unit, unit->inuse && unit->stock) {
         if (items) {
-            if (unit->stock.item_slots == value) continue;
-            unit->stock.item_slots = value;
+            if (unit->stock->item_slots == value) continue;
+            unit->stock->item_slots = value;
             G_ResetItemStock(unit);
         } else {
-            if (unit->stock.unit_slots == value) continue;
-            unit->stock.unit_slots = value;
+            if (unit->stock->unit_slots == value) continue;
+            unit->stock->unit_slots = value;
             G_ResetUnitStock(unit);
         }
     }
@@ -55,13 +59,19 @@ void G_SetAllStockSlots(bool items, int32_t slots) {
 void G_SetStockSlots(edict_t *unit, bool items, int32_t slots) {
     uint32_t value = (uint32_t)MAX(0, slots);
     if (!unit) return;
+    if (!unit->stock) {
+        unit->stock = G_AllocStock();
+        unit->stock->item_slots = level.stock.item_slots;
+        unit->stock->unit_slots = level.stock.unit_slots;
+    }
+    assert(unit->stock);
     if (items) {
-        if (unit->stock.item_slots == value) return;
-        unit->stock.item_slots = value;
+        if (unit->stock->item_slots == value) return;
+        unit->stock->item_slots = value;
         G_ResetItemStock(unit);
     } else {
-        if (unit->stock.unit_slots == value) return;
-        unit->stock.unit_slots = value;
+        if (unit->stock->unit_slots == value) return;
+        unit->stock->unit_slots = value;
         G_ResetUnitStock(unit);
     }
 }
@@ -72,7 +82,7 @@ bool G_IsItemShop(edict_t const *shop) {
 
     if (!shop || !shop->inuse || !shop->class_id || M_IsDead((edict_t *)shop)) return false;
     items = shop->data.UnitProfile ? shop->data.UnitProfile->sellItems : NULL;
-    return (items && *items) || (shop->stock.items_initialized && shop->stock.item_count);
+    return (items && *items) || (shop->stock && shop->stock->items_initialized && shop->stock->item_count);
 }
 
 bool G_IsUnitShop(edict_t const *shop) {
@@ -80,7 +90,7 @@ bool G_IsUnitShop(edict_t const *shop) {
 
     if (!shop || !shop->inuse || !shop->class_id || M_IsDead((edict_t *)shop)) return false;
     units = shop->data.UnitProfile ? shop->data.UnitProfile->sellUnits : NULL;
-    return (units && *units) || (shop->stock.units_initialized && shop->stock.unit_count);
+    return (units && *units) || (shop->stock && shop->stock->units_initialized && shop->stock->unit_count);
 }
 
 static bool G_CanUseShop(gameClient_t *client, edict_t const *shop) {
@@ -247,21 +257,24 @@ static void G_InitItemStock(edict_t *shop) {
     cstring_t items;
     uint32_t limit;
 
-    if (!shop || shop->stock.items_initialized) return;
-    shop->stock.items_initialized = true;
-    shop->stock.item_count = 0;
-    memset(shop->stock.items, 0, sizeof(shop->stock.items));
-    if (!G_IsItemShop(shop) || !shop->stock.item_slots) return;
+    if (!shop) return;
+    if (!shop->stock) G_SetStockSlots(shop, true, level.stock.item_slots);
+    assert(shop->stock);
+    if (shop->stock->items_initialized) return;
+    shop->stock->items_initialized = true;
+    shop->stock->item_count = 0;
+    memset(shop->stock->items, 0, sizeof(shop->stock->items));
+    if (!G_IsItemShop(shop) || !shop->stock->item_slots) return;
 
     items = shop->data.UnitProfile->sellItems;
-    limit = MIN(shop->stock.item_slots, (uint32_t)MAX_SHOP_STOCK);
+    limit = MIN(shop->stock->item_slots, (uint32_t)MAX_SHOP_STOCK);
     PARSE_LIST(items, item_name, parse_segment) {
         uint32_t item_id;
         ItemData_t const *item;
         uint32_t index;
         uint32_t start_delay;
 
-        if (shop->stock.item_count >= limit) break;
+        if (shop->stock->item_count >= limit) break;
         if (strlen(item_name) != 4) {
             fprintf(stderr, "WC3 shop: invalid Sellitems entry '%s' on unit %.4s\n", item_name, (cstring_t)&shop->class_id);
             continue;
@@ -277,22 +290,22 @@ static void G_InitItemStock(edict_t *shop) {
             continue;
         }
 
-        index = shop->stock.item_count++;
-        shop->stock.items[index].id = item_id;
-        shop->stock.items[index].maximum = MAX(0, item->stockMax);
-        if (shop->stock.items[index].maximum <= 0) continue;
+        index = shop->stock->item_count++;
+        shop->stock->items[index].id = item_id;
+        shop->stock->items[index].maximum = MAX(0, item->stockMax);
+        if (shop->stock->items[index].maximum <= 0) continue;
         start_delay = G_StockDelayMs(item->stockStart);
         if (!start_delay) {
-            shop->stock.items[index].current = shop->stock.items[index].maximum;
+            shop->stock->items[index].current = shop->stock->items[index].maximum;
         } else {
-            shop->stock.items[index].current = 0;
-            shop->stock.items[index].delay_start = shop->spawn_time;
-            shop->stock.items[index].delay_end = shop->spawn_time + start_delay;
+            shop->stock->items[index].current = 0;
+            shop->stock->items[index].delay_start = shop->spawn_time;
+            shop->stock->items[index].delay_end = shop->spawn_time + start_delay;
         }
     }
 }
 
-static void G_UpdateStockEntry(edictShopStockItem_t *entry, int32_t regen_seconds) {
+static void G_UpdateStockEntry(shopStockItem_t *entry, int32_t regen_seconds) {
     uint32_t now, regen, increments, elapsed;
     int32_t max_stock;
 
@@ -322,7 +335,7 @@ static void G_UpdateStockEntry(edictShopStockItem_t *entry, int32_t regen_second
     }
 }
 
-static void G_StartStockRestock(edictShopStockItem_t *entry, int32_t regen_seconds) {
+static void G_StartStockRestock(shopStockItem_t *entry, int32_t regen_seconds) {
     uint32_t regen, now;
 
     if (!entry || entry->current >= MAX(0, entry->maximum) || entry->delay_end) return;
@@ -336,15 +349,15 @@ static void G_StartStockRestock(edictShopStockItem_t *entry, int32_t regen_secon
 static void G_UpdateItemStockEntry(edict_t *shop, uint32_t index) {
     ItemData_t const *item;
 
-    if (!shop || index >= shop->stock.item_count) return;
-    item = G_ItemData(shop->stock.items[index].id);
-    if (item) G_UpdateStockEntry(&shop->stock.items[index], item->stockRegen);
+    if (!shop || index >= shop->stock->item_count) return;
+    item = G_ItemData(shop->stock->items[index].id);
+    if (item) G_UpdateStockEntry(&shop->stock->items[index], item->stockRegen);
 }
 
 static int32_t G_FindShopItemStock(edict_t *shop, uint32_t item_id) {
     G_InitItemStock(shop);
-    FOR_LOOP(i, shop ? shop->stock.item_count : 0) {
-        if (shop->stock.items[i].id != item_id) continue;
+    FOR_LOOP(i, shop ? shop->stock->item_count : 0) {
+        if (shop->stock->items[i].id != item_id) continue;
         G_UpdateItemStockEntry(shop, i);
         return (int32_t)i;
     }
@@ -354,15 +367,15 @@ static int32_t G_FindShopItemStock(edict_t *shop, uint32_t item_id) {
 static void G_StartItemRestock(edict_t *shop, uint32_t index) {
     ItemData_t const *item;
 
-    if (!shop || index >= shop->stock.item_count) return;
-    item = G_ItemData(shop->stock.items[index].id);
-    if (item) G_StartStockRestock(&shop->stock.items[index], item->stockRegen);
+    if (!shop || index >= shop->stock->item_count) return;
+    item = G_ItemData(shop->stock->items[index].id);
+    if (item) G_StartStockRestock(&shop->stock->items[index], item->stockRegen);
 }
 
 static int32_t G_FindItemStockEntry(edict_t *shop, uint32_t item_id) {
     if (!shop) return -1;
-    FOR_LOOP(i, shop->stock.item_count)
-        if (shop->stock.items[i].id == item_id) return (int32_t)i;
+    FOR_LOOP(i, shop->stock->item_count)
+        if (shop->stock->items[i].id == item_id) return (int32_t)i;
     return -1;
 }
 
@@ -381,12 +394,12 @@ bool G_AddItemStock(edict_t *shop, uint32_t item_id, int32_t current, int32_t ma
     G_InitItemStock(shop);
     index = G_FindItemStockEntry(shop, item_id);
     if (index < 0) {
-        limit = MIN(shop->stock.item_slots, (uint32_t)MAX_SHOP_STOCK);
-        if (shop->stock.item_count >= limit) return false;
-        index = (int32_t)shop->stock.item_count++;
+        limit = MIN(shop->stock->item_slots, (uint32_t)MAX_SHOP_STOCK);
+        if (shop->stock->item_count >= limit) return false;
+        index = (int32_t)shop->stock->item_count++;
     }
 
-    shop->stock.items[index] = (edictShopStockItem_t){
+    shop->stock->items[index] = (shopStockItem_t){
         .id = item_id,
         .current = MIN(MAX(0, current), MAX(0, maximum)),
         .maximum = MAX(0, maximum),
@@ -402,11 +415,11 @@ void G_RemoveItemStock(edict_t *shop, uint32_t item_id) {
     G_InitItemStock(shop);
     index = G_FindItemStockEntry(shop, item_id);
     if (index < 0) return;
-    if ((uint32_t)index + 1u < shop->stock.item_count)
-        memmove(&shop->stock.items[index], &shop->stock.items[index + 1],
-                (shop->stock.item_count - (uint32_t)index - 1u) * sizeof(shop->stock.items[0]));
-    shop->stock.item_count--;
-    memset(&shop->stock.items[shop->stock.item_count], 0, sizeof(shop->stock.items[0]));
+    if ((uint32_t)index + 1u < shop->stock->item_count)
+        memmove(&shop->stock->items[index], &shop->stock->items[index + 1],
+                (shop->stock->item_count - (uint32_t)index - 1u) * sizeof(shop->stock->items[0]));
+    shop->stock->item_count--;
+    memset(&shop->stock->items[shop->stock->item_count], 0, sizeof(shop->stock->items[0]));
 }
 
 void G_AddItemStockAll(uint32_t item_id, int32_t current, int32_t maximum) {
@@ -423,14 +436,17 @@ static void G_InitUnitStock(edict_t *shop) {
     cstring_t units;
     uint32_t limit;
 
-    if (!shop || shop->stock.units_initialized) return;
-    shop->stock.units_initialized = true;
-    shop->stock.unit_count = 0;
-    memset(shop->stock.units, 0, sizeof(shop->stock.units));
-    if (!G_IsUnitShop(shop) || !shop->stock.unit_slots) return;
+    if (!shop) return;
+    if (!shop->stock) G_SetStockSlots(shop, false, level.stock.unit_slots);
+    assert(shop->stock);
+    if (shop->stock->units_initialized) return;
+    shop->stock->units_initialized = true;
+    shop->stock->unit_count = 0;
+    memset(shop->stock->units, 0, sizeof(shop->stock->units));
+    if (!G_IsUnitShop(shop) || !shop->stock->unit_slots) return;
 
     units = shop->data.UnitProfile->sellUnits;
-    limit = MIN(shop->stock.unit_slots, (uint32_t)MAX_SHOP_STOCK);
+    limit = MIN(shop->stock->unit_slots, (uint32_t)MAX_SHOP_STOCK);
     PARSE_LIST(units, unit_name, parse_segment) {
         uint32_t unit_id;
         UnitBalance_t const *unit;
@@ -438,7 +454,7 @@ static void G_InitUnitStock(edict_t *shop) {
         uint32_t index;
         uint32_t start_delay;
 
-        if (shop->stock.unit_count >= limit) break;
+        if (shop->stock->unit_count >= limit) break;
         if (strlen(unit_name) != 4) {
             fprintf(stderr, "WC3 shop: bad Sellunits '%s' on %.4s\n", unit_name, (cstring_t)&shop->class_id);
             continue;
@@ -461,17 +477,17 @@ static void G_InitUnitStock(edict_t *shop) {
             continue;
         }
 
-        index = shop->stock.unit_count++;
-        shop->stock.units[index].id = unit_id;
-        shop->stock.units[index].maximum = MAX(0, unit->stockMax);
-        if (shop->stock.units[index].maximum <= 0) continue;
+        index = shop->stock->unit_count++;
+        shop->stock->units[index].id = unit_id;
+        shop->stock->units[index].maximum = MAX(0, unit->stockMax);
+        if (shop->stock->units[index].maximum <= 0) continue;
         start_delay = G_StockDelayMs(unit->stockStart);
         if (!start_delay) {
-            shop->stock.units[index].current = shop->stock.units[index].maximum;
+            shop->stock->units[index].current = shop->stock->units[index].maximum;
         } else {
-            shop->stock.units[index].current = 0;
-            shop->stock.units[index].delay_start = shop->spawn_time;
-            shop->stock.units[index].delay_end = shop->spawn_time + start_delay;
+            shop->stock->units[index].current = 0;
+            shop->stock->units[index].delay_start = shop->spawn_time;
+            shop->stock->units[index].delay_end = shop->spawn_time + start_delay;
         }
     }
 }
@@ -479,16 +495,16 @@ static void G_InitUnitStock(edict_t *shop) {
 static void G_UpdateUnitStockEntry(edict_t *shop, uint32_t index) {
     UnitBalance_t const *unit;
 
-    if (!shop || index >= shop->stock.unit_count) return;
-    unit = G_UnitBalance(shop->stock.units[index].id);
-    if (unit && unit->id == shop->stock.units[index].id)
-        G_UpdateStockEntry(&shop->stock.units[index], unit->stockRegen);
+    if (!shop || index >= shop->stock->unit_count) return;
+    unit = G_UnitBalance(shop->stock->units[index].id);
+    if (unit && unit->id == shop->stock->units[index].id)
+        G_UpdateStockEntry(&shop->stock->units[index], unit->stockRegen);
 }
 
 static int32_t G_FindShopUnitStock(edict_t *shop, uint32_t unit_id) {
     G_InitUnitStock(shop);
-    FOR_LOOP(i, shop ? shop->stock.unit_count : 0) {
-        if (shop->stock.units[i].id != unit_id) continue;
+    FOR_LOOP(i, shop ? shop->stock->unit_count : 0) {
+        if (shop->stock->units[i].id != unit_id) continue;
         G_UpdateUnitStockEntry(shop, i);
         return (int32_t)i;
     }
@@ -498,16 +514,16 @@ static int32_t G_FindShopUnitStock(edict_t *shop, uint32_t unit_id) {
 static void G_StartUnitRestock(edict_t *shop, uint32_t index) {
     UnitBalance_t const *unit;
 
-    if (!shop || index >= shop->stock.unit_count) return;
-    unit = G_UnitBalance(shop->stock.units[index].id);
-    if (unit && unit->id == shop->stock.units[index].id)
-        G_StartStockRestock(&shop->stock.units[index], unit->stockRegen);
+    if (!shop || index >= shop->stock->unit_count) return;
+    unit = G_UnitBalance(shop->stock->units[index].id);
+    if (unit && unit->id == shop->stock->units[index].id)
+        G_StartStockRestock(&shop->stock->units[index], unit->stockRegen);
 }
 
 static int32_t G_FindUnitStockEntry(edict_t *shop, uint32_t unit_id) {
     if (!shop) return -1;
-    FOR_LOOP(i, shop->stock.unit_count)
-        if (shop->stock.units[i].id == unit_id) return (int32_t)i;
+    FOR_LOOP(i, shop->stock->unit_count)
+        if (shop->stock->units[i].id == unit_id) return (int32_t)i;
     return -1;
 }
 
@@ -525,12 +541,12 @@ bool G_AddUnitStock(edict_t *shop, uint32_t unit_id, int32_t current, int32_t ma
     G_InitUnitStock(shop);
     index = G_FindUnitStockEntry(shop, unit_id);
     if (index < 0) {
-        limit = MIN(shop->stock.unit_slots, (uint32_t)MAX_SHOP_STOCK);
-        if (shop->stock.unit_count >= limit) return false;
-        index = (int32_t)shop->stock.unit_count++;
+        limit = MIN(shop->stock->unit_slots, (uint32_t)MAX_SHOP_STOCK);
+        if (shop->stock->unit_count >= limit) return false;
+        index = (int32_t)shop->stock->unit_count++;
     }
 
-    shop->stock.units[index] = (edictShopStockItem_t){
+    shop->stock->units[index] = (shopStockItem_t){
         .id = unit_id,
         .current = MIN(MAX(0, current), MAX(0, maximum)),
         .maximum = MAX(0, maximum),
@@ -546,11 +562,11 @@ void G_RemoveUnitStock(edict_t *shop, uint32_t unit_id) {
     G_InitUnitStock(shop);
     index = G_FindUnitStockEntry(shop, unit_id);
     if (index < 0) return;
-    if ((uint32_t)index + 1u < shop->stock.unit_count)
-        memmove(&shop->stock.units[index], &shop->stock.units[index + 1],
-                (shop->stock.unit_count - (uint32_t)index - 1u) * sizeof(shop->stock.units[0]));
-    shop->stock.unit_count--;
-    memset(&shop->stock.units[shop->stock.unit_count], 0, sizeof(shop->stock.units[0]));
+    if ((uint32_t)index + 1u < shop->stock->unit_count)
+        memmove(&shop->stock->units[index], &shop->stock->units[index + 1],
+                (shop->stock->unit_count - (uint32_t)index - 1u) * sizeof(shop->stock->units[0]));
+    shop->stock->unit_count--;
+    memset(&shop->stock->units[shop->stock->unit_count], 0, sizeof(shop->stock->units[0]));
 }
 
 void G_AddUnitStockAll(uint32_t unit_id, int32_t current, int32_t maximum) {
@@ -596,7 +612,7 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
     G_InitItemStock(shop);
     patron = G_FindShopPatron(client, shop);
 
-    FOR_LOOP(i, shop->stock.item_count) {
+    FOR_LOOP(i, shop->stock->item_count) {
         char code[5] = {0};
         gameCommandButton_t *button;
         ItemData_t const *item;
@@ -604,25 +620,25 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
 
         if (count >= max_buttons) break;
         G_UpdateItemStockEntry(shop, i);
-        memcpy(code, &shop->stock.items[i].id, 4);
+        memcpy(code, &shop->stock->items[i].id, 4);
         button = &buttons[count];
         if (!G_BuildCommandButton(shop, code, false, 0, button)) continue;
         button->x = count % 4;
         button->y = count / 4;
-        item = G_ItemData(shop->stock.items[i].id);
-        if (shop->stock.items[i].maximum > 0) button->number = (uint32_t)MAX(0, shop->stock.items[i].current);
+        item = G_ItemData(shop->stock->items[i].id);
+        if (shop->stock->items[i].maximum > 0) button->number = (uint32_t)MAX(0, shop->stock->items[i].current);
 
         if (!patron) {
             G_DisableShopButton(button, "No eligible purchaser is nearby.");
-        } else if (shop->stock.items[i].current <= 0) {
+        } else if (shop->stock->items[i].current <= 0) {
             G_DisableShopButton(button, "Out of stock.");
-            if (shop->stock.items[i].delay_end > shop->stock.items[i].delay_start) {
+            if (shop->stock->items[i].delay_end > shop->stock->items[i].delay_start) {
                 now = G_Time();
-                button->cooldown_start_time = shop->stock.items[i].delay_start;
-                button->cooldown_end_time = shop->stock.items[i].delay_end;
-                if (now < shop->stock.items[i].delay_end) {
-                    button->cooldown = (float)(shop->stock.items[i].delay_end - now) /
-                        (float)(shop->stock.items[i].delay_end - shop->stock.items[i].delay_start);
+                button->cooldown_start_time = shop->stock->items[i].delay_start;
+                button->cooldown_end_time = shop->stock->items[i].delay_end;
+                if (now < shop->stock->items[i].delay_end) {
+                    button->cooldown = (float)(shop->stock->items[i].delay_end - now) /
+                        (float)(shop->stock->items[i].delay_end - shop->stock->items[i].delay_start);
                 }
             }
         } else if (G_FindFreeInventorySlot(patron) < 0) {
@@ -651,7 +667,7 @@ uint8_t G_GetShopUnitButtons(shopItemButtonsParams_t *params) {
     G_InitUnitStock(shop);
     patron = G_FindUnitShopPatron(client, shop);
 
-    FOR_LOOP(i, shop->stock.unit_count) {
+    FOR_LOOP(i, shop->stock->unit_count) {
         char code[5] = {0};
         gameCommandButton_t *button;
         UnitBalance_t const *unit;
@@ -659,25 +675,25 @@ uint8_t G_GetShopUnitButtons(shopItemButtonsParams_t *params) {
 
         if (count >= max_buttons) break;
         G_UpdateUnitStockEntry(shop, i);
-        memcpy(code, &shop->stock.units[i].id, 4);
+        memcpy(code, &shop->stock->units[i].id, 4);
         button = &buttons[count];
         if (!G_BuildCommandButton(shop, code, false, 0, button)) continue;
         button->x = count % 4;
         button->y = count / 4;
-        unit = G_UnitBalance(shop->stock.units[i].id);
-        if (shop->stock.units[i].maximum > 0) button->number = (uint32_t)MAX(0, shop->stock.units[i].current);
+        unit = G_UnitBalance(shop->stock->units[i].id);
+        if (shop->stock->units[i].maximum > 0) button->number = (uint32_t)MAX(0, shop->stock->units[i].current);
 
         if (!patron) {
             G_DisableShopButton(button, "No eligible purchaser is nearby.");
-        } else if (shop->stock.units[i].current <= 0) {
+        } else if (shop->stock->units[i].current <= 0) {
             G_DisableShopButton(button, "Out of stock.");
-            if (shop->stock.units[i].delay_end > shop->stock.units[i].delay_start) {
+            if (shop->stock->units[i].delay_end > shop->stock->units[i].delay_start) {
                 now = G_Time();
-                button->cooldown_start_time = shop->stock.units[i].delay_start;
-                button->cooldown_end_time = shop->stock.units[i].delay_end;
-                if (now < shop->stock.units[i].delay_end) {
-                    button->cooldown = (float)(shop->stock.units[i].delay_end - now) /
-                        (float)(shop->stock.units[i].delay_end - shop->stock.units[i].delay_start);
+                button->cooldown_start_time = shop->stock->units[i].delay_start;
+                button->cooldown_end_time = shop->stock->units[i].delay_end;
+                if (now < shop->stock->units[i].delay_end) {
+                    button->cooldown = (float)(shop->stock->units[i].delay_end - now) /
+                        (float)(shop->stock->units[i].delay_end - shop->stock->units[i].delay_start);
                 }
             }
         } else if (unit && client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < (uint32_t)MAX(0, unit->goldCost)) {
@@ -744,7 +760,7 @@ bool G_ShopPurchaseItem(edict_t *clent, edict_t *shop, uint32_t item_id) {
     }
     item = G_ItemData(item_id);
     if (!item || !item->file) return false;
-    if (shop->stock.items[stock_index].current <= 0) {
+    if (shop->stock->items[stock_index].current <= 0) {
         G_ShowCommandErrorKey(clent, "Outofstock", "Out of stock.");
         return false;
     }
@@ -773,7 +789,7 @@ bool G_ShopPurchaseItem(edict_t *clent, edict_t *shop, uint32_t item_id) {
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber;
     G_RefreshResourceBar(clent);
-    shop->stock.items[stock_index].current--;
+    shop->stock->items[stock_index].current--;
     G_StartItemRestock(shop, (uint32_t)stock_index);
     G_InvalidateCommands(client);
     /* Sell-item event context: unit=shop (selling), source=patron (buying).
@@ -810,7 +826,7 @@ bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
     unit = G_UnitBalance(unit_id);
     ui = G_UnitUI(unit_id);
     if (!unit || unit->id != unit_id || !ui || !ui->modelFile || !*ui->modelFile) return false;
-    if (shop->stock.units[stock_index].current <= 0) {
+    if (shop->stock->units[stock_index].current <= 0) {
         G_ShowCommandErrorKey(clent, "Outofstock", "Out of stock.");
         return false;
     }
@@ -852,7 +868,7 @@ bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber;
     G_RefreshResourceBar(clent);
-    shop->stock.units[stock_index].current--;
+    shop->stock->units[stock_index].current--;
     G_StartUnitRestock(shop, (uint32_t)stock_index);
     G_InvalidateCommands(client);
     return true;
@@ -970,10 +986,10 @@ bool G_ShopPawnItem(shopPawnItemParams_t *params) {
 
     if (!G_CanUseItemShop(client, shop) || !G_ActorHasSkill(shop, "Apit") ||
         !carrier || carrier->s.player != client->ps.number || !G_IsItem(item) ||
-        item->item.carrier != carrier || item->item.in_world) return false;
+        item->item->carrier != carrier || item->item->in_world) return false;
     data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
     if (!data) return false;
-    if (item->item.pawnable_set) { if (!item->item.pawnable) return false; }
+    if (item->item->pawnable_set) { if (!item->item->pawnable) return false; }
     else if (!data->pawnable) return false;
 
     distance = Vector2_distance(&carrier->s.origin2, &shop->s.origin2);

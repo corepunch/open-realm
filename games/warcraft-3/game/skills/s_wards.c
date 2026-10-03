@@ -159,7 +159,7 @@ void land_mine_think(edict_t *thinker) {
 	bool trigger = false;
 
 	if (!thinker || !thinker->inuse) return;
-	if (!mine || !mine->inuse || mine->spawn_time != thinker->channel.owner_spawn_time || M_IsDead(mine)) {
+	if (!mine || !mine->inuse || mine->spawn_time != thinker->channel->owner_spawn_time || M_IsDead(mine)) {
 		G_FreeEdict(thinker);
 		return;
 	}
@@ -212,7 +212,9 @@ static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 	mine->s.renderfx &= ~RF_HIDDEN;
 	if (invis == 0.0f) mine->s.renderfx |= RF_HIDDEN;
 	thinker->owner = mine;
-	thinker->channel.owner_spawn_time = mine->spawn_time;
+	if (!thinker->channel) thinker->channel = G_AllocChannel();
+	assert(thinker->channel);
+	thinker->channel->owner_spawn_time = mine->spawn_time;
 	thinker->class_id = code;
 	thinker->wait = (float)level;
 	thinker->collision = collision;

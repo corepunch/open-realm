@@ -38,7 +38,7 @@ static bool sacrifice_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
         !sacrifice_pair(caster, st.entity, spell->code, &pit, &worker)) return false;
     /* Warsmash's Sacrifice is a producer queue item and a pit can own only one
      * sacrifice worker.  Do not displace ordinary training/research state. */
-    if (pit->build || pit->construction.active || G_BuildingUpgradeActive(pit)) return false;
+    if (pit->build || pit->construction || G_BuildingUpgradeActive(pit)) return false;
     return G_UnitBalance(ID_SHADE) != NULL;
 }
 
@@ -55,25 +55,25 @@ uint32_t S_SacrificeAbilityCode(void) { return ID_SACRIFICE_PIT; }
 /* The Shade result inherits the consumed worker's food slot, so Train must
  * not reserve additional food while the worker still exists. */
 bool S_SacrificeSkipsFoodReservation(edict_t const *item) {
-    return item && item->sacrifice.active;
+    return item && item->sacrifice;
 }
 
 /* The queued worker must be the same live edict owned by the same player.
  * Spawn-time comparison rejects edict slots reused after the worker died. */
 static bool sacrifice_worker_valid(edict_t const *item) {
     edict_t const *worker;
-    if (!item || !item->sacrifice.active || !(worker = item->sacrifice.worker)) return false;
-    return worker->inuse && worker->spawn_time == item->sacrifice.worker_spawn_time &&
+    if (!item || !item->sacrifice || !(worker = item->sacrifice->worker)) return false;
+    return worker->inuse && worker->spawn_time == item->sacrifice->worker_spawn_time &&
         !M_IsDead(worker) && worker->s.player == item->s.player;
 }
 
 /* Inverse of the queue-time hide/pause: restore exactly the stashed state. */
 static void sacrifice_release_worker(edict_t *item) {
     edict_t *worker;
-    if (!item || !item->sacrifice.active || !(worker = item->sacrifice.worker)) return;
-    if (worker->inuse && worker->spawn_time == item->sacrifice.worker_spawn_time) {
-        if (!item->sacrifice.restore_hidden) worker->s.renderfx &= ~RF_HIDDEN;
-        worker->paused = item->sacrifice.restore_paused;
+    if (!item || !item->sacrifice || !(worker = item->sacrifice->worker)) return;
+    if (worker->inuse && worker->spawn_time == item->sacrifice->worker_spawn_time) {
+        if (!item->sacrifice->restore_hidden) worker->s.renderfx &= ~RF_HIDDEN;
+        worker->paused = item->sacrifice->restore_paused;
         G_InvalidateUnitShortcutsForUnit(worker);
     }
 }
@@ -87,10 +87,10 @@ static bool sacrifice_queue_validate(edict_t *producer, edict_t *item) {
 /* A_QUEUE_COMPLETE: placement already succeeded. Remove the worker first so
  * its food releases, then activate the result without a transient +1. */
 static void sacrifice_queue_complete(edict_t *producer, edict_t *item) {
-    edict_t *worker = item->sacrifice.worker;
-    uint32_t const worker_spawn_time = item->sacrifice.worker_spawn_time;
+    edict_t *worker = item->sacrifice->worker;
+    uint32_t const worker_spawn_time = item->sacrifice->worker_spawn_time;
     (void)producer;
-    memset(&item->sacrifice, 0, sizeof(item->sacrifice));
+    G_FreeSacrifice(item);
     if (worker && worker->inuse && worker->spawn_time == worker_spawn_time)
         G_FreeEdict(worker);
     G_SetUnitFoodUsed(item, item->data.UnitBalance ? item->data.UnitBalance->foodUsed : 0);
@@ -125,12 +125,13 @@ bool G_QueueSacrifice(edict_t *producer, edict_t *worker, uint32_t result_id) {
     result->training_food_wait_notified = false;
     G_SetHealth(result, 0);
     result->s.renderfx |= RF_HIDDEN;
-    result->sacrifice.active = true;
-    result->sacrifice.worker = worker;
-    result->sacrifice.worker_spawn_time = worker->spawn_time;
-    result->sacrifice.restore_paused = worker->paused;
+    if (!result->sacrifice) result->sacrifice = G_AllocSacrifice();
+    assert(result->sacrifice);
+    result->sacrifice->worker = worker;
+    result->sacrifice->worker_spawn_time = worker->spawn_time;
+    result->sacrifice->restore_paused = worker->paused;
     restore_hidden = (worker->s.renderfx & RF_HIDDEN) != 0;
-    result->sacrifice.restore_hidden = restore_hidden;
+    result->sacrifice->restore_hidden = restore_hidden;
     worker->s.renderfx |= RF_HIDDEN;
     worker->paused = true;
     G_InvalidateUnitShortcutsForUnit(worker);
@@ -152,7 +153,7 @@ BZ_ABILITY_PROC(CAbilitySacrifice) {
     if (msg == A_QUEUE_VALIDATE || msg == A_QUEUE_COMPLETE || msg == A_QUEUE_CANCEL) {
         if (!call) return false;
         producer = call->queue.producer; item = call->queue.item;
-        if (!item || !item->sacrifice.active) return false;
+        if (!item || !item->sacrifice) return false;
         if (msg == A_QUEUE_VALIDATE) return sacrifice_queue_validate(producer, item);
         if (msg == A_QUEUE_COMPLETE) { sacrifice_queue_complete(producer, item); return true; }
         sacrifice_queue_cancel(producer, item); return true;

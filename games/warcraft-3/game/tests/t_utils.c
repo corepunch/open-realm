@@ -82,6 +82,7 @@ void reset_entities(void) {
         S_FreeMoveRoute(g_edicts+i);
         G_FreeActorSkills(g_edicts+i);
     }
+    G_PoolsReset();
     memset(g_edicts, 0, sizeof(edict_t) * cap);
     globals.max_edicts = MAX_ENTITIES;
     globals.num_edicts = game.max_clients;

@@ -475,20 +475,20 @@ void build_build(edict_t *ent) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD construction-start worker=%ld building=%ld id=%.4s type=%d health=%.1f/%.1f\n",
                 (long)(ent - g_edicts), (long)(building - g_edicts), (cstring_t)&building_id,
-                building->construction.type, building->health.value, building->health.max_value);
+                building->construction->type, building->health.value, building->health.max_value);
 #endif
         /* Cancellation refunds the exact base construction payment, not later
          * power-build Repair spending. Record that transaction on the spawned
          * structure while the paying client and authored cost are still known. */
-        building->construction.payer = client->ps.number;
+        building->construction->payer = client->ps.number;
         if (!G_BuildAllEnabled()) {
-            building->construction.paid = true;
-            building->construction.gold = MAX(0, building->data.UnitBalance->goldCost);
-            building->construction.lumber = MAX(0, building->data.UnitBalance->lumberCost);
+            building->construction->paid = true;
+            building->construction->gold = MAX(0, building->data.UnitBalance->goldCost);
+            building->construction->lumber = MAX(0, building->data.UnitBalance->lumberCost);
         }
-        if (building->construction.type == CONSTRUCTION_HUMAN)
+        if (building->construction->type == CONSTRUCTION_HUMAN)
             repair_build_primary(ent, building);
-        else if (building->construction.type == CONSTRUCTION_UNDEAD)
+        else if (building->construction->type == CONSTRUCTION_UNDEAD)
             unit_setmove(ent, &build_move_summon);
     } else {
         /* Preserve the old generic fallback for custom/unknown workers. */

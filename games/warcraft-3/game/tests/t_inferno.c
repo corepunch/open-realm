@@ -186,7 +186,7 @@ cleanup_point_spell_approach:
 TEST(wc3_spell, inferno_impact_after_authored_delay) {
     inFix_t fix; inferno_setup(&fix, BZ_ANIN);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &fix.point));
-    T_EQ(fix.caster->channel.code, 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     T_FEQ(fix.enemy->health.value, 500, 0.001f);
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BSTU), 0);
     T_NULL(inferno_summon(fix.caster));
@@ -248,7 +248,7 @@ TEST(wc3_spell, inferno_stun_uses_herodur_for_heroes) {
 TEST(wc3_spell, inferno_rain_of_chaos_lands_via_inferno_row) {
     inFix_t fix; inferno_setup(&fix, BZ_ANRC);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANRC, &fix.point));
-    T_EQ(fix.caster->channel.code, 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     /* Fixture DataC=0.5 so the RoC landing schedules Inferno delay before summon. */
     T_NULL(inferno_summon(fix.caster));
     level.time += (uint32_t)(BZ_DELAY * 1000.0f); G_RunEntities();

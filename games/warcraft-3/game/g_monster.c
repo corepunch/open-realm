@@ -94,7 +94,7 @@ void M_MoveFrame(edict_t *self) {
      * independently of authoritative construction progress. Human progress is
      * Repair-driven; Orc/Undead/Night Elf progress is advanced by
      * G_RunConstructionFrame(). */
-    if ((self->aiflags & AI_HOLD_FRAME) && self->construction.active) {
+    if ((self->aiflags & AI_HOLD_FRAME) && self->construction) {
         G_UpdateConstructionAnimation(self);
         return;
     }
@@ -436,7 +436,6 @@ void SP_SpawnUnit(edict_t *self) {
     UnitWeapons_t const *w = self->data.UnitWeapons;
     cstring_t uber_splat = ui->groundTexture;
     cstring_t path_tex = d->pathingTexture;
-    G_InitStockSlots(self);
     self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
     if (G_UnitIsBuilding(self->class_id)) self->s.flags |= EF_BUILDING;
     if (S_UnitTypeIsGoldMine(self->class_id)) self->s.flags |= EF_RESOURCE_SOURCE;
@@ -477,6 +476,7 @@ void SP_SpawnUnit(edict_t *self) {
     self->mana.value = MIN(self->mana.max_value, b->initialMana);
     self->health.value = b->maxHealth;
     self->health.max_value = b->maxHealth;
+    G_InitStockSlots(self);
     self->invulnerable = G_ActorHasSkill(self, "Avul");
     G_ApplyUnitAbilityTraits(self);
     self->unitinfo.MoveSpeed = b->speed;
@@ -631,7 +631,7 @@ void G_RegisterGroundSurface(edict_t *ent) {
     G_UnregisterGroundSurface(ent);
     ent->ground_next = level.ground_surfaces;
     level.ground_surfaces = ent;
-    if (!ent->destructable.dead && ent->destructable.placement_solid)
+    if (!ent->destructable->dead && ent->destructable->placement_solid)
         ent->s.flags |= EF_GROUND_SURFACE;
 }
 
