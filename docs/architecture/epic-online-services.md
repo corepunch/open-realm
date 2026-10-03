@@ -32,7 +32,9 @@ make EOS=1 EOS_SDK_ROOT=data/eos/SDK openwarcraft3-tests
 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'online_service.*'
 ```
 
-`EOS=0` is the default. Only the engine executable links EOS; game and menu
+`EOS=0` is the default; `BZ_EOS` guards all SDK includes and implementation.
+Normal `make build` and PR CI require no SDK headers, libraries or credentials.
+Only the engine executable links EOS; game and menu
 modules import the generic service API. The matching runtime library is copied
 to `build/lib` on macOS/Linux and `build/bin` on Windows x64. Linux selects its
 arm64 or x86_64 SDK library from the build host architecture. Cross compilation
@@ -71,8 +73,77 @@ make EOS=1 EOS_CONFIG_FILE=/private/path/eos.cfg openwarcraft3
 
 Package the resulting executable, ordinary module libraries, EOS runtime and
 `build/share` together. Merely storing a key in GitHub Secrets does not configure
-a local build. Release automation can create the private config from Secrets
-and pass `EOS_CONFIG_FILE`; do not upload that file as a public CI debug artifact.
+a local build. Do not upload the private config as a public CI debug artifact.
+
+## GitHub release builds
+
+`.github/workflows/release.yml` downloads the C SDK for Linux x64, macOS x64,
+Windows x64 and Flatpak releases. Set these **repository Actions secrets** before
+publishing a release or dispatching the workflow:
+
+| Secret | Value |
+| --- | --- |
+| `EOS_SDK_DOWNLOAD_URL` | Runner-accessible HTTPS URL for the licensed C SDK ZIP **1.19.2.1-CL58105819** |
+| `OPENREALM_EOS_PRODUCT_ID` | Product ID |
+| `OPENREALM_EOS_SANDBOX_ID` | Sandbox ID |
+| `OPENREALM_EOS_DEPLOYMENT_ID` | Official deployment ID |
+| `OPENREALM_EOS_CLIENT_ID` | Restricted player client ID |
+| `OPENREALM_EOS_CLIENT_SECRET` | Restricted player client secret |
+
+Use an authorized archive download endpoint or private artifact mirror that the
+runner can access directly. A Developer Portal page or store slug is not an
+archive URL. An expired signed URL must be replaced. The workflow does not log
+in to Epic or store your developer account password. Secret configuration and
+live deployment access have not been completed by this change.
+
+`dist-scripts/eos/prepare_release.py` verifies this pinned SHA-256 before
+extracting C headers, the requested platform runtime and third-party notices:
+
+```text
+56a3bd805df426606946d74ba662f25223ffe24159e7884a625225ba80b582fb
+```
+
+Tools and samples are excluded. Missing configuration, invalid ZIP contents,
+unsafe paths, download failures or checksum mismatches fail the release job
+explicitly. URLs and configuration values are omitted from downloader errors.
+The helper creates ignored `data/eos/eos.cfg` with private file permissions and
+the build passes `BUILD=release EOS=1 EOS_CONFIG_FILE=data/eos/eos.cfg`.
+SDK upgrades require updating the version and checksum in this helper after
+checking the official archive; a mutable download URL alone cannot upgrade it.
+
+Unix archives preserve `bin/`, `lib/` and `share/` so the executable's runtime
+lookup paths work after extraction; run `bin/openwarcraft3`. macOS x64 uses an
+Intel runner and explicit `ARCH=x86_64`. Windows packages the EOS DLL beside
+`openwarcraft3.exe` and includes it in dependency validation. Portable archives
+include EOS notices under `licenses/EOS/`.
+
+The ordinary Flatpak manifest defaults to `EOS=0`. The release job creates an
+adjacent ignored manifest setting `EOS=1` and `EOS_CONFIG_FILE`, installs the
+runtime under `/app/lib` and notices under `/app/share/licenses/EOS`, then
+publishes the final bundle only. Flatpak source/build caches are disabled so
+SDK files and private configuration are not saved as cache artifacts.
+
+Validate release preparation without any SDK or service access using
+`make test-eos-release` (also included in `make test`). To check a downloaded
+official archive locally, supply the five configuration variables and a fresh
+output directory:
+
+```sh
+python3 dist-scripts/eos/prepare_release.py --platform macOS \
+    --archive /private/path/EOS-SDK-58105819-Release-v1.19.2.1.zip \
+    --output /private/path/eos-release-inputs
+```
+
+The actual official archive passed checksum/extraction checks for all three
+platforms locally. The SDK-free macOS build passed with a nonexistent SDK root
+and its dependency list contains no EOS library. Eight preparation regressions
+cover platform selection, checksum rejection, required files, traversal/symlink
+rejection, private config, existing-file preservation and download error
+redaction. A fresh optimized macOS arm64 EOS executable and test executable built
+successfully; its SDK state checks passed 31 assertions in three tests, and the
+full SDK-free `make test TEST_JOBS=4` passed with local UDP socket access.
+Hosted release builds still require running the release
+workflow with configured secrets; these checks do not establish live play.
 
 ## Ownership and lifecycle
 

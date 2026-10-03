@@ -17,6 +17,9 @@ WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR) -I$(WC3_DIR)/common -I$(WC3_DIR)/game -I$(W
 
 # EOS is proprietary and supplied by the developer; SDK-free builds remain supported.
 EOS ?= 0
+ifeq ($(filter $(EOS),0 1),)
+$(error EOS must be 0 or 1)
+endif
 EOS_SDK_ROOT ?= data/eos/SDK
 WC3_EOS_CFLAGS :=
 WC3_EOS_LIBS :=
@@ -190,6 +193,10 @@ test-render-harness: fdfbindgen mpqtool
 	python3 tests/test_parity_maps.py
 	python3 tests/test_fdfbindgen.py
 
+.PHONY: test-eos-release
+test-eos-release:
+	python3 tests/test_eos_release.py
+
 # Golden-image render regression test (deterministic MDX renders vs committed
 # references). Requires a display/GL, so it is opt-in and NOT part of `make test`
 # (CI is headless). Run locally after renderer changes.
@@ -274,7 +281,7 @@ TEST_UI_SRCS := \
 
 TEST_JOBS ?= 16
 
- test: test-menu-boundary test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
+ test: test-eos-release test-menu-boundary test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
 	@$(CC) $(TEST_CFLAGS) -DBZ_TESTS -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
 		tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_online_packet.c tests/test_tool_common.c \
