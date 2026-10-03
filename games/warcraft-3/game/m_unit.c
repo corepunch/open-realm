@@ -1942,16 +1942,18 @@ static float const WC3_XP_BUILDING_KILLS_DEFAULT =
     0.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock BuildingKillsGiveExp. */
 static float const WC3_XP_SUMMON_FACTOR_DEFAULT =
     0.50f; /* BZ_HARDCODED_DATA_FALLBACK: stock SummonedKillFactor. */
-static float const WC3_XP_NORMAL_TABLE_DEFAULT =
-    25.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantNormalXP[0]. */
+static float const WC3_XP_NORMAL_TABLE_DEFAULT[] = {
+    25.0f
+}; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantNormalXP[0]. */
 static float const WC3_XP_NORMAL_FORMULA_A_DEFAULT =
     1.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantNormalXPFormulaA. */
 static float const WC3_XP_NORMAL_FORMULA_B_DEFAULT =
     5.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantNormalXPFormulaB. */
 static float const WC3_XP_NORMAL_FORMULA_C_DEFAULT =
     5.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantNormalXPFormulaC. */
-static float const WC3_XP_HERO_TABLE_DEFAULT =
-    100.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantHeroXP[0]. */
+static float const WC3_XP_HERO_TABLE_DEFAULT[] = {
+    100.0f, 120.0f, 160.0f, 220.0f, 300.0f
+}; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantHeroXP table. */
 static float const WC3_XP_HERO_FORMULA_A_DEFAULT =
     1.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantHeroXPFormulaA. */
 static float const WC3_XP_HERO_FORMULA_B_DEFAULT =
@@ -1990,12 +1992,13 @@ static float G_MiscListNum(cstring_t key, uint32_t n, float fallback) {
  * The table itself is 1-based by victim level. */
 static uint32_t G_KillXPForLevel(cstring_t tableKey, cstring_t formulaAKey,
                                  cstring_t formulaBKey, cstring_t formulaCKey,
-                                 uint32_t level, float tableFallback,
+                                 uint32_t level, float const *tableFallback,
+                                 uint32_t tableFallbackCount,
                                  float formulaAFallback, float formulaBFallback,
                                  float formulaCFallback) {
     cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", tableKey);
     uint32_t count = 0;
-    double current = tableFallback;
+    double current;
 
     if (level < 1) level = 1;
     if (!value || !*value) {
@@ -2020,9 +2023,9 @@ static uint32_t G_KillXPForLevel(cstring_t tableKey, cstring_t formulaAKey,
         else if (*value) break;
     }
     if (!count) {
-        count = 1;
-        current = tableFallback;
-        if (level == 1) return (uint32_t)current;
+        count = tableFallbackCount;
+        current = tableFallback[count - 1];
+        if (level <= count) return (uint32_t)tableFallback[level - 1];
     }
 
     double const a = G_MiscNum(formulaAKey, formulaAFallback);
@@ -2093,12 +2096,16 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
         baseXP = G_KillXPForLevel("GrantHeroXP", "GrantHeroXPFormulaA",
                                   "GrantHeroXPFormulaB", "GrantHeroXPFormulaC",
                                   victimLevel, WC3_XP_HERO_TABLE_DEFAULT,
+                                  (uint32_t)(sizeof(WC3_XP_HERO_TABLE_DEFAULT) /
+                                             sizeof(WC3_XP_HERO_TABLE_DEFAULT[0])),
                                   WC3_XP_HERO_FORMULA_A_DEFAULT, WC3_XP_HERO_FORMULA_B_DEFAULT,
                                   WC3_XP_HERO_FORMULA_C_DEFAULT);
     } else {
         baseXP = G_KillXPForLevel("GrantNormalXP", "GrantNormalXPFormulaA",
                                   "GrantNormalXPFormulaB", "GrantNormalXPFormulaC",
                                   victimLevel, WC3_XP_NORMAL_TABLE_DEFAULT,
+                                  (uint32_t)(sizeof(WC3_XP_NORMAL_TABLE_DEFAULT) /
+                                             sizeof(WC3_XP_NORMAL_TABLE_DEFAULT[0])),
                                   WC3_XP_NORMAL_FORMULA_A_DEFAULT, WC3_XP_NORMAL_FORMULA_B_DEFAULT,
                                   WC3_XP_NORMAL_FORMULA_C_DEFAULT);
     }
