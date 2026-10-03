@@ -54,6 +54,7 @@ static aura_cache_key_t const aura_cache_keys[HERO_AURA_CACHE_KEYS] = {
 
 typedef struct {
     edict_t *source;
+    bool active;
     auraAbilityRef_t life_orc;
     auraAbilityRef_t life_blight;
     auraAbilityRef_t mana;
@@ -328,10 +329,16 @@ static void regen_aura_cache_update(void) {
         entry->life_orc = actor_aura_ability(entry->source, ID_REGEN_LIFE_ORC);
         entry->life_blight = actor_aura_ability(entry->source, ID_REGEN_LIFE_BLIGHT);
         entry->mana = actor_aura_ability(entry->source, ID_REGEN_MANA);
+        entry->active = S_AuraUnitActive(entry->source);
         entry->devotion = actor_aura_ability(entry->source, ID_DEVOTION_AURA);
         entry->unholy = actor_aura_ability(entry->source, ID_UNHOLY_AURA);
         FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
-            entry->combat[j] = actor_aura_ability(entry->source, aura_cache_keys[j].code);
+            if (aura_cache_keys[j].code == ID_DEVOTION_AURA)
+                entry->combat[j] = entry->devotion;
+            else if (aura_cache_keys[j].code == ID_UNHOLY_AURA)
+                entry->combat[j] = entry->unholy;
+            else
+                entry->combat[j] = actor_aura_ability(entry->source, aura_cache_keys[j].code);
             if (entry->combat[j].alias) has_combat_aura = true;
         }
         if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias ||
@@ -539,8 +546,24 @@ static float hero_aura_bonus(edict_t *unit, uint32_t code, uint32_t data) {
         if (aura_cache_keys[i].code == code && aura_cache_keys[i].data == data) { slot = i; break; }
     if (slot == sizeof(aura_cache_keys) / sizeof(*aura_cache_keys) || !unit || unit->s.number >= MAX_ENTITIES)
         return 0.0f;
+    /* Hidden/dead/invisible transitions suppress auras immediately. The numeric
+     * values keep their retail refresh cadence, but an active-state transition
+     * invalidates the recipient snapshot before it can be observed again. */
+    if (!S_AuraUnitActive(unit)) {
+        aura_cache_next_update[unit->s.number] = 0;
+        return 0.0f;
+    }
     ability_generation = G_AbilityDataGeneration();
     aura_cache_update_time();
+    regen_aura_cache_update();
+    FOR_LOOP(i, regen_source_count) {
+        regenAuraSource_t *source = regen_sources + i;
+        bool const active = S_AuraUnitActive(source->source);
+        if (active != source->active) {
+            source->active = active;
+            aura_cache_next_update[unit->s.number] = 0;
+        }
+    }
     if (level.time >= aura_cache_next_update[unit->s.number] ||
         aura_cache_generation[unit->s.number] != ability_generation) {
         memset(aura_cache[unit->s.number], 0, sizeof(aura_cache[unit->s.number]));
