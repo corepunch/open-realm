@@ -87,7 +87,7 @@ static bool earthquake_allows_unit(uint32_t code, cstring_t targets, edict_t *ca
 
 static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, float radius, vec2_t const *origin) {
     if (!target || !target->inuse || (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS)) return false;
-    if (!G_IsDestructable(target) || target->destructable.dead) return false;
+    if (!G_IsDestructable(target) || E_destructable_get(target)->dead) return false;
     if (targets && *targets) {
         if (target->targtype == TARG_TREE && !S_SpellTargetHasToken(targets, "tree", NULL)) return false;
         if (target->targtype == TARG_DEBRIS && !S_SpellTargetHasToken(targets, "debris", NULL)) return false;
@@ -239,7 +239,7 @@ static void death_coil_projectile_hit(edict_t *missile) {
     bool applied = false;
 
     if (caster && caster->inuse && S_SpellIsAliveTarget(target) && race &&
-        target->spawn_time == missile->channel.target_spawn_time) {
+        target->spawn_time == E_channel_get(missile)->target_spawn_time) {
         if (!strcmp(race, STR_UNDEAD) && S_SpellIsFriend(caster, target)) {
             S_SpellHeal(target, missile->damage);
             applied = true;
@@ -261,7 +261,7 @@ static void death_coil_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
     missile->s.angle = caster->s.angle;
     missile->s.model = art ? G_RegisterModel(art) : 0;
     missile->goalentity = st.entity;
-    missile->channel.target_spawn_time = st.entity->spawn_time;
+    E_channel(missile)->target_spawn_time = st.entity->spawn_time;
     missile->owner = caster;
     missile->velocity = death_coil_missile_speed(spell->code) / 1000.0f;
     missile->damage = (uint32_t)MAX(0.0f, S_SpellData(spell->code, level, 1));
@@ -306,7 +306,7 @@ static void bounce_execute(bounceParams_t const *params) {
  * or delayed jumps cannot revisit an earlier unit. */
 static bool chain_lightning_visited(edict_t *thinker, edict_t const *target) {
     FILTER_EDICTS(marker, marker->class_id == ID_CHAIN_LIGHTNING_VISIT && marker->owner == thinker &&
-                  marker->channel.owner_spawn_time == thinker->spawn_time &&
+                  E_channel_get(marker)->owner_spawn_time == thinker->spawn_time &&
                   marker->goalentity == target && marker->resources == target->spawn_time)
         return true;
     return false;
@@ -318,7 +318,7 @@ static void chain_lightning_mark_visited(edict_t *thinker, edict_t *target) {
     marker->class_id = ID_CHAIN_LIGHTNING_VISIT;
     marker->svflags |= SVF_NOCLIENT;
     marker->owner = thinker;
-    marker->channel.owner_spawn_time = thinker->spawn_time;
+    E_channel(marker)->owner_spawn_time = thinker->spawn_time;
     marker->goalentity = target;
     marker->resources = target->spawn_time;
 }
@@ -327,7 +327,7 @@ static void chain_lightning_finish(edict_t *thinker) {
     edict_t *markers[32];
     uint32_t count = 0;
     FILTER_EDICTS(marker, marker->class_id == ID_CHAIN_LIGHTNING_VISIT && marker->owner == thinker &&
-                  marker->channel.owner_spawn_time == thinker->spawn_time)
+                  E_channel_get(marker)->owner_spawn_time == thinker->spawn_time)
         if (count < 32) markers[count++] = marker;
     FOR_LOOP(i, count) G_FreeEdict(markers[i]);
     G_FreeEdict(thinker);
@@ -339,7 +339,7 @@ void chain_lightning_think(edict_t *thinker) {
 
     if (!thinker || !thinker->inuse) return;
     caster = thinker->owner;
-    if (!caster || !caster->inuse || caster->spawn_time != thinker->channel.owner_spawn_time || !thinker->resources) {
+    if (!caster || !caster->inuse || caster->spawn_time != E_channel_get(thinker)->owner_spawn_time || !thinker->resources) {
         chain_lightning_finish(thinker);
         return;
     }
@@ -416,7 +416,7 @@ static void chain_lightning_execute(edict_t *caster, spellTarget_t st, abilityit
     thinker->class_id = spell->code;
     thinker->svflags |= SVF_NOCLIENT;
     thinker->owner = caster;
-    thinker->channel.owner_spawn_time = caster->spawn_time;
+    E_channel(thinker)->owner_spawn_time = caster->spawn_time;
     thinker->s.origin2 = st.entity->s.origin2;
     thinker->goalentity = st.entity;
     thinker->damage = st.entity->spawn_time;
@@ -462,7 +462,7 @@ static void mass_teleport_cleanup(edict_t *thinker) {
     edict_t *target = thinker ? thinker->goalentity : NULL;
 
     if (!thinker) return;
-    if (target && target->inuse && target->spawn_time == thinker->channel.target_spawn_time &&
+    if (target && target->inuse && target->spawn_time == E_channel_get(thinker)->target_spawn_time &&
         thinker->wait < 0.5f)
         target->paused = false;
     FILTER_EDICTS(effect, effect->inuse && effect->owner == thinker &&
@@ -510,7 +510,7 @@ void mass_teleport_think(edict_t *thinker) {
         S_SpellEndChannel(thinker);
         return;
     }
-    if (!target || !target->inuse || target->spawn_time != thinker->channel.target_spawn_time ||
+    if (!target || !target->inuse || target->spawn_time != E_channel_get(thinker)->target_spawn_time ||
         !S_SpellAllowsTarget(thinker->class_id, caster, target)) {
         mass_teleport_cleanup(thinker);
         S_SpellEndChannel(thinker);
@@ -555,7 +555,7 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
         uint32_t code = spell ? spell->code : 0;
         FILTER_EDICTS(thinker, thinker->inuse && thinker->owner == ent && thinker->class_id == code &&
                       thinker->think == mass_teleport_think &&
-                      thinker->channel.owner_spawn_time == ent->spawn_time)
+                      E_channel_get(thinker)->owner_spawn_time == ent->spawn_time)
             mass_teleport_cleanup(thinker);
         return true;
     }
@@ -570,7 +570,7 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
         delay = MAX(0.0f, S_SpellData(spell->code, level, 2));
         thinker = S_SpellChannelThinker(ent, spell->code);
         thinker->goalentity = target;
-        thinker->channel.target_spawn_time = target->spawn_time;
+        E_channel(thinker)->target_spawn_time = target->spawn_time;
         thinker->variation = level;
         thinker->wait = target->paused ? 1.0f : 0.0f;
         thinker->freetime = G_Time() + (uint32_t)(delay * 1000.0f);
@@ -870,7 +870,7 @@ BZ_ABILITY_PROC(CAbilityFingerOfDeath) {
         return call && call->target && call->target->entity &&
             S_SpellIsAliveTarget(call->target->entity) &&
             S_SpellIsEnemy(ent, call->target->entity);
-    if (msg == A_EXECUTE && call && call->item && call->target && call->target->entity) {
+    if (msg == A_EXECUTE && call &E_item_get(call) && call->target && call->target->entity) {
         uint32_t level = S_SpellLevel(ent, call->item->code);
         S_SpellDamage(call->target->entity, ent, (int)S_SpellData(call->item->code, level, 1));
         G_SpawnAbilityEffectTarget(call->item->code, WC3_EFFECT_TARGET, 0, call->target->entity, NULL, true);

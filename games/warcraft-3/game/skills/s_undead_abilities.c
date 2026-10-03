@@ -125,7 +125,7 @@ static void replenish_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
 BZ_ABILITY_PROC(CAbilityReplenish) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
-    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t code = call &E_item_get(call) ? call->item->code : 0;
     switch (msg) {
     case A_VALIDATE: return replenish_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: replenish_execute(ent, target, call ? call->item : NULL); return true;
@@ -153,7 +153,7 @@ static void replenish_life_execute(edict_t *caster, spellTarget_t st, abilityite
 }
 
 BZ_ABILITY_PROC(CAbilityReplenishLife) {
-    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t code = call &E_item_get(call) ? call->item->code : 0;
     switch (msg) {
     case A_EXECUTE: replenish_life_execute(ent, MAKE(spellTarget_t, .type = SPELL_TARGET_NONE), call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
@@ -180,7 +180,7 @@ static void replenish_mana_execute(edict_t *caster, spellTarget_t st, abilityite
 }
 
 BZ_ABILITY_PROC(CAbilityReplenishMana) {
-    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t code = call &E_item_get(call) ? call->item->code : 0;
     switch (msg) {
     case A_EXECUTE: replenish_mana_execute(ent, MAKE(spellTarget_t, .type = SPELL_TARGET_NONE), call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
@@ -199,7 +199,7 @@ BZ_ABILITY_PROC(CAbilityReplenishMana) {
 #define ID_GRAVEYARD_CORPSE MAKEFOURCC('A','g','y','d')
 
 static bool graveyard_is_under_construction(edict_t *graveyard) {
-    return graveyard && (graveyard->construction.active || graveyard->build == graveyard);
+    return graveyard && (E_construction_get(graveyard)->active || graveyard->build == graveyard);
 }
 
 static edict_t *graveyard_find_thinker(edict_t *graveyard) {
@@ -321,7 +321,7 @@ static edict_t *cannibalize_corpse(edict_t *caster, abilityitem_t const *spell) 
     }
     FILTER_EDICTS(transport, S_CargoIsCorpseHolder(transport) &&
                   transport->s.player == caster->s.player) {
-        FOR_LOOP(i, transport->cargo.count) {
+        FOR_LOOP(i, E_cargo_get(transport)->count) {
             edict_t *unit = S_CargoUnitAt(transport, i);
             vec2_t position;
             float distance;
@@ -392,7 +392,7 @@ void cannibalize_approach_think(edict_t *thinker) {
     edict_t *approach = cannibalize_approach_target(corpse);
 
     if (!thinker || !caster || !caster->inuse || M_IsDead(caster) || !corpse || !corpse->inuse ||
-        corpse->spawn_time != thinker->channel.target_spawn_time || !approach ||
+        corpse->spawn_time != E_channel_get(thinker)->target_spawn_time || !approach ||
         !cannibalize_corpse_allowed(caster, thinker->class_id, corpse)) {
         cannibalize_approach_cancel(thinker);
         return;
@@ -436,14 +436,14 @@ static bool cannibalize_command(edict_t *caster, edict_t *clent, abilityitem_t c
     thinker->owner = caster;
     thinker->goalentity = corpse;
     thinker->class_id = spell->code;
-    thinker->channel.target_spawn_time = corpse->spawn_time;
+    E_channel(thinker)->target_spawn_time = corpse->spawn_time;
     thinker->think = cannibalize_approach_think;
     return true;
 }
 
 static bool cannibalize_reserved_corpse_valid(edict_t const *thinker, edict_t const *corpse) {
     return thinker && corpse && corpse->inuse &&
-        corpse->spawn_time == thinker->channel.target_spawn_time &&
+        corpse->spawn_time == E_channel_get(thinker)->target_spawn_time &&
         (corpse->svflags & SVF_DEADMONSTER) && M_IsDead(corpse);
 }
 
@@ -513,7 +513,7 @@ BZ_ABILITY_PROC(CAbilityCannibalize) {
         unit_addstatus(corpse, GetClassName(spell->code), level);
         thinker = S_SpellChannelThinker(ent, spell->code);
         thinker->goalentity = corpse;
-        thinker->channel.target_spawn_time = corpse->spawn_time;
+        E_channel(thinker)->target_spawn_time = corpse->spawn_time;
         thinker->velocity = MAX(0.0f, S_SpellData(spell->code, level, 1));
         thinker->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellDuration(spell->code, level, false)) * 1000.0f);
         thinker->think = cannibalize_think;
@@ -556,7 +556,7 @@ static edict_t *raise_dead_corpse(edict_t *caster, uint32_t code, float range) {
     }
     FILTER_EDICTS(transport, S_CargoIsCorpseHolder(transport) &&
                   transport->s.player == caster->s.player) {
-        FOR_LOOP(i, transport->cargo.count) {
+        FOR_LOOP(i, E_cargo_get(transport)->count) {
             edict_t *unit = S_CargoUnitAt(transport, i);
             vec2_t position;
             float distance;
@@ -646,7 +646,7 @@ static bool raise_dead_autocast_acquire(edict_t *caster, uint32_t code) {
 BZ_ABILITY_PROC(CAbilityRaiseDead) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
-    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t code = call &E_item_get(call) ? call->item->code : 0;
     switch (msg) {
     case A_VALIDATE: return raise_dead_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: raise_dead_execute(ent, target, call ? call->item : NULL); return true;
@@ -718,19 +718,19 @@ static void possession_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
 
 static void possession_strip_channel(edict_t *thinker) {
     edict_t *caster = thinker->owner, *target = thinker->goalentity;
-    if (target && target->inuse && target->spawn_time == thinker->channel.target_spawn_time) {
+    if (target && target->inuse && target->spawn_time == E_channel_get(thinker)->target_spawn_time) {
         possession_clear_status(target, BZ_BPOS);
         possession_refresh_stun(target);
         if (thinker->damage) target->invulnerable = thinker->invulnerable;
     }
-    if (caster && caster->inuse && caster->spawn_time == thinker->channel.owner_spawn_time)
+    if (caster && caster->inuse && caster->spawn_time == E_channel_get(thinker)->owner_spawn_time)
         possession_clear_status(caster, BZ_BPOC);
 }
 
 void possession_two_think(edict_t *thinker) {
     edict_t *caster = thinker->owner, *target = thinker->goalentity;
     if (!S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target) ||
-        target->spawn_time != thinker->channel.target_spawn_time) {
+        target->spawn_time != E_channel_get(thinker)->target_spawn_time) {
         possession_strip_channel(thinker);
         S_SpellEndChannel(thinker);
         return;
@@ -759,7 +759,7 @@ static void possession_two_execute(edict_t *caster, spellTarget_t st, abilityite
 
     thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->goalentity = st.entity;
-    thinker->channel.target_spawn_time = st.entity->spawn_time;
+    E_channel(thinker)->target_spawn_time = st.entity->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     thinker->damage = invuln > 0.0f ? 1 : 0;
     thinker->invulnerable = st.entity->invulnerable;

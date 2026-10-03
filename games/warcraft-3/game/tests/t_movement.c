@@ -77,8 +77,8 @@ static edict_t *make_moving_unit(float x, float y) {
 static edict_t *make_harvest_tree(float x, float y, float life) {
     edict_t *tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), x, y);
     SP_monster_tree(tree);
-    tree->destructable.initialized = true;
-    tree->destructable.item_table = (uint32_t)-1;
+    E_destructable(tree)->initialized = true;
+    E_destructable(tree)->item_table = (uint32_t)-1;
     tree->targtype = TARG_TREE;
     tree->health.value = tree->health.max_value = life;
     return tree;
@@ -2011,8 +2011,8 @@ static edict_t *make_smart_destructable(float x, float y,
     edict_t *dest = G_Spawn();
     dest->class_id = MAKEFOURCC('L','T','0','5');
     dest->data.DestructableData = data;
-    dest->destructable.initialized = true;
-    dest->destructable.placement_solid = true;
+    E_destructable(dest)->initialized = true;
+    E_destructable(dest)->placement_solid = true;
     dest->health.value = dest->health.max_value = 500.0f;
     dest->targtype = targtype;
     dest->s.origin2 = (vec2_t){ x, y };
@@ -2863,9 +2863,9 @@ TEST(wc3_movement, trained_unit_completion_preserves_remaining_queue) {
     T_ASSERT(second->training);
     T_ASSERT(second->s.renderfx & RF_HIDDEN);
     T_FEQ(second->health.value, 0.0f, 0.01f);
-    T_EQ(first->food.used, 2);
-    T_EQ(first->food.made, 4);
-    T_EQ(second->food.used, 2);
+    T_EQ(E_food_get(first)->used, 2);
+    T_EQ(E_food_get(first)->made, 4);
+    T_EQ(E_food_get(second)->used, 2);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 4);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 104);
 }
@@ -2930,7 +2930,7 @@ TEST(wc3_movement, lumber_return_skips_unfinished_lumber_mill) {
     hall->s.player = mill->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     make_live_dropoff(mill, &return_lumber_abilities);
-    mill->construction.active = true;
+    E_construction(mill)->active = true;
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
 
@@ -2940,7 +2940,7 @@ TEST(wc3_movement, lumber_return_skips_unfinished_lumber_mill) {
     T_ASSERT(worker->goalentity == hall);
     T_FEQ(worker->harvested_lumber, 10.0f, 0.01f);
 
-    mill->construction.active = false;
+    E_construction(mill)->active = false;
     T_ASSERT(S_CanReturnResourceAt(worker, mill, RETURN_RESOURCE_LUMBER));
 }
 
@@ -2953,7 +2953,7 @@ TEST(wc3_movement, gold_return_skips_unfinished_town_hall) {
     complete_hall->s.player = unfinished_hall->s.player = worker->s.player;
     make_live_dropoff(complete_hall, &return_gold_lumber_abilities);
     make_live_dropoff(unfinished_hall, &return_gold_lumber_abilities);
-    unfinished_hall->construction.active = true;
+    E_construction(unfinished_hall)->active = true;
     S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 10);
 
     T_ASSERT(!S_CanReturnResourceAt(worker, unfinished_hall, RETURN_RESOURCE_GOLD));
@@ -2963,7 +2963,7 @@ TEST(wc3_movement, gold_return_skips_unfinished_town_hall) {
     T_EQ(worker->harvested_gold, 10);
     T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);
 
-    unfinished_hall->construction.active = false;
+    E_construction(unfinished_hall)->active = false;
     T_ASSERT(S_CanReturnResourceAt(worker, unfinished_hall, RETURN_RESOURCE_GOLD));
     T_ASSERT(S_FindNearestResourceDropoff(worker, RETURN_RESOURCE_GOLD) == unfinished_hall);
 }
@@ -3292,7 +3292,7 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
 
     bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
     bridge->data.DestructableData = &bridge_data;
-    bridge->destructable.initialized = bridge->destructable.placement_solid = true;
+    E_destructable(bridge)->initialized = E_destructable(bridge)->placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, terrain + 64.0f);
     G_RegisterGroundSurface(bridge);
@@ -3321,7 +3321,7 @@ TEST(wc3_movement, rectangular_bridge_support_bounds_follow_quarter_turns) {
 
         bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0');
         bridge->data.DestructableData = &bridge_data;
-        bridge->destructable.initialized = bridge->destructable.placement_solid = true;
+        E_destructable(bridge)->initialized = E_destructable(bridge)->placement_solid = true;
         bridge->pathtex = (pathTex_t *)&bridge_path;
         bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 100.0f);
         bridge->targtype = TARG_BRIDGE;
@@ -3344,8 +3344,8 @@ TEST(wc3_movement, ground_surface_flag_clears_when_unregistered) {
 
     bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
     bridge->data.DestructableData = &bridge_data;
-    bridge->destructable.initialized = true;
-    bridge->destructable.placement_solid = true;
+    E_destructable(bridge)->initialized = true;
+    E_destructable(bridge)->placement_solid = true;
 
     G_RegisterGroundSurface(bridge);
     T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
@@ -3394,7 +3394,7 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
     unit->data.UnitData = &float_data;
     set_uniform_test_water_height(32.0f);
     bridge->data.DestructableData = &bridge_data;
-    bridge->destructable.initialized = bridge->destructable.placement_solid = true;
+    E_destructable(bridge)->initialized = E_destructable(bridge)->placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 96.0f);
     G_RegisterGroundSurface(bridge);
@@ -4352,7 +4352,7 @@ TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
     second->currentmove->think(second);
     T_ASSERT(S_AcolyteHarvestIsActive(first));
     T_ASSERT(S_AcolyteHarvestIsActive(second));
-    T_ASSERT(first->acolyte_mine.slot != second->acolyte_mine.slot);
+    T_ASSERT(E_acolyte_mine_get(first)->slot != E_acolyte_mine_get(second)->slot);
     T_ASSERT(!(first->s.renderfx & RF_HIDDEN));
     T_ASSERT(!(second->s.renderfx & RF_HIDDEN));
     T_STREQ(first->currentmove->animation, "stand work");
@@ -4410,7 +4410,7 @@ TEST(wc3_movement, preplaced_haunted_mine_binds_to_neutral_parent) {
     haunted->health.value = haunted->health.max_value = 1000.0f;
 
     S_MineOverlayBindPreplaced();
-    T_EQ(haunted->mineoverlay.parent, parent);
+    T_EQ(E_mineoverlay_get(haunted)->parent, parent);
     T_ASSERT(parent->s.renderfx & RF_HIDDEN);
     T_ASSERT(parent->paused);
     T_EQ(parent->resources, 4500);
@@ -4434,7 +4434,7 @@ TEST(wc3_movement, scripted_haunted_mine_creation_binds_parent) {
 
     haunted = S_CreateBlightedGoldmine(0, &point, 90.0f);
     T_NOT_NULL(haunted);
-    T_EQ(haunted->mineoverlay.parent, parent);
+    T_EQ(E_mineoverlay_get(haunted)->parent, parent);
     T_FEQ(haunted->s.angle, 90.0f, 0.001f);
     T_EQ(parent->resources, 3200);
     T_ASSERT(parent->s.renderfx & RF_HIDDEN);
@@ -4480,7 +4480,7 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
     first->stand = second->stand = unit_stand;
     first->s.renderfx |= RF_HIDDEN; second->s.renderfx |= RF_HIDDEN;
     first->paused = second->paused = true;
-    mine->cargo.units[0] = first; mine->cargo.units[1] = second; mine->cargo.count = 2;
+    E_cargo_get(mine)->units[0] = first; E_cargo_get(mine)->units[1] = second; E_cargo(mine)->count = 2;
 
     T_ASSERT(S_MineOverlayBind(mine, parent));
     S_CargoInitUnit(mine);
@@ -4491,7 +4491,7 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
     G_RunEntity(mine); /* index 1: occupied */
     T_EQ(parent->resources, 15);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10);
-    T_EQ(mine->mineoverlay.active_interval_index, 1);
+    T_EQ(E_mineoverlay_get(mine)->active_interval_index, 1);
     level.time = 1000; G_RunEntity(mine); /* index 2: empty */
     level.time = 2000; G_RunEntity(mine); /* index 3: empty */
     level.time = 3000; G_RunEntity(mine); /* index 4: empty */
@@ -4502,7 +4502,7 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
 
     T_EQ(parent->resources, 0);
     T_ASSERT(M_IsDead(mine));
-    T_EQ(mine->cargo.count, 0);
+    T_EQ(E_cargo_get(mine)->count, 0);
     T_ASSERT(!(first->s.renderfx & RF_HIDDEN));
     T_ASSERT(!(second->s.renderfx & RF_HIDDEN));
     T_ASSERT(!first->paused && !second->paused);
@@ -4526,23 +4526,23 @@ TEST(wc3_movement, entangle_command_hidden_tracks_live_overlay_caster_generation
     caster = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
     overlay = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 64.0f, 0.0f);
     parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 64.0f, 0.0f);
-    overlay->mineoverlay.parent = parent;
-    overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
-    overlay->mineoverlay.caster = caster;
-    overlay->mineoverlay.caster_spawn_time = caster->spawn_time;
-    overlay->mineoverlay.entangle_ability = ability;
+    E_mineoverlay(overlay)->parent = parent;
+    E_mineoverlay(overlay)->parent_spawn_time = parent->spawn_time;
+    E_mineoverlay(overlay)->caster = caster;
+    E_mineoverlay(overlay)->caster_spawn_time = caster->spawn_time;
+    E_mineoverlay(overlay)->entangle_ability = ability;
 
     T_ASSERT(S_EntangleCommandHidden(caster, ability));
-    overlay->mineoverlay.caster_spawn_time++;
+    E_mineoverlay_get(overlay)->caster_spawn_time++;
     T_ASSERT(!S_EntangleCommandHidden(caster, ability));
 }
 
 static edict_t *movement_find_entangle_overlay(edict_t *caster, edict_t *parent) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *overlay = globals.edicts + i;
-        if (overlay->inuse && overlay->mineoverlay.parent == parent &&
-            overlay->mineoverlay.caster == caster &&
-            overlay->mineoverlay.entangle_ability == MAKEFOURCC('A','e','n','t'))
+        if (overlay->inuse && E_mineoverlay_get(overlay)->parent == parent &&
+            E_mineoverlay_get(overlay)->caster == caster &&
+            E_mineoverlay_get(overlay)->entangle_ability == MAKEFOURCC('A','e','n','t'))
             return overlay;
     }
     return NULL;
@@ -4563,8 +4563,8 @@ static void movement_prepare_rooted_entangle_caster(edict_t *caster, uint32_t pl
     caster->data.UnitAbilities = &test_entangle_caster;
     G_ActorAddSkill(caster, entangle);
     G_ActorAddSkill(caster, root);
-    caster->ancient_root.ability = root;
-    caster->ancient_root.mode = ANCIENT_ROOTED;
+    E_ancient_root(caster)->ability = root;
+    E_ancient_root(caster)->mode = ANCIENT_ROOTED;
     caster->s.flags |= EF_BUILDING;
     caster->aiflags |= AI_IMMOBILE;
     caster->runtime.flags |= UNIT_BALANCE_BUILDING;
@@ -4590,7 +4590,7 @@ TEST(wc3_movement, entangleinstant_target_order_creates_completed_overlay) {
     T_ASSERT(unit_issuetargetorder(caster, "entangleinstant", parent));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && !overlay->construction.active);
+    T_ASSERT(overlay && !E_construction_get(overlay)->active);
     T_ASSERT(overlay && overlay->build != overlay);
     T_ASSERT(parent->s.renderfx & RF_HIDDEN);
     T_ASSERT(parent->paused);
@@ -4628,7 +4628,7 @@ TEST(wc3_movement, queued_entangleinstant_dispatches_when_previous_order_finishe
     T_ASSERT(G_UnitStartNextQueuedOrder(caster));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && !overlay->construction.active);
+    T_ASSERT(overlay && !E_construction_get(overlay)->active);
     T_EQ(G_UnitQueuedOrderCount(caster), 0);
 
     gi.Write = old_write;
@@ -4701,7 +4701,7 @@ TEST(wc3_movement, auto_entangle_nearby_starts_normal_construction) {
     T_ASSERT(S_AutoEntangleNearby(caster, false));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && overlay->construction.active);
+    T_ASSERT(overlay && E_construction_get(overlay)->active);
 
     gi.Write = old_write;
     gi.unicast = old_unicast;
@@ -4725,7 +4725,7 @@ TEST(wc3_movement, root_completion_auto_entangles_nearest_mine_once) {
     parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
     far_parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 48.0f, 0.0f);
     movement_prepare_rooted_entangle_caster(caster, 0);
-    caster->ancient_root.mode = ANCIENT_UPROOTED;
+    E_ancient_root(caster)->mode = ANCIENT_UPROOTED;
     caster->s.flags &= ~EF_BUILDING;
     caster->aiflags &= ~AI_IMMOBILE;
     caster->runtime.flags &= ~UNIT_BALANCE_BUILDING;
@@ -4735,18 +4735,18 @@ TEST(wc3_movement, root_completion_auto_entangles_nearest_mine_once) {
     setup_test_goldmine(far_parent, &test_goldmine_stock, 5000);
 
     S_AncientBeginMorph(caster, true);
-    end_time = caster->ancient_root.transition_end_time;
+    end_time = E_ancient_root_get(caster)->transition_end_time;
     level.time = end_time - 1;
     S_RunAbilityUpdates(caster);
-    T_EQ(caster->ancient_root.mode, ANCIENT_ROOTING);
+    T_EQ(E_ancient_root_get(caster)->mode, ANCIENT_ROOTING);
     T_NULL(movement_find_entangle_overlay(caster, parent));
 
     level.time = end_time;
     S_RunAbilityUpdates(caster);
-    T_EQ(caster->ancient_root.mode, ANCIENT_ROOTED);
+    T_EQ(E_ancient_root_get(caster)->mode, ANCIENT_ROOTED);
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && overlay->construction.active);
+    T_ASSERT(overlay && E_construction_get(overlay)->active);
     T_NULL(movement_find_entangle_overlay(caster, far_parent));
 
     S_RunAbilityUpdates(caster);
@@ -4769,22 +4769,22 @@ TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
     wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
     mine->data.UnitAbilities = &test_entangled_mine;
     mine->s.player = wisp->s.player = 0;
-    mine->construction.active = true;
+    E_construction(mine)->active = true;
     mine->health.value = mine->health.max_value = 1000.0f;
     wisp->stand = unit_stand;
     unit_stand(wisp);
 
     T_ASSERT(S_CargoOrderBoard(wisp, mine));
-    T_EQ(mine->cargo.count, 0);
+    T_EQ(E_cargo_get(mine)->count, 0);
     T_EQ(wisp->secondarygoal, mine);
     T_NOT_NULL(wisp->currentmove);
     T_STREQ(wisp->currentmove->animation, "stand");
     T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
 
-    mine->construction.active = false;
+    E_construction(mine)->active = false;
     wisp->currentmove->think(wisp);
-    T_EQ(mine->cargo.count, 1);
-    T_EQ(mine->cargo.units[0], wisp);
+    T_EQ(E_cargo_get(mine)->count, 1);
+    T_EQ(E_cargo_get(mine)->units[0], wisp);
     T_ASSERT(wisp->paused);
     T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
 
@@ -4819,15 +4819,15 @@ TEST(wc3_movement, autoharvestgold_immediate_order_boards_wisp_into_entangled_mi
     /* NightElf07's script assigns this immediate order to Wisps. It must
      * select the player's Entangled Mine and enter the mine's cargo. */
     T_ASSERT(unit_issueimmediateorder(wisp, "autoharvestgold"));
-    T_EQ(mine->cargo.count, 0);
+    T_EQ(E_cargo_get(mine)->count, 0);
     T_EQ(wisp->secondarygoal, mine);
     T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
-    for (steps = 0; steps < 64 && mine->cargo.count == 0; steps++) {
+    for (steps = 0; steps < 64 && E_cargo_get(mine)->count == 0; steps++) {
         if (!wisp->currentmove || !wisp->currentmove->think) break;
         wisp->currentmove->think(wisp);
     }
-    T_EQ(mine->cargo.count, 1);
-    T_EQ(mine->cargo.units[0], wisp);
+    T_EQ(E_cargo_get(mine)->count, 1);
+    T_EQ(E_cargo_get(mine)->units[0], wisp);
     T_ASSERT(wisp->paused);
     T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
 
@@ -4853,7 +4853,7 @@ TEST(wc3_movement, rallied_wisp_waits_for_entangled_mine_then_automatically_boar
     producer->stand = unit_stand;
     producer->s.player = mine->s.player = wisp->s.player = 0;
     mine->data.UnitAbilities = &test_entangled_mine;
-    mine->construction.active = true;
+    E_construction(mine)->active = true;
     mine->health.value = mine->health.max_value = 1000.0f;
     wisp->data.UnitAbilities = &wisp_harvest_abilities;
     wisp->data.UnitBalance = &balance;
@@ -4877,15 +4877,15 @@ TEST(wc3_movement, rallied_wisp_waits_for_entangled_mine_then_automatically_boar
          wisp->currentmove->proc == CAbilityBattlestations &&
          strcmp(wisp->currentmove->animation, "stand"); steps++)
         wisp->currentmove->think(wisp);
-    T_EQ(mine->cargo.count, 0);
+    T_EQ(E_cargo_get(mine)->count, 0);
     T_EQ(wisp->secondarygoal, mine);
     T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
     T_STREQ(wisp->currentmove->animation, "stand");
 
-    mine->construction.active = false;
+    E_construction(mine)->active = false;
     wisp->currentmove->think(wisp);
-    T_EQ(mine->cargo.count, 1);
-    T_EQ(mine->cargo.units[0], wisp);
+    T_EQ(E_cargo_get(mine)->count, 1);
+    T_EQ(E_cargo_get(mine)->units[0], wisp);
     T_ASSERT(wisp->paused);
     T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
 
@@ -4920,30 +4920,30 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     caster->data.UnitAbilities = &test_entangle_caster;
     T_ASSERT(G_ActorSetSkillPermanent(caster, ability, true));
     G_ActorAddSkill(caster, ability);
-    caster->ancient_root.ability = MAKEFOURCC('A','r','o','1');
-    caster->ancient_root.mode = ANCIENT_UPROOTED;
+    E_ancient_root(caster)->ability = MAKEFOURCC('A','r','o','1');
+    E_ancient_root(caster)->mode = ANCIENT_UPROOTED;
     G_SelectEntity(client, caster);
     caster->no_pathing = false;
     T_ASSERT(!movement_issue_entangle_command(clent, client, caster, parent));
     caster->no_pathing = true;
-    caster->ancient_root.mode = ANCIENT_ROOTED;
+    E_ancient_root(caster)->mode = ANCIENT_ROOTED;
     caster->s.flags |= EF_BUILDING;
     caster->aiflags |= AI_IMMOBILE;
     caster->runtime.flags |= UNIT_BALANCE_BUILDING;
     T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && overlay->mineoverlay.entangle_permanent_before);
-    T_ASSERT(overlay && overlay->construction.active);
+    T_ASSERT(overlay && E_mineoverlay_get(overlay)->entangle_permanent_before);
+    T_ASSERT(overlay && E_construction_get(overlay)->active);
 
     T_ASSERT(WriteGame(filename));
     T_ASSERT(G_ActorSetSkillPermanent(caster, ability, false));
-    overlay->mineoverlay.entangle_permanent_before = false;
+    E_mineoverlay(overlay)->entangle_permanent_before = false;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(G_ActorSkillPermanent(caster, ability));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && overlay->mineoverlay.entangle_permanent_before);
+    T_ASSERT(overlay && E_mineoverlay_get(overlay)->entangle_permanent_before);
     S_MineOverlayRelease(overlay);
     T_ASSERT(G_ActorSkillPermanent(caster, ability));
     T_ASSERT(!(parent->s.renderfx & RF_HIDDEN));
@@ -4981,8 +4981,8 @@ TEST(wc3_movement, entangle_missing_overlay_unit_id_reports_unavailable) {
     parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
     caster->data.UnitAbilities = &test_entangle_caster;
     caster->s.player = parent->s.player = client->ps.number;
-    caster->ancient_root.ability = MAKEFOURCC('A','r','o','1');
-    caster->ancient_root.mode = ANCIENT_ROOTED;
+    E_ancient_root(caster)->ability = MAKEFOURCC('A','r','o','1');
+    E_ancient_root(caster)->mode = ANCIENT_ROOTED;
     G_ActorAddSkill(caster, MAKEFOURCC('A','e','n','t'));
     G_SelectEntity(client, caster);
     count_before = globals.num_edicts;
@@ -5023,8 +5023,8 @@ TEST(wc3_movement, one_tree_cannot_entangle_multiple_gold_mines) {
     caster->abilities.added[0] = ability;
     caster->abilities.added[1] = MAKEFOURCC('A','r','o','1');
     caster->abilities.added_count = 2;
-    caster->ancient_root.ability = MAKEFOURCC('A','r','o','1');
-    caster->ancient_root.mode = ANCIENT_ROOTED;
+    E_ancient_root(caster)->ability = MAKEFOURCC('A','r','o','1');
+    E_ancient_root(caster)->mode = ANCIENT_ROOTED;
     caster->s.flags |= EF_BUILDING;
     caster->aiflags |= AI_IMMOBILE;
     caster->runtime.flags |= UNIT_BALANCE_BUILDING;
@@ -5032,7 +5032,7 @@ TEST(wc3_movement, one_tree_cannot_entangle_multiple_gold_mines) {
     T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent1));
     first = movement_find_entangle_overlay(caster, parent1);
     T_NOT_NULL(first);
-    T_ASSERT(first && !first->mineoverlay.entangle_permanent_before);
+    T_ASSERT(first && !E_mineoverlay_get(first)->entangle_permanent_before);
     T_ASSERT(G_ActorSkillPermanent(caster, ability));
 
     T_ASSERT(!movement_issue_entangle_command(clent, client, caster, parent2));
@@ -5041,7 +5041,7 @@ TEST(wc3_movement, one_tree_cannot_entangle_multiple_gold_mines) {
 
     unit_die(caster, NULL);
     T_ASSERT(M_IsDead(first));
-    T_NULL(first->mineoverlay.parent);
+    T_NULL(E_mineoverlay_get(first)->parent);
     T_ASSERT(!(parent1->s.renderfx & RF_HIDDEN));
     T_ASSERT(!parent1->paused);
     T_ASSERT(!G_ActorSkillPermanent(caster, ability));
@@ -5112,13 +5112,13 @@ TEST(wc3_movement, unload_all_stop_and_move_cancel_remaining_passengers) {
         edict_t *transport = cargo_unload_transport();
         level.time = 1000;
         T_ASSERT(S_CargoBeginUnloadAll(transport));
-        T_EQ(transport->cargo.count, 2);
+        T_EQ(E_cargo_get(transport)->count, 2);
         if (i) order_move(transport, Waypoint_add(&MAKE(vec2_t, 512, 512)));
         else order_stop(transport);
         level.time += 1000; G_RunEntities();
-        T_EQ(transport->cargo.count, 2);
-        T_ASSERT(transport->cargo.units[0]->paused);
-        T_ASSERT(transport->cargo.units[0]->s.renderfx & RF_HIDDEN);
+        T_EQ(E_cargo_get(transport)->count, 2);
+        T_ASSERT(E_cargo_get(transport)->units[0]->paused);
+        T_ASSERT(E_cargo_get(transport)->units[0]->s.renderfx & RF_HIDDEN);
     }
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -5132,13 +5132,13 @@ TEST(wc3_movement, unload_all_pause_and_stun_suspend_passengers) {
     T_ASSERT(S_CargoBeginUnloadAll(transport));
     transport->paused = true;
     level.time += 300; G_RunEntities();
-    T_EQ(transport->cargo.count, 2);
+    T_EQ(E_cargo_get(transport)->count, 2);
     transport->paused = false; transport->stunned = true;
     level.time += 300; G_RunEntities();
-    T_EQ(transport->cargo.count, 2);
+    T_EQ(E_cargo_get(transport)->count, 2);
     transport->stunned = false;
     level.time += 300; G_RunEntities();
-    T_EQ(transport->cargo.count, 1);
+    T_EQ(E_cargo_get(transport)->count, 1);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -5159,16 +5159,16 @@ TEST(wc3_movement, unload_all_command_and_instant_dispatch) {
     T_NOT_NULL(clent->client->menu.on_location_selected);
     if (clent->client->menu.on_location_selected)
         T_ASSERT(clent->client->menu.on_location_selected(clent, &transport->s.origin2));
-    T_EQ(transport->cargo.count, 3); /* Point-target unload waits for move arrival. */
+    T_EQ(E_cargo_get(transport)->count, 3); /* Point-target unload waits for move arrival. */
     T_ASSERT(transport->movement.cargo_unload_pending);
     T_ASSERT(S_CargoBeginUnloadAll(transport)); /* Repeated clicks do not bypass Dur. */
-    T_EQ(transport->cargo.count, 2);
+    T_EQ(E_cargo_get(transport)->count, 2);
     G_ClientCommand(clent, 2, instant);
-    T_EQ(transport->cargo.count, 0);
+    T_EQ(E_cargo_get(transport)->count, 0);
     edict_t *passenger = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256, 256);
     T_ASSERT(S_CargoTryLoad(transport, passenger));
     level.time += 1000; G_RunEntities();
-    T_EQ(transport->cargo.count, 1); /* Instant cancels the old timed unload. */
+    T_EQ(E_cargo_get(transport)->count, 1); /* Instant cancels the old timed unload. */
     gi.Write = old_write; gi.unicast = old_unicast;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -5196,7 +5196,7 @@ TEST(wc3_movement, zeppelin_unload_moves_to_selected_point_before_ejecting) {
     G_ClientCommand(clent, 2, drop);
     T_NOT_NULL(clent->client->menu.on_location_selected);
     T_ASSERT(clent->client->menu.on_location_selected(clent, &destination));
-    T_EQ(transport->cargo.count, 3);
+    T_EQ(E_cargo_get(transport)->count, 3);
     T_ASSERT(transport->movement.cargo_unload_pending);
     T_EQ(transport->goalentity->s.origin2.x, destination.x);
     T_EQ(transport->goalentity->s.origin2.y, destination.y);
@@ -5215,7 +5215,7 @@ TEST(wc3_movement, zeppelin_unload_moves_to_selected_point_before_ejecting) {
     }
     T_ASSERT(!transport->movement.cargo_unload_pending);
     T_ASSERT(transport->s.origin2.x > 400 && transport->s.origin2.y > 400);
-    T_EQ(transport->cargo.count, 2);
+    T_EQ(E_cargo_get(transport)->count, 2);
     remove(filename);
     gi.Write = old_write; gi.unicast = old_unicast;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -5247,7 +5247,7 @@ TEST(wc3_movement, replacement_point_order_cancels_pending_cargo_unload) {
         level.time += FRAMETIME;
         G_RunEntities();
     }
-    T_EQ(transport->cargo.count, 3);
+    T_EQ(E_cargo_get(transport)->count, 3);
     T_ASSERT(!transport->movement.cargo_unload_pending);
     gi.Write = old_write; gi.unicast = old_unicast;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -5277,7 +5277,7 @@ TEST(wc3_movement, cargo_unload_rejects_point_when_no_pathable_cell_exists) {
     T_ASSERT(clent->client->menu.on_location_selected != NULL);
     if (clent->client->menu.on_location_selected)
         T_ASSERT(!clent->client->menu.on_location_selected(clent, &destination));
-    T_EQ(transport->cargo.count, 3);
+    T_EQ(E_cargo_get(transport)->count, 3);
     T_EQ(transport->currentmove, old_move);
     T_EQ(transport->goalentity, old_goal);
     T_ASSERT(!transport->movement.cargo_unload_pending);
@@ -5308,7 +5308,7 @@ TEST(wc3_movement, cargo_unload_ability_removal_clears_pending_arrival) {
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     T_ASSERT(S_AbilityMessage(transport, A_DISABLE, &call));
     T_ASSERT(!transport->movement.cargo_unload_pending);
-    T_EQ(transport->cargo.count, 3);
+    T_EQ(E_cargo_get(transport)->count, 3);
     gi.Write = old_write; gi.unicast = old_unicast;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -5324,18 +5324,18 @@ TEST(wc3_movement, unload_all_round_trip_resumes_remaining_cargo) {
     ARRAY_COUNT(transport->abilities.added) = 1;
     level.time = 1000;
     T_ASSERT(S_CargoBeginUnloadAll(transport));
-    edict_t *second = transport->cargo.units[0], *third = transport->cargo.units[1];
+    edict_t *second = E_cargo_get(transport)->units[0], *third = E_cargo_get(transport)->units[1];
     level.time += 100;
     T_ASSERT(WriteGame(filename));
     order_stop(transport); cargo_drop_all(transport);
     T_ASSERT(ReadGame(filename));
-    T_EQ(transport->cargo.count, 2);
-    T_EQ(transport->cargo.units[0], second);
-    T_EQ(transport->cargo.units[1], third);
-    level.time = 1299; G_RunEntities(); T_EQ(transport->cargo.count, 2);
-    level.time = 1300; G_RunEntities(); T_EQ(transport->cargo.count, 1);
+    T_EQ(E_cargo_get(transport)->count, 2);
+    T_EQ(E_cargo_get(transport)->units[0], second);
+    T_EQ(E_cargo_get(transport)->units[1], third);
+    level.time = 1299; G_RunEntities(); T_EQ(E_cargo_get(transport)->count, 2);
+    level.time = 1300; G_RunEntities(); T_EQ(E_cargo_get(transport)->count, 1);
     T_ASSERT(!second->paused && !(second->s.renderfx & RF_HIDDEN));
-    level.time = 1600; G_RunEntities(); T_EQ(transport->cargo.count, 0);
+    level.time = 1600; G_RunEntities(); T_EQ(E_cargo_get(transport)->count, 0);
     T_ASSERT(!third->paused && !(third->s.renderfx & RF_HIDDEN));
     remove(filename);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -5350,11 +5350,11 @@ TEST(wc3_movement, unload_all_zero_duration_roc_hold_and_single_slot) {
     edict_t *transport = cargo_unload_transport();
     T_ASSERT(S_CargoUnloadAt(transport, 1));
     level.time = 1000; G_RunEntities();
-    T_EQ(transport->cargo.count, 2); /* A cargo-slot click only ejects that passenger. */
+    T_EQ(E_cargo_get(transport)->count, 2); /* A cargo-slot click only ejects that passenger. */
     T_ASSERT(S_CargoBeginUnloadAll(transport));
-    T_EQ(transport->cargo.count, 1);
-    G_RunEntities(); T_EQ(transport->cargo.count, 1);
-    level.time += FRAMETIME; G_RunEntities(); T_EQ(transport->cargo.count, 0);
+    T_EQ(E_cargo_get(transport)->count, 1);
+    G_RunEntities(); T_EQ(E_cargo_get(transport)->count, 1);
+    level.time += FRAMETIME; G_RunEntities(); T_EQ(E_cargo_get(transport)->count, 0);
     T_ASSERT(!S_CargoBeginUnloadAll(transport));
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -5366,9 +5366,9 @@ TEST(wc3_movement, unload_all_transport_death_ejects_remaining_cargo) {
     edict_t *transport = cargo_unload_transport();
     level.time = 1000;
     T_ASSERT(S_CargoBeginUnloadAll(transport));
-    edict_t *passenger = transport->cargo.units[0];
+    edict_t *passenger = E_cargo_get(transport)->units[0];
     transport->health.value = 0; unit_die(transport, NULL);
-    T_EQ(transport->cargo.count, 0);
+    T_EQ(E_cargo_get(transport)->count, 0);
     T_ASSERT(!passenger->paused && !(passenger->s.renderfx & RF_HIDDEN));
     level.time += 1000; G_RunEntities();
     T_ASSERT(!S_CargoBeginUnloadAll(transport));
@@ -5390,17 +5390,17 @@ TEST(wc3_movement, unload_all_repeats_one_passenger_per_cargo_duration) {
     third = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
     transport->data.UnitAbilities = &transport_abilities;
     transport->think = monster_think; transport->stand = unit_stand;
-    transport->cargo.units[0] = first;
-    transport->cargo.units[1] = second;
-    transport->cargo.units[2] = third;
-    transport->cargo.count = 3;
+    E_cargo_get(transport)->units[0] = first;
+    E_cargo_get(transport)->units[1] = second;
+    E_cargo_get(transport)->units[2] = third;
+    E_cargo(transport)->count = 3;
     first->s.renderfx |= RF_HIDDEN; first->paused = true;
     second->s.renderfx |= RF_HIDDEN; second->paused = true;
     third->s.renderfx |= RF_HIDDEN; third->paused = true;
     level.time = 1000;
 
     T_ASSERT(S_CargoBeginUnloadAll(transport));
-    T_EQ(transport->cargo.count, 2);
+    T_EQ(E_cargo_get(transport)->count, 2);
     T_ASSERT(!(first->s.renderfx & RF_HIDDEN));
     T_ASSERT(!first->paused);
     T_ASSERT(second->s.renderfx & RF_HIDDEN);
@@ -5408,18 +5408,18 @@ TEST(wc3_movement, unload_all_repeats_one_passenger_per_cargo_duration) {
 
     level.time += 299;
     G_RunEntities();
-    T_EQ(transport->cargo.count, 2);
+    T_EQ(E_cargo_get(transport)->count, 2);
 
     level.time += 1;
     G_RunEntities();
-    T_EQ(transport->cargo.count, 1);
+    T_EQ(E_cargo_get(transport)->count, 1);
     T_ASSERT(!(second->s.renderfx & RF_HIDDEN));
     T_ASSERT(!second->paused);
     T_ASSERT(third->s.renderfx & RF_HIDDEN);
 
     level.time += 300;
     G_RunEntities();
-    T_EQ(transport->cargo.count, 0);
+    T_EQ(E_cargo_get(transport)->count, 0);
     T_ASSERT(!(third->s.renderfx & RF_HIDDEN));
     T_ASSERT(!third->paused);
 
@@ -5462,8 +5462,8 @@ TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_
     T_ASSERT(!stop);
     T_ASSERT(!stand_down);
 
-    burrow->cargo.units[0] = peon;
-    burrow->cargo.count = 1;
+    E_cargo_get(burrow)->units[0] = peon;
+    E_cargo(burrow)->count = 1;
     count = G_GetCommandButtons(burrow, buttons, (uint8_t)(sizeof(buttons) / sizeof(buttons[0])));
     attack = stop = stand_down = false;
     FOR_LOOP(i, count) {
@@ -5487,8 +5487,8 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
 
     burrow->data.UnitAbilities = &burrow_abilities;
     burrow->stand = unit_stand;
-    burrow->cargo.units[0] = peon;
-    burrow->cargo.count = 1;
+    E_cargo_get(burrow)->units[0] = peon;
+    E_cargo(burrow)->count = 1;
     peon->s.renderfx |= RF_HIDDEN;
     peon->paused = true;
     burrow->attack1.type = ATK_PIERCE;
@@ -5502,7 +5502,7 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
 
     S_CargoStandDown(burrow);
 
-    T_EQ(burrow->cargo.count, 0);
+    T_EQ(E_cargo_get(burrow)->count, 0);
     T_ASSERT(!(peon->s.renderfx & RF_HIDDEN));
     T_ASSERT(!peon->paused);
     T_NOT_NULL(burrow->currentmove);
@@ -5518,14 +5518,14 @@ TEST(wc3_movement, removing_loaded_unit_releases_transport_slot) {
     setup_test_world();
     transport = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
     passenger = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    transport->cargo.units[0] = passenger;
-    transport->cargo.count = 1;
+    E_cargo_get(transport)->units[0] = passenger;
+    E_cargo(transport)->count = 1;
     passenger->s.renderfx |= RF_HIDDEN;
     passenger->paused = true;
 
     G_FreeEdict(passenger);
-    T_EQ(transport->cargo.count, 0);
-    T_NULL(transport->cargo.units[0]);
+    T_EQ(E_cargo_get(transport)->count, 0);
+    T_NULL(E_cargo_get(transport)->units[0]);
     T_ASSERT(!passenger->inuse);
 }
 
@@ -5536,11 +5536,11 @@ TEST(wc3_movement, cargo_unload_at_releases_requested_occupant_and_keeps_remaini
 
     first->s.renderfx |= RF_HIDDEN; first->paused = true;
     second->s.renderfx |= RF_HIDDEN; second->paused = true;
-    burrow->cargo.units[0] = first; burrow->cargo.units[1] = second; burrow->cargo.count = 2;
+    E_cargo_get(burrow)->units[0] = first; E_cargo_get(burrow)->units[1] = second; E_cargo(burrow)->count = 2;
 
     T_ASSERT(S_CargoTransportForUnit(first) == burrow);
     T_ASSERT(S_CargoUnloadAt(burrow, 0));
-    T_EQ(burrow->cargo.count, 1);
+    T_EQ(E_cargo_get(burrow)->count, 1);
     T_ASSERT(S_CargoUnitAt(burrow, 0) == second);
     T_NULL(S_CargoTransportForUnit(first));
     T_ASSERT(!(first->s.renderfx & RF_HIDDEN));

@@ -70,7 +70,7 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
         return true;
     case A_VALIDATE: return true;
     case A_MOVE_LEAVE:
-        if (ent && ent->channel.code == call->item->code) S_SpellCancelChannel(ent);
+        if (ent && E_channel_get(ent)->code == call->item->code) S_SpellCancelChannel(ent);
         return true;
     default:
         return false;
@@ -79,7 +79,7 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
 
 /* Modal spells share autocast selection while concrete children own acquisition and effects. */
 BZ_ABILITY_PROC(CAbilityModalSpell) {
-    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t code = call &E_item_get(call) ? call->item->code : 0;
     switch (msg) {
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
@@ -499,7 +499,7 @@ void S_SpellCursorSplat(edict_t *clent, float radius) {
 }
 
 bool S_SpellIsChanneling(edict_t *caster) {
-    return caster && caster->channel.code != 0;
+    return caster && E_channel_get(caster)->code != 0;
 }
 
 /* Some temporary summons own a timed lifecycle but are not destroyable by
@@ -514,9 +514,9 @@ bool S_SummonIsDispelImmune(edict_t const *unit) {
 
 void S_SpellCancelChannel(edict_t *caster) {
     uint32_t code;
-    if (!caster || !caster->channel.code) return;
-    code = caster->channel.code;
-    caster->channel.code = 0;
+    if (!caster || !E_channel_get(caster)->code) return;
+    code = E_channel_get(caster)->code;
+    E_channel(caster)->code = 0;
     /* Notify the channeled ability so it can strip owned buffs (Mana Flare Bmfl). */
     {
         abilityitem_t item = S_AbilityItem(code);
@@ -529,25 +529,25 @@ void S_SpellCancelChannel(edict_t *caster) {
 edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
     edict_t *ent = G_Spawn();
     ent->owner = caster; ent->class_id = code;
-    ent->channel.serial = caster->channel.serial;
-    ent->channel.owner_spawn_time = caster->spawn_time;
+    E_channel(ent)->serial = E_channel_get(caster)->serial;
+    E_channel(ent)->owner_spawn_time = caster->spawn_time;
     return ent;
 }
 
 /* Each effect rechecks the caster before ticking, independently of edict iteration order. */
 bool S_SpellChannelActive(edict_t *ent) {
     edict_t *caster = ent ? ent->owner : NULL;
-    if (!caster || !caster->inuse || caster->spawn_time != ent->channel.owner_spawn_time) return false;
+    if (!caster || !caster->inuse || caster->spawn_time != E_channel_get(ent)->owner_spawn_time) return false;
     spell_run_frame(caster);
-    return !M_IsDead(caster) && caster->channel.code == ent->class_id &&
-        caster->channel.serial == ent->channel.serial;
+    return !M_IsDead(caster) && E_channel_get(caster)->code == ent->class_id &&
+        E_channel_get(caster)->serial == E_channel_get(ent)->serial;
 }
 
 /* Ending an old thinker must never cancel a replacement order or a newer cast of the same spell. */
 void S_SpellEndChannel(edict_t *ent) {
     edict_t *caster = ent->owner;
-    if (caster && caster->inuse && caster->spawn_time == ent->channel.owner_spawn_time &&
-        caster->channel.code == ent->class_id && caster->channel.serial == ent->channel.serial)
+    if (caster && caster->inuse && caster->spawn_time == E_channel_get(ent)->owner_spawn_time &&
+        E_channel_get(caster)->code == ent->class_id && E_channel_get(caster)->serial == E_channel_get(ent)->serial)
         S_SpellCancelChannel(caster);
     G_FreeEdict(ent);
 }
@@ -557,7 +557,7 @@ void S_SpellEndChannel(edict_t *ent) {
 /* Per-frame channel enforcement: if the caster has moved from cast_origin,
  * cancel the channel.  Called from G_RunEntity. */
 void spell_run_frame(edict_t *ent) {
-    if (!ent->channel.code)
+    if (!E_channel_get(ent)->code)
         return;
 
     /* Stun or death interrupts channel. */
@@ -567,9 +567,9 @@ void spell_run_frame(edict_t *ent) {
     }
 
     /* Movement cancel: caster moved from the position where channel began. */
-    if (!ent->unsummon.approaching &&
-        (fabsf(ent->s.origin.x - ent->channel.origin.x) > 0.5f ||
-        fabsf(ent->s.origin.y - ent->channel.origin.y) > 0.5f)) {
+    if (!E_unsummon_get(ent)->approaching &&
+        (fabsf(ent->s.origin.x - E_channel_get(ent)->origin.x) > 0.5f ||
+        fabsf(ent->s.origin.y - E_channel_get(ent)->origin.y) > 0.5f)) {
         S_SpellCancelChannel(ent);
         return;
     }
@@ -623,9 +623,9 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except);
 /* Start channel: lock caster in place and record the origin for movement-cancel. */
 static void spell_begin_channel(edict_t *caster, uint32_t code) {
     if (caster->stand) caster->stand(caster);
-    caster->channel.serial++;
-    caster->channel.code = code;
-    caster->channel.origin = caster->s.origin2;
+    E_channel_get(caster)->serial++;
+    E_channel(caster)->code = code;
+    E_channel(caster)->origin = caster->s.origin2;
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
@@ -667,7 +667,7 @@ static void spell_publish_effect(edict_t *caster, uint32_t code, spellTarget_t t
 static bool spell_item_source_valid(edict_t const *caster, edict_t const *item, uint32_t spawn_time) {
     if (!item) return true;
     return item->inuse && item->spawn_time == spawn_time && G_IsItem(item) &&
-        !item->item.pending_use_removal && item->item.carrier == caster;
+        !E_item_get(item)->pending_use_removal && E_item_get(item)->carrier == caster;
 }
 
 static edict_t const *spell_approach_move_goal(edict_t const *thinker) {
@@ -683,7 +683,7 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
     if (!caster || !caster->inuse) return;
     FILTER_EDICTS(thinker, thinker != except && thinker->inuse &&
                   thinker->owner == caster && thinker->think == S_SpellTargetApproachThink) {
-        if (thinker->channel.owner_spawn_time == caster->spawn_time &&
+        if (E_channel_get(thinker)->owner_spawn_time == caster->spawn_time &&
             move_is_active_order_walk(caster) && caster->goalentity == spell_approach_move_goal(thinker)) {
             caster->goalentity = NULL;
             stop_move = true;
@@ -759,13 +759,13 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     float range;
     spellTarget_t st;
 
-    if (!caster || !caster->inuse || caster->spawn_time != thinker->channel.owner_spawn_time ||
+    if (!caster || !caster->inuse || caster->spawn_time != E_channel_get(thinker)->owner_spawn_time ||
         M_IsDead(caster) || !target || !spell ||
         !spell_item_source_valid(caster, source_item, thinker->spell_item_spawn_time) ||
         (!point_target && spell->target_type != SPELL_TARGET_UNIT &&
          spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
         (spell->target_type == SPELL_TARGET_POINT && target != thinker)) {
-        if (caster && caster->inuse && caster->spawn_time == thinker->channel.owner_spawn_time &&
+        if (caster && caster->inuse && caster->spawn_time == E_channel_get(thinker)->owner_spawn_time &&
             caster->goalentity == thinker) {
             caster->goalentity = NULL;
             unit_stand(caster);
@@ -773,7 +773,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         G_FreeEdict(thinker);
         return;
     }
-    if (!point_target && (!target->inuse || target->spawn_time != thinker->channel.target_spawn_time)) {
+    if (!point_target && (!target->inuse || target->spawn_time != E_channel_get(thinker)->target_spawn_time)) {
         if (caster->goalentity == target && move_is_active_order_walk(caster)) {
             caster->goalentity = NULL;
             unit_stand(caster);
@@ -854,8 +854,8 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     if (point) thinker->s.origin2 = *point;
     thinker->owner = caster;
     thinker->goalentity = goal;
-    thinker->channel.owner_spawn_time = caster->spawn_time;
-    thinker->channel.target_spawn_time = target ? target->spawn_time : 0;
+    E_channel(thinker)->owner_spawn_time = caster->spawn_time;
+    E_channel(thinker)->target_spawn_time = target ? target->spawn_time : 0;
     thinker->class_id = code;
     thinker->spell_item = source_item;
     thinker->spell_item_spawn_time = source_item_spawn_time;

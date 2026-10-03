@@ -64,7 +64,7 @@ static void hsa_capture(edict_t const *hero, hsaSnap_t *snap) {
     FOR_LOOP(i, MAX_INVENTORY) {
         if (!hero->inventory[i]) continue;
         snap->inventory[i] = hero->inventory[i]->class_id;
-        snap->charges[i] = hero->inventory[i]->item.charges;
+        snap->charges[i] = E_item_get(hero->inventory[i])->charges;
     }
     if (hero->currentmove && hero->currentmove->animation)
         strlcpy(snap->move, hero->currentmove->animation, sizeof(snap->move));

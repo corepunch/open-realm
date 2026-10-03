@@ -2,8 +2,8 @@
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
 static bool entity_is_live_walkable_surface(edict_t const *ent) {
-    return ent && ent->destructable.initialized && !ent->destructable.dead &&
-        ent->destructable.placement_solid && ent->pathtex &&
+    return ent && E_destructable_get(ent)->initialized && !E_destructable_get(ent)->dead &&
+        E_destructable_get(ent)->placement_solid && ent->pathtex &&
         ent->data.DestructableData && ent->data.DestructableData->walkable;
 }
 
@@ -13,7 +13,7 @@ static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) {
 static bool entity_is_pathing_ignored(edict_t const *ent) {
     /* A construction-site indicator is a visible reservation, not a building
      * obstacle. Once construction starts, the real structure blocks movement. */
-    return G_UnitIsStructure(ent) && (ent->s.flags & EF_NOT_SELECTABLE) && !ent->construction.active;
+    return G_UnitIsStructure(ent) && (ent->s.flags & EF_NOT_SELECTABLE) && !E_construction_get(ent)->active;
 }
 
 /* WC3 pathing TGAs are transposed relative to model/world axes. Destructable
@@ -29,7 +29,7 @@ static void entity_pathtex_transform(pathTexTransformParams_t const *params, pat
     transform->turn = ((quarter % 4) + 4) % 4;
     transform->width = transform->turn & 1 ? pt->height : pt->width;
     transform->height = transform->turn & 1 ? pt->width : pt->height;
-    if (!params->ent || !params->ent->destructable.initialized)
+    if (!params->ent || !E_destructable_get(params->ent)->initialized)
         transform->turn = 0, transform->width = pt->width, transform->height = pt->height;
 }
 

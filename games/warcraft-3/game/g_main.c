@@ -1366,7 +1366,7 @@ void G_AccumulatePlayerFood(gameClient_t *client) {
     FILTER_EDICTS(ent, ent->inuse && ent->data.UnitBalance && client->ps.number == ent->s.player) {
         if (ent->svflags & SVF_DEADMONSTER || ent->training) continue;
         G_SetUnitFoodUsed(ent, ent->data.UnitBalance->foodUsed);
-        if (!ent->construction.active) G_SetUnitFoodMade(ent, ent->data.UnitBalance->foodMade);
+        if (!E_construction_get(ent)->active) G_SetUnitFoodMade(ent, ent->data.UnitBalance->foodMade);
     }
     G_RecomputePlayerUpkeep(client);
 }
@@ -1505,8 +1505,8 @@ static uint32_t G_HoverResourceValue(edict_t const *ent) {
     uint32_t value;
 
     if (!ent) return 0;
-    if (S_GoldMineIsOverlay(ent) && (parent = ent->mineoverlay.parent)) {
-        if (!parent->inuse || parent->spawn_time != ent->mineoverlay.parent_spawn_time ||
+    if (S_GoldMineIsOverlay(ent) && (parent = E_mineoverlay_get(ent)->parent)) {
+        if (!parent->inuse || parent->spawn_time != E_mineoverlay_get(ent)->parent_spawn_time ||
             M_IsDead(parent) || !(parent->s.flags & EF_RESOURCE_SOURCE)) return 0;
         value = parent->resources;
     } else {
@@ -1624,7 +1624,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     if (hoverable) {
         uint32_t const cargo_capacity = S_CargoCapacity((edict_t *)ent);
         if (cargo_capacity > 0)
-            state->stats[ENT_CARGO] = EntityCargoPack(ent->cargo.count, cargo_capacity);
+            state->stats[ENT_CARGO] = EntityCargoPack(E_cargo_get(ent)->count, cargo_capacity);
         /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
         /* Name remains the hover gate for invulnerable units with no mana bar. */
         state->name = G_UnitNameConfigstring(G_UnitName(ent->s.class_id));

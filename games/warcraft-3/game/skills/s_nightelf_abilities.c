@@ -104,7 +104,7 @@ static bool barkskin_acquire(edict_t *caster, uint32_t code) {
 BZ_ABILITY_PROC(CAbilityBarkskin) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
-    uint32_t code = call && call->item && call->item->code ? call->item->code : ID_BARKSKIN;
+    uint32_t code = call &E_item_get(call) &E_item_get(call)->code ? call->item->code : ID_BARKSKIN;
     switch (msg) {
     case A_VALIDATE: return barkskin_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: barkskin_execute(ent, target, call ? call->item : NULL); return true;

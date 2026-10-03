@@ -171,8 +171,8 @@ static edict_t *make_world_item(uint32_t class_id) {
     G_BindEntityData(item);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
-    item->item.in_world = true;
-    item->item.inventory_slot = -1;
+    E_item(item)->in_world = true;
+    E_item(item)->inventory_slot = -1;
     return item;
 }
 
@@ -1055,7 +1055,7 @@ TEST(wc3_unit, no_creep_sleep_player_state_blocks_new_natural_sleep) {
 
     creep->svflags |= SVF_MONSTER;
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    creep->sleep.can_sleep = true;
+    E_sleep(creep)->can_sleep = true;
     *no_creep_sleep = 1;
 
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
@@ -1076,16 +1076,16 @@ TEST(wc3_unit, unit_add_sleep_policy_is_neutral_only_and_wakes_when_disabled) {
 
     neutral->svflags |= SVF_MONSTER;
     neutral->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    neutral->sleep.can_sleep = false;
+    E_sleep(neutral)->can_sleep = false;
     player_unit->svflags |= SVF_MONSTER;
     player_unit->s.player = 0;
-    player_unit->sleep.can_sleep = false;
+    E_sleep(player_unit)->can_sleep = false;
 
     G_UnitSetCanSleep(neutral, true);
     G_UnitSetCanSleep(player_unit, true);
     T_ASSERT(G_UnitCanSleep(neutral));
     T_ASSERT(!G_UnitCanSleep(player_unit));
-    T_ASSERT(!player_unit->sleep.can_sleep);
+    T_ASSERT(!E_sleep_get(player_unit)->can_sleep);
 
     game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP] = 0;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
@@ -1257,7 +1257,7 @@ TEST(wc3_unit, hero_dissipate_alpha_tracks_timer_without_mutating_vertex_color) 
     T_ASSERT(unit_datagram_tint(clent, hero->s.number, &color));
     T_EQ(color.a, 0);
     T_EQ(hero->vertex_color.a, 200);
-    T_ASSERT(hero->revival.awaiting);
+    T_ASSERT(E_revival_get(hero)->awaiting);
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
 }
 
@@ -1268,7 +1268,7 @@ TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
 
     unit_die(hero, NULL);
     T_ASSERT(hero->svflags & SVF_DEADMONSTER);
-    T_ASSERT(!hero->revival.awaiting);
+    T_ASSERT(!E_revival_get(hero)->awaiting);
 
     unit_begin_decay(hero);
     /* Drive exactly one elapsed simulation step without depending on the
@@ -1277,7 +1277,7 @@ TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
     unit_decay_think(hero);
 
     T_ASSERT(hero->inuse);
-    T_ASSERT(hero->revival.awaiting);
+    T_ASSERT(E_revival_get(hero)->awaiting);
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
 }
 
@@ -1294,12 +1294,12 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     hero->svflags |= SVF_DEADMONSTER;
     hero->s.flags |= EF_NOT_SELECTABLE;
     hero->s.renderfx |= RF_HIDDEN;
-    hero->revival.awaiting = true;
-    hero->revival.reviving = true;
-    hero->revival.producer = altar;
-    hero->revival.player = client->ps.number;
-    hero->revival.gold = 100;
-    hero->revival.lumber = 50;
+    E_revival(hero)->awaiting = true;
+    E_revival(hero)->reviving = true;
+    E_revival(hero)->producer = altar;
+    E_revival(hero)->player = client->ps.number;
+    E_revival(hero)->gold = 100;
+    E_revival(hero)->lumber = 50;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
@@ -1310,9 +1310,9 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     T_ASSERT(!(hero->svflags & SVF_DEADMONSTER));
     T_ASSERT(!(hero->s.flags & EF_NOT_SELECTABLE));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!hero->revival.awaiting);
-    T_ASSERT(!hero->revival.reviving);
-    T_NULL(hero->revival.producer);
+    T_ASSERT(!E_revival_get(hero)->awaiting);
+    T_ASSERT(!E_revival_get(hero)->reviving);
+    T_NULL(E_revival_get(hero)->producer);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 50);
     T_EQ((int)hero->s.origin2.x, 64);
@@ -1337,13 +1337,13 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
     altar->s.player = hero->s.player = trainee->s.player = client->ps.number;
     altar->data.UnitProfile = &revive_profile;
     altar->build = hero;
-    hero->revival.awaiting = true;
-    hero->revival.reviving = true;
-    hero->revival.producer = altar;
-    hero->revival.queue_next = trainee;
-    hero->revival.player = client->ps.number;
-    hero->revival.gold = 100;
-    hero->revival.lumber = 50;
+    E_revival(hero)->awaiting = true;
+    E_revival(hero)->reviving = true;
+    E_revival(hero)->producer = altar;
+    E_revival(hero)->queue_next = trainee;
+    E_revival(hero)->player = client->ps.number;
+    E_revival(hero)->gold = 100;
+    E_revival(hero)->lumber = 50;
     trainee->training = true;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
@@ -1352,8 +1352,8 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
 
     T_ASSERT(!altar->inuse);
     T_ASSERT(hero->inuse);
-    T_ASSERT(!hero->revival.reviving);
-    T_NULL(hero->revival.producer);
+    T_ASSERT(!E_revival_get(hero)->reviving);
+    T_NULL(E_revival_get(hero)->producer);
     T_ASSERT(!trainee->inuse);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100 + gold);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 50 + lumber);
@@ -1364,14 +1364,14 @@ TEST(wc3_unit, worker_death_does_not_walk_construction_target_as_production_queu
     edict_t *worker = make_unit(0, 0);
     edict_t *building = make_unit(0, 0);
 
-    building->construction.active = true;
+    E_construction(building)->active = true;
     building->build = building;
     worker->build = building;
 
     unit_die(worker, NULL);
 
     T_ASSERT(worker->svflags & SVF_DEADMONSTER);
-    T_ASSERT(building->construction.active);
+    T_ASSERT(E_construction_get(building)->active);
     T_ASSERT(building->build == building);
 }
 
@@ -1384,13 +1384,13 @@ TEST(wc3_unit, ownership_change_does_not_walk_constructing_revive_altar) {
 
     altar->data.UnitProfile = &revive_profile;
     altar->s.player = old_client->ps.number;
-    altar->construction.active = true;
+    E_construction(altar)->active = true;
     altar->build = altar;
 
     G_SetUnitPlayer(altar, new_client->ps.number);
 
     T_EQ(altar->s.player, new_client->ps.number);
-    T_ASSERT(altar->construction.active);
+    T_ASSERT(E_construction_get(altar)->active);
     T_ASSERT(altar->build == altar);
 }
 
@@ -1407,7 +1407,7 @@ TEST(wc3_unit, ownership_change_does_not_walk_legacy_constructing_revive_altar) 
     G_SetUnitPlayer(altar, new_client->ps.number);
 
     T_EQ(altar->s.player, new_client->ps.number);
-    T_ASSERT(!altar->construction.active);
+    T_ASSERT(!E_construction_get(altar)->active);
     T_ASSERT(altar->build == altar);
 }
 
@@ -1510,7 +1510,7 @@ TEST(wc3_unit, militia_target_order_reaches_militia_behavior) {
     hall->pathtex = NULL;
 
     T_ASSERT(G_IssueUnitTargetOrder(worker, "militia", hall, false, worker->s.player));
-    T_ASSERT(worker->militia.partner == hall);
+    T_ASSERT(E_militia_get(worker)->partner == hall);
     T_NOT_NULL(worker->currentmove);
     T_ASSERT(worker->currentmove->proc == CAbilityMilitia);
     T_STREQ(worker->currentmove->animation, "walk");
@@ -1869,7 +1869,7 @@ TEST(wc3_unit, raven_ability_dispatch_and_toggle) {
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform")); /* Already in this form. */
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
     T_ASSERT(!S_AbilityMessage(ent, A_TOGGLE_ON, &call));
-    T_EQ(ent->raven.rise_state, RAVEN_RISE_NONE);
+    T_EQ(E_raven_get(ent)->rise_state, RAVEN_RISE_NONE);
     ent->class_id = MAKEFOURCC('o','g','r','u');
     T_ASSERT(!unit_issueimmediateorder(ent, "ravenform"));
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
@@ -1883,13 +1883,13 @@ TEST(wc3_unit, raven_morph_completion_and_takeoff_survive_move_order) {
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
-    ent->raven.fly_height = 100;
-    ent->raven.rise_duration = 2;
+    E_raven(ent)->fly_height = 100;
+    E_raven(ent)->rise_duration = 2;
     T_ASSERT(G_AnimationHasPrimary(ent->animation, "morph"));
     ent->s.frame = ent->animation->interval[1] - 1;
     level.time = 1000;
     monster_think(ent);
-    T_EQ(ent->raven.rise_state, RAVEN_RISE_ACTIVE);
+    T_EQ(E_raven_get(ent)->rise_state, RAVEN_RISE_ACTIVE);
     T_FEQ(ent->unitinfo.FlyHeight, 0, 0.001f);
     T_ASSERT(unit_issueorder(ent, "move", &point));
     ent->paused = true;
@@ -1900,7 +1900,7 @@ TEST(wc3_unit, raven_morph_completion_and_takeoff_survive_move_order) {
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
     level.time = 3000;
     monster_think(ent);
-    T_EQ(ent->raven.rise_state, RAVEN_RISE_NONE);
+    T_EQ(E_raven_get(ent)->rise_state, RAVEN_RISE_NONE);
     T_FEQ(ent->unitinfo.FlyHeight, 0, 0.001f);
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
@@ -1913,14 +1913,14 @@ TEST(wc3_unit, raven_takeoff_survives_interrupted_morph) {
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
-    ent->raven.fly_height = 100;
-    ent->raven.rise_duration = 2;
-    T_EQ(ent->raven.rise_state, RAVEN_RISE_AFTER_MORPH);
+    E_raven(ent)->fly_height = 100;
+    E_raven(ent)->rise_duration = 2;
+    T_EQ(E_raven_get(ent)->rise_state, RAVEN_RISE_AFTER_MORPH);
     T_ASSERT(unit_issueorder(ent, "move", &point));
     umove_t const *walk = ent->currentmove;
     level.time = 1000;
     S_RunAbilityUpdates(ent);
-    T_EQ(ent->raven.rise_state, RAVEN_RISE_ACTIVE);
+    T_EQ(E_raven_get(ent)->rise_state, RAVEN_RISE_ACTIVE);
     T_ASSERT(ent->currentmove == walk);
     level.time = 2000;
     S_RunAbilityUpdates(ent);
@@ -1936,7 +1936,7 @@ TEST(wc3_unit, ability_updates_leave_ordinary_units_unchanged) {
     ent->currentmove = NULL;
     monster_think(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 37, 0.001f);
-    T_EQ(ent->raven.rise_state, RAVEN_RISE_NONE);
+    T_EQ(E_raven_get(ent)->rise_state, RAVEN_RISE_NONE);
 }
 
 TEST(wc3_unit, ravenForm_takeoff_interpolates_from_ground_to_authored_height) {
@@ -1944,18 +1944,18 @@ TEST(wc3_unit, ravenForm_takeoff_interpolates_from_ground_to_authored_height) {
 
     reset_test_entities(); setup_test_world();
     ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
-    ent->raven.fly_height = 100.0f;
-    ent->raven.rise_start = 1000;
-    ent->raven.rise_duration = 2.0f;
-    ent->raven.rise_state = RAVEN_RISE_ACTIVE;
+    E_raven(ent)->fly_height = 100.0f;
+    E_raven(ent)->rise_start = 1000;
+    E_raven(ent)->rise_duration = 2.0f;
+    E_raven(ent)->rise_state = RAVEN_RISE_ACTIVE;
     level.time = 2000;
     monster_think(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 50.0f, 0.001f);
-    T_EQ(ent->raven.rise_state, RAVEN_RISE_ACTIVE);
+    T_EQ(E_raven_get(ent)->rise_state, RAVEN_RISE_ACTIVE);
     level.time = 3000;
     monster_think(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 100.0f, 0.001f);
-    T_EQ(ent->raven.rise_state, RAVEN_RISE_NONE);
+    T_EQ(E_raven_get(ent)->rise_state, RAVEN_RISE_NONE);
 }
 
 TEST(wc3_unit, issueimmediateorder_autoharvestlumber_uses_nearest_live_tree) {

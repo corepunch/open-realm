@@ -69,7 +69,7 @@ static bool self_destruct_autocast_acquire(edict_t *caster, uint32_t code) {
  * DataF explodes-on-death. Point-target click always blasts; death path needs DataF.
  */
 BZ_ABILITY_PROC(CAbilitySelfDestruct) {
-	uint32_t code = call && call->item ? call->item->code : 0;
+	uint32_t code = call &E_item_get(call) ? call->item->code : 0;
 	uint32_t level;
 	switch (msg) {
 	case A_VALIDATE:

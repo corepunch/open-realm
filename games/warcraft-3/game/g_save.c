@@ -79,7 +79,7 @@ enum {
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 60 appends each client's disabled-ability rawcode list. */
-static uint32_t const save_version = 60;
+static uint32_t const save_version = 61;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -787,11 +787,9 @@ field_t edict_fields[] = {
     F(edict_s, peonsinside, F_INT),
     F(edict_s, aiflags, F_INT),
     F(edict_s, autocast_code, F_INT),
-    F(edict_s, channel, F_STRUCT, 1, channel_fields),
     F(edict_s, abilstatus, F_STRUCT, MAX_UNIT_STATUSES, status_fields),
     F(edict_s, damage, F_INT),
     F(edict_s, projectile_attack_type, F_INT),
-    F(edict_s, artillery, F_STRUCT, 1, artillery_fields),
     F(edict_s, projectile_reflected, F_INT),
     F(edict_s, collision, F_FLOAT),
     F(edict_s, attack_cooldown_active, F_INT),
@@ -802,19 +800,8 @@ field_t edict_fields[] = {
     F(edict_s, attack1, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, attack2, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
-    F(edict_s, construction, F_STRUCT, 1, construction_fields),
-    F(edict_s, rally, F_STRUCT, 1, rally_fields),
-    F(edict_s, revival, F_STRUCT, 1, revival_fields),
-    F(edict_s, sacrifice, F_STRUCT, 1, sacrifice_fields),
-    F(edict_s, unsummon, F_STRUCT, 1, unsummon_fields),
     F(edict_s, hero_shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, goldmine, F_STRUCT, 1, goldmine_fields),
-    F(edict_s, mineoverlay, F_STRUCT, 1, mineoverlay_fields),
-    F(edict_s, acolyte_mine, F_STRUCT, 1, acolyte_mine_fields),
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
-    F(edict_s, cargo, F_STRUCT, 1, cargo_fields),
-    F(edict_s, item, F_STRUCT, 1, item_fields),
-    F(edict_s, stock, F_STRUCT, 1, stock_fields),
     F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
     F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),
@@ -839,14 +826,7 @@ field_t edict_fields[] = {
     F(edict_s, client, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, area, F_STRUCT, 1, link_fields),
-    F(edict_s, destructable, F_STRUCT, 1, destructable_fields),
     F(edict_s, abilities, F_STRUCT, 1, abilities_fields),
-    F(edict_s, avatar, F_STRUCT, 1, avatar_fields),
-    F(edict_s, polymorph, F_STRUCT, 1, polymorph_fields),
-    F(edict_s, raven, F_STRUCT, 1, raven_fields),
-    F(edict_s, ensnare, F_STRUCT, 1, ensnare_fields),
-    F(edict_s, ancient_root, F_STRUCT, 1, ancient_root_fields),
-    F(edict_s, sleep, F_STRUCT, 1, sleep_fields),
     F(edict_s, permanent_health_bonus, F_FLOAT),
     F(edict_s, temporary_health_bonus, F_FLOAT),
     F(edict_s, temporary_mana_bonus, F_FLOAT),
@@ -855,7 +835,6 @@ field_t edict_fields[] = {
     F(edict_s, animation_override, F_INT),
     F(edict_s, animation, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, currentmove, F_MMOVE),
-    F(edict_s, militia, F_STRUCT, 1, militia_fields),
     F(edict_s, stand, F_CFUNCTION),
     F(edict_s, birth, F_CFUNCTION),
     F(edict_s, prethink, F_CFUNCTION),
@@ -1872,6 +1851,109 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
     return true;
 }
 
+
+/* Sparse lifecycle pools. Written after edicts so F_EDICT indices resolve.
+ * A null edict pointer means the slot was never allocated. */
+static bool WritePool(FILE *f, field_t const *fields, void *(*get)(edict_t *)) {
+    uint32_t count = 0;
+    FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && get(g_edicts + i)) count++;
+    if (!SaveBytes(f, &count, sizeof(count))) return false;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = g_edicts + i;
+        void *slot;
+        uint32_t index;
+        if (!ent->inuse || !(slot = get(ent))) continue;
+        index = (uint32_t)i;
+        if (!SaveBytes(f, &index, sizeof(index))) return false;
+        if (!WriteMappedFields(f, fields, slot)) return false;
+    }
+    return true;
+}
+static bool ReadPool(FILE *f, field_t const *fields, void *(*alloc)(void), void (*set)(edict_t *, void *)) {
+    uint32_t count;
+    if (!LoadBytes(f, &count, sizeof(count)) || count > globals.max_edicts) return false;
+    FOR_LOOP(n, count) {
+        uint32_t index;
+        void *slot;
+        if (!LoadBytes(f, &index, sizeof(index)) || index >= globals.max_edicts) return false;
+        slot = alloc();
+        if (!slot) return false;
+        set(g_edicts + index, slot);
+        if (!ReadMappedFields(f, fields, slot)) return false;
+    }
+    return true;
+}
+#define POOL_GET(member) static void *pool_get_##member(edict_t *ent) { return ent->member; }
+#define POOL_SET(member) static void pool_set_##member(edict_t *ent, void *slot) { ent->member = slot; }
+POOL_GET(construction) POOL_SET(construction)
+POOL_GET(rally) POOL_SET(rally)
+POOL_GET(revival) POOL_SET(revival)
+POOL_GET(sacrifice) POOL_SET(sacrifice)
+POOL_GET(unsummon) POOL_SET(unsummon)
+POOL_GET(militia) POOL_SET(militia)
+POOL_GET(goldmine) POOL_SET(goldmine)
+POOL_GET(mineoverlay) POOL_SET(mineoverlay)
+POOL_GET(acolyte_mine) POOL_SET(acolyte_mine)
+POOL_GET(item) POOL_SET(item)
+POOL_GET(destructable) POOL_SET(destructable)
+POOL_GET(cargo) POOL_SET(cargo)
+POOL_GET(stock) POOL_SET(stock)
+POOL_GET(artillery) POOL_SET(artillery)
+POOL_GET(avatar) POOL_SET(avatar)
+POOL_GET(polymorph) POOL_SET(polymorph)
+POOL_GET(raven) POOL_SET(raven)
+POOL_GET(ensnare) POOL_SET(ensnare)
+POOL_GET(ancient_root) POOL_SET(ancient_root)
+POOL_GET(sleep) POOL_SET(sleep)
+POOL_GET(channel) POOL_SET(channel)
+static bool WritePools(FILE *f) {
+    return WritePool(f, construction_fields, pool_get_construction)
+        && WritePool(f, rally_fields, pool_get_rally)
+        && WritePool(f, revival_fields, pool_get_revival)
+        && WritePool(f, sacrifice_fields, pool_get_sacrifice)
+        && WritePool(f, unsummon_fields, pool_get_unsummon)
+        && WritePool(f, militia_fields, pool_get_militia)
+        && WritePool(f, goldmine_fields, pool_get_goldmine)
+        && WritePool(f, mineoverlay_fields, pool_get_mineoverlay)
+        && WritePool(f, acolyte_mine_fields, pool_get_acolyte_mine)
+        && WritePool(f, item_fields, pool_get_item)
+        && WritePool(f, destructable_fields, pool_get_destructable)
+        && WritePool(f, cargo_fields, pool_get_cargo)
+        && WritePool(f, stock_fields, pool_get_stock)
+        && WritePool(f, artillery_fields, pool_get_artillery)
+        && WritePool(f, avatar_fields, pool_get_avatar)
+        && WritePool(f, polymorph_fields, pool_get_polymorph)
+        && WritePool(f, raven_fields, pool_get_raven)
+        && WritePool(f, ensnare_fields, pool_get_ensnare)
+        && WritePool(f, ancient_root_fields, pool_get_ancient_root)
+        && WritePool(f, sleep_fields, pool_get_sleep)
+        && WritePool(f, channel_fields, pool_get_channel);
+}
+static bool ReadPools(FILE *f) {
+    G_PoolsReset();
+    return ReadPool(f, construction_fields, (void *(*)(void))G_PoolAlloc_construction, pool_set_construction)
+        && ReadPool(f, rally_fields, (void *(*)(void))G_PoolAlloc_rally, pool_set_rally)
+        && ReadPool(f, revival_fields, (void *(*)(void))G_PoolAlloc_revival, pool_set_revival)
+        && ReadPool(f, sacrifice_fields, (void *(*)(void))G_PoolAlloc_sacrifice, pool_set_sacrifice)
+        && ReadPool(f, unsummon_fields, (void *(*)(void))G_PoolAlloc_unsummon, pool_set_unsummon)
+        && ReadPool(f, militia_fields, (void *(*)(void))G_PoolAlloc_militia, pool_set_militia)
+        && ReadPool(f, goldmine_fields, (void *(*)(void))G_PoolAlloc_goldmine, pool_set_goldmine)
+        && ReadPool(f, mineoverlay_fields, (void *(*)(void))G_PoolAlloc_mineoverlay, pool_set_mineoverlay)
+        && ReadPool(f, acolyte_mine_fields, (void *(*)(void))G_PoolAlloc_acolyte_mine, pool_set_acolyte_mine)
+        && ReadPool(f, item_fields, (void *(*)(void))G_PoolAlloc_item, pool_set_item)
+        && ReadPool(f, destructable_fields, (void *(*)(void))G_PoolAlloc_destructable, pool_set_destructable)
+        && ReadPool(f, cargo_fields, (void *(*)(void))G_PoolAlloc_cargo, pool_set_cargo)
+        && ReadPool(f, stock_fields, (void *(*)(void))G_PoolAlloc_stock, pool_set_stock)
+        && ReadPool(f, artillery_fields, (void *(*)(void))G_PoolAlloc_artillery, pool_set_artillery)
+        && ReadPool(f, avatar_fields, (void *(*)(void))G_PoolAlloc_avatar, pool_set_avatar)
+        && ReadPool(f, polymorph_fields, (void *(*)(void))G_PoolAlloc_polymorph, pool_set_polymorph)
+        && ReadPool(f, raven_fields, (void *(*)(void))G_PoolAlloc_raven, pool_set_raven)
+        && ReadPool(f, ensnare_fields, (void *(*)(void))G_PoolAlloc_ensnare, pool_set_ensnare)
+        && ReadPool(f, ancient_root_fields, (void *(*)(void))G_PoolAlloc_ancient_root, pool_set_ancient_root)
+        && ReadPool(f, sleep_fields, (void *(*)(void))G_PoolAlloc_sleep, pool_set_sleep)
+        && ReadPool(f, channel_fields, (void *(*)(void))G_PoolAlloc_channel, pool_set_channel);
+}
+
 bool WriteGame(cstring_t filename) {
     FILE *f = fopen(filename, "w+b");
     saveHeader_t header = {
@@ -1906,6 +1988,7 @@ bool WriteGame(cstring_t filename) {
             fprintf(stderr, "WC3 SaveGame: failed at edict %d class=%08x\n", i, g_edicts[i].class_id); goto done;
         }
     }
+    if (!WritePools(f)) { fprintf(stderr, "WC3 SaveGame: failed at lifecycle pools\n"); goto done; }
     /* After edicts: nested HT_HANDLE unit/item slots call G_LoadJassHandle, which
      * requires restored inuse bits. SV_Map runs main() first, so a pre-edict
      * resolve would see baseline slots and drop script-created units. */
@@ -2018,6 +2101,7 @@ bool ReadGame(cstring_t filename) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
         }
     }
+    if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
     /* Nested hashtable unit/item handles resolve here, after edict inuse is restored. */
     if (!ReadHashtables(f)) { fprintf(stderr, "WC3 LoadGame: failed at hashtables\n"); fclose(f); return false; }
     /* Sound-handle presentation state is part of the VM-owned handle payload;
@@ -2200,8 +2284,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-57.bin",
         "/tmp/openwarcraft3-wc3-save-version-58.bin",
         "/tmp/openwarcraft3-wc3-save-version-59.bin",
+        "/tmp/openwarcraft3-wc3-save-version-60.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60 };
 
     reset_entities();
     setup_test_world();

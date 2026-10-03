@@ -34,8 +34,8 @@ static edict_t *make_walk_hero(float x, float y) {
 static edict_t *give_item(edict_t *hero, uint32_t class_id, uint32_t slot, uint32_t charges) {
     edict_t *item = alloc_test_unit(class_id, hero->s.origin2.x + 32.0f, hero->s.origin2.y);
     item->targtype = TARG_ITEM;
-    item->item.in_world = true;
-    item->item.inventory_slot = -1;
+    E_item(item)->in_world = true;
+    E_item(item)->inventory_slot = -1;
     T_ASSERT(G_AddItemToSlot(hero, item, slot));
     G_SetItemCharges(item, charges);
     return item;
@@ -105,9 +105,9 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     saved_added = hero->abilities.added[0];
     saved_item0 = item0->class_id;
     saved_item1 = item1->class_id;
-    saved_charges0 = item0->item.charges;
-    saved_charges1 = item1->item.charges;
-    item0->item.drop_id = saved_drop_id = MAKEFOURCC('h','f','o','o');
+    saved_charges0 = E_item_get(item0)->charges;
+    saved_charges1 = E_item_get(item1)->charges;
+    E_item(item0)->drop_id = saved_drop_id = MAKEFOURCC('h','f','o','o');
     strlcpy(saved_move, hero->currentmove->animation, sizeof(saved_move));
     index = hero->s.number;
     G_FormatHeroSaveSnap(hero, snap, sizeof(snap));
@@ -133,9 +133,9 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     T_NOT_NULL(hero->inventory[1]);
     T_EQ(hero->inventory[0]->class_id, saved_item0);
     T_EQ(hero->inventory[1]->class_id, saved_item1);
-    T_EQ(hero->inventory[0]->item.charges, saved_charges0);
-    T_EQ(hero->inventory[1]->item.charges, saved_charges1);
-    T_EQ(hero->inventory[0]->item.drop_id, saved_drop_id);
+    T_EQ(E_item_get(hero->inventory[0])->charges, saved_charges0);
+    T_EQ(E_item_get(hero->inventory[1])->charges, saved_charges1);
+    T_EQ(E_item_get(hero->inventory[0])->drop_id, saved_drop_id);
     T_NOT_NULL(hero->currentmove);
     T_STREQ(hero->currentmove->animation, saved_move);
     T_EQ(hero->think, monster_think);

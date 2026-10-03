@@ -3575,7 +3575,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->harvested_gold = 37;
     first->shared_vision = (1u << 0) | (1u << 7);
     first->projectile_reflected = true;
-    first->sleep.can_sleep = true;
+    E_sleep(first)->can_sleep = true;
     first->collision = 42.5f;
     first->s.origin.x = 96.0f;
     first->s.origin.y = 128.0f;
@@ -3583,7 +3583,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->movement.follow_target = second;
     first->movement.explicit_allied_attack = true;
     first->inventory[2] = second;
-    first->cargo.units[3] = second;
+    E_cargo_get(first)->units[3] = second;
     first->stand = unit_stand; first->birth = unit_birth; first->die = unit_die; first->think = monster_think;
     unit_stand(first);
     first->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
@@ -3677,13 +3677,13 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->harvested_gold = 0;
     first->shared_vision = 0;
     first->projectile_reflected = false;
-    first->sleep.can_sleep = false;
-    first->sleep.sleeping = false;
+    E_sleep(first)->can_sleep = false;
+    E_sleep(first)->sleeping = false;
     first->owner = NULL;
     first->movement.follow_target = NULL;
     first->movement.explicit_allied_attack = false;
     first->inventory[2] = NULL;
-    first->cargo.units[3] = NULL;
+    E_cargo_get(first)->units[3] = NULL;
     first->animation_props[0] = '\0';
     first->animation_request[0] = '\0';
     memset(first->abilstatus, 0, sizeof(first->abilstatus));
@@ -3933,18 +3933,18 @@ TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     field_t const *desc = find_save_field("artillery");
     reset_entities();
     edict_t *projectile = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    projectile->artillery = (edictArtillery_t) { ATK_SIEGE, WC3_TARGET_FLAG_GROUND, WC3_TARGET_FLAG_GROUND,
+    *E_artillery(projectile) = (edictArtillery_t) { ATK_SIEGE, WC3_TARGET_FLAG_GROUND, WC3_TARGET_FLAG_GROUND,
                                                   40.0f, 80.0f, 120.0f, 0.5f, 0.25f };
     T_NOT_NULL(desc); if (desc) T_EQ(desc->type, F_STRUCT);
-    T_ASSERT(WriteGame(filename)); memset(&projectile->artillery, 0, sizeof(projectile->artillery));
+    T_ASSERT(WriteGame(filename)); G_PoolDrop_artillery(projectile);
     T_ASSERT(ReadGame(filename));
-    T_EQ(projectile->artillery.attack_type, ATK_SIEGE);
-    T_EQ(projectile->artillery.area_targets, WC3_TARGET_FLAG_GROUND);
-    T_FEQ(projectile->artillery.area_full, 40.0f, 0.001f);
-    T_FEQ(projectile->artillery.area_medium, 80.0f, 0.001f);
-    T_FEQ(projectile->artillery.area_small, 120.0f, 0.001f);
-    T_FEQ(projectile->artillery.factor_medium, 0.5f, 0.001f);
-    T_FEQ(projectile->artillery.factor_small, 0.25f, 0.001f);
+    T_EQ(E_artillery_get(projectile)->attack_type, ATK_SIEGE);
+    T_EQ(E_artillery_get(projectile)->area_targets, WC3_TARGET_FLAG_GROUND);
+    T_FEQ(E_artillery_get(projectile)->area_full, 40.0f, 0.001f);
+    T_FEQ(E_artillery_get(projectile)->area_medium, 80.0f, 0.001f);
+    T_FEQ(E_artillery_get(projectile)->area_small, 120.0f, 0.001f);
+    T_FEQ(E_artillery_get(projectile)->factor_medium, 0.5f, 0.001f);
+    T_FEQ(E_artillery_get(projectile)->factor_small, 0.25f, 0.001f);
     remove(filename);
 }
 SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, autocast_code, MAKEFOURCC('A', 'h', 'e', 'a'))
@@ -3969,20 +3969,20 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         shop = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
         level.stock.item_slots = 11;
         level.stock.unit_slots = 9;
-        shop->stock.item_slots = 11;
-        shop->stock.unit_slots = 9;
-        shop->stock.items_initialized = true;
-        shop->stock.item_count = 1;
-        shop->stock.items[0] = (edictShopStockItem_t){
+        E_stock(shop)->item_slots = 11;
+        E_stock(shop)->unit_slots = 9;
+        E_stock(shop)->items_initialized = true;
+        E_stock(shop)->item_count = 1;
+        E_stock_get(shop)->items[0] = (edictShopStockItem_t){
             .id = MAKEFOURCC('s','p','r','o'),
             .current = 1,
             .maximum = 3,
             .delay_start = 5000,
             .delay_end = 65000,
         };
-        shop->stock.units_initialized = true;
-        shop->stock.unit_count = 1;
-        shop->stock.units[0] = (edictShopStockItem_t){
+        E_stock(shop)->units_initialized = true;
+        E_stock(shop)->unit_count = 1;
+        E_stock_get(shop)->units[0] = (edictShopStockItem_t){
             .id = MAKEFOURCC('n','m','e','r'),
             .current = 0,
             .maximum = 2,
@@ -4009,26 +4009,26 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         T_ASSERT(WriteGame(filename));
         level.stock.item_slots = 0;
         level.stock.unit_slots = 0;
-        memset(&shop->stock, 0, sizeof(shop->stock));
+        G_PoolDrop_stock(shop);
         T_ASSERT(ReadGame(filename));
         T_EQ(level.stock.item_slots, 11);
         T_EQ(level.stock.unit_slots, 9);
-        T_EQ(shop->stock.item_slots, 11);
-        T_EQ(shop->stock.unit_slots, 9);
-        T_ASSERT(shop->stock.items_initialized);
-        T_EQ(shop->stock.item_count, 1);
-        T_EQ(shop->stock.items[0].id, MAKEFOURCC('s','p','r','o'));
-        T_EQ(shop->stock.items[0].current, 1);
-        T_EQ(shop->stock.items[0].maximum, 3);
-        T_EQ(shop->stock.items[0].delay_start, 5000);
-        T_EQ(shop->stock.items[0].delay_end, 65000);
-        T_ASSERT(shop->stock.units_initialized);
-        T_EQ(shop->stock.unit_count, 1);
-        T_EQ(shop->stock.units[0].id, MAKEFOURCC('n','m','e','r'));
-        T_EQ(shop->stock.units[0].current, 0);
-        T_EQ(shop->stock.units[0].maximum, 2);
-        T_EQ(shop->stock.units[0].delay_start, 9000);
-        T_EQ(shop->stock.units[0].delay_end, 14000);
+        T_EQ(E_stock_get(shop)->item_slots, 11);
+        T_EQ(E_stock_get(shop)->unit_slots, 9);
+        T_ASSERT(E_stock_get(shop)->items_initialized);
+        T_EQ(E_stock_get(shop)->item_count, 1);
+        T_EQ(E_stock_get(shop)->items[0].id, MAKEFOURCC('s','p','r','o'));
+        T_EQ(E_stock_get(shop)->items[0].current, 1);
+        T_EQ(E_stock_get(shop)->items[0].maximum, 3);
+        T_EQ(E_stock_get(shop)->items[0].delay_start, 5000);
+        T_EQ(E_stock_get(shop)->items[0].delay_end, 65000);
+        T_ASSERT(E_stock_get(shop)->units_initialized);
+        T_EQ(E_stock_get(shop)->unit_count, 1);
+        T_EQ(E_stock_get(shop)->units[0].id, MAKEFOURCC('n','m','e','r'));
+        T_EQ(E_stock_get(shop)->units[0].current, 0);
+        T_EQ(E_stock_get(shop)->units[0].maximum, 2);
+        T_EQ(E_stock_get(shop)->units[0].delay_start, 9000);
+        T_EQ(E_stock_get(shop)->units[0].delay_end, 14000);
         remove(filename);
     }
 }
@@ -4084,23 +4084,23 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
 
     setup_test_world(); reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    unit->blight_growth.ability = ability;
-    unit->blight_growth.radius = 146.0f;
-    unit->blight_growth.next_update = 12345;
-    unit->destructable.blighted = true;
+    E_blight_growth(unit)->ability = ability;
+    E_blight_growth(unit)->radius = 146.0f;
+    E_blight_growth(unit)->next_update = 12345;
+    E_destructable(unit)->blighted = true;
     G_SetBlightPoint(&point, true);
     T_ASSERT(G_IsPointBlighted(&point));
     T_ASSERT(WriteGame(filename));
 
     G_SetBlightPoint(&point, false);
-    memset(&unit->blight_growth, 0, sizeof(unit->blight_growth));
-    unit->destructable.blighted = false;
+    G_PoolDrop_blight_growth(unit);
+    E_destructable(unit)->blighted = false;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(G_IsPointBlighted(&point));
-    T_EQ(unit->blight_growth.ability, ability);
-    T_FEQ(unit->blight_growth.radius, 146.0f, 0.001f);
-    T_EQ(unit->blight_growth.next_update, 12345u);
-    T_ASSERT(unit->destructable.blighted);
+    T_EQ(E_blight_growth_get(unit)->ability, ability);
+    T_FEQ(E_blight_growth_get(unit)->radius, 146.0f, 0.001f);
+    T_EQ(E_blight_growth_get(unit)->next_update, 12345u);
+    T_ASSERT(E_destructable_get(unit)->blighted);
     remove(filename);
 }
 
@@ -4135,9 +4135,9 @@ TEST(wc3_save, field_channel_origin_round_trip) {
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     T_NOT_NULL(desc);
     if (desc) T_EQ(desc->type, F_VECTOR);
-    unit->channel.origin = (vec2_t){ 12.5f, 34.5f };
-    T_ASSERT(WriteGame(filename)); unit->channel.origin = (vec2_t){0}; T_ASSERT(ReadGame(filename));
-    T_FEQ(unit->channel.origin.x, 12.5f, 0.001f); T_FEQ(unit->channel.origin.y, 34.5f, 0.001f);
+    E_channel(unit)->origin = (vec2_t){ 12.5f, 34.5f };
+    T_ASSERT(WriteGame(filename)); E_channel(unit)->origin = (vec2_t){0}; T_ASSERT(ReadGame(filename));
+    T_FEQ(E_channel_get(unit)->origin.x, 12.5f, 0.001f); T_FEQ(E_channel_get(unit)->origin.y, 34.5f, 0.001f);
     remove(filename);
 }
 
@@ -4313,49 +4313,49 @@ TEST(wc3_save, construction_payment_round_trip) {
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
-    unit->construction.active = true;
-    unit->construction.type = CONSTRUCTION_ORC;
-    unit->construction.worker = worker;
-    unit->construction.worker_spawn_time = 1234;
-    unit->construction.worker_inside = true;
-    unit->construction.consumes_worker = true;
-    unit->construction.restore_invulnerable = true;
-    unit->construction.worker_release_time = 5678;
-    unit->construction.restore_paused = true;
-    unit->construction.restore_hidden = true;
-    unit->construction.paid = true;
-    unit->construction.payer = 3;
-    unit->construction.gold = 100;
-    unit->construction.lumber = 80;
+    E_construction(unit)->active = true;
+    E_construction(unit)->type = CONSTRUCTION_ORC;
+    E_construction(unit)->worker = worker;
+    E_construction(unit)->worker_spawn_time = 1234;
+    E_construction(unit)->worker_inside = true;
+    E_construction(unit)->consumes_worker = true;
+    E_construction(unit)->restore_invulnerable = true;
+    E_construction(unit)->worker_release_time = 5678;
+    E_construction(unit)->restore_paused = true;
+    E_construction(unit)->restore_hidden = true;
+    E_construction(unit)->paid = true;
+    E_construction(unit)->payer = 3;
+    E_construction(unit)->gold = 100;
+    E_construction(unit)->lumber = 80;
 
     T_ASSERT(WriteGame(filename));
-    unit->construction.type = CONSTRUCTION_NONE;
-    unit->construction.worker = NULL;
-    unit->construction.worker_spawn_time = 0;
-    unit->construction.worker_inside = false;
-    unit->construction.consumes_worker = false;
-    unit->construction.restore_invulnerable = false;
-    unit->construction.restore_paused = false;
-    unit->construction.restore_hidden = false;
-    unit->construction.worker_release_time = 0;
-    unit->construction.paid = false;
-    unit->construction.payer = 0;
-    unit->construction.gold = 0;
-    unit->construction.lumber = 0;
+    E_construction(unit)->type = CONSTRUCTION_NONE;
+    E_construction(unit)->worker = NULL;
+    E_construction(unit)->worker_spawn_time = 0;
+    E_construction(unit)->worker_inside = false;
+    E_construction(unit)->consumes_worker = false;
+    E_construction(unit)->restore_invulnerable = false;
+    E_construction(unit)->restore_paused = false;
+    E_construction(unit)->restore_hidden = false;
+    E_construction(unit)->worker_release_time = 0;
+    E_construction(unit)->paid = false;
+    E_construction(unit)->payer = 0;
+    E_construction(unit)->gold = 0;
+    E_construction(unit)->lumber = 0;
     T_ASSERT(ReadGame(filename));
-    T_EQ(unit->construction.type, CONSTRUCTION_ORC);
-    T_ASSERT(unit->construction.worker == worker);
-    T_EQ(unit->construction.worker_spawn_time, 1234);
-    T_ASSERT(unit->construction.worker_inside);
-    T_ASSERT(unit->construction.consumes_worker);
-    T_ASSERT(unit->construction.restore_invulnerable);
-    T_ASSERT(unit->construction.restore_paused);
-    T_ASSERT(unit->construction.restore_hidden);
-    T_EQ(unit->construction.worker_release_time, 5678);
-    T_ASSERT(unit->construction.paid);
-    T_EQ(unit->construction.payer, 3);
-    T_EQ(unit->construction.gold, 100);
-    T_EQ(unit->construction.lumber, 80);
+    T_EQ(E_construction_get(unit)->type, CONSTRUCTION_ORC);
+    T_ASSERT(E_construction_get(unit)->worker == worker);
+    T_EQ(E_construction_get(unit)->worker_spawn_time, 1234);
+    T_ASSERT(E_construction_get(unit)->worker_inside);
+    T_ASSERT(E_construction_get(unit)->consumes_worker);
+    T_ASSERT(E_construction_get(unit)->restore_invulnerable);
+    T_ASSERT(E_construction_get(unit)->restore_paused);
+    T_ASSERT(E_construction_get(unit)->restore_hidden);
+    T_EQ(E_construction_get(unit)->worker_release_time, 5678);
+    T_ASSERT(E_construction_get(unit)->paid);
+    T_EQ(E_construction_get(unit)->payer, 3);
+    T_EQ(E_construction_get(unit)->gold, 100);
+    T_EQ(E_construction_get(unit)->lumber, 80);
     remove(filename);
 }
 
@@ -4368,35 +4368,35 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     overlay = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     acolyte = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
     parent->resources = 7777;
-    overlay->mineoverlay.parent = parent;
-    overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
-    overlay->mineoverlay.income_time = 12345;
-    overlay->mineoverlay.active_interval_index = 3;
-    overlay->mineoverlay.entangle_permanent_before = true;
-    acolyte->acolyte_mine.mine = overlay;
-    acolyte->acolyte_mine.mine_spawn_time = overlay->spawn_time;
-    acolyte->acolyte_mine.slot = 4;
+    E_mineoverlay(overlay)->parent = parent;
+    E_mineoverlay(overlay)->parent_spawn_time = parent->spawn_time;
+    E_mineoverlay(overlay)->income_time = 12345;
+    E_mineoverlay(overlay)->active_interval_index = 3;
+    E_mineoverlay(overlay)->entangle_permanent_before = true;
+    E_acolyte_mine(acolyte)->mine = overlay;
+    E_acolyte_mine(acolyte)->mine_spawn_time = overlay->spawn_time;
+    E_acolyte_mine(acolyte)->slot = 4;
 
     T_ASSERT(WriteGame(filename));
-    overlay->mineoverlay.parent = NULL;
-    overlay->mineoverlay.parent_spawn_time = 0;
-    overlay->mineoverlay.income_time = 0;
-    overlay->mineoverlay.active_interval_index = 0;
-    overlay->mineoverlay.entangle_permanent_before = false;
-    acolyte->acolyte_mine.mine = NULL;
-    acolyte->acolyte_mine.mine_spawn_time = 0;
-    acolyte->acolyte_mine.slot = -1;
+    E_mineoverlay(overlay)->parent = NULL;
+    E_mineoverlay(overlay)->parent_spawn_time = 0;
+    E_mineoverlay(overlay)->income_time = 0;
+    E_mineoverlay(overlay)->active_interval_index = 0;
+    E_mineoverlay(overlay)->entangle_permanent_before = false;
+    E_acolyte_mine(acolyte)->mine = NULL;
+    E_acolyte_mine(acolyte)->mine_spawn_time = 0;
+    E_acolyte_mine(acolyte)->slot = -1;
     parent->resources = 0;
     T_ASSERT(ReadGame(filename));
 
-    T_ASSERT(overlay->mineoverlay.parent == parent);
-    T_EQ(overlay->mineoverlay.parent_spawn_time, parent->spawn_time);
-    T_EQ(overlay->mineoverlay.income_time, 12345);
-    T_EQ(overlay->mineoverlay.active_interval_index, 3);
-    T_ASSERT(overlay->mineoverlay.entangle_permanent_before);
-    T_ASSERT(acolyte->acolyte_mine.mine == overlay);
-    T_EQ(acolyte->acolyte_mine.mine_spawn_time, overlay->spawn_time);
-    T_EQ(acolyte->acolyte_mine.slot, 4);
+    T_ASSERT(E_mineoverlay_get(overlay)->parent == parent);
+    T_EQ(E_mineoverlay_get(overlay)->parent_spawn_time, parent->spawn_time);
+    T_EQ(E_mineoverlay_get(overlay)->income_time, 12345);
+    T_EQ(E_mineoverlay_get(overlay)->active_interval_index, 3);
+    T_ASSERT(E_mineoverlay_get(overlay)->entangle_permanent_before);
+    T_ASSERT(E_acolyte_mine_get(acolyte)->mine == overlay);
+    T_EQ(E_acolyte_mine_get(acolyte)->mine_spawn_time, overlay->spawn_time);
+    T_EQ(E_acolyte_mine_get(acolyte)->slot, 4);
     T_EQ(parent->resources, 7777);
     remove(filename);
 }
@@ -4409,21 +4409,21 @@ TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
     reset_entities();
     tree = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
     overlay = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 0.0f);
-    overlay->mineoverlay.entangle_tree = tree;
-    overlay->mineoverlay.entangle_tree_spawn_time = tree->spawn_time;
+    E_mineoverlay(overlay)->entangle_tree = tree;
+    E_mineoverlay(overlay)->entangle_tree_spawn_time = tree->spawn_time;
     T_NOT_NULL(desc);
     if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, 0); }
     T_ASSERT(WriteGame(filename));
-    overlay->mineoverlay.entangle_tree = NULL;
-    overlay->mineoverlay.entangle_tree_spawn_time = 0;
+    E_mineoverlay(overlay)->entangle_tree = NULL;
+    E_mineoverlay(overlay)->entangle_tree_spawn_time = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT(overlay->mineoverlay.entangle_tree == tree);
-    T_EQ(overlay->mineoverlay.entangle_tree_spawn_time, tree->spawn_time);
+    T_ASSERT(E_mineoverlay_get(overlay)->entangle_tree == tree);
+    T_EQ(E_mineoverlay_get(overlay)->entangle_tree_spawn_time, tree->spawn_time);
 
     /* A recycled edict slot must not inherit the previous tree identity. */
     tree->spawn_time++;
-    T_ASSERT(overlay->mineoverlay.entangle_tree == tree);
-    T_NE(overlay->mineoverlay.entangle_tree_spawn_time, tree->spawn_time);
+    T_ASSERT(E_mineoverlay_get(overlay)->entangle_tree == tree);
+    T_NE(E_mineoverlay_get(overlay)->entangle_tree_spawn_time, tree->spawn_time);
     remove(filename);
 }
 
@@ -4484,7 +4484,7 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     carrier->soul_trap_head = target; carrier->soul_trap_head_spawn_time = target->spawn_time;
     target->soul_trap_carrier = carrier; target->soul_trap_carrier_spawn_time = carrier->spawn_time;
     target->soul_trap_item = filled; target->soul_trap_item_spawn_time = filled->spawn_time;
-    filled->item.soul_target = target; filled->item.soul_target_spawn_time = target->spawn_time;
+    E_item(filled)->soul_target = target; E_item(filled)->soul_target_spawn_time = target->spawn_time;
     G_AddUnitForcedVisibility(carrier, target->s.player);
     target->aiflags |= AI_SOUL_TRAPPED;
     target->s.renderfx |= RF_HIDDEN; target->svflags |= SVF_NOCLIENT; target->s.flags |= EF_NOT_SELECTABLE;
@@ -4493,7 +4493,7 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     carrier->soul_trap_head = NULL; carrier->soul_trap_head_spawn_time = 0;
     target->soul_trap_carrier = NULL; target->soul_trap_carrier_spawn_time = 0;
     target->soul_trap_item = NULL; target->soul_trap_item_spawn_time = 0;
-    filled->item.soul_target = NULL; filled->item.soul_target_spawn_time = 0;
+    E_item(filled)->soul_target = NULL; E_item(filled)->soul_target_spawn_time = 0;
     carrier->forced_visibility_count[1] = 0;
     target->aiflags = 0; target->s.renderfx = 0; target->svflags = 0; target->s.flags = 0;
     T_ASSERT(ReadGame(filename));
@@ -4503,8 +4503,8 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     T_EQ(target->soul_trap_carrier_spawn_time, carrier->spawn_time);
     T_ASSERT(target->soul_trap_item == filled);
     T_EQ(target->soul_trap_item_spawn_time, filled->spawn_time);
-    T_ASSERT(filled->item.soul_target == target);
-    T_EQ(filled->item.soul_target_spawn_time, target->spawn_time);
+    T_ASSERT(E_item_get(filled)->soul_target == target);
+    T_EQ(E_item_get(filled)->soul_target_spawn_time, target->spawn_time);
     T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);
     T_ASSERT(target->s.renderfx & RF_HIDDEN);
     T_ASSERT(!M_IsDead(target));
@@ -4518,15 +4518,15 @@ TEST(wc3_save, clears_nested_process_owned_fields) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-nested-runtime.bin";
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    unit->militia.partner = (edict_t *)(uintptr_t)1;
-    unit->destructable.drop_sets = (droppableItemSet_t *)(uintptr_t)1;
-    ARRAY_COUNT(unit->destructable.drop_sets) = 7;
+    E_militia(unit)->partner = (edict_t *)(uintptr_t)1;
+    E_destructable(unit)->drop_sets = (droppableItemSet_t *)(uintptr_t)1;
+    ARRAY_COUNT(E_destructable_get(unit)->drop_sets) = 7;
     T_ASSERT(WriteGame(filename));
-    unit->militia.partner = NULL; unit->destructable.drop_sets = NULL;
-    ARRAY_COUNT(unit->destructable.drop_sets) = 0;
+    E_militia(unit)->partner = NULL; E_destructable(unit)->drop_sets = NULL;
+    ARRAY_COUNT(E_destructable_get(unit)->drop_sets) = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT(!unit->militia.partner && !unit->destructable.drop_sets);
-    T_EQ(ARRAY_COUNT(unit->destructable.drop_sets), 0);
+    T_ASSERT(!E_militia_get(unit)->partner && !E_destructable_get(unit)->drop_sets);
+    T_EQ(ARRAY_COUNT(E_destructable_get(unit)->drop_sets), 0);
     remove(filename);
 }
 
@@ -4601,11 +4601,11 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     unit->permanent_invisibility_reveal_until = 97531;
     unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
     chain->think = chain_lightning_think; chain->owner = unit; chain->class_id = MAKEFOURCC('A', 'O', 'c', 'l');
-    chain->channel.owner_spawn_time = unit->spawn_time;
+    E_channel(chain)->owner_spawn_time = unit->spawn_time;
     chain->s.origin2 = (vec2_t){ 321.0f, 654.0f }; chain->collision = 500.0f; chain->wait = 45.0f;
     chain->velocity = 0.9f; chain->resources = 3; chain->freetime = 4321;
     chain_marker->class_id = MAKEFOURCC('C', 'L', 'v', 's'); chain_marker->svflags |= SVF_NOCLIENT;
-    chain_marker->owner = chain; chain_marker->channel.owner_spawn_time = chain->spawn_time;
+    chain_marker->owner = chain; E_channel(chain_marker)->owner_spawn_time = chain->spawn_time;
     chain_marker->goalentity = mine; chain_marker->resources = mine->spawn_time;
     T_ASSERT(WriteGame(filename));
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
@@ -4613,7 +4613,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     cargo_approach->think = cannibalize_approach->think = monster_think;
     land_mine->think = death_aoe->think = monster_think;
     chain->resources = chain->freetime = 0;
-    chain_marker->class_id = chain_marker->svflags = chain_marker->channel.owner_spawn_time = chain_marker->resources = 0;
+    chain_marker->class_id = chain_marker->svflags = E_channel(chain_marker)->owner_spawn_time = chain_marker->resources = 0;
     chain_marker->owner = chain_marker->goalentity = NULL;
     unit->permanent_invisibility_reveal_until = 0; unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
     unit->stand = mine->stand = idle->stand = tree->stand = NULL;
@@ -4639,13 +4639,13 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_EQ(far_sight->spawn_time, 9876);
     T_ASSERT(chain->think == chain_lightning_think && chain->owner == unit);
     T_EQ(chain->class_id, MAKEFOURCC('A', 'O', 'c', 'l'));
-    T_EQ(chain->channel.owner_spawn_time, unit->spawn_time);
+    T_EQ(E_channel_get(chain)->owner_spawn_time, unit->spawn_time);
     T_FEQ(chain->s.origin2.x, 321.0f, 0.001f); T_FEQ(chain->s.origin2.y, 654.0f, 0.001f);
     T_FEQ(chain->collision, 500.0f, 0.001f); T_FEQ(chain->wait, 45.0f, 0.001f);
     T_FEQ(chain->velocity, 0.9f, 0.001f); T_EQ(chain->resources, 3); T_EQ(chain->freetime, 4321);
     T_EQ(chain_marker->class_id, MAKEFOURCC('C', 'L', 'v', 's')); T_ASSERT(chain_marker->svflags & SVF_NOCLIENT);
     T_ASSERT(chain_marker->owner == chain && chain_marker->goalentity == mine);
-    T_EQ(chain_marker->channel.owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
+    T_EQ(E_channel_get(chain_marker)->owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
     remove(filename);
 }
 
