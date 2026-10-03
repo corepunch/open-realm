@@ -459,7 +459,9 @@ parallel `SimpleInfoPanelIconGold` tree, `InfoPanelIconGold` skin texture, `COLO
 
 `SimpleNameValue` owns the selected-unit title typography and anchor. Do not synthesize `Level 1 Peasant`-style class strings. Heroes
 use the retail `SimpleHeroLevelBar` in the line below their proper name, with `SimpleXpBarConsole` / `SimpleXpBarBorder` and the
-current-level XP fraction. Ordinary units keep the class line empty; Heroes populate `SimpleClassValue` through
+current-level XP fraction. Hovering the Hero XP bar shows the XP earned within that level and the amount needed for the next level
+(for example, `XP: 75 / 200` at level 1). The game module authors this tooltip on the status-bar frame and the shared info-panel
+tooltip presenter displays it. Ordinary units keep the class line empty; Heroes populate `SimpleClassValue` through
 `INFOPANEL_LEVEL_CLASS`, for example `Level 2 Paladin`. Runtime values may override a status-bar value, but its geometry and anchors
 stay FDF-authored.
 
