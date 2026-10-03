@@ -98,6 +98,7 @@ void G_FreeEdict(edict_t *ent) {
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     S_GoldMineReleaseWorker(ent);
     gi.UnlinkEntity(ent);
+    G_RemoveMoveSpatialObject(ent);
     G_PoolsReleaseEdict(ent);
     memset(ent, 0, sizeof(*ent));
     ent->freetime = level.time;
@@ -115,6 +116,7 @@ void G_DeferFreeEdict(edict_t *ent) {
     }
     bool const had_static_pathing = G_EntityHasStaticPathing(ent);
     ent->s.renderfx |= RF_HIDDEN;
+    G_RemoveMoveSpatialObject(ent);
     /* RemoveUnit becomes absent now; a route issued in the same JASS callback
      * must already see the remaining footprints and terrain baseline. */
     if (had_static_pathing) CM_BakeStaticObstacles();

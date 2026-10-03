@@ -376,6 +376,7 @@ void SP_monster_unit(edict_t *edict);
 void SP_monster_tree(edict_t *edict);
 
 static void G_InitEdict(edict_t *e) {
+    G_RemoveMoveSpatialObject(e);
     memset(e, 0, sizeof(edict_t));
     e->inuse = true;
     e->s.scale = 1;
@@ -791,6 +792,7 @@ void G_SpawnEntities(void) {
     G_BlightShutdown();
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
+    G_ClearMoveSpatial();
     memset(&level, 0, sizeof(level));
     G_ResetSelectionSoundState();
     G_CommandErrorReset();
@@ -875,6 +877,7 @@ void G_SpawnEntities(void) {
         gi.LinkEntity(ent);
     }
     S_MineOverlayBindPreplaced();
+    FILTER_EDICTS(ent,ent->inuse) G_PublishMoveSpatialObject(ent);
     SP_worldspawn(NULL);
     
     jass_dofile(level.vm, "Scripts\\common.j");
@@ -925,6 +928,8 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     /* SP_SpawnUnit fills collision and the server broad-phase bounds depend on
      * that value. Link only after the class-owned spawn initializer runs. */
     gi.LinkEntity(ent);
+    /* Spatial history starts at this authored spawn pose. */
+    G_PublishMoveSpatialObject(ent);
     /* Dynamic unit creation must establish Hero progression independently of
      * presentation data.  SP_SpawnUnit already initializes normal Heroes, but
      * custom/minimal data may omit UnitUI/model rows while still defining Hero

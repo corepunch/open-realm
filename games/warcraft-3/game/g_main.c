@@ -562,6 +562,7 @@ static void G_ShutdownGame(void) {
     G_FreeModels();
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
+    G_ClearMoveSpatial();
     FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     if (game.clients) FOR_LOOP(i, game.max_clients) G_ClearPlayerAbilityAvailability(game.clients + i);
     gi.MemFree(g_edicts);

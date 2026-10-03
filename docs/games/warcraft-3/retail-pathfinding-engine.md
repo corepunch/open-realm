@@ -7096,3 +7096,76 @@ Required `make BUILD=release -j4 test` passes RoC/TFT **2,493 tests and
 `runtime/passage80-strict/corpus-results.json` verifies the complete repeated
 live contract and preserves the producer oracle's expected known-reference
 difference. No incomplete capture is accepted.
+
+
+## Overlapping targets retain fine-cell insertion history
+
+Payoff81 implements existing FINE-01.6 in the game map owner and Move.
+`G_PublishMoveSpatialObject` publishes committed fine poses, authored footprint
+changes and public axis writes. Each active footprint retains a publication
+rank per cell: the old/new intersection keeps its prior ranks, removed cells
+lose membership, and newly entered cells prepend. This models the effective
+kind0/1 chain produced by original `14e770` and resolved by `14e050`; sorting
+entities by birth or by their latest movement cannot preserve intersection
+history. `wc3_pathing_spatial.h` is the shared production mechanism.
+
+Fine queries recognize the target only if its active link precedes every
+eligible foreign blocker in that cell. Identity remains visible before a later
+foreign rejection, while an earlier foreign rejection hides it. Terrain still
+rejects before inspecting links. Temporary moving/cohort flags determine
+eligibility without changing insertion order. Step-blocker collection also
+uses this cell order and preserves its32-token cap and footprint traversal.
+No scene coordinates or rawcodes enter these production algorithms.
+
+`wc3_target_overlap_probe.j` authors three public collision40 Footman clones on
+an empty64x64 file-backed map. It pauses the target and blocker, overlaps them
+with `SetUnitX`, issues Smart, moves the target away and back, reissues Smart,
+removes the blocker and issues Smart again. The watched cell confirms the
+actual link order and lazy removal records. First, blocker precedes target:
+701 fine pops exhaust the700 budget, producing a24-point partial route.
+Reinsertion puts target first:39 pops terminate at node122 with127 nodes,
+producing21 points despite one foreign blockage. After removal the same
+termination uses128 nodes and no foreign blockage. Virtual category2 captain
+links remain explicitly observed rather than mistaken for blocking units.
+
+Two complete captures repeat **501 position/velocity/facing commits**,442
+heading decisions, three full fine searches,300 timer samples and1,000 owner
+callbacks. `verify_wc3_target_overlap_trace.py` validates both literal
+trajectories, actual chains, task lifecycle, loaded terrain/hierarchy, scalar
+arithmetic and primary clock; process pointers and host subdivisions are
+normalized without dropping blocker masks, positions or hit counts.
+Frozen literal data lives in `retail-target-overlap-1.27.json` and
+`retail_target_overlap.h`. Runtime inputs are
+`runtime/target-overlap81-explore.jsonl` and
+`runtime/target-overlap81-repeat.jsonl`; both completed captures are accepted.
+
+The engine regression
+`wc3_movement.public_overlap_matches_original_link_order_and_saved_continuations`
+drives the same public orders through actual5ms game frames. Both RoC and TFT
+match all501 commits and **1,999 suffix commits across eight Save91
+continuations**, with25,045 assertions per edition. The separate fine-route
+regression covers both target/blocker orders. Ten malformed spatial-state
+records are rejected; the valid serializer round-trip retains the counter and
+cell ranks. Map replacement, direct/deferred removal and edict birth clear
+ownership; ordinary pose prediction does not reorder committed occupancy.
+
+The composed spatial oracle compares **81,920 engine active-cell orders**
+against the complete original rectangle writer across **1,280 updates**, with
+unchanged, overlapping, disjoint, empty and clipped rectangles. It retains the
+original dirty/full cleanup and separation checks. Existing fine-target chain
+controls remain in `engine-fine-targets`. Fresh selected reports are in
+`runtime/overlap81-strict/`.
+
+Active ranks preserve ordinary query behavior; they are not native link-vector
+indexes, retirement references or the shared DWORD query stamp. Those storage
+and lifetime requirements remain MAP-05/06. Other category producers remain
+FOOT-03, and stale adaptive terrain timing remains E2E-06.2. The saved Ghidra
+map now has624 function roles, including verified fastcall
+`SubtractRectangleIntersection` at `6f1d4ae0` and the actual strip-consumption
+order used by the rectangle writer. See [spatial producer evidence](retail-pathfinding-separation.md#engine-active-cell-history)
+and [strict corpus](retail-pathfinding-corpus.md#overlapping-target-producer-and-engine-history).
+
+Validation: full release RoC/TFT each pass **2,496 tests /4,443,774
+assertions**, plus **498 Python checks**. `runtime/overlap81-strict/` verifies
+all three selected producer/target/live contracts. O0 and O2 both preserve
+the81920 native active orders and repeated public arithmetic/clock words.

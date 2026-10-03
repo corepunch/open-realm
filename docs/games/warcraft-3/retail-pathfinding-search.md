@@ -1042,6 +1042,7 @@ must not be confused with removing a unit's occupied region.
 Do not rebuild adaptive classes after every moving unit commit based solely on
 its fine/proximity update: hierarchy object eligibility in`148e90` is narrower
 than ordinary collision eligibility. Exact dynamic hierarchy publication remains
-FOOT-03/E2E-06.2. The sorted engine rectangle adapter also cannot yet preserve
-native overlapping target/blocker link chronology; that implementation remains
-FINE-01.6. These are explicit inventory outcomes, not completed behavior claims.
+FOOT-03/E2E-06.2. Payoff81 replaces foreign-first rectangle queries with
+retained active fine-cell history and closes ordinary overlapping target/blocker
+chronology. Native retired-link storage and other category producers remain
+MAP-05/06 and FOOT-03. See [engine insertion history](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history).

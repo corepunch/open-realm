@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "100 executable original oracle contracts,121 archive audits and75 strict live contracts;296 total entries.",
+  "scope": "102 executable original oracle contracts,121 archive audits and77 strict live contracts;300 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -25309,6 +25309,214 @@
         }
       },
       "capture_complete": true
+    },
+    {
+      "id": "oracle-spatial-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_spatial.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "spatial-engine.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "rectangle_updates": {
+          "minimum": 1
+        },
+        "engine_active_chain_comparisons": {
+          "equal": 81920
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Full original14e770 rectangle updates and14e050 cleanup;1280 updates and81920 C engine active fine-chain order comparisons. Native allocation and refs remain checked by original oracle, not represented by C active ranks.",
+      "exclusions": []
+    },
+    {
+      "id": "live-target-overlap-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_target_overlap_trace.py",
+        "{archive}/runtime/target-overlap81-explore.jsonl",
+        "{archive}/runtime/target-overlap81-repeat.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-target-overlap-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_target_overlap.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "target-overlap-captures.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "fine_searches": {
+          "equal": 6
+        },
+        "observed_chains": {
+          "equal": 18
+        },
+        "exact_decisions": {
+          "equal": 884
+        },
+        "exact_velocity_commits": {
+          "equal": 1002
+        },
+        "owner_callbacks": {
+          "equal": 2000
+        }
+      },
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Actual public paused Footman clone target/blocker overlap, insertion order reversed with SetUnitX, Smart reissue and blocker removal, three complete fine searches and501 movement commits. Native allocator storage and other object categories remain excluded.",
+      "exclusions": [
+        "Native link-vector allocation, retired record ownership and global query stamp representation. Other object categories and automatic combat."
+      ],
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/target-overlap81-repeat.jsonl",
+            "sha256": "e47610cd229024f0da5d27c70e9aec90d2414acfd74cec9942dce7f2ce6e546a",
+            "bytes": 7879699,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "2d4c2b63cc656e0925431c8fe2c38ed1aa02c2623e52681f806341edde89036e",
+                "wc3_pathfinding.js": "5621413a78dc710d242f3615bd2431c135a3750c0cd05464cd540ab2f7de5835",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "make_wc3_pathfinding_map.py": "66fe468e8f1f7775817c4e66d8e772e1dba7c576b6e53b27dd64bbe916d58182",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "a28fcc98cb5109bc38c296174a3689de4963b89e7ddf5399eee286fe491ec41a"
+              },
+              "map": "Maps\\PathingRE-TargetOverlap81-261003.w3m",
+              "seconds": 170.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": [
+                31,
+                32
+              ],
+              "blockerPatchSize": 16,
+              "blockers": true,
+              "taskEvents": true,
+              "mapLoadEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": true,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "inputs": {
+        "capture": "runtime/target-overlap81-explore.jsonl",
+        "sha256": "9127f12e8ac205f6c89d2a4a1d51e7a29e9018c685875a2845047c189bc8e21d",
+        "bytes": 7700340,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "2d4c2b63cc656e0925431c8fe2c38ed1aa02c2623e52681f806341edde89036e",
+            "wc3_pathfinding.js": "5621413a78dc710d242f3615bd2431c135a3750c0cd05464cd540ab2f7de5835",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+            "make_wc3_pathfinding_map.py": "66fe468e8f1f7775817c4e66d8e772e1dba7c576b6e53b27dd64bbe916d58182",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "a28fcc98cb5109bc38c296174a3689de4963b89e7ddf5399eee286fe491ec41a"
+          },
+          "map": "Maps\\PathingRE-TargetOverlap81-261003.w3m",
+          "seconds": 170.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": [
+            31,
+            32
+          ],
+          "blockerPatchSize": 16,
+          "blockers": true,
+          "taskEvents": true,
+          "mapLoadEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": true,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true
     }
   ],
   "fixtures": [
@@ -25876,6 +26084,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-adaptive-passage-1.27.json",
       "sha256": "44f9ac8bd122373f4507685c8a30412b64fea0ec1a75dfbcec599becf0ff103e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-overlap-1.27.json",
+      "sha256": "acf6a89320379994854a13a86028694f99f89c4725cff7002af9279d0bd6b02a"
     }
   ]
 }

@@ -67,6 +67,7 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
 void reset_entities(void) {
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
+    G_ClearMoveSpatial();
     uint32_t cap = globals.max_edicts;
     G_ResetDeferredFrees();
     G_ResetHeroPassiveCaches();

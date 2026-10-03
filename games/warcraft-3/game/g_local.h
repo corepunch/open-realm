@@ -23,6 +23,7 @@
 #include "games/warcraft-3/common/wc3_pathing_yield.h"
 #include "games/warcraft-3/common/wc3_pathing_repulsion.h"
 #include "games/warcraft-3/common/wc3_pathing_limits.h"
+typedef struct wc3SpatialActive_s wc3SpatialActive_t;
 
 /* Move owns the fine-coordinate chain; allocation follows route length, not the edict pool size. */
 typedef struct {
@@ -2958,6 +2959,13 @@ bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route);
 bool G_AdvanceUnitMoveAdaptiveDestination(moveFineRoute_t *route);
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 void G_FreeMovePathCache(void);
+void G_ClearMoveSpatial(void);
+void G_PublishMoveSpatialObject(edict_t const *);
+void G_RemoveMoveSpatialObject(edict_t const *);
+uint64_t G_GetMoveSpatialSerial(void);
+void G_SetMoveSpatialSerial(uint64_t);
+wc3SpatialActive_t const *G_GetMoveSpatialObject(uint32_t);
+bool G_SetMoveSpatialObject(uint32_t, wc3SpatialActive_t const *);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
 bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *query, float const fine[2]);
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params);

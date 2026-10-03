@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "../common/wc3_pathing_spatial.h"
 #include <stdint.h>
 #ifdef BZ_TESTS
 #include "shared/test.h"
@@ -78,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format90 combines retained retail movement state with all sparse lifecycle pools. */
-static uint32_t const save_version = 90;
+/* Format91 retains ordinary fine-cell insertion history independently of edict order. */
+static uint32_t const save_version = 91;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2085,6 +2086,45 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
     return true;
 }
 
+/* Spatial history has no process pointers and survives ordinary actor reuse. */
+static bool WriteMoveSpatial(FILE *f) {
+    uint64_t serial=G_GetMoveSpatialSerial();
+    if (serial==UINT64_MAX) return false;
+    uint32_t count=0;
+    FOR_LOOP(i,globals.num_edicts) {
+        wc3SpatialActive_t const *object=G_GetMoveSpatialObject(i);
+        if (!wc3_spatial_valid(object,serial)) return false;
+        if (object->box.min.x<object->box.max.x && object->box.min.y<object->box.max.y) count++;
+    }
+    if (!SaveBytes(f,&serial,sizeof(serial)) || !SaveBytes(f,&count,sizeof(count))) return false;
+    FOR_LOOP(i,globals.num_edicts) {
+        wc3SpatialActive_t const *object=G_GetMoveSpatialObject(i);
+        if (object->box.min.x==object->box.max.x || object->box.min.y==object->box.max.y) continue;
+        if (!g_edicts[i].inuse || !SaveBytes(f,&i,sizeof(i)) || !SaveBytes(f,object,sizeof(*object))) return false;
+    }
+    return true;
+}
+
+static bool ReadMoveSpatial(FILE *f) {
+    uint64_t serial; uint32_t count,index;
+    bool seen[MAX_ENTITIES]={0};
+    G_ClearMoveSpatial();
+    if (!LoadBytes(f,&serial,sizeof(serial)) || serial==UINT64_MAX ||
+        !LoadBytes(f,&count,sizeof(count)) || count>globals.num_edicts) return false;
+    G_SetMoveSpatialSerial(serial);
+    FOR_LOOP(i,count) {
+        wc3SpatialActive_t object;
+        if (!LoadBytes(f,&index,sizeof(index)) || index>=globals.num_edicts || seen[index] ||
+            !g_edicts[index].inuse || !LoadBytes(f,&object,sizeof(object)) ||
+            object.box.min.x>=object.box.max.x || object.box.min.y>=object.box.max.y ||
+            !G_SetMoveSpatialObject(index,&object)) goto failed;
+        seen[index]=true;
+    }
+    return true;
+failed:
+    G_ClearMoveSpatial(); return false;
+}
+
 /* Shared parameters precede groups so every restored binding can resolve.
  * Zero references remain valid until the next Move owner prepass collects them. */
 static bool WriteMoveShared(FILE *f) {
@@ -2520,6 +2560,7 @@ bool WriteGame(cstring_t filename) {
         }
     }
     if (!WritePools(f)) { fprintf(stderr, "WC3 SaveGame: failed at lifecycle pools\n"); goto done; }
+    if (!WriteMoveSpatial(f)) { fprintf(stderr,"WC3 SaveGame: failed at fine spatial history\n"); goto done; }
     if (!WriteMoveShared(f)) { fprintf(stderr,"WC3 SaveGame: failed at shared Move parameters\n"); goto done; }
     if (!WriteMoveGroups(f)) { fprintf(stderr,"WC3 SaveGame: failed at physical Move groups\n"); goto done; }
     /* After edicts: nested HT_HANDLE unit/item slots call G_LoadJassHandle, which
@@ -2588,6 +2629,7 @@ bool ReadGame(cstring_t filename) {
     }
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
+    G_ClearMoveSpatial();
     if (!ReadMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
@@ -2642,6 +2684,7 @@ bool ReadGame(cstring_t filename) {
         }
     }
     if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
+    if (!ReadMoveSpatial(f)) { fprintf(stderr,"WC3 LoadGame: failed at fine spatial history\n"); fclose(f); return false; }
     if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 LoadGame: invalid unit owned-pool order\n"); fclose(f); return false; }
     if (!S_ValidateCaptainHomeActors(true)) { fprintf(stderr,"WC3 LoadGame: invalid captain actor references\n"); fclose(f); return false; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
@@ -2855,6 +2898,36 @@ TEST(wc3_save, rejects_invalid_fine_route_payloads) {
         T_ASSERT(!restored.movement.fine_route.group_points);
         fclose(file);
     }
+}
+
+TEST(wc3_save, fine_spatial_history_rejects_invalid_records) {
+    reset_entities();setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    wc3SpatialActive_t good={.box={{3,4},{4,5}},.ranks={5}};
+    FOR_LOOP(c,10) {
+        FILE *file=tmpfile();T_NOT_NULL(file);if(!file)continue;
+        wc3SpatialActive_t object=good;
+        uint64_t serial=c==7 ? UINT64_MAX : 5;
+        uint32_t count=c==8 ? globals.num_edicts+1 : c==6 ? 2 : 1;
+        uint32_t index=c==0 ? globals.num_edicts : c==1 ? 0 : unit->s.number;
+        if(c==2)object.ranks[0]=0;
+        if(c==3)object.ranks[0]=6;
+        if(c==4)object.ranks[15]=5;
+        if(c==5)object.box.max.x=object.box.min.x+5;
+        T_ASSERT(SaveBytes(file,&serial,sizeof(serial)));
+        T_ASSERT(SaveBytes(file,&count,sizeof(count)));
+        T_ASSERT(SaveBytes(file,&index,sizeof(index)));
+        if(c!=9)T_ASSERT(SaveBytes(file,&object,sizeof(object)));
+        if(c==6){T_ASSERT(SaveBytes(file,&index,sizeof(index)));T_ASSERT(SaveBytes(file,&object,sizeof(object)));}
+        rewind(file);T_ASSERT(!ReadMoveSpatial(file));
+        fclose(file);
+    }
+    G_SetMoveSpatialSerial(5);T_ASSERT(G_SetMoveSpatialObject(unit->s.number,&good));
+    FILE *file=tmpfile();T_NOT_NULL(file);
+    if(file){T_ASSERT(WriteMoveSpatial(file));G_ClearMoveSpatial();rewind(file);
+        T_ASSERT(ReadMoveSpatial(file));T_EQ(G_GetMoveSpatialSerial(),5);
+        T_EQ(G_GetMoveSpatialObject(unit->s.number)->ranks[0],5);fclose(file);}
+    reset_entities();setup_test_world();
 }
 
 /* A pending fine FIFO and its independent interval clock must survive a real save. */

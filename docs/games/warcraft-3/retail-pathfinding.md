@@ -8,7 +8,7 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **576 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
+composition. **624 game functions annotated. Incremental scalar, velocity, stock-turn, idle-unit routing, nearest partial routes and point Move arrival implemented;
 ordinary public twelve-member movement matches1,953 commits and2,634 saved suffix commits;
 the full pathfinder replacement remains open.** See the
 [engine integration evidence](retail-pathfinding-engine.md) for exact C/live
@@ -40,8 +40,8 @@ composition closes a gap.
 - SHA256: `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
-  `MapPathfindingTypes.java` also persists45 partial layouts,287 verified
-  fields and258 instruction-established prototypes with explicit register/stack
+  `MapPathfindingTypes.java` also persists61 partial layouts,419 verified
+  fields and292 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -51,7 +51,7 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  576 function names/comments applied and saved. Latest captain readbacks:
+  624 function names/comments applied and saved. Latest captain readbacks:
   `runtime/captain-home-ghidra-readback-saved-261002.json` and
   `runtime/captain-home-ghidra-types-saved-261002.json`. Prior group-radius readbacks:
   `runtime/group-radius-ghidra-readback-saved-261002.json` and
@@ -693,3 +693,12 @@ motion/facing commits and cleanup; normal engine frames and six saved
 continuations agree without a scene-specific production branch. The complete
 failure is preserved as an engine regression, not confused with a coarse result
 or a reachable reference graph. See [full passage journey](retail-pathfinding-engine.md#producer-built-size2-passage-reaches-full-retail-failure).
+
+
+Payoff81 implements FINE-01.6: committed fine occupancy retains per-cell
+insertion history, so target identity follows the real chain even when a later
+foreign object rejects the cell. Two actual public-order captures repeat501
+commits; the engine matches the full journey and eight saved continuations.
+The real rectangle writer and C history agree on81,920 active orders. Native
+lazy storage/allocator/stamp requirements remain MAP-05/06 rather than being
+claimed by the active representation. See [overlap history](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history).

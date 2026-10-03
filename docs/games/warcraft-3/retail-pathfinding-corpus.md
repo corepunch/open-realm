@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **298 entries**: **45** distinct original-code oracle
-scripts plus **56** declared variants, **121** archived JSONL audits and **76**
+The inventory now has **300 entries**: **45** distinct original-code oracle
+scripts plus **57** declared variants, **121** archived JSONL audits and **77**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 94 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 95 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1364,3 +1364,26 @@ attempts are retained as external experiments, not accepted fixtures.
 Inventory is298 entries/45 original oracle scripts/101 oracle contracts
 (56 variants)/121 archived audits/76 strict live contracts/141 fixtures.
 See [whole journey payoff](retail-pathfinding-engine.md#producer-built-size2-passage-reaches-full-retail-failure).
+
+
+## Overlapping target producer and engine history
+
+Payoff81 adds `oracle-spatial-engine` and
+`live-target-overlap-captures-261003`. The former executes1,280 original
+rectangle updates and compares81,920 production active-cell orders, including
+retained intersections, lazy removals and stable original cleanup. The latter
+requires two complete actual target/blocker public-order captures:501 exact
+motion/facing commits each, nine watched cell chains, three fine searches,
+full primary clock and order lifecycle. The foreign-first700-budget failure,
+target-first39-pop identity termination despite blockage, and blocker removal
+are all mandatory. Seven fixture/counterfactual checks reject loss of chain
+order, outcome, samples, commits or the empty terrain producer.
+
+The production engine consumes the same general active history and matches the
+whole public journey plus eight Save91 continuations. Native link-vector
+allocation/refcounts/stamp representation is explicitly excluded from this
+engine comparison; original storage remains checked independently. See
+[engine implementation](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history)
+and [spatial evidence](retail-pathfinding-separation.md#engine-active-cell-history).
+The inventory contains102 oracle contracts (45 scripts plus57 variants),121
+archive audits,77 strict live contracts and142 pinned repository fixtures.

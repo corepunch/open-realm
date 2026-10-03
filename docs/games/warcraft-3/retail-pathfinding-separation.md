@@ -718,3 +718,23 @@ The new fixture stores600 ordered pair slices (including exact/nearly-exact
 and threshold overlaps),105 complete arithmetic tails,16 settings rows and
 1,024 category results. These kernels exclude proximity enumeration and
 application/scheduling; engine scheduler coverage must accompany the port.
+
+
+## Engine active cell history
+
+Payoff81 ports the ordinary fine producer's effective cell order alongside the
+public overlapping target/blocker journey. `wc3_pathing_spatial.h` preserves
+ranks on old/new rectangle intersections, removes departed membership and
+prepends entered membership. `verify_wc3_pathing_spatial.py --engine-library`
+compares all81,920 active cell orders with original14e770 output across1,280
+updates; original14e050 dirty/full compaction preserves this order. The engine
+stores active membership rather than native obsolete records and free-list
+indexes. Allocator/reference/stamp representation remains MAP-05/06.
+
+The C probe is `wc3_spatial_engine_probe.c`, also included by the standard engine
+probe. The accepted fresh corpus variant is `oracle-spatial-engine`. Public
+SetUnitX leave/reentry changes ordering while overlap-preserving movement keeps
+retained cells unchanged. Actual engine frames and eight saved continuations
+match501 native mover commits and1,999 subsequent commits. See
+[engine history](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history)
+and [corpus](retail-pathfinding-corpus.md#overlapping-target-producer-and-engine-history).

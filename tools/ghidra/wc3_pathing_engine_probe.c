@@ -740,3 +740,6 @@ void pathing_fine_queue_trace(uint32_t const *input,fineObjectInput_t const *dat
     fine_probe.pop_trace=NULL; fine_probe.trace_data=NULL;
 }
 #endif
+
+/* The same active fine-chain producer used by the game map owner. */
+#include "wc3_spatial_engine_probe.c"

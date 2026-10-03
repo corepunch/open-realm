@@ -4,17 +4,29 @@
 #include "../common/wc3_pathing_placement.h"
 #include "../common/wc3_pathing_adaptive.h"
 #include "../common/wc3_pathing_widget.h"
+#include "../common/wc3_pathing_spatial.h"
 
 typedef struct {
     int size;
     uint8_t flags;
     uint32_t objects;
-    wc3FineBox_t target;
+    wc3SpatialActive_t const *target_links;
     bool has_target, endpoint;
     uint32_t level;
     bool *target_hit;
 } moveFineGraph_t;
-static wc3FineBox_t move_objects[MAX_ENTITIES];
+typedef struct { wc3FineBox_t box; wc3SpatialActive_t const *links; } moveFineObject_t;
+static moveFineObject_t move_objects[MAX_ENTITIES];
+static wc3SpatialActive_t move_spatial[MAX_ENTITIES];
+static uint64_t move_spatial_serial;
+
+void G_ClearMoveSpatial(void) {
+    memset(move_spatial,0,sizeof(move_spatial)); move_spatial_serial=0;
+}
+
+void G_RemoveMoveSpatialObject(edict_t const *ent) {
+    if (ent) memset(move_spatial+(ent-g_edicts),0,sizeof(*move_spatial));
+}
 typedef struct { moveFineGraph_t *graph; movePathQuery_t const *query; } moveObjectScan_t;
 static moveObjectScan_t *move_scan;
 static wc3FineSearch_t move_fine;
@@ -219,8 +231,8 @@ static pathGridQuery_t move_field_shape(float radius, uint8_t flags) {
 /* Sort quantized object rectangles once per request. A cell only needs objects
  * starting in its four-column range: retail's largest fine footprint is4 cells. */
 static int move_object_compare(void const *a, void const *b) {
-    wc3FineBox_t const *left = a, *right = b;
-    return (left->min.x > right->min.x) - (left->min.x < right->min.x);
+    moveFineObject_t const *left = a, *right = b;
+    return (left->box.min.x > right->box.min.x) - (left->box.min.x < right->box.min.x);
 }
 
 /* Original1603d0/160590 publish occupancy only when the native pose commits.
@@ -245,19 +257,48 @@ static bool move_has_dynamic_occupancy(edict_t const *ent) {
         !M_UnitMoveDisabled(ent) && ent->collision>0 && !(ent->aiflags&AI_FLYING);
 }
 
+/* Pose commits own publication. A query also observes authored size/category
+ * changes and explicit world writes by non-Move game owners. Intersection
+ * links survive; leaving/re-entering prepends even within one JASS callback. */
+void G_PublishMoveSpatialObject(edict_t const *ent) {
+    if (!ent || !pathmap.width || !pathmap.height) return;
+    if (!ent->inuse || !move_has_dynamic_occupancy(ent)) {
+        G_RemoveMoveSpatialObject(ent); return;
+    }
+    vec2_t point=move_object_point(ent);
+    wc3FineBox_t box=wc3_fine_cover(wc3_fine_class(ent->collision/pathmap_cell_world_size()),
+        (wc3FinePoint_t){(int)floorf(point.x),(int)floorf(point.y)});
+    if (!wc3_spatial_update(move_spatial+(ent-g_edicts),box,&move_spatial_serial))
+        gi.error("WC3 fine spatial history: invalid rectangle or exhausted publication rank");
+}
+
+uint64_t G_GetMoveSpatialSerial(void) { return move_spatial_serial; }
+
+void G_SetMoveSpatialSerial(uint64_t serial) { move_spatial_serial=serial; }
+
+wc3SpatialActive_t const *G_GetMoveSpatialObject(uint32_t index) {
+    assert(index<MAX_ENTITIES); return move_spatial+index;
+}
+
+bool G_SetMoveSpatialObject(uint32_t index, wc3SpatialActive_t const *data) {
+    if (index>=MAX_ENTITIES || !data ||
+        !wc3_spatial_valid(data,move_spatial_serial)) return false;
+    move_spatial[index]=*data; return true;
+}
+
 static bool move_object_collect(edict_t const *ent) {
     moveFineGraph_t *graph = move_scan->graph;
     movePathQuery_t const *query = move_scan->query;
+    G_PublishMoveSpatialObject(ent);
     if (ent==query->mover || ent==query->target || !move_has_dynamic_occupancy(ent)) return false;
     /* Virtual captains publish ordinary velocity flags once they move. */
     uint32_t flags=S_UnitMoveFineObjectFlags(ent);
     uint32_t mask = graph->flags;
     mask |= mask << 24;
     if (!wc3_fine_object_blocks((wc3FineObject_t){ent->movement.captain_actor_type ? 0x01000002 : 0x010000ca, flags, true}, mask, graph->endpoint)) return false;
-    vec2_t n = move_object_point(ent);
-    wc3FinePoint_t point = { (int)floorf(n.x), (int)floorf(n.y) };
+    wc3SpatialActive_t const *links=move_spatial+(ent-g_edicts);
     assert(graph->objects < MAX_ENTITIES);
-    move_objects[graph->objects++] = wc3_fine_cover(wc3_fine_class(ent->collision / pathmap_cell_world_size()), point);
+    move_objects[graph->objects++] = (moveFineObject_t){links->box,links};
     return false; /* Collect rectangles directly; no capped BoxEdicts pointer list. */
 }
 
@@ -302,6 +343,7 @@ static void move_acc_object_rectangle(edict_t const *object, bool clear) {
 static void move_query_objects(moveFineGraph_t *graph, movePathQuery_t const *query, box2_t const *bounds) {
     graph->objects = 0;
     if (!query->units || !query->mover || (query->mover->aiflags & AI_FLYING)) return;
+    if (query->target) G_PublishMoveSpatialObject(query->target);
     moveObjectScan_t scan = {graph, query};
     move_scan = &scan;
     if (bounds) {
@@ -335,20 +377,19 @@ static bool move_occupancy_cell(void const *data, wc3FinePoint_t pos) {
     uint32_t lo = 0, hi = graph->objects;
     while (lo < hi) {
         uint32_t mid = lo + (hi - lo) / 2;
-        if (move_objects[mid].min.x < pos.x - 3) lo = mid + 1;
+        if (move_objects[mid].box.min.x < pos.x - 3) lo = mid + 1;
         else hi = mid;
     }
-    for (uint32_t i = lo; i < graph->objects && move_objects[i].min.x <= pos.x; i++) {
-        wc3FineBox_t const *box = &move_objects[i];
-        if (pos.x < box->max.x && pos.y >= box->min.y && pos.y < box->max.y) return false;
+    uint64_t blocked=0;
+    for (uint32_t i = lo; i < graph->objects && move_objects[i].box.min.x <= pos.x; i++) {
+        uint64_t rank=wc3_spatial_rank(move_objects[i].links,pos);
+        if (rank>blocked) blocked=rank;
     }
-    /* TODO FINE-01.6: sorted rectangles do not retain retail cell-link order.
-     * A foreign blocker above still hides a coincident target. Port the actual
-     * link producer before claiming overlap parity; separate targets are exact. */
-    if (graph->has_target && pos.x >= graph->target.min.x && pos.x < graph->target.max.x &&
-        pos.y >= graph->target.min.y && pos.y < graph->target.max.y)
+    /* Original1489a0 observes identity before eligibility but returns on the
+     * first foreign rejection. Ineligible links do not change this ordering. */
+    if (graph->has_target && wc3_spatial_rank(graph->target_links,pos)>blocked)
         *graph->target_hit = true;
-    return true;
+    return !blocked;
 }
 
 static bool move_cell_ok(void const *data, wc3FinePoint_t pos) {
@@ -601,19 +642,20 @@ static bool move_collect_blocker_cell(void const *data, wc3FinePoint_t pos) {
         scan->items[scan->count++]=NULL;
         return true;
     }
+    uint64_t ranks[32]; unsigned first=scan->count;
     FILTER_EDICTS(ent,ent->inuse && ent!=scan->query->mover && ent!=scan->query->target &&
         move_has_dynamic_occupancy(ent) && ((ent->movement.captain_actor_type ? 2 : entity_dynamic_pathing_flags(ent))&mask)) {
-        vec2_t point=move_object_point(ent);
-        wc3FineBox_t box=wc3_fine_cover(wc3_fine_class(ent->collision/pathmap_cell_world_size()),
-            (wc3FinePoint_t){(int)floorf(point.x),(int)floorf(point.y)});
-        if (pos.x>=box.min.x && pos.x<box.max.x && pos.y>=box.min.y && pos.y<box.max.y) {
-            scan->items[scan->count++]=ent;
-            if (scan->count==32) break;
+        uint64_t rank=wc3_spatial_rank(move_spatial+(ent-g_edicts),pos);
+        if (!rank) continue;
+        unsigned at=scan->count;
+        if(at<32)scan->count++;
+        while(at>first && ranks[at-1]<rank) {
+            if(at<32){ranks[at]=ranks[at-1];scan->items[at]=scan->items[at-1];}
+            at--;
         }
+        if(at<32){ranks[at]=rank;scan->items[at]=ent;}
     }
-    /* TODO MAP/FINE/ROUTE-02.2: engine edict order does not retain original lazy
-     * cell-link insertion/stamp order for overlapping objects. Single-object
-     * cells and footprint cell order use the original collector geometry. */
+    /* Keep the same cell order and32-token cap; newest active object first. */
     return true;
 }
 
@@ -622,6 +664,7 @@ static bool move_collect_blocker_cell(void const *data, wc3FinePoint_t pos) {
 uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *input, float const fine_goal[2], edict_t **out) {
     if (!input || !input->units || !input->mover || !out || !input->geometry.target ||
         !pathmap.width || !pathmap.height || (input->mover->aiflags&AI_FLYING)) return 0;
+    FILTER_EDICTS(ent,ent->inuse) G_PublishMoveSpatialObject(ent);
     vec2_t source=move_query_source(input), goal=fine_goal ? (vec2_t){fine_goal[0],fine_goal[1]} :
         move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
     moveBlockerQuery_t scan={input,out,0};
@@ -807,9 +850,7 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         (object->movement.captain_actor_type || (!IS_HOLLOW(object) && object->data.UnitData &&
          !G_UnitIsStructure(object) && !M_UnitMoveDisabled(object) && object->collision>0 &&
          !(object->aiflags & AI_FLYING)))) {
-        vec2_t pos = move_grid_from_world(object->s.origin2.x, object->s.origin2.y);
-        graph.target = wc3_fine_cover(wc3_fine_class(object->collision / pathmap_cell_world_size()),
-            (wc3FinePoint_t){(int)floorf(pos.x), (int)floorf(pos.y)});
+        graph.target_links=move_spatial+(object-g_edicts);
         graph.has_target = true;
         graph.target_hit = &target_hit;
     }

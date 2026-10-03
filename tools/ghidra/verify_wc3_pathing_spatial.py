@@ -8,6 +8,7 @@ Also executes dirty-cell and full-map cleanup, checks stable query order and reu
 Contains no retail bytes; requires the hash-matched local DLL and Unicorn.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -23,7 +24,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine-library', type=Path)
     args = parser.parse_args()
+    engine = None
+    if args.engine_library:
+        engine = ctypes.CDLL(str(args.engine_library.resolve()))
+        engine.pathing_spatial_update.argtypes = [ctypes.c_uint, ctypes.POINTER(ctypes.c_int)]
+        engine.pathing_spatial_cell.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_uint)]
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -89,6 +96,8 @@ def main():
                 for x in range(max(0,x0), min(8,x1))}
 
     for seed in range(32):
+        if engine:
+            engine.pathing_spatial_clear()
         free_count = 32 if seed % 2 else 0
         write(grid + 0x28, cells)
         write(grid + 0x38, 64, 8, 8)
@@ -138,6 +147,8 @@ def main():
             insertion_records += len(added)
             write(rect, *new)
             run(0x6f14e770, obj, rect)
+            if engine:
+                assert engine.pathing_spatial_update(selected, (ctypes.c_int * 4)(*new)) == 1
             bounds[selected] = new
             assert read(obj + 0x1c, 4) == [v & 0xffffffff for v in new]
             assert read(grid + 0xb0)[0] == count
@@ -158,14 +169,19 @@ def main():
                     index = word & 0xffffff
                 assert actual == chains[cell], (seed, step, cell, actual, chains[cell])
                 # Newest record for an object controls effective membership.
-                active, seen = set(), set()
+                active, seen, ordered = set(), set(), []
                 for kind, payload in actual:
                     if payload not in seen:
                         seen.add(payload)
                         if kind == 1:
                             active.add(payload)
+                            ordered.append(objects.index(payload))
                 expected = {objects[n] for n in range(3) if cell in covered(bounds[n])}
                 assert active == expected
+                if engine:
+                    out = (ctypes.c_uint * 3)()
+                    amount = engine.pathing_spatial_cell(cell % 8, cell // 8, out)
+                    assert list(out)[:amount] == ordered, ('engine active order', seed, step, cell)
             # Consume actual lazy chains with the original separation query.
             # This links mutation evidence to its real downstream reader.
             query_bounds = (0, 0, 8, 8) if step % 2 else (1, 2, 6, 7)
@@ -232,7 +248,9 @@ def main():
                   cleanup_cases=cleanup_cases, dirty_cleanup_cases=dirty_cleanup_cases, full_sweep_cases=full_sweep_cases,
                   reclaimed_records=reclaimed_records, insertion_records=insertion_records,
                   removal_records=removal_records, sequences=32,
-                  free_list_sequences=16, initially_empty_vector_sequences=16)
+                  free_list_sequences=16, initially_empty_vector_sequences=16,
+                  engine_active_chain_comparisons=cases * 64 if engine else 0,
+                  engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest() if engine else None)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

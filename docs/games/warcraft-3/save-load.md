@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 90, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 91, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -14,6 +14,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - the fixed point-order waypoint edict ring and its circular allocation cursor;
 - one used flag per entity slot, a raw `edict_t` block for used slots, and its retained native fine-route points;
 - sparse lifecycle records for all 27 edict pools, written after the edicts, with per-pool counts and owning-edict indexes;
+- ordinary fine-cell active insertion history after the pools: a64-bit publication counter, object count, owning-edict indexes and retained per-cell ranks;
 - basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
@@ -1013,3 +1014,15 @@ membership remain serialized. The changed movement layout rejects version88
 saves. `wc3_save.route_resume_cache_and_wait_diagnostics_clear_on_round_trip` covers the cache reset;
 the retail captain saved-continuation regressions retain their exact suffixes.
 See [upstream movement integration](pathfinding.md#upstream-ai-integration-and-retail-movement).
+
+
+Version91 adds game-owned fine-cell insertion history. `WriteMoveSpatial` /
+`ReadMoveSpatial` preserve ordering across overlapping target/blocker queries;
+rebuilding from edict order would change identity termination after a save.
+Records contain plain bounds/ranks and owning indexes, with no process pointers.
+The loader rejects exhausted counters, invalid extents/ranks, duplicate or
+inactive owners and truncated records. Ten malformed inputs and a valid private
+serializer round-trip are covered by
+`wc3_save.fine_spatial_history_rejects_invalid_records`. The public overlapping
+Smart scenario matches eight saved continuations in both editions. Network
+layouts are unchanged. See [pathfinding insertion history](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history).

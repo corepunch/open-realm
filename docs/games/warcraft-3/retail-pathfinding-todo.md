@@ -8,19 +8,20 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**162 done / 336 tasks; 174 remaining.** Payoff80 closes existing ACC-03.3
-without new IDs/splits. A real file-backed reduced passage and public collision40
-Footman Move repeat the38-pop coarse veto, subsequent group/member/fine routing,
-two retries and terminal failure short of the click. Both complete retail
-captures repeat437 raw movement/facing commits; actual engine frames and six
-Save90 continuations match12,420 assertions per edition. The general Move
-implementation already agrees; the complete outcome is now a regression.
-Required full RoC/TFT suites pass2,493 tests/4,418,652 assertions each,491
-Python checks and both fresh selected corpus contracts.
-See [whole passage payoff](retail-pathfinding-engine.md#producer-built-size2-passage-reaches-full-retail-failure).
+**163 done / 336 tasks; 173 remaining.** Payoff81 closes existing FINE-01.6
+without new IDs/splits. Move and the game map owner now preserve active fine-cell
+insertion history on retained/entered cells, so overlapping target identity
+follows the actual blocker order. The real rectangle producer matches81,920
+engine active-cell orders over1,280 updates. Two complete public Smart captures
+repeat501 movement/facing commits; both engine editions match the whole journey
+and1,999 suffix commits across eight Save91 continuations. Native lazy storage,
+allocator and stamp requirements remain MAP-05/06. Required full suites pass
+2,496 tests/4,443,774 assertions per edition,498 Python checks and three fresh
+selected corpus contracts. See [overlap payoff](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history).
 
-Next runnable implementation chunk is FINE-01.6: preserve dynamic cell-link
-chronology and actual overlapping target/foreign-blocker public orders.
+Next runnable implementation chunk is NUM-01.21: recover and fix chained
+expression association, then compare actual expression-authored Move and timer
+inputs and saved movement continuations.
 No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
@@ -35,7 +36,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | BASE — Baseline and reproducibility | 16 | 10 |
 | MAP — Map construction and lifetime | 15 | 7 |
 | FOOT — Footprints and query policy | 13 | 5 |
-| FINE — Fine search | 8 | 4 |
+| FINE — Fine search | 9 | 3 |
 | ACC — Adaptive search | 7 | 6 |
 | NUM — Numbers and random state | 24 | 19 |
 | ROUTE — Route progression and yielding | 7 | 9 |
@@ -364,7 +365,7 @@ Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
 
 - [x] **FINE-01.5** Port idle ground-object occupancy into location-order direct checks, fine search, waypoint selection and retained-segment validation. Initial actual Move failed to detour; all four classes now pass the fixed idle unit. Moving/idle transitions, overlapping objects, self/target exclusion and unchanged static field generation have regressions.192 original mixed-chain routes/costs/pops/nodes match C at O0/O2; fresh read-only hfoo/hgry captures verify profiles and velocity flags. Interaction queues stay ability-owned; full categories, endpoint admission and partial routes remain separate. Evidence: [engine idle objects](retail-pathfinding-engine.md#idle-objects-affect-nearby-move-routes).
 
-- [ ] **FINE-01.6** Preserve actual dynamic cell-link insertion/removal chronology in the engine and observe overlapping target/foreign-blocker queries through public orders. A target before an eligible blocker must report identity even when the cell rejects; a blocker before a target must hide it. Reuse01.3's two original chain-order controls, then capture/repeat the actual producer. The current sorted ground-rectangle adapter checks foreign blockers first; its separate-target integration does not close this task.
+- [x] **FINE-01.6** Preserve actual dynamic cell-link insertion/removal chronology in the engine and observe overlapping target/foreign-blocker queries through public orders. A target before an eligible blocker must report identity even when the cell rejects; a blocker before a target must hide it. Reuse01.3's two original chain-order controls, then capture/repeat the actual producer. Completed with [engine active-cell history](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history):81,920 native/C active orders, two complete real producer captures and501 exact public commits plus1,999 saved suffix commits per edition. Ordinary pose commits, retained intersections, leave/reentry, removal and Save91 preserve order; native allocation/stamp storage remains MAP-05/06.
 
 ### FINE-02 — Search termination
 

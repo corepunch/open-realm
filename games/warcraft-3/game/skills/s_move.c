@@ -668,7 +668,7 @@ bool M_MoveIsValid(edict_t *self, vec2_t const *pos) {
     return move_is_valid(self, pos);
 }
 
-static void unit_commit_step(edict_t *self, vec2_t const *cand) {
+static void unit_commit_world(edict_t *self, vec2_t const *cand) {
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     self->s.origin2 = *cand;
     self->movement.pose_valid = false;
@@ -682,6 +682,10 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
         self->movement.route_resume_time = level.time;
         self->movement.route_resume_goal_origin = self->movement.route_resume_goal->s.origin2;
     }
+}
+
+static void unit_commit_step(edict_t *self, vec2_t const *cand) {
+    unit_commit_world(self,cand); G_PublishMoveSpatialObject(self);
 }
 
 /* Preserve native low bits on unchanged axes; world position writers reproject changed axes. */
@@ -700,7 +704,7 @@ static void unit_grid_pose(edict_t const *self, wc3GridPose_t *pose) {
 /* Retain accepted native pose after the common explicit-world commit invalidates its old value. */
 static void unit_commit_pose(edict_t *self, wc3GridPose_t const *pose) {
     vec2_t cand = {pose->world[0], pose->world[1]};
-    unit_commit_step(self, &cand);
+    unit_commit_world(self, &cand);
     self->movement.fine_pose = self->movement.sampled_pose = (vec2_t){pose->grid[0], pose->grid[1]};
     self->movement.pose_valid = true;
     self->movement.pose_world = cand;
@@ -708,6 +712,7 @@ static void unit_commit_pose(edict_t *self, wc3GridPose_t const *pose) {
         self->movement.pose_clock = level.pathing_clock;
         self->movement.clock_valid = true;
     }
+    G_PublishMoveSpatialObject(self);
 }
 
 /* Release the virtual target only after logical ownership and all physical
@@ -761,6 +766,7 @@ void S_SetCaptainHomeActor(botCaptain_t *captain, uint32_t player, uint32_t type
     if (!G_FindUnitPlacementPosition(actor,&captain->home,&actor->s.origin2))
         fprintf(stderr,"WC3 captain placement: no admitted home player=%u type=%u at (%.9g,%.9g)\n",player,type,captain->home.x,captain->home.y);
     gi.LinkEntity(actor);
+    G_PublishMoveSpatialObject(actor);
 }
 
 /* The logical actor and physical references are saved; the bot VM is not.
@@ -3803,6 +3809,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         }
         return true;
     case A_UNIT_TYPE_CHANGED:
+        G_PublishMoveSpatialObject(ent);
         /* Original670950 retires the physical task and reissues the retained
          * point head after binding the replacement speed/radius. */
         if (ent->currentmove==&move_move_walk && ent->goalentity) {
