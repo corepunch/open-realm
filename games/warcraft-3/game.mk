@@ -196,6 +196,7 @@ test-render-harness: fdfbindgen mpqtool
 
 .PHONY: test-eos-release
 test-eos-release:
+	python3 tests/test_eos_acceptance_runner.py
 	python3 tests/test_eos_release.py
 
 # Golden-image render regression test (deterministic MDX renders vs committed
