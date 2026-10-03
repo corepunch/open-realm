@@ -632,6 +632,51 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
     }
 }
 
+TEST(wc3_destructable, gate_path_texture_rotation_covers_all_quarter_turns) {
+    human06_bridge_pathtex_t pathtex = make_human06_bridge_pathtex(&human06_bridge_fixtures[1]);
+
+    FOR_LOOP(angle, 4) {
+        edict_t *gate;
+        pathTexTransform_t transform;
+
+        reset_entities();
+        setup_test_world();
+        gate = make_test_destructable(2500.0f, 0.0f, 0.0f);
+        gate->class_id = MAKEFOURCC('D', 'T', 'g', '3');
+        gate->s.class_id = gate->class_id;
+        gate->s.angle = angle * (float)M_PI / 2.0f;
+        gate->destructable.alive_pathtex = (pathTex_t *)&pathtex;
+        gate->pathtex = (pathTex_t *)&pathtex;
+
+        transform = CM_GetPathTexTransform(gate);
+
+        T_EQ(transform.turn, (angle + 1) % 4);
+        T_EQ(transform.width, !(angle & 1) ? 22 : 32);
+        T_EQ(transform.height, !(angle & 1) ? 32 : 22);
+    }
+}
+
+TEST(wc3_destructable, ordinary_destructable_path_texture_ignores_authored_angle) {
+    human06_bridge_pathtex_t pathtex = make_human06_bridge_pathtex(&human06_bridge_fixtures[1]);
+    edict_t *barrel;
+    pathTexTransform_t transform;
+
+    reset_entities();
+    setup_test_world();
+    barrel = make_test_destructable(2500.0f, 0.0f, 0.0f);
+    barrel->class_id = MAKEFOURCC('L', 'T', 'b', 'r');
+    barrel->s.class_id = barrel->class_id;
+    barrel->s.angle = (float)M_PI / 2.0f;
+    barrel->destructable.alive_pathtex = (pathTex_t *)&pathtex;
+    barrel->pathtex = (pathTex_t *)&pathtex;
+
+    transform = CM_GetPathTexTransform(barrel);
+
+    T_EQ(transform.turn, 0);
+    T_EQ(transform.width, 32);
+    T_EQ(transform.height, 22);
+}
+
 TEST(wc3_destructable, completed_death_holds_authored_final_frame) {
     animation_t death = { .name = "Death", .interval = { 2000, 3000 }, .flags = 1 };
     edict_t *dest = make_test_destructable(10.0f, 0.0f, 0.0f);
