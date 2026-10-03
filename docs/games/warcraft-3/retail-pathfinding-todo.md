@@ -8,18 +8,20 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**133 done / 319 tasks; 186 remaining.** Payoff57 closes the stationary
-two-ground-recruit captain journey: private target-follow owners, actual850-world
-range, all-entered shared point admission, retained shared footprint and natural
-formation arrival. All369 native physical commits and2003 saved suffix commits
-match, including bot-free restore and a saved final survivor. Cancellation now
-synchronously detaches old physical owners. Save84 persists roster/entry state;
-Ghidra retains591 roles,48 layouts/307 fields,260 explicit ABIs and50 globals.
-Payoff56's complete singleton journeys remain verified. Larger/mixed rosters,
-forced pair retries, moving captains and default town homes stay open; mixed
-pair/retry and native owned-pool reuse are explicitly split into03.4.3/03.4.4.
-Full debug/release RoC/TFT and repository checks pass2391 engine tests;
-320 pathfinding Python checks,32 fresh contracts and the pinned inventory pass.
+**134 done / 319 tasks; 185 remaining.** Payoff58 closes mixed-radius
+captain pair travel and blocked authored-home retry (GROUP-03.4.3). The engine
+admits virtual captains through retail point placement, tests range around the
+admitted actor and temporarily excludes rounded actor rectangles during coarse
+route admission. All893 native commits and4688 saved continuations match across
+the two new journeys, including live/shared radius changes, both real retry
+budgets, forced arrival, final survivor and bot-free restore. Save84 is sufficient;
+Ghidra persists the placement/admission findings in591 roles,48 layouts/307 fields,
+260 explicit ABIs and50 globals. Larger rosters, moving captains, town homes,
+owned-pool reuse and dynamic coarse publication remain open. Next runnable task
+is GROUP-03.4.4: replace reverse-edict recruitment with the actual native owned
+pool ordering across removal/reuse and ownership transfer. Full debug/release RoC/TFT
+pass2393 engine tests and required repository checks;325 pathfinding Python checks,34 fresh contracts and the
+277-entry/119-fixture inventory pass.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -41,7 +43,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 22 | 8 |
+| GROUP — Shared movement groups | 23 | 7 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -159,7 +161,7 @@ NUM-02.3.
 
 | Order | Task | Starts from | Finish artifact |
 | --- | --- | --- | --- |
-| 1 | GROUP-03.4.3 | Verified stationary shared pair and native shared footprint | Port mixed-radius captain pair motion and forced retry with saved continuations |
+| 1 | GROUP-03.4.4 | Native owned-pool iterator9c32d0 and roster-prepend9cf680 | Port recruitment ordering across Remove/reuse and ownership changes, with saved travel |
 | 2 | FOOT-01.3 | Verified shared7c reset/accumulation and Captain AI batching chain | Virtual captain/follower producer plus shared publication and saved travel |
 
 NUM-01.2 retains numeric-family initialization inventory, reachable operand aliases,
@@ -718,7 +720,7 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 - [ ] **GROUP-03.4** Run Captain AI attach/detach during movement; assert its shared-cap and delay ownership/inverse. Stationary authored-home recruit admission is split into03.4.1; CaptainGoHome, live shared attachment, virtual moving captain and follower task handoffs remain required here.
 - [x] **GROUP-03.4.1** Retain authored captain home/roster/goal through InitAssault, formation flag and AddAssault admission; complete stationary singleton home travel through the private range callback and point handoff. [Payoff56](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy) matches complete178/250 native commits from two source positions and2225 saved suffix commits, including exact2s/3s deadlines, post-owner callback ordering, zero-radius category2 occupancy, retry/forced arrival, Stop/replacement/removal, captain recreation and bot-free restore. Saved Ghidra annotations and strict repeated native/blocker evidence persist. Default AI town homes, moving captains, larger shared batches and wider AI lifetime remain03.4/FOOT-01.3.
 - [x] **GROUP-03.4.2** Compose the stationary two-ground-recruit home journey from the verified actor/timer. [Payoff57](retail-pathfinding-engine.md#stationary-captain-pair-private-followers-to-shared-arrival) matches369 complete native commits and2003 saved suffix commits; both callbacks gate one two-pass shared point request,152 shared7c/pathb4 footprint updates retain the final survivor, and initial followers remain independent. Save84, Stop/replacement/removal, captain recreation, bot-free restoration and invalid membership state are covered. Ghidra591 roles preserve recruitment/roster order and virtual target-region semantics. Native pair path94/98 never consume a retry; that acceptance is explicitly split into03.4.3. Larger mixed-radius rosters, live attach/detach and moving captain lifetimes remain03.4/FOOT-01.3.
-- [ ] **GROUP-03.4.3** Extend the stationary shared captain pair to unequal mover radii and a blocked formation endpoint that naturally consumes a retry; compare all native commits, shared7c/pathb4 changes and saved continuations before/after admission and retry. Larger12+1 batches and live attach/detach remain03.4/FOOT-01.3.
+- [x] **GROUP-03.4.3** Extend the stationary shared captain pair to unequal mover radii and a blocked formation endpoint that naturally consumes a retry; compare all native commits, shared7c/pathb4 changes and saved continuations before/after admission and retry. Evidence: [mixed captain pairs and blocked home retries](retail-pathfinding-engine.md#mixed-captain-pairs-and-blocked-home-retries), two uninterrupted repeats per scene; mixed185+184 commits,152 shared updates including live31/cached32 survivor,2003 saved commits; blocked254+270 commits,237 shared updates, fourteen real retries/two forced arrivals,2685 saved commits. Engine now admits the virtual actor beside blocked home, uses its actual range center and temporarily excludes actor rectangles during group/member coarse admission. Full normal-frame/save/cancellation/bot-free journeys match. Larger12+1 batches, live attach/detach and general dynamic coarse publication remain03.4/FOOT-01.3/MAP-03.3.
 - [ ] **GROUP-03.4.4** Retain the native AI-owned pool's insertion order across RemoveUnit/edict reuse and ownership transfer; compose partial AddAssault and captain roster prepend through complete journeys. Fresh reverse-edict admission is only a bounded substitute for the missing owned-list producer; integrate the actual ordering into the engine and save it where needed.
 
 ### GROUP-04 — Membership mutation

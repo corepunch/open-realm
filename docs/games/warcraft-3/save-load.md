@@ -922,3 +922,11 @@ Stop detaches physical owners synchronously so immediate saves are valid.
 Duplicate/out-of-range member indices, invalid roster/entry state and previous
 format83 are rejected. The bot VM and wider logical roster remain process-owned.
 See [stationary pair integration](retail-pathfinding-engine.md#stationary-captain-pair-private-followers-to-shared-arrival).
+
+
+Save84 also resumes the [mixed and blocked captain pairs](retail-pathfinding-engine.md#mixed-captain-pairs-and-blocked-home-retries).
+The mixed journey resumes2003 exact saved commits; blocked-home resumes2685,
+including bot-free restore, the first randomized retry, both naturally forced
+arrivals and the surviving peer. Actor placement and its actual listener center
+are restored independently of the authored shared point destination. No new
+snapshot fields are required for temporary coarse admission exclusions.

@@ -1,0 +1,26 @@
+function main takes nothing returns nothing
+    call Preload("PATHCAPTAIN home begin")
+    call SetCampaignAI()
+    call CreateCaptains()
+    call SetCaptainHome(1,-1936.0,-144.0)
+    call InitAssault()
+    call Preload("PATHCAPTAIN home before recruit")
+    if AddAssault(1,'hfoo') then
+        call Preload("PATHCAPTAIN home accepted")
+    else
+        call Preload("PATHCAPTAIN home rejected")
+    endif
+    if AddAssault(1,'hkni') then
+        call Preload("PATHCAPTAIN knight accepted")
+    else
+        call Preload("PATHCAPTAIN knight rejected")
+    endif
+    if CaptainGroupSize()==2 then
+        call Preload("PATHCAPTAIN pair roster two")
+    else
+        call Preload("PATHCAPTAIN pair roster wrong")
+    endif
+    loop
+        call Sleep(1.0)
+    endloop
+endfunction

@@ -1,12 +1,13 @@
 """Two recruits must remain private followers until one all-entered shared batch."""
 import copy
+from collections import Counter
 import json
 from pathlib import Path
 import sys
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools/frida'))
-from verify_wc3_captain_pair_trace import admission,render_header,verify_admission,verify_footprints
+from verify_wc3_captain_pair_trace import admission,render_header,verify_admission,verify_footprints,verify_retry_lifecycle
 
 
 class CaptainPairTests(unittest.TestCase):
@@ -69,3 +70,41 @@ class CaptainPairTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class CaptainPairExtensionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.mixed=json.loads((ROOT/'tools/ghidra/fixtures/retail-captain-mixed-1.27.json').read_text())
+        cls.blocked=json.loads((ROOT/'tools/ghidra/fixtures/retail-captain-blocked-1.27.json').read_text())
+
+    def test_knight_survivor_updates_live_radius_without_rebuilding_cache(self):
+        verify_footprints(self.mixed['footprint_reference'],self.mixed)
+        rows=copy.deepcopy(self.mixed['footprint_reference']);rows[-1][2]=rows[-1][1]
+        with self.assertRaises(ValueError):verify_footprints(rows,self.mixed)
+
+    def test_blocked_formation_retains_other_survivor(self):
+        verify_footprints(self.blocked['footprint_reference'],self.blocked)
+        self.assertEqual(self.blocked['member_commits'],[254,270])
+        rows=copy.deepcopy(self.blocked['footprint_reference']);rows[-1][3][0][0]=0
+        with self.assertRaises(ValueError):verify_footprints(rows,self.blocked)
+
+    def test_both_public_scenes_retain_all_entered_admission(self):
+        for fixture in (self.mixed,self.blocked):verify_admission(fixture['admission_reference'],fixture)
+
+    def retry_fixture(self):
+        fixture=copy.deepcopy(self.blocked)
+        fixture['event_counts']=dict(Counter(r['event'] for r in fixture['lifecycle']))
+        return fixture
+
+    def test_actual_two_member_retry_and_final_singleton(self):
+        fixture=self.retry_fixture()
+        self.assertEqual(verify_retry_lifecycle(fixture['lifecycle'],fixture),dict(retries=14,forced_arrivals=2))
+        rows=copy.deepcopy(fixture['lifecycle'])
+        next(r for r in rows if r['event']=='retry-result' and r['counter']==1326)['members']=2
+        with self.assertRaises(ValueError):verify_retry_lifecycle(rows,fixture)
+
+    def test_terminal_retry_cannot_drop_cached_buffers(self):
+        fixture=self.retry_fixture();rows=copy.deepcopy(fixture['lifecycle'])
+        next(r for r in rows if r['event']=='route-step' and r['counter']==1310)['after'][0]=4294967295
+        with self.assertRaises(ValueError):verify_retry_lifecycle(rows,fixture)

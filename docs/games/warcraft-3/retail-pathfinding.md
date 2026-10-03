@@ -466,3 +466,16 @@ a fine-search target region; restoring that distinction fixes the first divergen
 heading at1170ms. Save84 retains roster/entry state; Stop synchronously detaches
 physical owners. Ghidra591 roles preserve these findings. Larger/mixed cohorts,
 forced pair retries, owned-list reuse and moving/default-home captains remain open.
+
+
+### Mixed captain pair and blocked authored home
+
+[Payoff58 engine integration](retail-pathfinding-engine.md#mixed-captain-pairs-and-blocked-home-retries)
+retains complete mixed369 and blocked524 physical commits, each repeated in two
+owned captures. A mixed roster publishes shared32 then live31 with cached32.
+Blocked-home placement admits the category2 actor beside the obstruction;
+166c30/15d360 temporarily clear rounded source/target rectangles for coarse
+admission. Correcting these producers lets existing fine/retry/arrival kernels
+reproduce both natural retry budgets, final singleton retry and failure cleanup.
+Larger batches, moving captains, pool reuse and general dynamic coarse publication
+remain distinct open requirements.

@@ -46,6 +46,8 @@
 #include "retail_captain_home.h"
 #include "retail_captain_range_far.h"
 #include "retail_captain_pair.h"
+#include "retail_captain_mixed.h"
+#include "retail_captain_blocked.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -11124,7 +11126,7 @@ static void public_group_radius_journey(unsigned scenario, uint32_t const (*moti
 }
 
 static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motion)[7], unsigned count) {
-    bool blocked=goal_case==0,captain=goal_case>=2,far=goal_case==3,pair=goal_case==4;
+    bool blocked=goal_case==0 || goal_case==6,captain=goal_case>=2,far=goal_case==3,pair=goal_case>=4,mixed=goal_case==5;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities();setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
@@ -11133,7 +11135,14 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
     unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=2,.modifications=mods};
-    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    float peer_radius=32,peer_turn=.5f;
+    unitModification_t peer_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&peer_radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','m','v','r'),.type=mod_unreal,.data=&peer_turn}};
+    unitData_t types[2]={custom,{.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','P'),
+        .numbeOfModifications=3,.modifications=peer_mods}};
+    mapInfo_t info={.num_userCreatedUnits=mixed ? 2 : 1,.userCreatedUnits=types};
     mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
     static uint8_t cells[384*256];box2_t bounds={{-7168,-3072},{5120,5120}};unsigned offset=0;
     FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)){memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);offset+=public_oblique_terrain_runs[i][0];}
@@ -11150,10 +11159,11 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
         "loop\nexitwhen gx==%u\nset gy=0\nloop\nexitwhen gy==5\n"
         "call SetTerrainPathable(-2000+I2R(gx)*32,-208+I2R(gy)*32,PATHING_TYPE_WALKABILITY,false)\n"
         "set gy=gy+1\nendloop\nset gx=gx+1\nendloop\n"
-        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",pair ? "call StartCampaignAI(Player(0),\"test_captain_pair.ai\")" : captain ? "call StartCampaignAI(Player(0),\"test_captain_home.ai\")" : blocked ? "call IssuePointOrder(mover,\"move\",-1936,-144)" : "call IssuePointOrder(mover,\"move\",-7400,-976)",far ? -1296. : -976.,blocked || captain ? 100. : 522.,pair ? "set peer=CreateUnit(Player(0),'hBGM',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)" : "",blocked ? 5u : 0u);
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",mixed ? "call StartCampaignAI(Player(0),\"test_captain_mixed.ai\")" : pair ? "call StartCampaignAI(Player(0),\"test_captain_pair.ai\")" : captain ? "call StartCampaignAI(Player(0),\"test_captain_home.ai\")" : blocked ? "call IssuePointOrder(mover,\"move\",-1936,-144)" : "call IssuePointOrder(mover,\"move\",-7400,-976)",far ? -1296. : -976.,blocked || captain ? 100. : 522.,mixed ? "set peer=CreateUnit(Player(0),'hBGP',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)" : pair ? "set peer=CreateUnit(Player(0),'hBGM',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)" : "",blocked ? 5u : 0u);
     T_ASSERT(run_test_jass(script));
-    edict_t *unit=NULL,*peer=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID){if(!unit)unit=ent;else peer=ent;}
-    T_NOT_NULL(unit);level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    edict_t *unit=NULL,*peer=NULL;FILTER_EDICTS(ent,ent->inuse && (ent->class_id==custom.newUnitID || (mixed && ent->class_id==types[1].newUnitID))){if(!unit)unit=ent;else peer=ent;}
+    T_NOT_NULL(unit);if(mixed && peer){T_EQ(peer->collision,32);T_EQ(peer->data.UnitData->turnRate,.5f);}
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};trace.units[0]=unit;trace.units[1]=peer;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     cstring_t files[8]={"/tmp/wc3-blocked-goal-before-partial.bin","/tmp/wc3-blocked-goal-retry.bin","/tmp/wc3-blocked-goal-forced.bin","/tmp/wc3-blocked-goal-final-turn.bin"};
@@ -11172,6 +11182,7 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
     unsigned saves=captain ? 8 : 4;
     unsigned save_times[]={captain ? 1200 : blocked ? 6000 : 5500,captain ? 1500 : blocked ? 7110 : 6630,captain ? 1800 : blocked ? 7140 : 6660,captain ? 1995 : blocked ? 7170 : 6690,2010,6255,6270,6300},saved_steps[8]={0},suffix_steps=0;
     if(pair)memcpy(save_times,(unsigned[]){1200,1500,1800,1995,2010,6000,6500,6525},sizeof(save_times));
+    if(goal_case==6)memcpy(save_times,(unsigned[]){1200,1500,1995,2010,7035,7050,8580,9060},sizeof(save_times));
     if(far)memcpy(save_times,(unsigned[]){1200,2000,2500,2995,3010,8415,8430,8460},sizeof(save_times));
     FOR_LOOP(pass,saves+1) {
     if(pass) {
@@ -11200,19 +11211,27 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
             }
             if(pair) {
                 edict_t *actor=unit->movement.captain_home.actor;
+                if(goal_case==6 && !actor)actor=peer->movement.captain_home.actor;
                 T_NOT_NULL(actor);T_ASSERT(actor && actor->inuse);
                 if(actor)T_EQ(actor->movement.captain_actor_members,2);
-                T_EQ(unit->movement.captain_home.active,i<4);
-                T_EQ(peer->movement.captain_home.active,i<4);
-                if(i<7)T_ASSERT(peer->movement.captain_home.actor==actor);
-                if(i<4) {
-                    T_EQ(unit->movement.captain_home.member_index,0);
-                    T_EQ(peer->movement.captain_home.member_index,1);
+                bool following=save_times[i]<2000;
+                T_EQ(unit->movement.captain_home.active,following);
+                T_EQ(peer->movement.captain_home.active,following);
+                if(goal_case==6 ? save_times[i]<8610 : i<7)T_ASSERT(peer->movement.captain_home.actor==actor);
+                if(following) {
+                    T_EQ(unit->movement.captain_home.member_index,mixed ? 1 : 0);
+                    T_EQ(peer->movement.captain_home.member_index,mixed ? 0 : 1);
                     T_NE(unit->movement.group_id,peer->movement.group_id);
                     T_ASSERT(move_find_member(unit)->arrival_range==wc3_div(155,32));
-                    T_ASSERT(move_find_member(peer)->arrival_range==wc3_div(155,32));
-                } else if(i<7)T_EQ(unit->movement.group_id,peer->movement.group_id);
-                if(i==7){T_EQ(peer->current_order_id,0);T_NE(unit->current_order_id,0);}
+                    T_ASSERT(move_find_member(peer)->arrival_range==wc3_div(mixed ? 160 : 155,32));
+                } else if(goal_case!=6 ? i<7 : save_times[i]<8610)T_EQ(unit->movement.group_id,peer->movement.group_id);
+                if(goal_case!=6 && i==7){T_EQ(peer->current_order_id,0);T_NE(unit->current_order_id,0);}
+                if(goal_case==6) {
+                    if(i==4){T_EQ(unit->movement.retry_count,0);T_EQ(unit->movement.fine_route.index,0);}
+                    if(i==5){T_EQ(unit->movement.retry_count,6);T_EQ(unit->movement.fine_route.count,0);}
+                    if(i==6){T_EQ(unit->movement.retry_count,1);T_ASSERT(move_find_member(unit)->forced_arrival);}
+                    if(i==7){T_EQ(unit->current_order_id,0);T_ASSERT(move_find_member(peer)->forced_arrival);}
+                }
             }
             T_ASSERT(WriteGame(files[i]));
         }
@@ -11226,7 +11245,7 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
         /* Cancel one member before and after shared admission; its peer and
          * retained actor must remain live, with a valid saved physical owner. */
         FOR_LOOP(phase,2) FOR_LOOP(action,3) {
-            T_ASSERT(ReadGame(files[phase ? 4 : 0]));
+            T_ASSERT(ReadGame(files[phase ? (goal_case==6 ? 3 : 4) : 0]));
             edict_t *actor=peer->movement.captain_home.actor;
             if(action==2){G_FreeEdict(unit);level.time+=5;globals.RunFrame();T_ASSERT(!unit->inuse);}
             else if(action)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
@@ -11242,7 +11261,7 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
             edict_t *actor=unit->movement.captain_home.actor;
             if(i==0)actor->movement.captain_actor_members=0;
             if(i==1)unit->movement.captain_home.member_index=2;
-            if(i==2)peer->movement.captain_home.member_index=0;
+            if(i==2)peer->movement.captain_home.member_index=unit->movement.captain_home.member_index;
             if(i==3){unit->movement.captain_home.active=false;unit->movement.captain_home.entered=true;}
             if(i==4)actor->movement.captain_actor_members=globals.num_edicts+1;
             if(i==5)*(uint8_t *)&unit->movement.captain_home.entered=2;
@@ -11324,6 +11343,14 @@ TEST(wc3_movement, public_ai_recruit_matches_original_farther_captain_home) {
 
 TEST(wc3_movement, public_ai_pair_recruits_match_original_captain_home) {
     public_point_goal_journey(4,captain_pair_motion,sizeof(captain_pair_motion)/sizeof(*captain_pair_motion));
+}
+
+TEST(wc3_movement, public_ai_blocked_pair_matches_original_captain_retry) {
+    public_point_goal_journey(6,captain_blocked_motion,sizeof(captain_blocked_motion)/sizeof(*captain_blocked_motion));
+}
+
+TEST(wc3_movement, public_ai_mixed_recruits_match_original_captain_home) {
+    public_point_goal_journey(5,captain_mixed_motion,sizeof(captain_mixed_motion)/sizeof(*captain_mixed_motion));
 }
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {

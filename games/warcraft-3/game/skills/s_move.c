@@ -556,7 +556,11 @@ void S_SetCaptainHomeActor(botCaptain_t *captain, uint32_t player, uint32_t type
     actor->s.player=player;
     actor->movement.captain_actor_type=type;
     actor->movement.captain_actor_owned=true;
+    /* Native9d2f90 admits its zero-radius actor through ordinary point
+     * placement. The authored home remains the later shared point request. */
     actor->s.origin2=captain->home;
+    if (!G_FindUnitPlacementPosition(actor,&captain->home,&actor->s.origin2))
+        fprintf(stderr,"WC3 captain placement: no admitted home player=%u type=%u at (%.9g,%.9g)\n",player,type,captain->home.x,captain->home.y);
     gi.LinkEntity(actor);
 }
 
@@ -613,11 +617,13 @@ static void move_captain_home_update(edict_t *self) {
     wc3Clock_t now=level.pathing_clock;
     level.pathing_clock=*due;
     wc3_clock_advance(due,1,0);
-    wc3GridPose_t pose; unit_predicted_pose(self,&pose);
-    float target[2]={self->movement.captain_home.home.x,self->movement.captain_home.home.y};
-    float delta[2];
-    FOR_LOOP(k,2) delta[k]=wc3_sub(wc3_grid_coordinate(target[k],pose.origin[k],32),pose.grid[k]);
     edict_t *actor=self->movement.captain_home.actor;
+    wc3GridPose_t pose,target;
+    unit_predicted_pose(self,&pose);unit_predicted_pose(actor,&target);
+    /* The range listener follows the admitted actor, independently of the
+     * authored home used for the later shared point order. */
+    float delta[2];
+    FOR_LOOP(k,2) delta[k]=wc3_sub(target.grid[k],pose.grid[k]);
     uint32_t members=actor->movement.captain_actor_members;
     float radius=wc3_add(wc3_div(wc3_add(800,wc3_mul(25,members)),32),wc3_div(self->collision,32));
     if (wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]))<wc3_mul(radius,radius))

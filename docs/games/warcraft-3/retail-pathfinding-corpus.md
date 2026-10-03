@@ -959,3 +959,20 @@ The premature12s-key `captain-pair-v1-first-261003` capture stayed at tick0 and
 contains no admitted AI journey. It is diagnostic only and has no corpus entry.
 Accepted captures continue at30s and retain the full final marker. Current
 inventory:275 entries,117 pinned fixtures and58 strict live contracts.
+
+
+### Complete mixed captain and blocked-home captures
+
+Payoff58 adds `live-captain-mixed-captures-261003` and
+`live-captain-blocked-captures-261003`, each with two complete immutable owned
+captures. The generalized strict pair verifier pins producer bytes, full native
+motion and phase words, all-entered shared admission and complete footprint
+publication. Mixed references preserve the32-to31 live maximum with cached32.
+Blocked references preserve all fourteen retries, forced arrival and complete
+buffer/task recovery; neither a truncated retry stream nor a fabricated terminal
+buffer can pass. Independent whole-engine journeys and saved continuations are
+in the [engine ledger](retail-pathfinding-engine.md#mixed-captain-pairs-and-blocked-home-retries).
+Fresh34/34 selected contracts include both additions and the original-map oracle.
+Inventory is277 entries,119 pinned repository fixtures and60 strict live contracts;
+325 pathfinding Python checks pass. Auxiliary cell-watch evidence is kept separate
+from the two certified repeats.

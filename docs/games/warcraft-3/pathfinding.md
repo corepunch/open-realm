@@ -585,3 +585,12 @@ Move retains the virtual target's one-cell search region, exact callback clock,
 roster order and saved entry state. Save84 continuations cover both private
 owners, shared admission, final survivor, cancellation and bot-free restoration.
 Larger/mixed-radius rosters, moving captains and native owned-pool reuse remain open.
+
+
+The [mixed captain and blocked-home extension](retail-pathfinding-engine.md#mixed-captain-pairs-and-blocked-home-retries)
+now uses retail point placement for virtual captains and temporary actor rectangle
+exclusion during coarse admission. Footman/Knight369 and blocked pair524 complete
+native commits match, including retained shared footprint, natural retry and
+saved forced arrival. Range listeners use the admitted actor's position; the
+later shared order retains the authored home. General dynamic coarse cell-link
+updates, larger captain rosters and moving captain behavior remain open.

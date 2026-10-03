@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 from verify_wc3_arrival_trace import configure
+from verify_wc3_blocked_goal_trace import lifecycle
 from verify_wc3_captain_home_trace import producer
 from verify_wc3_captain_range_trace import range_timeline
 from verify_wc3_motion_trace import verify as verify_motion
@@ -17,7 +18,7 @@ from verify_wc3_selected_point_trace import digest
 def recruits(rows):
     movers = []
     for r in rows:
-        if r.get('event') == 'movement-mask-publication' and r['rawcode'] == 1751543663 and r['category'] == 202:
+        if r.get('event') == 'movement-mask-publication' and r['rawcode'] in (1751543663,1751871081) and r['category'] == 202:
             if r['mover'] not in movers: movers.append(r['mover'])
     if len(movers) != 2: raise ValueError('captain pair physical identities differ')
     return movers
@@ -38,17 +39,23 @@ def footprints(rows):
 
 
 def verify_footprints(actual,fixture):
-    if actual != fixture['footprint_reference'] or len(actual)!=218:
+    expected=fixture['footprint_reference']
+    if actual != expected:
         raise ValueError('captain pair complete footprint publication differs')
     private=[r for r in actual if r[1] is None]
     shared=[r for r in actual if r[1] is not None]
-    if len(private)!=66 or len(shared)!=152 or any(len(r[3])!=1 for r in private):
+    policy=fixture.get('footprint_policy',dict(private=66,shared=152,
+        first=[[0,1064828928],[1,1064828928]],last=[[0,1064828928]],
+        transitions=[[1064828928,1064828928,152]]))
+    if len(private)!=policy['private'] or len(shared)!=policy['shared'] or any(len(r[3])!=1 for r in private):
         raise ValueError('captain pair private/shared owner extents differ')
-    if shared[0][3]!=[[0,1064828928],[1,1064828928]] or shared[-1][3]!=[[0,1064828928]]:
+    if shared[0][3]!=policy['first'] or shared[-1][3]!=policy['last']:
         raise ValueError('captain pair shared members/last survivor differ')
-    if any(r[1]!=1064828928 or r[2]!=1064828928 for r in shared):
+    states={}
+    for r in shared:states[tuple(r[1:3])]=states.get(tuple(r[1:3]),0)+1
+    if [[*k,v] for k,v in states.items()]!=policy['transitions']:
         raise ValueError('captain pair shared7c/pathb4 footprint differs')
-    return dict(shared_footprint_updates=152)
+    return dict(shared_footprint_updates=len(shared))
 
 
 def admission(rows):
@@ -93,9 +100,28 @@ def verify_admission(rows, fixture):
     return dict(range_enters=2,shared_point_batches=1)
 
 
+def verify_retry_lifecycle(rows,fixture):
+    if 'lifecycle' not in fixture:return {}
+    actual=lifecycle(rows)
+    if actual!=fixture['lifecycle']:
+        raise ValueError('captain pair complete retry/buffer/cleanup lifecycle differs')
+    for event,count in fixture['event_counts'].items():
+        if sum(r.get('event')==event for r in rows)!=count:
+            raise ValueError('captain pair lifecycle extent differs: '+event)
+    retries=[r for r in actual if r['event']=='retry-result']
+    initial=[r for r in actual if r['event']=='retry-init']
+    forced=[r for r in actual if r['event']=='force-arrival']
+    if (len(initial)!=2 or [r['count'] for r in initial]!=[7,7] or
+        [r['members'] for r in initial]!=[2,2] or len(retries)!=14 or
+        [r['counter'] for r in retries if r['result']==4]!=[1310,1326] or
+        len(forced)!=2 or any(r['after']!=65536 for r in forced)):
+        raise ValueError('captain pair natural retry/forced arrival contract differs')
+    return dict(retries=len(retries),forced_arrivals=len(forced))
+
+
 def render_header(fixture):
     return ('/* Complete literal original stationary two-recruit home journey; creation-order member indices. */\n'
-            'static uint32_t const captain_pair_motion[][7]={\n'+
+            'static uint32_t const '+fixture.get('header_symbol','captain_pair_motion')+'[][7]={\n'+
             ''.join('    {'+','.join(str(v)+'u' for v in r)+'},\n' for r in fixture['motion'])+'};\n')
 
 
@@ -110,18 +136,19 @@ def verify_capture(rows, fixture, case, engine):
         if sum(r.get('event') == e for r in rows) != ending[0]['counts'].get(e):
             raise ValueError('captain pair observer count differs: '+e)
     p = producer(rows)
-    if p != fixture['producer'] or p['recruits'] != [[2,1751543663]] or p['markers'][-1] != 'PATHCAPTAIN pair roster two':
+    if p != fixture['producer'] or p['recruits'] != fixture.get('recruits',[[2,1751543663]]) or p['markers'][-1] != 'PATHCAPTAIN pair roster two':
         raise ValueError('captain pair public AI producer differs')
     actual = motion(rows)
-    if actual != fixture['motion'] or [sum(r[0] == i for r in actual) for i in range(2)] != [185,184]:
+    if actual != fixture['motion'] or [sum(r[0] == i for r in actual) for i in range(2)] != fixture.get('member_commits',[185,184]):
         raise ValueError('captain pair complete physical commits differ')
     if digest(canonical(rows)) != fixture['phases_sha256']:
         raise ValueError('captain pair physical/virtual phases differ')
     result = verify_admission(rows,fixture)
     result.update(verify_footprints(footprints(rows),fixture))
+    result.update(verify_retry_lifecycle(rows,fixture))
     result.update(verify_motion(rows,engine,None))
     result.update(verify_primary(rows,engine,fixture))
-    result.update(recruit_commits=369)
+    result.update(recruit_commits=len(actual))
     return result
 
 
@@ -143,6 +170,8 @@ def main():
     report=dict(passed=True,cases=len(results),results=results,scope=fixture['scope'])
     for key in ('exact_velocity_commits','exact_decisions','owner_callbacks','recruit_commits','range_enters','shared_point_batches','shared_footprint_updates'):
         report[key]=sum(r[key] for r in results)
+    for key in ('retries','forced_arrivals'):
+        if any(key in r for r in results):report[key]=sum(r.get(key,0) for r in results)
     a.report.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 
 

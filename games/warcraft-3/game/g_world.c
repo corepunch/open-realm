@@ -217,6 +217,40 @@ static bool move_object_collect(edict_t const *ent) {
     return false; /* Collect rectangles directly; no capped BoxEdicts pointer list. */
 }
 
+/* Original15d360 rounds a fine object's half-open rectangle into base
+ * cells, clears their traversal lanes for admission, then rebuilds the same
+ * rectangle and its three parents. Edge terrain is deliberately excluded too. */
+static void move_acc_object_rectangle(edict_t const *object, bool clear) {
+    if (!object || !object->inuse || !move_has_dynamic_occupancy(object)) return;
+    vec2_t p=move_object_point(object);
+    wc3FineBox_t box=wc3_fine_cover(wc3_fine_class(object->collision/pathmap_cell_world_size()),
+        (wc3FinePoint_t){(int)floorf(p.x),(int)floorf(p.y)});
+    int minx=MAX(0,box.min.x)/2,miny=MAX(0,box.min.y)/2;
+    int maxx=(MIN((int)pathmap.width,box.max.x)+1)/2,maxy=(MIN((int)pathmap.height,box.max.y)+1)/2;
+    if(minx>=maxx || miny>=maxy)return;
+    /* TODO MAP-03.3: dynamic coarse cell-link composition and spatial dirty
+     * publication remain separate; these lanes retain static terrain geometry. */
+    FOR_LOOP(lane,4) {
+        for(int y=miny;y<maxy;y++)for(int x=minx;x<maxx;x++) {
+            unsigned blocked=0;
+            if (!clear) FOR_LOOP(dy,2)FOR_LOOP(dx,2)
+                blocked+=!is_pathable_node_original_flags(x*2+dx,y*2+dy,move_acc_masks[lane]);
+            move_acc_classes[lane][0][y*move_acc.maps[0].width+x]=clear ? 0 : blocked==4 ? 1 : blocked ? 2 : 0;
+        }
+        int lo_x=minx,lo_y=miny,hi_x=maxx,hi_y=maxy;
+        for(unsigned level=1;level<4;level++) {
+            lo_x/=2;lo_y/=2;hi_x=(hi_x+1)/2;hi_y=(hi_y+1)/2;
+            uint32_t w=move_acc.maps[level-1].width;
+            uint8_t const *child=move_acc_classes[lane][level-1];
+            for(int y=lo_y;y<hi_y;y++)for(int x=lo_x;x<hi_x;x++) {
+                uint8_t first=child[y*2*w+x*2];bool same=true;
+                FOR_LOOP(dy,2)FOR_LOOP(dx,2)same&=child[(y*2+dy)*w+x*2+dx]==first;
+                move_acc_classes[lane][level][y*move_acc.maps[level].width+x]=same && first<2 ? first : 2;
+            }
+        }
+    }
+}
+
 /* A segment uses area-tree pruning; a fine detour may leave that rectangle,
  * so its snapshot scans the actor set once. Neither invalidates static fields. */
 static void move_query_objects(moveFineGraph_t *graph, movePathQuery_t const *query, box2_t const *bounds) {
@@ -580,7 +614,11 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
         wc3AccRequest_t req = {{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
             {wc3_mul(target.x,.5f),wc3_mul(target.y,.5f)},
             input->geometry.radius >= pathmap_cell_world_size() ? 2 : 1,BZ_WC3_UNIT_ACC_WORK};
+        move_acc_object_rectangle(input->mover,true);
+        move_acc_object_rectangle(input->target,true);
         uint32_t result=wc3_acc_route(&move_acc,&req,move_acc_points),count=result&0x7fffffffu;
+        move_acc_object_rectangle(input->mover,false);
+        move_acc_object_rectangle(input->target,false);
         if (!count) return false;
         wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,count-1},false);
         assert(!selected.gate); /* Ordinary hierarchy search has no portal producer. */
@@ -648,7 +686,11 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
         wc3AccRequest_t req={{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
             {wc3_mul(goal.x,.5f),wc3_mul(goal.y,.5f)},input->geometry.radius>=pathmap_cell_world_size()?2:1,BZ_WC3_GROUP_ACC_WORK};
+        move_acc_object_rectangle(input->mover,true);
+        move_acc_object_rectangle(input->target,true);
         uint32_t count=wc3_acc_route(&move_acc,&req,move_acc_points)&0x7fffffffu;
+        move_acc_object_rectangle(input->mover,false);
+        move_acc_object_rectangle(input->target,false);
         if (!count) return false;
         wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,count-1},false);
         assert(!selected.gate); /* This engine hierarchy has no portal producer. */
@@ -724,6 +766,7 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     if (at < 0 && input->units) at = (int)move_fine.nearest;
     if (at < 0) return false;
     wc3FinePoint_t endpoint = move_fine.nodes[at].pos;
+
     wc3FineReconstruct_t route = {move_fine.nodes, move_fine.count, at,
         {a.x, a.y},
         complete ? (wc3FineVector_t){b.x, b.y}

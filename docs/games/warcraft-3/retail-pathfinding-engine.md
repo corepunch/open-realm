@@ -5655,3 +5655,78 @@ assertions/2391 tests. Required `make BUILD=release -j4 test` also passes the
 repository checks with native SDL2. All320 pathfinding Python checks,32 fresh
 contracts and275-entry/117-fixture inventory pass. Saved Ghidra readback confirms
 591 roles and `unsaved=false`. Fresh upstream is contained by the branch.
+
+
+## Mixed captain pairs and blocked home retries
+
+Payoff58 extends the complete stationary captain pair to Footman/Knight and to
+a five-by-five blocked authored home. GROUP-03.4.3 owns this bounded extension;
+larger rosters, moving captains and native owned-pool reuse remain open.
+
+The mixed scene separately calls `AddAssault(1,'hfoo')` and
+`AddAssault(1,'hkni')`. Creation order is Footman then Knight; physical follower
+owner order and the later shared roster are Knight then Footman. Native radii
+are31/32 and1 fine unit, and authored turn rates are0.6 and0.5. Both public speed
+setters clamp100 to150. All185 Footman and184 Knight commits match normal engine
+frames. The first attempted test inherited the Footman turn rate for the Knight:
+its fine route already matched, but the first large turn diverged. The corrected
+fixture explicitly authors the Knight rate. No numerical movement kernel change
+was needed for this mixed scene.
+
+Shared7c and cached pathb4 both publish32-world during151 owner visits. After the
+Knight finishes, the last survivor publishes live31 while the retained cache
+stays32. Eight saved prefixes resume1648 exact suffix commits; a bot-free restore
+adds355, for2003 saved commits. The complete phase hash is
+`b37868da1198d3aa05565fce168ad6750a5393841308363fdfb78ba30f79047f`.
+
+The blocked pair exposes two production gaps. Native9d2f90 admits the zero-radius
+virtual captain through ordinary point placement. Authored home(-1936,-144)
+places the actor at(-2000,-240), fine161.5/88.5. Move now uses the existing
+placement routine, and range membership tests this admitted actor rather than
+the authored home. The later shared point request still carries the authored
+home, so blocked destination routing and failure remain observable.
+
+Original166c30 clears self and target spatial rectangles through15d360 before
+adaptive admission, then rebuilds those rectangles and all three parents. The
+rectangle is rounded into accelerator cells; unrelated edge terrain is cleared
+temporarily too. The blocked target's base80/44 is mixed before admission.
+Without exclusion the engine picks a different first fine leg and the peer
+heads east. The engine now clears/restores these static traversal rectangles in
+both group5000 and member400 admission. Point waypoints have no native spatial
+target and must not receive this exclusion. Dynamic coarse cell-link composition
+and general spatial dirty publication remain MAP-03.3.
+
+All254 primary and270 peer commits now match, including two seven-count retry
+initializations, shared random-owner changes, fourteen retry results, twenty
+waiting steps, forced arrival at counters1310/1326, and ordinary task recovery.
+The primary finishes first; the last peer retries with actual count1. Existing
+fine/arrival/retry kernels handle this once admission geometry is correct.
+Saved times1200/1500/1995/2010/7035/7050/8580/9060ms cover both sides of shared
+admission, first retry, each forced arrival and the final survivor. These resume
+2175 exact suffix commits; bot-free1200ms restore adds510, for2685 saved commits.
+Save84 already retains the necessary physical owners, actor, retries and random
+state. The full phase hash is
+`b0a228243e654b451d11e5c8eb51c565691a7f5aa630f2a398c30bf4737e968b`.
+
+Two uninterrupted owned captures repeat for each scene. The complete references
+are `retail-captain-mixed-1.27.json` and `retail-captain-blocked-1.27.json`, checked
+by the strict pair verifier against literal motion, callback nesting, footprint
+publications and complete retry/buffer/cleanup lifecycle. Auxiliary cell watch
+`captain-pair-blocked-v1-watch-261003.jsonl` distinguishes pre-edit clear and
+pre-AI mixed classification; it does not justify deferred whole-map update
+claims. Capture sources remain frozen in the external archive.
+
+Current builder reproduces these scenes with `--scenario captain_home
+--captain-peer --captain-peer-type hkni` or `--captain-blocked-home`. Accepted
+captures keep their original source/map hashes. Ghidra persists the placement
+and rectangle admission findings on9d2f90/15d360/166c30;591 roles,48 layouts/307
+fields,260 explicit ABIs and50 globals remain saved with no unsaved changes.
+
+
+Validation: full debug RoC/TFT and required release `make test` each pass850,914
+assertions in2,393 engine tests, with repository checks passing.325 pathfinding
+Python tests and34/34 fresh contracts pass; final corpus source hashes match.
+Readback confirms saved Ghidra annotations. External
+`captain-pair-extensions-validation-final-261003.json` pins the results/logs;
+`captain-pair-extensions-strict-final-v2-261003/corpus-results.json` is the fresh
+corpus report after builder changes. Both current CLI variants rebuild successfully.
