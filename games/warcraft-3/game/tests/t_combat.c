@@ -1675,6 +1675,27 @@ TEST(wc3_combat, grant_kill_xp_uses_stock_hero_table_without_misc_data) {
     game.config.misc.source = old_misc;
 }
 
+TEST(wc3_combat, grant_kill_xp_reports_malformed_data_and_uses_safe_fallback) {
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    UnitBalance_t victim_balance = *victim->data.UnitBalance;
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
+    victim->s.player = 1;
+    victim_balance.level = 2;
+    victim->data.UnitBalance = &victim_balance;
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPInvalid.txt"));
+    game.config.misc.source = custom.source;
+
+    G_GrantKillXP(victim, hero);
+    T_EQ((int)hero->hero.xp, 40); /* malformed entries use safe stock recurrence defaults */
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
 TEST(wc3_combat, grant_kill_xp_does_not_reward_passive_ally_kill) {
     edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
