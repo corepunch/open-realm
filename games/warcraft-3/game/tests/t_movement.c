@@ -4469,7 +4469,8 @@ TEST(wc3_movement, flat_speed_bonus_aliases_reduce_all_sources_and_ignore_transp
     FOR_LOOP(i, sizeof(profiles) / sizeof(*profiles)) {
         edict_t *item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 64 + i * 32, 320);
         item->targtype = TARG_ITEM; item->data.ItemData = profiles[i];
-        item->item.inventory_slot = -1; item->item.in_world = true;
+        item->item=G_AllocItem();
+        item->item->inventory_slot = -1; item->item->in_world = true;
         T_ASSERT(G_PickupItem(unit, item));
     }
     T_EQ(S_UnitMoveSpeed(unit), 345);

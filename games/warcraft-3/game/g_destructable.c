@@ -34,6 +34,7 @@ static void G_ApplyDestructableDeathPathing(edict_t *ent) {
 /* The authored constructor selects rotation and snaps pose before publishing
  * its footprint. Apply this equally to fresh creation and map-script binding. */
 vec2_t G_DestructableCreationPoint(edict_t const *ent, vec2_t point, float facing) {
+    assert(ent && ent->destructable);
     pathTex_t const *pt=ent->destructable->alive_pathtex;
     if(!pt) return point;
     if(ent->data.DestructableData->fixedRot>=0)

@@ -484,9 +484,9 @@ TEST(wc3_destructable, final_free_retires_static_footprint_and_cached_field) {
         CM_SetupTestWorldBounds(&(box2_t){{0,0},{1024,1024}});
         CM_SetupTestPathmap(32,32,cells);
         edict_t *dest=make_test_destructable(10,center.x,center.y);
-        dest->pathtex=dest->destructable.alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+        dest->pathtex=dest->destructable->alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
         if(dead) {
-            dest->destructable.death_pathtex=dest->pathtex;
+            dest->destructable->death_pathtex=dest->pathtex;
             T_ASSERT(G_KillDestructable(dest,NULL));
         } else CM_BakeStaticObstacles();
         edict_t *goal=Waypoint_add(&target);
@@ -523,23 +523,23 @@ TEST(wc3_destructable, death_restore_remove_preserve_overlapping_blocker_and_ter
     CM_SetupTestPathmap(32,32,cells);
     edict_t *a=make_test_destructable(10,center.x,center.y);
     edict_t *b=make_test_destructable(10,center.x,center.y);
-    a->pathtex=a->destructable.alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
-    b->pathtex=b->destructable.alive_pathtex=a->pathtex;
-    b->destructable.death_pathtex=b->pathtex;
+    a->pathtex=a->destructable->alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+    b->pathtex=b->destructable->alive_pathtex=a->pathtex;
+    b->destructable->death_pathtex=b->pathtex;
     CM_BakeStaticObstacles();
     edict_t *goal=Waypoint_add(&target);
     uint32_t old=CM_BuildHeatmapForRadius(goal,16);
     CM_ProcessPathJobs(8192); T_ASSERT(CM_ActivateCachedFlow(old));
 
     T_ASSERT(G_DestructableApplyDamage(a,NULL,10));
-    T_ASSERT(a->destructable.dead);
-    T_ASSERT(!a->destructable.pathing_active);
+    T_ASSERT(a->destructable->dead);
+    T_ASSERT(!a->destructable->pathing_active);
     T_ASSERT(!CM_ActivateCachedFlow(old));
     T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
     T_ASSERT(G_RestoreDestructable(a,10,false));
     T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
     T_ASSERT(G_KillDestructable(b,NULL));
-    T_ASSERT(b->destructable.pathing_active);
+    T_ASSERT(b->destructable->pathing_active);
     T_ASSERT(G_RemoveDestructable(a));
     T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
     old=CM_BuildHeatmapForRadius(goal,16);
@@ -613,7 +613,7 @@ TEST(wc3_destructable, authored_overlapping_creations_snap_pose_and_rotation) {
     edict_t *created=G_CreateDestructable(ids[0],-1936,-560,0,0,1,0);
     G_SetDestructableScriptBinding(false);
     T_ASSERT(created==placed); T_EQ(globals.num_edicts,before);
-    T_ASSERT(placed->destructable.script_bound); T_ASSERT(placed->destructable.pathing_active);
+    T_ASSERT(placed->destructable->script_bound); T_ASSERT(placed->destructable->pathing_active);
     T_EQ(placed->s.origin2.x,-1920); T_EQ(placed->s.origin2.y,-512);
     T_ASSERT(G_RemoveDestructable(placed));
     assert_widget_overlap_grid(0);
@@ -626,7 +626,7 @@ TEST(wc3_destructable, authored_overlapping_creations_snap_pose_and_rotation) {
     G_ApplyDestructableCreationPose(bound);
     T_EQ(bound->s.origin2.x,-1936); T_EQ(bound->s.origin2.y,-560);
     T_EQ(bound->s.angle,wc3_degrees_to_radians(90));
-    bound->pathtex=bound->destructable.alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+    bound->pathtex=bound->destructable->alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
     data.fixedRot=37.5f;
     bound->s.origin2=(vec2_t){100000,-100000};
     G_ApplyDestructableCreationPose(bound);
