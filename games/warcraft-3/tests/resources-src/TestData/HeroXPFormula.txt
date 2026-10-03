@@ -1,0 +1,15 @@
+[Misc]
+GlobalExperience=1
+HeroExpRange=1200
+GrantNormalXP=25
+GrantNormalXPFormulaA=1
+GrantNormalXPFormulaB=5
+GrantNormalXPFormulaC=5
+GrantHeroXP=100,120
+GrantHeroXPFormulaA=1
+GrantHeroXPFormulaB=0
+GrantHeroXPFormulaC=100
+HeroFactorXP=80,70,60,50,0
+BuildingKillsGiveExp=0
+MaxLevelHeroesDrainExp=1
+SummonedKillFactor=0.50

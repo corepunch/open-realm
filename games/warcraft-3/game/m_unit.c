@@ -1931,11 +1931,37 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
 }
 
 /* --- XP-on-kill (data-driven from Units\MiscGame.txt) ------------------------
- * Constants read live from config.misc so map overrides stay 1:1; fallbacks are
- * the WC3 1.29 defaults: HeroExpRange=1200 (XP-share radius), GrantNormalXP=25 +
- * GrantNormalXPFormulaB=5/level (base XP by victim level), GrantHeroXP list
- * 100,120,160,220,300 (heroes), HeroFactorXP=80,70,60,50,0 (diminishing % when
- * the hero outlevels the victim by N), BuildingKillsGiveExp=0. */
+ * Constants read live from config.misc so map overrides stay 1:1.  Stock TFT
+ * uses HeroExpRange=1200, formula-driven normal/Hero kill XP, HeroFactorXP as a
+ * receiving-Hero-level creep reduction table, BuildingKillsGiveExp=0,
+ * SummonedKillFactor=0.50, and MaxLevelHeroesDrainExp=1. */
+
+static float const WC3_XP_RANGE_DEFAULT =
+    1200.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock HeroExpRange. */
+static float const WC3_XP_BUILDING_KILLS_DEFAULT =
+    0.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock BuildingKillsGiveExp. */
+static float const WC3_XP_SUMMON_FACTOR_DEFAULT =
+    0.50f; /* BZ_HARDCODED_DATA_FALLBACK: stock SummonedKillFactor. */
+static float const WC3_XP_NORMAL_TABLE_DEFAULT =
+    25.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantNormalXP[0]. */
+static float const WC3_XP_NORMAL_FORMULA_A_DEFAULT =
+    1.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantNormalXPFormulaA. */
+static float const WC3_XP_NORMAL_FORMULA_B_DEFAULT =
+    5.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantNormalXPFormulaB. */
+static float const WC3_XP_NORMAL_FORMULA_C_DEFAULT =
+    5.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantNormalXPFormulaC. */
+static float const WC3_XP_HERO_TABLE_DEFAULT =
+    100.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantHeroXP[0]. */
+static float const WC3_XP_HERO_FORMULA_A_DEFAULT =
+    1.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantHeroXPFormulaA. */
+static float const WC3_XP_HERO_FORMULA_B_DEFAULT =
+    0.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantHeroXPFormulaB. */
+static float const WC3_XP_HERO_FORMULA_C_DEFAULT =
+    100.0f; /* BZ_HARDCODED_DATA_FALLBACK: stock GrantHeroXPFormulaC. */
+static float const WC3_XP_CREEP_FACTOR_DEFAULT[] = {
+    80.0f, 70.0f, 60.0f, 50.0f, 0.0f
+}; /* BZ_HARDCODED_DATA_FALLBACK: stock HeroFactorXP table. */
+
 static float G_MiscNum(cstring_t key, float fallback) {
     cstring_t const v = Stb_IniCacheFind(&game.config.misc, "Misc", key);
     return (v && *v) ? (float)atof(v) : fallback;
@@ -1959,6 +1985,57 @@ static float G_MiscListNum(cstring_t key, uint32_t n, float fallback) {
     return val;
 }
 
+/* Warcraft extends the authored kill-XP tables with:
+ *   f(level) = A * f(level - 1) + B * level + C
+ * The table itself is 1-based by victim level. */
+static uint32_t G_KillXPForLevel(cstring_t tableKey, cstring_t formulaAKey,
+                                 cstring_t formulaBKey, cstring_t formulaCKey,
+                                 uint32_t level, float tableFallback,
+                                 float formulaAFallback, float formulaBFallback,
+                                 float formulaCFallback) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", tableKey);
+    uint32_t count = 0;
+    double current = tableFallback;
+
+    if (level < 1) level = 1;
+    if (!value || !*value) {
+        value = NULL;
+    }
+    while (value && *value) {
+        char *end = NULL;
+        double parsed;
+        while (*value == ' ' || *value == '\t') value++;
+        parsed = strtod(value, &end);
+        if (!end || end == value) break;
+        if (parsed < 0.0) parsed = 0.0;
+        current = parsed;
+        count++;
+        if (count == level) {
+            if (current > (double)UINT32_MAX) return UINT32_MAX;
+            return (uint32_t)current;
+        }
+        value = end;
+        while (*value == ' ' || *value == '\t') value++;
+        if (*value == ',') value++;
+        else if (*value) break;
+    }
+    if (!count) {
+        count = 1;
+        current = tableFallback;
+        if (level == 1) return (uint32_t)current;
+    }
+
+    double const a = G_MiscNum(formulaAKey, formulaAFallback);
+    double const b = G_MiscNum(formulaBKey, formulaBFallback);
+    double const c = G_MiscNum(formulaCKey, formulaCFallback);
+    for (uint32_t victimLevel = count + 1; victimLevel <= level; victimLevel++) {
+        current = a * current + b * (double)victimLevel + c;
+        if (current < 0.0) current = 0.0;
+        if (current > (double)UINT32_MAX) current = (double)UINT32_MAX;
+    }
+    return (uint32_t)current;
+}
+
 bool G_UnitIsHero(edict_t const *ent) {
     return ent && ent->data.UnitBalance &&
         (ent->data.UnitBalance->strength > 0 || ent->data.UnitBalance->agility > 0 ||
@@ -1969,6 +2046,9 @@ static bool G_HeroReceivesKillXP(edict_t const *hero, edict_t const *victim, edi
     if (!hero->inuse || !(hero->svflags & SVF_MONSTER) || !hero->data.UnitBalance ||
         hero->health.value <= 0 || hero->hero.suspend_xp || (hero->aiflags & AI_ILLUSION) ||
         !G_UnitIsHero(hero) ||
+        (G_MiscNum("MaxLevelHeroesDrainExp",
+            1.0f /* BZ_HARDCODED_DATA_FALLBACK: stock max-level Heroes drain XP. */) == 0.0f &&
+         hero->hero.level >= G_MaxHeroLevel()) ||
         (range >= 0.0f && Vector2_distance(&hero->s.origin2, &victim->s.origin2) > range)) {
         return false;
     }
@@ -1979,31 +2059,58 @@ static bool G_HeroReceivesKillXP(edict_t const *hero, edict_t const *victim, edi
            (level.alliances[killer->s.player][hero->s.player] & (1 << ALLIANCE_SHARED_XP));
 }
 
+static bool G_StructureGrantsKillXP(edict_t const *victim) {
+    if (!G_UnitIsStructure(victim)) return true;
+    return victim->data.UnitWeapons && victim->data.UnitWeapons->attacksEnabled != 0;
+}
+
 /* Award experience for killing `victim` to nearby heroes owned by the killer
  * or covered by the killer player's directional SHARED_XP alliance. Warcraft
  * divides the available victim XP across all eligible nearby heroes before
- * applying each receiving Hero's level factor. */
+ * applying each receiving Hero's creep/player modifiers. */
 void G_GrantKillXP(edict_t *victim, edict_t *killer) {
-    if (victim->aiflags & AI_ILLUSION) return;
+    if (!victim || !killer || !victim->data.UnitBalance || (victim->aiflags & AI_ILLUSION)) return;
     uint32_t receivers = 0;
     if (G_PlayerTreatsPlayerAsAlly(killer->s.player, victim->s.player)) {
         return; /* forced attacks on passive allies do not award Hero XP */
     }
-    if (G_UnitIsStructure(victim) && G_MiscNum("BuildingKillsGiveExp", 0.0f) == 0.0f) {
+    /* Retail grants no Hero XP when the killing blow comes from a building,
+     * unless the map explicitly enables BuildingKillsGiveExp. */
+    if (G_UnitIsStructure(killer) && G_MiscNum("BuildingKillsGiveExp", WC3_XP_BUILDING_KILLS_DEFAULT) == 0.0f) {
         return;
     }
+    /* Enemy buildings award XP only when they have an authored attack (towers,
+     * attacking Ancients, etc.); passive structures such as Farms do not. */
+    if (!G_StructureGrantsKillXP(victim)) {
+        return;
+    }
+
     bool const victimHero = G_UnitIsHero(victim);
     uint32_t const victimLevel = victimHero ? (uint32_t)MAX(1, (int32_t)victim->hero.level)
                                          : (uint32_t)MAX(1, victim->data.UnitBalance->level);
     uint32_t baseXP;
     if (victimHero) {
-        baseXP = (uint32_t)G_MiscListNum("GrantHeroXP", victimLevel - 1, 100.0f);
+        baseXP = G_KillXPForLevel("GrantHeroXP", "GrantHeroXPFormulaA",
+                                  "GrantHeroXPFormulaB", "GrantHeroXPFormulaC",
+                                  victimLevel, WC3_XP_HERO_TABLE_DEFAULT,
+                                  WC3_XP_HERO_FORMULA_A_DEFAULT, WC3_XP_HERO_FORMULA_B_DEFAULT,
+                                  WC3_XP_HERO_FORMULA_C_DEFAULT);
     } else {
-        float const g0 = G_MiscNum("GrantNormalXP", 25.0f);
-        float const gb = G_MiscNum("GrantNormalXPFormulaB", 5.0f);
-        baseXP = (uint32_t)(g0 + gb * (float)(victimLevel - 1));
+        baseXP = G_KillXPForLevel("GrantNormalXP", "GrantNormalXPFormulaA",
+                                  "GrantNormalXPFormulaB", "GrantNormalXPFormulaC",
+                                  victimLevel, WC3_XP_NORMAL_TABLE_DEFAULT,
+                                  WC3_XP_NORMAL_FORMULA_A_DEFAULT, WC3_XP_NORMAL_FORMULA_B_DEFAULT,
+                                  WC3_XP_NORMAL_FORMULA_C_DEFAULT);
     }
-    float const range = G_MiscNum("HeroExpRange", 1200.0f);
+    if (victim->summon_ability) {
+        double summoned = (double)baseXP *
+            (double)G_MiscNum("SummonedKillFactor", WC3_XP_SUMMON_FACTOR_DEFAULT);
+        if (summoned < 0.0) summoned = 0.0;
+        if (summoned > (double)UINT32_MAX) summoned = (double)UINT32_MAX;
+        baseXP = (uint32_t)(summoned + 0.5);
+    }
+
+    float const range = G_MiscNum("HeroExpRange", WC3_XP_RANGE_DEFAULT);
 
     FOR_LOOP(i, globals.num_edicts) {
         if (G_HeroReceivesKillXP(&globals.edicts[i], victim, killer, range)) {
@@ -2011,8 +2118,8 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
         }
     }
 
-    /* Warsmash/Warcraft's GlobalExperience policy is a fallback: use global
-     * eligible heroes only when no receiver is inside HeroExpRange. */
+    /* Warcraft's GlobalExperience policy is a fallback: use global eligible
+     * heroes only when no receiver is inside HeroExpRange. */
     bool const global = !receivers &&
         G_MiscNum("GlobalExperience",
             1.0f /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 default. */) != 0.0f;
@@ -2023,23 +2130,35 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
             }
         }
     }
-    if (!receivers) return;
+    if (!receivers || !baseXP) return;
 
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *h = &globals.edicts[i];
         if (!G_HeroReceivesKillXP(h, victim, killer, global ? -1.0f : range)) {
             continue;
         }
-        /* Diminishing returns: hero N levels above the victim earns
-         * HeroFactorXP[N-1] percent (full XP when at or below the victim). */
-        int32_t const diff = (int32_t)h->hero.level - (int32_t)victimLevel;
+
         float factor = 1.0f;
-        if (diff > 0) {
-            factor = G_MiscListNum("HeroFactorXP", (uint32_t)(diff - 1), 0.0f) / 100.0f;
+        /* HeroFactorXP is the neutral-creep reduction table indexed by the
+         * receiving Hero's level. Enemy player-controlled units and Heroes do
+         * not use this reduction, so level-5+ Heroes can keep progressing. */
+        if (victim->s.player == PLAYER_NEUTRAL_AGGRESSIVE) {
+            uint32_t const index = h->hero.level ? h->hero.level - 1 : 0;
+            uint32_t const fallbackIndex = MIN(index,
+                (uint32_t)(sizeof(WC3_XP_CREEP_FACTOR_DEFAULT) /
+                           sizeof(WC3_XP_CREEP_FACTOR_DEFAULT[0]) - 1));
+            factor *= G_MiscListNum("HeroFactorXP", index,
+                WC3_XP_CREEP_FACTOR_DEFAULT[fallbackIndex]) / 100.0f;
         }
+        if (h->s.player < game.max_clients) {
+            factor *= MAX(0.0f, game.clients[h->s.player].jass.handicap_xp) / 100.0f;
+        }
+
         uint32_t const award = (uint32_t)(((float)baseXP / (float)receivers) * factor + 0.5f);
-        if (award > 0) {
+        if (award > 0 && UINT32_MAX - h->hero.xp >= award) {
             G_HeroSetXP(h, h->hero.xp + award);
+        } else if (award > 0) {
+            G_HeroSetXP(h, UINT32_MAX);
         }
     }
 }
