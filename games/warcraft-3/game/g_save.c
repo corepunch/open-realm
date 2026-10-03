@@ -78,9 +78,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format85 retains unit owned-pool insertion order and its allocation counter
- * across owner changes, entity slot reuse and saves before AI recruitment. */
-static uint32_t const save_version = 85;
+/* Format86 retains shared Move parameter owners, physical bindings and
+ * regroup cooldown across saves, independently of cached route footprints. */
+static uint32_t const save_version = 86;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -511,7 +511,11 @@ static field_t const level_fields[] = {
     F(level_locals, waypoints.count, F_INT),
     F(level_locals, next_move_group_id, F_INT),
     F(level_locals, next_move_group_sequence, F_INT, 2),
+    F(level_locals, next_move_shared_id, F_INT, 2),
     F(level_locals, next_unit_seq, F_INT, 2),
+    F(level_locals, move_shared, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, move_shared_count, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, move_shared_capacity, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, move_groups, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, move_groups_count, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, move_group_capacity, F_IGNORE, 0, FIELD_RUNTIME),
@@ -751,13 +755,25 @@ static field_t const move_member_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const move_shared_fields[] = {
+    TF(moveShared_t, id, F_INT, 2),
+    TF(moveShared_t, references, F_INT),
+    TF(moveShared_t, inuse, F_INT),
+    TF(moveShared_t, speed, F_FLOAT),
+    TF(moveShared_t, next_speed, F_FLOAT),
+    TF(moveShared_t, radius, F_FLOAT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const move_group_fields[] = {
     TF(moveGroup_t, id, F_INT),
     TF(moveGroup_t, request_id, F_INT),
     TF(moveGroup_t, sequence, F_INT, 2),
+    TF(moveGroup_t, shared_id, F_INT, 2),
     TF(moveGroup_t, flags, F_INT),
     TF(moveGroup_t, age, F_INT),
     TF(moveGroup_t, completion_counter, F_INT),
+    TF(moveGroup_t, cooldown, F_INT),
     TF(moveGroup_t, inuse, F_INT),
     TF(moveGroup_t, initialized, F_INT),
     TF(moveGroup_t, ticking, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2007,11 +2023,12 @@ static bool ValidMoveFineRequests(void) {
  * JASS collection is independent: destroying it does not cancel this Move. */
 static bool ValidMoveGroup(moveGroup_t const *group) {
     if (!group->id || !group->sequence || group->sequence>level.next_move_group_sequence ||
-        !group->count || group->count>BZ_WC3_GROUP_ORDER_UNITS ||
+        !group->count || group->count>BZ_WC3_GROUP_ORDER_UNITS || group->cooldown>66 ||
         *(uint8_t const *)&group->inuse!=1 || *(uint8_t const *)&group->initialized>1 || group->ticking ||
         !isfinite(group->goal.x) || !isfinite(group->goal.y) || !isfinite(group->point.x) ||
         !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)
         return false;
+    if (group->shared_id && !S_FindMoveShared(group->shared_id)) return false;
     if (group->target) {
         uintptr_t ptr=(uintptr_t)group->target,base=(uintptr_t)g_edicts;
         if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts) ||
@@ -2043,6 +2060,41 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
     return true;
 }
 
+/* Shared parameters precede groups so every restored binding can resolve.
+ * Zero references remain valid until the next Move owner prepass collects them. */
+static bool WriteMoveShared(FILE *f) {
+    if (!S_ValidateMoveShared()) return false;
+    uint32_t count=0;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) if (level.move_shared[i].inuse) count++;
+    if (count>MAX_SAVE_GROUP_HANDLES || !SaveBytes(f,&count,sizeof(count))) return false;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
+        moveShared_t temp=level.move_shared[i];
+        if (temp.inuse && !WriteMappedFields(f,move_shared_fields,(uint8_t *)&temp)) return false;
+    }
+    return true;
+}
+
+static bool ReadMoveShared(FILE *f) {
+    uint32_t count=0;
+    if (!LoadBytes(f,&count,sizeof(count)) || count>MAX_SAVE_GROUP_HANDLES) goto failed;
+    if (!count) return true;
+    level.move_shared=calloc(count,sizeof(*level.move_shared));
+    if (!level.move_shared) goto failed;
+    ARRAY_COUNT(level.move_shared)=level.move_shared_capacity=count;
+    FOR_LOOP(i,count) {
+        moveShared_t *shared=level.move_shared+i;
+        if (!ReadMappedFields(f,move_shared_fields,(uint8_t *)shared) ||
+            *(uint8_t const *)&shared->inuse!=1 || !shared->id || shared->id>level.next_move_shared_id ||
+            !isfinite(shared->speed) || shared->speed<0 || !isfinite(shared->next_speed) || shared->next_speed<0 ||
+            !isfinite(shared->radius) || shared->radius<0) goto failed;
+        FOR_LOOP(j,i) if (level.move_shared[j].id==shared->id) goto failed;
+    }
+    return true;
+failed:
+    S_ClearMoveGroups();
+    return false;
+}
+
 /* Store active owners after edicts so loading can validate restored generations. */
 static bool WriteMoveGroups(FILE *f) {
     uint32_t count=0;
@@ -2063,10 +2115,10 @@ static bool WriteMoveGroups(FILE *f) {
 /* Rebuild process-owned allocations; failed payloads release every partial owner. */
 static bool ReadMoveGroups(FILE *f) {
     uint32_t count=0;
-    if (!LoadBytes(f,&count,sizeof(count)) || count>globals.num_edicts) return false;
+    if (!LoadBytes(f,&count,sizeof(count)) || count>globals.num_edicts) goto failed;
     if (!count) return true;
     level.move_groups=calloc(count,sizeof(*level.move_groups));
-    if (!level.move_groups) return false;
+    if (!level.move_groups) goto failed;
     level.move_group_capacity=count;
     FOR_LOOP(i,count) {
         moveGroup_t *group=calloc(1,sizeof(*group));
@@ -2080,7 +2132,7 @@ static bool ReadMoveGroups(FILE *f) {
             moveGroup_t const *other=level.move_groups[j];
             if (other->id==group->id || other->sequence==group->sequence) goto failed;
             FOR_LOOP(m,group->count) FOR_LOOP(n,other->count)
-                if (group->members[m].unit==other->members[n].unit) goto failed;
+                if (group->members[m].unit && group->members[m].unit==other->members[n].unit) goto failed;
         }
     }
     return true;
@@ -2307,6 +2359,7 @@ bool WriteGame(cstring_t filename) {
             fprintf(stderr, "WC3 SaveGame: failed at edict %d class=%08x\n", i, g_edicts[i].class_id); goto done;
         }
     }
+    if (!WriteMoveShared(f)) { fprintf(stderr,"WC3 SaveGame: failed at shared Move parameters\n"); goto done; }
     if (!WriteMoveGroups(f)) { fprintf(stderr,"WC3 SaveGame: failed at physical Move groups\n"); goto done; }
     /* After edicts: nested HT_HANDLE unit/item slots call G_LoadJassHandle, which
      * requires restored inuse bits. SV_Map runs main() first, so a pre-edict
@@ -2429,7 +2482,12 @@ bool ReadGame(cstring_t filename) {
     if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 LoadGame: invalid unit owned-pool order\n"); fclose(f); return false; }
     if (!S_ValidateCaptainHomeActors(true)) { fprintf(stderr,"WC3 LoadGame: invalid captain actor references\n"); fclose(f); return false; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
+    if (!ReadMoveShared(f)) { fprintf(stderr,"WC3 LoadGame: failed at shared Move parameters\n"); fclose(f); return false; }
     if (!ReadMoveGroups(f)) { fprintf(stderr,"WC3 LoadGame: failed at physical Move groups\n"); fclose(f); return false; }
+    if (!S_ValidateMoveShared()) {
+        fprintf(stderr,"WC3 LoadGame: invalid shared Move references\n");
+        S_ClearMoveGroups(); fclose(f); return false;
+    }
     /* Nested hashtable unit/item handles resolve here, after edict inuse is restored. */
     if (!ReadHashtables(f)) { fprintf(stderr, "WC3 LoadGame: failed at hashtables\n"); fclose(f); return false; }
     /* Sound-handle presentation state is part of the VM-owned handle payload;
@@ -2701,6 +2759,51 @@ TEST(wc3_save, rejects_invalid_fine_request_graphs) {
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
 }
 
+TEST(wc3_save, rejects_invalid_shared_move_payloads) {
+    reset_entities(); setup_test_world(); S_ClearMoveGroups();
+    uint64_t old_id=level.next_move_shared_id; level.next_move_shared_id=7;
+    FOR_LOOP(i,13) {
+        FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
+        uint32_t count=i==0 ? MAX_SAVE_GROUP_HANDLES+1 : i==10 ? 2 : 1;
+        moveShared_t raw={.id=7,.inuse=true,.speed=150,.next_speed=270,.radius=63};
+        if(i==1)raw.id=0;
+        if(i==2)raw.id=8;
+        if(i==3)raw.inuse=false;
+        if(i==4)raw.speed=NAN;
+        if(i==5)raw.speed=-1;
+        if(i==6)raw.next_speed=INFINITY;
+        if(i==7)raw.next_speed=-1;
+        if(i==8)raw.radius=NAN;
+        if(i==9)raw.radius=-1;
+        if(i==12)*(uint8_t *)&raw.inuse=2;
+        T_ASSERT(SaveBytes(file,&count,sizeof(count)));
+        if(i!=11)T_ASSERT(WriteMappedFields(file,move_shared_fields,(uint8_t *)&raw));
+        if(i==10)T_ASSERT(WriteMappedFields(file,move_shared_fields,(uint8_t *)&raw));
+        rewind(file); T_ASSERT(!ReadMoveShared(file));
+        T_NULL(level.move_shared); T_EQ(ARRAY_COUNT(level.move_shared),0); T_EQ(level.move_shared_capacity,0);
+        fclose(file);
+    }
+    FILE *file=tmpfile(); T_NOT_NULL(file);
+    if(file) {
+        uint32_t count=1;
+        moveShared_t raw={.id=7,.references=1,.inuse=true,.speed=FLT_MAX,.next_speed=150,.radius=31};
+        T_ASSERT(SaveBytes(file,&count,sizeof(count)));
+        T_ASSERT(WriteMappedFields(file,move_shared_fields,(uint8_t *)&raw));
+        rewind(file); T_ASSERT(ReadMoveShared(file));
+        /* The record is readable, but an orphan reference must reject the
+         * completed registry. Zero references await the next owner prepass. */
+        T_ASSERT(!S_ValidateMoveShared()); T_ASSERT(!WriteMoveShared(file));
+        level.move_shared[0].references=0; T_ASSERT(S_ValidateMoveShared());
+        rewind(file); T_ASSERT(WriteMoveShared(file));
+        S_ClearMoveGroups(); rewind(file); T_ASSERT(ReadMoveShared(file));
+        T_ASSERT(S_ValidateMoveShared()); T_EQ(level.move_shared[0].id,7);
+        T_EQ(level.move_shared[0].speed,FLT_MAX); T_EQ(level.move_shared[0].next_speed,150);
+        T_EQ(level.move_shared[0].radius,31); fclose(file);
+    }
+    S_ClearMoveGroups(); level.next_move_shared_id=old_id;
+    reset_entities(); setup_test_world();
+}
+
 /* Current mapped group records reject bad ownership, generations and curve
  * tails even when their outer container can be read successfully. */
 TEST(wc3_save, rejects_invalid_physical_group_payloads) {
@@ -2713,7 +2816,7 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
     T_ASSERT(G_IssueGroupPointOrder(&request)); T_EQ(ARRAY_COUNT(level.move_groups),1);
     moveGroup_t original=*level.move_groups[0];
     S_ClearMoveGroups();
-    FOR_LOOP(i,20) {
+    FOR_LOOP(i,22) {
         FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
         moveGroup_t raw=original; uint32_t count=i==0 ? globals.num_edicts+1 : i==13 ? 2 : 1;
         raw.route.points=raw.route.adaptive_points=raw.route.group_points=(vec2_t *)(uintptr_t)1;
@@ -2729,6 +2832,8 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
         if (i==17) raw.members[0].arrival_range=-1;
         if (i==18) raw.target_refresh=16;
         if (i==19) raw.flags|=0x1000;
+        if (i==20) raw.shared_id=1;
+        if (i==21) raw.cooldown=67;
         if (i>=7 && i<13) { raw.route.group_count=1; raw.route.group_index=0; }
         if (i==7) raw.route.group_count=BZ_WC3_FINE_NODES+1;
         if (i==8) raw.route.group_index=1;
@@ -2857,8 +2962,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-82.bin",
         "/tmp/openwarcraft3-wc3-save-version-83.bin",
         "/tmp/openwarcraft3-wc3-save-version-84.bin",
+        "/tmp/openwarcraft3-wc3-save-version-85.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85 };
 
     reset_entities();
     setup_test_world();

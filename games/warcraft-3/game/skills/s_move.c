@@ -184,16 +184,109 @@ static void move_update_fine_budget(void) {
     }
 }
 
+moveShared_t *S_FindMoveShared(uint64_t id) {
+    if (!id) return NULL;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
+        moveShared_t *shared=level.move_shared+i;
+        if (shared->inuse && shared->id==id) return shared;
+    }
+    return NULL;
+}
+
+static moveShared_t *move_group_shared(moveGroup_t const *group) {
+    if (!group->shared_id) return NULL;
+    moveShared_t *shared=S_FindMoveShared(group->shared_id);
+    if (!shared) gi.error("Move: stale shared parameter owner %llu",(unsigned long long)group->shared_id);
+    return shared;
+}
+
+/* Reference0 is reclaimed in the next owner prepass, as original16c220 does. */
+static uint64_t move_alloc_shared(void) {
+    if (level.next_move_shared_id==UINT64_MAX) gi.error("Move: shared owner identity exhausted");
+    uint32_t slot=0;
+    while(slot<ARRAY_COUNT(level.move_shared) && level.move_shared[slot].inuse) slot++;
+    if (slot==ARRAY_COUNT(level.move_shared)) {
+        if (slot==level.move_shared_capacity) {
+            uint32_t capacity=level.move_shared_capacity ? level.move_shared_capacity*2 : 16;
+            if (capacity<level.move_shared_capacity) gi.error("Move: shared owner capacity exhausted");
+            moveShared_t *pool=realloc(level.move_shared,capacity*sizeof(*pool));
+            if (!pool) gi.error("Move: cannot allocate %u shared parameter owners",capacity);
+            level.move_shared=pool; level.move_shared_capacity=capacity;
+        }
+        ARRAY_COUNT(level.move_shared)++;
+    }
+    moveShared_t *shared=level.move_shared+slot;
+    *shared=(moveShared_t){.id=++level.next_move_shared_id,.inuse=true,.speed=FLT_MAX,.next_speed=FLT_MAX};
+    return shared->id;
+}
+
+bool S_ValidateMoveShared(void) {
+    FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
+        moveShared_t const *shared=level.move_shared+i;
+        if (*(uint8_t const *)&shared->inuse>1) return false;
+        if (!shared->inuse) continue;
+        if (!shared->id || shared->id>level.next_move_shared_id ||
+            !isfinite(shared->speed) || shared->speed<0 || !isfinite(shared->next_speed) || shared->next_speed<0 ||
+            !isfinite(shared->radius) || shared->radius<0) return false;
+        FOR_LOOP(j,i) if (level.move_shared[j].inuse && level.move_shared[j].id==shared->id) return false;
+        uint32_t references=0;
+        FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
+            moveGroup_t const *group=level.move_groups[g];
+            if (group->inuse && group->shared_id==shared->id) references++;
+        }
+        if (references!=shared->references) return false;
+    }
+    FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t const *group=level.move_groups[g];
+        if (group->inuse && group->shared_id && !S_FindMoveShared(group->shared_id)) return false;
+    }
+    return true;
+}
+
+/* Publish the previous speed accumulator, then collect all bound groups'
+ * live mover radii before any physical owner routes. Original15aa80 orders
+ *16c220 for shared owners,16e1f0 for groups, and only then16c570 movement. */
+static void move_update_shared(void) {
+    FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
+        moveShared_t *shared=level.move_shared+i;
+        if (!shared->inuse) continue;
+        if (!shared->references) {memset(shared,0,sizeof(*shared));continue;}
+        shared->speed=shared->next_speed; shared->next_speed=FLT_MAX; shared->radius=0;
+    }
+    FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t const *group=level.move_groups[g];
+        if (!group->inuse) continue;
+        moveShared_t *shared=move_group_shared(group); if (!shared) continue;
+        FOR_LOOP(i,group->count) {
+            moveGroupMember_t const *member=group->members+i; edict_t const *unit=member->unit;
+            if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
+                shared->radius=MAX(shared->radius,unit->collision);
+        }
+    }
+}
+
+static void move_free_group_routes(moveGroup_t *group) {
+    free(group->route.points); free(group->route.adaptive_points); free(group->route.group_points);
+}
+
 /* Retire route allocations independently of the originating JASS collection. */
 static void move_release_group(moveGroup_t *group) {
-    free(group->route.points); free(group->route.adaptive_points); free(group->route.group_points);
-    memset(group,0,sizeof(*group));
+    moveShared_t *shared=move_group_shared(group);
+    if (shared) {
+        if (!shared->references) gi.error("Move: shared parameter reference underflow");
+        shared->references--;
+    }
+    move_free_group_routes(group); memset(group,0,sizeof(*group));
 }
 
 void S_ClearMoveGroups(void) {
-    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) { move_release_group(level.move_groups[i]); free(level.move_groups[i]); }
+    /* Atomic teardown also handles a partially rejected save. It must not
+     * consume unchecked serialized bindings or reference counts. */
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {move_free_group_routes(level.move_groups[i]);free(level.move_groups[i]);}
     free(level.move_groups); level.move_groups=NULL;
     ARRAY_COUNT(level.move_groups)=level.move_group_capacity=0;
+    free(level.move_shared); level.move_shared=NULL;
+    ARRAY_COUNT(level.move_shared)=level.move_shared_capacity=0;
 }
 
 /* Swap removal preserves the original surviving-row order contract. */
@@ -603,7 +696,7 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
     return true;
 }
 
-static bool move_group_point_order(groupPointOrder_t const *request);
+static bool move_group_point_order(groupPointOrder_t const *request,uint64_t shared_id);
 
 /* Strict predicted membership retains creation phase and exact timer deadline. */
 static void move_captain_home_update(edict_t *self) {
@@ -646,6 +739,7 @@ static void move_captain_home_update(edict_t *self) {
             /* Transfer physical references across order replacement. */
             ent->movement.captain_home.actor=NULL;
         }
+        uint64_t shared_id=members>1 ? move_alloc_shared() : 0;
         if (members==1) S_IssueMoveOrder(self,self->goalentity,self->current_order_id);
         else for(uint32_t first=0;first<members;first+=BZ_WC3_GROUP_ORDER_UNITS) {
             groupPointOrder_t request={.count=MIN(members-first,BZ_WC3_GROUP_ORDER_UNITS),
@@ -655,7 +749,7 @@ static void move_captain_home_update(edict_t *self) {
                 request.units[i].unit=roster[first+i];
                 request.units[i].spawn=roster[first+i]->spawn_time;
             }
-            if (!move_group_point_order(&request))
+            if (!move_group_point_order(&request,shared_id))
                 fprintf(stderr,"WC3 Move: captain shared home point batch rejected at %u/%u members\n",first,members);
         }
         FOR_LOOP(i,members) roster[i]->movement.captain_home.actor=actor;
@@ -2878,16 +2972,31 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
 
 /* Move owns the shared request; generic order admission still handles each
  * candidate's validation, Smart rally behavior and issued-order callbacks. */
-static bool move_group_point_order(groupPointOrder_t const *request) {
+static bool move_group_point_order(groupPointOrder_t const *request,uint64_t shared_id) {
     if (!request->count) return false;
     if (request->queued) return move_queue_group_point(request);
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->goal=*request->point; group->age=UINT32_MAX;
+    if (shared_id) {
+        moveShared_t *shared=S_FindMoveShared(shared_id);
+        if (!shared) gi.error("Move: missing new shared parameter owner");
+        if (shared->references==UINT32_MAX) gi.error("Move: shared parameter reference overflow");
+        group->shared_id=shared_id; shared->references++;
+        group->flags=0xd00; /* Captain policy100/800 and extra target-refresh400. */
+    }
     bool any=false;
     FOR_LOOP(i,request->count) {
         edict_t *unit=request->units[i].unit;
         if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) continue;
+        if (shared_id) {
+            /* Captain9d123f replaces the private approach through bridge05ca50:
+             * consume old velocity, detach, stop and admit bounded recovery
+             * before the new shared request binds. An embedded moving recruit
+             * otherwise retains an illegal source after this handoff. */
+            move_leave(unit);
+            S_RecoverStoppedUnitPosition(unit);
+        }
         if (!unit_issueorder(unit,request->order,request->point)) continue;
         any=true;
         if (unit->current_order_id!=request->order_id || unit->currentmove!=&move_move_walk) continue;
@@ -2934,6 +3043,8 @@ static bool move_group_route(moveGroup_t *group) {
     group->radius=0;
     FOR_LOOP(i,group->count) if (group->members[i].unit->collision>group->radius)
         group->radius=group->members[i].unit->collision;
+    moveShared_t const *shared=move_group_shared(group);
+    if (shared) group->radius=shared->radius;
     wc3GridPose_t pose; unit_predicted_pose(source,&pose);
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
     movePathQuery_t query={.geometry={&from,&group->goal,group->radius,M_UnitStaticPathingFlags(source)},
@@ -3034,7 +3145,7 @@ static void move_group_regroup(moveGroup_t *group) {
         if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))<range) near++;
     }
     uint32_t status=arrived ? group->count-arrived-near : group->count;
-    if (arrived && (group->flags&4)) status=0;
+    if (arrived && (group->cooldown || (group->flags&4))) status=0;
     uint32_t limit=group->flags&0x100 ? (group->flags&0x20000 ? 396 : 198) : 99;
     if (!status || group->completion_counter>limit) {
         if (G_AdvanceUnitMoveGroupDestination(&group->route)) {
@@ -3065,6 +3176,7 @@ static int move_compare_group_visits(void const *a, void const *b) {
 }
 
 static void move_run_group_updates(void) {
+    move_update_shared();
     /* Freeze physical generations before callbacks can allocate or reuse slots.
      * Native visits newest cohorts first; newly created owners wait one pass. */
     uint32_t count=ARRAY_COUNT(level.move_groups),visits=0;
@@ -3122,17 +3234,36 @@ static void move_run_group_updates(void) {
         if (move_test_group_route) move_test_group_route(group,NULL);
 #endif
         FOR_LOOP(i,group->count) group->members[i].flags&=~0x200000u;
+        if (group->shared_id && group->count>1 && !(group->flags&0x200)) {
+            if (!group->cooldown && !(group->flags&2)) {
+                /* Original169b00 denies projected classification for adjusted,
+                 * forced or special members and partial member paths. The
+                 * denial owns a66-tick regroup cooldown. TODO GROUP-03.2:
+                 * mover01000000 and nonzero projected priority producers. */
+                FOR_LOOP(i,group->count) if ((group->members[i].flags&0xe0000) ||
+                    group->members[i].unit->movement.fine_route.partial) {group->cooldown=66;break;}
+            }
+            /* Original16c630 keeps peers eligible after65 ticks, even when
+             * their current requested speed is zero. */
+            if (!(group->flags&0x20000) || group->age>65)
+                FOR_LOOP(i,group->count) group->members[i].flags|=0x100000;
+        }
         move_deciding_group=group; move_deciding_excluded=0;
         if (group->count>1 && !(group->flags&0x200)) FOR_LOOP(i,group->count)
             if (!(group->members[i].flags&0x300000)) move_deciding_excluded|=1u<<i;
         FOR_LOOP(i,group->count) move_group_decide(group,group->members+i);
         move_deciding_group=NULL; move_deciding_excluded=0;
-        float cap=0; bool share=!(group->flags&8);
+        float cap=FLT_MAX; bool share=!(group->flags&8);
         FOR_LOOP(i,group->count) {
             moveGroupMember_t const *member=group->members+i;
             if (member->flags&0x210000) share=false;
             float speed=unit_effective_speed(member->unit);
-            if (!cap || speed<cap) cap=speed;
+            if (!(member->flags&0x200000) && speed<cap) cap=speed;
+        }
+        moveShared_t *shared=move_group_shared(group);
+        if (shared && share) {
+            shared->next_speed=MIN(shared->next_speed,cap);
+            if (shared->speed!=FLT_MAX) cap=shared->speed;
         }
         edict_t *finished[BZ_WC3_GROUP_ORDER_UNITS]; uint32_t count=0;
         FOR_LOOP(i,group->count) {
@@ -3173,6 +3304,7 @@ static void move_run_group_updates(void) {
                 else unit->stand(unit);
             }
         }
+        if (group->cooldown) group->cooldown--;
         group->ticking=false;
         if (!group->count) move_release_group(group);
     }
@@ -3311,7 +3443,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_QUEUE_ORDER_START:
         return move_start_queued_group(ent,call->queued_order);
     case A_GROUP_POINT_ORDER:
-        return move_group_point_order(call->group_order) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+        return move_group_point_order(call->group_order,0) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     case A_OWNER_BEGIN: move_update_fine_budget(); return true;
     case A_OWNER_UPDATE: move_run_group_updates(); move_repulse_owner_update(); return true;
     case A_UNIT_TYPE_CHANGING:

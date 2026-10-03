@@ -49,11 +49,21 @@ typedef struct {
     bool arrived, in_range, forced_arrival;
 } moveGroupMember_t;
 
+/* Shared request parameters have their own lifetime across physical batches.
+ * Groups store the generation ID, so growing this flat pool cannot stale them. */
+typedef struct {
+    uint64_t id;
+    uint32_t references;
+    bool inuse;
+    float speed, next_speed, radius;
+} moveShared_t;
+
 /* Move owns retained physical groups independently of JASS collection handles. */
 typedef struct {
-    uint32_t id, count, flags, age, completion_counter;
+    uint32_t id, count, flags, age, completion_counter, cooldown;
     uint32_t request_id; /* Latest submitted request history for cohort acquisition. */
     uint64_t sequence; /* Creation order survives slot reuse and save/load. */
+    uint64_t shared_id; /* Native group7c shared parameters, zero when unbound. */
     bool inuse, initialized, ticking;
     vec2_t goal, point;
     edict_t *target;
@@ -2243,6 +2253,9 @@ struct level_locals {
     } waypoints;
     ARRAY(moveGroup_t *, move_groups);
     uint32_t move_group_capacity;
+    ARRAY(moveShared_t, move_shared);
+    uint32_t move_shared_capacity;
+    uint64_t next_move_shared_id;
     uint32_t next_move_group_id; /* Zero is ungrouped; allocation excludes every live unit identity. */
     uint64_t next_move_group_sequence;
     uint64_t next_unit_seq;
@@ -2796,6 +2809,8 @@ void G_RebindSavedMoveRoutes(void);
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 void S_FreeMoveRoute(edict_t *self);
 void S_ClearMoveGroups(void);
+moveShared_t *S_FindMoveShared(uint64_t);
+bool S_ValidateMoveShared(void);
 uint32_t S_UnitMoveFineObjectFlags(edict_t const *unit);
 bool S_AdmitUnitMoveFineRequest(edict_t *unit);
 void S_ChargeUnitMoveFineRequest(edict_t *unit, uint32_t work);

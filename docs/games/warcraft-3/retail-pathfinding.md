@@ -519,3 +519,13 @@ Both repeated mixed13 captures retain the full native journey; engine parity is
 currently3471 pre-batch/activation commits with saved continuations. Common
 cross-batch parameter ownership and wider AI range producers remain explicit
 backlog work.
+
+Payoff63 ports the [shared captain parameter owner](retail-pathfinding-engine.md#shared-captain-parameters-across-unequal-physical-batches):
+prior minimum speed publication/reset, all-group live radius accumulation,
+12+1 batch bindings and distinct cached footprint lifetime. Captain admission
+also consumes the native stop/recovery bridge before replacing a private
+approach. The first mixed13 phase matches4560 physical commits,127 footprint
+observations and9618 Save86 suffix commits through12 seconds. The native full
+captures retain two shared generations,353 footprints and325 publications.
+Saved Ghidra roles/layouts retain the shared prefix and66-tick cooldown; full
+engine parity remains open at range-departure private reentry12.03 seconds.

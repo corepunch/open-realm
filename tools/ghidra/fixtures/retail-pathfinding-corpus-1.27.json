@@ -23069,6 +23069,139 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-captain-shared-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_captain_shared_trace.py",
+        "{archive}/runtime/captain-thirteen-mixed-range-v2-first-261003.jsonl",
+        "{archive}/runtime/captain-thirteen-mixed-range-v2-repeat-261003.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-captain-shared-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_captain_shared.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "captain-shared-captures.json",
+      "inputs": {
+        "capture": "runtime/captain-thirteen-mixed-range-v2-first-261003.jsonl",
+        "sha256": "6874cdcdb96fe05491d46b31a886f578dcbed4b0e65ec0c38af0a019ef00f6ff",
+        "bytes": 31042033,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+            "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+            "wc3_pathfinding.js": "ae5503eb353e6673a4b96ca478137bd845bb6074fbac61376f7e0fd41e8ecfb0",
+            "wc3_pathfinding_probe.j": "da7f13d876fd8a7674dd8b6963050e7c46ed93d80a5344692589be0da6d2e4ed",
+            "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "captain_ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+            "map": "c84af647961f25512c09f4ecb74aa3d9a283ebf0aa554380162a832dd1c0a60d"
+          },
+          "map": "Maps\\PathingRE-CaptainThirteenMixedV1-261003.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "expected_exit": 0,
+      "expected_status": "pass",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "results": {
+          "length": 2
+        },
+        "whole_engine_parity": {
+          "equal": false
+        }
+      },
+      "scope": "Native two-generation shared parameter lifetimes, speed publication, global radius and cached footprints. Engine first mixed13 phase matches4560 commits through12000ms,127 footprint observations and9618 Save86 suffix commits; recovery/private/shared reentry remains open.",
+      "evidence": "SOCL",
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-thirteen-mixed-range-v2-repeat-261003.jsonl",
+            "sha256": "b1c6e131e94957535a3518ed60f722e8db9838b290584add3cf257fa1d565172",
+            "bytes": 30926563,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "ae5503eb353e6673a4b96ca478137bd845bb6074fbac61376f7e0fd41e8ecfb0",
+                "wc3_pathfinding_probe.j": "da7f13d876fd8a7674dd8b6963050e7c46ed93d80a5344692589be0da6d2e4ed",
+                "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+                "map": "c84af647961f25512c09f4ecb74aa3d9a283ebf0aa554380162a832dd1c0a60d"
+              },
+              "map": "Maps\\PathingRE-CaptainThirteenMixedV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -23134,7 +23267,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "5ff7af58d7e28214ddd89b8e6146e47b3dbed3354e2ca7ad4f23225b8bab6dd6"
+      "sha256": "64ac4ef8c3fbfa146e6fa22db68f403c15422fcfd0af771dfbfe2482c5191966"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -23564,6 +23697,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-captain-approach-1.27.json",
       "sha256": "82c29f6749e79eece06028dff15b2982f1c2694e3a63011e7df51bbdacc7f998"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-shared-1.27.json",
+      "sha256": "997d959d14b2e659f12d8735582cfd905480617f97ecd2a5a5553be703624823"
     }
   ]
 }

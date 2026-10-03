@@ -30,8 +30,9 @@ when its largest peer grows, shrinks or disappears. Three complete journeys
 match831 motion commits/730 owner states and2207 saved continuation commits.
 A retained coarse route keeps its original sampled footprint; a fresh route uses
 the current live maximum. Owner counter/budget publication precedes all individual
-movement callbacks through the generic ability begin phase. Bound shared-radius
-and other movement families remain open.
+movement callbacks through the generic ability begin phase. The captain shared-radius owner now covers a bounded mixed13 phase; see
+[shared captain parameters](retail-pathfinding-engine.md#shared-captain-parameters-across-unequal-physical-batches).
+Other movement families remain open.
 
 Authored repulsion now runs through Move after each owner movement pass, so
 eligible idle flyers separate as well as moving units. It uses saved retail
@@ -628,3 +629,12 @@ corrects premature stopping for large recruits and keeps physical range through
 save/load. Map-local weapon edits now reach spawned/restored typed data. The
 mixed13 regression matches3471 commits and17368 saved suffix commits through
 activation; shared12+1 parameter publication and subsequent recovery remain open.
+
+Mixed thirteen-recruit captain movement now binds12+1 physical batches to one
+Move-owned parameter generation. The first phase matches4560 original commits
+and9618 saved continuations through12 seconds, including live63→31 radius and
+retained63 path footprint. Captain handoff composes bounded old-source recovery;
+Save86 retains the published/pending speed and regroup cooldown. The next engine
+gap is range-departure private approach at12.03 seconds, followed by the second
+shared publication. Full5462-commit mixed parity remains open. See
+[shared captain parameters](retail-pathfinding-engine.md#shared-captain-parameters-across-unequal-physical-batches).

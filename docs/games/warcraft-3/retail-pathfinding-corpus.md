@@ -1050,3 +1050,20 @@ selected contracts with135 matching final source fingerprints.
 `captain-approach-validation-final-261003.json` pins validation logs and saved
 Ghidra readback. Failed initial range-probe/corpus/test runs remain archived and
 do not certify this final result.
+
+Checkpoint63 adds `live-captain-shared-captures-261003` and
+`retail-captain-shared-1.27.json`. Inventory is282 entries,124 fixtures and65
+strict live entries. The new contract reuses both frozen mixed-range captures,
+checks353 shared footprints and325 publications across two generations, and
+checks the literal127-row engine footprint header. Engine parity is explicitly
+bounded to4560 commits through12 seconds; recovery reentry remains open.
+The full native5462-row motion reference and the private approach contract are
+unchanged. Tests reject owner-generation aliasing, cached/live radius conflation,
+lost final-batch maximum, wrong prior-speed publication/reference count and an
+expanded engine scope.
+
+Fresh `runtime/captain-shared-strict-final-v2-261003/corpus-results.json` passes
+39/39 contracts with136 matching source fingerprints. Full debug/release
+RoC/TFT suites pass2405 tests/1484868 assertions per edition; required repository
+tests and365 pathfinding Python checks pass. Saved Ghidra readback confirms600
+roles,51 layouts/318 fields,266 explicit ABIs,53 globals and no unsaved changes.

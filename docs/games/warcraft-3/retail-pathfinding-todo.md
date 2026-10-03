@@ -8,27 +8,29 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**138 done / 327 tasks; 189 remaining.** Payoff62 corrects private captain
-approach range independently of collision radius (GROUP-03.4.6.2.1.1). Original
-Footman attack maximum90 produces70+.6*90=124 world units; the target wrapper
-then adds collision31/63 and divides32. The engine matches3471 mixed13 private
-and activation commits through9000ms, plus17368 saved suffix commits. Stable
-map-local UnitWeapons merges now preserve authored range and enabled slots.
-The complete5462-row native reference remains retained; full mixed engine
-parity first diverges at9.03s and remains explicitly open. Two original full
-captures repeat the authored inputs and absolute movement. Save85 retains the
-physical member's range without a format change. Saved Ghidra readback has597
-roles,50 layouts/311 fields,265 explicit ABIs and53 globals.
-Full debug/release RoC/TFT passes2403 tests and1336346 assertions per edition.
-The required release repository suite,357 pathfinding Python checks and38 fresh
-corpus contracts pass with135 matching source fingerprints.
-Inventory is281 entries/123 fixtures/64 strict live entries. The next runnable
-ID is GROUP-03.4.6.2.2: bind the two physical batches to one shared parameter
-owner, publish its previous speed accumulator and collect live radius before
-routing either batch. General attack eligibility, ranged-roster policy,
-Hero/default/summoned producers remain03.4.6.2.1.2. Full recovery/reentry and
-cancellation remain03.4.6.2.3. Live membership changes, moving captains, town
-homes and dynamic coarse publication remain separate requirements.
+**139 done / 329 tasks; 190 remaining.** Payoff63 integrates the shared
+parameter owner for mixed13 captain batches (GROUP-03.4.6.2.2.1). Both physical
+batches sample the global63/32 maximum; after the largest recruit completes,
+the live maximum falls to31/32 while the cached path keeps63/32. Captain
+admission now stops/recovers the private approach before binding the new owner.
+The engine matches4560 physical commits through12000ms,127 footprint
+observations and9618 saved suffix commits. Save86 retains the stable owner,
+published/pending speed, references, radius, group binding and cooldown.
+Full native5462-row captures remain unchanged; the first engine mismatch now
+occurs at12.03s when retail starts a new private approach after a captain range departure.
+Saved Ghidra readback has600 roles,51 layouts/318 fields,266 explicit ABIs and53
+globals. Full debug/release RoC/TFT passes2405 tests and1484868 assertions per edition.
+The required release repository suite,365 pathfinding Python checks and39 fresh
+corpus contracts pass with136 matching source fingerprints. Inventory is282
+entries/124 fixtures/65 strict live entries.
+The next runnable ID is GROUP-03.4.6.2.3.1: port the actual captain range-departure
+callback into a fresh private captain approach, retaining the actor, authored
+range, cohort creation order and subsequent range-listener state. The later
+all-entered/second shared publication is03.4.6.2.3.2; mixed13 cancellation and
+reference reclamation remain03.4.6.2.2.2. General attack eligibility,
+ranged-roster policy, Hero/default/summoned producers remain03.4.6.2.1.2.
+Live membership changes, moving captains, town homes and dynamic coarse
+publication remain separate requirements.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -50,7 +52,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 27 | 11 |
+| GROUP — Shared movement groups | 28 | 12 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -741,8 +743,17 @@ increment and the remaining broader producer policies:
 
 - [x] **GROUP-03.4.6.2.1.1** Recover and port ordinary ground recruits' authored private captain approach range independently of collision radius. [Payoff62](retail-pathfinding-engine.md#private-captain-approach-range-is-independent-of-collision) observes original9d86f0/4985c0 and70/600/300 runtime constants in two full mixed13 repeats. Footman maximum90 yields124 authored world units, then physical31/63 gives4.84375/5.84375 fine cells. Engine3471 exact pre-batch/activation commits and17368 saved suffix commits replace the incorrect five-radius shortcut; map-local weapon overrides preserve the actual input. Full mixed engine parity remains open at9.03s.
 - [ ] **GROUP-03.4.6.2.1.2** Verify the private captain range's wider public producers: no attack class versus disabled weapons, Hero minimum, BTLF and native unit5c.40000000, ranged-roster6c.20 bonus, attack-slot suppression and target-adjusted range. Assert creation/replacement and retained physical range across weapon changes and saves. Static body and constants alone do not certify these game lifecycles.
-- [ ] **GROUP-03.4.6.2.2** Port the shared parameter object: publish prior speed accumulator, clear radius, accumulate every bound physical group's live generations before routing; preserve cached path footprints separately. Verify13-member handoff,63→31 maximum changes, reference release, cancellation and saved continuations.
-- [ ] **GROUP-03.4.6.2.3** Compose the complete mixed13 journey including blocked-completion/recovery and later captain request re-entry, all5,462 physical commits plus cancellation control and saved continuations. Native largest member leaves its initial shared group, later rejoins with shared63, and finally leaves again; bounded handoff alone does not certify this lifetime.
+
+Shared owner publication (GROUP-03.4.6.2.2) is split into the first engine phase
+and the wider mixed cancellation/reclamation control:
+
+- [x] **GROUP-03.4.6.2.2.1** Port prior speed publication/reset, global live radius accumulation before physical routing, cached footprint separation and stable owner references for the mixed13 handoff and largest-member completion. [Payoff63](retail-pathfinding-engine.md#shared-captain-parameters-across-unequal-physical-batches):4560 exact commits through12000ms,127 footprint observations and9618 Save86 suffix commits. Complete native repeats retain353 footprints and325 publications across two distinct generations. Captain admission now composes bounded old-source recovery; saved classification cooldown preserves the existing blocked pair. Full mixed recovery/reentry remains03.4.6.2.3.
+- [ ] **GROUP-03.4.6.2.2.2** Verify and port mixed13 largest-recruit cancellation before/after common owner admission: retain surviving live maximum versus cached footprint, exact reference decrements, deferred zero-reference collection, generation reuse and saved continuations. Complete short-alias cancellation captures exist; authenticate retry target-pointer semantics before canonical comparison and do not certify the two zero-event long-name attempts.
+
+Mixed recovery and reentry (GROUP-03.4.6.2.3) require two separate producers:
+
+- [ ] **GROUP-03.4.6.2.3.1** Port the captain range-departure callback that starts a new private captain approach at12.03s: retain actor identity, attack-derived approach range, request replacement/recovery, new physical creation order and range-listener counters. Extend actual engine frames and saved continuations beyond the first4560 reference commits. A broader deferred-member-removal experiment did not fix this transition and was excluded after control regressions.
+- [ ] **GROUP-03.4.6.2.3.2** Compose the later all-entered callback and second shared owner generation through the complete5462-commit mixed13 journey, largest reentry/departure, natural cleanup and saved continuations. Native second publication at owner1558 initially restores63/32, then live maximum falls31/32 at1561; retaining one owner for the captain actor would alias recycled generations.
 
 
 ### GROUP-04 — Membership mutation

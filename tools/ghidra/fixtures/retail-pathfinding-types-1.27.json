@@ -299,6 +299,12 @@
           "evidence": "16c390 completion oracle"
         },
         {
+          "offset": 104,
+          "name": "classification_cooldown",
+          "type": "u32",
+          "evidence": "16c250 classification denial writes66;16b120 treats nonzero as regroup-ready after any arrival;16c150 decrements after movement. Payoff63 Move retains this owner state in Save86."
+        },
+        {
           "offset": 108,
           "name": "unseen_counter",
           "type": "u32",
@@ -313,8 +319,8 @@
         {
           "offset": 124,
           "name": "shared_parameters",
-          "type": "ptr:void",
-          "evidence": "16d890/16c940 shared ownership oracle"
+          "type": "ptr:WC3PathSharedPrefix",
+          "evidence": "16d890/16c940 shared ownership oracle\n14fd70/16c220/16e1f0/16b060 establish the pointed-to shared parameter prefix and owner prepass ordering."
         },
         {
           "offset": 128,
@@ -2169,6 +2175,48 @@
           "name": "next_owned",
           "type": "WC3PathIdentity",
           "evidence": "Instruction9c36b6..9c371d resolves old head28/2c and publishes new canonical identity14/18;9c32d0 traverses next24/28. Public pool reuse/owner round-trip/same-owner controls261003 witness recruitment order; unknown node bytes remain undefined."
+        }
+      ]
+    },
+    {
+      "name": "WC3PathSharedPrefix",
+      "length": 44,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "14fd70 constructor writes a90c98"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "14fd70 seeds -1/-1;169a50 unregisters both words through1c5490"
+        },
+        {
+          "offset": 28,
+          "name": "references",
+          "type": "u32",
+          "evidence": "16d890 group7c and16d8b0 requestf8 decrement/increment;16c220 reads before deferred reclamation"
+        },
+        {
+          "offset": 32,
+          "name": "published_speed",
+          "type": "WC3PathScalar",
+          "evidence": "16c220 publishes24 to20;16b060 uses20 unless cd5480 FLT_MAX sentinel"
+        },
+        {
+          "offset": 36,
+          "name": "next_speed",
+          "type": "WC3PathScalar",
+          "evidence": "16b060 accumulates minimum into24;16c220 resets cd5480 FLT_MAX sentinel"
+        },
+        {
+          "offset": 40,
+          "name": "radius",
+          "type": "WC3PathScalar",
+          "evidence": "16c220 clears28;16e1f0 takes maximum live owned mover90 before all group movement;16c940 reads28"
         }
       ]
     }
@@ -7103,6 +7151,29 @@
         }
       ],
       "evidence": "Complete body ends8659/866a RET4; readonly native attack maximum90 observed during all13 captain range admissions. Attack backing is opaque until a verified partial layout exists."
+    },
+    {
+      "address": "6f05ca50",
+      "name": "MoverBridge_StopWithRecovery",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "context",
+          "type": "ptr:u32",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [

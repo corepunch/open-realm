@@ -41,6 +41,7 @@
 #include "retail_follow_target_resize.h"
 #include "retail_moving_radius.h"
 #include "retail_group_radius.h"
+#include "retail_captain_shared.h"
 #include "retail_blocked_goal.h"
 #include "retail_outside_goal.h"
 #include "retail_captain_home.h"
@@ -11207,6 +11208,10 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
             uint32_t const *actual=trace.rows[i],*expected=motion[steps++];
             FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
             if(mismatch)fprintf(stderr,"Blocked goal commit%u time%d actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x retry%u wait%u fine%u/%u coarse%u/%u goal%.9g,%.9g\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6],unit->movement.retry_count,unit->movement.wait_delay,unit->movement.fine_route.count,unit->movement.fine_route.index,unit->movement.fine_route.group_count,unit->movement.fine_route.group_index,unit->goalentity?unit->goalentity->s.origin2.x:0,unit->goalentity?unit->goalentity->s.origin2.y:0);
+            if(mismatch) {
+                moveGroup_t const *group=move_find_group(unit->movement.group_id);
+                if(group)fprintf(stderr,"  physical flags=%x age=%u completion=%u count=%u coarse=%u/%u point=%08x/%08x radius=%.9g\n",group->flags,group->age,group->completion_counter,group->count,group->route.group_count,group->route.group_index,wc3_float_bits(group->point.x),wc3_float_bits(group->point.y),group->radius);
+            }
         }
         if(!pass && !mismatch)FOR_LOOP(i,saves)if(level.time==save_times[i]) {
             saved_steps[i]=steps;
@@ -11462,7 +11467,23 @@ TEST(wc3_movement, public_captain_owned_pool_matches_original_same_owner) { publ
 TEST(wc3_movement, public_captain_owned_pool_matches_original_delayed_reuse) { public_captain_pool_journey(2); }
 TEST(wc3_movement, public_captain_owned_pool_matches_original_partial_assault) { public_captain_pool_journey(3); }
 
-static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned count,unsigned members,bool mixed) {
+static void record_captain_shared_radius(moveGroup_t const *group, edict_t *singleton) {
+    if (!group || !group->shared_id) return;
+    groupRadiusTrace_t *trace=group_radius_trace; unsigned mask=0;
+    moveShared_t const *shared=S_FindMoveShared(group->shared_id);
+    T_NOT_NULL(shared); if (!shared) return;
+    T_EQ(group->radius,shared->radius);
+    FOR_LOOP(i,group->count) FOR_LOOP(j,13)
+        if(group->members[i].unit==follow_commit_trace->units[j])mask|=1u<<j;
+    T_ASSERT(trace->count<sizeof(trace->rows)/sizeof(*trace->rows));
+    if(trace->count>=sizeof(trace->rows)/sizeof(*trace->rows))return;
+    uint32_t words[]={level.pathing_counter,mask,wc3_float_bits(wc3_div(shared->radius,32)),
+        wc3_float_bits(wc3_div(group->route.group_radius,32))};
+    memcpy(trace->rows[trace->count++],words,sizeof(words));
+}
+
+static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned count,unsigned members,unsigned phase) {
+    bool mixed=phase!=0;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0); reset_entities(); setup_test_world();
     uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
@@ -11542,12 +11563,21 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     unsigned times[8]={995,1500,1995,2010,6390,6420,6750,7950},saved[8]={0};
     if(members==13)memcpy(times,(unsigned[]){995,1500,1995,2010,6390,7750,10000,13500},sizeof(times));
     if(mixed)memcpy(times,(unsigned[]){995,1500,1995,2010,4000,5000,7750,8750},sizeof(times));
+    if(phase==2)memcpy(times,(unsigned[]){995,8995,9000,9030,9800,9850,11000,11995},sizeof(times));
     char files[8][64]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-roster-%u-%u.bin",members,i);
+    groupRadiusTrace_t radii_trace={0}; unsigned footprints=0,saved_footprints[8]={0};
+    if(phase==2){group_radius_trace=&radii_trace;move_test_group_route=record_captain_shared_radius;}
     unsigned steps=0,suffix=0; bool mismatch=false;
     FOR_LOOP(pass,9) {
-        if(pass){G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];T_NULL(level.bots[0].vm);}
-        while(level.time<(mixed ? 9000 : 31000) && !mismatch) {
-            trace.count=0; level.time+=5; globals.RunFrame();
+        if(pass){G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];footprints=saved_footprints[pass-1];T_NULL(level.bots[0].vm);}
+        while(level.time<(phase==2 ? 12000 : mixed ? 9000 : 31000) && !mismatch) {
+            trace.count=radii_trace.count=0; level.time+=5; globals.RunFrame();
+            FOR_LOOP(i,radii_trace.count) {
+                T_ASSERT(footprints<sizeof(captain_thirteen_shared_footprints)/sizeof(*captain_thirteen_shared_footprints));
+                if(footprints>=sizeof(captain_thirteen_shared_footprints)/sizeof(*captain_thirteen_shared_footprints)){mismatch=true;break;}
+                FOR_LOOP(k,4)T_EQ(radii_trace.rows[i][k],captain_thirteen_shared_footprints[footprints][k]);
+                footprints++;
+            }
             if(level.time==1000) {
                 T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),members);
                 FOR_LOOP(i,members)T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[i],trace.units[mixed ? (i+1)%members : i]);
@@ -11562,9 +11592,10 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
                 }
             }
             if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]) {
-                saved[i]=steps; T_ASSERT(WriteGame(files[i]));
+                saved[i]=steps; saved_footprints[i]=footprints; T_ASSERT(WriteGame(files[i]));
             }
         }
+        if(phase==2)T_EQ(footprints,sizeof(captain_thirteen_shared_footprints)/sizeof(*captain_thirteen_shared_footprints));
         T_EQ(steps,count); if(!mixed)FOR_LOOP(i,members)T_EQ(trace.units[i]->current_order_id,0);
         if(!mixed)T_EQ(level.pathing_random.sum,members==13 ? 591832212u : 3022241195u);
         if(!mixed)T_EQ(level.pathing_random.index,members==13 ? 1015043152u : 141606968u);
@@ -11572,9 +11603,9 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
         if(pass)suffix+=steps-saved[pass-1];
         if(mismatch)break;
     }
-    fprintf(stderr,"Captain roster%u%s exact commits=%u saved suffix=%u\n",members,mixed ? " private prefix" : "",count,suffix);
+    fprintf(stderr,"Captain roster%u%s exact commits=%u saved suffix=%u\n",members,phase==2 ? " shared prefix" : mixed ? " private prefix" : "",count,suffix);
     FOR_LOOP(i,8)remove(files[i]);
-    move_test_motion_commit=NULL; follow_commit_trace=NULL;
+    move_test_motion_commit=NULL; follow_commit_trace=NULL; move_test_group_route=NULL; group_radius_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0); level.started=false; reset_entities(); setup_test_world();
     G_SetMapUnitOverrides(NULL); level.mapinfo=old_info;
@@ -11599,6 +11630,14 @@ TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_private_prefix
         captain_thirteen_mixed_motion[count][1]<0x41100000u)count++;
     T_EQ(count,3471);
     public_captain_roster_journey(captain_thirteen_mixed_motion,count,13,true);
+}
+
+TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_shared_prefix) {
+    unsigned count=0;
+    while(count<sizeof(captain_thirteen_mixed_motion)/sizeof(*captain_thirteen_mixed_motion) &&
+        captain_thirteen_mixed_motion[count][1]<0x41400000u)count++;
+    T_EQ(count,4560);
+    public_captain_roster_journey(captain_thirteen_mixed_motion,count,13,2);
 }
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {

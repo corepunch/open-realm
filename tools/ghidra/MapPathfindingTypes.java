@@ -36,6 +36,10 @@ public class MapPathfindingTypes extends GhidraScript {
             DataType old = ((Pointer)existing).getDataType(), next = ((Pointer)desired).getDataType();
             // The referenced canonical layout is preflighted separately. Refining its
             // undefined bytes must not invalidate every unchanged pointer to that layout.
+            // An opaque pointer can be refined to a newly proven canonical
+            // layout without changing its storage or erasing field evidence.
+            if (old instanceof VoidDataType && next != null && next.getCategoryPath().equals(CATEGORY) &&
+                types.containsKey(next.getName())) return true;
             return old != null && next != null && old.getPathName().equals(next.getPathName()) &&
                 old.getCategoryPath().equals(CATEGORY) && types.containsKey(old.getName());
         }

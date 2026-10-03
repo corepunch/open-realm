@@ -5999,3 +5999,50 @@ selected contracts with135 matching final source fingerprints.
 `captain-approach-validation-final-261003.json` pins validation logs and saved
 Ghidra readback. Failed initial range-probe/corpus/test runs remain archived and
 do not certify this final result.
+
+## Shared captain parameters across unequal physical batches
+
+Payoff63 adds a Move-owned shared parameter pool for the mixed thirteen-recruit
+scene. Each all-entered publication gets a new 64-bit identity; both the twelve
+Footmen and the final singleton large recruit retain that owner. Pool growth
+and slot reuse preserve bindings by identity. Reentry allocates a new identity
+rather than extending the lifetime of the virtual captain actor.
+
+The owner pass publishes the previous minimum-speed accumulator, resets that
+accumulator to FLT_MAX, clears the radius, and accumulates all still-bound live
+mover generations before either physical batch routes. Routing samples this
+shared maximum while each retained path keeps its own cached footprint. In the
+first native phase both paths use63/32; after the large recruit completes the
+live maximum drops to31/32 while the surviving path retains63/32. Native owner
+identities `[1471,1941]` and `[1471,2193]` share a recycled slot but remain distinct
+generations. The complete captures retain353 shared footprint observations and
+325 original speed-publication observations across both lifetimes.
+
+Captain point admission also replaces the old private approach through the
+captured bridge05ca50 stop/recovery chain. Moving recruit7 is embedded at the
+handoff: retail consumes its old velocity and admits166.5/78.5 before binding
+the new request. Reusing only the ordinary point-order replacement misses this
+relocation and first differs at movement commit3478. The engine now performs
+that bounded recovery before captain shared admission. The captured group policy
+also requires the66-tick classification-denial cooldown and member eligibility
+after65 owner visits; preserving this state keeps the established blocked home
+journey exact. Wider mover-special and projected-priority policies remain open.
+
+The engine first private/shared phase matches **4560 absolute movement commits
+through12000ms**, **127 shared footprint observations**, and **9618 continuation
+commits from eight saves**. Save86 retains the shared pool, group binding and
+cooldown, rejects stale bindings/nonfinite parameters/incorrect reference counts,
+and releases a partially rejected pool atomically. Reference zero is valid until
+the next owner prepass reclaims it. Version85 is rejected before restoration.
+This is bounded engine parity: retail first starts a new private approach after
+a captain range departure at12.03 seconds; the later16-second all-entered
+publication and the rest of the5462-commit journey remain separate work.
+
+The broad deferred-member-removal experiment did not resolve this callback and
+regressed established control journeys, so it is not part of the implementation.
+The engine keeps its existing member retirement while that composition remains
+open. Complete native captures and their existing approach contract remain
+unchanged; `retail-captain-shared-1.27.json` adds the generation/publication/
+footprint contract, and `retail_captain_shared.h` is its literal127-row reference.
+`verify_wc3_captain_shared_trace.py` checks both accepted original captures and
+explicitly refuses a whole-engine or recovery-reentry parity claim.

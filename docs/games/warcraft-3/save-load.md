@@ -939,3 +939,15 @@ including bot-free restore, the first randomized retry, both naturally forced
 arrivals and the surviving peer. Actor placement and its actual listener center
 are restored independently of the authored shared point destination. No new
 snapshot fields are required for temporary coarse admission exclusions.
+
+Version86 adds Move's shared parameter pool, stable shared-owner counter, each
+physical group's shared binding and classification cooldown. The pool is written
+after edicts and before physical groups, so bindings resolve during restoration.
+Published speed, the pending minimum speed and the live maximum radius remain
+separate from the physical path's cached footprint. Loading checks unique IDs,
+finite nonnegative scalars, exact bound-group reference counts and the cooldown
+range, then releases both partial registries if validation fails. A zero-reference
+owner can await collection by the next Move prepass. Eight mixed thirteen-recruit
+continuations preserve4560 reference commits through12 seconds and9618 resumed
+commits; later captain recovery/reentry remains unimplemented. Version85 payloads
+are rejected before restoring the world.
