@@ -47,6 +47,27 @@ edict_t *S_SummonAt(edict_t *caster, uint32_t unit_id, vec2_t const *loc, float 
     return summon;
 }
 
+/* Common Object Editor summon contract used by simple campaign/requested
+ * abilities: UnitID selects the unit, DataA is count (minimum one), and Dur is
+ * timed life. Point-target variants spawn at the authored target point; other
+ * variants use the normal collision-safe ring around the caster. */
+void S_SummonAbilityUnits(edict_t *caster, uint32_t code, spellTarget_t const *target) {
+    uint32_t level, unit_id, count;
+    float duration;
+
+    if (!caster || !code) return;
+    level = S_SpellLevel(caster, code);
+    unit_id = S_SpellUnitId(code, level);
+    count = (uint32_t)MAX(1.0f, S_SpellData(code, level, 1));
+    duration = S_SpellDuration(code, level, false);
+    if (!unit_id) return;
+    if (target && target->type == SPELL_TARGET_POINT) {
+        FOR_LOOP(i, count) (void)S_SummonAt(caster, unit_id, &target->point, duration);
+        return;
+    }
+    S_SummonUnits(caster, unit_id, count, duration);
+}
+
 /* Some Warcraft summon abilities cap one authored unit type rather than all
  * results of the cast.  Keep the eviction primitive generic: callers supply
  * the Object Editor limit-check type and the retail cap, while summoned-unit

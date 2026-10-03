@@ -109,6 +109,23 @@ validation rejection, inactive toggle, failed item use or level result. Only the
 The original `call->item` is passed through every delegation level so a shared procedure still sees the actual
 rawcode and registry row.
 
+## Shared mechanic families
+
+Concrete ability procedures remain the owners of Warcraft-specific policy, but repeated mechanics belong in shared helpers when their contracts are identical. A family helper must take authored identity (`abilityitem_t.code` or an explicit rawcode) and policy parameters rather than infer behavior from a hard-coded ability name. Do not replace the flat procedure model with a generic runtime ability-object hierarchy.
+
+The first shared acquisition family is `S_AutocastAcquireUnit()`. Ordinary unit-target autocast abilities supply whether they want friendly or enemy candidates, whether candidates must be wounded, and the fallback acquisition radius. The helper then performs the common live-unit scan, authored target-mask check, nearest-candidate selection, and calls `S_CastUnitTargetSpell()` so mana, cooldown, validation, spell events, and execution stay on the normal cast path. Human, Undead, and general melee spell procedures use this one implementation. Abilities with genuinely different acquisition contracts (for example Barkskin's existing-buff exclusion or Moon Well's Area/threshold rules) keep their specialized acquisition code.
+
+Use the same rule for future consolidation:
+
+- target/projectile families share cast, target and impact machinery but keep ability-specific effects;
+- channel families share channel ownership/interruption and thinker lifecycle but keep tick policy;
+- aura families share source/recipient reconciliation but keep the numeric modifier consumer;
+- summon families share unit creation/timed-life ownership but keep recast, replacement and corpse policies; simple `UnitID` + DataA count + Dur summons use `S_SummonAbilityUnits()`;
+- corpse families share eligibility/reservation/revival primitives but keep ownership and post-revival policy;
+- timed status families share lifecycle/presentation only when their duration and resistance semantics are identical.
+
+Prefer a small shared function with explicit parameters over a flag-heavy generic interpreter. If two abilities only look similar but differ in authored range source, target filtering, duration class, ownership, or cleanup, leave them separate until the common contract is demonstrated.
+
 ## Ownership and lifecycle
 
 Procedures own their orders, validation, effects, state transitions, animation moves, timers, interruption,

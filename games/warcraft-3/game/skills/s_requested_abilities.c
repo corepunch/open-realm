@@ -194,12 +194,6 @@ static void morph_end(edict_t *thinker) {
     G_FreeEdict(thinker);
 }
 
-static void summon_execute_requested(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    S_SummonUnits(caster, S_SpellUnitId(spell->code, level), (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)),
-                  S_SpellDuration(spell->code, level, false));
-}
-
 int S_BlackArrowDamage(edict_t *attacker, int damage) {
     uint32_t level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','N','b','a'));
     return level ? damage + (int)S_SpellData(MAKEFOURCC('A','N','b','a'), level, 1) : damage;
@@ -619,7 +613,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityBanish) { target_status_execute(caster, st, spell); 
 /* Name=Phoenix
  * Ubertip="Summons a Phoenix to fight for the caster."
  */
-BZ_SIMPLE_SPELL_PROC(AbilitySummonPhoenix) { summon_execute_requested(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySummonPhoenix) { S_SummonAbilityUnits(caster, spell->code, NULL); }
 /* Name=Carrion Beetles
  * Ubertip="Raises carrion beetles from a nearby corpse."
  */
@@ -659,7 +653,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityImpale) {
 /* Name=Locust Swarm
  * Ubertip="Summons a swarm of locusts that damages enemy units and returns life to the caster."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityLocustSwarm) { summon_execute_requested(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityLocustSwarm) { S_SummonAbilityUnits(caster, spell->code, NULL); }
 /* Name=Black Arrow
  * Ubertip="Adds bonus damage to attacks and summons a skeleton when an attacked unit dies."
  * Untip="Right-click to activate auto-casting."
@@ -1023,7 +1017,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityHealingWave) {
  * Ubertip="Transforms an enemy unit into a random critter for <ANhx,Dur1> seconds."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityHex) { target_status_execute(caster, st, spell); }
-BZ_SIMPLE_SPELL_PROC(AbilitySpiritOfVengeance) { summon_execute_requested(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySpiritOfVengeance) { S_SummonAbilityUnits(caster, spell->code, NULL); }
 BZ_SIMPLE_SPELL_PROC(AbilityVoodoo) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = spell_buff(spell, level);

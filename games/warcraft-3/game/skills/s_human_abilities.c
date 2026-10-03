@@ -438,22 +438,6 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
                         stolen.timestamp > G_Time() ? (stolen.timestamp - G_Time()) / 1000.0f : 0.0f);
 }
 
-static bool human_autocast_acquire(edict_t *caster, uint32_t code, bool friendly, bool wounded) {
-    edict_t *best = NULL;
-    float range = S_SpellRange(code, S_SpellLevel(caster, code));
-    float best_distance = FLT_MAX;
-    if (range <= 0.0f) range = HUMAN_AUTOCAST_RADIUS;
-    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target)) {
-        float distance;
-        if (friendly != S_SpellIsFriend(caster, target)) continue;
-        if (wounded && target->health.value >= target->health.max_value) continue;
-        if (!S_SpellAllowsTarget(code, caster, target)) continue;
-        distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
-        if (distance <= range && distance < best_distance) { best = target; best_distance = distance; }
-    }
-    return best && S_CastUnitTargetSpell(caster, code, best);
-}
-
 /* The message selects the union member: boolean toggles must never be decoded as target pointers. */
 #define BZ_HUMAN_AUTOCAST_SPELL(NAME, VALIDATE, EXECUTE, FRIENDLY, WOUNDED) \
     BZ_ABILITY_PROC(C##NAME) { \
@@ -465,7 +449,7 @@ static bool human_autocast_acquire(edict_t *caster, uint32_t code, bool friendly
         case A_EXECUTE: EXECUTE(ent, target, call ? call->item : NULL); return true; \
         case A_AUTOCAST_ON: return ent && ent->autocast_code == code; \
         case A_AUTOCAST_SET: return true; \
-        case A_AUTOCAST_ACQUIRE: return human_autocast_acquire(ent, code, FRIENDLY, WOUNDED); \
+        case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, FRIENDLY, WOUNDED, 900.0f); \
         default: return CAbilitySimpleSpell(ent, msg, call); \
         } \
     }

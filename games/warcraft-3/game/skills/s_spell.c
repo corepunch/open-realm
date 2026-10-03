@@ -1,6 +1,7 @@
 #include "s_skills.h"
 
 #include <ctype.h>
+#include <float.h>
 #include <math.h>
 
 #define DEFAULT_SPELL_AREA_CURSOR "ReplaceableTextures\\Selection\\SpellAreaOfEffect.blp"
@@ -1049,6 +1050,32 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
+}
+
+/* Shared nearest-unit acquisition for ordinary unit-target autocast abilities.
+ * Ability-specific procedures still own relation and wounded-only policy; this
+ * helper centralizes authored range, target masks, nearest-target selection and
+ * the normal cast path. */
+bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool wounded, float fallback_range) {
+    edict_t *best = NULL;
+    float best_distance = FLT_MAX;
+    float range;
+
+    if (!caster || !code) return false;
+    range = S_SpellRange(code, S_SpellLevel(caster, code));
+    if (range <= 0.0f) range = fallback_range;
+    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target)) {
+        float distance;
+        if (friendly != S_SpellIsFriend(caster, target)) continue;
+        if (wounded && target->health.value >= target->health.max_value) continue;
+        if (!S_SpellAllowsTarget(code, caster, target)) continue;
+        distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
+        if ((range <= 0.0f || distance <= range) && distance < best_distance) {
+            best = target;
+            best_distance = distance;
+        }
+    }
+    return best && S_CastUnitTargetSpell(caster, code, best);
 }
 
 bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {

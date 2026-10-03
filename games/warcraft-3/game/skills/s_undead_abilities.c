@@ -70,22 +70,6 @@ int S_AntiMagicShellAbsorb(edict_t *target, int damage) {
     return damage;
 }
 
-/* Shared unit-target autocast acquire: friendly wounded targets for replenish. */
-static bool undead_unit_autocast_acquire(edict_t *caster, uint32_t code, bool wounded) {
-    edict_t *best = NULL;
-    float range = S_SpellRange(code, S_SpellLevel(caster, code));
-    float best_distance = FLT_MAX;
-    if (range <= 0.0f) range = UNDEAD_AUTOCAST_RADIUS;
-    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target)) {
-        float distance;
-        if (wounded && target->health.value >= target->health.max_value) continue;
-        if (!S_SpellAllowsTarget(code, caster, target)) continue;
-        distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
-        if (distance <= range && distance < best_distance) { best = target; best_distance = distance; }
-    }
-    return best && S_CastUnitTargetSpell(caster, code, best);
-}
-
 /* Shared area autocast acquire: cast self-spell if a worthy friendly exists in area. */
 static bool undead_area_autocast_acquire(edict_t *caster, uint32_t code, bool needs_hp, bool needs_mana) {
     uint32_t level = S_SpellLevel(caster, code);
@@ -131,7 +115,7 @@ BZ_ABILITY_PROC(CAbilityReplenish) {
     case A_EXECUTE: replenish_execute(ent, target, call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
-    case A_AUTOCAST_ACQUIRE: return undead_unit_autocast_acquire(ent, code, true);
+    case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, true, true, UNDEAD_AUTOCAST_RADIUS);
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }

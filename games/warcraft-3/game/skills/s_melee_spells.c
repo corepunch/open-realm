@@ -1,7 +1,5 @@
 #include "s_skills.h"
 
-#define MELEE_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
-
 /* ROC AbilityData omits BuffID; apply the TFT token like Aams→Bams / Acyc→Bcyc. */
 static cstring_t melee_buff_fallback(uint32_t code) {
     static struct { uint32_t code; cstring_t buff; } const table[] = {
@@ -56,22 +54,6 @@ static bool rejuv_validate(edict_t *caster, spellTarget_t st, abilityitem_t cons
     return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity);
 }
 
-static bool melee_autocast_acquire(edict_t *caster, uint32_t code, bool friendly, bool wounded) {
-    edict_t *best = NULL;
-    float range = S_SpellRange(code, S_SpellLevel(caster, code));
-    float best_distance = FLT_MAX;
-    if (range <= 0.0f) range = MELEE_AUTOCAST_RADIUS;
-    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target)) {
-        float distance;
-        if (friendly != S_SpellIsFriend(caster, target)) continue;
-        if (wounded && target->health.value >= target->health.max_value) continue;
-        if (!S_SpellAllowsTarget(code, caster, target)) continue;
-        distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
-        if (distance <= range && distance < best_distance) { best = target; best_distance = distance; }
-    }
-    return best && S_CastUnitTargetSpell(caster, code, best);
-}
-
 /* Name=Bloodlust
  * Ubertip="Increases a friendly unit's attack rate by <Ablo,DataA1,%>% and movement speed by <Ablo,DataB1,%>%. |nLasts <Ablo,Dur1> seconds."
  * Untip="|cffc3dbffRight-click to activate auto-casting.|r"
@@ -86,7 +68,7 @@ BZ_ABILITY_PROC(CAbilityBloodlust) {
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
-    case A_AUTOCAST_ACQUIRE: return melee_autocast_acquire(ent, code, true, false);
+    case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, true, false, 900.0f);
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
@@ -105,7 +87,7 @@ BZ_ABILITY_PROC(CAbilityFaerieFire) {
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
-    case A_AUTOCAST_ACQUIRE: return melee_autocast_acquire(ent, code, false, false);
+    case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, false, false, 900.0f);
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
@@ -176,7 +158,7 @@ BZ_ABILITY_PROC(CAbilityFrenzy) {
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
-    case A_AUTOCAST_ACQUIRE: return melee_autocast_acquire(ent, code, true, false);
+    case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, true, false, 900.0f);
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
@@ -234,7 +216,7 @@ BZ_ABILITY_PROC(CAbilityCurse) {
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
-    case A_AUTOCAST_ACQUIRE: return melee_autocast_acquire(ent, code, false, false);
+    case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, false, false, 900.0f);
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }

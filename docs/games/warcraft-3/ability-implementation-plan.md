@@ -134,6 +134,16 @@ Keep execute/validate/absorb in the ability file. Hook shared predicates
 belongs on that path. Prefer branching on authored data over a second
 procedure.
 
+When several owning procedures repeat the same lower-level mechanic, move only
+that demonstrated mechanic into a shared helper and pass the policy explicitly.
+For example, ordinary unit-target autocast acquisition uses
+`S_AutocastAcquireUnit(caster, code, friendly, wounded, fallback_range)`; the
+ability procedure still decides relation, wounded-only policy and fallback
+radius, while the helper owns nearest-candidate scanning and re-enters the normal
+`S_CastUnitTargetSpell` path. Do not force special acquisition rules such as Moon
+Well thresholds or Barkskin's existing-buff exclusion through that helper. See
+[Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families).
+
 ### 6. Verify the focused pattern, then the family
 
 ```sh
