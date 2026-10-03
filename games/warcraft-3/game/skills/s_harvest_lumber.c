@@ -161,7 +161,7 @@ bool S_CanReturnResourceAt(edict_t *unit, edict_t *building, returnResource_t re
     /* Unit data exposes Return Resources before construction completes, but
      * Warcraft keeps that capability unavailable until the structure is finished. */
     if (!unit || !building || !building->inuse || building->s.player != unit->s.player ||
-        M_IsDead(building) || E_construction_get(building)->active)
+        M_IsDead(building) || (building->construction && building->construction->active))
         return false;
     if (!building->data.UnitAbilities || !(abilities = building->data.UnitAbilities->abilList))
         return false;

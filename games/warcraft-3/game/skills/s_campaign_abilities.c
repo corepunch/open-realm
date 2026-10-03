@@ -120,20 +120,22 @@ static float ensnare_authored_height(edict_t const *unit) {
 static void ensnare_begin_land(edict_t *unit, uint32_t spell_code, uint32_t level) {
     float adjust, height;
     if (!unit || !ensnare_is_flyer(unit)) {
-        if (unit) G_PoolDrop_ensnare(unit);
+        if (unit) G_FreeEnsnare(unit);
         return;
     }
     adjust = S_SpellData(spell_code, level, 1);
     height = S_SpellData(spell_code, level, 2);
     if (height <= 0.0f) height = unit->unitinfo.FlyHeight > 0.0f ? unit->unitinfo.FlyHeight : ensnare_authored_height(unit);
-    E_ensnare(unit)->adjust = adjust;
-    E_ensnare(unit)->height = height;
-    E_ensnare(unit)->start = G_Time();
+    if (!unit->ensnare) unit->ensnare = G_AllocEnsnare();
+    assert(unit->ensnare);
+    unit->ensnare->adjust = adjust;
+    unit->ensnare->height = height;
+    unit->ensnare->start = G_Time();
     if (adjust <= 0.0f) {
         unit->unitinfo.FlyHeight = 0.0f;
-        G_PoolDrop_ensnare(unit);
+        G_FreeEnsnare(unit);
     } else {
-        E_ensnare(unit)->phase = ENSNARE_HEIGHT_LAND;
+        unit->ensnare->phase = ENSNARE_HEIGHT_LAND;
         unit->unitinfo.FlyHeight = height;
     }
     M_CheckGround(unit);
@@ -149,21 +151,21 @@ static void ensnare_set_height(edict_t *unit, float height) {
 /* Advance land/rise owned by CAbilityEnsnare (AB_UPDATE). */
 static void ensnare_update(edict_t *unit) {
     float frac, target;
-    if (!unit || E_ensnare_get(unit)->phase == ENSNARE_HEIGHT_NONE || E_ensnare_get(unit)->adjust <= 0.0f) return;
-    frac = ((float)G_Time() - (float)E_ensnare_get(unit)->start) / (E_ensnare_get(unit)->adjust * 1000.0f);
-    if (E_ensnare_get(unit)->phase == ENSNARE_HEIGHT_LAND) {
+    if (!unit || !unit->ensnare || unit->ensnare->phase == ENSNARE_HEIGHT_NONE || unit->ensnare->adjust <= 0.0f) return;
+    frac = ((float)G_Time() - (float)unit->ensnare->start) / (unit->ensnare->adjust * 1000.0f);
+    if (unit->ensnare->phase == ENSNARE_HEIGHT_LAND) {
         if (frac >= 1.0f) {
             ensnare_set_height(unit, 0.0f);
-            E_ensnare(unit)->phase = ENSNARE_HEIGHT_NONE;
+            unit->ensnare->phase = ENSNARE_HEIGHT_NONE;
         } else {
-            ensnare_set_height(unit, E_ensnare_get(unit)->height * MAX(0.0f, 1.0f - frac));
+            ensnare_set_height(unit, unit->ensnare->height * MAX(0.0f, 1.0f - frac));
         }
         return;
     }
-    target = E_ensnare_get(unit)->height > 0.0f ? E_ensnare_get(unit)->height : ensnare_authored_height(unit);
+    target = unit->ensnare->height > 0.0f ? unit->ensnare->height : ensnare_authored_height(unit);
     if (frac >= 1.0f) {
         ensnare_set_height(unit, target);
-        G_PoolDrop_ensnare(unit);
+        G_FreeEnsnare(unit);
     } else {
         ensnare_set_height(unit, target * MAX(0.0f, frac));
     }
@@ -200,12 +202,12 @@ static void ensnare_restore_flight(edict_t *unit) {
     if (!unit || !ensnare_authored_flyer(unit) || (unit->aiflags & AI_FLYING)) return;
     unit->aiflags |= AI_FLYING;
     unit->targtype = TARG_AIR;
-    if (E_ensnare_get(unit)->phase == ENSNARE_HEIGHT_LAND && E_ensnare_get(unit)->adjust > 0.0f) {
-        E_ensnare(unit)->height = unit->data.UnitData->moveHeight;
-        E_ensnare(unit)->start = G_Time();
-        E_ensnare(unit)->phase = ENSNARE_HEIGHT_RISE;
+    if (unit->ensnare && unit->ensnare->phase == ENSNARE_HEIGHT_LAND && unit->ensnare->adjust > 0.0f) {
+        unit->ensnare->height = unit->data.UnitData->moveHeight;
+        unit->ensnare->start = G_Time();
+        unit->ensnare->phase = ENSNARE_HEIGHT_RISE;
         unit->unitinfo.FlyHeight = 0.0f;
-    } else if (E_ensnare_get(unit)->phase != ENSNARE_HEIGHT_RISE && unit->unitinfo.FlyHeight <= 0.0f) {
+    } else if ((!unit->ensnare || unit->ensnare->phase != ENSNARE_HEIGHT_RISE) && unit->unitinfo.FlyHeight <= 0.0f) {
         unit->unitinfo.FlyHeight = unit->data.UnitData->moveHeight;
     }
     M_CheckGround(unit);
@@ -235,15 +237,17 @@ static void ensnare_remove(edict_t *unit, heroabilitystatus_t const *expiring) {
         if (slot->level && slot != expiring && S_StatusIsEnsnare(slot->code)) return;
     }
     if (ensnare_is_flyer(unit)) {
-        adjust = expiring->data ? S_SpellData(expiring->data, expiring->level, 1) : E_ensnare_get(unit)->adjust;
+        adjust = expiring->data ? S_SpellData(expiring->data, expiring->level, 1) : (unit->ensnare ? unit->ensnare->adjust : 0.0f);
         target = ensnare_authored_height(unit);
         if (adjust > 0.0f) {
-            E_ensnare(unit)->adjust = adjust;
-            E_ensnare(unit)->height = target > 0.0f ? target : E_ensnare_get(unit)->height;
-            E_ensnare(unit)->start = G_Time();
-            E_ensnare(unit)->phase = ENSNARE_HEIGHT_RISE;
+            if (!unit->ensnare) unit->ensnare = G_AllocEnsnare();
+            assert(unit->ensnare);
+            unit->ensnare->adjust = adjust;
+            unit->ensnare->height = target > 0.0f ? target : unit->ensnare->height;
+            unit->ensnare->start = G_Time();
+            unit->ensnare->phase = ENSNARE_HEIGHT_RISE;
             unit->unitinfo.FlyHeight = 0.0f;
-        } else G_PoolDrop_ensnare(unit);
+        } else G_FreeEnsnare(unit);
     }
     ensnare_restore_flight(unit);
 }
@@ -291,7 +295,7 @@ BZ_ABILITY_PROC(CAbilityWeb) {
         return target && target != ent && target->targtype == TARG_AIR &&
             S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent, target);
     }
-    if (msg == A_AUTOCAST_ACQUIRE && call &E_item_get(call)) {
+    if (msg == A_AUTOCAST_ACQUIRE && call && call->item) {
         FILTER_EDICTS(target, target->targtype == TARG_AIR && S_SpellIsEnemy(ent, target))
             if (S_CastUnitTargetSpell(ent, call->item->code, target)) return true;
         return false;

@@ -254,7 +254,7 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     button->hotkey = hotkey && *hotkey ? *hotkey : '\0';
     button->x = x == UINT_MAX ? 255 : (uint8_t)MIN(x, 3);
     button->y = y == UINT_MAX ? 255 : (uint8_t)MIN(y, 2);
-    *E_research(button) = research ? 1 : 0;
+    button->research = research ? 1 : 0;
     button->level = level;
     button->active = (uint8_t)GetAbilityIndex(ability ? ability->proc : NULL);
     button->engaged = !research && toggle_on ? 1 : 0;
@@ -364,7 +364,7 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
      * from Astd inherit the same visibility rule. */
-    if (ability->proc == CAbilityStandDown && (!S_CargoIsBurrow(ent) || E_cargo_get(ent)->count == 0)) return;
+    if (ability->proc == CAbilityStandDown && (!S_CargoIsBurrow(ent) || !ent->cargo || ent->cargo->count == 0)) return;
     if (G_HasCommandRawcode(buttons, *count, rawcode)) return;
     idx = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
@@ -447,7 +447,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     w = ent->data.UnitWeapons;
     a = ent->data.UnitAbilities;
     is_burrow = S_CargoIsBurrow(ent);
-    burrow_occupied = is_burrow && E_cargo_get(ent)->count > 0;
+    burrow_occupied = is_burrow && ent->cargo && ent->cargo->count > 0;
 
     /* Unsummon owns the building until destruction. Rally metadata remains
      * editable, but actions and cancellation are hidden. */
@@ -467,7 +467,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
 
     /* Construction has its own command-card state.  Returning no buttons for
      * every birth move made spawned Human buildings impossible to cancel. */
-    if (E_construction_get(ent)->active) {
+    if ((ent->construction && ent->construction->active)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancelBuild, false, 0);
         return count;
     }
@@ -478,8 +478,8 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     if (ent->currentmove && ent->currentmove->think == ai_birth && !G_UnitIsStructure(ent)) {
         return 0;
     }
-    if (E_ancient_root_get(ent)->mode == ANCIENT_UPROOTING ||
-        (E_ancient_root_get(ent)->mode == ANCIENT_ROOTING && !E_ancient_root_get(ent)->approaching)) {
+    if (ent->ancient_root && (ent->ancient_root->mode == ANCIENT_UPROOTING ||
+        (ent->ancient_root->mode == ANCIENT_ROOTING && !ent->ancient_root->approaching))) {
         return 0;
     }
 
@@ -628,7 +628,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     /* The existing Cancel command can safely cancel the active revival. Do
      * not expose it for ordinary unit training until that queue has matching
      * refund semantics. */
-    if (ent->build && E_revival_get(ent->build)->reviving) {
+    if (ent->build && (ent->build->revival && ent->build->revival->reviving)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancel, false, 0);
     }
 
@@ -640,7 +640,7 @@ bool G_BuildInventoryItem(edict_t *ent, edict_t *item, uint8_t slot, gameInvento
     cstring_t art;
 
     if (!ent || !out || slot >= G_InventoryCapacity(ent) || !G_IsItem(item) ||
-        E_item_get(item)->carrier != ent || E_item_get(item)->inventory_slot != slot || E_item_get(item)->in_world) return false;
+        item->item->carrier != ent || item->item->inventory_slot != slot || item->item->in_world) return false;
 
     memset(out, 0, sizeof(*out));
     item_name = GetClassName(item->class_id);
@@ -689,16 +689,16 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
      * that state through the same queue payload used by training/research. */
     if (G_BuildingUpgradeActive(ent)) {
         gameCommandButton_t button;
-        uint32_t const duration = (uint32_t)(MAX(0.0f, E_research_get(ent)->duration) * 1000.0f);
-        float progress = E_research_get(ent)->duration > 0.0f
-            ? E_research_get(ent)->progress / E_research_get(ent)->duration : 1.0f;
+        uint32_t const duration = (uint32_t)(MAX(0.0f, ent->research->duration) * 1000.0f);
+        float progress = ent->research->duration > 0.0f
+            ? ent->research->progress / ent->research->duration : 1.0f;
         uint32_t const elapsed = (uint32_t)((float)duration * MAX(0.0f, MIN(1.0f, progress)));
 
-        if (G_BuildCommandButton(ent, GetClassName(E_research_get(ent)->upgrade), false, 0, &button)) {
+        if (G_BuildCommandButton(ent, GetClassName(ent->research->upgrade), false, 0, &button)) {
             UI_CopyString(queue[0].art, sizeof(queue[0].art), button.art);
         } else {
             UI_CopyString(queue[0].art, sizeof(queue[0].art),
-                          FindConfigValue(GetClassName(E_research_get(ent)->upgrade), STR_ART));
+                          FindConfigValue(GetClassName(ent->research->upgrade), STR_ART));
         }
         queue[0].starttime = elapsed <= cursor ? cursor - elapsed : cursor;
         queue[0].endtime = queue[0].starttime + duration;
@@ -706,36 +706,36 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
     }
 
     for (edict_t *build = ent->build; build && count < max_queue;
-         build = E_revival_get(build)->reviving ? E_revival_get(build)->queue_next : build->build) {
+         build = (build->revival && build->revival->reviving) ? build->revival->queue_next : build->build) {
         uint32_t duration;
         float progress = 0;
 
-        if (E_research_get(build)->upgrade != 0) {
+        if (build->research && build->research->upgrade != 0) {
             gameCommandButton_t button;
-            duration = (uint32_t)(MAX(0.0f, E_research_get(build)->duration) * 1000.0f);
-            if (G_BuildCommandButton(ent, GetClassName(E_research_get(build)->upgrade), true,
-                                     (uint32_t)E_research_get(build)->level, &button)) {
+            duration = (uint32_t)(MAX(0.0f, build->research->duration) * 1000.0f);
+            if (G_BuildCommandButton(ent, GetClassName(build->research->upgrade), true,
+                                     (uint32_t)build->research->level, &button)) {
                 UI_CopyString(queue[count].art, sizeof(queue[count].art), button.art);
             }
-            if (count == 0 && E_research_get(build)->duration > 0.0f) {
-                progress = E_research_get(build)->progress / E_research_get(build)->duration;
+            if (count == 0 && build->research->duration > 0.0f) {
+                progress = build->research->progress / build->research->duration;
                 progress = MAX(0, MIN(progress, 1));
             }
         } else {
             cstring_t build_name = GetClassName(build->class_id);
-            duration = E_revival_get(build)->reviving
+            duration = (build->revival && build->revival->reviving)
                 ? (uint32_t)(G_HeroReviveTime(build) * 1000.0f)
                 : (build->data.UnitBalance ? (uint32_t)MAX(0, build->data.UnitBalance->buildTime) * 1000 : 0);
             if (count == 0) {
                 int32_t cost = build->data.UnitBalance ? MAX(0, build->data.UnitBalance->foodUsed) : 0;
-                if (E_revival_get(build)->reviving && duration > 0) {
-                    progress = E_revival_get(build)->progress / ((float)duration / 1000.0f);
+                if ((build->revival && build->revival->reviving) && duration > 0) {
+                    progress = build->revival->progress / ((float)duration / 1000.0f);
                     progress = MAX(0, MIN(progress, 1));
                 } else if (build->health.max_value > 0) {
                     progress = build->health.value / build->health.max_value;
                     progress = MAX(0, MIN(progress, 1));
                 }
-                food_blocked = build->training && cost > 0 && E_food_get(build)->used == 0 && G_FoodLimitsEnabled();
+                food_blocked = build->training && cost > 0 && (!build->food || build->food->used == 0) && G_FoodLimitsEnabled();
             }
             UI_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
         }
@@ -756,8 +756,8 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
             queue[count].endtime = cursor;
         }
         count++;
-        if ((E_revival_get(build)->reviving && E_revival_get(build)->queue_next == build) ||
-            (!E_revival_get(build)->reviving && build->build == build)) {
+        if (((build->revival && build->revival->reviving) && build->revival->queue_next == build) ||
+            (!(build->revival && build->revival->reviving) && build->build == build)) {
             break;
         }
     }

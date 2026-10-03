@@ -48,7 +48,7 @@ static uint32_t repair_find_code(edict_t *ent, abilityProc_t wanted, uint32_t pr
 }
 
 static AbilityData_t const *repair_data(edict_t *ent) {
-    return ent && E_buildwork_get(ent)->ability ? G_AbilityData(E_buildwork_get(ent)->ability) : NULL;
+    return ent && ent->buildwork->ability ? G_AbilityData(ent->buildwork->ability) : NULL;
 }
 
 static bool repair_list_has_token(cstring_t list, cstring_t full, cstring_t short_name) {
@@ -139,24 +139,25 @@ static bool repair_target_is_float(edict_t const *target) {
 
 static bool repair_primary_active(edict_t *building) {
     edict_t *worker;
-    if (!building) return false;
-    worker = E_construction_get(building)->primary_builder;
+    if (!building || !building->construction) return false;
+    worker = building->construction->primary_builder;
     return worker && worker->inuse && !(worker->svflags & SVF_DEADMONSTER) && worker->build == building &&
            worker->currentmove && worker->currentmove->proc == CAbilityRepair;
 }
 
 static void repair_release(edict_t *ent) {
     edict_t *building;
-    if (!ent) return;
+    if (!ent || !ent->buildwork) return;
     building = ent->build;
-    if (E_buildwork_get(ent)->primary && building && E_construction_get(building)->primary_builder == ent) {
-        E_construction(building)->primary_builder = NULL;
+    if (ent->buildwork->primary && building && building->construction && building->construction->primary_builder == ent) {
+        building->construction->primary_builder = NULL;
     }
     if (ent->build == building) ent->build = NULL;
-    E_buildwork(ent)->primary = false;
-    E_buildwork(ent)->ability = 0;
-    E_buildwork(ent)->gold_accum = 0.0f;
-    E_buildwork(ent)->lumber_accum = 0.0f;
+    assert(ent->buildwork);
+    ent->buildwork->primary = false;
+    ent->buildwork->ability = 0;
+    ent->buildwork->gold_accum = 0.0f;
+    ent->buildwork->lumber_accum = 0.0f;
 }
 
 void S_CancelRepair(edict_t *ent) {
@@ -164,8 +165,8 @@ void S_CancelRepair(edict_t *ent) {
     edict_t *building;
     edict_t *goal;
 
-    if (!ent || !E_buildwork_get(ent)->ability) return;
-    ability = repair_handler(E_buildwork_get(ent)->ability);
+    if (!ent || !ent->buildwork || !ent->buildwork->ability) return;
+    ability = repair_handler(ent->buildwork->ability);
     if (ability != CAbilityRepair && ability != CAbilityRepairGeneric) return;
     building = ent->build;
     goal = ent->goalentity;
@@ -197,7 +198,7 @@ static void repair_stop_reason(edict_t *ent, cstring_t reason) {
     bool resume_harvest = building && ent && building->s.player == ent->s.player &&
                           building->class_id == MAKEFOURCC('h','t','o','w') && reason &&
                           (!strcmp(reason, "construction_complete") || !strcmp(reason, "repair_complete") ||
-                           (!strcmp(reason, "work_target_invalid") && !E_construction_get(building)->active &&
+                           (!strcmp(reason, "work_target_invalid") && !(building->construction && building->construction->active) &&
                             building->health.value >= building->health.max_value));
 #ifdef WC3_DEBUG_AUTOCAST
     if (G_AutocastDebugLevel() >= 1 && ent) {
@@ -218,9 +219,9 @@ static void repair_stop_reason(edict_t *ent, cstring_t reason) {
             ent && g_edicts ? (long)(ent - g_edicts) : -1L, reason ? reason : "unknown",
             building && g_edicts ? (long)(building - g_edicts) : -1L,
             building ? (cstring_t)&building->class_id : "----",
-            building ? (int)E_construction_get(building)->active : 0,
+            building ? (int)(building->construction && building->construction->active) : 0,
             building ? building->health.value : 0.0f, building ? building->health.max_value : 0.0f,
-            ent && E_buildwork_get(ent)->primary ? 1 : 0,
+            ent && ent->buildwork->primary ? 1 : 0,
             ent && ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
             ent && ent->goalentity && g_edicts ? (long)(ent->goalentity - g_edicts) : -1L);
 #endif
@@ -255,10 +256,10 @@ static bool repair_charge(edict_t *ent, float gold_rate, float lumber_rate) {
     if (!client) return false;
 
     seconds = (float)FRAMETIME / 1000.0f;
-    E_buildwork(ent)->gold_accum += MAX(0.0f, gold_rate) * seconds;
-    E_buildwork(ent)->lumber_accum += MAX(0.0f, lumber_rate) * seconds;
-    gold_due = (int32_t)floorf(E_buildwork_get(ent)->gold_accum);
-    lumber_due = (int32_t)floorf(E_buildwork_get(ent)->lumber_accum);
+    ent->buildwork->gold_accum += MAX(0.0f, gold_rate) * seconds;
+    ent->buildwork->lumber_accum += MAX(0.0f, lumber_rate) * seconds;
+    gold_due = (int32_t)floorf(ent->buildwork->gold_accum);
+    lumber_due = (int32_t)floorf(ent->buildwork->lumber_accum);
 
     if (gold_due > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] ||
         lumber_due > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
@@ -266,11 +267,11 @@ static bool repair_charge(edict_t *ent, float gold_rate, float lumber_rate) {
     }
     if (gold_due > 0) {
         client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold_due;
-        E_buildwork(ent)->gold_accum -= gold_due;
+        ent->buildwork->gold_accum -= gold_due;
     }
     if (lumber_due > 0) {
         client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber_due;
-        E_buildwork(ent)->lumber_accum -= lumber_due;
+        ent->buildwork->lumber_accum -= lumber_due;
     }
     if (gold_due || lumber_due) {
         G_RefreshResourceBar(G_GetPlayerEntityByNumber(ent->s.player));
@@ -283,7 +284,7 @@ static bool repair_charge_power_cost(edict_t *ent, edict_t *building, AbilityDat
     float build_time;
     float cost_ratio;
 
-    if (!ent || !building || E_buildwork_get(ent)->primary || G_BuildAllEnabled()) return true;
+    if (!ent || !building || ent->buildwork->primary || G_BuildAllEnabled()) return true;
     balance = building->data.UnitBalance;
     build_time = balance ? (float)balance->buildTime : 0.0f;
     cost_ratio = data ? data->level[0].data[2].number : 0.0f;
@@ -302,7 +303,7 @@ static bool repair_target_valid(edict_t *ent, edict_t *target, uint32_t code, bo
     if (!target->data.UnitBalance || !repair_target_category_allowed(target, data)) return false;
     if (!repair_target_relation_allowed(ent, target, data)) return false;
 
-    if (E_construction_get(target)->active) {
+    if ((target->construction && target->construction->active)) {
         /* Human power building is construction ownership, not ordinary Friend
          * Repair. Do not let an allied worker become another player's primary
          * or additional builder through this completed-unit target expansion. */
@@ -311,11 +312,11 @@ static bool repair_target_valid(edict_t *ent, edict_t *target, uint32_t code, bo
         /* Power Build is a Human construction rule. Orc, Undead, and Night
          * Elf structures progress autonomously and ordinary Repair must not
          * become an accidental second construction clock for them. */
-        if (E_construction_get(target)->type != CONSTRUCTION_HUMAN) return false;
+        if (target->construction->type != CONSTRUCTION_HUMAN) return false;
         /* DataD is the extra-worker power-build ratio. The primary Human
          * builder always contributes at 1.0 and must not be rejected merely
          * because DataD is zero/missing for additional workers. */
-        return handler == CAbilityRepair && data && E_construction_get(target)->paused &&
+        return handler == CAbilityRepair && data && target->construction->paused &&
                (primary || data->level[0].data[3].number > 0.0f);
     }
     return target->health.value < target->health.max_value;
@@ -358,7 +359,7 @@ static void repair_set_work(edict_t *ent) {
     if (!ent || !building) return;
     ent->goalentity = building;
     move_reset_progress(ent);
-    if (repair_handler(E_buildwork_get(ent)->ability) == CAbilityRepairGeneric)
+    if (repair_handler(ent->buildwork->ability) == CAbilityRepairGeneric)
         unit_setmove(ent, &repair_generic_move_work);
     else
         unit_setmove(ent, &repair_move_work);
@@ -406,7 +407,7 @@ static bool repair_set_walk(edict_t *ent) {
         repair_stop_reason(ent, "no_approach");
         return false;
     }
-    if (repair_handler(E_buildwork_get(ent)->ability) == CAbilityRepairGeneric)
+    if (repair_handler(ent->buildwork->ability) == CAbilityRepairGeneric)
         unit_setmove(ent, &repair_generic_move_walk);
     else
         unit_setmove(ent, &repair_move_walk);
@@ -417,8 +418,8 @@ static void ai_repair_walk(edict_t *ent) {
     edict_t *building = ent ? ent->build : NULL;
     float distance, step;
 
-    if (!building || !repair_target_valid(ent, building, E_buildwork_get(ent)->ability,
-                                           E_buildwork_get(ent)->primary)) {
+    if (!building || !repair_target_valid(ent, building, ent->buildwork->ability,
+                                           ent->buildwork->primary)) {
         repair_stop_reason(ent, "walk_target_invalid");
         return;
     }
@@ -452,8 +453,8 @@ static void ai_repair(edict_t *ent) {
     AbilityData_t const *data;
     edictStat_s *hp;
 
-    if (!building || !repair_target_valid(ent, building, E_buildwork_get(ent)->ability,
-                                           E_buildwork_get(ent)->primary)) {
+    if (!building || !repair_target_valid(ent, building, ent->buildwork->ability,
+                                           ent->buildwork->primary)) {
         repair_stop_reason(ent, "work_target_invalid");
         return;
     }
@@ -466,18 +467,18 @@ static void ai_repair(edict_t *ent) {
     hp = &building->health;
     unit_changeangle(ent);
 
-    if (E_construction_get(building)->active) {
+    if ((building->construction && building->construction->active)) {
         float ratio;
         float duration;
         float hp_gain;
         float start_hp;
 
-        if (!E_construction_get(building)->paused || !data) {
+        if (!building->construction->paused || !data) {
             repair_stop_reason(ent, "construction_not_paused_or_no_data");
             return;
         }
-        if (E_buildwork_get(ent)->primary) {
-            if (E_construction_get(building)->primary_builder != ent) {
+        if (ent->buildwork->primary) {
+            if (building->construction->primary_builder != ent) {
                 repair_stop_reason(ent, "lost_primary_builder");
                 return;
             }
@@ -495,12 +496,12 @@ static void ai_repair(edict_t *ent) {
         }
 
         duration = MAX(1.0f, (float)building->data.UnitBalance->buildTime * 1000.0f);
-        E_construction(building)->progress += (float)FRAMETIME * ratio;
+        building->construction->progress += (float)FRAMETIME * ratio;
         G_UpdateConstructionAnimation(building);
         start_hp = MAX(1.0f, hp->max_value * 0.10f);
         hp_gain = (hp->max_value - start_hp) * ((float)FRAMETIME * ratio / duration);
         G_AddHealth(building, hp_gain);
-        if (E_construction_get(building)->progress >= duration) {
+        if (building->construction->progress >= duration) {
             G_CompleteConstruction(building);
             repair_stop_reason(ent, "construction_complete");
         }
@@ -605,10 +606,12 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
                 (long)(building - globals.edicts), (cstring_t)&building->class_id,
                 building->health.value, building->health.max_value);
     }
-    E_buildwork(ent)->primary = primary;
-    E_buildwork(ent)->ability = code;
-    E_buildwork(ent)->gold_accum = 0.0f;
-    E_buildwork(ent)->lumber_accum = 0.0f;
+    if (!ent->buildwork) ent->buildwork = G_AllocBuildwork();
+    assert(ent->buildwork);
+    ent->buildwork->primary = primary;
+    ent->buildwork->ability = code;
+    ent->buildwork->gold_accum = 0.0f;
+    ent->buildwork->lumber_accum = 0.0f;
     move_reset_progress(ent);
 #ifdef WC3_DEBUG_AUTOCAST
     if (G_AutocastDebugLevel() >= 1) {
@@ -636,7 +639,7 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
         ent->s.origin2 = origin;
         ent->s.angle = angle - M_PI;
         gi.LinkEntity(ent);
-        E_construction(building)->primary_builder = ent;
+        building->construction->primary_builder = ent;
     }
 
     if (repair_in_range(ent, building)) repair_set_work(ent);
@@ -647,8 +650,8 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
 void repair_build_primary(edict_t *ent, edict_t *building) {
     uint32_t code = repair_find_code(ent, CAbilityRepair, 0);
     if (!code || !repair_begin(ent, building, code, true)) {
-        if (building && E_construction_get(building)->primary_builder == ent)
-            E_construction(building)->primary_builder = NULL;
+        if (building && building->construction && building->construction->primary_builder == ent)
+            building->construction->primary_builder = NULL;
     }
 }
 
@@ -666,10 +669,12 @@ void repair_build_legacy(edict_t *ent, edict_t *building) {
     gi.LinkEntity(ent);
     ent->build = building;
     ent->goalentity = building;
-    E_buildwork(ent)->primary = false;
-    E_buildwork(ent)->ability = 0;
-    E_buildwork(ent)->gold_accum = 0.0f;
-    E_buildwork(ent)->lumber_accum = 0.0f;
+    if (!ent->buildwork) ent->buildwork = G_AllocBuildwork();
+    assert(ent->buildwork);
+    ent->buildwork->primary = false;
+    ent->buildwork->ability = 0;
+    ent->buildwork->gold_accum = 0.0f;
+    ent->buildwork->lumber_accum = 0.0f;
     unit_setmove(ent, &repair_legacy_move_work);
 }
 
@@ -690,14 +695,14 @@ bool S_OrderRepair(edict_t *ent, edict_t *target, uint32_t preferred) {
     code = repair_find_code(ent, wanted, preferred);
     if (!code) return false;
 
-    if (E_construction_get(target)->active) {
+    if ((target->construction && target->construction->active)) {
         /* Friend permits ordinary allied Repair, not construction ownership.
          * Reject before touching primary_builder so an allied Repair click can
          * never detach the owning player's Human builder. */
         if (target->s.player != ent->s.player) return false;
         if (repair_handler(code) != CAbilityRepair) return false;
         if (!repair_primary_active(target)) {
-            E_construction(target)->primary_builder = NULL;
+            target->construction->primary_builder = NULL;
             primary = true;
         }
     }
@@ -738,9 +743,9 @@ static cstring_t repair_autocast_reject_reason(edict_t *ent, edict_t *target, ui
     data = G_AbilityData(code);
     if (!repair_target_category_allowed(target, data)) return "target_category";
     if (!repair_target_relation_allowed(ent, target, data)) return "target_relation";
-    if (E_construction_get(target)->active) {
+    if ((target->construction && target->construction->active)) {
         if (handler != CAbilityRepair) return "construction_requires_human_repair";
-        if (!E_construction_get(target)->paused) return "construction_not_paused";
+        if (!target->construction->paused) return "construction_not_paused";
         if (!repair_primary_active(target)) primary = true;
         if (!primary && (!data || data->level[0].data[3].number <= 0.0f)) return "no_power_build_ratio";
     } else if (target->health.value >= target->health.max_value) {
@@ -907,12 +912,12 @@ static bool repair_selecttarget(edict_t *clent, edict_t *target) {
         return false;
     }
 
-    if (!E_construction_get(target)->active && target->health.value >= target->health.max_value) {
+    if (!(target->construction && target->construction->active) && target->health.value >= target->health.max_value) {
         G_ShowCommandErrorKey(clent, "RepairHPmaxed", "Target is not damaged.");
         return false;
     }
-    if (E_construction_get(target)->active &&
-        (handler != CAbilityRepair || !E_construction_get(target)->paused)) {
+    if ((target->construction && target->construction->active) &&
+        (handler != CAbilityRepair || !target->construction->paused)) {
         G_ShowCommandErrorKey(clent, "UnderConstruction", "That building is currently under construction.");
         return false;
     }

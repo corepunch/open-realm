@@ -12,8 +12,8 @@ static bool unit_is_active_repair_move(edict_t *self) {
     char rawcode[5];
     ability_t const *handler;
 
-    if (!self || !self->currentmove || !E_buildwork_get(self)->ability) return false;
-    memcpy(rawcode, &E_buildwork(self)->ability, 4);
+    if (!self || !self->currentmove || !self->buildwork || !self->buildwork->ability) return false;
+    memcpy(rawcode, &self->buildwork->ability, 4);
     rawcode[4] = '\0';
     handler = FindAbilityForCommand(rawcode);
     return handler && self->currentmove->proc == handler->proc;

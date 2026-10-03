@@ -115,8 +115,8 @@ TEST(wc3_spell, sacrifice_pit_target_hides_acolyte_and_queues_shade) {
     result->collision = 16.0f;
     T_EQ(result->class_id, ID_SHADE);
     T_ASSERT(result->training);
-    T_ASSERT(E_sacrifice_get(result)->active);
-    T_ASSERT(E_sacrifice_get(result)->worker == fix.acolyte);
+    T_ASSERT(result->sacrifice->active);
+    T_ASSERT(result->sacrifice->worker == fix.acolyte);
     T_ASSERT(fix.acolyte->s.renderfx & RF_HIDDEN);
     T_ASSERT(fix.acolyte->paused);
     /* Sacrifice does not reserve the Shade's food while the Acolyte still owns
@@ -291,8 +291,8 @@ TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
     T_ASSERT(WriteGame(filename));
     T_ASSERT(ReadGame(filename));
     T_ASSERT(fix.pit->build == result);
-    T_ASSERT(E_sacrifice_get(result)->active);
-    T_ASSERT(E_sacrifice_get(result)->worker == fix.acolyte);
+    T_ASSERT(result->sacrifice->active);
+    T_ASSERT(result->sacrifice->worker == fix.acolyte);
     result_balance = *result->data.UnitBalance;
     result_balance.buildTime = 1;
     result_balance.foodUsed = 1;

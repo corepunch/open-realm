@@ -63,7 +63,8 @@ static void exh_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
 
 static uint32_t exh_corpse_count(edict_t *wagon) {
 	uint32_t n = 0;
-	FOR_LOOP(i, E_cargo_get(wagon)->count) {
+	if (!wagon->cargo) return 0;
+	FOR_LOOP(i, wagon->cargo->count) {
 		edict_t *ent = S_CargoUnitAt(wagon, i);
 		if (ent && ent->class_id == BZ_HFOO && S_CorpseCargoIsStored(ent)) n++;
 	}
@@ -99,7 +100,7 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	exh_tick(1999); T_EQ(exh_corpse_count(fix.wagon), 0);
 	exh_tick(1); T_EQ(exh_corpse_count(fix.wagon), 1);
 	corpse = NULL;
-	FOR_LOOP(i, E_cargo_get(fix.wagon)->count) {
+	FOR_LOOP(i, fix.wagon->cargo->count) {
 		edict_t *ent = S_CargoUnitAt(fix.wagon, i);
 		if (ent && ent->class_id == BZ_HFOO && S_CorpseCargoIsStored(ent) && !corpse) corpse = ent;
 	}
@@ -108,7 +109,7 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	T_FEQ(corpse->s.origin2.y, fix.wagon->s.origin2.y, 0.001f);
 	T_ASSERT(S_CorpseCargoIsStored(corpse)); T_ASSERT(corpse->paused);
 	T_EQ((int)S_CargoCapacity(fix.wagon), 8);
-	T_ASSERT(S_CargoUnloadAt(fix.wagon, 0)); T_EQ(E_cargo_get(fix.wagon)->count, 0);
+	T_ASSERT(S_CargoUnloadAt(fix.wagon, 0)); T_ASSERT(!fix.wagon->cargo || fix.wagon->cargo->count == 0);
 	exh_done(&fix);
 }
 
@@ -126,7 +127,7 @@ TEST(wc3_spell, meat_wagon_corpse_hold_rejects_living_unit_boarding) {
 
     T_ASSERT(!S_CargoTryLoad(fix.wagon, living));
     T_ASSERT(!S_CargoOrderBoard(living, fix.wagon));
-    T_EQ(E_cargo_get(fix.wagon)->count, 0);
+    T_ASSERT(!fix.wagon->cargo || fix.wagon->cargo->count == 0);
     T_ASSERT(!(living->s.renderfx & RF_HIDDEN));
     T_ASSERT(!living->paused);
     T_NULL(S_CargoTransportForUnit(living));
@@ -138,7 +139,7 @@ TEST(wc3_spell, corpse_cargo_effective_position_tracks_moving_holder) {
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
-    FOR_LOOP(i, E_cargo_get(fix.wagon)->count) {
+    FOR_LOOP(i, fix.wagon->cargo->count) {
         edict_t *ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
@@ -179,7 +180,7 @@ TEST(wc3_spell, get_corpse_approaches_and_loads_nearby_corpse) {
     T_NOT_NULL(thinker);
     fix.wagon->s.origin2.x = 220.0f; fix.wagon->s.origin.x = 220.0f;
     if (thinker) thinker->think(thinker);
-    T_EQ(E_cargo_get(fix.wagon)->count, 1);
+    T_EQ(fix.wagon->cargo->count, 1);
     T_ASSERT(S_CorpseCargoIsStored(corpse));
     T_ASSERT(S_CargoTransportForUnit(corpse) == fix.wagon);
     T_ASSERT(!thinker->inuse);
@@ -212,7 +213,7 @@ TEST(wc3_spell, get_corpse_autocast_acquires_authored_valid_enemy_corpse) {
 
     fix.wagon->s.origin2.x = 260.0f; fix.wagon->s.origin.x = 260.0f;
     if (thinker) thinker->think(thinker);
-    T_EQ(E_cargo_get(fix.wagon)->count, 1);
+    T_EQ(fix.wagon->cargo->count, 1);
     T_ASSERT(S_CorpseCargoIsStored(corpse));
     T_ASSERT(S_CargoTransportForUnit(corpse) == fix.wagon);
     exh_done(&fix);
@@ -228,7 +229,7 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
-    FOR_LOOP(i, E_cargo_get(fix.wagon)->count) {
+    FOR_LOOP(i, fix.wagon->cargo->count) {
         edict_t *ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
@@ -268,7 +269,7 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
         level.time += FRAMETIME;
         G_RunEntities();
     }
-    T_EQ(E_channel_get(caster)->code, MAKEFOURCC('A', 'c', 'a', 'n'));
+    T_EQ(caster->channel->code, MAKEFOURCC('A', 'c', 'a', 'n'));
     T_ASSERT(corpse->aiflags & AI_CORPSE_RESERVED);
     exh_done(&fix);
 }
@@ -283,7 +284,7 @@ TEST(wc3_spell, cannibalize_approach_cancels_when_corpse_disappears) {
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
-    FOR_LOOP(i, E_cargo_get(fix.wagon)->count) {
+    FOR_LOOP(i, fix.wagon->cargo->count) {
         edict_t *ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
@@ -384,7 +385,9 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
     graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
     graveyard->health.value = graveyard->health.max_value = 900;
     graveyard->heroabilities[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
-    E_construction(graveyard)->active = true;
+    if (!graveyard->construction) graveyard->construction = G_AllocConstruction();
+    assert(graveyard->construction);
+    graveyard->construction->active = true;
 
     S_RunAbilityUpdates(graveyard);
     T_NULL(graveyard_test_thinker(graveyard));
@@ -393,7 +396,7 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
     T_NULL(graveyard_test_thinker(graveyard));
     T_EQ(graveyard_test_corpse_count(graveyard), 0);
 
-    E_construction(graveyard)->active = false;
+    graveyard->construction->active = false;
     S_RunAbilityUpdates(graveyard);
     thinker = graveyard_test_thinker(graveyard); T_NOT_NULL(thinker);
     level.time += 999; graveyard_think(thinker);
@@ -403,7 +406,7 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
 
     /* A restored/stale producer must also stop if its owner becomes incomplete,
      * so it cannot continue producing from a pre-construction timer. */
-    E_construction(graveyard)->active = true;
+    graveyard->construction->active = true;
     graveyard_think(thinker);
     T_ASSERT(!thinker->inuse);
 

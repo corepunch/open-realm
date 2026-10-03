@@ -475,20 +475,20 @@ void build_build(edict_t *ent) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD construction-start worker=%ld building=%ld id=%.4s type=%d health=%.1f/%.1f\n",
                 (long)(ent - g_edicts), (long)(building - g_edicts), (cstring_t)&building_id,
-                E_construction_get(building)->type, building->health.value, building->health.max_value);
+                building->construction->type, building->health.value, building->health.max_value);
 #endif
         /* Cancellation refunds the exact base construction payment, not later
          * power-build Repair spending. Record that transaction on the spawned
          * structure while the paying client and authored cost are still known. */
-        E_construction(building)->payer = client->ps.number;
+        building->construction->payer = client->ps.number;
         if (!G_BuildAllEnabled()) {
-            E_construction(building)->paid = true;
-            E_construction(building)->gold = MAX(0, building->data.UnitBalance->goldCost);
-            E_construction(building)->lumber = MAX(0, building->data.UnitBalance->lumberCost);
+            building->construction->paid = true;
+            building->construction->gold = MAX(0, building->data.UnitBalance->goldCost);
+            building->construction->lumber = MAX(0, building->data.UnitBalance->lumberCost);
         }
-        if (E_construction_get(building)->type == CONSTRUCTION_HUMAN)
+        if (building->construction->type == CONSTRUCTION_HUMAN)
             repair_build_primary(ent, building);
-        else if (E_construction_get(building)->type == CONSTRUCTION_UNDEAD)
+        else if (building->construction->type == CONSTRUCTION_UNDEAD)
             unit_setmove(ent, &build_move_summon);
     } else {
         /* Preserve the old generic fallback for custom/unknown workers. */
@@ -684,7 +684,7 @@ BZ_ABILITY_PROC(CAbilityBuild) {
         queued->target_type == UNIT_ORDER_TARGET_BUILD) {
         build_clear_queued_indicator(queued);
         if (msg == A_QUEUE_ORDER_CANCEL) return true;
-        return call->item &E_item_get(call)->code &&
+        return call->item && call->item->code &&
                G_ExecuteBuildOrder(ent, call->item->code, &queued->point);
     }
     return false;

@@ -820,8 +820,8 @@ static intptr_t unit_dispatch_authored_abilities(edict_t *ent, abilityMsg_t msg,
     bool handled = false;
 
     if (!ent) return ABILITY_ORDER_UNHANDLED;
-    if (include_channel && msg == A_MOVE_LEAVE && E_channel_get(ent)->code) {
-        intptr_t const result = unit_dispatch_ability_code(ent, msg, payload, E_channel_get(ent)->code,
+    if (include_channel && msg == A_MOVE_LEAVE && ent->channel && ent->channel->code) {
+        intptr_t const result = unit_dispatch_ability_code(ent, msg, payload, ent->channel->code,
                                                             seen, &count, capacity, false);
         if (msg == A_ISSUED_TARGET_ORDER && result != ABILITY_ORDER_UNHANDLED) return result;
         handled |= result != 0;
@@ -1056,11 +1056,11 @@ abilityitem_t S_AbilityItem(uint32_t code) {
 
 /* Dispatch is synchronous and retains the concrete row and authored rawcode in the typed payload. */
 BZ_ABILITY_PROC(S_AbilityMessage) {
-    ability_t const *ability = call &E_item_get(call) ? call->item->ability : NULL;
+    ability_t const *ability = call && call->item ? call->item->ability : NULL;
     bool activating = msg == A_COMMAND || msg == A_ORDER || msg == A_VALIDATE || msg == A_EXECUTE ||
                       msg == A_AUTOCAST_ACQUIRE || (msg == A_AUTOCAST_SET && call && call->enabled);
     if (activating && ability && (ability->flags & (AB_COMMAND | AB_SPELL | AB_AUTOCAST))) {
-        uint32_t const code = call &E_item_get(call) ? call->item->code : 0;
+        uint32_t const code = call && call->item ? call->item->code : 0;
         if ((ability->flags & AB_SPELL) && code &&
             !G_UnitAbilityResearchAvailable(ent, code)) return false;
         if ((code && !G_IsUnitAbilityAvailable(ent, code)) ||

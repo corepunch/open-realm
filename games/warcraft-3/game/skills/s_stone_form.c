@@ -46,7 +46,7 @@ static bool stone_form_execute(edict_t *unit, uint32_t code) {
 }
 
 BZ_ABILITY_PROC(CAbilityStoneForm) {
-    uint32_t code = call &E_item_get(call) ? call->item->code : 0;
+    uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
     case A_COMMAND: {
         gameClient_t *client;
@@ -71,7 +71,7 @@ BZ_ABILITY_PROC(CAbilityStoneForm) {
     case A_VALIDATE:
         return stone_form_can_transform(ent, code);
     case A_EXECUTE:
-        return call &E_item_get(call) && stone_form_execute(ent, code);
+        return call && call->item && stone_form_execute(ent, code);
     default:
         return CAbilitySimpleSpell(ent, msg, call);
     }

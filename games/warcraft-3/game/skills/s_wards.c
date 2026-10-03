@@ -91,7 +91,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStasisTrap) {
  * placed unit as a real player-owned unit so its Amin/Amnx abilities own the
  * trap and death-damage lifecycle. */
 BZ_ABILITY_PROC(CAbilityPlaceMine) {
-	uint32_t code = call &E_item_get(call) ? call->item->code : 0;
+	uint32_t code = call && call->item ? call->item->code : 0;
 	uint32_t level = S_SpellLevel(ent, code);
 	uint32_t unit_id = code ? S_SpellUnitId(code, level) : 0;
 
@@ -159,7 +159,7 @@ void land_mine_think(edict_t *thinker) {
 	bool trigger = false;
 
 	if (!thinker || !thinker->inuse) return;
-	if (!mine || !mine->inuse || mine->spawn_time != E_channel_get(thinker)->owner_spawn_time || M_IsDead(mine)) {
+	if (!mine || !mine->inuse || mine->spawn_time != thinker->channel->owner_spawn_time || M_IsDead(mine)) {
 		G_FreeEdict(thinker);
 		return;
 	}
@@ -212,7 +212,9 @@ static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 	mine->s.renderfx &= ~RF_HIDDEN;
 	if (invis == 0.0f) mine->s.renderfx |= RF_HIDDEN;
 	thinker->owner = mine;
-	E_channel(thinker)->owner_spawn_time = mine->spawn_time;
+	if (!thinker->channel) thinker->channel = G_AllocChannel();
+	assert(thinker->channel);
+	thinker->channel->owner_spawn_time = mine->spawn_time;
 	thinker->class_id = code;
 	thinker->wait = (float)level;
 	thinker->collision = collision;
@@ -228,7 +230,7 @@ static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 }
 
 BZ_ABILITY_PROC(CAbilityLandMine) {
-	uint32_t code = call &E_item_get(call) &E_item_get(call)->code ? call->item->code : ID_AMIN;
+	uint32_t code = call && call->item && call->item->code ? call->item->code : ID_AMIN;
 	bool owns_mine_ability = ent && code && G_UnitAbilityLevel(ent, code);
 
 	switch (msg) {

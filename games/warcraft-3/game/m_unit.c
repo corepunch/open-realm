@@ -45,8 +45,10 @@ static void hero_become_revivable(edict_t *self) {
 
     if (!self || !self->inuse || !G_UnitIsHero(self) ||
         (self->aiflags & AI_ILLUSION) || !(self->svflags & SVF_DEADMONSTER)) return;
-    E_revival(self)->awaiting = true;
-    E_revival(self)->reviving = false;
+    if (!self->revival) self->revival = G_AllocRevival();
+    assert(self->revival);
+    self->revival->awaiting = true;
+    self->revival->reviving = false;
     self->s.renderfx |= RF_HIDDEN;
     G_PublishEvent(self, EVENT_PLAYER_HERO_REVIVABLE);
     G_PublishEvent(self, EVENT_UNIT_HERO_REVIVABLE);
@@ -153,7 +155,7 @@ void unit_begin_decay(edict_t *self) {
 void unit_decay_think(edict_t *self) {
     if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO)) return;
     if (G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION)) {
-        if (!E_revival_get(self)->awaiting) unit_runwait(self, hero_become_revivable);
+        if (!(self->revival && self->revival->awaiting)) unit_runwait(self, hero_become_revivable);
         return;
     }
     unit_runwait(self, G_FreeEdict);
@@ -336,7 +338,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     /* A dead polymorphed unit must not later restore as a living unit when its
      * timed buff expires.  Keep the death presentation chosen at the time of
      * death, but retire the reversible morph contract immediately. */
-    if (E_polymorph_get(self)->active) E_polymorph(self)->active = false;
+    if ((self->polymorph && self->polymorph->active)) self->polymorph->active = false;
     G_ClearUnitOrderQueue(self);
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);
@@ -347,27 +349,29 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * A structure upgrade is the same edict rather than a queued child; death
      * abandons it without the player-cancel refund. */
     if (G_BuildingUpgradeActive(self)) G_StopBuildingUpgrade(self, false);
-    if (E_construction_get(self)->active) G_StopConstruction(self);
+    if ((self->construction && self->construction->active)) G_StopConstruction(self);
     else if (self->build == self) {
         G_SetConstructionLoopSound(self, false);
         /* Legacy construction uses a self-link as a marker, not a production
          * queue. Clear it before generic death cleanup walks build links. */
         self->build = NULL;
     }
-    if (E_mineoverlay_get(self)->parent || self->think == blight_mine_think) S_MineOverlayRelease(self);
+    if ((self->mineoverlay && self->mineoverlay->parent) || self->think == blight_mine_think) S_MineOverlayRelease(self);
     if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
     S_CargoReleaseUnit(self);
     if (self->training) G_ClearTrainingQueueFood(self);
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
     G_ClearUnitFood(self);
     if (G_UnitIsHero(self)) {
-        E_revival(self)->awaiting = false;
-        E_revival(self)->reviving = false;
-        E_revival(self)->producer = NULL;
-        E_revival(self)->queue_next = NULL;
-        E_revival(self)->player = 0;
-        E_revival(self)->gold = E_revival(self)->lumber = 0;
-        E_revival(self)->progress = 0.0f;
+        if (!self->revival) self->revival = G_AllocRevival();
+        assert(self->revival);
+        self->revival->awaiting = false;
+        self->revival->reviving = false;
+        self->revival->producer = NULL;
+        self->revival->queue_next = NULL;
+        self->revival->player = 0;
+        self->revival->gold = self->revival->lumber = 0;
+        self->revival->progress = 0.0f;
     }
     unit_leavecombat(self);
     self->selected = 0;
@@ -384,7 +388,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
         self->sound.world_pending_event = EV_DEATH;
     }
     /* Destroying a transport ejects its passengers at the wreck. */
-    if (E_cargo_get(self)->count > 0) {
+    if (self->cargo && self->cargo->count > 0) {
         cargo_drop_all(self);
     }
     /* Inventory abilities own their death policy. Non-Hero Backpack carriers
@@ -2048,7 +2052,7 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
 
     if (!ent || !ent->inuse || !G_UnitIsHero(ent) || !M_IsDead(ent) ||
         (ent->aiflags & AI_SOUL_TRAPPED)) return false;
-    if (E_revival_get(ent)->reviving) G_CancelHeroRevive(E_revival_get(ent)->producer, ent);
+    if ((ent->revival && ent->revival->reviving)) G_CancelHeroRevive(ent->revival->producer, ent);
     float const lifeFactor = G_MiscNum("HeroReviveLifeFactor", 1.0f);
     float const manaFactor = G_MiscNum("HeroReviveManaFactor", 0.0f);
     float const manaStart = G_MiscNum("HeroReviveManaStart", 0.0f);
@@ -2056,13 +2060,15 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
     ent->s.flags &= ~EF_NOT_SELECTABLE;
     ent->aiflags &= ~AI_HOLD_FRAME;
     ent->combatentity = NULL;
-    E_revival(ent)->awaiting = false;
-    E_revival(ent)->reviving = false;
-    E_revival(ent)->producer = NULL;
-    E_revival(ent)->queue_next = NULL;
-    E_revival(ent)->player = 0;
-    E_revival(ent)->gold = E_revival(ent)->lumber = 0;
-    E_revival(ent)->progress = 0.0f;
+    if (!ent->revival) ent->revival = G_AllocRevival();
+    assert(ent->revival);
+    ent->revival->awaiting = false;
+    ent->revival->reviving = false;
+    ent->revival->producer = NULL;
+    ent->revival->queue_next = NULL;
+    ent->revival->player = 0;
+    ent->revival->gold = ent->revival->lumber = 0;
+    ent->revival->progress = 0.0f;
     ent->s.renderfx &= ~RF_HIDDEN;
     G_SetHealth(ent, MIN(ent->health.max_value, MAX(1.0f, ent->health.max_value * lifeFactor)));
     mana = ent->mana.max_value * manaFactor;

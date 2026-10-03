@@ -73,8 +73,10 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
     FOR_LOOP(i, 3) {
         edict_t *item = alloc_test_unit(codes[i], 32, 0);
         item->targtype = TARG_ITEM;
-        E_item(item)->in_world = true;
-        E_item(item)->inventory_slot = -1;
+        if (!item->item) item->item = G_AllocItem();
+        assert(item->item);
+        item->item->in_world = true;
+        item->item->inventory_slot = -1;
         T_ASSERT(G_AddItemToSlot(unit, item, i));
     }
     T_FEQ(unit->attack1.temporaryDamageBonus, 7, 0.001f);
@@ -127,8 +129,10 @@ TEST(wc3_item_lifecycle, passive_item_removal_ignores_current_can_use_permission
     unit->attack1.temporaryDamageBonus = unit->attack2.temporaryDamageBonus = 0;
     item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 0);
     item->targtype = TARG_ITEM;
-    E_item(item)->in_world = true;
-    E_item(item)->inventory_slot = -1;
+    if (!item->item) item->item = G_AllocItem();
+    assert(item->item);
+    item->item->in_world = true;
+    item->item->inventory_slot = -1;
 
     T_ASSERT(G_InventoryCanUseItems(unit));
     T_ASSERT(G_AddItemToSlot(unit, item, 0));
@@ -266,8 +270,10 @@ TEST(wc3_item_lifecycle, orb_pickup_applies_authored_bonus_damage) {
     FOR_LOOP(i, 2) {
         edict_t *item = alloc_test_unit(codes[i], 32, 0);
         item->targtype = TARG_ITEM;
-        E_item(item)->in_world = true;
-        E_item(item)->inventory_slot = -1;
+        if (!item->item) item->item = G_AllocItem();
+        assert(item->item);
+        item->item->in_world = true;
+        item->item->inventory_slot = -1;
         T_ASSERT(G_AddItemToSlot(unit, item, i));
     }
     T_FEQ(unit->attack1.temporaryDamageBonus, 24, 0.001f);
@@ -322,8 +328,10 @@ TEST(wc3_item_lifecycle, orb_on_hit_applies_buff_state) {
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     item->targtype = TARG_ITEM;
-    E_item(item)->in_world = true;
-    E_item(item)->inventory_slot = -1;
+    if (!item->item) item->item = G_AllocItem();
+    assert(item->item);
+    item->item->in_world = true;
+    item->item->inventory_slot = -1;
     T_ASSERT(G_AddItemToSlot(attacker, item, 0));
     T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','f','r','o')));
     S_OrbOnHit(attacker, target);
@@ -343,7 +351,9 @@ TEST(wc3_item_lifecycle, waking_creep_preserves_regeneration_overlay) {
     edict_t *creep = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
     creep->svflags |= SVF_MONSTER;
-    E_sleep(creep)->can_sleep = true;
+    if (!creep->sleep) creep->sleep = G_AllocSleep();
+    assert(creep->sleep);
+    creep->sleep->can_sleep = true;
     creep->stand = unit_stand;
     unit_stand(creep);
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
