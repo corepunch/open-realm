@@ -10,6 +10,7 @@ RUN apt-get update \
         ca-certificates \
         git \
         libgles2-mesa-dev \
+        libgl1-mesa-dri \
         libjpeg-dev \
         libsdl2-dev \
         pkg-config \

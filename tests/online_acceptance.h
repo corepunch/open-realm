@@ -9,6 +9,9 @@
 
 static uint32_t online_live_start, online_live_tick;
 static char online_live_status[256];
+static bool online_live_game, online_live_server;
+
+static void Online_LiveGameFrame(uint32_t msec);
 
 /* SDK entry points can block in native credential storage before any tick. */
 static Uint32 SDLCALL Online_LiveWatchdog(Uint32 interval, void *context) {
@@ -26,7 +29,9 @@ static bool Online_LivePump(void) {
     SDL_Delay(5);
 #endif
     uint32_t now = SDL_GetTicks();
-    Online_Frame(now - online_live_tick); online_live_tick = now;
+    uint32_t msec = now - online_live_tick;
+    Online_Frame(msec); online_live_tick = now;
+    if (online_live_game) Online_LiveGameFrame(msec);
     if (strcmp(online_live_status, Online_Status())) {
         snprintf(online_live_status, sizeof(online_live_status), "%s", Online_Status());
         fprintf(stderr, "EOS acceptance %u ms: %s\n", now - online_live_start, online_live_status);
@@ -119,6 +124,8 @@ static bool Online_LiveLogin(void) {
     return true;
 }
 
+#include "games/warcraft-3/tests/online_gameplay.h"
+
 /* Pair installations without replacing the adapter or registering a networked TEST. */
 static bool Online_LiveRun(cstring_t role, cstring_t room, cstring_t map) {
     bool solo = !strcmp(role, "solo"), host = solo || !strcmp(role, "host") || !strcmp(role, "crash-host");
@@ -129,6 +136,7 @@ static bool Online_LiveRun(cstring_t role, cstring_t room, cstring_t map) {
     EOS_P2P_GetRelayControlOptions control = { .ApiVersion = EOS_P2P_GETRELAYCONTROL_API_LATEST };
     if (!Online_Result("read relay policy", EOS_P2P_GetRelayControl(online.p2p, &control, &policy)) ||
         policy != (relay ? EOS_RC_ForceRelays : EOS_RC_AllowRelays)) return false;
+    if (!strncmp(role, "game-", 5)) return Online_LiveGameRun(role, room);
 
     if (host) {
         Online_Host(map, room, 1, 2, 1);
@@ -189,13 +197,20 @@ static bool Online_LiveRun(cstring_t role, cstring_t room, cstring_t map) {
 
 /* This explicit diagnostic owns its process and always returns a bounded result. */
 void Online_Acceptance_f(void) {
-    cstring_t role = Cmd_Argv(1), room = Cmd_Argv(2);
+    char role[32], room[sizeof(online.hosted.hostname)];
     char map[sizeof(online.hosted.mapname)];
     cstring_t map_path = Cvar_String("online_acceptance_map", "Maps/Campaign/Human02.w3m");
-    if (Cmd_Argc() != 3 || !room[0] || strlen(room) >= sizeof(online.hosted.hostname) ||
+    if (Cmd_Argc() != 3 || !Cmd_Argv(2)[0] || strlen(Cmd_Argv(2)) >= sizeof(room) || strlen(Cmd_Argv(1)) >= sizeof(role)) {
+        fprintf(stderr, "EOS acceptance: invalid role/room arguments\n"); exit(1);
+    }
+    snprintf(role, sizeof(role), "%s", Cmd_Argv(1));
+    snprintf(room, sizeof(room), "%s", Cmd_Argv(2));
+    if (
         strlen(map_path) >= sizeof(map) ||
-        (strcmp(role, "solo") && strcmp(role, "host") && strcmp(role, "guest") && strcmp(role, "crash-host"))) {
-        fprintf(stderr, "Usage: +online_acceptance <solo|host|guest|crash-host> <unique-room-name>\n");
+        (strcmp(role, "solo") && strcmp(role, "host") && strcmp(role, "guest") && strcmp(role, "crash-host") &&
+         strcmp(role, "game-host") && strcmp(role, "game-guest") && strcmp(role, "game-crash-host") &&
+         strcmp(role, "game-survivor") && strcmp(role, "game-crash-guest") && strcmp(role, "local"))) {
+        fprintf(stderr, "Usage: +online_acceptance <solo|host|guest|crash-host|game-host|game-guest|game-crash-host|game-survivor|game-crash-guest|local> <unique-room-name>\n");
         exit(1);
     }
     snprintf(map, sizeof(map), "%s", map_path);
@@ -205,7 +220,9 @@ void Online_Acceptance_f(void) {
     }
     online_live_start = online_live_tick = SDL_GetTicks();
     online_live_status[0] = 0;
-    bool valid = Online_LiveRun(role, room, map);
+    bool valid = !strcmp(role, "local") ? Online_LiveGameRun(role, room) : Online_LiveRun(role, room, map);
+    online_live_game = online_live_server = false;
+    if (SV_IsActive()) SV_Shutdown();
     /* Complete asynchronous departure before releasing SDK handles. */
     if (!Online_LiveDeparture()) valid = false;
     Online_Shutdown();

@@ -24,6 +24,7 @@ typedef struct {
 typedef struct {
     EOS_ProductUserId user;
     EOS_ENetworkConnectionType network_type;
+    bool closed;
     onlineAssembly_t assembly[2];
 } onlinePeer_t;
 
@@ -145,6 +146,7 @@ static void EOS_CALL Online_ConnectionClosed(EOS_P2P_OnRemoteConnectionClosedInf
     fprintf(stderr, "EOS peer connection closed (reason %d)\n", info->Reason);
     for (int i = 0; i < 2; i++) Online_ClearAssembly(&peer->assembly[i]);
     peer->network_type = EOS_NCT_NoConnection;
+    peer->closed = true;
     if (!online.hosting) {
         Online_Leave();
         snprintf(online.status, sizeof(online.status), "Connection to the Internet host has closed.");
@@ -158,6 +160,7 @@ static void EOS_CALL Online_ConnectionEstablished(EOS_P2P_OnPeerConnectionEstabl
     onlinePeer_t *peer = Online_Peer(info->RemoteUserId, online.hosting ? NS_SERVER : NS_CLIENT);
     if (!peer) return;
     peer->network_type = info->NetworkType;
+    peer->closed = false;
     fprintf(stderr, "EOS peer connection %s: %s\n",
         info->ConnectionType == EOS_CET_Reconnection ? "reestablished" : "established",
         info->NetworkType == EOS_NCT_RelayedConnection ? "relay" :
@@ -644,7 +647,8 @@ void Online_CloseAdmission(void) {
 
 void Online_Send(NETSOURCE source, int length, void const *data, netadr_t const *to) {
     EOS_ProductUserId user = EOS_ProductUserId_FromString(to->peer);
-    if (!online.ready || !Online_Peer(user, source) || length <= 0 || length > MAX_MSGLEN) {
+    onlinePeer_t *peer = Online_Peer(user, source);
+    if (!online.ready || !peer || peer->closed || length <= 0 || length > MAX_MSGLEN) {
         fprintf(stderr, "EOS rejected packet for inactive peer or invalid size\n"); return;
     }
     EOS_P2P_AcceptConnectionOptions accept = {
@@ -678,8 +682,8 @@ int Online_Receive(NETSOURCE source, netadr_t *from, sizeBuf_t *message) {
         if (result == EOS_NotFound) return 0;
         if (!Online_Result("receive packet", result)) return 0;
         onlinePeer_t *peer = Online_Peer(user, source);
-        if (!peer || strcmp(socket.SocketName, online.socket.SocketName) || channel != requested) {
-            fprintf(stderr, "EOS rejected packet from foreign peer/socket/channel\n"); continue;
+        if (!peer || peer->closed || strcmp(socket.SocketName, online.socket.SocketName) || channel != requested) {
+            fprintf(stderr, "EOS rejected packet from inactive peer/socket/channel\n"); continue;
         }
         int size = Online_ReadFragment(&peer->assembly[source], bytes, length, message);
         if (size < 0) { fprintf(stderr, "EOS rejected malformed packet fragment\n"); continue; }
@@ -729,6 +733,11 @@ bool Online_HostReady(void) {
         !online.updating && !online.admission_closed;
 }
 bool Online_InLobby(void) { return online.lobby[0] || online.operation_pending; }
+bool Online_ConnectionLost(NETSOURCE source, netadr_t const *address) {
+    if (!address || address->type != NA_EOS) return false;
+    onlinePeer_t *peer = Online_Peer(EOS_ProductUserId_FromString(address->peer), source);
+    return !peer || peer->closed;
+}
 uint32_t Online_NumGames(void) { return online.num_games; }
 bool Online_Game(uint32_t index, onlineGame_t *out) {
     if (!out || index >= online.num_games) return false;
@@ -753,6 +762,64 @@ void Online_Shutdown(void) {
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
+#include "server/server.h"
+static bool online_test_sdk;
+static void Online_TestSDKShutdown(void) {
+    if (online_test_sdk && !online.initialized) EOS_Shutdown();
+}
+static bool Online_TestSDK(void) {
+    if (online.initialized || online_test_sdk) return true;
+    EOS_InitializeOptions init = { .ApiVersion = EOS_INITIALIZE_API_LATEST,
+        .ProductName = "OpenRealm Tests", .ProductVersion = "1" };
+    EOS_EResult result = EOS_Initialize(&init);
+    T_EQ(result, EOS_Success);
+    if (result != EOS_Success) return false;
+    /* The native SDK owns one lifetime per process, shared by offline tests. */
+    online_test_sdk = true; atexit(Online_TestSDKShutdown);
+    return true;
+}
+TEST(online_service, lost_guest_releases_server_slot_without_dropping_host) {
+    void *saved = malloc(sizeof(online));
+    client_t *clients = malloc(2 * sizeof(*clients));
+    T_NOT_NULL(saved); T_NOT_NULL(clients);
+    if (!saved || !clients) { free(saved); free(clients); return; }
+    if (!Online_TestSDK()) { free(saved); free(clients); return; }
+    memcpy(saved, &online, sizeof(online)); memset(&online, 0, sizeof(online));
+    memcpy(clients, svs.clients, 2 * sizeof(*clients));
+    lobbyState_t lobby = svs.lobby;
+    uint32_t count = svs.num_clients, realtime = svs.realtime;
+    serverState_t state = sv.state;
+    sv.state = ss_dead; svs.num_clients = 2; svs.realtime = 100;
+    memset(svs.clients, 0, 2 * sizeof(*clients)); memset(&svs.lobby, 0, sizeof(svs.lobby));
+    svs.lobby.active = true; svs.lobby.slot_count = 2;
+    svs.lobby.slots[1] = (lobbySlot_t){ .visible = true, .occupied = true, .client = 1, .type = LOBBY_SLOT_HUMAN };
+    svs.clients[0].state = svs.clients[1].state = cs_connected;
+    svs.clients[0].netchan.remote_address.type = NA_LOOPBACK;
+    svs.clients[1].netchan.remote_address.type = NA_EOS;
+    strlcpy(svs.clients[1].netchan.remote_address.peer, "0123456789abcdef0123456789abcde2", sizeof(svs.clients[1].netchan.remote_address.peer));
+    SZ_Init(&svs.clients[1].netchan.message, svs.clients[1].netchan.message_buf, MAX_MSGLEN);
+    online.user = EOS_ProductUserId_FromString("0123456789abcdef0123456789abcde1");
+    online.hosting = true; online.num_peers = 1;
+    online.peers[0].user = EOS_ProductUserId_FromString(svs.clients[1].netchan.remote_address.peer);
+    strlcpy(online.lobby, "test-room", sizeof(online.lobby)); strlcpy(online.socket.SocketName, "OpenRealm", sizeof(online.socket.SocketName));
+    /* A member waiting for its first connection is not a lost connection. */
+    T_ASSERT(!Online_ConnectionLost(NS_SERVER, &svs.clients[1].netchan.remote_address));
+    SV_ReapZombieClients(); T_EQ(svs.clients[1].state, cs_connected);
+    EOS_P2P_OnRemoteConnectionClosedInfo closed = { .LocalUserId = online.user,
+        .RemoteUserId = online.peers[0].user, .SocketId = &online.socket, .Reason = EOS_CCR_ConnectionClosed };
+    Online_ConnectionClosed(&closed);
+    T_ASSERT(Online_ConnectionLost(NS_SERVER, &svs.clients[1].netchan.remote_address));
+    SV_ReapZombieClients();
+    T_EQ(svs.clients[0].state, cs_connected); T_EQ(svs.clients[1].state, cs_zombie);
+    T_ASSERT(!svs.lobby.slots[1].occupied); T_EQ(svs.lobby.slots[1].type, LOBBY_SLOT_OPEN);
+    svs.realtime += BZ_CLIENT_ZOMBIE_MSEC;
+    SV_ReapZombieClients(); T_EQ(svs.clients[1].state, cs_free); T_EQ(svs.num_clients, 1);
+    svs.num_clients = 2; svs.clients[1].state = cs_connected;
+    T_ASSERT(SV_LobbyAssignClient(1, false)); T_ASSERT(svs.lobby.slots[1].occupied);
+    memcpy(&online, saved, sizeof(online)); free(saved);
+    memcpy(svs.clients, clients, 2 * sizeof(*clients)); free(clients);
+    svs.lobby = lobby; svs.num_clients = count; svs.realtime = realtime; sv.state = state;
+}
 TEST(online_service, lost_host_connection_clears_guest_room_and_partial_packets) {
     void *saved = malloc(sizeof(online));
     T_NOT_NULL(saved); if (!saved) return;
@@ -813,6 +880,7 @@ TEST(online_service, departing_guest_does_not_close_host_or_other_peer_assembly)
     Online_ConnectionClosed(&closed);
     T_ASSERT(Online_InLobby()); T_ASSERT(Online_HostReady());
     T_EQ(online.peers[0].network_type, EOS_NCT_NoConnection);
+    T_ASSERT(online.peers[0].closed); T_ASSERT(!online.peers[1].closed);
     for (int i = 0; i < 2; i++) {
         T_NULL(online.peers[0].assembly[i].data);
         T_NOT_NULL(online.peers[1].assembly[i].data);
@@ -821,6 +889,7 @@ TEST(online_service, departing_guest_does_not_close_host_or_other_peer_assembly)
     established.NetworkType = EOS_NCT_DirectConnection;
     Online_ConnectionEstablished(&established);
     T_EQ(online.peers[0].network_type, EOS_NCT_DirectConnection);
+    T_ASSERT(!online.peers[0].closed);
     Online_ClearPeers();
     memcpy(&online, saved, sizeof(online)); free(saved);
 }
@@ -885,14 +954,7 @@ TEST(online_service, canceled_search_cannot_replace_results_or_status) {
 TEST(online_service, server_and_client_admit_only_their_lobby_peers) {
     void *saved = malloc(sizeof(online));
     T_NOT_NULL(saved); if (!saved) return;
-    bool const own_sdk = !online.initialized;
-    if (own_sdk) {
-        EOS_InitializeOptions init = { .ApiVersion = EOS_INITIALIZE_API_LATEST,
-            .ProductName = "OpenRealm Tests", .ProductVersion = "1" };
-        EOS_EResult result = EOS_Initialize(&init);
-        T_EQ(result, EOS_Success);
-        if (result != EOS_Success) { free(saved); return; }
-    }
+    if (!Online_TestSDK()) { free(saved); return; }
     memcpy(saved, &online, sizeof(online)); memset(&online, 0, sizeof(online));
     EOS_ProductUserId local = EOS_ProductUserId_FromString("0123456789abcdef0123456789abcde1");
     EOS_ProductUserId owner = EOS_ProductUserId_FromString("0123456789abcdef0123456789abcde2");
@@ -910,7 +972,6 @@ TEST(online_service, server_and_client_admit_only_their_lobby_peers) {
     T_NULL(Online_Peer(other, NS_SERVER)); /* departed member */
     online.lobby[0] = 0; T_NULL(Online_Peer(owner, NS_SERVER));
     memcpy(&online, saved, sizeof(online)); free(saved);
-    if (own_sdk) T_EQ(EOS_Shutdown(), EOS_Success);
 }
 #include "../tests/online_acceptance.h"
 #endif

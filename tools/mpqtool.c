@@ -1179,13 +1179,13 @@ int main(int argc, char **argv) {
             return 1;
         }
         {
-            char *pairs[256];
-            int pair_count = 0;
-            pairs[pair_count++] = (char *)arg;
-            for (int i = 0; i < extra_count && pair_count < (int)(sizeof(pairs) / sizeof(pairs[0])); i++) {
-                pairs[pair_count++] = extra[i];
-            }
-            return cmd_pack(mpq, pair_count, pairs);
+            char **pairs = malloc((extra_count + 1) * sizeof(*pairs));
+            if (!pairs) { fprintf(stderr, "pack: cannot allocate argument list\n"); return 1; }
+            pairs[0] = (char *)arg;
+            for (int i = 0; i < extra_count; i++) pairs[i + 1] = extra[i];
+            int result = cmd_pack(mpq, extra_count + 1, pairs);
+            free(pairs);
+            return result;
         }
     }
 

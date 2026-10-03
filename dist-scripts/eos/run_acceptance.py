@@ -15,6 +15,10 @@ SCENARIOS = {
     "default": (("host", "guest"), 0),
     "relay": (("host", "guest"), 1),
     "crash": (("crash-host", "guest"), 1),
+    "game-default": (("game-host", "game-guest"), 0),
+    "game-relay": (("game-host", "game-guest"), 1),
+    "game-crash": (("game-crash-host", "game-guest"), 1),
+    "game-guest-crash": (("game-survivor", "game-crash-guest"), 1),
 }
 DEADLINE = 220  # seconds; includes container startup around the 180-second SDK watchdog
 
@@ -37,6 +41,9 @@ def run_scenario(root, image, run_id, scenario):
                 "--mount", f"type=bind,source={root},target=/workspace,readonly",
                 "--workdir", "/workspace",
                 "--env", "OPENREALM_EOS_CONFIG=/workspace/data/eos/eos.cfg",
+                "--env", "SDL_VIDEODRIVER=offscreen",
+                "--env", "SDL_AUDIODRIVER=dummy",
+                "--env", "LIBGL_ALWAYS_SOFTWARE=1",
                 image, "build/bin/openwarcraft3-tests", "-data", "build/tests",
                 "+dedicated", "1", "+online_force_relay", str(relay),
                 "+online_acceptance", role, room,
