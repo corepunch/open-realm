@@ -18,7 +18,7 @@ static void Online_LiveLobbyUpdate(lobbyState_t const *state) {
 }
 
 static void Online_LiveGameFrame(uint32_t msec) {
-    if (online_live_server) SV_Frame(msec);
+    if (online_live_server && SV_IsActive()) SV_Frame(msec);
     CL_Frame(msec);
 }
 
@@ -163,7 +163,16 @@ static bool Online_LiveGameRun(cstring_t role, cstring_t room) {
     fprintf(stderr, "EOS gameplay: active sign-on, map checksum, camera command round-trip, %u fresh snapshots (%u -> %u) in %u ms\n",
         frames, first, previous, SDL_GetTicks() - started);
     fprintf(stderr, "EOS gameplay: player Move commands changed the shared unit snapshots\n");
-    if (local) return true;
+    if (local) {
+        SV_Shutdown();
+        while (cls.state != ca_disconnected) if (!Online_LivePump()) return false;
+        if (!Online_LivePump() || !CL_MenuActive()) return false;
+        uint32_t ended = sv.framenum, idle = SDL_GetTicks();
+        while (SDL_GetTicks() - idle < 250) if (!Online_LivePump()) return false;
+        if (sv.framenum != ended) return false;
+        fprintf(stderr, "EOS gameplay: local host shutdown returned to menu\n");
+        return true;
+    }
     if (host) {
         if (!strcmp(role, "game-survivor")) {
             started = SDL_GetTicks();
