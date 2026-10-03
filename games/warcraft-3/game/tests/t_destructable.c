@@ -700,6 +700,27 @@ TEST(wc3_destructable, non_gate_path_texture_orientation_follows_facing_in_pathi
     }
 }
 
+TEST(wc3_destructable, non_destructable_path_texture_keeps_axis_aligned_contract) {
+    human06_bridge_pathtex_t pathtex = make_human06_bridge_pathtex(&human06_bridge_fixtures[1]);
+    edict_t *building;
+    pathTexTransform_t transform;
+
+    reset_entities();
+    setup_test_world();
+    building = G_Spawn();
+    building->class_id = MAKEFOURCC('h', 't', 'o', 'w');
+    building->s.class_id = building->class_id;
+    building->svflags |= SVF_MONSTER;
+    building->s.angle = (float)M_PI / 2.0f;
+    building->pathtex = (pathTex_t *)&pathtex;
+
+    transform = CM_GetPathTexTransform(building);
+
+    T_EQ(transform.turn, 0);
+    T_EQ(transform.width, 32);
+    T_EQ(transform.height, 22);
+}
+
 TEST(wc3_destructable, completed_death_holds_authored_final_frame) {
     animation_t death = { .name = "Death", .interval = { 2000, 3000 }, .flags = 1 };
     edict_t *dest = make_test_destructable(10.0f, 0.0f, 0.0f);

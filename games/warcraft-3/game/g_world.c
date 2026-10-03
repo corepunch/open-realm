@@ -16,9 +16,9 @@ static bool entity_is_pathing_ignored(edict_t const *ent) {
     return G_UnitIsStructure(ent) && (ent->s.flags & EF_NOT_SELECTABLE) && !ent->construction.active;
 }
 
-/* WC3 pathing TGAs are transposed relative to model/world axes. Every authored
- * path texture follows its entity's facing; the rawcode and target type do not
- * determine whether its footprint rotates. */
+/* WC3 pathing TGAs are transposed relative to model/world axes. Destructable
+ * path textures follow their facing regardless of rawcode or target type;
+ * non-destructable footprints retain their axis-aligned contract. */
 static void entity_pathtex_transform(pathTexTransformParams_t const *params, pathTexTransform_t *transform) {
     pathTex_t const *pt = params ? params->pathtex : NULL;
     float const angle = params && params->ent ? params->ent->s.angle : 0.0f;
@@ -29,7 +29,7 @@ static void entity_pathtex_transform(pathTexTransformParams_t const *params, pat
     transform->turn = ((quarter % 4) + 4) % 4;
     transform->width = transform->turn & 1 ? pt->height : pt->width;
     transform->height = transform->turn & 1 ? pt->width : pt->height;
-    if (!params->ent)
+    if (!params->ent || !params->ent->destructable.initialized)
         transform->turn = 0, transform->width = pt->width, transform->height = pt->height;
 }
 
