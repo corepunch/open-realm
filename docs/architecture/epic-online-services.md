@@ -23,6 +23,12 @@ and ignored private local configuration. A compact SDK archive is stored in a
 separate private mirror. Two-installation gameplay, forced relay and host-crash
 cleanup remain separate acceptance checks.
 
+Internet play remains experimental until the paired acceptance checks below
+pass. `online_force_relay=1` now selects EOS's forced-relay policy before the
+platform is first created; connection notifications report the actual direct
+or relay path. A permanent host P2P closure now leaves the guest room promptly,
+without waiting for the engine's packet timeout.
+
 ## Build and configuration
 
 Download the C SDK through your Epic Developer Portal product settings. Unpack
@@ -31,11 +37,15 @@ its `SDK` directory outside tracked source, then build:
 ```sh
 make EOS=1 EOS_SDK_ROOT=data/eos/SDK openwarcraft3
 make EOS=1 EOS_SDK_ROOT=data/eos/SDK openwarcraft3-tests
-build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'online_service.*'
+make EOS=1 EOS_SDK_ROOT=data/eos/SDK test-eos-service
 ```
 
 `EOS=0` is the default; `BZ_EOS` guards all SDK includes and implementation.
 Normal `make build` and PR CI require no SDK headers, libraries or credentials.
+`test-eos-service` requires `EOS=1` explicitly; an SDK-free invocation fails
+instead of reporting success with no service tests. Release builds run these
+offline SDK tests on Linux, macOS and Windows, using separate output directories
+so test executables/modules are excluded from release archives.
 Only the engine executable links EOS; game and menu
 modules import the generic service API. The matching runtime library is copied
 to `build/lib` on macOS/Linux and `build/bin` on Windows x64. Linux selects its
@@ -238,6 +248,17 @@ only the owner as a server. A client also checks the packet source against its
 connected host. The initial engine handshake retries once per second and times
 out after 10 seconds, including when the host disappears before replying. LAN replies never populate the Internet list.
 
+The adapter registers established/closed notifications for the authenticated
+user and `OpenRealm` socket. Established notifications log the actual network
+type, including reconnections. Closed notifications validate local identity,
+socket and active peer membership before changing state. Local close callbacks
+are ignored so delayed teardown cannot invalidate a new room. A guest's
+permanent host closure clears pending connection state and all reassembly
+buffers; `CL_Frame` then takes its existing room-closed disconnect path. A host
+losing one guest clears only that guest's partial messages and keeps serving
+other peers. EOS's interruption/reconnection handling and ordinary engine
+timeouts still cover temporary stalls.
+
 Engine messages can reach 256 KiB, while EOS P2P accepts 1170-byte packets.
 `common/online_packet.c` adds a 12-byte little-endian message-ID/total/offset
 header and fragments into reliable ordered P2P packets. Reassembly retains one
@@ -254,6 +275,11 @@ loss of the host's service session shuts down its local server. Engine timeouts
 still handle network stalls and process crashes. Final process shutdown submits
 best-effort departure before releasing SDK handles; service crash-cleanup latency
 has not been measured.
+
+Departure callbacks retain any failure across the pending cleanup batch. An
+`EOS_NotFound` departure is logged as an already-absent lobby, which can happen
+when closure and local leave race; other failures remain errors. The live
+acceptance command waits for departure callbacks and rejects failed cleanup.
 
 ## Credentials and open source
 
@@ -290,6 +316,99 @@ full typed-address comparison, server client identity, late callback cancellatio
 foreign peer admission and separate retail Internet/LAN button commands. The
 ordinary required suite remains `make test`; SDK-specific state tests use the
 EOS-enabled executable command above and do not contact the service.
+
+The host-connection regression first failed with seven assertions: the room,
+owner, connection request and partial packet remained live after host closure.
+The fix covers that cleanup, foreign/local close filtering, host survival when
+a guest disappears, reconnection network type, and failed departure callbacks.
+On 2026-10-03, local macOS arm64 validation passed the SDK-free full suite, the
+EOS-enabled full suite and the isolated optimized release test build. The six
+offline EOS service tests passed all 66 assertions. These results establish
+code/fixture behavior, not the live acceptance rows below.
+
+### Bounded live adapter checks
+
+`+online_acceptance` is an opt-in command in the EOS-enabled **test executable**,
+not a registered unit test. It drives the real Connect/Lobbies/P2P adapter,
+filesystem map CRC and `NET_SendPacket` / `NET_GetPacket`. It never runs through
+`make test` or release CI. Every process has a 180-second watchdog, including
+synchronous native SDK calls; timeout is a failure. Use a unique room name per
+run, matching game protocol/edition and the same credentials/deployment on both
+installations. The default map is the generated fixture in `build/tests`.
+
+Build fixtures and run the single-installation publication/reconnect check:
+
+```sh
+make EOS=1 test-eos-service
+OPENREALM_EOS_CONFIG=/private/path/eos.cfg \
+  build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +online_force_relay 1 +online_acceptance solo acceptance-unique-name
+```
+
+`solo` verifies guest login, configured relay policy, public indexing, private
+admission after Start, asynchronous destruction, stable guest identity on
+re-entry, a second publication and eventual public-list cleanup. Selecting the
+forced-relay policy alone does **not** prove that a relay connection works.
+
+On installation A, then promptly on installation B, run:
+
+```sh
+# A
+OPENREALM_EOS_CONFIG=/private/path/eos.cfg \
+  build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +online_force_relay 1 +online_acceptance host acceptance-unique-name
+# B
+OPENREALM_EOS_CONFIG=/private/path/eos.cfg \
+  build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +online_force_relay 1 +online_acceptance guest acceptance-unique-name
+```
+
+The guest rejects the host's own Product User ID, joins the public room and
+sends a deterministic `MAX_MSGLEN` (256 KiB) packet. The host checks every byte
+and echoes it; the guest verifies the echo and acknowledges receipt. With
+`online_force_relay=1`, both processes require the SDK's established connection
+type to be relayed. The host closes admission and departs; the guest reports
+host-loss detection and public-list disappearance latency, then reconnects to
+search. Repeat with `online_force_relay=0` for the default direct/relay policy.
+
+For crash cleanup, replace A's role with `crash-host` and use a fresh room name.
+After receiving the acknowledgement, A deliberately uses `_Exit(0)` without
+any EOS teardown. B must detect host loss and observe that the room disappears
+from a successful public search before its watchdog expires. A prints the crash
+action and exits without a final PASS line; B is the cleanup verifier. Capture
+both outputs, latencies and any packet-queue errors.
+
+These are adapter checks. They do not run lobby UI, game sign-on, simulation,
+snapshots or input. Those still require the gameplay acceptance matrix below.
+To use an installed map for the CRC check, pass
+`+set online_acceptance_map 'Maps/(2)OgreMound.w3m'` before the command and use
+`-data` pointing to retail data on both installations.
+
+On macOS, EOS Device ID creation can synchronously wait for Keychain permission
+when accessing an existing guest item from a newly rebuilt executable. Handle
+the native dialog yourself; do not change the stored identity, Keychain access
+controls or TLS settings to bypass it. A local run on 2026-10-03 was stopped
+while `EOS_Connect_CreateDeviceId` was waiting inside `SecItemCopyMatching`;
+it produced no live service acceptance result. The command now has a separate
+timer watchdog for this native blocking case. The headless command pumps the
+CoreFoundation run loop for EOS HTTP; the normal graphical client uses SDL.
+
+### Gameplay release gate
+
+Record installation/OS/build, matching guest identities (distinct), map,
+edition, policy, elapsed times and results in the finalization PR. Until every
+row passes, keep the feature experimental and the finalization PR draft.
+
+| Check | Required observation | Current evidence |
+| --- | --- | --- |
+| Guest login, publication and public search | Both installations sign in without Epic accounts; B finds A | Earlier single-user service probe only; paired check pending |
+| Join, slots and chat | Distinct players; names, teams, races, colors and chat reach both clients | Offline server/lobby regressions; paired gameplay pending |
+| Full and incompatible rooms | Full/private rooms do not admit new players; edition/protocol/map differences are rejected | Offline admission regressions; live CRC/full-room checks pending |
+| Map launch and sustained play | Both clients sign on; commands affect the shared world; snapshots remain current | Paired gameplay pending |
+| Forced relay | Both logs report relay; sign-on and sustained play succeed | Policy support and diagnostic command implemented; live relay pending |
+| Graceful leave and reconnect | Peers return to menus and can host/join again; room disappears | Offline lifecycle regressions; paired live check pending |
+| Host process crash | Guest recovers; public room disappears; cleanup latency recorded | Permanent-close regression; live crash check pending |
+| Guest process crash | Host/other clients continue; guest slot becomes reusable | Host/peer isolation regression; live crash check pending |
 
 Before calling Internet play production-ready, use two separate guest
 installations to verify login, public search/create/join, full and incompatible

@@ -23,6 +23,7 @@ typedef struct {
 
 typedef struct {
     EOS_ProductUserId user;
+    EOS_ENetworkConnectionType network_type;
     onlineAssembly_t assembly[2];
 } onlinePeer_t;
 
@@ -33,7 +34,8 @@ static struct {
     EOS_HP2P p2p;
     EOS_HLobbySearch search;
     EOS_ProductUserId user, owner;
-    EOS_NotificationId request_notify, member_notify, update_notify, expiration_notify, login_notify;
+    EOS_NotificationId request_notify, established_notify, closed_notify;
+    EOS_NotificationId member_notify, update_notify, expiration_notify, login_notify;
     EOS_P2P_SocketId socket;
     onlineResult_t games[ONLINE_MAX_GAMES];
     uint32_t num_games, epoch, message_id;
@@ -43,7 +45,7 @@ static struct {
     onlineGame_t hosted;
     uint32_t map_crc;
     bool initialized, authenticating, ready, enabled, hosting, search_pending, host_dirty;
-    bool operation_pending, updating, admission_closed, connecting, published;
+    bool operation_pending, updating, admission_closed, connecting, published, departure_failed;
     uint32_t leave_pending, receive_budget[2];
     uint32_t update_retry;
 } online;
@@ -133,6 +135,35 @@ static onlinePeer_t *Online_Peer(EOS_ProductUserId user, NETSOURCE source) {
     return NULL;
 }
 
+/* A permanent host loss must clear the guest room even before engine sign-on. */
+static void EOS_CALL Online_ConnectionClosed(EOS_P2P_OnRemoteConnectionClosedInfo const *info) {
+    if (info->LocalUserId != online.user || !info->SocketId ||
+        strcmp(info->SocketId->SocketName, online.socket.SocketName) ||
+        info->Reason == EOS_CCR_ClosedByLocalUser) return;
+    onlinePeer_t *peer = Online_Peer(info->RemoteUserId, online.hosting ? NS_SERVER : NS_CLIENT);
+    if (!peer) return;
+    fprintf(stderr, "EOS peer connection closed (reason %d)\n", info->Reason);
+    for (int i = 0; i < 2; i++) Online_ClearAssembly(&peer->assembly[i]);
+    peer->network_type = EOS_NCT_NoConnection;
+    if (!online.hosting) {
+        Online_Leave();
+        snprintf(online.status, sizeof(online.status), "Connection to the Internet host has closed.");
+    }
+}
+
+/* Keep the actual path observable so forcing relays can be verified, not assumed. */
+static void EOS_CALL Online_ConnectionEstablished(EOS_P2P_OnPeerConnectionEstablishedInfo const *info) {
+    if (info->LocalUserId != online.user || !info->SocketId ||
+        strcmp(info->SocketId->SocketName, online.socket.SocketName)) return;
+    onlinePeer_t *peer = Online_Peer(info->RemoteUserId, online.hosting ? NS_SERVER : NS_CLIENT);
+    if (!peer) return;
+    peer->network_type = info->NetworkType;
+    fprintf(stderr, "EOS peer connection %s: %s\n",
+        info->ConnectionType == EOS_CET_Reconnection ? "reestablished" : "established",
+        info->NetworkType == EOS_NCT_RelayedConnection ? "relay" :
+        info->NetworkType == EOS_NCT_DirectConnection ? "direct" : "unknown network type");
+}
+
 static void EOS_CALL Online_Request(EOS_P2P_OnIncomingConnectionRequestInfo const *info) {
     if (strcmp(info->SocketId->SocketName, online.socket.SocketName)) return;
     Online_UpdateMembers();
@@ -146,17 +177,25 @@ static void EOS_CALL Online_Request(EOS_P2P_OnIncomingConnectionRequestInfo cons
     Online_Result("accept peer", EOS_P2P_AcceptConnection(online.p2p, &options));
 }
 
-static void EOS_CALL Online_Left(EOS_Lobby_LeaveLobbyCallbackInfo const *info) {
+/* Successful late departures must not erase an earlier cleanup failure. */
+static void Online_Departed(cstring_t operation, EOS_EResult result) {
     if (online.leave_pending) online.leave_pending--;
-    Online_Result("leave lobby", info->ResultCode);
+    if (result == EOS_NotFound) {
+        /* Closure notifications can race our leave request. Absence completes cleanup. */
+        fprintf(stderr, "EOS %s: lobby already absent\n", operation);
+    } else if (!Online_Result(operation, result)) online.departure_failed = true;
+}
+
+static void EOS_CALL Online_Left(EOS_Lobby_LeaveLobbyCallbackInfo const *info) {
+    Online_Departed("leave lobby", info->ResultCode);
 }
 
 static void EOS_CALL Online_Destroyed(EOS_Lobby_DestroyLobbyCallbackInfo const *info) {
-    if (online.leave_pending) online.leave_pending--;
-    Online_Result("destroy lobby", info->ResultCode);
+    Online_Departed("destroy lobby", info->ResultCode);
 }
 
 static void Online_Depart(cstring_t lobby, bool host, void *context) {
+    if (!online.leave_pending) online.departure_failed = false;
     online.leave_pending++;
     if (host) {
         EOS_Lobby_DestroyLobbyOptions options = {
@@ -215,6 +254,20 @@ static void EOS_CALL Online_LoginStatus(EOS_Connect_LoginStatusChangedCallbackIn
 
 static void Online_LoggedIn(EOS_ProductUserId user) {
     online.authenticating = false; online.ready = true; online.user = user;
+    if (online.established_notify == EOS_INVALID_NOTIFICATIONID) {
+        EOS_P2P_AddNotifyPeerConnectionEstablishedOptions established = {
+            .ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONESTABLISHED_API_LATEST,
+            .LocalUserId = user, .SocketId = &online.socket
+        };
+        online.established_notify = EOS_P2P_AddNotifyPeerConnectionEstablished(online.p2p, &established, NULL, Online_ConnectionEstablished);
+    }
+    if (online.closed_notify == EOS_INVALID_NOTIFICATIONID) {
+        EOS_P2P_AddNotifyPeerConnectionClosedOptions closed = {
+            .ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONCLOSED_API_LATEST,
+            .LocalUserId = user, .SocketId = &online.socket
+        };
+        online.closed_notify = EOS_P2P_AddNotifyPeerConnectionClosed(online.p2p, &closed, NULL, Online_ConnectionClosed);
+    }
     if (online.request_notify == EOS_INVALID_NOTIFICATIONID) {
         EOS_P2P_AddNotifyPeerConnectionRequestOptions request = {
             .ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONREQUEST_API_LATEST,
@@ -222,7 +275,7 @@ static void Online_LoggedIn(EOS_ProductUserId user) {
         };
         online.request_notify = EOS_P2P_AddNotifyPeerConnectionRequest(online.p2p, &request, NULL, Online_Request);
     }
-    if (online.request_notify == EOS_INVALID_NOTIFICATIONID) {
+    if (!online.request_notify || !online.established_notify || !online.closed_notify) {
         online.ready = false;
         snprintf(online.status, sizeof(online.status), "EOS connection notification registration failed.");
         fprintf(stderr, "%s\n", online.status); return;
@@ -335,6 +388,15 @@ bool Online_Begin(void) {
     online.connect = EOS_Platform_GetConnectInterface(online.platform);
     online.lobbies = EOS_Platform_GetLobbyInterface(online.platform);
     online.p2p = EOS_Platform_GetP2PInterface(online.platform);
+    EOS_P2P_SetRelayControlOptions relay = {
+        .ApiVersion = EOS_P2P_SETRELAYCONTROL_API_LATEST,
+        .RelayControl = Cvar_Integer("online_force_relay", 0) ? EOS_RC_ForceRelays : EOS_RC_AllowRelays
+    };
+    if (!Online_Result("configure relay policy", EOS_P2P_SetRelayControl(online.p2p, &relay))) {
+        Online_Shutdown();
+        snprintf(online.status, sizeof(online.status), "Internet relay policy could not be configured.");
+        return false;
+    }
     online.socket.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;
     snprintf(online.socket.SocketName, sizeof(online.socket.SocketName), "OpenRealm");
     EOS_P2P_SetPacketQueueSizeOptions queues = {
@@ -677,6 +739,8 @@ void Online_Shutdown(void) {
     if (!online.platform) return;
     Online_Leave();
     if (online.request_notify) EOS_P2P_RemoveNotifyPeerConnectionRequest(online.p2p, online.request_notify);
+    if (online.established_notify) EOS_P2P_RemoveNotifyPeerConnectionEstablished(online.p2p, online.established_notify);
+    if (online.closed_notify) EOS_P2P_RemoveNotifyPeerConnectionClosed(online.p2p, online.closed_notify);
     if (online.member_notify) EOS_Lobby_RemoveNotifyLobbyMemberStatusReceived(online.lobbies, online.member_notify);
     if (online.update_notify) EOS_Lobby_RemoveNotifyLobbyUpdateReceived(online.lobbies, online.update_notify);
     if (online.expiration_notify) EOS_Connect_RemoveNotifyAuthExpiration(online.connect, online.expiration_notify);
@@ -689,6 +753,97 @@ void Online_Shutdown(void) {
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
+TEST(online_service, lost_host_connection_clears_guest_room_and_partial_packets) {
+    void *saved = malloc(sizeof(online));
+    T_NOT_NULL(saved); if (!saved) return;
+    memcpy(saved, &online, sizeof(online)); memset(&online, 0, sizeof(online));
+    /* Opaque identities are compared only; this callback test needs no SDK login. */
+    EOS_ProductUserId local = (EOS_ProductUserId)(uintptr_t)1;
+    EOS_ProductUserId owner = (EOS_ProductUserId)(uintptr_t)2;
+    EOS_ProductUserId other = (EOS_ProductUserId)(uintptr_t)3;
+    EOS_P2P_SocketId socket = { .ApiVersion = EOS_P2P_SOCKETID_API_LATEST };
+    snprintf(socket.SocketName, sizeof(socket.SocketName), "OpenRealm");
+    online.socket = socket; online.user = local; online.owner = owner;
+    online.enabled = online.ready = online.connecting = true;
+    snprintf(online.lobby, sizeof(online.lobby), "test-room");
+    online.peers[0].user = owner; online.num_peers = 1;
+    online.peers[0].assembly[NS_CLIENT].data = malloc(32);
+    T_NOT_NULL(online.peers[0].assembly[NS_CLIENT].data);
+    EOS_P2P_OnRemoteConnectionClosedInfo closed = { .LocalUserId = local,
+        .RemoteUserId = other, .SocketId = &socket, .Reason = EOS_CCR_ConnectionClosed };
+    Online_ConnectionClosed(&closed); T_ASSERT(Online_InLobby());
+    closed.RemoteUserId = owner; closed.LocalUserId = other;
+    Online_ConnectionClosed(&closed); T_ASSERT(Online_InLobby());
+    closed.LocalUserId = local; snprintf(socket.SocketName, sizeof(socket.SocketName), "Foreign");
+    Online_ConnectionClosed(&closed); T_ASSERT(Online_InLobby());
+    socket = online.socket; closed.Reason = EOS_CCR_ClosedByLocalUser;
+    Online_ConnectionClosed(&closed); T_ASSERT(Online_InLobby());
+    closed.Reason = EOS_CCR_ConnectionClosed;
+    Online_ConnectionClosed(&closed);
+    T_ASSERT(!Online_InLobby()); T_ASSERT(!Online_Ready());
+    T_ASSERT(!online.connecting); T_NULL(online.owner); T_EQ(online.num_peers, 0);
+    T_NULL(online.peers[0].assembly[NS_CLIENT].data);
+    T_STREQ(Online_Status(), "Connection to the Internet host has closed.");
+    Online_ClearPeers();
+    memcpy(&online, saved, sizeof(online)); free(saved);
+}
+
+TEST(online_service, departing_guest_does_not_close_host_or_other_peer_assembly) {
+    void *saved = malloc(sizeof(online));
+    T_NOT_NULL(saved); if (!saved) return;
+    memcpy(saved, &online, sizeof(online)); memset(&online, 0, sizeof(online));
+    online.user = online.owner = (EOS_ProductUserId)(uintptr_t)1;
+    online.hosting = online.enabled = online.ready = online.published = true;
+    snprintf(online.lobby, sizeof(online.lobby), "test-room");
+    snprintf(online.socket.SocketName, sizeof(online.socket.SocketName), "OpenRealm");
+    online.peers[0].user = (EOS_ProductUserId)(uintptr_t)2;
+    online.peers[1].user = (EOS_ProductUserId)(uintptr_t)3;
+    online.num_peers = 2;
+    for (int i = 0; i < 2; i++) for (int j = 0; j < 2; j++) {
+        online.peers[i].assembly[j].data = malloc(32);
+        T_NOT_NULL(online.peers[i].assembly[j].data);
+    }
+    EOS_P2P_OnPeerConnectionEstablishedInfo established = { .LocalUserId = online.user,
+        .RemoteUserId = online.peers[0].user, .SocketId = &online.socket,
+        .NetworkType = EOS_NCT_RelayedConnection };
+    Online_ConnectionEstablished(&established);
+    T_EQ(online.peers[0].network_type, EOS_NCT_RelayedConnection);
+    EOS_P2P_OnRemoteConnectionClosedInfo closed = { .LocalUserId = online.user,
+        .RemoteUserId = online.peers[0].user, .SocketId = &online.socket, .Reason = EOS_CCR_ConnectionClosed };
+    Online_ConnectionClosed(&closed);
+    T_ASSERT(Online_InLobby()); T_ASSERT(Online_HostReady());
+    T_EQ(online.peers[0].network_type, EOS_NCT_NoConnection);
+    for (int i = 0; i < 2; i++) {
+        T_NULL(online.peers[0].assembly[i].data);
+        T_NOT_NULL(online.peers[1].assembly[i].data);
+    }
+    established.ConnectionType = EOS_CET_Reconnection;
+    established.NetworkType = EOS_NCT_DirectConnection;
+    Online_ConnectionEstablished(&established);
+    T_EQ(online.peers[0].network_type, EOS_NCT_DirectConnection);
+    Online_ClearPeers();
+    memcpy(&online, saved, sizeof(online)); free(saved);
+}
+
+TEST(online_service, departure_failures_remain_visible_until_the_batch_finishes) {
+    void *saved = malloc(sizeof(online));
+    T_NOT_NULL(saved); if (!saved) return;
+    memcpy(saved, &online, sizeof(online)); memset(&online, 0, sizeof(online));
+    online.leave_pending = 2;
+    EOS_Lobby_DestroyLobbyCallbackInfo destroyed = { .ResultCode = EOS_UnexpectedError };
+    Online_Destroyed(&destroyed);
+    T_EQ(online.leave_pending, 1); T_ASSERT(online.departure_failed);
+    EOS_Lobby_LeaveLobbyCallbackInfo left = { .ResultCode = EOS_Success };
+    Online_Left(&left);
+    T_EQ(online.leave_pending, 0); T_ASSERT(online.departure_failed);
+    T_STREQ(Online_Status(), "destroy lobby: EOS_UnexpectedError");
+    online.departure_failed = false; online.leave_pending = 1;
+    left.ResultCode = EOS_NotFound;
+    Online_Left(&left);
+    T_EQ(online.leave_pending, 0); T_ASSERT(!online.departure_failed);
+    memcpy(&online, saved, sizeof(online)); free(saved);
+}
+
 TEST(online_service, cancel_waits_for_late_create_and_update_callbacks) {
     void *saved = malloc(sizeof(online));
     T_NOT_NULL(saved); if (!saved) return;
@@ -757,5 +912,6 @@ TEST(online_service, server_and_client_admit_only_their_lobby_peers) {
     memcpy(&online, saved, sizeof(online)); free(saved);
     if (own_sdk) T_EQ(EOS_Shutdown(), EOS_Success);
 }
+#include "../tests/online_acceptance.h"
 #endif
 #endif

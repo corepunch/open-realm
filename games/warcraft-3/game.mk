@@ -40,6 +40,7 @@ else ifeq ($(UNAME_S),Darwin)
 EOS_RUNTIME_NAME := libEOSSDK-Mac-Shipping.dylib
 EOS_RUNTIME_DIR := $(LIB_DIR)
 WC3_EOS_LIBS := -L$(EOS_SDK_ROOT)/Bin -lEOSSDK-Mac-Shipping
+WC3_EOS_LIBS += -framework CoreFoundation
 # Sign the build copy; preserve the SDK archive and its original library.
 EOS_RUNTIME_SIGN := codesign --force --sign '$(EOS_CODESIGN_IDENTITY)'
 else ifeq ($(UNAME_S),Linux)
@@ -239,11 +240,22 @@ $(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME
 # ---------------------------------------------------------------------------
 GAME_WC3_TEST_LIB := $(LIB_DIR)/libgame-wc3-test$(LIB_EXT)
 WC3_TEST_BINARY   := $(BIN_DIR)/openwarcraft3-tests$(EXE_EXT)
+$(WC3_TEST_BINARY): tests/online_acceptance.h
 
 $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game-wc3-test,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
 $(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(WC3_EOS_RUNTIME) $(EOS_BUILD_CONFIG) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WC3_TEST_DIR)/test_coordinates.c,openwarcraft3-tests,$(WC3_FDF_CFLAGS) $(WC3_EOS_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) $(WC3_EOS_LIBS) -lz,$(WC3_DIR)/common/world_w3.c $(WC3_TEST_DIR)/test_coordinates.c))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
+
+.PHONY: test-eos-service
+ifeq ($(EOS),1)
+test-eos-service: $(WC3_TEST_BINARY) test-assets
+	$(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'online_service.*'
+else
+test-eos-service:
+	@echo 'test-eos-service requires EOS=1 and EOS_SDK_ROOT pointing to the C SDK' >&2
+	@exit 1
+endif
 
 WC3_PATTERN ?= *
 test-wc3-engine: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)

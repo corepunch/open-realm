@@ -537,6 +537,7 @@ void Cvar_Init(void) {
     Cvar_GetD("map",              "",                  0,            "map file to load at startup (e.g. Maps/HumanCampaign1.w3m)");
 #endif
     Cvar_GetD("connect",          "",                  0,            "server address to connect to at startup");
+    Cvar_GetD("online_force_relay", "0",               0,            "force EOS relay transport; set before entering Internet games for the first time");
     Cvar_GetD("cl_debug_entities","0",                 0,            "log client-side entity sync events");
     Cvar_GetD("sv_debug_entities","0",                 0,            "log server-side entity sync events");
     Cvar_GetD("r_debug_entities", "0",                 0,            "log renderer entity lifecycle events");

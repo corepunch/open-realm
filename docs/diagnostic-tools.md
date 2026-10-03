@@ -1,5 +1,14 @@
 # Diagnostic Tools
 
+## EOS Internet acceptance
+
+`make EOS=1 test-eos-service` runs offline SDK session regressions. The
+EOS-enabled test executable also provides the explicit `+online_acceptance`
+command for bounded live publication, paired packet transport, forced-relay
+and host-crash cleanup checks. It is never invoked by ordinary test runs.
+See [EOS acceptance and gameplay release gate](architecture/epic-online-services.md#bounded-live-adapter-checks)
+for commands, required separate guest identities and remaining gameplay checks.
+
 ## Warcraft III Campaign Map Audit
 
 Use `make audit-wc3-maps` to run every shipped RoC/TFT campaign map for a
