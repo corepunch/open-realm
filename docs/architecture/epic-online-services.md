@@ -47,7 +47,8 @@ its ZIP CRC matched. The build creates a copy without download metadata and
 signs that derived library, preserving the original SDK. Local builds use an
 ad hoc signature. Distribution builds can specify `EOS_CODESIGN_IDENTITY`,
 and must sign/notarize the complete application through their normal pipeline.
-Windows and Linux build recipes have not been executed in this change.
+Hosted Linux, Windows, macOS x64 and Flatpak release build/package recipes passed
+in the validation run linked below; local development checks use macOS arm64.
 
 The store slug is not an SDK configuration. Runtime needs five values from
 Product Settings → SDK Download & Credentials / Clients:
@@ -176,6 +177,13 @@ redaction. A fresh optimized macOS arm64 EOS executable and test executable buil
 successfully; its SDK state checks passed 31 assertions in three tests, and the
 full SDK-free `make test TEST_JOBS=4` passed with local UDP socket access.
 These checks do not establish two-installation gameplay or relay behavior.
+
+The hosted [release validation run](https://github.com/corepunch/open-realm/actions/runs/37110255488)
+at commit `88657b56133536f757764894ef327ac6064c00ba` completed SDK mirror checkout,
+checksum verification, compilation and packaging successfully on Linux x64,
+macOS x64, Windows x64 and Flatpak. `publish=false` skipped every release-asset
+upload, Flatpak artifact upload and the Publish Flatpak job. The live service
+probe below was local and separate from this compile/package validation.
 
 ## Live configuration check
 
