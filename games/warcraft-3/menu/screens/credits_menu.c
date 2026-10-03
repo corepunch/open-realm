@@ -5,7 +5,6 @@
 #include "../menu_local.h"
 #include "../menu_dialog.h"
 #include "../menu_screen.h"
-#include "../generated/contributors.h"
 
 static frameDef_t *credits_root;
 static uiDialogWar3_t credits_dialog;
@@ -27,7 +26,17 @@ static void CreditsMenu_Init(void) {
         .template_name = "BattleNetDialogTemplate",
     };
     uiDialogWar3Config_t config = {
-        .message = "OpenWarcraft3\n\nA Quake-style RTS runtime for Warcraft III data.\n\nThe project began with a Warcraft III map renderer I wrote around 2006. In 2023 I decided to restore that old work and push it further: not just a viewer, but a playable game engine.\n\nThere is still a lot to build, fix, and polish. Contributors are always welcome.\n\nContributors: " WC3_CREDITS_CONTRIBUTORS "\n\nOriginal Warcraft III assets and names belong to Blizzard Entertainment.",
+        .message = "OpenWarcraft3\n\n"
+            "A Quake-style RTS runtime for Warcraft III data.\n\n"
+            "The project began with a Warcraft III map renderer I wrote around 2006. "
+            "In 2023 I decided to restore that old work and push it further: "
+            "not just a viewer, but a playable game engine.\n\n"
+            "There is still a lot to build, fix, and polish. Contributors are always welcome.\n\n"
+            "Contributors: corepunch, sookyboo, Alexander Sadovsky, Daniil Ryvkin, "
+            "Thomas Main, Matěj Štágl, jmsparta, codesarl\n\n"
+            "Special thanks to Retera for WarSmash, which served as a reference "
+            "for many parts of this project.\n\n"
+            "Original Warcraft III assets and names belong to Blizzard Entertainment.",
         .icon = UI_DIALOG_WAR3_ICON_MESSAGE,
         .buttons = UI_DIALOG_WAR3_BUTTONS_OK,
         .ok_command = "menu_main",
