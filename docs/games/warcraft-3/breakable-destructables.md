@@ -175,13 +175,14 @@ erase an overlapping building, and the live bridge is not treated as a circle
 blocker during movement. On death it stops supplying bridge support, terrain
 pathing is restored, and its optional `pathTexDeath` enters the normal
 static-obstacle bake. The authored TGA is not modified or widened, and there is
-no bridge-specific collision-radius exception. For rectangular bridge
+no bridge-specific collision-radius exception. For rectangular destructable
 textures, WC3 first applies the authored path-texture axis transpose and then
 the entity's nearest quarter-turn from `s.angle`; square textures keep the same
 cell footprint for every quarter-turn. `M_CheckGround` consumes the same
 transform for walkable-surface support bounds, so the routeable deck and the
-support-height region remain aligned. Only `TARG_BRIDGE` uses this angle policy;
-ordinary destructable and building path textures remain unrotated.
+support-height region remain aligned. This facing policy applies to all
+destructables with path textures, regardless of `targType`; unit/building path
+textures remain axis-aligned pending a separate contract review.
 
 ## Phase Boundary
 
