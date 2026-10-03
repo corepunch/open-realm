@@ -123,7 +123,6 @@ static uint32_t SV_ClientIndex(client_t *client) {
 static void SV_LobbySayClient_f(client_t *cl, int argc, cstring_t *argv) {
     char text[256];
     size_t used = 0;
-    char sender[32];
 
     if (argc < 2 || !argv) {
         return;
@@ -144,8 +143,7 @@ static void SV_LobbySayClient_f(client_t *cl, int argc, cstring_t *argv) {
         used += len;
         text[used] = '\0';
     }
-    snprintf(sender, sizeof(sender), "Player %u", (unsigned)SV_ClientIndex(cl) + 1);
-    SV_LobbyBroadcastChatFrom(SV_ClientIndex(cl), sender, text);
+    SV_LobbyBroadcastChatFrom(SV_ClientIndex(cl), cl->name, text);
 }
 
 /* Quake 2 SV_Disconnect_f: the client announces it is leaving. This used to fall through to the game as an

@@ -7,6 +7,7 @@ static void (*online_live_lobby_update)(lobbyState_t const *);
 static bool online_live_chat_host, online_live_chat_guest, online_live_chat_own;
 
 static void Online_LiveChat(cstring_t text, bool own) {
+    fprintf(stderr, "EOS gameplay chat: own=%u %s\n", own ? 1u : 0u, text);
     if (!strcmp(text, "Acceptance host: host-ready") && own == online_live_chat_own) online_live_chat_host = true;
     if (!strcmp(text, "Acceptance guest: guest-ready") && own != online_live_chat_own) online_live_chat_guest = true;
 }
@@ -96,7 +97,10 @@ static bool Online_LiveGameRun(cstring_t role, cstring_t room) {
                 online_live_lobby.slots[i].type != LOBBY_SLOT_HUMAN) return false;
         fprintf(stderr, "EOS gameplay: received authoritative two-player lobby and distinct slots/names/colors\n");
         Online_LiveCommand(host ? "lobby_say host-ready" : "lobby_say guest-ready");
-        while (!online_live_chat_host || !online_live_chat_guest) if (!Online_LivePump()) return false;
+        uint32_t chat_started = SDL_GetTicks();
+        while (!online_live_chat_host || !online_live_chat_guest) {
+            if (!Online_LivePump() || SDL_GetTicks() - chat_started > 10000) return false;
+        }
         fprintf(stderr, "EOS gameplay: both lobby chat messages decoded with correct sender ownership\n");
         if (host) {
             if (!Online_LivePublished() || !Online_LiveFind(room, false)) return false;
