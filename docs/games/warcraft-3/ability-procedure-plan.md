@@ -134,7 +134,13 @@ consumed corpse unraisable/no-decay. Resurrection and Animate Dead therefore
 differ in post-revival policy without duplicating decay/order cleanup.
 `G_CorpseUnitLevel()` is the shared corpse-value accessor used by both the
 high-level Resurrection/Animate Dead preference and Raise Dead's inverse
-low-level preference; selection order remains ability-owned.
+low-level preference; selection order remains ability-owned. Corpse-fed spells
+that accept both world corpses and Meat Wagon storage use
+`S_SpellCorpseTargetPosition()` for the shared storage-aware target-mask,
+friendly-holder, and effective-position contract. Cannibalize also uses
+`S_SpellReserveCorpse()` / `S_SpellReleaseCorpse()` for exclusive ownership of
+its active corpse; nearest-vs-ranked selection and consumption policy stay in
+the owning ability.
 
 Use the same rule for future consolidation:
 

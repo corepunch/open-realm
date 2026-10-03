@@ -253,17 +253,6 @@ BZ_ABILITY_PROC(CAbilityGraveyard) {
  * Ubertip="Consumes a nearby corpse to restore hit points over time."
  * DataA = HP restored per second, DataB = corpse acquisition radius, Dur = channel duration.
  */
-static void corpse_remove_status(edict_t *corpse, uint32_t code) {
-    if (!corpse || !code) return;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        if (corpse->abilstatus[i].level && corpse->abilstatus[i].code == code) {
-            memset(corpse->abilstatus + i, 0, sizeof(corpse->abilstatus[i]));
-            G_InvalidateUnitInfoPanel(corpse);
-            return;
-        }
-    }
-}
-
 static void show_no_usable_corpse(edict_t *caster) {
     if (!caster) return;
     G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
@@ -275,23 +264,12 @@ static edict_t *cannibalize_corpse(edict_t *caster, abilityitem_t const *spell) 
     float range = S_SpellData(spell->code, level, 2), best = FLT_MAX;
     edict_t *corpse = NULL;
 
-    FILTER_EDICTS(unit, !G_UnitIsHero(unit) && S_SpellAllowsCorpseTarget(spell->code, caster, unit) &&
-                  !G_UnitStatusLevel(unit, spell->code)) {
-        float const distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
+    FILTER_EDICTS(unit, !G_UnitIsHero(unit) && !G_UnitStatusLevel(unit, spell->code)) {
+        vec2_t position;
+        float distance;
+        if (!S_SpellCorpseTargetPosition(spell->code, caster, unit, &position)) continue;
+        distance = Vector2_distance(&position, &caster->s.origin2);
         if (distance <= range && distance < best) { corpse = unit; best = distance; }
-    }
-    FILTER_EDICTS(transport, transport->cargo && S_CargoIsCorpseHolder(transport) &&
-                  transport->s.player == caster->s.player) {
-        FOR_LOOP(i, transport->cargo->count) {
-            edict_t *unit = S_CargoUnitAt(transport, i);
-            vec2_t position;
-            float distance;
-            if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
-                !S_SpellAllowsStoredCorpseTarget(spell->code, caster, unit) ||
-                G_UnitStatusLevel(unit, spell->code) || !S_CorpseCargoPosition(unit, &position)) continue;
-            distance = Vector2_distance(&position, &caster->s.origin2);
-            if (distance <= range && distance < best) { corpse = unit; best = distance; }
-        }
     }
     return corpse;
 }
@@ -318,10 +296,7 @@ static void cannibalize_approach_walk(edict_t *caster) {
 static umove_t cannibalize_approach_move = { "walk", cannibalize_approach_walk, NULL, CAbilityMove };
 
 static bool cannibalize_corpse_allowed(edict_t *caster, uint32_t code, edict_t *corpse) {
-    if (!caster || !corpse) return false;
-    return S_CorpseCargoIsStored(corpse)
-        ? S_SpellAllowsStoredCorpseTarget(code, caster, corpse)
-        : S_SpellAllowsCorpseTarget(code, caster, corpse);
+    return S_SpellCorpseTargetPosition(code, caster, corpse, NULL);
 }
 
 static bool cannibalize_can_approach(edict_t *caster) {
@@ -415,8 +390,7 @@ static void cannibalize_finish(edict_t *thinker) {
     uint32_t code = thinker ? thinker->class_id : 0;
 
     if (cannibalize_reserved_corpse_valid(thinker, corpse)) {
-        corpse->aiflags &= ~AI_CORPSE_RESERVED;
-        corpse_remove_status(corpse, code);
+        S_SpellReleaseCorpse(corpse, code);
         G_FreeEdict(corpse);
     }
     if (thinker) S_SpellEndChannel(thinker);
@@ -472,8 +446,7 @@ BZ_ABILITY_PROC(CAbilityCannibalize) {
         if (!corpse) {
             S_SpellCancelChannel(ent); return false;
         }
-        corpse->aiflags |= AI_CORPSE_RESERVED;
-        unit_addstatus(corpse, GetClassName(spell->code), level);
+        S_SpellReserveCorpse(corpse, spell->code, level);
         thinker = S_SpellChannelThinker(ent, spell->code);
         thinker->goalentity = corpse;
         if (!thinker->channel) thinker->channel = G_AllocChannel();
@@ -505,30 +478,16 @@ static edict_t *raise_dead_corpse(edict_t *caster, uint32_t code, float range) {
     int32_t best_rank = 0;
     edict_t *corpse = NULL;
 
-    FILTER_EDICTS(unit, !G_UnitIsHero(unit) && S_SpellAllowsCorpseTarget(code, caster, unit)) {
-        float const distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
-        int32_t const rank = G_CorpseUnitLevel(unit);
+    FILTER_EDICTS(unit, !G_UnitIsHero(unit)) {
+        vec2_t position;
+        float distance;
+        int32_t rank;
+        if (!S_SpellCorpseTargetPosition(code, caster, unit, &position)) continue;
+        distance = Vector2_distance(&position, &caster->s.origin2);
+        rank = G_CorpseUnitLevel(unit);
         if (distance > range) continue;
         if (!corpse || rank < best_rank || (rank == best_rank && distance < best_distance)) {
             corpse = unit; best_rank = rank; best_distance = distance;
-        }
-    }
-    FILTER_EDICTS(transport, transport->cargo && S_CargoIsCorpseHolder(transport) &&
-                  transport->s.player == caster->s.player) {
-        FOR_LOOP(i, transport->cargo->count) {
-            edict_t *unit = S_CargoUnitAt(transport, i);
-            vec2_t position;
-            float distance;
-            int32_t rank;
-            if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
-                !S_SpellAllowsStoredCorpseTarget(code, caster, unit) ||
-                !S_CorpseCargoPosition(unit, &position)) continue;
-            distance = Vector2_distance(&position, &caster->s.origin2);
-            rank = G_CorpseUnitLevel(unit);
-            if (distance > range) continue;
-            if (!corpse || rank < best_rank || (rank == best_rank && distance < best_distance)) {
-                corpse = unit; best_rank = rank; best_distance = distance;
-            }
         }
     }
     return corpse;

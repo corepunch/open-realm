@@ -475,6 +475,44 @@ bool S_SpellAllowsStoredCorpseTarget(uint32_t code, edict_t *caster, edict_t *ta
     return spell_allows_corpse_target(code, caster, target, true);
 }
 
+/* Corpse-consuming spells may target ordinary world corpses or corpses stored
+ * in a friendly Meat Wagon. Centralize the storage-aware target rule and the
+ * corpse's effective world position; callers still own selection policy. */
+bool S_SpellCorpseTargetPosition(uint32_t code, edict_t *caster, edict_t *corpse, vec2_t *position) {
+    if (!caster || !corpse) return false;
+    if (S_CorpseCargoIsStored(corpse)) {
+        edict_t *holder = S_CargoTransportForUnit(corpse);
+        if (!holder || !holder->inuse || holder->s.player != caster->s.player ||
+            !S_SpellAllowsStoredCorpseTarget(code, caster, corpse)) return false;
+    } else if (!S_SpellAllowsCorpseTarget(code, caster, corpse)) {
+        return false;
+    }
+    return !position || S_CorpseCargoPosition(corpse, position);
+}
+
+/* Reservation prevents another corpse consumer from claiming the same edict.
+ * The status records which ability owns the reservation so release can retire
+ * only that owner's marker. */
+void S_SpellReserveCorpse(edict_t *corpse, uint32_t code, uint32_t level) {
+    if (!corpse || !code) return;
+    corpse->aiflags |= AI_CORPSE_RESERVED;
+    unit_addstatus(corpse, GetClassName(code), level);
+}
+
+void S_SpellReleaseCorpse(edict_t *corpse, uint32_t code) {
+    if (!corpse) return;
+    corpse->aiflags &= ~AI_CORPSE_RESERVED;
+    if (!code) return;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = corpse->abilstatus + i;
+        if (status->level && status->code == code) {
+            memset(status, 0, sizeof(*status));
+            G_InvalidateUnitInfoPanel(corpse);
+            return;
+        }
+    }
+}
+
 void S_SpellHeal(edict_t *target, float amount) {
     if (!target || amount <= 0) {
         return;

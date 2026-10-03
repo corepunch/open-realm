@@ -560,7 +560,8 @@ Corpse-fed no-target channels keep acquisition and periodic behavior in their ab
 (Cannibalize) selects the nearest authored-target-valid corpse within `DataB`, reserves it for the active
 channel, and applies `DataA` HP/second on the simulation cadence. Full health, authored `Dur`, or normal
 channel interruption ends the cast and consumes the reserved corpse. Shared corpse eligibility honors
-`UnitData.deathType`, runtime reservation/unraisable state, and the ability's Targets Allowed field. ROC and
+`UnitData.deathType`, runtime reservation/unraisable state, the ability's Targets Allowed field, and for stored
+corpses resolves the friendly holder as the effective world position. ROC and
 TFT both author `DataA=10`, `DataB=800`, and `Dur=33` for stock `Acan`; see
 [Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md).
 
