@@ -490,8 +490,7 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
 
     FILTER_EDICTS(target, ITEM_DEFENSE_AOE_TARGET(target)) {
         float duration = S_SpellDuration(code, level, G_UnitIsHero(target));
-        unit_addtimedstatus(target, buff, level, duration);
-        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        S_SpellApplyTimedTargetStatus(target, code, level, buff, duration);
         affected++;
     }
 #undef ITEM_DEFENSE_AOE_TARGET

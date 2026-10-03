@@ -40,12 +40,12 @@ static void human_remove_status(edict_t *ent, uint32_t code) {
 
 static bool defend_projectile_reaction(edict_t *projectile);
 
-static void human_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+static heroabilitystatus_t *human_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = human_buff(spell, level);
-    if (!st.entity || !buff) return;
-    S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                  S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    if (!st.entity || !buff) return NULL;
+    return S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+                                         S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
 }
 
 static void human_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -208,8 +208,7 @@ static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_
     level = S_SpellLevel(caster, spell->code);
     buff = human_buff(spell, level);
     if (!buff || strlen(buff) != 4) return;
-    human_status_execute(caster, st, spell);
-    status = unit_findstatus(st.entity, *((uint32_t const *)buff));
+    status = human_status_execute(caster, st, spell);
     if (!status) {
         fprintf(stderr, "WC3 Invisibility: authored status %.4s missing after cast on unit %u\n",
                 buff, st.entity->s.number);

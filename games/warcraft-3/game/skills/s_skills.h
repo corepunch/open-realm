@@ -522,7 +522,7 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
 bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *target);
 bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool wounded, float fallback_range);
 cstring_t S_SpellBuffToken(cstring_t list, uint32_t index);
-void S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration);
+heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration);
 void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level);
 bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *target);
 bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point);

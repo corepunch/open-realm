@@ -98,8 +98,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
         fprintf(stderr, "WC3: %.4s has no authored BuffID\n", (cstring_t)&spell->code);
         return;
     }
-    unit_addtimedstatus(target, buff, level, S_SpellData(spell->code, level, 1));
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    S_SpellApplyTimedTargetStatus(target, spell->code, level, buff,
+                                  S_SpellData(spell->code, level, 1));
 }
 
 void divine_shield_think(edict_t *ent) {

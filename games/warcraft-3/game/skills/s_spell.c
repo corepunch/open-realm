@@ -1096,10 +1096,13 @@ cstring_t S_SpellBuffToken(cstring_t list, uint32_t index) {
 
 /* Shared lifecycle for ordinary target buffs whose caller has already resolved
  * validation, BuffID fallback and the exact duration class. */
-void S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration) {
-    if (!target || !buff || strlen(buff) < 4) return;
+heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration) {
+    heroabilitystatus_t *status;
+    if (!target || !buff || strlen(buff) < 4) return NULL;
     unit_addtimedstatus(target, buff, level, duration);
+    status = unit_findstatus(target, FS_SLKKey(buff));
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return status;
 }
 
 /* Simple persistent on/off status family. Specialized toggles such as Defend

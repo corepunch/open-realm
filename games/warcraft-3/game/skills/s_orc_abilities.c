@@ -74,15 +74,12 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
     }
     buff = G_AbilityLevel(spell->code, level)->buffID;
     if (!buff || strlen(buff) < 4) buff = "Bprg";
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        slot = st.entity->abilstatus + i;
-        if (slot->level && slot->code == *((uint32_t const *)buff)) { slot->data = spell->code; break; }
-    }
+    slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+                                         S_SpellDuration(spell->code, level, false));
+    if (slot) slot->data = spell->code;
     if (st.entity->owner && !S_SummonIsDispelImmune(st.entity))
         S_SpellDamage(st.entity, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, 3)));
     if (S_PurgeIsImmobilized(st.entity) && st.entity->stand) st.entity->stand(st.entity);
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityPurge) { purge_execute(caster, st, spell); }

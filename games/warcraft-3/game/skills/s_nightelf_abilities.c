@@ -85,8 +85,8 @@ static void barkskin_execute(edict_t *caster, spellTarget_t st, abilityitem_t co
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
     if (!st.entity || !buff || strlen(buff) < 4) return;
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+    S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+                                  S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
 }
 
 static bool barkskin_acquire(edict_t *caster, uint32_t code) {

@@ -22,14 +22,9 @@ static void anti_magic_shell_execute(edict_t *caster, spellTarget_t st, abilityi
     if (!st.entity) return;
     /* ROC AbilityData omits BuffID; UndeadAbilityStrings still names Bams as the shell buff. */
     if (!buff) buff = absorb > 0.0f ? "Bam2" : "Bams";
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
-    if (absorb > 0.0f) {
-        FOR_LOOP(i, MAX_UNIT_STATUSES) {
-            slot = st.entity->abilstatus + i;
-            if (slot->level && slot->code == *((uint32_t const *)buff)) { slot->data = (uint32_t)absorb; break; }
-        }
-    }
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+    slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+                                         S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
+    if (absorb > 0.0f && slot) slot->data = (uint32_t)absorb;
 }
 
 /* Name=Anti-magic Shell

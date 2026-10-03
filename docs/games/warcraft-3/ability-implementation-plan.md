@@ -147,8 +147,11 @@ the shared aura cache instead of open-coding recipient scans, and temporary corp
 revival uses `G_ReviveCorpseAsSummon()` rather than repeating the ordinary corpse
 teardown. Ordinary target-status procedures may share
 `S_SpellApplyTimedTargetStatus()` only after the owner has resolved its own BuffID
-fallback and exact normal/resistant duration. `S_SpellBuffToken()` only parses
-ordered BuffID fields; the owning ability still decides which token is correct.
+fallback and exact normal/resistant duration. The helper returns the authoritative
+status slot after applying the buff and TargetArt, so abilities such as Anti-Magic
+Shell, Purge, Invisibility, and Spirit Link can attach their ability-owned payload
+without rescanning `abilstatus`. `S_SpellBuffToken()` only parses ordered BuffID
+fields; the owning ability still decides which token is correct.
 Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with
 animation, expiry, or other side effects retain their own wrappers. See
 [Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families).
