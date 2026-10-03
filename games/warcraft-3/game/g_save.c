@@ -79,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format93 retains independently published adaptive cells across terrain edits. */
-static uint32_t const save_version = 94;
+/* Format95 retains separate route lanes and suspended point-order deadlines. */
+static uint32_t const save_version = 95;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -729,12 +729,14 @@ static field_t const move_route_fields[] = {
     TF(moveFineRoute_t, adaptive_index, F_INT),
     TF(moveFineRoute_t, adaptive_goal, F_VECTOR),
     TF(moveFineRoute_t, adaptive_radius, F_FLOAT),
+    TF(moveFineRoute_t, adaptive_mask, F_INT),
     TF(moveFineRoute_t, adaptive_revision, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, group_points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, group_count, F_INT),
     TF(moveFineRoute_t, group_index, F_INT),
     TF(moveFineRoute_t, group_goal, F_VECTOR),
     TF(moveFineRoute_t, group_radius, F_FLOAT),
+    TF(moveFineRoute_t, group_mask, F_INT),
     TF(moveFineRoute_t, group_revision, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -805,12 +807,14 @@ static field_t const movement_fields[] = {
     TF(struct edictMovement_s, fine_route.adaptive_index, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_goal, F_VECTOR),
     TF(struct edictMovement_s, fine_route.adaptive_radius, F_FLOAT),
+    TF(struct edictMovement_s, fine_route.adaptive_mask, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_revision, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.group_points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.group_count, F_INT),
     TF(struct edictMovement_s, fine_route.group_index, F_INT),
     TF(struct edictMovement_s, fine_route.group_goal, F_VECTOR),
     TF(struct edictMovement_s, fine_route.group_radius, F_FLOAT),
+    TF(struct edictMovement_s, fine_route.group_mask, F_INT),
     TF(struct edictMovement_s, fine_route.group_revision, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, repulse, F_STRUCT, 1, repulse_fields),
     TF(edictMovement_s, fine_pose, F_VECTOR),
@@ -1010,6 +1014,11 @@ field_t edict_fields[] = {
     F(edict_s, movement.captain_home.due.epoch, F_INT),
     F(edict_s, movement.captain_home.due.span, F_FLOAT),
     F(edict_s, movement.type_rebind_pending, F_INT),
+    F(edict_s, movement.pause_order_id, F_INT),
+    F(edict_s, movement.pause_resume_pending, F_INT),
+    F(edict_s, movement.pause_deadline.time, F_FLOAT),
+    F(edict_s, movement.pause_deadline.epoch, F_INT),
+    F(edict_s, movement.pause_deadline.span, F_FLOAT),
     F(edict_s, movement.type_rebind_deadline.time, F_FLOAT),
     F(edict_s, movement.type_rebind_deadline.epoch, F_INT),
     F(edict_s, movement.type_rebind_deadline.span, F_FLOAT),

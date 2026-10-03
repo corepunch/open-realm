@@ -856,7 +856,7 @@ TEST(wc3_pathfinding, heatmap_reuses_neighbor_pathability_queries) {
 
 TEST(wc3_pathfinding, nearby_detour_accelerator_returns_clear_waypoint) {
     vec2_t from = {2.0f, 5.0f}, target = {7.0f, 5.0f}, waypoint;
-    pathAccelParams_t params = { &from, &target, 0.0f, 0 };
+    pathAccelParams_t params = { &from, &target, 0.0f, CM_PATHING_UNWALKABLE };
 
     build_wall_map();
     setup_test_pathmap(MAP_W, MAP_H, wall_map);
@@ -931,8 +931,8 @@ TEST(wc3_pathfinding, distant_detour_skips_bounded_accelerator) {
 TEST(wc3_pathfinding, nearby_detour_accelerator_respects_collision_radius) {
     uint8_t narrow[MAP_W * MAP_H];
     vec2_t from = {2.0f, 5.0f}, target = {7.0f, 5.0f}, waypoint;
-    pathAccelParams_t point = { &from, &target, 0.0f, 0 };
-    pathAccelParams_t wide = { &from, &target, 1.0f, 0 };
+    pathAccelParams_t point = { &from, &target, 0.0f, CM_PATHING_UNWALKABLE };
+    pathAccelParams_t wide = { &from, &target, 1.0f, CM_PATHING_UNWALKABLE };
 
     memset(narrow, 0, sizeof(narrow));
     FOR_LOOP(y, MAP_H) narrow[5 + y * MAP_W] = 0x02;
@@ -1375,8 +1375,8 @@ TEST(wc3_pathfinding, nearby_unit_routes_follow_live_object_eligibility) {
     gi.LinkEntity(idle);
     movePathQuery_t query = { {&unit->s.origin2, &target, 0.5f, CM_PATHING_UNWALKABLE}, unit, NULL, true };
     T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
-    query.geometry.blocked_flags = 0; /* Legacy zero means ground02. */
-    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    query.geometry.blocked_flags = 0; /* Retail query zero bypasses this ordinary occupied category. */
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
     query.geometry.blocked_flags = CM_PATHING_UNWALKABLE;
     edict_t *goal = make_waypoint(target.x, target.y);
     G_RequestMovePathField(NULL, goal, 0.5f, CM_PATHING_UNWALKABLE);

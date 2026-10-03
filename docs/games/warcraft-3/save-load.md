@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 94, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 95, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -1053,3 +1053,15 @@ a load immediately before region entry, callback teleport or callback removal
 must preserve the same next transition. The public original journey checks
 eight saved checkpoints and3418 subsequent motion commits, including10/25/50ms
 server-frame batches. See [region callback lifecycle](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).
+
+
+## Suspended point orders and independent route lanes
+
+Save95 retains `moveFineRoute_t.adaptive_mask` and `group_mask`, separately
+from the current fine collision query. It also retains `movement.pause_order_id`,
+`pause_resume_pending` and the primary `pause_deadline` time/epoch/span.
+Loading during pathing-off travel, paused displacement or the pending resume
+restores route ownership and delayed reactivation through the normal Move
+scheduler. Eight checkpoints reproduce6171 original suffix commits, including
+10/25/50ms frame batches. Older versions are rejected; no migration is supplied.
+See [pathing/pause lifecycle](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).

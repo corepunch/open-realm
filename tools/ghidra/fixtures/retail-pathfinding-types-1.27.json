@@ -737,6 +737,12 @@
           "evidence": "678b50/678b60 thunk loads Unit+30 before690c20/690c80 profile lookup"
         },
         {
+          "offset": 84,
+          "name": "suspension_depth",
+          "type": "u32",
+          "evidence": "688d30 zero-to-one;678590 decrements; scripted pause697770/6977c0\n688d30 increment zero-to-one;678590 decrement and delayed restart;697770/6977c0 scripted pause flag gates"
+        },
+        {
           "offset": 88,
           "name": "owner_index",
           "type": "u32",
@@ -746,7 +752,7 @@
           "offset": 92,
           "name": "order_admission_flags",
           "type": "u32",
-          "evidence": "693490 TEST Unit5c bit100 rejects append; remaining bits undefined. Actual idle Shift starts through empty internal head."
+          "evidence": "693490 TEST Unit5c bit100 rejects append; remaining bits undefined. Actual idle Shift starts through empty internal head.\n206610 bit21 reports scripted pause;697770/6977c0 set/clear200000"
         },
         {
           "offset": 96,
@@ -8904,6 +8910,94 @@
           "name": "predicted",
           "type": "ptr:WC3PathVector2",
           "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f20f540",
+      "name": "Jass_PauseUnit",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "paused",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f206610",
+      "name": "Jass_IsUnitPaused",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f697770",
+      "name": "Unit_BeginScriptedPause",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f6977c0",
+      "name": "Unit_EndScriptedPause",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f688d30",
+      "name": "Unit_PushSuspensionOrder",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "flags",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f678590",
+      "name": "Unit_PopSuspensionOrder",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
         }
       ]
     }

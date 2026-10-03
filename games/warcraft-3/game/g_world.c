@@ -671,7 +671,7 @@ bool G_ClosestReachableMovePoint(pathAccelParams_t const *params, vec2_t *out) {
 
 static moveFineGraph_t move_foot_shape(pathAccelParams_t const *params) {
     return (moveFineGraph_t){ .size = (int)wc3_fine_class(params->radius / pathmap_cell_world_size()) + 1,
-        .flags = normalize_blocked_flags(params->blocked_flags) };
+        .flags = params->blocked_flags };
 }
 
 /* Endpoint geometry is shared by routing and the Move step validator. */
@@ -791,20 +791,27 @@ uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *input, float const
     return scan.count;
 }
 
+/* SetUnitPathing changes the member's fine query, not its authored hierarchy
+ * lane or the acquired coarse chain. Fresh local refinement uses query0. */
+static uint8_t move_adaptive_mask(movePathQuery_t const *input) {
+    return input->mover && input->mover->no_pathing ? M_UnitStaticPathingFlags(input->mover) : input->geometry.blocked_flags;
+}
+
 /* Ordinary owned paths enable adaptive search at activation, including nearby orders. */
 static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out) {
     movePathQuery_t const *input = query->input;
     wc3FineVector_t source = query->source, target = query->target;
     if (!input->units || !input->mover) return false;
+    uint8_t mask=move_adaptive_mask(input);
     unsigned lane = 0;
-    while (lane < 4 && move_acc_masks[lane] != input->geometry.blocked_flags) lane++;
+    while (lane < 4 && move_acc_masks[lane] != mask) lane++;
     if (lane == 4) {
         fprintf(stderr,"WC3 adaptive routing: unsupported movement mask %02x\n",input->geometry.blocked_flags);
         return false;
     }
     moveFineRoute_t *route=query->route;
     bool retained=route && route->adaptive_points && route->adaptive_count &&
-        route->adaptive_index<route->adaptive_count && route->mask==input->geometry.blocked_flags &&
+        route->adaptive_index<route->adaptive_count && route->adaptive_mask==mask &&
         route->adaptive_revision==move_map_revision && route->adaptive_radius==input->geometry.radius &&
         route->adaptive_goal.x==target.x && route->adaptive_goal.y==target.y;
     wc3FineVector_t point;
@@ -831,7 +838,7 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
             if (!points) gi.error("WC3 adaptive routing: cannot retain %u points",count);
             route->adaptive_points=points; route->adaptive_count=count; route->adaptive_index=selected.index;
             route->adaptive_goal=(vec2_t){target.x,target.y}; route->adaptive_radius=input->geometry.radius;
-            route->adaptive_revision=move_map_revision;
+            route->adaptive_revision=move_map_revision; route->adaptive_mask=mask;
             FOR_LOOP(i,count) points[i]=(vec2_t){move_acc_points[i].x,move_acc_points[i].y};
         }
     }
@@ -867,6 +874,7 @@ bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec
  * zero offset. Shared cohort storage/formation admission remains GROUP-04.6. */
 bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *fine) {
     if (!input || !route || !fine || !input->geometry.target || !pathmap.width || !pathmap.height) return false;
+    uint8_t mask=move_adaptive_mask(input);
     box2_t bounds=CM_GetWorldBounds();float cell=pathmap_cell_world_size();
     vec2_t clipped={wc3_point_order_coordinate(input->geometry.target->x,bounds.min.x,bounds.max.x,cell),
         wc3_point_order_coordinate(input->geometry.target->y,bounds.min.y,bounds.max.y,cell)};
@@ -875,11 +883,11 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
      * route. A surviving cached route keeps its footprint after a peer leaves;
      * the current live maximum is used when the destination/map/mask changes. */
     bool retained=route->group_points && route->group_count && route->group_index<route->group_count &&
-        route->group_revision==move_map_revision && route->mask==input->geometry.blocked_flags &&
+        route->group_revision==move_map_revision && route->group_mask==mask &&
         route->group_goal.x==goal.x && route->group_goal.y==goal.y;
     if (!retained) {
         unsigned lane=0;
-        while (lane<4 && move_acc_masks[lane]!=input->geometry.blocked_flags) lane++;
+        while (lane<4 && move_acc_masks[lane]!=mask) lane++;
         if (lane==4) {
             fprintf(stderr,"WC3 group routing: unsupported movement mask %02x\n",input->geometry.blocked_flags);
             return false;
@@ -901,7 +909,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         if (!points) gi.error("WC3 group routing: cannot retain %u points",count);
         route->group_points=points; route->group_count=count; route->group_index=selected.index;
         route->group_goal=goal; route->group_radius=input->geometry.radius; route->group_revision=move_map_revision;
-        route->mask=input->geometry.blocked_flags;
+        route->group_mask=mask;
         route->adaptive_count=route->count=0;
         FOR_LOOP(i,count) points[i]=(vec2_t){move_acc_points[i].x,move_acc_points[i].y};
     }
@@ -1027,7 +1035,7 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
     vec2_t b=input->fine_target && target.x==input->geometry.target->x && target.y==input->geometry.target->y ?
         *input->fine_target : move_grid_from_world(target.x,target.y);
     if (route && route->adaptive_count && (route->adaptive_revision!=move_map_revision ||
-        route->mask!=input->geometry.blocked_flags || route->adaptive_radius!=input->geometry.radius ||
+        route->adaptive_mask!=move_adaptive_mask(input) || route->adaptive_radius!=input->geometry.radius ||
         route->adaptive_goal.x!=b.x || route->adaptive_goal.y!=b.y))
         route->adaptive_count=route->adaptive_index=0;
     int dx=abs((int)floorf(a.x)-(int)floorf(b.x)),dy=abs((int)floorf(a.y)-(int)floorf(b.y));
@@ -1071,7 +1079,7 @@ vec2_t G_MoveFineRouteDirection(movePathQuery_t const *input, moveFineRoute_t co
 /* Original167070 retains the current point until .49 cells, then165e60 skips visible successors. */
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *out) {
     if (!input || !input->geometry.from || !out || !route || !route->points || route->count < 2 ||
-        route->count > BZ_WC3_FINE_NODES || route->index >= route->count || route->mask != input->geometry.blocked_flags)
+        route->count > BZ_WC3_FINE_NODES || route->index >= route->count)
         return false;
     vec2_t source = move_query_source(input);
     if (route->adaptive_count) {

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **304 entries**: **45** distinct original-code oracle
-scripts plus **57** declared variants, **121** archived JSONL audits and **81**
+The inventory now has **305 entries**: **45** distinct original-code oracle
+scripts plus **57** declared variants, **121** archived JSONL audits and **82**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1529,3 +1529,37 @@ baseline in Save94 and checks3418 saved suffix commits across normal and10/25/
 50ms server frames. Original region allocation/lazy stamps, region geometry
 mutation, reentrant filters and bridge/water/UI-limit presentation remain
 explicitly excluded. See [engine contract](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).
+
+
+## Pathing toggle, pause and displacement lifecycle
+
+`live-movement-bypasses-captures-261003` pins the two complete original
+`bypass86-first.jsonl` / `bypass86-repeat.jsonl` captures. The inventory now has
+305 entries:45 original oracle scripts/102 contracts (57 argument variants),
+121 archive audits and82 strict live contracts;148 repository fixture hashes
+are pinned. The accepted pair repeats773 commits,769 decisions,13 searches,
+10 states,9 complete cell chains and310 public markers per run. The paused
+order head and synchronous `IsUnitPaused` values are observed independently.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --output /tmp/wc3-bypass86-fresh \
+  --only live-movement-bypasses-captures-261003 \
+  --only live-region-callbacks-captures-261003 \
+  --only numeric-engine-exact
+```
+
+The output directory must be new. The final strict report passes3/3; fresh
+`bypass86-final-O0.json` and `bypass86-final-O2.json` compare all scalar/clock
+words and complete route/producers. `retail-movement-bypasses-1.27.json` and
+`retail_movement_bypasses.h` retain literal expectations. The engine regression
+repeats773 normal commits and6171 Save95 suffix commits through actual native
+calls and5/10/25/50ms frames. It does not claim other order families, nested
+suspensions or movement modes. See [engine ownership](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
+
+The earlier `bypass86-startup-aborted.jsonl` lacks a footer and used an older map
+when the builder correctly refused overwrite. It is preserved externally as
+excluded scratch evidence; the fresh86b map and accepted pair carry matching
+embedded-source, map and observer hashes.

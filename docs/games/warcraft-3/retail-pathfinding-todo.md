@@ -8,24 +8,22 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**171 done / 336 tasks; 165 remaining.** Payoff85 closes existing MOVE-03.1
-and MOVE-03.2 without new IDs/splits. Two complete original public region
-journeys repeat629 motion commits,628 decisions,18 event states and17 complete
-cell chains. The engine publishes fine-cell region transitions from the movement
-owner, commits occupancy/support before actions and retains callback teleport,
-new orders and removal without stale commits. Save94 preserves the independent
-region sample;3418 saved suffix commits also match10/25/50ms frame batches and
-every callback's primary clock. Eighteen executed original rectangle controls
-cover endpoint cells and fractional/negative origins. Required suites pass2505
-tests/5,054,904 assertions per edition and530 Python checks; three fresh strict
-corpus contracts and O0/O2 comparisons pass. Ghidra retains638 function roles,
-67 layouts/440 fields,306 ABIs and60 globals. See
-[region callback payoff](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).
+**173 done / 336 tasks; 163 remaining.** Payoff86 closes existing MOVE-04.1
+and MOVE-04.2 without new IDs/splits. Complete repeated original wall journeys
+agree on773 motion commits,769 decisions,13 searches,10 states and9 cell chains.
+The engine preserves coarse/adaptive lanes across fine query toggles, retains
+ordinary occupancy, releases physical routing on pause and resumes the retained
+point head after the original ten-ms delay. Eight Save95 checkpoints reproduce
+6171 suffix commits, including10/25/50ms frames. Required suites pass2506 tests/
+5,131,664 assertions per edition and538 Python checks; three fresh strict corpus
+contracts and O0/O2 comparisons pass. Ghidra retains644 function roles,
+67 layouts/441 fields,312 ABIs and60 globals. See
+[pathing and pause payoff](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
 
-Next runnable chunk is MOVE-04.1 and MOVE-04.2: pathing toggles during an actual
-wall route, pause/resume and forced displacement, preserving public ownership,
-exact motion and occupancy. Two complete original captures already repeat the
-trajectory; the engine port follows the recovered lifetime, not scene cases.
+Next runnable chunk is MOVE-04.3: original public teleport and Chaos movement-mode
+switches through ground/flight/ground travel, retaining distinct query/category,
+route and physical task lifetimes. Two complete original captures already repeat
+737 commits and all ownership phases; compare actual engine/save continuations.
 No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
@@ -46,7 +44,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
 | SCHED — Scheduling and owner updates | 4 | 9 |
-| MOVE — Stepping and callbacks | 8 | 7 |
+| MOVE — Stepping and callbacks | 10 | 5 |
 | ORDER — Orders and reclamation | 12 | 24 |
 | GROUP — Shared movement groups | 35 | 12 |
 | FORM — Formation and regrouping | 4 | 9 |
@@ -636,8 +634,8 @@ publication state; it does not close the original bonus writer or other effects.
 
 ### MOVE-04 — Movement bypasses
 
-- [ ] **MOVE-04.1** Disable then enable pathing during travel; assert route/occupancy invalidation and the first resumed step.
-- [ ] **MOVE-04.2** Pause/resume and force-displace a mover; assert clock, velocity and route retention or reset.
+- [x] **MOVE-04.1** Disable then enable pathing during travel; assert route/occupancy invalidation and the first resumed step. Payoff86: the original changes the fine query to0 while retaining category010000ca and the acquired hierarchy/fine leg. Separate coarse/adaptive masks and zero-query fine refinement now match773 complete commits and all13 original searches without direct-steering substitution. [Evidence](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
+- [x] **MOVE-04.2** Pause/resume and force-displace a mover; assert clock, velocity and route retention or reset. Payoff86: original suspension head851973, synchronous pause getter, zero velocity/physical route release, fractional paused axis displacement and delayed point-head reactivation. Real RunFrame and eight Save95 states repeat6171 suffix commits across5/10/25/50ms frames; all310 public markers and literal boundary/occupancy states match. Other order families and nested suspension ownership remain existing ORDER tasks. [Evidence](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
 - [ ] **MOVE-04.3** Teleport and switch movement mode via producers inventoried in BASE-01; assert grids/lanes and next request. Split additional producer paths into new IDs.
 
 ## ORDER — Orders and reclamation

@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-SCENARIOS = {'region_callbacks':85, 'movement_lifecycle':84, 'terrain_cache':83, 'chained_expression':82, 'target_overlap': 81, 'adaptive_passage': 80, 'widget_overlap_orders': 73, 'blocker_lifecycle': 72, 'open': 0, 'wall': 1, 'insert': 2, 'remove': 3, 'remove_reorder': 4,
+SCENARIOS = {'movement_bypasses':86, 'region_callbacks':85, 'movement_lifecycle':84, 'terrain_cache':83, 'chained_expression':82, 'target_overlap': 81, 'adaptive_passage': 80, 'widget_overlap_orders': 73, 'blocker_lifecycle': 72, 'open': 0, 'wall': 1, 'insert': 2, 'remove': 3, 'remove_reorder': 4,
              'gate': 5, 'gate_off': 6, 'gate_retarget': 7, 'gate_disable': 8, 'owner_change': 9, 'follow': 10, 'follow_shift': 11, 'follow_walk': 12, 'follow_invisible': 13, 'follow_fog': 14, 'follow_fog_reacquire': 15, 'blocked_goal': 16, 'crowd': 17, 'crowd_air': 18, 'widget_lifecycle': 19, 'turn': 20, 'stock_turn': 21, 'order_lifecycle': 22, 'numeric_inputs': 23, 'numeric_angles': 24, 'widget_escape': 25, 'widget_build_escape': 26, 'numeric_power': 27, 'numeric_literals': 28, 'numeric_integer_literals': 29, 'numeric_bytes': 30, 'profiles': 31, 'speed_inputs': 32, 'speed_drop': 33, 'item_speed': 34, 'item_speed_publish': 35, 'axis_position': 36, 'clock_oblique': 37, 'forced_position': 38, 'blocked_position': 39, 'random_owner': 40, 'pathing_toggle': 41, 'pathing_position': 42, 'stop_recovery': 43, 'spawn_admission': 44, 'public_oblique': 45, 'group_orders': 46, 'group_pair': 47, 'group_twelve': 48, 'selected_point_pair': 49, 'selected_point_queued_pair': 50, 'selected_point_mixed_pair': 51, 'selected_point_independent_pair': 52, 'follow_velocity': 53, 'follow_target_remove_reuse': 54, 'follow_target_kill_reuse': 55, 'follow_target_xy': 56, 'follow_target_position': 57, 'follow_target_travel_xy': 58, 'follow_target_travel_position': 59, 'follow_target_grow': 60, 'follow_target_shrink': 61, 'follow_target_resize_gate': 62, 'moving_radius': 63, 'moving_radius_matrix': 64, 'group_radius_grow': 65, 'group_radius_shrink': 66, 'group_radius_remove': 67, 'outside_west': 68, 'point_bound_matrix': 69, 'captain_home': 71}
 
 
@@ -224,7 +224,7 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
         script = script.replace(old, new)
     if 'gg_rct_SorcAFight = Rect( -1856.0, -352.0, -1728.0, -224.0 )' not in script:
         raise ValueError('unexpected source map geometry')
-    if scenario in ('adaptive_passage','target_overlap','chained_expression','terrain_cache','movement_lifecycle','region_callbacks'):
+    if scenario in ('adaptive_passage','target_overlap','chained_expression','terrain_cache','movement_lifecycle','region_callbacks','movement_bypasses'):
         script=re.sub(r'call SetCameraBounds\( [^\n]+', 'call SetCameraBounds( 128, 128, 1920, 1920, 128, 1920, 1920, 128 )',script)
         script=re.sub(r'call DefineStartLocation\( ([0-3]), [^\n]+',r'call DefineStartLocation( \1, 272, 304 )',script)
         script=script.replace('call CreateRegions(  )','// Flat passage has no campaign regions.')
@@ -353,7 +353,8 @@ def main():
     original = args.base.read_bytes()
     if original[:4] != b'HM3W' or original[512:516] != b'MPQ\x1a':
         parser.error('requires the original 512-byte wrapped campaign map')
-    probe = Path(__file__).with_name('wc3_region_callbacks_probe.j' if args.scenario == 'region_callbacks'
+    probe = Path(__file__).with_name('wc3_movement_bypasses_probe.j' if args.scenario == 'movement_bypasses'
+                                      else 'wc3_region_callbacks_probe.j' if args.scenario == 'region_callbacks'
                                       else 'wc3_movement_lifecycle_probe.j' if args.scenario == 'movement_lifecycle'
                                       else 'wc3_terrain_cache_probe.j' if args.scenario == 'terrain_cache'
                                       else 'wc3_expression_probe.j' if args.scenario == 'chained_expression'
@@ -369,7 +370,7 @@ def main():
     if args.scenario in ('numeric_bytes', 'speed_inputs') and members.count('war3map.w3u') != 1:
         parser.error('object probe requires the original unit modification member')
     passage_members=['war3map.w3e','war3map.wpm','war3map.doo','war3mapUnits.doo','war3map.w3u']
-    if args.scenario in ('adaptive_passage','target_overlap','chained_expression','terrain_cache','movement_lifecycle','region_callbacks') and any(members.count(member)!=1 for member in passage_members):
+    if args.scenario in ('adaptive_passage','target_overlap','chained_expression','terrain_cache','movement_lifecycle','region_callbacks','movement_bypasses') and any(members.count(member)!=1 for member in passage_members):
         parser.error('passage requires original terrain, pathing, placement and unit members')
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='wc3-path-map-') as temp:
@@ -378,7 +379,7 @@ def main():
         command = [tool, '-mpq', str(payload), 'pack']
         for i, member in enumerate(members):
             data = subprocess.check_output([tool, '-mpq', str(args.base), 'cat', member])
-            if args.scenario in ('adaptive_passage','target_overlap','chained_expression','terrain_cache','movement_lifecycle','region_callbacks'):data=passage_map_member(member,data,None if args.scenario=='adaptive_passage' else [])
+            if args.scenario in ('adaptive_passage','target_overlap','chained_expression','terrain_cache','movement_lifecycle','region_callbacks','movement_bypasses'):data=passage_map_member(member,data,None if args.scenario=='adaptive_passage' else [(12,y)for y in range(24)] if args.scenario=='movement_bypasses' else [])
             if member == 'war3map.j':
                 source = data.decode('utf-8').replace('\r\n', '\n')
                 data = instrument(source, probe, args.scenario, args.remove_tick, args.gate_y, args.gate_exit_y, args.captain_source_y, args.captain_peer, args.captain_peer_type, args.captain_blocked_home, args.captain_pool, args.captain_third, args.captain_thirteen).encode('utf-8')
@@ -422,9 +423,9 @@ def main():
               'captain_source_y': args.captain_source_y if args.scenario == 'captain_home' else None,
               'captain_ai_sha256': hashlib.sha256(captain_ai.read_bytes()).hexdigest() if args.scenario == 'captain_home' else None,
               'container': 'rebuilt MPQ with original HM3W header; signature not retained'}
-    if args.scenario in ('adaptive_passage','target_overlap','chained_expression','terrain_cache','movement_lifecycle','region_callbacks'):
+    if args.scenario in ('adaptive_passage','target_overlap','chained_expression','terrain_cache','movement_lifecycle','region_callbacks','movement_bypasses'):
         result['changed_members']=['war3map.j']+passage_members
-        result['terrain_blocks']='reduced size2 passage' if args.scenario=='adaptive_passage' else 'empty'
+        result['terrain_blocks']='reduced size2 passage' if args.scenario=='adaptive_passage' else 'movement bypass wall' if args.scenario=='movement_bypasses' else 'empty'
         result['terrain_fixture_sha256']=hashlib.sha256((Path(__file__).resolve().parents[1]/'ghidra/fixtures/pathing-adaptive-size2-passage.json').read_bytes()).hexdigest()
     args.output.with_suffix('.json').write_text(json.dumps(result, indent=2) + '\n')
 

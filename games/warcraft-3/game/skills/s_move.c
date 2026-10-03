@@ -27,6 +27,7 @@
  * raised from the old free-move-plus-push values so units keep trying to
  * thread through instead of giving up the instant they are briefly packed. */
 #define MOVE_BLOCKED_FRAMES 24
+#define MOVE_ORDER_SUSPENDED 851973u // order ID; original688d77 scripted-pause suspension head
 #define MOVE_SETTLE_FRAMES 8
 #define MOVE_SLOT_MARGIN 8.0f
 #define MOVE_MIN_SLOT_SPACING 16.0f
@@ -302,6 +303,7 @@ static void move_detach_group(edict_t *unit) {
     }
 }
 
+static umove_t move_move_walk;
 static void move_run_group_updates(void);
 static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent);
 static void move_leave(edict_t *self);
@@ -584,7 +586,7 @@ static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
         wc3_float_bits(self->movement.pose_world.y)==wc3_float_bits(self->s.origin2.y) ?
         &self->movement.sampled_pose : NULL;
     moveGroupMember_t const *member=move_find_member(self);
-    return (movePathQuery_t){ .geometry={&self->s.origin2,member ? &member->world_destination : point.point,point.radius,M_UnitStaticPathingFlags(self)},
+    return (movePathQuery_t){ .geometry={&self->s.origin2,member ? &member->world_destination : point.point,point.radius,self->no_pathing ? 0 : M_UnitStaticPathingFlags(self)},
         .mover=self,.target=self->movement.captain_home.active ? self->movement.captain_home.actor : self->goalentity,.units=units,.fine=fine,.fine_target=member ? &member->destination : NULL };
 }
 
@@ -948,6 +950,16 @@ static void move_captain_home_update(edict_t *self) {
  * sampling is observational and must not replace tasks ahead of that owner. */
 void S_RunMoveTimers(void) {
     FILTER_EDICTS(ent,ent->inuse && (ent->movement.captain_home.actor || ent->movement.captain_home.roster_actor)) move_captain_home_update(ent);
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.pause_resume_pending && !ent->paused) {
+        wc3Clock_t const *due=&ent->movement.pause_deadline;
+        bool ready=level.pathing_clock.epoch==due->epoch ? level.pathing_clock.time>=due->time :
+            (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
+        if(!ready)continue;
+        uint32_t order=ent->movement.pause_order_id;
+        ent->movement.pause_resume_pending=false;ent->movement.pause_order_id=0;
+        if(ent->goalentity && ent->currentmove==&move_move_walk)
+            S_IssueMoveOrder(ent,ent->goalentity,order);
+    }
 }
 
 /* Queries predict from the retained fine pose without committing its time origin. */
@@ -1082,15 +1094,34 @@ static void move_repulse_owner_update(void) {
     }
 }
 
-/* Pause retains the mover velocity but consumes no movement time until resumed. */
+/* Original scripted pause admits a suspension head, stopping the physical
+ * task while retaining the user's point order beneath it. Resume is delayed
+ * by the original two primary quanta, then builds from the current pose. */
 void S_SetUnitPaused(edict_t *self, bool paused) {
     if (!self || self->paused == paused) return;
-    if (self->movement.clock_valid) unit_commit_current_pose(self);
-    self->paused = paused;
+    if (paused) {
+        uint32_t order=self->current_order_id;
+        bool point=self->currentmove==&move_move_walk && self->goalentity &&
+            (order==G_OrderId("move") || order==G_OrderId("smart"));
+        if (point) {
+            move_leave(self); move_reset_progress(self);
+            self->movement.pause_order_id=order;
+            self->current_order_id=MOVE_ORDER_SUSPENDED;
+        } else if(self->movement.clock_valid) {
+            unit_commit_current_pose(self);
+            self->movement.velocity=(vec2_t){0};self->movement.clock_valid=false;
+        }
+    } else if(self->movement.pause_order_id) {
+        self->movement.pause_resume_pending=true;
+        self->movement.pause_deadline=level.pathing_clock;
+        FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
+    }
+    self->paused=paused;
 }
 
 /* A different behavior must not inherit the previous Move's prediction velocity. */
 static void move_leave(edict_t *self) {
+    self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
     move_detach_group(self);
     self->movement.group_id=0;
     move_release_captain_reference(self);
@@ -1517,7 +1548,7 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
     float const goal_angle = wc3_vector_heading(dir->x, dir->y);
     bool wait=false;
     bool fine_heading=false;
-    if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) && !self->no_pathing) {
+    if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self)) {
         movePathQuery_t query=move_route_query(self,(moveRoutePoint_t){&self->goalentity->s.origin2,self->collision,policy});
         moveFineRoute_t const *route=&self->movement.fine_route;
         float point[2]; float const *fine=NULL;
@@ -1751,7 +1782,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     /* An admitted retail point cohort owns partial routing too. A generic
      * static field for the raw click must not replace its task destination
      * or skip the current fine leg when that click lies outside the world. */
-    if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) && !self->no_pathing &&
+    if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
         self->movement.fine_route.group_count &&
         unit_accel_direction(self,(moveRoutePoint_t){&self->goalentity->s.origin2,radius,policy},&dir)) {
         unit_apply_heading(self,&dir,policy);
@@ -1766,11 +1797,11 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
      * use the same footprint as move-time collision; point routing previously
      * sent units into narrow gaps and touching obstacle corners. */
     if (move_route_line(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}) &&
-        !(unit_routes_to_location(self) && !self->no_pathing && self->movement.path.valid && self->movement.fine_route.count)) {
+        !(unit_routes_to_location(self) && self->movement.path.valid && self->movement.fine_route.count)) {
         /* Retail16fbd0 advances even a clear point route. Its retained fine
          * turn and predicted native source determine the heading; subtracting
          * published world positions changes velocity/facing before a blocker. */
-        if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) && !self->no_pathing &&
+        if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
             unit_accel_direction(self,(moveRoutePoint_t){&self->goalentity->s.origin2,radius,policy},&dir)) {
             unit_apply_heading(self,&dir,policy);
             return;
@@ -2253,6 +2284,7 @@ static uint32_t move_collect_selected(gameClient_t *client,
 }
 
 void move_reset_progress(edict_t *self) {
+    self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
     move_release_captain_reference(self);
     self->movement.type_rebind_pending=false;
     move_unlink_fine_request(self);
@@ -2792,6 +2824,7 @@ static bool move_point_arrival(edict_t *ent) {
 }
 
 static void ai_move_walk(edict_t *ent) {
+    if(ent->movement.pause_order_id)return;
     if (ent->movement.type_rebind_pending) return;
     if (move_find_member(ent)) return; /* Shared owner stages all members before any commit. */
     float distance = M_DistanceToGoal(ent);
@@ -2828,7 +2861,7 @@ static void ai_move_walk(edict_t *ent) {
         return;
     }
 
-    if (point_order && !ent->no_pathing && !ent->movement.group_id) {
+    if (point_order && !ent->movement.group_id) {
         movePathQuery_t query=move_route_query(ent,(moveRoutePoint_t){&ent->goalentity->s.origin2,ent->collision,MOVE_AVOID_GENERIC});
         vec2_t destination;
         uint32_t revision=ent->movement.fine_route.group_revision;

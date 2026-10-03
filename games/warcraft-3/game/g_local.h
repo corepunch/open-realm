@@ -36,12 +36,14 @@ typedef struct {
     vec2_t adaptive_goal;
     float adaptive_radius;
     uint32_t adaptive_revision;
+    uint8_t adaptive_mask; /* Authored hierarchy lane is independent of the current fine query. */
     /* Singleton group plan is separate from the member's local route. */
     vec2_t *group_points;
     uint32_t group_count, group_index;
     vec2_t group_goal;
     float group_radius;
     uint32_t group_revision;
+    uint8_t group_mask; /* Coarse owner lane survives member query toggles. */
 } moveFineRoute_t;
 
 typedef struct {
@@ -1854,6 +1856,9 @@ struct edict_s {
         bool captain_actor_owned; /* Logical captain ownership persists independently of its process-owned AI VM. */
         bool type_rebind_pending; /* Retained point head waits for the next type-rebind task pass. */
         wc3Clock_t type_rebind_deadline;
+        uint32_t pause_order_id; /* Point head beneath the scripted pause order. */
+        bool pause_resume_pending;
+        wc3Clock_t pause_deadline;
         bool turn_blocked;  /* translation decision from the heading error before this tick's turn */
         vec2_t route_resume_direction;
         vec2_t route_resume_goal_origin;

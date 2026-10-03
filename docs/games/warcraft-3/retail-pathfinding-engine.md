@@ -7570,3 +7570,68 @@ Add `-tft` for the second edition. The complete required release suites pass
 movement-lifecycle and numerical corpus contracts pass3/3; the independent
 O0/O2 comparisons pass. See [corpus reproduction](retail-pathfinding-corpus.md#region-callback-lifecycle).
 The external `region85-validation.json` pins the commit and verification logs.
+
+
+## Pathing queries and scripted pause preserve distinct owners
+
+Payoff86 covers existing MOVE-04.1/04.2 using `wc3_movement_bypasses_probe.j`
+on a flat64×64 fine map. A radius40 mover travels toward1712,1712 around a wall
+at fine columns24/25, rows0..47. Timed public pathing toggles, pause, fractional
+axis displacement while paused and resume precede natural arrival. Two complete
+original captures repeat773 motion commits,769 decisions,13 route searches,
+1000 owners,310 public markers,10 boundary states and9 complete watched-cell
+chains. The raw motion digest is
+`0ac103a7407f0df2de2e5140f9947500b53c023f23ad0f33512efc5eed0e7e02`.
+
+`SetUnitPathing(false)` changes the current fine collision query to0, while the
+mover's occupied category remains010000ca. It retains the acquired coarse/fine
+route. Later local refinement uses query0 and can cross terrain; restoring the
+query does not synchronously rebuild every cached route. Normal segment and
+step checks own the subsequent blocked-step retry. The engine previously
+switched immediately to direct steering and conflated three policies in one
+route mask. Move now retains independent coarse `group_mask` and member
+`adaptive_mask`; the current fine query is separate. The fine graph accepts
+query0 rather than normalizing it to ground2. Generic flow-field defaults keep
+their separate existing contract. No coordinate or scenario selects a policy.
+
+Original20f540 `PauseUnit` sets Unit5c bit21 and enters697770/688d30. The latter
+increments Unit54 suspension depth and pushes current public head d0005/851973.
+The ordinary Move remains beneath it, but its physical group/path is released
+and a Stop commits zero velocity. Axis writers while paused update the retained
+pose/clock without restarting travel. Original206610 `IsUnitPaused` reads bit21;
+it returns false synchronously on unpause while the suspension head remains
+current. Original6977c0/678590 decrements suspension depth and schedules69c620
+with actual cd53a4 delay0.01. The original point task reactivates two5ms primary
+quanta later and constructs routes from the displaced position. Its public
+order identity survives; the physical group generation changes.
+
+The Move-owned engine pause transition now releases physical routing, publishes
+the suspension head and retains the point order and resume deadline. Normal
+`S_RunMoveTimers` reactivates that order after the captured delay; replacement,
+Stop and removal clear pending resume state. Other order families, nested
+suspensions and reentrant native mutation remain outside this single-point
+capture. No speculative public string name is assigned to the suspension ID.
+Save95 retains both hierarchy masks, the suspended point order and deadline.
+
+The real JASS/RunFrame regression
+`wc3_movement.pathing_pause_and_displacement_match_original_and_saved_continuations`
+compares every raw motion word, marker string, public support/primary-clock
+state, pause query and ordinary occupancy. Eight snapshots at3995/4000/8495/
+8500/10995/11000/11500/13500ms reproduce6171 saved suffix commits; saved3995ms
+continuations also use10/25/50ms frame batches. Earlier lifecycle tests now
+assert the recovered retained detour and released physical pause route while
+still checking wall crossing, saved motion and eventual group arrival.
+
+Ghidra saves644 function roles,67 partial layouts/441 fields,312 explicit ABIs
+and60 globals, including suspension depth and all six pause entry/exit roles.
+The strict paired checker rejects incomplete producer, pause query, route,
+occupancy or owner lifetimes. Fresh O0/O2 comparisons and the three-contract
+corpus pass. See [reproduction](retail-pathfinding-corpus.md#pathing-toggle-pause-and-displacement-lifecycle).
+Native binaries, map archives, decompilations and raw captures remain external.
+
+
+Both required edition suites pass2506 tests/5,131,664 assertions each, plus538
+Python checks. `bypass86-full-test-final.log` records the final successful run;
+the earlier failing log retains the disproved implicit-zero and inactive-cache
+expectations. The external `bypass86-validation.json` pins the final commit,
+production build and strict/O0/O2 reports.

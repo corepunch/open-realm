@@ -773,3 +773,15 @@ initialization region, including ground coarse mask6 versus fine mask2. The
 full MPQ-backed WPM load and direct-map adapter match every captured terrain
 movement cell and all four allocated hierarchy levels. See [file-backed map
 initialization](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation).
+
+
+### Point travel through pathing toggles and scripted pause
+
+Move keeps its coarse/adaptive route lanes separate from the current fine query.
+`SetUnitPathing(false)` uses query0 without discarding the acquired detour or
+ordinary occupancy. Scripted pause releases the physical point task, exposes
+suspension head851973 and retains the user order for delayed reactivation after
+unpause. Fractional axis displacement while paused becomes the next route's
+source. Save95 retains these independent lanes and the resume deadline; actual
+RunFrame and saved continuations match the complete original wall journey.
+See [query and pause ownership](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
