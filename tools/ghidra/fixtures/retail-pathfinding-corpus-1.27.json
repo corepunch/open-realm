@@ -24808,6 +24808,68 @@
       "exclusions": [
         "Complete scene/mover producers, arbitrary reload/failure/image formats and dynamic hierarchy publication retain existing backlog tasks."
       ]
+    },
+    {
+      "id": "oracle-grid-passages-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_grid.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}",
+        "--passages"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "grid-passages-engine-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "cases": {
+          "equal": 3200
+        },
+        "repeated_searches": {
+          "equal": 3200
+        },
+        "complete_requests": {
+          "equal": 3200
+        },
+        "engine_queries": {
+          "equal": 3200
+        },
+        "engine_repeats": {
+          "equal": 3200
+        },
+        "passage_cases": {
+          "equal": 3200
+        },
+        "passage_shapes": {
+          "equal": 50
+        },
+        "movement_lanes": {
+          "equal": 4
+        },
+        "subcell_offsets": {
+          "equal": 4
+        },
+        "passage_endpoint_cases": {
+          "equal": 6400
+        },
+        "passage_words_sha256": {
+          "equal": "695052be514bf4acfc79f36d8499eef118f77b6c9d336c4b999bf86830317191"
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Complete static original core/reuse/full fractional request and footprint consumers across50 cardinal/corner/touching/map-edge/lane-control shapes, four classes/lanes/offsets. Production search and eligibility compared; initialized map storage, public admission/clock/steering excluded.",
+      "exclusions": []
     }
   ],
   "fixtures": [
@@ -24873,7 +24935,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "b4b21522be81ae3fab4d54265241be06da978b88e11b618b42bedd689ef68983"
+      "sha256": "99b35ff54c1553dcb4173b4059d96e5b02a75720f999a1a2b55615bb64c2ddaa"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -25351,6 +25413,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-constructed-map-coordinates-1.27.json",
       "sha256": "5d4ce64302a722a964047eb822178bfabf4f43467c6dd100cebe84b90fc040da"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-passage-matrix-1.27.json",
+      "sha256": "671e0512fa4f35507ca8cdf8ee3ca2b1062ce12656c492418e90edea847f86c4"
     }
   ]
 }

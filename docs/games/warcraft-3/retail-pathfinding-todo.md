@@ -8,16 +8,15 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**152 done / 336 tasks; 184 remaining.** Payoff74 closes existing MAP-01.2
-and MAP-01.3 together without adding or splitting IDs. All25 original
-terrain-origin constructors now feed2500 complete corner/decimal inputs,
-400 four-lane edits and exact full-grid reversals. The engine consumes every
-frozen word/cell decision and compares all padded hierarchy cells through
-production terrain APIs. See [constructed map coverage](retail-pathfinding-engine.md#constructed-map-corners-and-padding-reach-engine-regression-coverage).
+**154 done / 336 tasks; 182 remaining.** Payoff75 closes existing FOOT-02.1
+and FOOT-02.2 together without adding or splitting IDs. The complete3200-case
+four-lane/class/offset passage matrix now compares original full searches,
+repeats, fractional requests and6400 endpoint decisions. All engine endpoint
+results and complete/partial admitted routes match;55776 production assertions
+pass. See [passage coverage](retail-pathfinding-engine.md#passage-matrix-covers-lanes-footprints-corners-and-offsets).
 
-Next runnable chunk is FOOT-02.1/02.2: finish the passage matrix across
-movement lanes, footprint classes, sub-cell offsets, diagonal corners and
-map edges against actual engine consumers. No new TODO IDs.
+Next runnable chunk is fine-search queue composition/storage reuse: use
+existing full searches to finish FINE-02.1 and FINE-03.2 without new IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -30,7 +29,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
 | MAP — Map construction and lifetime | 13 | 9 |
-| FOOT — Footprints and query policy | 11 | 7 |
+| FOOT — Footprints and query policy | 13 | 5 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 24 | 19 |
@@ -323,8 +322,8 @@ Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers,
 
 ### FOOT-02 — Passage matrix
 
-- [ ] **FOOT-02.1** Run cardinal corridors at width below/equal/above footprint diameter, across four classes, lanes and sub-cell offsets; compare accepted cells and route.
-- [ ] **FOOT-02.2** Extend that matrix to diagonal corners, touching footprints and map edges; retain one minimized counterexample per distinct mismatch.
+- [x] **FOOT-02.1** Run cardinal corridors at width below/equal/above footprint diameter, across four classes, lanes and sub-cell offsets; compare accepted cells and route. Evidence: [complete passage matrix](retail-pathfinding-engine.md#passage-matrix-covers-lanes-footprints-corners-and-offsets), widths0..5 in both axes across four masks/classes/offsets; all original core/repeat/full-request states and C searches agree. Engine compares every original endpoint and admitted complete/partial route; public endpoint correction stays FOOT-04. No added IDs.
+- [x] **FOOT-02.2** Extend that matrix to diagonal corners, touching footprints and map edges; retain one minimized counterexample per distinct mismatch. Same [evidence](retail-pathfinding-engine.md#passage-matrix-covers-lanes-footprints-corners-and-offsets):24 rotated L-corner cases, six touching static rectangle gaps, all four edges and four independent lane-bit controls. Entire50-shape/3200-request matrix freezes exact words/cells/routes;6400 production endpoint decisions and2720 admitted route pairs match. No unresolved matrix mismatch to minimize, no new TODOs.
 
 ### FOOT-03 — Object query eligibility
 

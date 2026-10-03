@@ -1253,3 +1253,18 @@ Inventory remains292 entries/45 oracle scripts/96 oracle variants/121 archives/
 75 strict live contracts. Fresh map/map-construction/file-load contracts pass
 at `runtime/map-coordinates-strict74/corpus-results.json`. See
 [engine coverage](retail-pathfinding-engine.md#constructed-map-corners-and-padding-reach-engine-regression-coverage).
+
+## Passage matrix
+
+Payoff75 adds one variant of the existing fine-grid oracle:
+`oracle-grid-passages-engine` requires3200 core/repeat/full fractional
+requests and C search comparisons over50 shapes/four lanes/four offsets.
+Frozen `retail-passage-matrix-1.27.json` also contains6400 native footprint
+outputs and exact complete/partial reconstructed words. The production
+engine regression compares every endpoint and2720 admitted route pairs.
+Numeric C geometry/routes are deduplicated and checked against this original
+fixture by Python. No synthetic public admission/clock claim.
+Inventory is293 entries/45 scripts/97 oracle variants/121 archives/75 strict
+live contracts/136 fixtures. Five fresh static/mixed/partial/all-lane/passage
+contracts pass in `runtime/passage-strict75/`. See
+[engine coverage](retail-pathfinding-engine.md#passage-matrix-covers-lanes-footprints-corners-and-offsets).

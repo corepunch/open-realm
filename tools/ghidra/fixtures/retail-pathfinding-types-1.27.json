@@ -7915,6 +7915,33 @@
           "storage": 8
         }
       ]
+    },
+    {
+      "address": "6f149370",
+      "name": "PathFine_TestFootprintPoint",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "mask",
+          "type": "ptr:u32",
+          "storage": 8
+        },
+        {
+          "name": "cls",
+          "type": "u32",
+          "storage": 12
+        }
+      ]
     }
   ],
   "globals": [

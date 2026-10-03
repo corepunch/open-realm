@@ -31,6 +31,7 @@
 #include "../common/wc3_pathing_masks.h"
 #include "retail_map_load.h"
 #include "retail_constructed_maps.h"
+#include "retail_passages.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -936,6 +937,46 @@ TEST(wc3_pathfinding, nearby_detour_accelerator_respects_collision_radius) {
 
 /* Original 14ad50/16ee80 use widths 1/2/3/4 at radius .5/1/1.5 cells;
  * ceil(radius) around a centre requires wider corridors than retail. */
+TEST(pathfinding, retail_passages_match_all_lanes_classes_offsets_corners_and_edges) {
+    reset_entities(); setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});
+    uint8_t cells[16*16];
+    FOR_LOOP(i,sizeof(retail_passages)/sizeof(*retail_passages)) {
+        retailPassage_t const *row=retail_passages+i;
+        FOR_LOOP(y,16) FOR_LOOP(x,16)
+            cells[y*16+x]=(retail_passage_shapes[row->shape][y]&(1u<<x)) ? row->flags : 0;
+        CM_SetupTestPathmap(16,16,cells);
+        vec2_t source={wc3_float(row->words[0])*32,wc3_float(row->words[1])*32};
+        vec2_t target={wc3_float(row->words[2])*32,wc3_float(row->words[3])*32};
+        float radius=(.25f+.5f*row->cls)*32;
+        pathAccelParams_t params={&source,&target,radius,row->mask};
+        T_EQ(G_MovePathPointIsPathable(&params),row->endpoints[0]);
+        params.from=&target;
+        T_EQ(G_MovePathPointIsPathable(&params),row->endpoints[1]);
+        /* Public admission/correction owns blocked endpoints. Compare complete
+         * route construction where both original footprint consumers admit. */
+        if(!row->endpoints[0] || !row->endpoints[1]) continue;
+        params.from=&source;
+        movePathQuery_t query={.geometry=params,.units=true};
+        moveFineRoute_t route={0}; vec2_t selected;
+        bool built=G_BuildUnitMoveLocalRoute(&query,&route,&selected);
+        T_EQ(built,row->count>=2);
+        if(built && route.count) {
+            T_EQ(route.partial,!row->result); T_EQ(route.count,row->count);
+            T_EQ(wc3_float_bits(route.points[0].x),row->words[4]);
+            T_EQ(wc3_float_bits(route.points[0].y),row->words[5]);
+            T_EQ(wc3_float_bits(route.points[route.count-1].x),row->words[0]);
+            T_EQ(wc3_float_bits(route.points[route.count-1].y),row->words[1]);
+            if(route.count==row->count) for(unsigned k=1;k+1<route.count;k++) {
+                T_EQ(wc3_float_bits(route.points[k].x),retail_passage_middle[row->middle+2*(k-1)]);
+                T_EQ(wc3_float_bits(route.points[k].y),retail_passage_middle[row->middle+2*(k-1)+1]);
+            }
+        }
+        free(route.points);
+    }
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_pathfinding, retail_collision_classes_fit_their_cardinal_corridors) {
     static float const radii[] = {0.499f, 0.5f, 0.999f, 1.0f, 1.499f, 1.5f, 2.0f};
     static int const sizes[] = {1, 2, 2, 3, 3, 4, 4};

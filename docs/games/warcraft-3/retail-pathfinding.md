@@ -641,3 +641,11 @@ Production engine adapters, terrain APIs and every padded static class match
 the frozen original; BoxEdicts remains the engine proximity consumer. Saved
 Ghidra constructor/edit annotations record this scope. See
 [constructed map coverage](retail-pathfinding-engine.md#constructed-map-corners-and-padding-reach-engine-regression-coverage).
+
+Payoff75 closes FOOT-02.1/02.2 together: fifty cardinal/corner/touching/edge/
+lane-control geometries combine all four classes, movement masks and offsets
+into3200 complete original requests with reuse. Engine endpoints and every
+admitted complete/partial route match the frozen words;6400 footprint calls
+and55776 engine assertions retain the acceptance. Ghidra149370 now has its
+verified thiscall ABI, saved among289 explicit signatures. See
+[passage coverage](retail-pathfinding-engine.md#passage-matrix-covers-lanes-footprints-corners-and-offsets).

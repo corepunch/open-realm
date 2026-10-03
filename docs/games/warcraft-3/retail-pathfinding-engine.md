@@ -6746,3 +6746,52 @@ See [corpus](retail-pathfinding-corpus.md#constructed-map-coordinates) and
 Required release `make test` passes RoC and TFT with2484 tests/4270524
 assertions each, and473 Python pathfinding checks. Backlog152 done/184 open;
 no added tasks. Artifact:runtime/map-coordinates-make-test74.log.
+
+## Passage matrix covers lanes, footprints, corners and offsets
+
+Payoff75 closes existing FOOT-02.1/02.2 in one chunk. The existing fine-grid
+oracle's new `--passages` mode runs3200 original core searches, retained-stamp
+repeats and complete fractional148100 requests. Fifty geometry cases cover
+vertical/horizontal widths0..5, six L-corner widths in four rotations, six
+touching-rectangle gaps, four map edges and four individual lane-bit walls.
+Each combines four footprint classes, masks2/4/40/80 and offsets.125/.875,
+.5/.5,.875/.125 and decimal.1/.9. The width sweep includes below/equal/above
+every1/2/3/4-cell footprint diameter. Original cost, charged work, node
+creation, complete/partial parent chains and C search agree on every case.
+
+Each complete request also invokes original149370 twice on its source/goal.
+Its verified ABI is ECX fine system, stack4 software XY pointer, stack8 mask
+pointer, stack12 class, RET12 and normalized EAX result. The original native
+consumer owns flooring and footprint bounds. Six thousand four hundred
+endpoint results and all reconstructed route words are frozen;2720 pairs
+have both endpoints admitted,1664 searches complete and1536 retain partial
+chains. Native SEH scratch must be mapped; do not pass a null ECX. Decimal
+source/goal inputs must be rounded to binary32 before comparison, rather
+than comparing native binary32 outputs against Python binary64 decimals.
+
+The engine compares all6400 endpoint decisions through its production Move
+footprint API. For2720 admitted pairs, its complete local-route builder
+compares every frozen complete/partial point, source, endpoint and failure
+result. One-point nearest-source failures correctly produce no usable turn.
+Blocked endpoint correction belongs to public admission and existing FOOT-04
+tasks; this seeded-map matrix does not claim full public clock/steering or
+dynamic object producers. Static touching footprints are represented by
+their rasterized rectangles. No engine-versus-original matrix mismatch
+remains, so there is no additional minimized counterexample or TODO.
+
+The existing production implementation passes55776 new assertions. Numeric
+fixtures are `retail-passage-matrix-1.27.json` and `retail_passages.h`; only41
+unique rasters and864 shared interior route words are retained in the C
+fixture. Python ties every C input, geometry, endpoint, route word and
+result back to the original capture. Ghidra retains622 function roles,
+55 layouts/357 fields,289 explicit ABIs and59 globals; the new footprint
+consumer signature is saved. No network or saved entity layout changes.
+See [corpus](retail-pathfinding-corpus.md#passage-matrix) and
+[backlog](retail-pathfinding-todo.md#foot-02--passage-matrix).
+
+Required release `make test` passes RoC/TFT with2485 tests/4326300 assertions
+each and475 Python checks. The final strict endpoint/route-word digest
+contract adds one Python check; all476 pass afterward, and all five fresh
+strict variants pass with final source fingerprints in
+`runtime/passage-strict-final75/`. No C changes follow the full suite.
+Backlog154 done/182 open, no new IDs.

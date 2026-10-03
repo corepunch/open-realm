@@ -8,6 +8,7 @@ this does not validate constructors, request admission or route smoothing.
 import argparse
 import ctypes
 import hashlib
+import itertools
 import heapq
 import json
 import random
@@ -69,7 +70,9 @@ def main():
     parser.add_argument('--movement-profiles', action='store_true', help='include published float/amphibious masks in object searches')
     parser.add_argument('--objects', action='store_true', help='full mixed object chains for ground/flight query masks')
     parser.add_argument('--corridors', action='store_true', help='cardinal corridors of width 0..5 across four classes')
+    parser.add_argument('--passages', action='store_true', help='four-lane cardinal/corner/edge passage matrix with exact fractional requests')
     args = parser.parse_args()
+    if args.passages and (args.objects or args.partials or args.corridors): parser.error('passages is a separate matrix')
     if args.movement_profiles and not args.objects: parser.error('--movement-profiles requires --objects')
     if args.corridors and (args.objects or args.partials): parser.error('corridors is a separate matrix')
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
@@ -96,6 +99,7 @@ def main():
         if count:
             machine.mem_write(base + va, binary[offset:offset + count])
 
+    machine.mem_map(0,0x1000)  # Original footprint consumer SEH chain.
     machine.mem_map(0x10000000, 0x200000)
     machine.mem_map(0x20000000, 0x10000)
     system, tilemap, cells, bitmap = 0x10000000, 0x10000200, 0x10001000, 0x10002000
@@ -140,6 +144,41 @@ def main():
         fixtures = [(f'corridor_{span}', {(x, y) for y in range(height) for x in range(width)
                                          if not 8 - span // 2 <= x < 8 - span // 2 + span}) for span in range(6)]
     profiles = {}
+    if args.passages:
+        width = height = 16
+        shapes = []
+        all_cells = {(x,y) for y in range(16) for x in range(16)}
+        for span in range(6):
+            vertical = {(x,y) for x,y in all_cells if 8-span//2 <= x < 8-span//2+span}
+            shapes.append((f'vertical_{span}',all_cells-vertical,(8,4),(8,11),0xc6))
+            shapes.append((f'horizontal_{span}',all_cells-{(y,x) for x,y in vertical},(4,8),(11,8),0xc6))
+            clear = {(x,y) for x,y in all_cells if
+                (4-span//2 <= x < 4-span//2+span and 4<=y<=11) or
+                (11-span//2 <= y < 11-span//2+span and 4<=x<=11) or
+                (2<=x<=6 and 2<=y<=6) or (9<=x<=13 and 9<=y<=13)}
+            def rotate(point,turn):
+                x,y=point
+                for _ in range(turn): x,y=15-y,x
+                return x,y
+            for turn in range(4):
+                shapes.append((f'corner_{span}_{turn}',{rotate(p,turn) for p in all_cells-clear},
+                    rotate((4,4),turn),rotate((11,11),turn),0xc6))
+            # Two static rectangles touch at span0 and open progressively.
+            blocked={(x,y) for x,y in all_cells if 6<=x<10 and not 8-span//2<=y<8-span//2+span}
+            shapes.append((f'touching_{span}',blocked,(3,8),(12,8),0xc6))
+        for side,(start,goal) in enumerate((((0,4),(0,11)),((15,4),(15,11)),((4,0),(11,0)),((4,15),(11,15)))):
+            shapes.append((f'edge_{side}',set(),start,goal,0xc6))
+        for flag in (2,4,0x40,0x80):
+            shapes.append((f'lane_wall_{flag}',{(8,y) for y in range(16)},(4,8),(11,8),flag))
+        fixtures=[]
+        for (label,blocked,a,b,flags),mask,(fx,fy) in itertools.product(shapes,
+                (0x02000002,0x04000004,0x40000040,0x80000080),
+                ((.125,.875),(.5,.5),(.875,.125),(.1,.9))):
+            name=f'{label}_{mask:08x}_{fx}_{fy}'
+            fixtures.append((name,blocked))
+            profiles[name]=dict(mask=mask,objects=[],terrain_flags=flags,start=a,goal=b,
+                source=[a[0]+fx,a[1]+fy],target=[b[0]+fx,b[1]+fy],shape=label)
+
     if args.objects:
         fixtures = []
         rect = [10, 10, 14, 14]
@@ -163,11 +202,13 @@ def main():
                     name = f'{terrain}_{label}_{mask:08x}'
                     fixtures.append((name, static))
                     profiles[name] = dict(mask=mask, objects=objects)
-    records, edge_cases, engine_cases, budget_cases = [], [], [], []
+    records, edge_cases, engine_cases, budget_cases, passage_records = [], [], [], [], []
     for name, blocked in fixtures:
         profile = profiles.get(name, dict(mask=0x02000000, objects=[]))
         query_mask, objects = profile['mask'], profile['objects']
-        effective = set(blocked)
+        terrain_flags=profile.get('terrain_flags',query_mask>>24)
+        if args.passages: start,goal=profile['start'],profile['goal']
+        effective = set(blocked) if terrain_flags & (query_mask>>24) else set()
         for object in objects:
             flags = object['flags']
             if (object['linked'] and object['mask'] & 0x01000000 and not flags & 0x8fffffff and
@@ -177,7 +218,7 @@ def main():
         for size_class in range(4):
             machine.mem_write(system, bytes(0x400))
             machine.mem_write(bitmap, bytes(1024))
-            machine.mem_write(cells, b''.join(struct.pack('<I', (query_mask & 0xff000000) | 0xffffff if (x, y) in blocked else 0x00ffffff)
+            machine.mem_write(cells, b''.join(struct.pack('<I', (terrain_flags << 24) | 0xffffff if (x, y) in blocked else 0x00ffffff)
                                             for y in range(height) for x in range(width)))
             write(system + 0x1c, tilemap, 1)
             write(system + 0x30, nodes)
@@ -260,10 +301,10 @@ def main():
                 wanted = [actual if actual is not None else -1, first_pops, first_nodes, len(points)]
                 for _ in range(2):
                     output = (ctypes.c_int32 * (6 + 2 * 16386))()
-                    if args.objects:
+                    if args.objects or args.passages:
                         raw = [v for obj in objects for v in (*obj['bounds'], obj['mask'], obj['flags'], obj['linked'])]
                         object_words = (ctypes.c_uint32 * len(raw))(*raw)
-                        terrain = (ctypes.c_uint8 * (width * height))(*(query_mask >> 24 if (x,y) in blocked else 0
+                        terrain = (ctypes.c_uint8 * (width * height))(*(terrain_flags if (x,y) in blocked else 0
                             for y in range(height) for x in range(width)))
                         data = ObjectInput(terrain, object_words)
                         inp = (ctypes.c_uint32 * 11)(*query, size_class, query_mask, 0, len(objects))
@@ -288,8 +329,10 @@ def main():
                 bytes(machine.mem_read(nodes, first_nodes * 36)) != node_bytes):
                 raise RuntimeError('repeated search with retained per-cell metadata differs')
             # Execute the real setup/search/reconstruction request as well.
-            source = start[0] + .25, start[1] + .75
-            target = goal[0] + .25, goal[1] + .75
+            source = tuple(profile.get('source',(start[0]+.25,start[1]+.75)))
+            target = tuple(profile.get('target',(goal[0]+.25,goal[1]+.75)))
+            source=struct.unpack('<ff',struct.pack('<ff',*source))
+            target=struct.unpack('<ff',struct.pack('<ff',*target))
             machine.mem_write(source_ptr, struct.pack('<ff', *source))
             machine.mem_write(target_ptr, struct.pack('<ff', *target))
             machine.mem_write(radius_ptr, struct.pack('<f', .25 + .5 * size_class))
@@ -313,10 +356,24 @@ def main():
             records.append(dict(fixture=name, size_class=size_class, cost=actual,
                                 pops=read(system + 0x6c)[0], nodes=read(system + 0x40)[0], chain_length=len(chain),
                                 request_result=request_result, route_points=route_count, route_end=route_points[0]))
+            passage = {}
+            if args.passages:
+                # Full original fractional footprint consumer, not a supplied
+                # graph/model. Its owner resolves the already initialized fine map.
+                owner=0x10150000
+                write(0x6fd53a48,owner);write(owner+0x24c,system)
+                endpoint_results=[]
+                for ptr in (source_ptr,target_ptr):
+                    endpoint_results.append(run(0x6f149370,system,ptr,mask_ptr,size_class))
+                route_words=read(route_data,route_count*2)
+                passage=dict(mask=query_mask,terrain_flags=terrain_flags,start=list(start),goal=list(goal),
+                    source_words=read(source_ptr,2),target_words=read(target_ptr,2),endpoints=endpoint_results,
+                    result=request_result,route_words=route_words)
+                passage_records.append(dict(fixture=name,size_class=size_class,**passage))
             if args.fixture:
                 engine_cases.append(dict(fixture=name, size_class=size_class, cost=actual, pops=first_pops,
                                          nodes=first_nodes, path=points, partial=partial,
-                                         nearest=list(read(nodes + nearest_at * 36, 2)), distance=read(system + 0x98)[0]))
+                                         nearest=list(read(nodes + nearest_at * 36, 2)), distance=read(system + 0x98)[0],**passage))
             if args.partials:
                 for budget in sorted({0, 1, 5, max(0, first_pops - 1), first_pops, first_pops + 1, 2048}):
                     machine.mem_write(target_ptr, struct.pack('<ff', *target))
@@ -342,7 +399,7 @@ def main():
                     if engine:
                         raw = [v for obj in objects for v in (*obj['bounds'], obj['mask'], obj['flags'], obj['linked'])]
                         words = (ctypes.c_uint32 * len(raw))(*raw)
-                        terrain = (ctypes.c_uint8 * (width * height))(*(query_mask >> 24 if (x,y) in blocked else 0
+                        terrain = (ctypes.c_uint8 * (width * height))(*(terrain_flags if (x,y) in blocked else 0
                             for y in range(height) for x in range(width)))
                         data = ObjectInput(terrain, words)
                         inp = (ctypes.c_uint32 * 11)(width, height, *start, *goal, budget, size_class, query_mask, 0, len(objects))
@@ -370,9 +427,13 @@ def main():
             print(f'{len(records)} retail footprint searches and repeats checked', flush=True)
     report = dict(binary_sha256=digest, cases=len(records), repeated_searches=len(records), complete_requests=len(records), request_edge_cases=edge_cases, mismatches=[],
                   reached=sum(r['cost'] is not None for r in records), exhausted=sum(r['cost'] is None for r in records),
-                  seed=None if args.corridors or args.objects else 12717085, dimensions=[width, height], start=start, goal=goal,
+                  seed=None if args.corridors or args.objects or args.passages else 12717085, dimensions=[width, height], start=start, goal=goal,
                   scope='original core loop and full setup/search/reconstruction request; allocation/reset/stamp reuse; direct initialized storage and -1/0/1 runtime constants; static terrain and optional mixed object chains; Dijkstra reference uses recovered footprint graph; no path-owned admission or smoothing',
                   searches=records, budget_cases=len(budget_cases))
+    if args.passages:
+        report.update(passage_cases=len(records),passage_shapes=len(shapes),movement_lanes=4,subcell_offsets=4,
+            passage_endpoint_cases=2*len(passage_records),
+            passage_words_sha256=hashlib.sha256(json.dumps(passage_records,sort_keys=True,separators=(',',':')).encode()).hexdigest())
     if engine:
         report.update(engine_queries=len(records), engine_repeats=len(records),
                       engine_partial_queries=len(budget_cases), engine_partial_repeats=len(budget_cases),
@@ -380,7 +441,7 @@ def main():
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     if args.fixture:
-        fixture = dict(binary_sha256=digest, seed=None if args.corridors or args.objects else 12717085, dimensions=[width, height], start=start, goal=goal,
+        fixture = dict(binary_sha256=digest, seed=None if args.corridors or args.objects or args.passages else 12717085, dimensions=[width, height], start=start, goal=goal,
                        scope='original full fine-search cell route, cost, pops and allocated nodes; initialized static/object chains; excludes public admission and smoothing',
                        profiles=profiles,
                        budget_cases=budget_cases,
