@@ -1969,6 +1969,23 @@ static float G_MiscNum(cstring_t key, float fallback) {
     return (v && *v) ? (float)atof(v) : fallback;
 }
 
+static float G_KillXPMiscNum(cstring_t key, float fallback) {
+    cstring_t const value = Stb_IniCacheFind(&game.config.misc, "Misc", key);
+    char *end = NULL;
+    double parsed;
+
+    if (!value || !*value) return fallback;
+    parsed = strtod(value, &end);
+    while (end && (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n')) end++;
+    if (!end || end == value || *end || !isfinite(parsed) ||
+        parsed > (double)FLT_MAX || parsed < -(double)FLT_MAX) {
+        fprintf(stderr, "WC3 kill XP: invalid Misc/%s value '%s'; using fallback %.3f\n",
+                key, value, fallback);
+        return fallback;
+    }
+    return (float)parsed;
+}
+
 /* n-th (0-based) comma-separated entry of a Misc list, clamped to the last. */
 static float G_MiscListNum(cstring_t key, uint32_t n, float fallback) {
     cstring_t v = Stb_IniCacheFind(&game.config.misc, "Misc", key);
@@ -1976,15 +1993,36 @@ static float G_MiscListNum(cstring_t key, uint32_t n, float fallback) {
         return fallback;
     }
     float val = fallback;
-    for (uint32_t i = 0; ; i++) {
-        val = (float)atof(v);
-        cstring_t const comma = strchr(v, ',');
-        if (i >= n || !comma) {
-            break;
+    for (uint32_t i = 0;; i++) {
+        char *end = NULL;
+        double parsed;
+        while (*v == ' ' || *v == '\t') v++;
+        parsed = strtod(v, &end);
+        if (!end || end == v || !isfinite(parsed) ||
+            parsed > (double)FLT_MAX || parsed < -(double)FLT_MAX) {
+            fprintf(stderr, "WC3 kill XP: malformed Misc/%s list near '%s'; using %.3f\n",
+                    key, v, fallback);
+            return fallback;
         }
-        v = comma + 1;
+        if (parsed < 0.0) {
+            fprintf(stderr, "WC3 kill XP: negative Misc/%s entry %.3f; using zero\n",
+                    key, parsed);
+            parsed = 0.0;
+        }
+        val = (float)parsed;
+        if (i >= n) return val;
+
+        v = end;
+        while (*v == ' ' || *v == '\t') v++;
+        if (*v != ',') {
+            if (*v) {
+                fprintf(stderr, "WC3 kill XP: malformed Misc/%s list near '%s'; using %.3f\n",
+                        key, v, fallback);
+            }
+            return val;
+        }
+        v++;
     }
-    return val;
 }
 
 /* Warcraft extends the authored kill-XP tables with:
@@ -1999,6 +2037,8 @@ static uint32_t G_KillXPForLevel(cstring_t tableKey, cstring_t formulaAKey,
     cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", tableKey);
     uint32_t count = 0;
     double current;
+    double requested = 0.0;
+    bool hasRequested = false;
 
     if (level < 1) level = 1;
     if (!value || !*value) {
@@ -2009,28 +2049,54 @@ static uint32_t G_KillXPForLevel(cstring_t tableKey, cstring_t formulaAKey,
         double parsed;
         while (*value == ' ' || *value == '\t') value++;
         parsed = strtod(value, &end);
-        if (!end || end == value) break;
-        if (parsed < 0.0) parsed = 0.0;
+        if (!end || end == value || !isfinite(parsed)) {
+            fprintf(stderr, "WC3 kill XP: malformed Misc/%s XP table near '%s'\n",
+                    tableKey, value);
+            break;
+        }
+        if (parsed < 0.0) {
+            fprintf(stderr, "WC3 kill XP: negative Misc/%s XP table entry %.3f; using zero\n",
+                    tableKey, parsed);
+            parsed = 0.0;
+        }
+        if (parsed > (double)UINT32_MAX) {
+            fprintf(stderr, "WC3 kill XP: Misc/%s XP table entry %.3f exceeds the XP limit; clamping\n",
+                    tableKey, parsed);
+            parsed = (double)UINT32_MAX;
+        }
         current = parsed;
         count++;
         if (count == level) {
-            if (current > (double)UINT32_MAX) return UINT32_MAX;
-            return (uint32_t)current;
+            requested = current;
+            hasRequested = true;
         }
         value = end;
         while (*value == ' ' || *value == '\t') value++;
-        if (*value == ',') value++;
-        else if (*value) break;
+        if (*value == ',') {
+            value++;
+            cstring_t next = value;
+            while (*next == ' ' || *next == '\t') next++;
+            if (!*next) {
+                fprintf(stderr, "WC3 kill XP: malformed Misc/%s XP table after trailing comma\n",
+                        tableKey);
+                break;
+            }
+        } else if (*value) {
+            fprintf(stderr, "WC3 kill XP: malformed Misc/%s XP table near '%s'\n",
+                    tableKey, value);
+            break;
+        }
     }
+    if (hasRequested) return (uint32_t)requested;
     if (!count) {
         count = tableFallbackCount;
         current = tableFallback[count - 1];
         if (level <= count) return (uint32_t)tableFallback[level - 1];
     }
 
-    double const a = G_MiscNum(formulaAKey, formulaAFallback);
-    double const b = G_MiscNum(formulaBKey, formulaBFallback);
-    double const c = G_MiscNum(formulaCKey, formulaCFallback);
+    double const a = G_KillXPMiscNum(formulaAKey, formulaAFallback);
+    double const b = G_KillXPMiscNum(formulaBKey, formulaBFallback);
+    double const c = G_KillXPMiscNum(formulaCKey, formulaCFallback);
     for (uint32_t victimLevel = count + 1; victimLevel <= level; victimLevel++) {
         current = a * current + b * (double)victimLevel + c;
         if (current < 0.0) current = 0.0;
@@ -2049,7 +2115,7 @@ static bool G_HeroReceivesKillXP(edict_t const *hero, edict_t const *victim, edi
     if (!hero->inuse || !(hero->svflags & SVF_MONSTER) || !hero->data.UnitBalance ||
         hero->health.value <= 0 || hero->hero.suspend_xp || (hero->aiflags & AI_ILLUSION) ||
         !G_UnitIsHero(hero) ||
-        (G_MiscNum("MaxLevelHeroesDrainExp",
+        (G_KillXPMiscNum("MaxLevelHeroesDrainExp",
             1.0f /* BZ_HARDCODED_DATA_FALLBACK: stock max-level Heroes drain XP. */) == 0.0f &&
          hero->hero.level >= G_MaxHeroLevel()) ||
         (range >= 0.0f && Vector2_distance(&hero->s.origin2, &victim->s.origin2) > range)) {
@@ -2079,7 +2145,7 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
     }
     /* Retail grants no Hero XP when the killing blow comes from a building,
      * unless the map explicitly enables BuildingKillsGiveExp. */
-    if (G_UnitIsStructure(killer) && G_MiscNum("BuildingKillsGiveExp", WC3_XP_BUILDING_KILLS_DEFAULT) == 0.0f) {
+    if (G_UnitIsStructure(killer) && G_KillXPMiscNum("BuildingKillsGiveExp", WC3_XP_BUILDING_KILLS_DEFAULT) == 0.0f) {
         return;
     }
     /* Enemy buildings award XP only when they have an authored attack (towers,
@@ -2111,13 +2177,13 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
     }
     if (victim->summon_ability) {
         double summoned = (double)baseXP *
-            (double)G_MiscNum("SummonedKillFactor", WC3_XP_SUMMON_FACTOR_DEFAULT);
+            (double)G_KillXPMiscNum("SummonedKillFactor", WC3_XP_SUMMON_FACTOR_DEFAULT);
         if (summoned < 0.0) summoned = 0.0;
         if (summoned > (double)UINT32_MAX) summoned = (double)UINT32_MAX;
         baseXP = (uint32_t)(summoned + 0.5);
     }
 
-    float const range = G_MiscNum("HeroExpRange", WC3_XP_RANGE_DEFAULT);
+    float const range = G_KillXPMiscNum("HeroExpRange", WC3_XP_RANGE_DEFAULT);
 
     FOR_LOOP(i, globals.num_edicts) {
         if (G_HeroReceivesKillXP(&globals.edicts[i], victim, killer, range)) {
@@ -2128,7 +2194,7 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
     /* Warcraft's GlobalExperience policy is a fallback: use global eligible
      * heroes only when no receiver is inside HeroExpRange. */
     bool const global = !receivers &&
-        G_MiscNum("GlobalExperience",
+        G_KillXPMiscNum("GlobalExperience",
             1.0f /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 default. */) != 0.0f;
     if (global) {
         FOR_LOOP(i, globals.num_edicts) {
@@ -2145,7 +2211,7 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
             continue;
         }
 
-        float factor = 1.0f;
+        double factor = 1.0;
         /* HeroFactorXP is the neutral-creep reduction table indexed by the
          * receiving Hero's level. Enemy player-controlled units and Heroes do
          * not use this reduction, so level-5+ Heroes can keep progressing. */
@@ -2154,14 +2220,21 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
             uint32_t const fallbackIndex = MIN(index,
                 (uint32_t)(sizeof(WC3_XP_CREEP_FACTOR_DEFAULT) /
                            sizeof(WC3_XP_CREEP_FACTOR_DEFAULT[0]) - 1));
-            factor *= G_MiscListNum("HeroFactorXP", index,
-                WC3_XP_CREEP_FACTOR_DEFAULT[fallbackIndex]) / 100.0f;
+            factor *= (double)G_MiscListNum("HeroFactorXP", index,
+                WC3_XP_CREEP_FACTOR_DEFAULT[fallbackIndex]) / 100.0;
         }
         if (h->s.player < game.max_clients) {
-            factor *= MAX(0.0f, game.clients[h->s.player].jass.handicap_xp) / 100.0f;
+            factor *= (double)MAX(0.0f, game.clients[h->s.player].jass.handicap_xp) / 100.0;
         }
 
-        uint32_t const award = (uint32_t)(((float)baseXP / (float)receivers) * factor + 0.5f);
+        double awardValue = ((double)baseXP / (double)receivers) * factor + 0.5;
+        if (!isfinite(awardValue) || awardValue > (double)UINT32_MAX) {
+            fprintf(stderr, "WC3 kill XP: computed award for player %u exceeds the XP limit; clamping\n",
+                    h->s.player);
+            awardValue = (double)UINT32_MAX;
+        }
+        if (awardValue < 0.0) awardValue = 0.0;
+        uint32_t const award = (uint32_t)awardValue;
         if (award > 0 && UINT32_MAX - h->hero.xp >= award) {
             G_HeroSetXP(h, h->hero.xp + award);
         } else if (award > 0) {
