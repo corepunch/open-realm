@@ -1449,6 +1449,54 @@
           "name": "separation_phase",
           "type": "u32",
           "evidence": "157610 initial0;15aa80 toggles0/1"
+        },
+        {
+          "offset": 564,
+          "name": "proximity_map",
+          "type": "ptr:WC3PathMapHeader",
+          "evidence": "15ab60 map factories/publication; two complete live WPM constructors"
+        },
+        {
+          "offset": 568,
+          "name": "fine_map",
+          "type": "ptr:WC3PathMapHeader",
+          "evidence": "15ab60 map factories/publication; two complete live WPM constructors"
+        },
+        {
+          "offset": 572,
+          "name": "base_map",
+          "type": "ptr:WC3PathMapHeader",
+          "evidence": "15ab60 map factories/publication; two complete live WPM constructors"
+        },
+        {
+          "offset": 576,
+          "name": "parent1_map",
+          "type": "ptr:WC3PathMapHeader",
+          "evidence": "15ab60 map factories/publication; two complete live WPM constructors"
+        },
+        {
+          "offset": 580,
+          "name": "parent2_map",
+          "type": "ptr:WC3PathMapHeader",
+          "evidence": "15ab60 map factories/publication; two complete live WPM constructors"
+        },
+        {
+          "offset": 584,
+          "name": "parent3_map",
+          "type": "ptr:WC3PathMapHeader",
+          "evidence": "15ab60 map factories/publication; two complete live WPM constructors"
+        },
+        {
+          "offset": 588,
+          "name": "fine_search",
+          "type": "ptr:WC3FineSearchPrefix",
+          "evidence": "15ab60 original search factory14ecb0; points to fine map"
+        },
+        {
+          "offset": 592,
+          "name": "adaptive_search",
+          "type": "ptr:void",
+          "evidence": "15ab60 original search factory14ec80; binds four hierarchy maps"
         }
       ]
     },
@@ -2289,6 +2337,144 @@
           "name": "script_environment",
           "type": "ptr:void",
           "evidence": "Original9cbcbc calls90cb10 with successful VM and stores result atAI+24c; nonnull result admits9c8d10(0). Opaque environment layout and VM continuations remain unrecovered."
+        }
+      ]
+    },
+    {
+      "name": "WC3DataStorePrefix",
+      "length": 24,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "u32",
+          "evidence": "04c860 WPM branch constructs CDataStore vtable"
+        },
+        {
+          "offset": 4,
+          "name": "buffer",
+          "type": "ptr:u8",
+          "evidence": "06a660/06a7a0 pointer(buffer-origin+cursor)"
+        },
+        {
+          "offset": 8,
+          "name": "buffer_origin",
+          "type": "u32",
+          "evidence": "06a7a0 virtual8 refill updates window origin"
+        },
+        {
+          "offset": 12,
+          "name": "buffer_capacity",
+          "type": "u32",
+          "evidence": "06a7a0 bounded read window; WPM ctor -1"
+        },
+        {
+          "offset": 16,
+          "name": "size",
+          "type": "u32",
+          "evidence": "04c860 sets actual Ordinal279 byte size;06a7a0 EOF bound"
+        },
+        {
+          "offset": 20,
+          "name": "cursor",
+          "type": "u32",
+          "evidence": "06a660 increments4;06a7a0 increments copied byte count"
+        }
+      ]
+    },
+    {
+      "name": "WC3PathMapHeader",
+      "length": 108,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "u32",
+          "evidence": "14c8e0/151760 map constructors"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Original initializer registry publication; repeated complete map loads"
+        },
+        {
+          "offset": 40,
+          "name": "cells",
+          "type": "ptr:void",
+          "evidence": "WPM04c860 uses4-byte fine cells;15cf80 uses8-byte hierarchy cells"
+        },
+        {
+          "offset": 60,
+          "name": "width",
+          "type": "u32",
+          "evidence": "14c8e0/151760 descriptor dimensions; full live WPM load"
+        },
+        {
+          "offset": 64,
+          "name": "height",
+          "type": "u32",
+          "evidence": "14c8e0/151760 descriptor dimensions; full live WPM load"
+        },
+        {
+          "offset": 68,
+          "name": "active_y0",
+          "type": "u32",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 72,
+          "name": "active_x0",
+          "type": "u32",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 76,
+          "name": "active_y1",
+          "type": "u32",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 80,
+          "name": "active_x1",
+          "type": "u32",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 84,
+          "name": "bounds_y0",
+          "type": "u32",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 88,
+          "name": "bounds_x0",
+          "type": "u32",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 92,
+          "name": "bounds_y1",
+          "type": "u32",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 96,
+          "name": "bounds_x1",
+          "type": "u32",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 100,
+          "name": "scale",
+          "type": "WC3PathScalar",
+          "evidence": "15ab60 original software scale/reciprocal; full live WPM load"
+        },
+        {
+          "offset": 104,
+          "name": "inverse_scale",
+          "type": "WC3PathScalar",
+          "evidence": "15ab60 original software scale/reciprocal; full live WPM load"
         }
       ]
     }
@@ -7640,6 +7826,95 @@
         }
       ],
       "evidence": "Complete x86 body; readonly SouthGoHome member1821 starts delay20, accepts changed destination and clears buffers/retry/delay before fine refill. Engine initial continuation verified through27.2s only; one-point refill and full journeys remain open."
+    },
+    {
+      "address": "6f06a660",
+      "name": "DataStore_ReadU32",
+      "returns": "ptr:WC3DataStorePrefix",
+      "parameters": [
+        {
+          "name": "store",
+          "type": "ptr:WC3DataStorePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f06a7a0",
+      "name": "DataStore_ReadBytes",
+      "returns": "ptr:WC3DataStorePrefix",
+      "parameters": [
+        {
+          "name": "store",
+          "type": "ptr:WC3DataStorePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "bytes",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f15ab60",
+      "name": "PathMaps_Create",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3PathOwnerCounterPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "cookie",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "fine_dimensions",
+          "type": "ptr:u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f04c860",
+      "name": "PathMaps_Load",
+      "convention": "__fastcall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "bounds",
+          "type": "ptr:WC3PathScalar",
+          "storage": "ECX"
+        },
+        {
+          "name": "filename",
+          "type": "ptr:u8",
+          "storage": "EDX"
+        },
+        {
+          "name": "scale_numerator",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "scale_denominator",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [
@@ -7990,6 +8265,12 @@
       "name": "CaptainAI_GoHomeRange500",
       "type": "WC3PathScalar",
       "evidence": "Read initializer MOVEDX immediate; tailcall070d80 softwareinteger constructor:019870/019890/001c30/001ab0/019720 respectively. On-disk zero is not runtime value."
+    },
+    {
+      "address": "6fd53a48",
+      "name": "PathWorld_Owner",
+      "type": "ptr:WC3PathOwnerCounterPrefix",
+      "evidence": "04c860/15ab60 global owner publication and both complete file-backed captures"
     }
   ]
 }

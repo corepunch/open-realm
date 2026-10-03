@@ -128,7 +128,9 @@ void G_FreeMovePathCache(void) {
 
 /* Four ordinary static lanes share node-index scratch; cache the retail 2x fine base and three parents. */
 static void move_acc_prepare(void) {
-    uint32_t width = ((pathmap.width+1)/2+7)&~7u, height = ((pathmap.height+1)/2+7)&~7u;
+    /* Original15ab60 adds16 fine cells, truncates division by2, then adds1.
+     * Padding is allocation space, not additional blocked terrain. */
+    uint32_t width=(pathmap.width+16)/2+1, height=(pathmap.height+16)/2+1;
     if (move_acc_storage && move_acc_width == width && move_acc_height == height &&
         move_acc_revision == pathmap.revision) return;
     if (move_acc_width != width || move_acc_height != height || !move_acc_storage) {
@@ -149,11 +151,14 @@ static void move_acc_prepare(void) {
     FOR_LOOP(lane,4) FOR_LOOP(level,4) {
         wc3AccMap_t const *map = move_acc.maps+level;
         uint8_t *classes = move_acc_classes[lane][level];
-        FOR_LOOP(y,map->height) FOR_LOOP(x,map->width) {
+        memset(classes,0,(size_t)map->width*map->height);
+        unsigned cols=MIN(map->width,pathmap.width/(2u<<level)+1);
+        unsigned rows=MIN(map->height,pathmap.height/(2u<<level)+1);
+        FOR_LOOP(y,rows) FOR_LOOP(x,cols) {
             unsigned blocked = 0;
             if (!level) {
                 FOR_LOOP(dy,2) FOR_LOOP(dx,2)
-                    blocked += !is_pathable_node_original_flags(x*2+dx,y*2+dy,move_acc_masks[lane]);
+                    blocked += !is_pathable_node_original_flags(x*2+dx,y*2+dy,lane ? move_acc_masks[lane] : 6);
                 classes[y*map->width+x] = blocked == 4 ? 1 : blocked ? 2 : 0;
             } else {
                 uint32_t w = move_acc.maps[level-1].width;
@@ -170,6 +175,11 @@ static void move_acc_prepare(void) {
 }
 
 #ifdef BZ_TESTS
+point2_t G_TestMovePathSize(unsigned level) {
+    move_acc_prepare();
+    if(level>=4) return (point2_t){0,0};
+    return (point2_t){move_acc.maps[level].width,move_acc.maps[level].height};
+}
 unsigned G_TestStaticPathMask(unsigned x, unsigned y) {
     unsigned result=0;
     FOR_LOOP(bit,8) if(!is_pathable_node_original_flags(x,y,1u<<bit)) result|=1u<<bit;

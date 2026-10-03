@@ -6635,3 +6635,65 @@ required release `make test` passes RoC/TFT with2482 tests/2830478 assertions
 each, plus461 Python pathfinding checks. Strict C11 O0 compilation and five
 fresh widget/lifecycle contracts pass. Saved Ghidra readback is unchanged after
 save (`unsaved=false`). The backlog is149 done/187 remaining, with no added IDs.
+
+
+## File-backed maps retain native hierarchy allocation
+
+Payoff73 closes existing MAP-02.1 with two complete public file-backed map
+loads. Read-only Frida observes `PathMaps_Load` (`04c860`) after it returns,
+before object constructors: actual Storm279 load of `war3map.wpm`, CDataStore
+header/payload deserialization, ordinary factories/registration, and complete
+hierarchy initialization. The archive contains MP3W/version0,384x256 cells;
+all98304 resulting native fine flag bytes equal the actual WPM payload's
+original mask decoder. Source, binary, map and capture hashes authenticate
+both runs. This is the full file branch, not the earlier supplied mask-loop
+slice or no-file fixture.
+
+The full capture exposes an engine allocation bug hidden by interior-only
+comparisons. Original `15ab60` adds16 to the fine dimensions, truncates division
+by2, adds1, then shifts for three parents. The engine previously rounded the
+half dimensions to multiples of8. Original base/parent sizes are201x137,
+100x68,50x34,25x17; the engine's old base was192x128. Original initializers zero
+all allocation padding. Rebuild includes one cell beyond the fine rectangle
+and its affected parents, while remaining allocation padding stays zero.
+Treating that unused padding as blocked terrain produces different classes.
+
+Move's cached static hierarchy now follows those dimensions and initialization
+limits. The original base ground classification mask is06000006, distinct from
+an individual mover's fine mask2; the other lanes are80,40 and4. Cache lookup
+still uses the mover's lane identity, then the base classifier uses the correct
+coarse mask. A dedicated no-fly cell test preserves fine ground admission while
+asserting its mixed ground/fly coarse classes. The cache-isolation fixture now
+uses a ground/float/amph wall and retains an independent pre-edit air result:
+clearing ground2 cannot open a coarse mask6 passage while no-fly4 remains.
+No recorded retail movement words or expected trajectories were regenerated.
+
+The engine regression builds and reopens a real MPQ containing the numeric
+WPM fixture, calls the production `CM_ReadPathMap`, and compares98304 movement
+cells plus145848 lane classifications across every allocated hierarchy cell,
+including borders and unused padding. It repeats through the no-file adapter
+with the same decoded terrain. Literal numeric RLE inputs/outputs are checked
+against frozen original JSON and the original WPM byte hash. This avoids
+checking a cache against another copy of its own classification algorithm.
+
+The new canonical observer flag is `--map-load-events`. Historical sources
+are immutable under `runtime/map-load-source-v1-261003/`; two complete captures
+are `runtime/map-load-v1-{first,repeat}-261003.jsonl`. Frozen acceptance is
+`retail-map-load-1.27.json`, strict entry `live-map-load-captures-261003`.
+Existing original no-file construction, all256 WPM byte decoders, coordinate
+and widget contracts continue to pass. Generic image/failure/reload domains,
+other map origins/corners and dynamic coarse publication retain their
+existing BASE/MAP tasks; no new task IDs are added.
+
+Ghidra now retains the24-byte CDataStore,108-byte common map header, eight
+owner map/search pointers and typed `PathWorld_Owner` global. Explicit
+DataStore read, constructor and file-loader ABIs are verified from assembly
+and complete consumers. Saved readback has622 roles,55 layouts/357 fields,
+288 ABIs and59 globals, `unsaved=false`.
+
+Payoff73 validation: the full file/direct-map test passes509515 assertions;
+required release `make test` passes RoC/TFT with2483 tests/3339994 assertions
+each, plus470 Python pathfinding checks. Six fresh strict load/map/widget
+contracts pass. The movement suite's2762164 original assertions retain its
+recorded scalar/trajectory expectations; its isolated terrain fixture gains
+one air-baseline assertion. Backlog150 done/186 remaining; no added IDs.

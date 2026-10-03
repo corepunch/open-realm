@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "96 executable original oracle contracts,121 archive audits and74 strict live contracts;291 total entries.",
+  "scope": "96 executable original oracle contracts,121 archive audits and75 strict live contracts;292 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -24641,6 +24641,156 @@
       ],
       "capture_complete": true,
       "capture_failures": []
+    },
+    {
+      "id": "live-map-load-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_map_load_trace.py",
+        "{archive}/runtime/map-load-v1-first-261003.jsonl",
+        "{archive}/runtime/map-load-v1-repeat-261003.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-map-load-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "report": "map-load-captures.json",
+      "inputs": {
+        "capture": "runtime/map-load-v1-first-261003.jsonl",
+        "sha256": "82f539db4a76cdd6766878a6ae1983e4f812907dd873883fcd28dd38664763a8",
+        "bytes": 1070616,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "d0bcfb3647d9aa3768ec5ed32301bad34c6bf31c980cfbca697e488b92f48f1a",
+            "wc3_pathfinding.js": "d4530752b30e6ad742fbbe37aa1ee2a74043b56fd8e34376f7840601e45509d6",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "make_wc3_pathfinding_map.py": "c9355da4b91165342c581f62507c5db783cd38be1b8c3a6f1456b07550ad6c51",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "515c0b0195401a765d64401b0e2f20424ced8a573b60bda49b3d6577385f1b3e"
+          },
+          "map": "Maps\\PathingRE-WidgetOverlapV1-261003.w3m",
+          "seconds": 100.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": [
+            163,
+            78
+          ],
+          "blockers": false,
+          "taskEvents": false,
+          "widgetEvents": true,
+          "motionEvents": false,
+          "velocityEvents": false,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/map-load-v1-repeat-261003.jsonl",
+            "sha256": "b1a02ea772e25ae356675cfd9bf899de767fbd5803b3303be88b2f648fe988b2",
+            "bytes": 1070616,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "d0bcfb3647d9aa3768ec5ed32301bad34c6bf31c980cfbca697e488b92f48f1a",
+                "wc3_pathfinding.js": "d4530752b30e6ad742fbbe37aa1ee2a74043b56fd8e34376f7840601e45509d6",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "make_wc3_pathfinding_map.py": "c9355da4b91165342c581f62507c5db783cd38be1b8c3a6f1456b07550ad6c51",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "515c0b0195401a765d64401b0e2f20424ced8a573b60bda49b3d6577385f1b3e"
+              },
+              "map": "Maps\\PathingRE-WidgetOverlapV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": [
+                163,
+                78
+              ],
+              "blockers": false,
+              "taskEvents": false,
+              "widgetEvents": true,
+              "motionEvents": false,
+              "velocityEvents": false,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true,
+          "capture_failures": []
+        }
+      ],
+      "capture_complete": true,
+      "capture_failures": [],
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "cases": {
+          "equal": 2
+        },
+        "file_loads": {
+          "equal": 2
+        },
+        "fine_cells": {
+          "equal": 196608
+        },
+        "hierarchy_classes": {
+          "equal": 291696
+        },
+        "whole_retail_pathfinder": {
+          "equal": false
+        }
+      },
+      "evidence": [
+        "L",
+        "S"
+      ],
+      "scope": "Complete public WPM-backed map load; decoded movement masks and all four hierarchy levels",
+      "exclusions": [
+        "Complete scene/mover producers, arbitrary reload/failure/image formats and dynamic hierarchy publication retain existing backlog tasks."
+      ]
     }
   ],
   "fixtures": [
@@ -24706,7 +24856,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "b3bdf72f1acf2efef542b3a58996fb91ce1d34eada741e6127eba49ee94b233e"
+      "sha256": "b4b21522be81ae3fab4d54265241be06da978b88e11b618b42bedd689ef68983"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -25176,6 +25326,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-widget-overlap-1.27.json",
       "sha256": "8ad56611654a65bb15ec874de15098b11cb2899b81a4b22346c626b25bce486f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-map-load-1.27.json",
+      "sha256": "c6a822a80dc9ef8e913c3ea21564c0eda1293c9337eeb7c0cefb18cd41d9d782"
     }
   ]
 }

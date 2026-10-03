@@ -37,6 +37,7 @@ def main():
     parser.add_argument('--captain-membership-events', action='store_true', help='observe Captain range departures, membership counters and private reissues without changing game state')
     parser.add_argument('--profile-events', action='store_true', help='capture original unit movement categories, masks and bridge publication')
     parser.add_argument('--blocker-patch-size', type=int, choices=(16,32), default=16, help='32 observes all static movement masks on a parent-aligned patch')
+    parser.add_argument('--map-load-events', action='store_true', help='observe the complete file-backed loader before object creation')
     parser.add_argument('--widget-events', action='store_true', help='observe widget methods after the widget lifecycle scenario starts')
     parser.add_argument('--blockers', action='store_true', help='aggregate original fine-cell blocker decisions per request')
     parser.add_argument('--watch-cell', type=int, nargs=2, metavar=('X', 'Y'), help='fine-grid cell and its parents at scenario markers')
@@ -91,7 +92,7 @@ def main():
     config = {'timestamp': struct.unpack_from('<I', binary, pe + 8)[0],
               'imageSize': struct.unpack_from('<I', binary, pe + 80)[0], 'samples': args.samples,
               'watchCell': args.watch_cell, 'blockerPatchSize': args.blocker_patch_size, 'blockers': args.blockers, 'taskEvents': args.task_events,
-              'widgetEvents': args.widget_events, 'motionEvents': args.motion_events,
+              'mapLoadEvents': args.map_load_events, 'widgetEvents': args.widget_events, 'motionEvents': args.motion_events,
               'velocityEvents': args.velocity_events, 'yieldEvents': args.yield_events, 'clockEvents': args.clock_events, 'headingEvents': args.heading_events,
               'captainApproachEvents': args.captain_approach_events, 'captainMembershipEvents': args.captain_membership_events,
               'profileEvents': args.profile_events, 'numericEvents': args.numeric_events, 'randomEvents': args.random_events,

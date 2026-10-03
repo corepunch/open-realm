@@ -8,22 +8,21 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**149 done / 336 tasks; 187 remaining.** Payoff72 closes existing MAP-02.3,
-with no new TODO IDs: file-backed overlapping tree/gate creation in both orders
-now matches public snapped pose,1024 static fine masks and all four hierarchy
-levels. The engine parses authored rotation as degrees, applies the retail
-map clamp/dimension-parity snap before linking and binds hidden preplaced
-objects against that same snapped point. Two retail repeats agree on18 full
-patch snapshots. Production helpers match288 original snap and27 clamp cases.
-Release RoC/TFT each pass2482 tests/2830478 assertions; required `make test`,
-461 Python checks and five fresh widget/lifecycle contracts pass. Saved Ghidra
-readback has620 roles,53 layouts/328 fields,284 explicit ABIs and58 globals.
-Inventory291 entries/133 fixtures/74 strict live contracts. See
-[authored widget creation](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation).
-Payoff71's existing MAP-03.5/03.6 lifecycle closures remain in place. Next
-runnable ID is MAP-02.1: a complete file-backed retail load already exposes
-an incorrect engine hierarchy allocation/initialization; both captures and
-all98304 decoded fine cells agree. Extended captain follow-ups remain open.
+**150 done / 336 tasks; 186 remaining.** Payoff73 closes existing MAP-02.1,
+with no new TODO IDs: two complete actual WPM-backed loads agree on all98304
+fine flag bytes and145848 four-lane hierarchy classifications per run. The
+engine now allocates and initializes the full retail hierarchy, keeps unused
+padding zero, and distinguishes ground coarse mask6 from individual fine
+mask2. The real MPQ reader and no-file adapter both match all captured cells.
+Release RoC/TFT each pass2483 tests/3339994 assertions; required `make test`,
+470 Python checks and six fresh load/map/widget contracts pass. Saved Ghidra
+readback has622 roles,55 layouts/357 fields,288 explicit ABIs and59 globals.
+Inventory292 entries/134 fixtures/75 strict live contracts. See
+[file-backed initialization](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation).
+Payoff71's MAP-03.5/03.6 and payoff72's MAP-02.3 closures remain in place.
+Next runnable ID is MAP-01.2: connect the existing original negative-origin/
+non-power-of-two constructor sweep to the corrected engine coordinate and
+hierarchy consumers. MAP-01.3 retains the full corner/non-dyadic matrix.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -35,7 +34,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | Area | Done | Remaining |
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
-| MAP — Map construction and lifetime | 10 | 12 |
+| MAP — Map construction and lifetime | 11 | 11 |
 | FOOT — Footprints and query policy | 11 | 7 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
@@ -281,7 +280,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 
 ### MAP-02 — Initial loading
 
-- [ ] **MAP-02.1** Load one file-backed WPM/map through deserialization and map creation; compare decoded masks, fine cells and hierarchy against the no-file fixture.
+- [x] **MAP-02.1** Load one file-backed WPM/map through deserialization and map creation; compare decoded masks, fine cells and hierarchy against the no-file fixture. Evidence: [complete file-backed initialization](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation), two full actual Storm/WPM/constructor/hierarchy returns,98304 native decoded cells and145848 classifications per run. Production MPQ reader and direct adapter match all movement masks and allocated hierarchy cells; engine corrects allocation padding, zero untouched cells and coarse ground mask6. Existing negative-origin/corner/image/failure/reload scopes remain their named tasks; no added IDs.
 - [ ] **MAP-02.2** Add one cliff, one water boundary and one bridge fixture; assert each supported movement lane's initial cells and support-height source.
 - [x] **MAP-02.3** Load two overlapping authored pathing textures in both creation orders; assert object/fine/hierarchy state after loading. Evidence: [authored widget creation](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation), complete public LTlt/LTg1 file-backed creation in both orders,18 repeated1024-cell/four-level snapshots. Engine corrects float fixedRot and public clamp/parity snapping before linking, preserves overlap/removal and hidden generated-script binding; all literal native grids match. No new task IDs.
 

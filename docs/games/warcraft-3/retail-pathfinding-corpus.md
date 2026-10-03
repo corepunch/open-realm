@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **291 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **74**
+The inventory now has **292 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **75**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1228,3 +1228,13 @@ complete highest-parent coverage. Historical source identity remains pinned to
 the immutable external package. Five fresh strict contracts pass in
 `runtime/widget-overlap-strict-c11-261003/`. See
 [engine creation integration](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation).
+
+
+Payoff73 adds `live-map-load-captures-261003`: two complete WPM-backed loads
+retain196608 raw decoded fine flags and291696 initial hierarchy classifications.
+The134th fixture, `retail-map-load-1.27.json`, pins the actual WPM byte hash and
+all numeric inputs/outputs in compact runs. Missing file/constructor calls,
+changed dimensions, terrain or padding/parent classes fail acceptance. The
+schema fixture now preserves55 layouts/357 fields,288 explicit ABIs and59
+globals. Six fresh strict load/map/widget reports pass in
+`runtime/map-load-strict-final-261003/`. See [engine initialization](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation).

@@ -1887,6 +1887,38 @@ function install(module) {
             }
         });
     }
+    if(config.mapLoadEvents) {
+    // Read-only complete file-backed load, before map object constructors.
+    hook(0x04c860, {
+        onEnter() {
+            this.loadFile=this.context.edx.isNull() ? null : this.context.edx.readCString();
+            this.loadBounds=ints(this.context.ecx,4);
+        },
+        onLeave() {
+            const owner=base.add(0xd53a48).readPointer();
+            if(owner.isNull()) throw new Error('Completed map load without owner');
+            const game=base.add(0xd3c82c).readPointer();
+            const fine=owner.add(0x238).readPointer(), [width,height]=ints(fine.add(0x3c),2);
+            const data=fine.add(0x28).readPointer(), cells=[];
+            for(let n=0;n<width*height;n++) cells.push(data.add(n*4).readU32()>>>24);
+            const hierarchy=[];
+            for(let level=0;level<4;level++) {
+                const map=owner.add(0x23c+level*4).readPointer(), [w,h]=ints(map.add(0x3c),2);
+                const data=map.add(0x28).readPointer(), values=[];
+                for(let n=0;n<w*h;n++) {
+                    const word=data.add(n*8+4).readU32();
+                    values.push([0,2,4,6].map(s=>(word>>>(30-s))&3));
+                }
+                hierarchy.push({level,width:w,height:h,values});
+            }
+            bump('map-load-complete');
+            emit('map-load-complete',{filename:this.loadFile,inputBounds:this.loadBounds,
+                worldBounds:ints(game.add(0x6c),4),width,height,cells,hierarchy,
+                constants:Object.fromEntries([0xd53a50,0xd53a54,0xd53a58,0xd53a5c,0xd53a60]
+                    .map(rva=>[rva.toString(16),base.add(rva).readFloat()]))});
+        }
+    });
+    }
     hook(0x15ab60, {
         onEnter() {this.self = this.context.ecx; bump('maps-create');},
         onLeave() {

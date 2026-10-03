@@ -766,3 +766,10 @@ retail map clamp/dimension-parity snap before linking. Both creation orders of
 file-backed overlapping tree/gate textures match captured fine masks and all
 four static hierarchy levels; removal preserves terrain and the surviving
 footprint. See [authored widget creation](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation).
+
+
+Move's static hierarchy uses the retail allocation padding and affected
+initialization region, including ground coarse mask6 versus fine mask2. The
+full MPQ-backed WPM load and direct-map adapter match every captured terrain
+movement cell and all four allocated hierarchy levels. See [file-backed map
+initialization](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation).

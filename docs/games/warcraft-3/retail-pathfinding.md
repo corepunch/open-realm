@@ -625,3 +625,11 @@ corrects `fixedRot` from Boolean to degrees and applies the original public
 pose policy before linking; complete captured static fine masks and all four
 hierarchy levels agree after creation and removal. Saved readback has620
 roles with the existing layouts/ABIs/globals. See [authored widget creation](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation).
+
+
+Payoff73 completes the actual `04c860` filename branch through WPM stream
+reads and initial hierarchy publication, with two repeated full map captures.
+The engine corrects hierarchy allocation, zero allocation padding and the
+original ground coarse mask. CDataStore/map headers, owner pointers, the owner
+global and explicit stream/constructor/loader ABIs are persisted:622 roles,
+55 layouts/357 fields,288 ABIs/59 globals. See [complete file-backed loading](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation).

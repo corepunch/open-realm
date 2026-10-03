@@ -28,6 +28,8 @@
 #include <string.h>
 #include "test.h"
 #include "../g_local.h"
+#include "../common/wc3_pathing_masks.h"
+#include "retail_map_load.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -169,6 +171,76 @@ static edict_t *make_unit_at(float x, float y) {
 
 /* The live point command publishes a minimum range of .49 fine cells, checks
  * a separate .2-radian arrival tolerance, and stops at the predicted pose. */
+unsigned G_TestStaticPathMask(unsigned x, unsigned y);
+int G_TestMovePathClass(uint8_t mask, unsigned level, unsigned x, unsigned y);
+point2_t G_TestMovePathSize(unsigned level);
+void CM_ReadPathMap(handle_t archive);
+
+static void path_load_expand(unsigned const runs[][2], unsigned count, uint8_t *out, unsigned size) {
+    unsigned at=0;
+    FOR_LOOP(i,count) {
+        T_ASSERT(runs[i][0]<=size-at);
+        if(runs[i][0]>size-at) return;
+        memset(out+at,runs[i][1],runs[i][0]); at+=runs[i][0];
+    }
+    T_EQ(at,size);
+}
+
+static void assert_retail_loaded_map(void) {
+    uint8_t *fine=malloc(384*256), *classes=malloc(36462);
+    path_load_expand(retail_load_fine_runs,sizeof(retail_load_fine_runs)/sizeof(*retail_load_fine_runs),fine,384*256);
+    path_load_expand(retail_load_class_runs,sizeof(retail_load_class_runs)/sizeof(*retail_load_class_runs),classes,36462);
+    FOR_LOOP(y,256) FOR_LOOP(x,384)
+        T_EQ(G_TestStaticPathMask(x,y)&0xc6,fine[y*384+x]&0xc6);
+    uint8_t const lanes[]={2,0x80,0x40,4};
+    unsigned at=0;
+    FOR_LOOP(level,4) {
+        unsigned w=retail_load_size[level][0], h=retail_load_size[level][1];
+        point2_t size=G_TestMovePathSize(level);
+        T_EQ(size.x,w); T_EQ(size.y,h);
+        FOR_LOOP(y,h) FOR_LOOP(x,w) {
+            unsigned value=classes[at++];
+            FOR_LOOP(lane,4) T_EQ(G_TestMovePathClass(lanes[lane],level,x,y),(value>>(6-2*lane))&3);
+        }
+    }
+    free(fine); free(classes);
+}
+
+TEST(pathfinding, file_backed_wpm_matches_complete_retail_initial_hierarchy) {
+    char const *path="/tmp/wc3-retail-wpm-load-test.mpq";
+    unsigned count=384*256;
+    uint8_t *file=malloc(count+16), *decoded=malloc(count);
+    uint32_t header[]={0x5733504d,0,384,256};
+    memcpy(file,header,sizeof(header));
+    path_load_expand(retail_load_wpm_runs,sizeof(retail_load_wpm_runs)/sizeof(*retail_load_wpm_runs),file+16,count);
+    FOR_LOOP(i,count) decoded[i]=wc3_wpm_movement_flags(file[16+i]);
+    handle_t archive=NULL;
+    remove(path);
+    T_ASSERT(SFileCreateArchive(path,0,16,&archive));
+    if(!archive) {free(file); free(decoded); return;}
+    T_ASSERT(SFileAddFileFromBuffer(archive,"war3map.wpm",file,count+16));
+    T_ASSERT(SFileCloseArchive(archive)); archive=NULL;
+    T_ASSERT(SFileOpenArchive(path,0,0,&archive));
+    if(!archive) {free(file); free(decoded); remove(path); return;}
+    reset_entities(); setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{-7168,-3072},{5120,5120}});
+    CM_ReadPathMap(archive);
+    assert_retail_loaded_map();
+    T_ASSERT(SFileCloseArchive(archive)); remove(path);
+    /* Compare the same decoded terrain through the no-file map adapter. */
+    CM_SetupTestPathmap(384,256,decoded);
+    assert_retail_loaded_map();
+    /* Original base ground mask06000006 differs from individual fine mask2. */
+    uint8_t no_fly[16]={4};
+    CM_SetupTestPathmap(4,4,no_fly);
+    T_EQ(G_TestStaticPathMask(0,0)&2,0);
+    T_EQ(G_TestMovePathClass(2,0,0,0),2);
+    T_EQ(G_TestMovePathClass(4,0,0,0),2);
+    T_EQ(G_TestMovePathClass(0x40,0,0,0),0);
+    free(file); free(decoded);
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_pathfinding, point_move_stops_in_range_without_snapping) {
     vec2_t target = {138.f, 128.f};
     reset_entities();

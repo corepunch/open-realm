@@ -1370,9 +1370,11 @@ TEST(wc3_movement, ordinary_default_route_matches_original_maze_handoff) {
 TEST(wc3_movement, retail_adaptive_lanes_sizes_and_terrain_edits) {
     edict_t *unit=make_moving_unit(272,304);
     uint8_t cells[64*64]={0};
-    FOR_LOOP(y,64) FOR_LOOP(x,2) if (y<44 || y>=52) cells[y*64+32+x]=0xc6;
+    /* Ground coarse mask6 also sees no-fly4. Keep this wall ground/float/amph
+     * only so editing ground2 opens the intended new coarse passage. */
+    FOR_LOOP(y,64) FOR_LOOP(x,2) if (y<44 || y>=52) cells[y*64+32+x]=0xc2;
     box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
-    vec2_t target={1936,1776}, waypoint, before;
+    vec2_t target={1936,1776}, waypoint, before, before_air;
     uint8_t masks[4]={2,4,0x40,0x80};
     FOR_LOOP(round,2) FOR_LOOP(lane,4) FOR_LOOP(size,2) {
         movePathQuery_t query={{&unit->s.origin2,&target,size?32:31,masks[lane]},unit,NULL,true};
@@ -1385,6 +1387,9 @@ TEST(wc3_movement, retail_adaptive_lanes_sizes_and_terrain_edits) {
     movePathQuery_t query={{&unit->s.origin2,&target,31,2},unit,NULL,true};
     level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
     T_ASSERT(G_FindUnitMovePathWaypoint(&query,&before));
+    movePathQuery_t air_query=query; air_query.geometry.blocked_flags=4;
+    level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_FindUnitMovePathWaypoint(&air_query,&before_air));
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nlocal integer y=0\n"
         "loop\nexitwhen y==64\ncall SetTerrainPathable(1040,y*32+16,ConvertPathingType(1),y>=12 and y<20)\n"
         "call SetTerrainPathable(1072,y*32+16,ConvertPathingType(1),y>=12 and y<20)\nset y=y+1\nendloop\nendfunction\n"));
@@ -1396,8 +1401,8 @@ TEST(wc3_movement, retail_adaptive_lanes_sizes_and_terrain_edits) {
     query.geometry.blocked_flags=4;
     level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
     T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
-    T_EQ(wc3_float_bits(waypoint.x),wc3_float_bits(before.x));
-    T_EQ(wc3_float_bits(waypoint.y),wc3_float_bits(before.y));
+    T_EQ(wc3_float_bits(waypoint.x),wc3_float_bits(before_air.x));
+    T_EQ(wc3_float_bits(waypoint.y),wc3_float_bits(before_air.y));
     reset_entities(); setup_test_world();
 }
 
