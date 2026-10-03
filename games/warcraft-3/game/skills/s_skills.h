@@ -532,6 +532,7 @@ bool S_SpellTargetVisited(edict_t *const *visited, uint32_t count, edict_t const
 void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position);
 cstring_t S_SpellBuffToken(cstring_t list, uint32_t index);
 heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, uint32_t level, float duration);
+heroabilitystatus_t *S_SpellApplyTimedLife(edict_t *unit, uint32_t level, float duration);
 heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration);
 void S_SpellApplyStun(edict_t *target, float duration);
 void S_SpellDamageEnemiesInRadius(edict_t *caster, vec2_t const *center, float radius, uint32_t damage);

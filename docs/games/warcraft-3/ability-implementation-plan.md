@@ -150,9 +150,11 @@ rather than repeating the ordinary corpse teardown, and corpse-ranking policy
 reads the shared `G_CorpseUnitLevel()` accessor while each ability keeps its own
 highest/lowest and tie-break selection rule. Timed-status procedures should use `S_SpellApplyTimedStatus()` for ordinary
 presentation-neutral status writes after the owner has resolved its own BuffID
-fallback and exact duration; direct `unit_addtimedstatus()` remains appropriate
-for lifecycle tokens such as timed life, morph expiry, or other deliberately
-special state. This
+fallback and exact duration; lifecycle tokens remain deliberately separate from
+ordinary buffs. Use `S_SpellApplyTimedLife()` for the shared `BTLF` token while
+the owner decides whether zero duration means permanent lifecycle state or no
+marker at all; direct `unit_addtimedstatus()` remains appropriate for other
+deliberately special state such as morph expiry. This
 presentation-neutral primitive returns the authoritative status slot, so special
 abilities can attach payload without rescanning `abilstatus`; this also replaces
 manual post-apply status lookups in Avatar/Polymorph and preserves presentation-
@@ -200,11 +202,12 @@ destination/search, grouping, failure, and order-cleanup policy. Channel-owned
 presentation should use the existing owned-effect helpers where possible rather
 than maintaining a parallel effect registry.
 Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with
-animation, expiry, or other side effects retain their own wrappers. Specialized
-point summons that already carry ability-owned identity use
-`S_SummonAbilityAt()` instead of open-coding `summon_ability`; the owning
-ability still controls effects, buffs, facing, corpse handling, replacement and
-other summon policy. See
+animation, expiry, or other side effects retain their own wrappers. Simple
+`UnitID` + DataA count + Dur summon procedures use `S_SummonAbilityUnits()`,
+which records the concrete ability alias on every point/ring result; specialized
+point summons use `S_SummonAbilityAt()` instead of open-coding
+`summon_ability`. The owning ability still controls effects, buffs, facing,
+corpse handling, replacement and other summon policy. See
 [Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families).
 
 ### 6. Verify the focused pattern, then the family

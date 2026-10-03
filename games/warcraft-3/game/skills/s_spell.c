@@ -1240,6 +1240,13 @@ heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, ui
     return unit_findstatus(target, FS_SLKKey(buff));
 }
 
+/* BTLF is lifecycle ownership rather than an ordinary dispellable buff.
+ * Callers still decide whether a zero duration means permanent lifecycle state
+ * or whether no timed-life marker should be created at all. */
+heroabilitystatus_t *S_SpellApplyTimedLife(edict_t *unit, uint32_t level, float duration) {
+    return S_SpellApplyTimedStatus(unit, "BTLF", level, duration);
+}
+
 /* Ordinary target buffs add the standard authored TargetArt on top of the
  * shared timed-status lifecycle. */
 heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration) {

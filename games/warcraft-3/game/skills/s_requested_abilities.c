@@ -692,7 +692,7 @@ static void animate_dead_execute(edict_t *caster, spellTarget_t st, abilityitem_
         if (raised_invulnerable) selected->invulnerable = true;
         selected->s.player = caster->s.player; selected->owner = caster;
         selected->summon_ability = spell->code;
-        unit_addtimedstatus(selected, "BTLF", level, duration);
+        S_SpellApplyTimedLife(selected, level, duration);
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, selected, NULL, true);
         count++;
     }

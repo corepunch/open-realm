@@ -1607,6 +1607,40 @@ TEST(wc3_spell, spell_unit_id_from_slk) {
 	free_slk_rows(rows);
 }
 
+TEST(wc3_spell, simple_ability_summons_record_owner_ability_and_timed_life) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\n"
+        "C;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"Dur1\"\n"
+        "C;Y1;X5;K\"UnitID1\"\n"
+        "C;Y1;X6;K\"targs\"\n"
+        "C;Y2;X1;K\"A0S1\"\n"
+        "C;Y2;X2;K\"A0S1\"\n"
+        "C;Y2;X3;K\"2\"\n"
+        "C;Y2;X4;K\"7\"\n"
+        "C;Y2;X5;K\"hfoo\"\n"
+        "C;Y2;X6;K\"ground\"\n"
+        "E\n";
+    uint32_t const code = MAKEFOURCC('A','0','S','1');
+    edict_t *caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    spellTarget_t target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = { 128.0f, 64.0f });
+    uint32_t count = 0;
+
+    S_SummonAbilityUnits(caster, code, &target);
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == caster && unit->class_id == MAKEFOURCC('h','f','o','o')) {
+        T_EQ(unit->summon_ability, code);
+        T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','T','L','F')), 1);
+        count++;
+    }
+    T_EQ(count, 2);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, hero_duration_uses_herodur_col) {
 	slkTestData_t *rows = parse_slk_string(slk_spell_data);
 	slkTestData_t *old = G_SetSLKRows("AbilityData", rows);

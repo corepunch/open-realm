@@ -1,7 +1,5 @@
 #include "s_skills.h"
 
-#define ID_TIMED_LIFE "BTLF"
-
 static edict_t *summon_unit(edict_t *caster, uint32_t unit_id, uint32_t index, uint32_t count, float duration) {
     vec2_t loc;
     float angle;
@@ -24,7 +22,7 @@ static edict_t *summon_unit(edict_t *caster, uint32_t unit_id, uint32_t index, u
     if (summon->stand)
         summon->stand(summon);
     if (duration > 0)
-        unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
+        S_SpellApplyTimedLife(summon, 1, duration);
     G_PublishSummonEvents(caster, summon);
     return summon;
 }
@@ -48,7 +46,7 @@ edict_t *S_SummonAt(edict_t *caster, uint32_t unit_id, vec2_t const *loc, float 
     if (!summon) return NULL;
     summon->owner = caster; G_ActivateUnitFood(summon);
     if (summon->stand) summon->stand(summon);
-    if (duration > 0.0f) unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
+    if (duration > 0.0f) S_SpellApplyTimedLife(summon, 1, duration);
     G_PublishSummonEvents(caster, summon);
     return summon;
 }
@@ -64,8 +62,9 @@ edict_t *S_SummonAbilityAt(edict_t *caster, uint32_t code, uint32_t unit_id, vec
 
 /* Common Object Editor summon contract used by simple campaign/requested
  * abilities: UnitID selects the unit, DataA is count (minimum one), and Dur is
- * timed life. Point-target variants spawn at the authored target point; other
- * variants use the normal collision-safe ring around the caster. */
+ * timed life. Every result records the concrete ability alias; point-target
+ * variants spawn at the authored target point and other variants use the normal
+ * collision-safe ring around the caster. */
 void S_SummonAbilityUnits(edict_t *caster, uint32_t code, spellTarget_t const *target) {
     uint32_t level, unit_id, count;
     float duration;
@@ -77,10 +76,10 @@ void S_SummonAbilityUnits(edict_t *caster, uint32_t code, spellTarget_t const *t
     duration = S_SpellDuration(code, level, false);
     if (!unit_id) return;
     if (target && target->type == SPELL_TARGET_POINT) {
-        FOR_LOOP(i, count) (void)S_SummonAt(caster, unit_id, &target->point, duration);
+        FOR_LOOP(i, count) (void)S_SummonAbilityAt(caster, code, unit_id, &target->point, duration);
         return;
     }
-    S_SummonUnits(caster, unit_id, count, duration);
+    FOR_LOOP(i, count) (void)summon_ability_unit(caster, code, unit_id, i, count, duration);
 }
 
 /* Some Warcraft summon abilities cap one authored unit type rather than all
