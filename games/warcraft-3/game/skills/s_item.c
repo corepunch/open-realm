@@ -339,9 +339,8 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
     if (!has_status_slot) return false;
 
     target->s.renderfx |= RF_HIDDEN;
-    unit_addtimedstatus(target, buff, 1, duration);
     {
-        heroabilitystatus_t *status = unit_findstatus(target, *((uint32_t const *)buff));
+        heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, 1, duration);
         if (status) status->data = code;
         if (status) return true;
     }

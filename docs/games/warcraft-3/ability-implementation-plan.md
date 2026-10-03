@@ -145,12 +145,12 @@ Well thresholds or Barkskin's existing-buff exclusion through that helper. The
 same rule applies to passive and lifecycle families: Endurance Aura now consumes
 the shared aura cache instead of open-coding recipient scans, and temporary corpse
 revival uses `G_ReviveCorpseAsSummon()` rather than repeating the ordinary corpse
-teardown. Ordinary target-status procedures may share
-`S_SpellApplyTimedTargetStatus()` only after the owner has resolved its own BuffID
-fallback and exact normal/resistant duration. The helper returns the authoritative
-status slot after applying the buff and TargetArt, so abilities such as Anti-Magic
-Shell, Purge, Invisibility, and Spirit Link can attach their ability-owned payload
-without rescanning `abilstatus`. Use `S_SpellBuffId()` for the common authored
+teardown. Timed-status procedures may share `S_SpellApplyTimedStatus()` after the
+owner has resolved its own BuffID fallback and exact duration. This
+presentation-neutral primitive returns the authoritative status slot, so special
+abilities can attach payload without rescanning `abilstatus`. Ordinary target buffs
+that also use standard authored TargetArt layer `S_SpellApplyTimedTargetStatus()`
+on top. Use `S_SpellBuffId()` for the common authored
 primary-BuffID validity check while keeping ROC/TFT fallback choice local. Use
 `S_SpellHeroDuration()` or `S_SpellResistantDuration()` for the two established
 duration policies instead of repeating the predicate at every call site.

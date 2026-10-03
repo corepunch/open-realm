@@ -37,8 +37,7 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
                   Vector2_distance(&ent->s.origin2, &target->s.origin2) <= row->area) {
         heroabilitystatus_t *slot = unit_findstatus(target, FS_SLKKey(buff));
         if (!slot || !S_UnitHasStatus(target, slot->code)) {
-            unit_addtimedstatus(target, buff, ability.level, row->data[0].number);
-            slot = unit_findstatus(target, FS_SLKKey(buff));
+            slot = S_SpellApplyTimedStatus(target, buff, ability.level, row->data[0].number);
             if (!slot) continue;
             slot->data = ability.alias; slot->rank = ability.level;
             slot->source = ent; slot->source_spawn_time = ent->spawn_time;

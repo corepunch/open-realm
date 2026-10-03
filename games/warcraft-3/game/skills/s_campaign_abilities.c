@@ -234,8 +234,8 @@ static void ensnare_execute(edict_t *caster, spellTarget_t st, abilityitem_t con
     if (!buff || strlen(buff) < 4) buff = S_SpellBuffToken(list, 0);
     /* ROC omits BuffID. Use each family's authored TFT token, preserving Web's air bind. */
     if (!buff || strlen(buff) < 4) buff = spell->ability->proc == CAbilityWeb ? "Bwea" : "Bens";
-    unit_addtimedstatus(st.entity, buff, level, S_SpellResistantDuration(spell->code, level, st.entity));
-    slot = unit_findstatus(st.entity, FS_SLKKey(buff));
+    slot = S_SpellApplyTimedStatus(st.entity, buff, level,
+                                     S_SpellResistantDuration(spell->code, level, st.entity));
     if (slot) slot->data = spell->code;
     ensnare_begin_land(st.entity, spell->code, level);
     ensnare_refresh(st.entity);
