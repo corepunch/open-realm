@@ -344,6 +344,13 @@ mount. The adapter rejects identical Product User IDs. Rooms include the
 Actions run ID, attempt and scenario to prevent concurrent-run collisions.
 Both peers must exit successfully; an intentional crash-host exit alone cannot
 pass without the guest verifying host loss and public-directory removal.
+Paired hosts wait for publication readiness, then receive packets; the guest
+proves public indexing by finding and joining the room. Hosts must not wait for
+their own public search result: a guest may fill the two-member room before that
+search completes, and full rooms are intentionally excluded by the browser.
+The first GitHub live run on 2026-10-03 passed solo login/publication/reconnect
+in 11.9 seconds but reproduced that acceptance-driver race after the guest
+joined and both peers established direct connectivity.
 
 Each native command has its 180-second watchdog; the runner adds a 220-second
 scenario deadline and removes surviving containers on failure. Service failures
