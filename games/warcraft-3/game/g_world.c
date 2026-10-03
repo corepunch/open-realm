@@ -175,6 +175,9 @@ static void move_acc_prepare(void) {
 }
 
 #ifdef BZ_TESTS
+wc3FineSearch_t const *G_TestMoveFineSearch(void) {
+    return &move_fine;
+}
 void G_TestMoveFinePopTrace(void (*trace)(void *,uint32_t const[10]),void *data) {
     move_fine.pop_trace=trace; move_fine.trace_data=data;
 }

@@ -72,7 +72,10 @@ def main():
     parser.add_argument('--corridors', action='store_true', help='cardinal corridors of width 0..5 across four classes')
     parser.add_argument('--passages', action='store_true', help='four-lane cardinal/corner/edge passage matrix with exact fractional requests')
     parser.add_argument('--queue-composition',action='store_true',help='one natural full request with ties/reopening/stale entries')
+    parser.add_argument('--stamp-wrap',action='store_true',help='sequential request stamp wrap with retained metadata and lane/class changes')
+    parser.add_argument('--wrap-fixture',type=Path,help='assert frozen original wrap/control records')
     args = parser.parse_args()
+    if args.stamp_wrap and not args.queue_composition: parser.error('stamp wrap requires queue composition fixture')
     if args.passages and (args.objects or args.partials or args.corridors): parser.error('passages is a separate matrix')
     if args.queue_composition and (args.passages or args.objects or args.partials or args.corridors): parser.error('queue composition is a separate fixture')
     if args.movement_profiles and not args.objects: parser.error('--movement-profiles requires --objects')
@@ -491,6 +494,51 @@ def main():
             out=(ctypes.c_uint32*(6+2*16386))()
             engine.pathing_fine_request_words(q,ctypes.byref(ObjectInput(terrain_c,None)),out)
             assert out[0]==0 and out[1]==701 and list(out[6:6+2*out[3]])==budget_words
+    if args.stamp_wrap:
+        def wrap_request(mask,cls):
+            write(mask_ptr,mask);machine.mem_write(radius_ptr,struct.pack('<f',.25+.5*cls))
+            result=run(0x6f148100,system,route,source_ptr,target_ptr,mask_ptr,100000,radius_ptr,0)
+            count=read(route+0x1c)[0]
+            return dict(result=result,work=read(system+0x6c)[0],nodes=read(system+0x40)[0],
+                nearest=read(nodes+read(system+0x9c)[0]*36,2),distance=read(system+0x98)[0],
+                route_words=read(route_data,count*2),node_state=[
+                    [v[0],v[1],v[5],v[6],v[2],v[7],0 if v[3]==0xffffffff else 1 if v[3]==0xfffffffe else 2]
+                    for v in (read(nodes+36*i,8) for i in range(read(system+0x40)[0]))])
+        # One pre-call fixture seed near the boundary; every subsequent stamp
+        # mutation is original14ad50's ushort increment. Metadata comes from the
+        # completed original requests above and is retained across all four.
+        write(system+0x20,(read(system+0x20)[0]&0xffff0000)|0xfffe)
+        reused=[]
+        for cls,mask,stamp in zip(range(4),(0x02000002,0x04000004,0x40000040,0x80000080),(65535,0,1,2)):
+            row=wrap_request(mask,cls)
+            assert read(system+0x20)[0]&0xffff==stamp
+            row.update(cls=cls,mask=mask,stamp=stamp)
+            reused.append(row)
+        # Fresh metadata is a clean control, not a substitute for the retained
+        # sequence: original reset/setup/node creation still execute normally.
+        for i,row in enumerate(reused):
+            machine.mem_write(cells,b''.join(struct.pack('<I',(v<<24)|0xffffff) for v in terrain))
+            machine.mem_write(bitmap,bytes(1024));write(tilemap+0x88,0)
+            write(system+0x20,100+i)
+            clean=wrap_request(row['mask'],row['cls'])
+            assert clean=={k:v for k,v in row.items() if k not in ('cls','mask','stamp')}
+            if engine:
+                terrain_c=(ctypes.c_uint8*len(terrain)).from_buffer_copy(terrain)
+                q=(ctypes.c_uint32*15)(width,height,*start,*goal,2048,row['cls'],row['mask'],0,0,*read(source_ptr,2),*read(target_ptr,2))
+                out=(ctypes.c_uint32*(6+2*16386))()
+                engine.pathing_fine_request_words(q,ctypes.byref(ObjectInput(terrain_c,None)),out)
+                assert list(out[:3])==[row['result'],row['work'],row['nodes']]
+                assert list(out[6:6+2*out[3]])==row['route_words']
+                engine.pathing_fine_node_state.argtypes=[ctypes.POINTER(ctypes.c_uint32)]
+                state=(ctypes.c_uint32*(1+7*16384))()
+                engine.pathing_fine_node_state(state)
+                assert [list(state[1+7*j:8+7*j]) for j in range(state[0])]==row['node_state']
+        report.update(stamp_wrap_cases=reused,stamp_wrap_reused_requests=4,stamp_wrap_clean_requests=4,
+            stamp_wrap_engine_requests=4 if engine else 0)
+        if args.wrap_fixture:
+            frozen_wrap=json.loads(args.wrap_fixture.read_text())
+            assert reused==frozen_wrap['cases']
+            assert hashlib.sha256(terrain).hexdigest()==frozen_wrap['terrain_sha256']
     if args.passages:
         report.update(passage_cases=len(records),passage_shapes=len(shapes),movement_lanes=4,subcell_offsets=4,
             passage_endpoint_cases=2*len(passage_records),

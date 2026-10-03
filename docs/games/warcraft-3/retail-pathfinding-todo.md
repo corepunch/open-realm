@@ -8,15 +8,15 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**155 done / 336 tasks; 181 remaining.** Payoff76 closes existing FINE-02.1
-without adding or splitting IDs. A complete native request naturally combines
-ties, reopening and190 stale entries; all1068 queue pops/generations/work
-match engine C and repeated production routes. Its700-work companion exposes
-and fixes a partial goal-centre bug in the actual engine route builder;
-the click remains unchanged and denied work701 is charged correctly. See
-[full queue/partial payoff](retail-pathfinding-engine.md#full-queue-composition-preserves-partial-goal-centres).
+**157 done / 336 tasks; 179 remaining.** Payoff77 closes existing FINE-03.2
+and MAP-05.2 together without adding or splitting IDs. Actual fine setup
+increments`ffff`,0,1,2 over retained cell metadata while lanes/classes change.
+All1656 final nodes, work and complete route words equal fresh native controls,
+production C and both traversal orders in the real engine route builder. Required
+RoC/TFT suites pass2488 tests/4375834 assertions each;480 Python checks pass.
+See [fine wrap payoff](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state).
 
-Next runnable ID is FINE-03.2: complete original stamp-wrap/reuse searches
+Next runnable ID is ACC-05.2: complete adaptive stamp/lane/class reuse
 and engine clean-control equivalence. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
@@ -29,9 +29,9 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | Area | Done | Remaining |
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
-| MAP — Map construction and lifetime | 13 | 9 |
+| MAP — Map construction and lifetime | 14 | 8 |
 | FOOT — Footprints and query policy | 13 | 5 |
-| FINE — Fine search | 7 | 5 |
+| FINE — Fine search | 8 | 4 |
 | ACC — Adaptive search | 3 | 10 |
 | NUM — Numbers and random state | 24 | 19 |
 | ROUTE — Route progression and yielding | 7 | 9 |
@@ -299,7 +299,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 ### MAP-05 — Map/spatial capacity
 
 - [ ] **MAP-05.1** Cross one map/spatial allocation boundary, then free and reuse the storage; assert record identity, links and cell contents.
-- [ ] **MAP-05.2** Force a generation/stamp wrap at its original mutation point; compare the first post-wrap query with a clean equivalent map.
+- [x] **MAP-05.2** Force a generation/stamp wrap at its original mutation point; compare the first post-wrap query with a clean equivalent map. Evidence: [fine map stamp wrap](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state), one pre-call seed then original14ad50 increments FFFF/0/1/2 across unchanged fine metadata. All four complete requests and every final node/work/route equal fresh maps and engine C; actual engine storage is reused in both class orders. Spatial/adaptive stamps and allocation capacity retain their existing IDs.
 - [ ] **MAP-05.3** Trigger reachable allocation failure and metadata/dead-record cleanup thresholds; assert failure result and no surviving partial links.
 
 ### MAP-06 — Map lifetime
@@ -370,7 +370,7 @@ Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
 ### FINE-03 — Fine storage lifetime
 
 - [ ] **FINE-03.1** Cross node and heap growth/capacity boundaries; verify original failure codes and free-list recovery on the next request.
-- [ ] **FINE-03.2** Run sequential searches through 16-bit stamp wrap and reuse; compare post-wrap route and node state with a clean control.
+- [x] **FINE-03.2** Run sequential searches through 16-bit stamp wrap and reuse; compare post-wrap route and node state with a clean control. Same [wrap evidence](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state): complete original148100 executes FFFF/0/1/2 across four lanes/classes;1656 final normalized node states, nearest results, work and full fractional routes equal clean controls and C. Actual G_BuildUnitMoveLocalRoute repeats both request orders over retained backing,23928 assertions. Counter seeding is explicit; no65K-history or capacity claim.
 
 ### FINE-04 — Public fine results
 

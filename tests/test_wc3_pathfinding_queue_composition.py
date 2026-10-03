@@ -1,5 +1,5 @@
 """Natural full-search queue expectations are original outputs, including denied final work."""
-import collections
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -31,6 +31,19 @@ class QueueCompositionTests(unittest.TestCase):
         self.assertEqual(len(valid)-len({r[1] for r in valid}),1)
         self.assertEqual(len(rows)-len({r[0] for r in rows}),886)
         self.assertEqual([r[4] for r in rows],list(range(1,1069)))
+
+    def test_stamp_wrap_nodes_and_routes_are_frozen_native_clean_controls(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-fine-stamp-wrap-1.27.json').read_text())
+        self.assertEqual(fixture['terrain_sha256'],hashlib.sha256(bytes.fromhex(self.fixture['budget_goal_input']['cells'])).hexdigest())
+        self.assertEqual([r['stamp'] for r in fixture['cases']],[65535,0,1,2])
+        for row in fixture['cases']:
+            name='ground' if row['cls']==0 else 'other'
+            for suffix,key,width in [('nodes','node_state',7),('route','route_words',2)]:
+                table=self.source.split('retail_wrap_'+name+'_'+suffix+'[]['+str(width)+']={',1)[1].split('};',1)[0]
+                actual=[int(v,16) for v in re.findall(r'0x([0-9a-f]+)u',table)]
+                expected=[v for n in row[key] for v in n] if key=='node_state' else row[key]
+                self.assertEqual(actual,expected)
+            self.assertEqual(len(row['node_state']),row['nodes'])
 
     def test_denied_goal_pop_remains_a_partial_centre(self):
         self.assertEqual(self.fixture['budget_goal_input']['output'][:3],[0,701,669])

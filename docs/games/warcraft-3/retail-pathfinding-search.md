@@ -502,7 +502,10 @@ Each case is then repeated using original reset `6f14a980`, incremented search
 stamp, and retained per-cell metadata. All **288 repeats** produce byte-identical
 node arrays, the same result and pop count, and no additional map-link entries.
 This verifies reuse across two consecutive search stamps in this corpus;
-16-bit stamp wraparound and mixed dynamic-object lists remain untested.
+Payoff77 adds full original16-bit wrap/control and engine node/route coverage;
+[wrap evidence](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state).
+Mixed dynamic-object lists are covered separately by the authored movement-mask
+and target-chain compositions. Capacity remains open.
 
 Node lookup checks the cell's first low-24-bit link. A type-2 metadata link has
 search stamp in its low ushort at `+4` and node index in its high ushort at `+6`.

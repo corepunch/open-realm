@@ -716,6 +716,15 @@ static void fine_probe_pop_trace(void *data, uint32_t const words[10]) {
     assert(at<BZ_WC3_FINE_WORK);
     memcpy(out+1+10*at,words,10*sizeof(*words));
 }
+/* Semantic final node state after the most recent complete request. */
+void pathing_fine_node_state(uint32_t *out) {
+    out[0]=fine_probe.count;
+    for(uint32_t i=0;i<fine_probe.count;i++) {
+        wc3FineNode_t const *n=fine_probe.nodes+i;
+        uint32_t words[]={n->pos.x,n->pos.y,n->g,n->h,n->gen,(uint32_t)n->parent,n->state};
+        memcpy(out+1+7*i,words,sizeof(words));
+    }
+}
 void pathing_fine_queue_trace(uint32_t const *input,fineObjectInput_t const *data,uint32_t *out) {
     int32_t result[6+2*BZ_WC3_FINE_NODES];
     out[0]=0; fine_probe.pop_trace=fine_probe_pop_trace; fine_probe.trace_data=out;

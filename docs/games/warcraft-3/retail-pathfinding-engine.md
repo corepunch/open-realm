@@ -6855,3 +6855,37 @@ observer absent. Artifact logs are `runtime/fine-queue-{make-test,production-bui
 strict output is `runtime/fine-queue-strict76/`. Backlog155 done/181 remaining;
 no added IDs. Original path-owned166e90 calls148100, so its partial centre
 policy applies to the mover consumer as well as the direct request fixture.
+
+## Fine stamp wrap preserves complete engine request state
+
+Payoff77 covers existing FINE-03.2 and MAP-05.2 together. The existing grid
+oracle seeds the fine request counter once at`fffe`; complete original148100
+requests then execute the actual14ad50 ushort increment to`ffff`,0,1,2.
+The terrain and all produced cell metadata remain allocated between requests.
+Ground/flight/float/amphibious queries change lanes and footprint classes0..3.
+Four fresh-metadata controls match result, charged work, nearest coordinate,
+distance, every final node's XY/g/h/generation/parent/state and every fractional
+route word. All1656 final nodes also match production C; work is706/180/180/180.
+The original closed-list links are normalized to new/open/closed for comparison
+with the engine's flat node representation; unknown node bytes are excluded.
+
+Frozen`retail-fine-stamp-wrap-1.27.json` hashes the literal700-work companion
+terrain in`retail-fine-queue-1.27.json`, avoiding another terrain fixture. The
+numeric C fixture preserves every expected node and route. Actual
+G_BuildUnitMoveLocalRoute runs the four requests twice over retained backing,
+second time in reverse class order, and matches all23928 assertions. The engine
+clears its sparse lookup on each request and reuses allocated nodes/heap; this
+is a deliberately different storage representation with identical observed
+results. Required release RoC/TFT suites each pass2488 tests/4375834
+assertions;480 Python checks pass. No16-bit counter is added to gameplay state or save files.
+
+Ghidra's typed fine prefix retains`search_stamp`at20; setup and node-lookup
+annotations record the original mutation and wrap controls. One existing
+oracle gains`--stamp-wrap`; strict entry`oracle-grid-stamp-wrap-engine`also
+reasserts all frozen native node/route records. This proves the controlled
+boundary sequence, not65,536 historical requests, metadata-maintenance timing,
+node/heap growth or spatial repulsion stamps.
+
+See [corpus](retail-pathfinding-corpus.md#fine-stamp-wrap),
+[search storage](retail-pathfinding-search.md#complete-static-fine-grid-searches-and-stamp-reuse)
+and [backlog](retail-pathfinding-todo.md#fine-03--fine-storage-lifetime).

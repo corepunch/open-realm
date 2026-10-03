@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "96 executable original oracle contracts,121 archive audits and75 strict live contracts;292 total entries.",
+  "scope": "99 executable original oracle contracts,121 archive audits and75 strict live contracts;295 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -24935,6 +24935,86 @@
       ],
       "scope": "Complete original48x48 core/repeat/fractional request;1068 unchanged queue pops, one natural reopening,190 stale pops,886 equal keys; seeded static map storage. Public admission/clock/steering excluded.",
       "exclusions": []
+    },
+    {
+      "id": "oracle-grid-stamp-wrap-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_grid.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--engine-library",
+        "{engine}",
+        "--queue-composition",
+        "--stamp-wrap",
+        "--wrap-fixture",
+        "tools/ghidra/fixtures/retail-fine-stamp-wrap-1.27.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fine-stamp-wrap-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "queue_pop_records": {
+          "length": 1068
+        },
+        "cases": {
+          "equal": 1
+        },
+        "complete_requests": {
+          "equal": 1
+        },
+        "repeated_searches": {
+          "equal": 1
+        },
+        "queue_engine_pops": {
+          "equal": 1068
+        },
+        "queue_stale": {
+          "equal": 190
+        },
+        "queue_reopens": {
+          "equal": 1
+        },
+        "queue_equal_keys": {
+          "equal": 886
+        },
+        "shortest_reference_cost": {
+          "equal": 990
+        },
+        "budget_goal_result": {
+          "equal": 0
+        },
+        "budget_goal_work": {
+          "equal": 701
+        },
+        "budget_goal_route_words": {
+          "length": 100
+        },
+        "stamp_wrap_cases": {
+          "length": 4
+        },
+        "stamp_wrap_reused_requests": {
+          "equal": 4
+        },
+        "stamp_wrap_clean_requests": {
+          "equal": 4
+        },
+        "stamp_wrap_engine_requests": {
+          "equal": 4
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "One pre-call counter seed FFFE; unchanged original setup naturally increments FFFF/0/1/2 across retained cell metadata. Complete results, work, every normalized final node and fractional route equal fresh-metadata controls and engine C. No historical65K-cycle, heap capacity or public scheduling claim.",
+      "exclusions": []
     }
   ],
   "fixtures": [
@@ -25486,6 +25566,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-fine-queue-1.27.json",
       "sha256": "5f377f9b758355cdb7bfc60902b0c689e8dfd0122b5a11082494d7e67a622f6e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-stamp-wrap-1.27.json",
+      "sha256": "967fcf1f2f00ae132ceb005704a9852eccd17c5e2aaadc425d9b638ba22d021f"
     }
   ]
 }

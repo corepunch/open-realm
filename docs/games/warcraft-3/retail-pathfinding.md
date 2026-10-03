@@ -658,3 +658,11 @@ now preserves that centre while retaining the requested click. Original
 complete/partial words and repeated production routes match; Ghidra saves
 fine-node/heap-entry/header fields among57 layouts/381 fields. See
 [full queue payoff](retail-pathfinding-engine.md#full-queue-composition-preserves-partial-goal-centres).
+
+Payoff77 closes existing fine/map stamp-wrap IDs together: actual14ad50
+increments`ffff`,0,1,2 while retaining fine cell metadata and changing all four
+lanes/classes. Every final node/work/route word matches clean native controls,
+C and both traversal orders in G_BuildUnitMoveLocalRoute. Engine sparse lookup
+clearing needs no new gameplay counter or persistent field. Capacity and
+historical-cycle claims remain excluded. See
+[fine stamp wrap](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state).

@@ -33,6 +33,7 @@
 #include "retail_constructed_maps.h"
 #include "retail_passages.h"
 #include "retail_fine_queue.h"
+#include "../../common/wc3_pathing_fine.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -972,6 +973,40 @@ TEST(pathfinding, full_fine_request_matches_retail_ties_reopening_stale_generati
         if(route.count==sizeof(retail_queue_route)/sizeof(*retail_queue_route)) FOR_LOOP(i,route.count) {
             T_EQ(wc3_float_bits(route.points[i].x),retail_queue_route[i][0]);
             T_EQ(wc3_float_bits(route.points[i].y),retail_queue_route[i][1]);
+        }
+        free(route.points);
+    }
+    reset_entities(); setup_test_world();
+}
+
+wc3FineSearch_t const *G_TestMoveFineSearch(void);
+TEST(pathfinding, retained_fine_storage_matches_native_stamp_wrap_nodes_and_routes) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[48*48];
+    FOR_LOOP(y,48) FOR_LOOP(x,48) cells[y*48+x]=(retail_budget_goal_rows[y]&(1ULL<<x)) ? 2 : 0;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{1536,1536}});
+    CM_SetupTestPathmap(48,48,cells);
+    vec2_t source={4.25f*32,4.75f*32},target={43.25f*32,43.75f*32},selected;
+    /* Engine clears its sparse lookup each request; physical nodes/heap remain
+     * allocated. Both traversal orders must reproduce the native clean control. */
+    FOR_LOOP(pass,2) FOR_LOOP(k,4) {
+        retailFineWrap_t const *row=retail_fine_wrap+(pass ? 3-k : k);
+        movePathQuery_t query={.geometry={&source,&target,(.25f+.5f*row->cls)*32,row->mask},.units=true};
+        moveFineRoute_t route={0};
+        T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&selected));
+        wc3FineSearch_t const *search=G_TestMoveFineSearch();
+        T_EQ(search->pops,row->work); T_EQ(search->count,row->nodes);
+        T_EQ(search->dist2,0); T_EQ(search->nodes[search->nearest].pos.x,43);
+        T_EQ(search->nodes[search->nearest].pos.y,43);
+        if(search->count==row->nodes) FOR_LOOP(i,row->nodes) {
+            wc3FineNode_t const *n=search->nodes+i;
+            uint32_t words[]={n->pos.x,n->pos.y,n->g,n->h,n->gen,(uint32_t)n->parent,n->state};
+            FOR_LOOP(j,7) T_EQ(words[j],row->state[i][j]);
+        }
+        T_ASSERT(!route.partial); T_EQ(route.count,row->points);
+        if(route.count==row->points) FOR_LOOP(i,row->points) {
+            T_EQ(wc3_float_bits(route.points[i].x),row->route[i][0]);
+            T_EQ(wc3_float_bits(route.points[i].y),row->route[i][1]);
         }
         free(route.points);
     }

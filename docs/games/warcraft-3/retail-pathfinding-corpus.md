@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **292 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **75**
+The inventory now has **295 entries**: **45** distinct original-code oracle
+scripts plus **54** declared variants, **121** archived JSONL audits and **75**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 90 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 93 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1284,3 +1284,18 @@ Inventory is294 entries/45 scripts/98 oracle variants/121 archives/75 strict
 live contracts/137 fixtures. Four fresh fine/partial/passage/queue variants
 pass in `runtime/fine-queue-strict76/`; the queue comparison passes separately
 at O0. See [engine payoff](retail-pathfinding-engine.md#full-queue-composition-preserves-partial-goal-centres).
+
+## Fine stamp wrap
+
+Payoff77 adds`oracle-grid-stamp-wrap-engine`as a variant of the existing grid
+oracle. Native setup increments a once-seeded counter through`ffff`,0,1,2;
+retained-map results match four clean controls and production C, including every
+final semantic node and complete fractional route. The new numeric fixture is
+`retail-fine-stamp-wrap-1.27.json`; it authenticates the existing queue fixture's
+terrain instead of duplicating it. G_BuildUnitMoveLocalRoute also matches all
+nodes/work/routes in both class traversal orders over retained engine storage.
+Inventory is295 entries/45 scripts/99 oracle contracts/121 archives/75 strict
+live contracts/138 fixtures. Both fresh queue and wrap contracts pass in
+`runtime/fine-wrap-strict77/`. This is a seeded counter boundary, not a full
+historical-cycle or capacity certificate. See
+[engine payoff](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state).
