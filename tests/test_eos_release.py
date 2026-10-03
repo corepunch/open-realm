@@ -66,6 +66,17 @@ class EOSReleaseTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
         self.assertEqual(list(self.output.parent.iterdir()), [])
 
+    def test_sdk_only_mirror_uses_its_pinned_checksum(self):
+        digest = self.sdk_archive()
+        with patch.object(eos, "SDK_RELEASE_SHA256", digest):
+            eos.prepare(self.archive, self.output, "Linux", self.environment)
+            self.assertTrue((self.output / "SDK/Bin" / eos.RUNTIMES["Linux"]).is_file())
+            with self.archive.open("ab") as archive:
+                archive.write(b"modified mirror contents")
+            with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
+                eos.prepare(self.archive, self.root / "tampered", "Linux", self.environment)
+            self.assertFalse((self.root / "tampered").exists())
+
     def test_missing_runtime_or_notices_fails_before_installation(self):
         for name in (eos.NOTICE, "SDK/Bin/" + eos.RUNTIMES["Windows"], "SDK/Include/eos_sdk.h"):
             digest = self.sdk_archive(omit=name)

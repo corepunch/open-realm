@@ -8,6 +8,10 @@ on:
       tag:
         description: 'Release tag to attach assets to (e.g. v0.0.1-alpha)'
         required: true
+      publish:
+        description: 'Upload the completed assets to the release (disable for validation)'
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -32,6 +36,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch the pinned private EOS SDK archive
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.EOS_SDK_REPOSITORY }}
+          ref: ${{ vars.EOS_SDK_REF }}
+          ssh-key: ${{ secrets.EOS_SDK_DEPLOY_KEY }}
+          persist-credentials: false
+          path: data/eos-archive
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
@@ -77,13 +90,12 @@ jobs:
         shell: bash
         env:
           EOS_PLATFORM: ${{ runner.os }}
-          EOS_SDK_DOWNLOAD_URL: ${{ secrets.EOS_SDK_DOWNLOAD_URL }}
           OPENREALM_EOS_PRODUCT_ID: ${{ secrets.OPENREALM_EOS_PRODUCT_ID }}
           OPENREALM_EOS_SANDBOX_ID: ${{ secrets.OPENREALM_EOS_SANDBOX_ID }}
           OPENREALM_EOS_DEPLOYMENT_ID: ${{ secrets.OPENREALM_EOS_DEPLOYMENT_ID }}
           OPENREALM_EOS_CLIENT_ID: ${{ secrets.OPENREALM_EOS_CLIENT_ID }}
           OPENREALM_EOS_CLIENT_SECRET: ${{ secrets.OPENREALM_EOS_CLIENT_SECRET }}
-        run: python dist-scripts/eos/prepare_release.py --platform "$EOS_PLATFORM"
+        run: python dist-scripts/eos/prepare_release.py --platform "$EOS_PLATFORM" --archive data/eos-archive/EOS-SDK-1.19.2.1-CL58105819-runtime.zip
 
       - name: Build (Linux)
         if: runner.os == 'Linux'
@@ -138,6 +150,7 @@ jobs:
           fi
 
       - name: Upload release asset
+        if: github.event_name == 'release' || inputs.publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -158,15 +171,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fetch the pinned private EOS SDK archive
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.EOS_SDK_REPOSITORY }}
+          ref: ${{ vars.EOS_SDK_REF }}
+          ssh-key: ${{ secrets.EOS_SDK_DEPLOY_KEY }}
+          persist-credentials: false
+          path: data/eos-archive
+
       - name: Download and verify EOS C SDK
         env:
-          EOS_SDK_DOWNLOAD_URL: ${{ secrets.EOS_SDK_DOWNLOAD_URL }}
           OPENREALM_EOS_PRODUCT_ID: ${{ secrets.OPENREALM_EOS_PRODUCT_ID }}
           OPENREALM_EOS_SANDBOX_ID: ${{ secrets.OPENREALM_EOS_SANDBOX_ID }}
           OPENREALM_EOS_DEPLOYMENT_ID: ${{ secrets.OPENREALM_EOS_DEPLOYMENT_ID }}
           OPENREALM_EOS_CLIENT_ID: ${{ secrets.OPENREALM_EOS_CLIENT_ID }}
           OPENREALM_EOS_CLIENT_SECRET: ${{ secrets.OPENREALM_EOS_CLIENT_SECRET }}
-        run: python3 dist-scripts/eos/prepare_release.py --platform Linux
+        run: python3 dist-scripts/eos/prepare_release.py --platform Linux --archive data/eos-archive/EOS-SDK-1.19.2.1-CL58105819-runtime.zip
 
       - name: Prepare EOS Flatpak release manifest
         run: |
@@ -193,6 +214,7 @@ jobs:
           upload-artifact: false
 
       - name: Upload Flatpak release inputs
+        if: github.event_name == 'release' || inputs.publish
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: openrealm-flatpak-release-inputs
@@ -206,6 +228,7 @@ jobs:
   flatpak-release:
     name: Publish Flatpak
     needs: flatpak-build
+    if: github.event_name == 'release' || inputs.publish
     runs-on: ubuntu-latest
     permissions:
       actions: read

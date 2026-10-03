@@ -16,6 +16,9 @@ from zipfile import BadZipFile, ZipFile
 
 SDK_VERSION = "1.19.2.1-CL58105819"
 SDK_SHA256 = "56a3bd805df426606946d74ba662f25223ffe24159e7884a625225ba80b582fb"
+# SDK-only archive in the private release mirror, derived from the verified
+# official ZIP: C headers, three desktop runtimes and third-party notices.
+SDK_RELEASE_SHA256 = "7fdb37c88c9dbb0dc321306cd1475e94f542d623259f7099dc85ebd6f29bb342"
 NOTICE = "ThirdPartyNotices/ThirdPartySoftwareNotice.txt"
 RUNTIMES = {
     "Linux": "libEOSSDK-Linux-Shipping.so",
@@ -66,12 +69,13 @@ def download_sdk(url, output):
         raise ValueError("EOS SDK download failed; check EOS_SDK_DOWNLOAD_URL and runner access") from None
 
 
-def extract_sdk(archive, output, platform, expected_hash=SDK_SHA256):
+def extract_sdk(archive, output, platform, expected_hash=None):
     digest = hashlib.sha256()
     with archive.open("rb") as source:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(chunk)
-    if digest.hexdigest() != expected_hash:
+    hashes = (expected_hash,) if expected_hash is not None else (SDK_SHA256, SDK_RELEASE_SHA256)
+    if digest.hexdigest() not in hashes:
         raise ValueError("EOS SDK SHA-256 mismatch; expected C SDK " + SDK_VERSION)
 
     runtime = "SDK/Bin/" + RUNTIMES[platform]
@@ -96,7 +100,7 @@ def extract_sdk(archive, output, platform, expected_hash=SDK_SHA256):
                 shutil.copyfileobj(source, destination)
 
 
-def prepare(archive, output, platform, environment, expected_hash=SDK_SHA256):
+def prepare(archive, output, platform, environment, expected_hash=None):
     # Validate configuration before downloading or leaving a partially usable SDK.
     config = config_text(environment)
     if output.exists():
@@ -122,7 +126,7 @@ def prepare(archive, output, platform, environment, expected_hash=SDK_SHA256):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--platform", choices=RUNTIMES, required=True)
-    parser.add_argument("--archive", type=Path, help="Validate an already downloaded official ZIP")
+    parser.add_argument("--archive", type=Path, help="Validate an official or pinned SDK-only ZIP")
     parser.add_argument("--output", type=Path, default=Path("data/eos"))
     args = parser.parse_args()
     try:
