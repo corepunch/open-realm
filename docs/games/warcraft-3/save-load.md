@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 84, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 85, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -21,6 +21,15 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Event references use physical slot IDs, so retired region-event slots may leave holes; the loader checks that a referenced slot is in use instead of assuming active slots form a dense prefix. Map startup can recreate a region registration that the saved state had removed, and the saved event table restores that removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
 The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 77 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. The version-59 layout cannot be read by version 77 because its client-record boundary has no list count; version 77 saves are likewise rejected by older exact-version readers.
+
+Version85 retains unit owned-pool insertion sequences and the64-bit allocation
+counter. Birth and genuine owner transfer insert a unit at the pool head; a
+same-owner call preserves its position. Captain recruitment therefore remains
+ordered across removal, reused entity slots and saves taken before AI startup.
+Duplicate, out-of-range and missing spawned-unit sequences reject save/load.
+Four complete retail controls match 908 physical commits and 4344 saved suffix
+commits, including explicit bot-VM retirement before loading. See
+[captain owned-pool order](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots).
 
 Version79 additionally retains each unit’s latest submitted shared Move request,
 physical owner creation sequences and the next sequence. FIFO activation does

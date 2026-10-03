@@ -5730,3 +5730,81 @@ Readback confirms saved Ghidra annotations. External
 `captain-pair-extensions-validation-final-261003.json` pins the results/logs;
 `captain-pair-extensions-strict-final-v2-261003/corpus-results.json` is the fresh
 corpus report after builder changes. Both current CLI variants rebuild successfully.
+
+
+## Captain owned-pool order survives transfer and reused slots
+
+Payoff59 replaces the captain fill's reverse-edict scan with the native owned
+pool's insertion order. Four public controls share the frozen Human02Interlude
+terrain and authored home `(-1936,-144)`. Two complete captures per control
+retain all motion, admission, range callbacks, retries and 1,000 primary owner
+callbacks. [The fixture](../../../tools/ghidra/fixtures/retail-captain-pool-1.27.json)
+and [verifier](../../../tools/frida/verify_wc3_captain_pool_trace.py) retain the
+physical birth generations and complete literal journey; native process
+addresses are not engine entity identities.
+
+| Control | Public producer | Retail recruitment | Physical commits | Saved continuation commits |
+| --- | --- | --- | ---: | ---: |
+| Transfer | Older unit goes Player0→1→0 before AI starts | Older primary; newer peer remains idle | 178 | 805 |
+| Same owner | SetUnitOwner(older,Player0,false) | Newer peer; older primary remains idle | 181 | 829 |
+| Delayed reuse | Remove primary at0.5s; CreateUnit at2s, then start AI | Recreated primary in the reused lower slot | 179 | 1008 |
+| Partial fill | Transfer, AddAssault(1), then AddAssault(2) | Retain primary; add peer and prepend captain roster | 369 | 1702 |
+
+All 908 physical commits and 4344 saved suffix commits match production C through
+normal 5ms frames. The transfer singleton has the same 178 literal words as the
+existing home journey; choosing its actor was the engine defect. The partial
+fill has 185 primary and 184 peer commits and one shared point batch after both
+range callbacks. It does not duplicate the first recruit when the requested
+quantity grows from 1 to 2.
+
+`9c32d0` walks the owned head at28/2c and the canonical next link at24/28.
+The owner transition `698ce0` publishes `d01a2`, then `9b9230` resolves the
+current player's AI and calls `9c3660`. That insertion resolves the previous
+head, initializes the new link with the unit and prior head, and publishes its
+canonical identity14/18 as the new head. Assembly identifies receivers lost
+by the decompiler's local allocation output; no p-code rewrite is required.
+`9cf680` separately prepends the captain roster. Same-owner `698ce0` returns
+without either operation.
+
+Engine units now receive `own_seq` through their birth lifecycle and through
+a genuine ownership change after owner-event publication. Captain fill chooses
+the greatest eligible sequence, independent of entity number. Removing a unit
+retires its record; reusing the slot assigns a fresh sequence. In the delayed
+scene, native reuses the physical mover address with birth identity
+`1110/1110→1109/1323`. The engine test exercises its real one-second allocator
+quarantine and asserts the lower primary slot is live again; it never edits
+`freetime` to manufacture reuse. The same-frame auxiliary reuse scene confirmed
+retail selection but did not expose the engine bug, because its allocator had
+not yet allowed lower-slot reuse.
+
+Save85 maps both 64-bit insertion fields (`edict.own_seq`,
+`level.next_unit_seq`) through the field schema. The round-trip crosses
+`UINT32_MAX`, retains same-owner no-op state, then allocates the next sequence.
+Validation rejects duplicate, out-of-range and missing live-unit sequences.
+Eight saves per journey bracket recruitment, removed-slot state, private
+followers, shared admission and final arrival. Continuations explicitly stop
+the process-owned bot VM before loading; saved physical followers and owned
+insertion order remain sufficient. The public timer restarts AI when loading
+a pre-recruitment save. Save84 and earlier exact layouts are rejected.
+
+Current builder exposes `--scenario captain_home --captain-peer
+--captain-pool transfer|same_owner|reuse|partial`; frozen accepted sources and
+maps remain external. Native files are `captain-pool-transfer-v1-*`,
+`captain-pool-same-owner-v1-first-fresh/repeat-*`,
+`captain-pool-reuse-v2-first-fresh/repeat-*` and
+`captain-pool-partial-v1-*`, all under `runtime/` with suffix `261003.jsonl`.
+The interrupted reuse attempt and overlapping preliminary same-owner run are
+excluded. All eight accepted traces have uninterrupted complete numerical
+rows,304 primary markers and 1,000 owners.
+
+Ghidra saved readback verifies 593 roles,50 partial layouts/311 fields,263
+explicit x86 ABIs and 50 globals with `unsaved=false`. Added structures describe
+only the owned head and canonical link prefix; broader town/guard policy is
+not inferred. GROUP-03.4.4 closes this ordering slice. Larger12+1 batches, live
+attach/detach, moving captains and default town homes remain open.
+
+Checkpoint59 validation passes the full debug and release RoC/TFT suites:
+2,399 tests and 903,771 assertions per edition, 335 pathfinding Python tests,
+35 fresh corpus contracts, and the ability-class audit. The full release
+repository suite passes. External `captain-pool-validation-final-261003.json`
+pins those logs and the saved Ghidra readback.

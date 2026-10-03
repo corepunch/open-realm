@@ -48,6 +48,7 @@
 #include "retail_captain_pair.h"
 #include "retail_captain_mixed.h"
 #include "retail_captain_blocked.h"
+#include "retail_captain_pool.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -11352,6 +11353,101 @@ TEST(wc3_movement, public_ai_blocked_pair_matches_original_captain_retry) {
 TEST(wc3_movement, public_ai_mixed_recruits_match_original_captain_home) {
     public_point_goal_journey(5,captain_mixed_motion,sizeof(captain_mixed_motion)/sizeof(*captain_mixed_motion));
 }
+
+/* Recruitment must retain owned insertion order before and after saves. The
+ * delayed birth goes through the public RemoveUnit/CreateUnit path and really
+ * reuses the lower slot; neither freetime nor movement words are injected. */
+static void public_captain_pool_journey(unsigned mode) {
+    bool reuse=mode==2,pair=mode==3;
+    uint32_t const (*motion)[7]=pair ? captain_pool_partial_motion : reuse ? captain_pool_reuse_motion : mode ? captain_pool_same_owner_motion : captain_pool_transfer_motion;
+    unsigned count=pair ? sizeof(captain_pool_partial_motion)/sizeof(*captain_pool_partial_motion) : reuse ? sizeof(captain_pool_reuse_motion)/sizeof(*captain_pool_reuse_motion) : mode ? sizeof(captain_pool_same_owner_motion)/sizeof(*captain_pool_same_owner_motion) : sizeof(captain_pool_transfer_motion)/sizeof(*captain_pool_transfer_motion);
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); reset_entities(); setup_test_world();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&type};
+    mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    char script[2000];
+    snprintf(script,sizeof(script),
+        "globals\nunit mover\nunit peer\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n%s\n"
+        "if tick==%u then\n%s\ncall StartCampaignAI(Player(0),\"%s\")\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,100)\n"
+        "set peer=CreateUnit(Player(0),'hBGM',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)\n"
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",
+        reuse ? "if tick==5 then\ncall RemoveUnit(mover)\nset mover=null\nendif" : "",reuse ? 20u : 10u,
+        reuse ? "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,100)" :
+        mode==1 ? "call SetUnitOwner(mover,Player(0),false)" :
+        "call SetUnitOwner(mover,Player(1),false)\ncall SetUnitOwner(mover,Player(0),false)",
+        pair ? "test_captain_pool_partial.ai" : "test_captain_pool_move.ai");
+    T_ASSERT(run_test_jass(script));
+    followCommitTrace_t trace={0};
+    FILTER_EDICTS(unit,unit->inuse && unit->class_id==type.newUnitID) {
+        if(!trace.units[0])trace.units[0]=unit;else trace.units[1]=unit;
+    }
+    T_NOT_NULL(trace.units[0]); T_NOT_NULL(trace.units[1]);
+    edict_t *selected=trace.units[mode==1],*idle=trace.units[mode!=1];
+    uint64_t original=trace.units[0]->own_seq;
+    follow_commit_trace=&trace; move_test_motion_commit=record_follow_commit;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    unsigned times[8]={995,1200,1500,1995,2010,6255,6270,6300},saved[8]={0};
+    if(reuse)memcpy(times,(unsigned[]){495,995,1995,2100,2995,3010,7270,7300},sizeof(times));
+    if(pair)memcpy(times,(unsigned[]){995,1200,1500,1995,2010,6000,6500,6525},sizeof(times));
+    char files[8][64]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-pool-%u-%u.bin",mode,i);
+    unsigned steps=0,suffix=0; bool mismatch=false;
+    FOR_LOOP(pass,9) {
+        if(pass){G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];T_NULL(level.bots[0].vm);}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0; level.time+=5; globals.RunFrame();
+            if(level.time==(reuse ? 2000u : 1000u)) {
+                /* Recreated primary must actually reuse its original lower edict. */
+                T_ASSERT(trace.units[0]->inuse); T_EQ(trace.units[0]->class_id,type.newUnitID);
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),pair ? 2 : 1);
+                T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[0],pair ? trace.units[1] : selected);
+                if(pair)T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[1],selected);
+                else T_EQ(idle->current_order_id,0);
+                if(mode==1)T_EQ(trace.units[0]->own_seq,original);
+                else T_ASSERT(selected->own_seq>idle->own_seq);
+            }
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<count); if(steps>=count){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Captain pool mode%u commit%u time%u differs\n",mode,steps-1,level.time);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]) {
+                saved[i]=steps; T_ASSERT(WriteGame(files[i]));
+            }
+        }
+        T_EQ(steps,count); T_EQ(selected->current_order_id,0); T_EQ(idle->current_order_id,0);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"Captain pool mode%u exact commits=%u saved suffix=%u\n",mode,count,suffix);
+    FOR_LOOP(i,8)remove(files[i]); move_test_motion_commit=NULL; follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); level.started=false; reset_entities(); setup_test_world();
+    G_SetMapUnitOverrides(NULL); level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_captain_owned_pool_matches_original_owner_transfer) { public_captain_pool_journey(0); }
+TEST(wc3_movement, public_captain_owned_pool_matches_original_same_owner) { public_captain_pool_journey(1); }
+TEST(wc3_movement, public_captain_owned_pool_matches_original_delayed_reuse) { public_captain_pool_journey(2); }
+TEST(wc3_movement, public_captain_owned_pool_matches_original_partial_assault) { public_captain_pool_journey(3); }
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {
     public_group_radius_journey(0,group_radius_grow_motion,sizeof(group_radius_grow_motion)/sizeof(*group_radius_grow_motion),

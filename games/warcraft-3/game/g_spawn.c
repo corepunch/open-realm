@@ -384,6 +384,13 @@ edict_t *G_Spawn(void) {
     return edict;
 }
 
+/* Native owned pools prepend on birth and genuine ownership changes. A saved
+ * sequence preserves this order without retaining process-owned AI list nodes. */
+void G_UnitOwnerInsert(edict_t *unit) {
+    if (level.next_unit_seq==UINT64_MAX) gi.error("WC3 unit owned-pool sequence exhausted\n");
+    unit->own_seq=++level.next_unit_seq;
+}
+
 /* Confirm a candidate variation resolves through the authoritative VFS. */
 static bool SP_DoodadModelExists(cstring_t filename) {
     uint32_t size = 0;
@@ -583,6 +590,7 @@ void SP_CallSpawn(edict_t *edict) {
         SP_SpawnDestructable(edict);
         SP_monster_tree(edict);
     } else if (edict->data.UnitUI->modelFile) {
+        if (!edict->own_seq) G_UnitOwnerInsert(edict);
         SP_SpawnUnit(edict);
         SP_monster_unit(edict);
     } else if (edict->data.ItemData->file) {
@@ -894,6 +902,7 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     ent->s.angle = -M_PI / 2;
     ent->s.player = player;
     SP_CallSpawn(ent);
+    if (!ent->own_seq) G_UnitOwnerInsert(ent);
     /* SP_SpawnUnit fills collision and the server broad-phase bounds depend on
      * that value. Link only after the class-owned spawn initializer runs. */
     gi.LinkEntity(ent);

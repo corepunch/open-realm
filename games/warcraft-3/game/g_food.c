@@ -174,6 +174,9 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     unit->s.player = player;
     S_UnitAbilityEvent(unit, A_UNIT_OWNER_CHANGED);
     G_PublishChangeOwnerEvents(unit, old_player);
+    /* Native698ce0 publishes the owner event before9b9230 ->9c3660 reinserts
+     * into the new owner's head. Same-owner calls retain their pool position. */
+    G_UnitOwnerInsert(unit);
     G_InvalidateCommands(old_client);
     G_InvalidateCommands(new_client);
     G_InvalidateUnitInfoPanel(unit);

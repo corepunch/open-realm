@@ -295,13 +295,19 @@ static bool G_BotCaptainFill(player_t *player, botCaptainType_t type, int32_t qt
     captain = bot->captains + type;
     FOR_EACH_ARRAY(edict_t *, unit, captain->units)
         if (G_BotUnitAlive(*unit) && (*unit)->class_id == class_id) have++;
-    /* Native9c32d0 walks the town-owned list from newest to oldest. Fresh
-     * two-recruit captures witness this order. TODO GROUP-03.4: retain town
-     * ownership insertion order across edict reuse and ownership changes. */
-    for (uint32_t n=globals.num_edicts; n && have<qty;) {
-        edict_t *unit=g_edicts+--n;
-        if (!G_BotUnitAlive(unit) || unit->s.player!=PLAYER_NUM(player) || unit->class_id!=class_id ||
-            unit->construction.active || unit->training || G_BotCaptainHasUnit(bot,unit)) continue;
+    /* Native9c32d0 walks newest owned insertion first. Reverse edict order
+     * incorrectly selects the peer after owner round-trip or low-slot reuse. */
+    while (have<qty) {
+        edict_t *unit=NULL;
+        FILTER_EDICTS(cur,G_BotUnitAlive(cur) && cur->s.player==PLAYER_NUM(player) && cur->class_id==class_id &&
+            !cur->construction.active && !cur->training && !G_BotCaptainHasUnit(bot,cur)) {
+            if (!cur->own_seq) {
+                fprintf(stderr,"WC3 AI: unregistered owned unit player=%u unit=%u\n",PLAYER_NUM(player),cur->s.number);
+                return false;
+            }
+            if (!unit || cur->own_seq>unit->own_seq) unit=cur;
+        }
+        if (!unit) break;
         G_BotCaptainAdd(captain, unit); have++;
         if (type == BOT_CAPTAIN_ATTACK && captain->home_set) {
             if (!S_IssueCaptainHomeMove(unit, captain))

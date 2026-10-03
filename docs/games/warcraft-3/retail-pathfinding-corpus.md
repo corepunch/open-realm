@@ -976,3 +976,30 @@ Fresh34/34 selected contracts include both additions and the original-map oracle
 Inventory is277 entries,119 pinned repository fixtures and60 strict live contracts;
 325 pathfinding Python checks pass. Auxiliary cell-watch evidence is kept separate
 from the two certified repeats.
+
+
+### Complete captain owned-pool mutation captures
+
+Payoff59 adds `live-captain-owned-pool-captures-261003`: eight immutable
+complete captures cover transfer, same-owner no-op, delayed removal/recreation
+and partial AddAssault. Each pair repeats all physical and virtual phases,
+range callbacks, request admission and cleanup. The literal reference retains
+908 physical commits (1,814 across eight captures), 8,000 primary owners and
+the distinct birth generations when a mover address is reused.
+
+`retail-captain-pool-1.27.json` pins each capture's metadata/hash plus complete
+motion, producer, admission, range and lifecycle records.
+`verify_wc3_captain_pool_trace.py` rejects wrong recruitment, reused birth
+generation, omitted delayed removal, duplicate partial recruitment, premature
+shared admission and changed retry membership. The engine matches all 908
+commits and 4,344 saved suffix commits after explicit bot-VM retirement, with
+pre-recruitment restores restarting the public AI timer.
+
+Accepted capture names, frozen map/source locations and the excluded
+preliminary/interrupted runs are recorded in
+[owned-pool ordering](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots).
+The inventory now contains 278 entries, 120 repository fixtures and 61 strict
+live contracts. `runtime/captain-pool-strict-final-261003/corpus-results.json`
+freshly executes all 35 current parity contracts after source changes; every
+source fingerprint matches the final tools. Larger batches, active membership
+changes, moving captains and default town homes remain outside this contract.

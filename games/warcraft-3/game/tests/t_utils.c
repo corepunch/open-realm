@@ -60,6 +60,7 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
      * a generic test unit must not silently start life as a corpse. */
     ent->health.max_value = MAX(ent->data.UnitBalance->maxHealth, 1.0f);
     ent->health.value = ent->health.max_value;
+    G_UnitOwnerInsert(ent);
     return ent;
 }
 

@@ -17,6 +17,35 @@ static UnitAbilities_t const bot_hall_abilities = { .abilList = "Argl" };
  * overlay and is intentionally excluded from ordinary worker harvesting. */
 static UnitAbilities_t const bot_mine_abilities = { .abilList = "Agld" };
 
+/* Retail admits the older unit after a real owner round-trip, but a same-owner
+ * call leaves the newer peer first. Edict order cannot represent this pool. */
+TEST(wc3_bot, public_owned_pool_recruitment_tracks_owner_insertion) {
+    FOR_LOOP(transfer,2) {
+        G_BotStop(0); reset_entities(); setup_test_world();
+        char script[1000];
+        snprintf(script,sizeof(script),
+            "globals\nunit first\nunit second\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set first=CreateUnit(Player(0),'hfoo',32,64,90)\n"
+            "set second=CreateUnit(Player(0),'hfoo',128,64,90)\n%s\n"
+            "call SetUnitOwner(first,Player(0),false)\n"
+            "call StartCampaignAI(Player(0),\"test_captain_pool.ai\")\nendfunction\n",
+            transfer ? "call SetUnitOwner(first,Player(1),false)" : "");
+        T_ASSERT(run_test_jass(script));
+        G_BotRunFrame();
+        edict_t *first=NULL,*second=NULL;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id==MAKEFOURCC('h','f','o','o')) {
+            if(!first)first=unit;else second=unit;
+        }
+        T_NOT_NULL(first); T_NOT_NULL(second);
+        T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),1);
+        if(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)))
+            T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[0],transfer ? first : second);
+        T_EQ((transfer ? second : first)->current_order_id,0);
+    }
+    G_BotStop(0); reset_entities(); setup_test_world();
+}
+
 TEST(wc3_bot, display_text_formats_only_authoritative_integer_templates) {
     int32_t values[] = {12, -3, 7};
     char text[64], small[8];

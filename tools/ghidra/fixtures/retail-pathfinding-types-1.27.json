@@ -2135,6 +2135,42 @@
           "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots."
         }
       ]
+    },
+    {
+      "name": "WC3TownOwnedHeadPrefix",
+      "length": 48,
+      "fields": [
+        {
+          "offset": 40,
+          "name": "owned_head",
+          "type": "WC3PathIdentity",
+          "evidence": "Instruction9c36b6..9c371d resolves old head28/2c and publishes new canonical identity14/18;9c32d0 traverses next24/28. Public pool reuse/owner round-trip/same-owner controls261003 witness recruitment order; unknown node bytes remain undefined."
+        }
+      ]
+    },
+    {
+      "name": "WC3OwnedUnitLinkPrefix",
+      "length": 44,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Instruction9c36b6..9c371d resolves old head28/2c and publishes new canonical identity14/18;9c32d0 traverses next24/28. Public pool reuse/owner round-trip/same-owner controls261003 witness recruitment order; unknown node bytes remain undefined."
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Instruction9c36b6..9c371d resolves old head28/2c and publishes new canonical identity14/18;9c32d0 traverses next24/28. Public pool reuse/owner round-trip/same-owner controls261003 witness recruitment order; unknown node bytes remain undefined."
+        },
+        {
+          "offset": 36,
+          "name": "next_owned",
+          "type": "WC3PathIdentity",
+          "evidence": "Instruction9c36b6..9c371d resolves old head28/2c and publishes new canonical identity14/18;9c32d0 traverses next24/28. Public pool reuse/owner round-trip/same-owner controls261003 witness recruitment order; unknown node bytes remain undefined."
+        }
+      ]
     }
   ],
   "methods": [
@@ -6961,6 +6997,71 @@
         }
       ],
       "evidence": "Decoded062c80/063560/15f210/15f2a0 and repeated captain-range-v3-261002 readonly receiver/timer snapshots. Complete RET4 body."
+    },
+    {
+      "address": "6f9b9230",
+      "name": "Unit_RefreshAIOwnedPoolMembership",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "9b9230 ECX unit;698ce0 owner-change caller and native player AI resolve2d4/2d8 to9c3660; complete RET body."
+    },
+    {
+      "address": "6f9c3660",
+      "name": "TownAI_PrependOwnedUnit",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "town",
+          "type": "ptr:WC3TownOwnedHeadPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Instruction9c36b6..9c371d resolves old head28/2c and publishes new canonical identity14/18;9c32d0 traverses next24/28. Public pool reuse/owner round-trip/same-owner controls261003 witness recruitment order; unknown node bytes remain undefined. Complete RET4 body."
+    },
+    {
+      "address": "6f9c32d0",
+      "name": "CaptainAI_RecruitOwnedPool",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "town",
+          "type": "ptr:WC3TownOwnedHeadPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": 4
+        },
+        {
+          "name": "remaining",
+          "type": "ptr:i32",
+          "storage": 8
+        },
+        {
+          "name": "rawcode",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "policy",
+          "type": "u32",
+          "storage": 16
+        }
+      ],
+      "evidence": "Complete RET10 body; retains and traverses owned head28/2c and link24/28. Quantity decrements synchronously after attach9cf680."
     }
   ],
   "globals": [

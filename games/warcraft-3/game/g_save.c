@@ -78,9 +78,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format84 retains captain roster cardinality and per-member entry/order
- * state for shared home admission independently of the process-owned AI VM. */
-static uint32_t const save_version = 84;
+/* Format85 retains unit owned-pool insertion order and its allocation counter
+ * across owner changes, entity slot reuse and saves before AI recruitment. */
+static uint32_t const save_version = 85;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -511,6 +511,7 @@ static field_t const level_fields[] = {
     F(level_locals, waypoints.count, F_INT),
     F(level_locals, next_move_group_id, F_INT),
     F(level_locals, next_move_group_sequence, F_INT, 2),
+    F(level_locals, next_unit_seq, F_INT, 2),
     F(level_locals, move_groups, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, move_groups_count, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, move_group_capacity, F_IGNORE, 0, FIELD_RUNTIME),
@@ -910,6 +911,7 @@ field_t edict_fields[] = {
     F(edict_s, build_project, F_INT),
     F(edict_s, build_preview, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spawn_time, F_INT),
+    F(edict_s, own_seq, F_INT, 2),
     F(edict_s, summon_ability, F_INT),
     F(edict_s, permanent_invisibility_reveal_until, F_INT),
     F(edict_s, forced_visibility_count, F_INT),
@@ -2242,6 +2244,31 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
     return true;
 }
 
+static int CompareOwnerSequence(void const *a, void const *b) {
+    uint64_t x=*(uint64_t const *)a,y=*(uint64_t const *)b;
+    return (x>y)-(x<y);
+}
+
+/* Pool order is unique, nonzero for spawned units and bounded by the saved
+ * allocator. Sorting avoids a quadratic scan when saving crowded maps. */
+static bool ValidOwnedUnits(void) {
+    uint64_t *seq=gi.MemAlloc(globals.num_edicts*sizeof(*seq));
+    uint32_t count=0;
+    bool valid=true;
+    FILTER_EDICTS(unit,unit->inuse) {
+        if (!unit->own_seq) {
+            if (unit->svflags&SVF_MONSTER) valid=false;
+            continue;
+        }
+        if (unit->own_seq>level.next_unit_seq || unit->s.player>=MAX_PLAYERS) valid=false;
+        seq[count++]=unit->own_seq;
+    }
+    qsort(seq,count,sizeof(*seq),CompareOwnerSequence);
+    FOR_LOOP(i,count) if (i && seq[i]==seq[i-1]) valid=false;
+    gi.MemFree(seq);
+    return valid;
+}
+
 bool WriteGame(cstring_t filename) {
     FILE *f = fopen(filename, "w+b");
     saveHeader_t header = {
@@ -2259,6 +2286,7 @@ bool WriteGame(cstring_t filename) {
     }
     bool ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
+    if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 SaveGame: invalid unit owned-pool order\n"); goto done; }
     if (!S_ValidateCaptainHomeActors(false)) { fprintf(stderr,"WC3 SaveGame: invalid captain actor references\n"); goto done; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 SaveGame: invalid fine-request FIFO\n"); goto done; }
     if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
@@ -2398,6 +2426,7 @@ bool ReadGame(cstring_t filename) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
         }
     }
+    if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 LoadGame: invalid unit owned-pool order\n"); fclose(f); return false; }
     if (!S_ValidateCaptainHomeActors(true)) { fprintf(stderr,"WC3 LoadGame: invalid captain actor references\n"); fclose(f); return false; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
     if (!ReadMoveGroups(f)) { fprintf(stderr,"WC3 LoadGame: failed at physical Move groups\n"); fclose(f); return false; }
@@ -2538,6 +2567,29 @@ TEST(wc3_save, rejects_invalid_captain_actor_reference) {
     index=-2;
     memcpy(&raw.movement.captain_home.actor,&index,sizeof(index));
     T_ASSERT(!ReadField(field,(uint8_t *)&raw));
+}
+
+/* Save before recruitment, then insert a new unit after loading: both high
+ * sequence words and allocator state must survive, with corrupt order rejected. */
+TEST(wc3_save, owned_pool_order_survives_save_and_rejects_invalid_sequences) {
+    reset_entities(); setup_test_world();
+    level.next_unit_seq=(uint64_t)UINT32_MAX+42;
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
+    G_SetUnitPlayer(first,1); G_SetUnitPlayer(first,0);
+    uint64_t order=first->own_seq,next=level.next_unit_seq,peer=second->own_seq;
+    T_ASSERT(order>peer);
+    cstring_t file="/tmp/wc3-owned-pool-order.bin";
+    T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
+    T_EQ(first->own_seq,order); T_EQ(second->own_seq,peer); T_EQ(level.next_unit_seq,next);
+    G_SetUnitPlayer(first,0); T_EQ(first->own_seq,order); T_EQ(level.next_unit_seq,next);
+    edict_t *new=alloc_test_unit(MAKEFOURCC('h','f','o','o'),384,128);
+    T_EQ(new->own_seq,next+1); T_ASSERT(ValidOwnedUnits());
+    new->own_seq=first->own_seq; T_ASSERT(!ValidOwnedUnits()); T_ASSERT(!WriteGame(file));
+    new->own_seq=level.next_unit_seq+1; T_ASSERT(!ValidOwnedUnits()); T_ASSERT(!WriteGame(file));
+    new->own_seq=0; new->svflags|=SVF_MONSTER;
+    T_ASSERT(!ValidOwnedUnits()); T_ASSERT(!WriteGame(file));
+    remove(file); reset_entities(); setup_test_world();
 }
 
 /* The raw curve tail is untrusted even after the outer checksum succeeds.
@@ -2804,8 +2856,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-81.bin",
         "/tmp/openwarcraft3-wc3-save-version-82.bin",
         "/tmp/openwarcraft3-wc3-save-version-83.bin",
+        "/tmp/openwarcraft3-wc3-save-version-84.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84 };
 
     reset_entities();
     setup_test_world();

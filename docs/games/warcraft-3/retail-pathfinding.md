@@ -479,3 +479,17 @@ admission. Correcting these producers lets existing fine/retry/arrival kernels
 reproduce both natural retry budgets, final singleton retry and failure cleanup.
 Larger batches, moving captains, pool reuse and general dynamic coarse publication
 remain distinct open requirements.
+
+
+### Captain owned-pool mutation controls (payoff59)
+
+Two complete public repeats each cover owner round-trip, same-owner no-op,
+delayed RemoveUnit/CreateUnit reuse and partial AddAssault(1)→AddAssault(2).
+The native pool prepends on birth and genuine owner insertion; it cannot be
+emulated by reverse entity address. OpenRealm now preserves that order in
+unit lifecycle state and Save85. All 908 physical commits and 4344 saved suffix
+commits match, including pre-recruitment saves and bot-free restores.
+[Owned-pool ordering](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots)
+records the native chain, bounded layouts and excluded preliminary captures.
+Larger batches, active detach/recruit, moving captains and full town state are
+still outside this closure.

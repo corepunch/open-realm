@@ -594,3 +594,12 @@ native commits match, including retained shared footprint, natural retry and
 saved forced arrival. Range listeners use the admitted actor's position; the
 later shared order retains the authored home. General dynamic coarse cell-link
 updates, larger captain rosters and moving captain behavior remain open.
+
+
+Captain recruitment now follows current owned-pool insertion order, including
+true owner transfer and lower-slot reuse. Same-owner assignment preserves
+priority; partial AddAssault retains the first recruit and prepends the next
+captain member. Save85 preserves these producers. Four complete original
+controls match 908 physical and 4344 saved continuation commits. See
+[owned-pool ordering](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots);
+larger rosters and live captain membership changes remain separate gaps.

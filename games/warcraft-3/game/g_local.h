@@ -1449,6 +1449,7 @@ struct edict_s {
 
     // keep above in sync with server.h
     uint32_t class_id;
+    uint64_t own_seq; /* Current owned-pool insertion order; independent of edict address. */
     uint32_t variation;
     uint32_t build_project;
     edict_t *build_preview; /* translucent Construction Site Indicator for an accepted build order */
@@ -2244,6 +2245,7 @@ struct level_locals {
     uint32_t move_group_capacity;
     uint32_t next_move_group_id; /* Zero is ungrouped; allocation excludes every live unit identity. */
     uint64_t next_move_group_sequence;
+    uint64_t next_unit_seq;
     quest_t quests[MAX_QUESTS];
     uint16_t alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
@@ -2715,6 +2717,7 @@ bool G_CancelTrainingQueueItem(edict_t *producer, uint32_t index, bool refund);
 void G_CancelTrainingQueue(edict_t *producer, bool refund);
 bool G_QueueSacrifice(edict_t *producer, edict_t *worker, uint32_t result_id);
 void G_SetUnitPlayer(edict_t *unit, uint32_t player);
+void G_UnitOwnerInsert(edict_t *unit);
 uint32_t G_GetUnitTeamColor(edict_t const *unit);
 void G_SetEntityTeamColor(entityState_t *state, uint32_t color);
 void G_SetUnitTeamColor(edict_t *unit, uint32_t color);

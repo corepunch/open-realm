@@ -827,6 +827,25 @@ class ProbeMapTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.builder.instrument(config+config+self.source, self.probe, 'captain_home')
 
+    def test_captain_pool_lifecycle_is_public_and_explicit(self):
+        config='call SetPlayerController( Player(0), MAP_CONTROL_NEUTRAL )\n'
+        for mode in ('reuse','transfer','same_owner','partial'):
+            out=self.builder.instrument(config+self.source,self.probe,'captain_home',captain_peer=True,captain_pool=mode)
+            self.assertIn('PATHCAPTAIN pool after recruit',out)
+            self.assertIn('udg_PathProbeCrowd[1]=CreateUnit',out)
+            if mode=='reuse':
+                self.assertIn('udg_PathProbeTick == 5 then',out)
+                self.assertIn('udg_PathProbeTick == 20 then',out)
+                self.assertIn('call RemoveUnit(udg_PathProbeUnit)',out)
+            elif mode in ('transfer','partial'):
+                self.assertIn('call SetUnitOwner(udg_PathProbeUnit,Player(1),false)',out)
+            else:
+                self.assertNotIn('call SetUnitOwner(udg_PathProbeUnit,Player(1),false)',out)
+        for options in ({},{'captain_peer':True,'captain_peer_type':'hkni'},
+                        {'captain_peer':True,'captain_blocked_home':True}):
+            with self.assertRaises(ValueError):
+                self.builder.instrument(config+self.source,self.probe,'captain_home',captain_pool='reuse',**options)
+
     def test_gate_geometry_is_explicit_and_finite(self):
         for y in (float('nan'), float('inf'), -4000):
             with self.assertRaises(ValueError):

@@ -22240,6 +22240,433 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-captain-owned-pool-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_captain_pool_trace.py",
+        "{archive}/runtime/captain-pool-transfer-v1-first-261003.jsonl",
+        "{archive}/runtime/captain-pool-transfer-v1-repeat-261003.jsonl",
+        "{archive}/runtime/captain-pool-reuse-v2-first-fresh-261003.jsonl",
+        "{archive}/runtime/captain-pool-reuse-v2-repeat-261003.jsonl",
+        "{archive}/runtime/captain-pool-same-owner-v1-first-fresh-261003.jsonl",
+        "{archive}/runtime/captain-pool-same-owner-v1-repeat-261003.jsonl",
+        "{archive}/runtime/captain-pool-partial-v1-first-261003.jsonl",
+        "{archive}/runtime/captain-pool-partial-v1-repeat-261003.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-captain-pool-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--check-engine-header",
+        "games/warcraft-3/game/tests/retail_captain_pool.h",
+        "--report",
+        "{report}"
+      ],
+      "report": "captain-owned-pool-captures.json",
+      "inputs": {
+        "capture": "runtime/captain-pool-transfer-v1-first-261003.jsonl",
+        "sha256": "f17dae2757e14ac23bca4dc446a17683f0aad692c70e8721896c138c8bfcc748",
+        "bytes": 6825105,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+            "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "make_wc3_pathfinding_map.py": "47125a7e6b2db3688dc81d790a1b80b4d2ab3267848a3220dae8cff53785baa6",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "captain_ai": "1af720d20452ad87fd9b40a7f7d8d0a8d1d3f80c27a9382837466aaf8e9e0bd5",
+            "map": "68c150a2633b0fc39d9a8206d418128e8bd4d9e4bc78d22c5e71750f6780bd6f"
+          },
+          "map": "Maps\\PathingRE-CaptainPoolTransferV1-261003.w3m",
+          "seconds": 110.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": true,
+          "clockEvents": true,
+          "headingEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "expected_exit": 0,
+      "expected_status": "pass",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 8
+        },
+        "recruit_commits": {
+          "equal": 1814
+        },
+        "owner_callbacks": {
+          "equal": 8000
+        }
+      },
+      "scope": "Stationary single-recruit captain owned-pool RemoveUnit/delayed CreateUnit, owner round-trip and same-owner control; public recruitment, complete physical/virtual motion and saved engine continuation. Broader town/AI and moving captain policies excluded.",
+      "evidence": "SOCL",
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-pool-transfer-v1-repeat-261003.jsonl",
+            "sha256": "a91e655511261fb3b7ef3f82169b60169a6cd1df0149970333a6570ee6e15c08",
+            "bytes": 6787363,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "make_wc3_pathfinding_map.py": "47125a7e6b2db3688dc81d790a1b80b4d2ab3267848a3220dae8cff53785baa6",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "1af720d20452ad87fd9b40a7f7d8d0a8d1d3f80c27a9382837466aaf8e9e0bd5",
+                "map": "68c150a2633b0fc39d9a8206d418128e8bd4d9e4bc78d22c5e71750f6780bd6f"
+              },
+              "map": "Maps\\PathingRE-CaptainPoolTransferV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-pool-reuse-v2-first-fresh-261003.jsonl",
+            "sha256": "e79f7a320c5467c21904584fda25b34b205dcd9185d7637b1673a768e41e251c",
+            "bytes": 6752607,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "make_wc3_pathfinding_map.py": "47125a7e6b2db3688dc81d790a1b80b4d2ab3267848a3220dae8cff53785baa6",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "1af720d20452ad87fd9b40a7f7d8d0a8d1d3f80c27a9382837466aaf8e9e0bd5",
+                "map": "afdc9fb9274bfc3a64ca45c23c2613d1b32e00703cc2b47f2f2e567d3cef5e40"
+              },
+              "map": "Maps\\PathingRE-CaptainPoolReuseV2-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-pool-reuse-v2-repeat-261003.jsonl",
+            "sha256": "154019b7df36d1d7de02d1565922b9d8bb47a9cbc435a03fd6c51da05796b606",
+            "bytes": 6847397,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "make_wc3_pathfinding_map.py": "f2b0d61db8254f8ff9a352e58c6534cb7cce71942a94c4dbc7955e89a744a8c7",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "1af720d20452ad87fd9b40a7f7d8d0a8d1d3f80c27a9382837466aaf8e9e0bd5",
+                "map": "afdc9fb9274bfc3a64ca45c23c2613d1b32e00703cc2b47f2f2e567d3cef5e40"
+              },
+              "map": "Maps\\PathingRE-CaptainPoolReuseV2-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-pool-same-owner-v1-first-fresh-261003.jsonl",
+            "sha256": "0d9bdbafd22e6f16811dfc5e5ec6f3860a3dcba983816684ea852b4b54250c90",
+            "bytes": 6838021,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "make_wc3_pathfinding_map.py": "f2b0d61db8254f8ff9a352e58c6534cb7cce71942a94c4dbc7955e89a744a8c7",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "1af720d20452ad87fd9b40a7f7d8d0a8d1d3f80c27a9382837466aaf8e9e0bd5",
+                "map": "e9a11fc898d4db306965c3798a49d2a92403d20650fcf439ff0f9d642f02aada"
+              },
+              "map": "Maps\\PathingRE-CaptainPoolSameOwnerV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-pool-same-owner-v1-repeat-261003.jsonl",
+            "sha256": "74eb55adaf56d845d5a2c29d093d6c4f24c0a6000659308302ea030507825cda",
+            "bytes": 6791665,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "make_wc3_pathfinding_map.py": "f2b0d61db8254f8ff9a352e58c6534cb7cce71942a94c4dbc7955e89a744a8c7",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "1af720d20452ad87fd9b40a7f7d8d0a8d1d3f80c27a9382837466aaf8e9e0bd5",
+                "map": "e9a11fc898d4db306965c3798a49d2a92403d20650fcf439ff0f9d642f02aada"
+              },
+              "map": "Maps\\PathingRE-CaptainPoolSameOwnerV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-pool-partial-v1-first-261003.jsonl",
+            "sha256": "0450ece31db50c5a0cba0b627e5120841ea71c60311b10ec066f181d8db67167",
+            "bytes": 7521061,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "make_wc3_pathfinding_map.py": "f2b0d61db8254f8ff9a352e58c6534cb7cce71942a94c4dbc7955e89a744a8c7",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "306678484a0a08232a675f9f7f00fed3f1038a1f09eeb2b6a3b76a06d994aef7",
+                "map": "78687276fe0b17767ded0fbe0cedd131decd2b1f03a51b850e27072a32489865"
+              },
+              "map": "Maps\\PathingRE-CaptainPoolPartialV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-pool-partial-v1-repeat-261003.jsonl",
+            "sha256": "1bfbde3fd3137ab2063917045cc07d783e5782965913c88f084a6f3e30a96f8a",
+            "bytes": 7528103,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+                "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "make_wc3_pathfinding_map.py": "f2b0d61db8254f8ff9a352e58c6534cb7cce71942a94c4dbc7955e89a744a8c7",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "captain_ai": "306678484a0a08232a675f9f7f00fed3f1038a1f09eeb2b6a3b76a06d994aef7",
+                "map": "78687276fe0b17767ded0fbe0cedd131decd2b1f03a51b850e27072a32489865"
+              },
+              "map": "Maps\\PathingRE-CaptainPoolPartialV1-261003.w3m",
+              "seconds": 100.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": true,
+              "clockEvents": true,
+              "headingEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -22305,7 +22732,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "c047009e3116d088b7022ba06542c05d50aa85e8b76c0b254d5a7a9f9ab53337"
+      "sha256": "cc916cdf64bed6a94d59b7368cca1442f993c6c10e26d7be3709b73a13bd8c82"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -22719,6 +23146,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-captain-blocked-1.27.json",
       "sha256": "dc7f1ef061fbdde8d178066dd612c29014cdfc225344f716d311847b88a00c80"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-pool-1.27.json",
+      "sha256": "01980088705137a8505863e38b08d06d668ecaa3f5777063dc26e87fb09e49b9"
     }
   ]
 }
