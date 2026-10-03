@@ -188,6 +188,7 @@ rejected by the versioned handshake.
 
 ## See Also
 
+- [Epic Online Services integration](epic-online-services.md) — planned Internet transport, Battle.net entry point, credentials and verification requirements
 - [Server-Authored UI Payloads](ui-payloads.md) — `svc_layout` frame payload contract and unsigned size-byte handling
 
 ## LAN lobby and startup
