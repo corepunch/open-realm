@@ -1712,6 +1712,19 @@ TEST(wc3_spell, projectile_owner_resolves_only_captured_incarnation) {
     G_FreeEdict(missile);
 }
 
+TEST(wc3_spell, status_source_resolves_only_captured_incarnation) {
+    edict_t *source = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+    heroabilitystatus_t slot = { 0 };
+    uint32_t spawn_time = source->spawn_time;
+
+    slot.source = source;
+    slot.source_spawn_time = source->spawn_time;
+    T_ASSERT(S_SpellStatusSource(&slot) == source);
+    source->spawn_time++;
+    T_NULL(S_SpellStatusSource(&slot));
+    source->spawn_time = spawn_time;
+}
+
 TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X6\n"

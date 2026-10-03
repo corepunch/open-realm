@@ -1114,6 +1114,15 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     return true;
 }
 
+/* Resolve the applying entity incarnation carried by a timed status.  Status
+ * procedures own expiry/damage policy; this helper only centralizes the
+ * persistent source pointer plus source_spawn_time identity contract. */
+edict_t *S_SpellStatusSource(heroabilitystatus_t const *slot) {
+    edict_t *source;
+    if (!slot || !(source = slot->source) || !source->inuse) return NULL;
+    return source->spawn_time == slot->source_spawn_time ? source : NULL;
+}
+
 /* Shared nearest-unit acquisition for ordinary unit-target autocast abilities.
  * Ability-specific procedures still own relation and wounded-only policy; this
  * helper centralizes authored range, target masks, nearest-target selection and

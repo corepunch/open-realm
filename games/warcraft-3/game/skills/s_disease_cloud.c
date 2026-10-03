@@ -5,8 +5,8 @@
 
 /* A recipient carries the infection after leaving the aura; rank and pulse deadline survive save/load. */
 static void disease_tick(edict_t *target, heroabilitystatus_t *slot) {
-    edict_t *source = slot->source;
-    if (!source || !source->inuse || source->spawn_time != slot->source_spawn_time) {
+    edict_t *source = S_SpellStatusSource(slot);
+    if (!source) {
         unit_expirestatus(target, slot);
         return;
     }
@@ -42,7 +42,7 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
             slot->data = ability.alias; slot->rank = ability.level;
             slot->source = ent; slot->source_spawn_time = ent->spawn_time;
             slot->next_tick = G_Time() + DISEASE_TICK_MS;
-        } else if (slot->source == ent && slot->source_spawn_time == ent->spawn_time) {
+        } else if (S_SpellStatusSource(slot) == ent) {
             slot->timestamp = G_Time() + (uint32_t)(row->data[0].number * 1000.0f);
         }
     }

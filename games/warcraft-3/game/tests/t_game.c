@@ -4509,6 +4509,28 @@ TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
 
 SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction->primary_builder", construction->primary_builder, 0)
 SAVE_PTR_FIELD_TEST(creep_status_source_round_trip, "abilstatus.source", abilstatus[3].source, 0)
+
+TEST(wc3_save, status_source_incarnation_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-status-source-incarnation.bin";
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    edict_t *source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
+    heroabilitystatus_t *slot = &unit->abilstatus[3];
+
+    slot->code = MAKEFOURCC('B', 'E', 'e', 'r');
+    slot->level = 1;
+    slot->source = source;
+    slot->source_spawn_time = source->spawn_time;
+    T_ASSERT(WriteGame(filename));
+    slot->source = NULL;
+    slot->source_spawn_time = 0;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(slot->source == source);
+    T_EQ(slot->source_spawn_time, source->spawn_time);
+    source->spawn_time++;
+    T_NULL(S_SpellStatusSource(slot));
+    remove(filename);
+}
 SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction->worker", construction->worker, 0)
 SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally->entity", rally->entity, 0)
 SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival->producer", revival->producer, 0)

@@ -12,8 +12,8 @@ static void entangling_roots_tick(edict_t *target, heroabilitystatus_t *slot) {
     float damage;
 
     if (!target || !slot || !slot->level || !slot->data || !slot->rank) return;
-    source = slot->source;
-    if (!source || !source->inuse || source->spawn_time != slot->source_spawn_time) return;
+    source = S_SpellStatusSource(slot);
+    if (!source) return;
     damage = MAX(0.0f, S_SpellData(slot->data, slot->rank, 1));
     while (slot->level && slot->next_tick <= G_Time() && slot->next_tick < slot->timestamp) {
         /* Damage can recurse through unit_updatestatuses(); advance first. */

@@ -185,6 +185,11 @@ inside the owning ability: Death Coil still owns Undead heal/non-Undead damage
 semantics, while Thunder/Fire Bolt owns damage and stun duration. Do not extend
 this helper to artillery/fixed-point attacks or add flags for unrelated missile
 policies.
+For timed statuses that retain an applying entity, persist both `source` and
+`source_spawn_time` and resolve later reads through `S_SpellStatusSource()`.
+Disease Cloud, Entangling Roots, and Incinerate use this contract; each still
+owns its own expiry, refresh, pulse, and damage semantics. Do not dereference a
+persisted status source directly after the source edict slot may have been reused.
 For channel thinkers, resolve the captured caster incarnation through
 `S_SpellChannelOwner()` instead of repeating `owner->inuse` / `spawn_time` checks.
 Non-channel ability helpers may use the same resolver when they explicitly snapshot

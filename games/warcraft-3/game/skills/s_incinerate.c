@@ -43,13 +43,14 @@ void S_IncinerateOnHit(edict_t *attacker, edict_t *target) {
 /* Consume the mark before spawning/damaging: nested death events must not explode it twice. */
 BZ_ABILITY_PROC(CAbilityIncinerate) {
     heroabilitystatus_t *slot = call ? call->status.slot : NULL;
-    edict_t *blast;
+    edict_t *blast, *source;
     if (msg != A_STATUS_DEATH || !slot) return CAbilityPassive(ent, msg, call);
-    if (!slot->source || !slot->source->inuse || slot->source->spawn_time != slot->source_spawn_time) {
+    source = S_SpellStatusSource(slot);
+    if (!source) {
         memset(slot, 0, sizeof(*slot));
         return true;
     }
-    blast = G_Spawn(); blast->owner = slot->source;
+    blast = G_Spawn(); blast->owner = source;
     if (!blast->channel) blast->channel = G_AllocChannel();
     assert(blast->channel);
     blast->channel->owner_spawn_time = slot->source_spawn_time;
