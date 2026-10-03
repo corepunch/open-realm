@@ -465,6 +465,9 @@ CoreFoundation run loop for EOS HTTP; the normal graphical client uses SDL.
 `game-crash-host`, `game-survivor` and `game-crash-guest` roles to the same bounded
 command. It uses the generated `Maps/Transport.w3m` nested MPQ, a 32x32-tile
 ROC-format map with two human starts and two fixture Footmen created by JASS.
+The driver completes `CL_Init`'s queued `menu_main` command with `online_mode=0`
+before enabling the Internet lobby. Main-menu entry intentionally leaves EOS;
+running that deferred command during a live search cancels its operation epoch.
 `tools/wc3fixturegen.py` writes real W3I/W3E/pathing/placement/script files;
 `make test-assets` packs them. The earlier Human02 fixture is only placeholder
 bytes for CRC tests and cannot load a game. No retail archives are required.

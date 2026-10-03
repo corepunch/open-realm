@@ -30,12 +30,16 @@ static bool Online_LiveGameRun(cstring_t role, cstring_t room) {
     bool local = !strcmp(role, "local"), host = strstr(role, "guest") == NULL;
     bool crash = !strcmp(role, "game-crash-host");
     Cvar_Set("dedicated", "0");
-    Cvar_Set("online_mode", local ? "0" : "1");
+    /* Main-menu initialization intentionally leaves Internet play. Complete
+     * that phase before enabling the online lobby, as the normal UI does. */
+    Cvar_Set("online_mode", "0");
     Cvar_Set("vid_hidden", "1"); Cvar_Set("s_sound", "0");
     Cvar_Set("ui_skip_transitions", "1");
     Cvar_Set("cl_camera_edge_scroll", "0");
     Cvar_Set("name", host ? "Acceptance host" : "Acceptance guest");
     CL_Init();
+    Cbuf_Execute();
+    Cvar_Set("online_mode", local ? "0" : "1");
     online_live_lobby_update = menu.UpdateLobbySetup;
     menu.UpdateLobbySetup = Online_LiveLobbyUpdate;
     online_live_chat_own = host; cl_test_lobby_chat = Online_LiveChat;
@@ -95,7 +99,7 @@ static bool Online_LiveGameRun(cstring_t role, cstring_t room) {
         while (!online_live_chat_host || !online_live_chat_guest) if (!Online_LivePump()) return false;
         fprintf(stderr, "EOS gameplay: both lobby chat messages decoded with correct sender ownership\n");
         if (host) {
-            if (!Online_LiveFind(room, false)) return false;
+            if (!Online_LivePublished() || !Online_LiveFind(room, false)) return false;
             fprintf(stderr, "EOS gameplay: full room excluded from public browser\n");
             /* Allow the remote setup packet to be consumed before the map transition. */
             uint32_t wait = SDL_GetTicks();
