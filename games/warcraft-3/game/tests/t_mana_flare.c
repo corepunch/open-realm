@@ -104,7 +104,7 @@ TEST(wc3_spell, mana_flare_activates_buff_channel_and_armor) {
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	T_FEQ(fix.flare->mana.value, 175, 0.001f);
 	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 1);
-	T_EQ(fix.flare->channel.code, BZ_AMFL);
+	T_EQ(E_channel_get(fix.flare)->code, BZ_AMFL);
 	T_FEQ(G_UnitArmorValue(fix.flare), 9, 0.001f);
 	mfl_done(&fix);
 }
@@ -161,7 +161,7 @@ TEST(wc3_spell, mana_flare_cancel_and_expiry_clear_buff) {
 	level.time += 30000; unit_updatestatuses(fix.flare);
 	S_RunAbilityUpdates(fix.flare);
 	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 0);
-	T_EQ(fix.flare->channel.code, 0);
+	T_EQ(E_channel_get(fix.flare)->code, 0);
 	T_FEQ(G_UnitArmorValue(fix.flare), 0, 0.001f);
 	mfl_done(&fix);
 }

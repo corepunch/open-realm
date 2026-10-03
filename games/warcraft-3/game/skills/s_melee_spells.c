@@ -80,7 +80,7 @@ static bool melee_autocast_acquire(edict_t *caster, uint32_t code, bool friendly
 BZ_ABILITY_PROC(CAbilityBloodlust) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
-    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t code = call &E_item_get(call) ? call->item->code : 0;
     switch (msg) {
     case A_VALIDATE: return bloodlust_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
@@ -99,7 +99,7 @@ BZ_ABILITY_PROC(CAbilityBloodlust) {
 BZ_ABILITY_PROC(CAbilityFaerieFire) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
-    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t code = call &E_item_get(call) ? call->item->code : 0;
     switch (msg) {
     case A_VALIDATE: return faerie_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
@@ -170,7 +170,7 @@ float S_RejuvHealRate(edict_t const *unit) {
 BZ_ABILITY_PROC(CAbilityFrenzy) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
-    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t code = call &E_item_get(call) ? call->item->code : 0;
     switch (msg) {
     case A_VALIDATE: return bloodlust_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
@@ -228,7 +228,7 @@ float S_UnholyFrenzyLifeDrain(edict_t const *unit) {
 BZ_ABILITY_PROC(CAbilityCurse) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
-    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t code = call &E_item_get(call) ? call->item->code : 0;
     switch (msg) {
     case A_VALIDATE: return faerie_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;

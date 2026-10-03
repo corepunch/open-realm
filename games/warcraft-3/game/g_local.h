@@ -1388,32 +1388,37 @@ struct edict_s {
         bool paid;
         uint32_t payer;
         int32_t gold, lumber;
-    } construction;
+    };
+    struct edictConstruction_s *construction; /* pool slot; null if this unit is not under construction */
     bool training; /* spawned in a production queue but not yet completed */
     bool training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
-    struct {
+    struct edictResearch_s {
         uint32_t upgrade;     /* research rawcode on queue edicts; target unit type on in-place upgrades */
         int32_t level;        /* 1-based level being researched */
         int32_t gold, lumber; /* exact charged cost, retained for cancellation */
         float duration;    /* seconds */
         float progress;    /* seconds elapsed for the active queue head */
-    } research;
+    };
+    struct edictResearch_s *research;
     struct edictRally_s {
         rallyTargetType_t type;
         vec2_t point;
         edict_t *entity;
         uint32_t entity_spawn_time;
-    } rally;
-    struct {
+    };
+    struct edictRally_s *rally;
+    struct edictFood_s {
         int32_t used; /* food currently accounted to s.player; queue-head reservations live here */
         int32_t made; /* food capacity currently accounted to s.player */
-    } food;
-    struct {
+    };
+    struct edictFood_s *food;
+    struct edictBuildwork_s {
         uint32_t ability;
         bool primary;
         float gold_accum;
         float lumber_accum;
-    } buildwork;
+    };
+    struct edictBuildwork_s *buildwork;
     /* Hero revival state lives on the persistent Hero edict. While reviving,
      * queue_next links the Hero into a producer's ordinary production chain
      * without borrowing hero->build, which may have independent gameplay use. */
@@ -1425,7 +1430,8 @@ struct edict_s {
         uint32_t player;
         int32_t gold, lumber;
         float progress;
-    } revival;
+    };
+    struct edictRevival_s *revival;
     /* A sacrifice queue item is the hidden result unit.  Keep the consumed
      * worker relationship on that item so cancellation/save-load do not need
      * Sacrificial-Pit-specific state in generic unit AI. */
@@ -1435,7 +1441,8 @@ struct edict_s {
         uint32_t worker_spawn_time;
         bool restore_paused;
         bool restore_hidden;
-    } sacrifice;
+    };
+    struct edictSacrifice_s *sacrifice;
     struct edictUnsummon_s {
         edict_t *target;
         uint32_t target_spawn_time;
@@ -1443,7 +1450,8 @@ struct edict_s {
         bool approaching, starting;
         float removed_health;
         int32_t gold_paid, lumber_paid;
-    } unsummon;
+    };
+    struct edictUnsummon_s *unsummon;
     uint32_t spawn_time;
     uint32_t summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
     uint32_t permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
@@ -1452,7 +1460,8 @@ struct edict_s {
         bool fading;
         bool active;
         bool hide_order_active; /* Ahid/ambush: suppress voluntary acquisition until replaced */
-    } shadowmeld;
+    };
+    struct edictShadowMeld_s *shadowmeld;
     uint16_t forced_visibility_count[MAX_PLAYERS]; /* active unit-specific reveals, indexed by the sight-sharing player */
     uint32_t shared_vision; /* players that receive this unit's ordinary sight via UnitShareVision */
     uint32_t harvested_lumber;
@@ -1466,7 +1475,8 @@ struct edict_s {
         uint8_t previous_resource; /* returnResource_t remembered for explicit Back to Work */
         bool active;            /* unit has completed the Peasant -> Militia morph */
         bool returning;         /* current pairing order is militiaoff */
-    } militia;
+    };
+    struct edictMilitia_s *militia;
     struct edictPolymorph_s {
         uint32_t ability;          /* Aply-derived ability that owns the active morph */
         uint32_t buff;             /* configured timed buff; stock Sorceress uses Bply */
@@ -1475,24 +1485,28 @@ struct edict_s {
         float original_scale;
         float original_move_speed;
         bool active;
-    } polymorph;
+    };
+    struct edictPolymorph_s *polymorph;
     struct edictRaven_s {
         float fly_height; /* authored Raven Form height applied after the forward morph clip */
         float rise_start;
         float rise_duration;
         ravenRiseState_t rise_state;
-    } raven;
+    };
+    struct edictRaven_s *raven;
     struct edictBlightGrowth_s {
         uint32_t ability;      /* concrete Abli-derived alias owning this state */
         float radius;       /* current expanded radius */
         uint32_t next_update;  /* next authored expansion deadline */
-    } blight_growth;
+    };
+    struct edictBlightGrowth_s *blight_growth;
     struct edictEnsnare_s {
         float adjust; /* DataA Air Unit Lower Duration (seconds); 0 snaps */
         float height; /* DataB land start, or authored moveHeight while rising */
         uint32_t start;  /* G_Time() when current land/rise phase began */
         ensnareHeightState_t phase;
-    } ensnare;
+    };
+    struct edictEnsnare_s *ensnare;
     struct edictAncientRoot_s {
         ancientRootMode_t mode;
         uint32_t ability;
@@ -1508,7 +1522,8 @@ struct edict_s {
         bool has_rooted_collision;
         bool rooted_turning;
         bool approaching;
-    } ancient_root;
+    };
+    struct edictAncientRoot_s *ancient_root;
     uint32_t heatmap2;
     vec2_t heatmap2_origin;  /* target position when heatmap2 was last built */
     uint32_t heatmap2_time;      /* level.time when heatmap2 was last built */
@@ -1518,14 +1533,15 @@ struct edict_s {
     uint32_t damage;
     uint32_t projectile_attack_type; /* basic missile attack type captured at launch */
     /* Impact behavior captured by fixed-point artillery shots. */
-    edictArtillery_t artillery;
+    edictArtillery_t *artillery; /* projectile splash profile; null on units */
     uint32_t resources;
     uint32_t freetime;
     struct edictGoldMine_s {
         edict_t *mine;
         uint32_t mine_spawn_time;
         bool restore_invulnerable;
-    } goldmine;
+    };
+    struct edictGoldMine_s *goldmine;
     /* Racial mine overlays keep the original Agld unit as the sole finite
      * gold reservoir. Haunted/Entangled mines own presentation/income only. */
     struct edictMineOverlay_s {
@@ -1542,14 +1558,16 @@ struct edict_s {
         uint32_t entangle_tree_spawn_time;
         uint32_t entangle_ability;
         bool entangle_permanent_before;
-    } mineoverlay;
+    };
+    struct edictMineOverlay_s *mineoverlay;
     /* Acolyte harvesting is a visible fixed-slot relationship rather than the
      * conventional hidden-inside/carry/return Gold Mine state above. */
     struct edictAcolyteMine_s {
         edict_t *mine;
         uint32_t mine_spawn_time;
         int32_t slot;
-    } acolyte_mine;
+    };
+    struct edictAcolyteMine_s *acolyte_mine;
     edict_t *inventory[MAX_INVENTORY];
     struct edictItem_s {
         edict_t *carrier;
@@ -1568,7 +1586,8 @@ struct edict_s {
         int32_t pending_use_slot;
         edict_t *soul_target; /* pending AIso target or target bound to filled Asou item */
         uint32_t soul_target_spawn_time;
-    } item;
+    };
+    struct edictItem_s *item;
     struct edictDestructable_s {
         bool initialized;
 
@@ -1596,13 +1615,15 @@ struct edict_s {
         float alive_collision;
 
         ARRAY(droppableItemSet_t const, drop_sets);
-    } destructable;
+    };
+    struct edictDestructable_s *destructable;
     struct edictCargo_s {
         edict_t *units[MAX_CARGO];
         uint32_t count;
-    } cargo;
+    };
+    struct edictCargo_s *cargo;
     edict_t *ground_next;
-    edictStock_t stock;
+    edictStock_t *stock; /* shop merchandise; null unless this edict is a shop */
     float velocity;
     doodadHero_t hero;
     uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
@@ -1615,7 +1636,8 @@ struct edict_s {
         uint32_t level;
         float armor, health;
         int32_t damage;
-    } avatar;
+    };
+    struct edictAvatar_s *avatar;
     bool invulnerable;  // unit cannot take damage when true
     bool paused;        // unit AI and movement suspended when true
     bool stunned;       // unit AI and movement suspended by timed status
@@ -1625,14 +1647,16 @@ struct edict_s {
     struct edictSleep_s {
         bool can_sleep; /* mutable natural/night sleep eligibility; seeded from UnitData.canSleep */
         bool sleeping;  /* natural creep sleep only; intentionally excludes spell-induced BUsL */
-    } sleep;
+    };
+    struct edictSleep_s *sleep;
     struct edictChannel_s {
         uint32_t code;     // ability code being channeled (0 = none)
         uint32_t serial;   // cast identity; old thinkers cannot continue or cancel a replacement cast
         uint32_t owner_spawn_time; // thinker copy of caster identity; rejects reused owner slots
         uint32_t target_spawn_time; // thinker copy of target identity; rejects reused target slots
         vec2_t origin; // position when channel started (movement cancels channel)
-    } channel;
+    };
+    struct edictChannel_s *channel;
     uint32_t unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
     int32_t user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
     bool uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
@@ -1642,7 +1666,8 @@ struct edict_s {
         vec2_t destination;
         bool destination_set;
         bool active;
-    } waygate;
+    };
+    struct edictWaygate_s *waygate;
     struct edictMovement_s {
         vec2_t last_origin;
         float last_distance;
@@ -1787,6 +1812,19 @@ struct edict_s {
     } data;
 };
 
+typedef struct edictResearch_s edictResearch_s;
+typedef struct edictFood_s edictFood_s;
+typedef struct edictBuildwork_s edictBuildwork_s;
+typedef struct edictShadowMeld_s edictShadowMeld_s;
+typedef struct edictPolymorph_s edictPolymorph_s;
+typedef struct edictRaven_s edictRaven_s;
+typedef struct edictBlightGrowth_s edictBlightGrowth_s;
+typedef struct edictEnsnare_s edictEnsnare_s;
+typedef struct edictAncientRoot_s edictAncientRoot_s;
+typedef struct edictWaygate_s edictWaygate_s;
+typedef struct edictAvatar_s edictAvatar_s;
+typedef struct edictSleep_s edictSleep_s;
+typedef struct edictChannel_s edictChannel_s;
 typedef struct edictConstruction_s edictConstruction_s;
 typedef struct edictRally_s edictRally_s;
 typedef struct edictRevival_s edictRevival_s;
@@ -3486,6 +3524,120 @@ extern struct game_locals game;
 extern struct game_export globals;
 extern struct game_import gi;
 extern struct level_locals level;
+
+/* Sparse lifecycles live in pools (Quake's gclient_t pattern). The edict holds
+ * a null pointer until the behavior starts. Movement, attacks, and health stay
+ * inline because almost every unit touches them. */
+void G_PoolsReset(void);
+void G_PoolsReleaseEdict(edict_t *ent);
+edictConstruction_s *E_construction(edict_t *ent);
+edictConstruction_s const *E_construction_get(edict_t const *ent);
+void G_PoolDrop_construction(edict_t *ent);
+edictConstruction_s *G_PoolAlloc_construction(void);
+edictResearch_s *E_research(edict_t *ent);
+edictResearch_s const *E_research_get(edict_t const *ent);
+void G_PoolDrop_research(edict_t *ent);
+edictResearch_s *G_PoolAlloc_research(void);
+edictRally_s *E_rally(edict_t *ent);
+edictRally_s const *E_rally_get(edict_t const *ent);
+void G_PoolDrop_rally(edict_t *ent);
+edictRally_s *G_PoolAlloc_rally(void);
+edictFood_s *E_food(edict_t *ent);
+edictFood_s const *E_food_get(edict_t const *ent);
+void G_PoolDrop_food(edict_t *ent);
+edictFood_s *G_PoolAlloc_food(void);
+edictBuildwork_s *E_buildwork(edict_t *ent);
+edictBuildwork_s const *E_buildwork_get(edict_t const *ent);
+void G_PoolDrop_buildwork(edict_t *ent);
+edictBuildwork_s *G_PoolAlloc_buildwork(void);
+edictRevival_s *E_revival(edict_t *ent);
+edictRevival_s const *E_revival_get(edict_t const *ent);
+void G_PoolDrop_revival(edict_t *ent);
+edictRevival_s *G_PoolAlloc_revival(void);
+edictSacrifice_s *E_sacrifice(edict_t *ent);
+edictSacrifice_s const *E_sacrifice_get(edict_t const *ent);
+void G_PoolDrop_sacrifice(edict_t *ent);
+edictSacrifice_s *G_PoolAlloc_sacrifice(void);
+edictUnsummon_s *E_unsummon(edict_t *ent);
+edictUnsummon_s const *E_unsummon_get(edict_t const *ent);
+void G_PoolDrop_unsummon(edict_t *ent);
+edictUnsummon_s *G_PoolAlloc_unsummon(void);
+edictShadowMeld_s *E_shadowmeld(edict_t *ent);
+edictShadowMeld_s const *E_shadowmeld_get(edict_t const *ent);
+void G_PoolDrop_shadowmeld(edict_t *ent);
+edictShadowMeld_s *G_PoolAlloc_shadowmeld(void);
+edictMilitia_s *E_militia(edict_t *ent);
+edictMilitia_s const *E_militia_get(edict_t const *ent);
+void G_PoolDrop_militia(edict_t *ent);
+edictMilitia_s *G_PoolAlloc_militia(void);
+edictPolymorph_s *E_polymorph(edict_t *ent);
+edictPolymorph_s const *E_polymorph_get(edict_t const *ent);
+void G_PoolDrop_polymorph(edict_t *ent);
+edictPolymorph_s *G_PoolAlloc_polymorph(void);
+edictRaven_s *E_raven(edict_t *ent);
+edictRaven_s const *E_raven_get(edict_t const *ent);
+void G_PoolDrop_raven(edict_t *ent);
+edictRaven_s *G_PoolAlloc_raven(void);
+edictBlightGrowth_s *E_blight_growth(edict_t *ent);
+edictBlightGrowth_s const *E_blight_growth_get(edict_t const *ent);
+void G_PoolDrop_blight_growth(edict_t *ent);
+edictBlightGrowth_s *G_PoolAlloc_blight_growth(void);
+edictEnsnare_s *E_ensnare(edict_t *ent);
+edictEnsnare_s const *E_ensnare_get(edict_t const *ent);
+void G_PoolDrop_ensnare(edict_t *ent);
+edictEnsnare_s *G_PoolAlloc_ensnare(void);
+edictAncientRoot_s *E_ancient_root(edict_t *ent);
+edictAncientRoot_s const *E_ancient_root_get(edict_t const *ent);
+void G_PoolDrop_ancient_root(edict_t *ent);
+edictAncientRoot_s *G_PoolAlloc_ancient_root(void);
+edictGoldMine_s *E_goldmine(edict_t *ent);
+edictGoldMine_s const *E_goldmine_get(edict_t const *ent);
+void G_PoolDrop_goldmine(edict_t *ent);
+edictGoldMine_s *G_PoolAlloc_goldmine(void);
+edictMineOverlay_s *E_mineoverlay(edict_t *ent);
+edictMineOverlay_s const *E_mineoverlay_get(edict_t const *ent);
+void G_PoolDrop_mineoverlay(edict_t *ent);
+edictMineOverlay_s *G_PoolAlloc_mineoverlay(void);
+edictAcolyteMine_s *E_acolyte_mine(edict_t *ent);
+edictAcolyteMine_s const *E_acolyte_mine_get(edict_t const *ent);
+void G_PoolDrop_acolyte_mine(edict_t *ent);
+edictAcolyteMine_s *G_PoolAlloc_acolyte_mine(void);
+edictItem_s *E_item(edict_t *ent);
+edictItem_s const *E_item_get(edict_t const *ent);
+void G_PoolDrop_item(edict_t *ent);
+edictItem_s *G_PoolAlloc_item(void);
+edictDestructable_s *E_destructable(edict_t *ent);
+edictDestructable_s const *E_destructable_get(edict_t const *ent);
+void G_PoolDrop_destructable(edict_t *ent);
+edictDestructable_s *G_PoolAlloc_destructable(void);
+edictCargo_s *E_cargo(edict_t *ent);
+edictCargo_s const *E_cargo_get(edict_t const *ent);
+void G_PoolDrop_cargo(edict_t *ent);
+edictCargo_s *G_PoolAlloc_cargo(void);
+edictStock_t *E_stock(edict_t *ent);
+edictStock_t const *E_stock_get(edict_t const *ent);
+void G_PoolDrop_stock(edict_t *ent);
+edictStock_t *G_PoolAlloc_stock(void);
+edictWaygate_s *E_waygate(edict_t *ent);
+edictWaygate_s const *E_waygate_get(edict_t const *ent);
+void G_PoolDrop_waygate(edict_t *ent);
+edictWaygate_s *G_PoolAlloc_waygate(void);
+edictArtillery_t *E_artillery(edict_t *ent);
+edictArtillery_t const *E_artillery_get(edict_t const *ent);
+void G_PoolDrop_artillery(edict_t *ent);
+edictArtillery_t *G_PoolAlloc_artillery(void);
+edictAvatar_s *E_avatar(edict_t *ent);
+edictAvatar_s const *E_avatar_get(edict_t const *ent);
+void G_PoolDrop_avatar(edict_t *ent);
+edictAvatar_s *G_PoolAlloc_avatar(void);
+edictSleep_s *E_sleep(edict_t *ent);
+edictSleep_s const *E_sleep_get(edict_t const *ent);
+void G_PoolDrop_sleep(edict_t *ent);
+edictSleep_s *G_PoolAlloc_sleep(void);
+edictChannel_s *E_channel(edict_t *ent);
+edictChannel_s const *E_channel_get(edict_t const *ent);
+void G_PoolDrop_channel(edict_t *ent);
+edictChannel_s *G_PoolAlloc_channel(void);
 extern struct edict_s *g_edicts;
 
 /* Simulation clock reader. Spell-rank parameters named `level` shadow the global in

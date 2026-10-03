@@ -9,7 +9,7 @@ void incinerate_explode_think(edict_t *ent) {
     edict_t *source = ent->owner;
     float full = S_SpellData(code, rank, 3), outer = S_SpellData(code, rank, 5);
     if (G_Time() < ent->freetime) return;
-    if (source && source->inuse && source->spawn_time == ent->channel.owner_spawn_time) {
+    if (source && source->inuse && source->spawn_time == E_channel_get(ent)->owner_spawn_time) {
         FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellAllowsTarget(code, source, target)) {
             float dist = Vector2_distance(&target->s.origin2, &ent->s.origin2);
             float damage = dist <= full ? S_SpellData(code, rank, 2) :
@@ -51,7 +51,7 @@ BZ_ABILITY_PROC(CAbilityIncinerate) {
         return true;
     }
     blast = G_Spawn(); blast->owner = slot->source;
-    blast->channel.owner_spawn_time = slot->source_spawn_time;
+    E_channel(blast)->owner_spawn_time = slot->source_spawn_time;
     blast->class_id = slot->data; blast->resources = slot->rank; blast->s.origin2 = ent->s.origin2;
     blast->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellData(slot->data, slot->rank, 6)) * 1000.0f);
     blast->think = incinerate_explode_think;

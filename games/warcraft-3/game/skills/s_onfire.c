@@ -52,7 +52,7 @@ static uint32_t onfire_level(edict_t const *ent) {
     uint8_t health;
 
     if (!ent->inuse || !G_UnitIsStructure(ent) || ent->health.value <= 0.0f ||
-        !ent->health.max_value || ent->construction.active) return 0;
+        !ent->health.max_value || E_construction_get(ent)->active) return 0;
     health = compress_stat(&ent->health);
     if (health > 255 * 3 / 4) return 0;
     if (health > 255 / 2) return 1;

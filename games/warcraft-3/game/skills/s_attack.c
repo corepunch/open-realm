@@ -52,7 +52,7 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     uint32_t enabled;
     if (!attacker || slot >= 2) return false;
     enabled = attacker->data.UnitWeapons ? attacker->data.UnitWeapons->attacksEnabled : 0;
-    if (attacker->ancient_root.ability) enabled = S_AncientAttackMask(attacker);
+    if (E_ancient_root_get(attacker)->ability) enabled = S_AncientAttackMask(attacker);
     return (enabled & (1u << slot)) != 0;
 }
 
@@ -60,7 +60,7 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
  * from the target whenever attack behavior reads a profile. */
 static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
     uint32_t flag = target ? G_TargetFlagForType(G_UnitTargetType(target)) : 0;
-    if (attacker && target && target->destructable.initialized && target->targtype == TARG_TREE) {
+    if (attacker && target && E_destructable_get(target)->initialized && target->targtype == TARG_TREE) {
         if (attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->attack1;
         if (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->attack2;
     }
@@ -93,21 +93,21 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     rocket->projectile_attack_type = desc->attack_type;
     if (desc->fixed_target) {
         rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
-        rocket->channel.origin = *desc->fixed_target;
+        E_channel(rocket)->origin = *desc->fixed_target;
         /* ARTILLERY flies to the snapshotted point, but retaining the original
          * unit identity lets impact apply the ordinary primary-hit listeners
          * only when that same unit is still inside the splash bands. */
         rocket->goalentity = desc->target;
-        rocket->channel.target_spawn_time = desc->target ? desc->target->spawn_time : 0;
+        E_channel(rocket)->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
         if (desc->attack) {
-            rocket->artillery.attack_type = desc->attack->type;
-            rocket->artillery.area_targets = desc->area_targets;
-            rocket->artillery.targets_allowed = desc->attack->targetsAllowed;
-            rocket->artillery.area_full = desc->attack->areaFull;
-            rocket->artillery.area_medium = desc->attack->areaMedium;
-            rocket->artillery.area_small = desc->attack->areaSmall;
-            rocket->artillery.factor_medium = desc->attack->factorMedium;
-            rocket->artillery.factor_small = desc->attack->factorSmall;
+            E_artillery(rocket)->attack_type = desc->attack->type;
+            E_artillery(rocket)->area_targets = desc->area_targets;
+            E_artillery(rocket)->targets_allowed = desc->attack->targetsAllowed;
+            E_artillery(rocket)->area_full = desc->attack->areaFull;
+            E_artillery(rocket)->area_medium = desc->attack->areaMedium;
+            E_artillery(rocket)->area_small = desc->attack->areaSmall;
+            E_artillery(rocket)->factor_medium = desc->attack->factorMedium;
+            E_artillery(rocket)->factor_small = desc->attack->factorSmall;
         }
     } else {
         rocket->goalentity = desc->target;
@@ -182,7 +182,7 @@ bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
         return false;
     }
     if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
-    if (target->destructable.initialized) {
+    if (E_destructable_get(target)->initialized) {
         return G_DestructableCanBeAttackedBy(attacker, target);
     }
     if (M_IsDead((edict_t *)target)) return false;
@@ -798,7 +798,7 @@ void order_attack(edict_t *self, edict_t *target) {
      * by explicit attacks, ordinary acquisition, and the automatic retaliation
      * issued by T_Damage(), so clear both invisibility and the explicit Hide
      * hold-fire state before installing the attack behavior. */
-    if (self->shadowmeld.active || self->shadowmeld.fading || self->shadowmeld.hide_order_active)
+    if (E_shadowmeld_get(self)->active || E_shadowmeld_get(self)->fading || E_shadowmeld_get(self)->hide_order_active)
         S_ShadowMeldBreak(self);
     self->movement.explicit_allied_attack = false;
     unit_entercombat(self, target);
@@ -914,7 +914,7 @@ static bool attack_ground_valid(edict_t const *ent) {
 }
 
 static float attack_ground_distance(edict_t const *ent) {
-    return ent ? Vector2_distance(&ent->s.origin2, &ent->channel.origin) : FLT_MAX;
+    return ent ? Vector2_distance(&ent->s.origin2, &E_channel(ent)->origin) : FLT_MAX;
 }
 
 static bool attack_ground_out_of_range(edict_t const *ent) {
@@ -945,7 +945,7 @@ static void throw_artillery_ground(edict_t *ent) {
     vec2_t impact;
 
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
-    impact = ent->channel.origin;
+    impact = E_channel_get(ent)->origin;
     damage = (int)ai_rolldamage1(ent, 1);
     M_GetEntityMatrix(&ent->s, &matrix);
     origin = Matrix4_multiply_vector3(&matrix, &ent->attack1.origin);
@@ -1034,7 +1034,7 @@ bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     unit->goalentity = waypoint;
     unit->attack_target_spawn_time = 0;
     attack_ground_walk(unit);
-    unit->channel.origin = *point;
+    E_channel(unit)->origin = *point;
     return true;
 }
 

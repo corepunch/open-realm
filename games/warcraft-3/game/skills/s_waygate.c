@@ -45,25 +45,25 @@ bool S_WaygateIsGate(edict_t const *gate) {
 }
 
 bool S_WaygateIsActive(edict_t const *gate) {
-    return S_WaygateIsGate(gate) && gate->waygate.active;
+    return S_WaygateIsGate(gate) && E_waygate_get(gate)->active;
 }
 
 bool S_WaygateGetDestination(edict_t const *gate, vec2_t *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return false;
-    *destination = gate->waygate.destination;
-    return gate->waygate.destination_set;
+    *destination = E_waygate_get(gate)->destination;
+    return E_waygate_get(gate)->destination_set;
 }
 
 void S_WaygateSetDestination(edict_t *gate, vec2_t const *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return;
-    gate->waygate.destination = *destination;
-    gate->waygate.destination_set = true;
+    E_waygate(gate)->destination = *destination;
+    E_waygate(gate)->destination_set = true;
 }
 
 void S_WaygateSetActive(edict_t *gate, bool active) {
     if (!S_WaygateIsGate(gate)) return;
-    gate->waygate.active = active != false;
-    G_AddUnitAnimationProperties(gate, "alternate", gate->waygate.active);
+    E_waygate(gate)->active = active != false;
+    G_AddUnitAnimationProperties(gate, "alternate", E_waygate_get(gate)->active);
 }
 
 static bool waygate_point_inside(edict_t const *gate, vec2_t const *point) {
@@ -81,7 +81,7 @@ static bool waygate_target_inside(edict_t const *gate, edict_t const *unit) {
 static bool waygate_target_valid(edict_t const *unit, edict_t const *gate, uint32_t spawn_time) {
     if (!unit || !gate || unit == gate || !gate->inuse || gate->spawn_time != spawn_time) return false;
     if (M_IsDead(unit) || M_IsDead(gate) || !S_UnitCanTranslate(unit)) return false;
-    return S_WaygateIsActive(gate) && gate->waygate.destination_set;
+    return S_WaygateIsActive(gate) && E_waygate_get(gate)->destination_set;
 }
 
 static bool waygate_behavior_active(edict_t const *unit) {
@@ -108,9 +108,9 @@ static bool waygate_complete(edict_t *unit, edict_t *gate) {
 
     if (!unit || !gate) return false;
     source = unit->s.origin2;
-    if (!G_FindUnitUnstuckPosition(unit, &gate->waygate.destination, &position)) {
+    if (!G_FindUnitUnstuckPosition(unit, &E_waygate(gate)->destination, &position)) {
         fprintf(stderr, "WC3 Waygate: no legal destination for unit %u gate %u at (%.1f, %.1f); traversal cancelled\n",
-                unit->s.number, gate->s.number, gate->waygate.destination.x, gate->waygate.destination.y);
+                unit->s.number, gate->s.number, E_waygate_get(gate)->destination.x, E_waygate_get(gate)->destination.y);
         waygate_cancel(unit);
         return false;
     }

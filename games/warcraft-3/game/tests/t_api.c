@@ -3668,14 +3668,14 @@ TEST(wc3_api, human04_intro_cancel_preserves_unit_lifecycle_until_frame_end) {
     if (!mine || !worker || !building) goto cleanup;
     mine->birth(mine);
     T_ASSERT(G_StartUndeadConstruction(worker, mine));
-    T_ASSERT(mine->construction.active);
+    T_ASSERT(E_construction_get(mine)->active);
     T_STREQ(mine->currentmove->animation, "birth");
 
     jass_callbyname(level.vm, "cancelIntro", false);
     jass_runevents(level.vm);
     T_ASSERT(mine->svflags & SVF_DEADMONSTER);
     T_STREQ(mine->currentmove->animation, "death");
-    T_ASSERT(!mine->construction.active);
+    T_ASSERT(!E_construction_get(mine)->active);
     T_ASSERT(worker->inuse);
     T_ASSERT(G_IsDeferredFree(worker));
     T_ASSERT(G_IsDeferredFree(building));
@@ -4195,7 +4195,7 @@ TEST(wc3_api, construct_finish_fires_player_and_unit_events_with_structure_conte
     building = find_test_unit(MAKEFOURCC('h','b','a','r'));
     T_NOT_NULL(building);
     building->stand = unit_stand;
-    building->construction.active = true;
+    E_construction(building)->active = true;
     saved = g_edicts[0].client;
     g_edicts[0].client = NULL;
     G_CompleteConstruction(building);
@@ -6333,8 +6333,8 @@ static edict_t *alloc_world_test_item(uint32_t class_id) {
     edict_t *item = alloc_test_unit(class_id, 0, 0);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
-    item->item.in_world = true;
-    item->item.inventory_slot = -1;
+    E_item(item)->in_world = true;
+    E_item(item)->inventory_slot = -1;
     return item;
 }
 
@@ -7262,16 +7262,16 @@ TEST(wc3_api, stock_slots_propagate_override_clamp_and_inherit) {
 
     G_SetAllStockSlots(true, 11); G_SetAllStockSlots(false, 9);
     T_EQ(level.stock.item_slots, 11); T_EQ(level.stock.unit_slots, 9);
-    T_EQ(first->stock.item_slots, 11); T_EQ(second->stock.item_slots, 11);
-    T_EQ(first->stock.unit_slots, 9); T_EQ(second->stock.unit_slots, 9);
+    T_EQ(E_stock_get(first)->item_slots, 11); T_EQ(E_stock_get(second)->item_slots, 11);
+    T_EQ(E_stock_get(first)->unit_slots, 9); T_EQ(E_stock_get(second)->unit_slots, 9);
 
     G_SetStockSlots(first, true, 3); G_SetStockSlots(first, false, -1);
-    T_EQ(first->stock.item_slots, 3); T_EQ(first->stock.unit_slots, 0);
-    T_EQ(second->stock.item_slots, 11); T_EQ(second->stock.unit_slots, 9);
+    T_EQ(E_stock_get(first)->item_slots, 3); T_EQ(E_stock_get(first)->unit_slots, 0);
+    T_EQ(E_stock_get(second)->item_slots, 11); T_EQ(E_stock_get(second)->unit_slots, 9);
 
     future = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 64, 0);
     G_InitStockSlots(future);
-    T_EQ(future->stock.item_slots, 11); T_EQ(future->stock.unit_slots, 9);
+    T_EQ(E_stock_get(future)->item_slots, 11); T_EQ(E_stock_get(future)->unit_slots, 9);
 }
 
 TEST(wc3_api, stock_slot_natives_update_global_and_unit_state) {
@@ -7287,10 +7287,10 @@ TEST(wc3_api, stock_slot_natives_update_global_and_unit_state) {
         "call SetUnitTypeSlots(shop,4)\n"
         "endfunction"));
     T_EQ(level.stock.item_slots, 11); T_EQ(level.stock.unit_slots, 10);
-    T_EQ(shop->stock.item_slots, 11); T_EQ(shop->stock.unit_slots, 10);
+    T_EQ(E_stock_get(shop)->item_slots, 11); T_EQ(E_stock_get(shop)->unit_slots, 10);
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) created = g_edicts + i;
     T_NOT_NULL(created);
-    T_EQ(created->stock.item_slots, 3); T_EQ(created->stock.unit_slots, 4);
+    T_EQ(E_stock_get(created)->item_slots, 3); T_EQ(E_stock_get(created)->unit_slots, 4);
 }
 
 TEST(wc3_api, item_stock_natives_override_and_remove_runtime_stock) {
@@ -7305,16 +7305,16 @@ TEST(wc3_api, item_stock_natives_override_and_remove_runtime_stock) {
         "call AddItemToStock(null,'spro',1,2)\n"
         "call RemoveItemFromStock(null,'spro')\n"
         "endfunction"));
-    T_EQ(shop->stock.item_count, 1);
-    T_EQ(shop->stock.items[0].id, MAKEFOURCC('s','p','r','o'));
-    T_EQ(shop->stock.items[0].current, 1);
-    T_EQ(shop->stock.items[0].maximum, 2);
+    T_EQ(E_stock_get(shop)->item_count, 1);
+    T_EQ(E_stock_get(shop)->items[0].id, MAKEFOURCC('s','p','r','o'));
+    T_EQ(E_stock_get(shop)->items[0].current, 1);
+    T_EQ(E_stock_get(shop)->items[0].maximum, 2);
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "call RemoveItemFromAllStock('spro')\n"
         "endfunction"));
-    T_EQ(shop->stock.item_count, 0);
+    T_EQ(E_stock_get(shop)->item_count, 0);
 }
 
 TEST(wc3_api, unit_stock_natives_override_and_remove_runtime_stock) {
@@ -7329,16 +7329,16 @@ TEST(wc3_api, unit_stock_natives_override_and_remove_runtime_stock) {
         "call AddUnitToStock(null,'nmer',1,2)\n"
         "call RemoveUnitFromStock(null,'nmer')\n"
         "endfunction"));
-    T_EQ(shop->stock.unit_count, 1);
-    T_EQ(shop->stock.units[0].id, MAKEFOURCC('n','m','e','r'));
-    T_EQ(shop->stock.units[0].current, 1);
-    T_EQ(shop->stock.units[0].maximum, 2);
+    T_EQ(E_stock_get(shop)->unit_count, 1);
+    T_EQ(E_stock_get(shop)->units[0].id, MAKEFOURCC('n','m','e','r'));
+    T_EQ(E_stock_get(shop)->units[0].current, 1);
+    T_EQ(E_stock_get(shop)->units[0].maximum, 2);
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "call RemoveUnitFromAllStock('nmer')\n"
         "endfunction"));
-    T_EQ(shop->stock.unit_count, 0);
+    T_EQ(E_stock_get(shop)->unit_count, 0);
 }
 
 TEST(wc3_api, weather_effect_native_preserves_bounds_id_and_enable_state) {

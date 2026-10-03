@@ -6,7 +6,7 @@
 static uint32_t exhume_count(edict_t *wagon, uint32_t unit_id) {
 	uint32_t n = 0;
 	if (!wagon || !unit_id || !S_CargoIsCorpseHolder(wagon)) return 0;
-	FOR_LOOP(i, wagon->cargo.count) {
+	FOR_LOOP(i, E_cargo_get(wagon)->count) {
 		edict_t *corpse = S_CargoUnitAt(wagon, i);
 		if (corpse && S_CorpseCargoIsStored(corpse) && corpse->class_id == unit_id) n++;
 	}
