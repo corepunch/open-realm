@@ -538,3 +538,13 @@ match to4867 commits before15 seconds and7917 saved suffix commits. Two complete
 new read-only captures pin all34 membership counter changes and the12-second
 c8 departure. Logical roster survival after physical completion and the second
 shared generation at16 seconds remain GROUP-03.4.6.2.3.2.
+
+
+Payoff65 completes [logical-roster reentry](retail-pathfinding-engine.md#logical-captain-roster-survives-physical-completion)
+for the stationary alive mixed13 home journey:5462 complete movement commits,
+353 shared footprints and11132 Save87 suffix commits. Logical membership survives
+physical completion and the exact16-second all-entered deadline creates the second
+12+1 shared generation. Common task activation also resets stale partial-route
+state. Both frozen complete captures and nine native range-deadline masks support
+the port; dynamic roster mutation, moving captains and mixed cancellation remain
+separate tasks.

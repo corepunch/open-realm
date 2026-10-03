@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 85, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 87, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -963,3 +963,16 @@ malformed saves are rejected. Reissue transfers the final physical reference
 without freeing a logically retired virtual actor between old-task stop and new
 private-target admission. Full logical roster retention after physical completion
 remains [the next movement task](retail-pathfinding-engine.md#captain-range-departure-into-a-private-approach).
+
+
+Version87 adds each Move member's logical captain actor reference and registered
+outer-circle membership. These survive physical task completion independently
+of the private target reference, preserving inner/outer counts and the exact
+second all-entered publication at16 seconds. All eight mixed13 checkpoints,
+including15995/16000/16020/17000ms, reproduce11132 continuation commits across
+the complete5462-commit journey. Completed logical members remain validated for
+finite deadlines/home coordinates, unique indices and a live owned actor; malformed
+logical references and booleans are rejected. Version86 payloads are rejected
+before restoring the world. The bot script VM remains process-owned; this format
+restores Move's membership and physical continuation.
+See [logical-roster reentry](retail-pathfinding-engine.md#logical-captain-roster-survives-physical-completion).

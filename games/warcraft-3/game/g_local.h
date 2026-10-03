@@ -1786,8 +1786,10 @@ struct edict_s {
         bool clock_valid;
         struct {
             edict_t *actor; /* Retained virtual target, including the private point task after handoff. */
+            edict_t *roster_actor; /* Logical membership survives completion of the physical Move task. */
             bool active; /* Private captain approach; the retained timer also watches a shared point leg. */
             bool entered; /* Native c4 membership gates the shared point batch. */
+            bool outer; /* Registered outer-circle membership; departure publishes d01cd once. */
             uint32_t member_index; /* Retained recruitment order, independent of edict allocation order. */
             vec2_t home;
             wc3Clock_t due; /* Creation-phase range deadline persists across the shared leg and private reissue. */

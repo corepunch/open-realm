@@ -1086,3 +1086,21 @@ contracts with137 matching source fingerprints. Saved Ghidra readback confirms
 changes. Full debug/release RoC/TFT suites pass2406 tests and1613585 assertions per edition.
 The required release repository suite,373 pathfinding Python checks and40 fresh
 corpus contracts pass with137 matching source fingerprints.
+
+
+## Complete mixed13 logical-roster reentry contract
+
+`live-captain-reentry-captures-261003` authenticates both complete frozen readonly
+membership captures through `retail-captain-reentry-1.27.json`. The new contract
+hashes the prior departure/shared references, retains their historical prefix
+scope, and checks the complete stationary alive scene:5462 physical motion rows,
+353 live/cached shared footprints, two distinct shared generations and nine exact
+logical membership deadlines. Its literal engine header includes both generations
+and all inner/outer masks. Eight corruption controls prevent truncated prefixes,
+wrong deadlines/members/counts, source substitution or a claim of whole-pathfinder
+completion. Inventory is284 entries/126 fixtures/67 strict live entries;381 Python
+checks pass. Fresh `runtime/captain-reentry-strict-261003/corpus-results.json`
+passes41/41 contracts with138 matching source fingerprints. Full debug/release
+RoC/TFT pass2407 tests/1798757 assertions per edition; the required release
+repository suite passes. Saved Ghidra readback retains605 roles,51 layouts/320
+fields,271 explicit ABIs,53 globals and no unsaved changes.

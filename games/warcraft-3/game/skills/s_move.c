@@ -618,7 +618,7 @@ static void unit_commit_pose(edict_t *self, wc3GridPose_t const *pose) {
  * task references end. Recreation may retire an actor with live followers. */
 static void move_free_unowned_captain_actor(edict_t *actor) {
     if (!actor || !actor->inuse || actor->movement.captain_actor_owned) return;
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.actor==actor) return;
+    FILTER_EDICTS(ent,ent->inuse && (ent->movement.captain_home.actor==actor || ent->movement.captain_home.roster_actor==actor)) return;
     G_FreeEdict(actor);
 }
 
@@ -626,13 +626,18 @@ static void move_release_captain_reference(edict_t *self) {
     edict_t *actor=self->movement.captain_home.actor;
     self->movement.captain_home.actor=NULL;
     self->movement.captain_home.active=false;
-    self->movement.captain_home.entered=false;
+    if (!self->movement.captain_home.roster_actor) self->movement.captain_home.entered=false;
     move_free_unowned_captain_actor(actor);
 }
 
 void S_ReleaseCaptainHomeActor(edict_t *actor) {
     if (!actor) return;
     actor->movement.captain_actor_owned=false;
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor) {
+        ent->movement.captain_home.roster_actor=NULL;
+        ent->movement.captain_home.outer=false;
+        if (!ent->movement.captain_home.active) ent->movement.captain_home.entered=false;
+    }
     move_free_unowned_captain_actor(actor);
 }
 
@@ -674,10 +679,17 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
     FILTER_EDICTS(ent,ent->inuse) {
         if (ent->movement.captain_actor_owned && !ent->movement.captain_actor_type) return false;
         edict_t *actor=ent->movement.captain_home.actor;
+        edict_t *roster=ent->movement.captain_home.roster_actor;
         if (*(uint8_t *)&ent->movement.captain_home.active>1 ||
             *(uint8_t *)&ent->movement.captain_home.entered>1 ||
-            (ent->movement.captain_home.entered && !ent->movement.captain_home.active)) return false;
+            *(uint8_t *)&ent->movement.captain_home.outer>1 ||
+            (ent->movement.captain_home.entered && !ent->movement.captain_home.active && !roster) ||
+            (ent->movement.captain_home.outer && !roster)) return false;
+        if (roster && (!roster->inuse || !roster->movement.captain_actor_owned ||
+            !roster->movement.captain_actor_type || roster->movement.captain_actor_type>BOT_CAPTAIN_COUNT ||
+            (actor && actor!=roster))) return false;
         if (ent->movement.captain_home.active && !actor) return false;
+        if (!actor) actor=roster;
         if (actor && (!actor->movement.captain_actor_members ||
             actor->movement.captain_actor_members>13 ||
             ent->movement.captain_home.member_index>=actor->movement.captain_actor_members)) return false;
@@ -688,10 +700,11 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
              ent->movement.captain_home.due.span<=0 || !isfinite(ent->movement.captain_home.home.x) ||
              !isfinite(ent->movement.captain_home.home.y))) return false;
     }
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.actor)
+    FILTER_EDICTS(ent,ent->inuse && (ent->movement.captain_home.actor || ent->movement.captain_home.roster_actor))
         for (edict_t *peer=g_edicts;peer<ent;peer++)
-            if (peer->inuse && peer->movement.captain_home.actor &&
-                peer->movement.captain_home.actor==ent->movement.captain_home.actor &&
+            if (peer->inuse && (peer->movement.captain_home.actor || peer->movement.captain_home.roster_actor) &&
+                (peer->movement.captain_home.roster_actor ? peer->movement.captain_home.roster_actor : peer->movement.captain_home.actor)==
+                    (ent->movement.captain_home.roster_actor ? ent->movement.captain_home.roster_actor : ent->movement.captain_home.actor) &&
                 peer->movement.captain_home.member_index==ent->movement.captain_home.member_index) return false;
     if (rebind) FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT)
         level.bots[p].captains[c].home_actor=owners[p][c];
@@ -702,7 +715,8 @@ static bool move_group_point_order(groupPointOrder_t const *request,uint64_t sha
 
 /* Strict predicted membership retains creation phase and exact timer deadline. */
 static void move_captain_home_update(edict_t *self) {
-    if (!self->movement.captain_home.actor) return;
+    edict_t *actor=self->movement.captain_home.roster_actor ? self->movement.captain_home.roster_actor : self->movement.captain_home.actor;
+    if (!actor) return;
     wc3Clock_t *due=&self->movement.captain_home.due,next=level.pathing_clock;
     wc3_clock_advance(&next,wc3_float(0x3ba3d70a),0);
     bool ready=next.epoch==due->epoch ? next.time>=due->time : (int32_t)(next.epoch-due->epoch)>0;
@@ -712,7 +726,6 @@ static void move_captain_home_update(edict_t *self) {
     wc3Clock_t now=level.pathing_clock;
     level.pathing_clock=*due;
     wc3_clock_advance(due,1,0);
-    edict_t *actor=self->movement.captain_home.actor;
     wc3GridPose_t pose,target;
     unit_predicted_pose(self,&pose);unit_predicted_pose(actor,&target);
     /* The range listener follows the admitted actor, independently of the
@@ -720,12 +733,19 @@ static void move_captain_home_update(edict_t *self) {
     float delta[2];
     FOR_LOOP(k,2) delta[k]=wc3_sub(target.grid[k],pose.grid[k]);
     uint32_t members=actor->movement.captain_actor_members;
-    if (!self->movement.captain_home.active) {
+    bool logical=self->movement.captain_home.roster_actor!=NULL;
+    float radius=wc3_add(wc3_div(wc3_add(800,wc3_mul(25,members)),32),wc3_div(self->collision,32));
+    float distance=wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]));
+    bool entered=distance<wc3_mul(radius,radius),was_entered=self->movement.captain_home.entered;
+    if (logical) self->movement.captain_home.entered=entered;
+    if (logical || !self->movement.captain_home.active) {
         /* Native d01cd leaves the registered outer circle and replaces the
          * shared point leg with a private virtual-target approach. Retain the
          * creation-phase deadline through the shared leg, including on load. */
         float outer=wc3_add(wc3_div(wc3_add(1000,wc3_mul(25,members)),32),wc3_div(self->collision,32));
-        if (wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]))>=wc3_mul(outer,outer)) {
+        bool outside=distance>=wc3_mul(outer,outer),was_outer=self->movement.captain_home.outer;
+        if (logical) self->movement.captain_home.outer=!outside;
+        if (outside && (!logical || was_outer) && !self->movement.captain_home.active) {
             typeof(self->movement.captain_home) retained=self->movement.captain_home;
             /* Transfer the physical reference without briefly releasing the
              * final follower of an actor whose logical captain was retired. */
@@ -734,33 +754,39 @@ static void move_captain_home_update(edict_t *self) {
             S_RecoverStoppedUnitPosition(self);
             S_IssueMoveOrder(self,self->goalentity,G_OrderId("move"));
             self->movement.captain_home=retained;
+            self->movement.captain_home.actor=actor;
             self->movement.captain_home.active=true;
             self->movement.captain_home.entered=false;
             move_start_follow_group(self,actor,true);
         }
-        level.pathing_clock=now;
-        return;
+        if (!logical || !entered || was_entered) {
+            level.pathing_clock=now;
+            return;
+        }
     }
-    float radius=wc3_add(wc3_div(wc3_add(800,wc3_mul(25,members)),32),wc3_div(self->collision,32));
-    if (wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]))<wc3_mul(radius,radius))
+    if (!logical && entered)
         self->movement.captain_home.entered=true;
     /* Native9d9020 only publishes after bc <= cc+c4. Preserve roster order
      * through the two-pass shared point admission, including after load. */
     edict_t *roster[13]={0};
-    uint32_t entered=0;
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.active &&
-        ent->movement.captain_home.actor==actor && ent->movement.captain_home.entered) {
+    uint32_t entered_count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.entered &&
+        (logical ? ent->movement.captain_home.roster_actor==actor :
+            ent->movement.captain_home.active && ent->movement.captain_home.actor==actor)) {
         uint32_t index=ent->movement.captain_home.member_index;
         if (index>=members || index>=sizeof(roster)/sizeof(*roster) || roster[index])
             gi.error("Move: invalid captain member index %u/%u",index,members);
-        roster[index]=ent;entered++;
+        roster[index]=ent;entered_count++;
     }
-    if (entered==members) {
+    if (entered_count==members) {
+        typeof(self->movement.captain_home) retained[13];
         FOR_LOOP(i,members) {
             edict_t *ent=roster[i];
+            retained[i]=ent->movement.captain_home;
             ent->movement.captain_home.active=false;
             /* Transfer physical references across order replacement. */
             ent->movement.captain_home.actor=NULL;
+            ent->movement.captain_home.roster_actor=NULL;
         }
         uint64_t shared_id=members>1 ? move_alloc_shared() : 0;
         if (members==1) S_IssueMoveOrder(self,self->goalentity,self->current_order_id);
@@ -775,7 +801,12 @@ static void move_captain_home_update(edict_t *self) {
             if (!move_group_point_order(&request,shared_id))
                 fprintf(stderr,"WC3 Move: captain shared home point batch rejected at %u/%u members\n",first,members);
         }
-        FOR_LOOP(i,members) roster[i]->movement.captain_home.actor=actor;
+        FOR_LOOP(i,members) {
+            roster[i]->movement.captain_home=retained[i];
+            roster[i]->movement.captain_home.actor=actor;
+            roster[i]->movement.captain_home.active=false;
+            if (!logical) roster[i]->movement.captain_home.entered=false;
+        }
     }
     level.pathing_clock=now;
 }
@@ -783,7 +814,7 @@ static void move_captain_home_update(edict_t *self) {
 /* Dispatch after a due path owner, before ordinary timer/event actions. Pose
  * sampling is observational and must not replace tasks ahead of that owner. */
 void S_RunMoveTimers(void) {
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.actor) move_captain_home_update(ent);
+    FILTER_EDICTS(ent,ent->inuse && (ent->movement.captain_home.actor || ent->movement.captain_home.roster_actor)) move_captain_home_update(ent);
 }
 
 /* Queries predict from the retained fine pose without committing its time origin. */
@@ -2057,6 +2088,11 @@ void move_reset_progress(edict_t *self) {
     /* Original166060 activates a replacement path with fresh7c/80 admission
      * timestamps. A previous follower's throttle must not delay its group leg. */
     self->movement.fine_request_time=0;
+    /* Native task activation owns a fresh local path. In particular, the old
+     * partial88.10000000 flag must not deny classification of the new group. */
+    self->movement.fine_route.count=self->movement.fine_route.adaptive_count=0;
+    self->movement.fine_route.index=self->movement.fine_route.adaptive_index=UINT32_MAX;
+    self->movement.fine_route.partial=false;
     /* Replacement/internal approaches own a new group plan. Reusing the last
      * point Move's destination can strand an ability at its previous endpoint. */
     self->movement.fine_route.group_count=0;
@@ -2833,12 +2869,14 @@ bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
         return true;
     }
     self->movement.captain_home.actor=captain->home_actor;
+    self->movement.captain_home.roster_actor=captain->home_actor;
     FOR_LOOP(i,members) {
         edict_t *member=captain->units[i];
-        if (member==self || member->movement.captain_home.actor==captain->home_actor)
+        if (member==self || member->movement.captain_home.roster_actor==captain->home_actor)
             member->movement.captain_home.member_index=i;
     }
     self->movement.captain_home.entered=false;
+    self->movement.captain_home.outer=false;
     self->movement.captain_home.home=captain->home;
     self->movement.captain_home.due=captain->created;
     do wc3_clock_advance(&self->movement.captain_home.due,1,0);
@@ -3511,6 +3549,8 @@ BZ_ABILITY_PROC(CAbilityMove) {
         ent->movement.fine_class=ent->s.player;
         move_repulse_init(ent); return true;
     case A_UNIT_REMOVE:
+        ent->movement.captain_home.roster_actor=NULL;
+        ent->movement.captain_home.outer=false;
         move_release_captain_reference(ent);
         move_unlink_fine_request(ent);
         move_detach_group(ent);

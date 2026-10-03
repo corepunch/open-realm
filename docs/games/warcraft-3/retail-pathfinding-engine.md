@@ -6101,3 +6101,60 @@ at16 seconds: its physical reference lifetime currently loses completed roster
 members. That task must retain logical c4/c8 membership separately and reproduce
 the full5462 commits and353 shared footprint observations. Dynamic roster
 mutation and mixed cancellation remain their own explicit controls.
+
+
+## Logical captain roster survives physical completion
+
+Payoff65 completes GROUP-03.4.6.2.3.2 for the stationary, alive mixed thirteen-recruit
+home scene: **all5462 retail movement commits,353 shared footprint observations
+and11132 saved continuation commits agree**. The engine reproduces both12+1
+shared generations, largest-recruit departure/reentry, and natural physical
+cleanup through31000ms. This closes the scene's complete journey; moving captains,
+dynamic roster changes and wider AI policy remain explicit tasks.
+
+A physical Move completion releases its task reference but does not remove the
+unit from the captain's logical roster. Move now retains that separate logical
+actor reference, inner membership, outer membership, roster index and exact
+creation-phase deadline. Completed members continue participating in range
+notifications. Birth12 reenters the outer circle at15 seconds and inner circle at
+native clock`417fffff` at16 seconds. The inner count becomes13, so the all-entered
+request includes the twelve completed members and publishes a fresh shared owner.
+Both groups initially use63/32; live maximum falls to31/32 at owner1561 while
+cached footprint stays63/32. A retired logical actor is freed only after both
+logical and physical references end.
+
+The first full engine attempt stopped matching at the second publication.
+Retaining logical membership moved the first failure to commit4908: birth8 turned
+by+0.6 instead of-0.6. Its previous partial-route flag survived new task admission,
+blocked projected classification and left no fresh fine route. Original166060
+activation writes flags88=`00200000` and indices74/78=-1. Move's common progress
+reset now clears partial state, counts and indices as well as the request timestamp.
+That restores the complete original journey without changing the scalar kernel
+or substituting a route from a capture.
+
+The literal regression checks nine complete native range deadlines, including
+exact inner/outer birth masks and counts after physical members finish. Eight
+Save87 checkpoints at995/9030/11995/12030/15995/16000/16020/17000ms reproduce11132
+suffix commits. Save87 adds logical actor and outer-membership fields to the
+recursive schema and rejects version86 before world restore. Negative controls
+reject invalid raw booleans, foreign or retired logical actors, missing ownership,
+duplicate roster indices and nonfinite deadlines. Runtime bot VM state is not
+serialized; Move's saved roster references independently reproduce movement.
+
+The strict `retail-captain-reentry-1.27.json` contract authenticates both previously
+frozen complete membership captures, all original movement/producer/range words,
+both shared generations and every logical deadline. It hashes the departure and
+shared fixtures and requires the generated footprint/membership header to match
+literally. Historical prefix contracts keep their original limited scope.
+Saved Ghidra readback has605 roles,51 layouts/320 fields,271 explicit ABIs and53
+globals. The retained request values at captain+d4/dc and nullable-target request
+refresh9d4600 are now typed; activation and membership consumers retain payoff65
+annotations. Generic proximity traversal order and moving-target policy remain
+outside this bounded witness.
+
+Full debug/release RoC and TFT each pass2407 tests/1798757 assertions; the
+required release repository suite and381 Python checks pass. Fresh
+`runtime/captain-reentry-strict-261003/corpus-results.json` passes41/41 contracts
+with138 matching source fingerprints. Inventory is284 entries/126 fixtures/67
+strict live entries. GROUP-03.4.6.2.3.2 closes with141 completed/188 open leaves;
+the next runnable task is mixed13 cancellation03.4.6.2.2.2.

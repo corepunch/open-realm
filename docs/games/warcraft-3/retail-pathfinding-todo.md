@@ -8,28 +8,28 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**140 done / 329 tasks; 189 remaining.** Payoff64 ports the observed captain
-range-departure reissue (GROUP-03.4.6.2.3.1). Move retains the creation-phase
-range deadline across the shared point leg, integrates/stops/recovers the old
-pose and creates a newest private virtual-target owner with the authored attack
-approach range. The engine matches4867 movement commits before15000ms and7917
-saved suffix commits from eight checkpoints, including11995/12000/12030ms.
-Two full native repeats preserve304 markers,1000 owner updates,5465 velocity
-commits and the unchanged5462-row physical reference. All34 range-counter
-changes and15 member-order calls repeat; the12-second callback decrementsc8
-13-to-12 while c4 stays12. Save86 retains the existing actor/deadline; validation
-now rejects malformed inactive shared-follower state. The last reference to a
-retired actor survives the stop/reissue transfer. Saved Ghidra readback retains
-604 roles,51 layouts/318 fields,270 explicit ABIs and53 globals.
-Full debug/release RoC/TFT suites pass2406 tests and1613585 assertions per edition.
-The required release repository suite,373 pathfinding Python checks and40 fresh
-corpus contracts pass with137 matching source fingerprints.
-Inventory is283 entries/125 fixtures/66 strict live entries.
-The next runnable ID is GROUP-03.4.6.2.3.2: retain logical roster membership
-and inner/outer counters after physical completion, then port the16-second
-all-entered callback, second shared generation and complete5462-commit journey.
-Mixed13 cancellation and reference reclamation remain03.4.6.2.2.2. General
-attack eligibility, ranged-roster policy, Hero/default/summoned producers remain
+**141 done / 329 tasks; 188 remaining.** Payoff65 completes the stationary,
+alive mixed13 captain journey (GROUP-03.4.6.2.3.2): all5462 native movement
+commits,353 shared footprint observations and11132 saved continuation commits
+match. Move retains logical roster references and inner/outer membership after
+physical completion, publishes the second12+1 shared generation at the exact
+16-second deadline, and clears stale partial-route state on new task activation.
+Nine literal native deadline masks/counts match; eight Save87 checkpoints span
+both publications and natural physical cleanup. Invalid logical pointers,
+booleans, duplicate indices and nonfinite deadlines are rejected. Save86 is
+rejected before world restore; the bot VM remains process-owned.
+Both frozen complete readonly captures are authenticated by the new reentry
+contract. Saved Ghidra readback retains605 roles,51 layouts/320 fields,271
+explicit ABIs and53 globals. Full debug RoC/TFT suites pass2407 tests and1798757
+assertions per edition. Full release RoC/TFT and the required repository suite
+pass;381 Python checks and41 fresh corpus contracts pass with138 matching source
+fingerprints.
+Inventory is284 entries/126 fixtures/67 strict live entries.
+The next runnable ID is GROUP-03.4.6.2.2.2: mixed13 largest-recruit cancellation,
+shared-reference reclamation, generation reuse and saved continuation. Native
+captures exist; retry+a4 is a target-record pointer, not an identity pair, and
+its canonicalization must be backed by original consumer code. General attack
+eligibility, ranged-roster policy, Hero/default/summoned producers remain
 03.4.6.2.1.2. Live membership changes, moving captains, town homes and dynamic
 coarse publication remain separate requirements.
 Counts describe this backlog, not a percentage of retail fidelity or an
@@ -53,7 +53,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 28 | 12 |
+| GROUP — Shared movement groups | 30 | 10 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -754,7 +754,7 @@ and the wider mixed cancellation/reclamation control:
 Mixed recovery and reentry (GROUP-03.4.6.2.3) require two separate producers:
 
 - [x] **GROUP-03.4.6.2.3.1** Port the observed captain range-departure callback into a fresh private approach at12.03s: retain actor identity, attack-derived approach range, exact deadline, old-velocity stop/recovery and new physical creation order. [Payoff64](retail-pathfinding-engine.md#captain-range-departure-into-a-private-approach):4867 exact movement commits before15000ms and7917 saved suffix commits. Two complete new captures authenticate34 native inner/outer counter changes and the12-second c8 departure. Save86 validates inactive shared followers and preserves a retired actor through reference transfer. Full logical counters after physical completion and the second shared gate are03.4.6.2.3.2. The broader deferred-member-removal experiment remains excluded after control regressions.
-- [ ] **GROUP-03.4.6.2.3.2** Retain logical roster membership and exact inner/outer c4/c8 counters independently of completed physical tasks, then compose the later all-entered callback and second shared owner generation through the complete5462-commit mixed13 journey, largest reentry/departure, natural cleanup and saved continuations. Native second publication at owner1558 initially restores63/32, then live maximum falls31/32 at1561; retaining one owner for the captain actor would alias recycled generations.
+- [x] **GROUP-03.4.6.2.3.2** Retain logical roster membership and exact inner/outer c4/c8 state independently of completed physical tasks, then compose the later all-entered callback and second shared owner generation through the complete stationary alive5462-commit mixed13 journey. Nine exact native deadline masks/counts,353 footprints and11132 continuation commits across eight Save87 checkpoints agree. New task activation clears stale partial-route flags/counts/indices. Second publication at owner1558 restores63/32; live maximum falls31/32 at1561 while cached footprint stays63/32. Saved Ghidra request fields/function and activation/membership annotations retain the evidence. Dynamic roster/moving captain and mixed cancellation remain separate leaves. Evidence: [payoff65](retail-pathfinding-engine.md#logical-captain-roster-survives-physical-completion).
 
 
 ### GROUP-04 — Membership mutation

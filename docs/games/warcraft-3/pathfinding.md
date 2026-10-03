@@ -646,3 +646,14 @@ commits before15 seconds and7917 saved continuation commits. Move owns the
 retained deadline, stopped-pose recovery and new physical admission. See
 [captain range departure](retail-pathfinding-engine.md#captain-range-departure-into-a-private-approach)
 for original captures and the remaining logical-roster/second-generation gap.
+
+
+The stationary alive mixed thirteen-recruit captain journey now matches all5462
+retail movement commits,353 shared footprint observations and11132 saved suffix
+commits. Move retains logical roster membership after a physical task finishes,
+so the16-second all-entered callback creates the second12+1 shared generation.
+New task activation clears retained partial routes and invalidates their indices.
+Save87 persists logical actor/outer membership and validates completed members.
+See [logical-roster reentry](retail-pathfinding-engine.md#logical-captain-roster-survives-physical-completion)
+for exact references and scope. Mixed cancellation, roster mutation and moving
+captains remain independent follow-up work.
