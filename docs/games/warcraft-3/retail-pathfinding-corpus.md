@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **303 entries**: **45** distinct original-code oracle
-scripts plus **57** declared variants, **121** archived JSONL audits and **79**
+The inventory now has **304 entries**: **45** distinct original-code oracle
+scripts plus **57** declared variants, **121** archived JSONL audits and **81**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1482,8 +1482,8 @@ all movement and4877 suffix commits from eleven saves. See [engine lifecycle](re
 Strict O0/O2 reports are `runtime/lifecycle84-o0-final-verification.json` /
 `runtime/lifecycle84-o2-final-verification.json`. Fresh
 `runtime/lifecycle84-strict-first/corpus-results.json` passes numeric-engine,
-terrain publication and movement lifecycle (3/3). This addition gives303 entries,
-45 original oracle scripts/102 oracle contracts,121 archives,80 strict live
+terrain publication and movement lifecycle (3/3). This addition gives304 entries,
+45 original oracle scripts/102 oracle contracts,121 archives,81 strict live
 contracts and146 pinned fixtures. The terrain entry's unused ancillary `captures`
 list now names its own two actual captures; its primary/second inputs and strict
 verifier were already correctly pinned.
@@ -1499,3 +1499,33 @@ python3 tools/ghidra/run_wc3_pathfinding_corpus.py \
 
 The output directory must not exist. All actual capture/source/map/binary hashes,
 observer completion/counts and original formatter controls are required.
+
+
+## Region callback lifecycle
+
+The manifest now has304 entries:102 original executable oracle contracts
+(57 argument variants),121 archive audits and81 strict live contracts;147
+repository fixtures are pinned. The new `live-region-callbacks-captures-261003`
+contract checks both complete native30-second scene85 lifetimes,18 executed
+original world-rectangle controls and a literal engine motion/state header.
+The pair agrees on629 commits,628 decisions,1000 owner callbacks,318 public
+markers,18 event states and17 complete watched-cell chains per run. Public
+world/support queries and event primary clocks are frozen separately from the
+committed pose clock. No post-removal commit is accepted.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary '/run/media/lofcz/ssd_external/Games/w3/game.dll' \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --output /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/region85-recheck \
+  --only live-region-callbacks-captures-261003 \
+  --only live-movement-lifecycle-captures-261003 --only numeric-engine-exact
+```
+
+Use a new output directory. All three fresh contracts pass; separate O0/O2
+reports match. The engine regression retains the independent Move-owned region
+baseline in Save94 and checks3418 saved suffix commits across normal and10/25/
+50ms server frames. Original region allocation/lazy stamps, region geometry
+mutation, reentrant filters and bridge/water/UI-limit presentation remain
+explicitly excluded. See [engine contract](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).

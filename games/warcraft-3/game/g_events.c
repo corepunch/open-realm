@@ -265,9 +265,16 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
     }
 }
 
-static void G_TouchTriggers(edict_t *ent) {
+/* Region transitions are sampled by the physical owner before its decisions.
+ * Actions remain queued until the ordinary post-owner timer/event pass, after
+ * committed occupancy and support height are visible. Presentation sampling
+ * must not move this baseline forward between owners. */
+void G_UnitRegionPositionChanged(edict_t *ent, vec2_t const *point) {
+    if(!ent || !ent->inuse || !(ent->svflags&SVF_MONSTER) || G_IsDeferredFree(ent))return;
+    uint32_t const spawn=ent->spawn_time;
+    vec2_t const old_position=ent->movement.region_valid ? ent->movement.region_position : ent->old_origin;
     FOR_EACH_EVENT(evt) {
-        switch (evt->type) {
+        switch(evt->type) {
             case EVENT_GAME_ENTER_REGION: {
                 handle_t event_handle, region_handle;
                 region_t *region;
@@ -277,8 +284,8 @@ static void G_TouchTriggers(edict_t *ent) {
                 region_handle = evt->region;
                 region = G_RegionFromHandle(evt->region);
                 spawn_time = ent->spawn_time;
-                if (region && G_RegionContains(region, &ent->s.origin2) &&
-                    !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
+                if (region && G_RegionContains(region, point) &&
+                    !G_RegionContains(region, &old_position) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
                     ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
                     G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
@@ -291,8 +298,8 @@ static void G_TouchTriggers(edict_t *ent) {
                 region_t *region = G_RegionFromHandle(evt->region);
                 uint32_t spawn_time = ent->spawn_time;
                 if (!(ent->svflags & SVF_MONSTER)) break; /* Region leave events carry units, not items, destructables, or map entities. */
-                if (region && !G_RegionContains(region, &ent->s.origin2) &&
-                    G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
+                if (region && !G_RegionContains(region, point) &&
+                    G_RegionContains(region, &old_position) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
                     ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
                     G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
@@ -300,6 +307,17 @@ static void G_TouchTriggers(edict_t *ent) {
                 }
                 break;
             }
+            default: break;
+        }
+        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent))return;
+    }
+    ent->movement.region_position=*point;
+    ent->movement.region_valid=true;
+}
+
+static void G_TouchTriggers(edict_t *ent) {
+    FOR_EACH_EVENT(evt) {
+        switch (evt->type) {
             case EVENT_UNIT_IN_RANGE:
                 if (!G_EventSubjectIsCurrent(evt)) break;
                 if (ent == evt->subject) {
@@ -341,8 +359,9 @@ void G_UnitPositionChanged(edict_t *ent, vec2_t const *old_position) {
     if (!ent || !ent->inuse || !old_position ||
         !memcmp(old_position, &ent->s.origin2, sizeof(*old_position))) return;
     ent->old_origin = *old_position;
+    G_UnitRegionPositionChanged(ent,&ent->s.origin2);
     G_TouchTriggers(ent);
-    ent->old_origin = ent->s.origin2;
+    if(ent->inuse && !G_IsDeferredFree(ent))ent->old_origin = ent->s.origin2;
 }
 
 void G_BeginEntityFrame(void) {
@@ -385,6 +404,8 @@ void G_RunEntities(void) {
         if (!G_UnitIsWorldActive(ent)) continue;
         if (!memcmp(&ent->old_origin, &ent->s.origin2, sizeof(vec2_t)))
             continue;
+        if(!(level.scheduled_frame && ent->movement.clock_valid && ent->movement.pose_valid))
+            G_UnitRegionPositionChanged(ent,&ent->s.origin2);
         G_TouchTriggers(ent);
     }
 }
@@ -409,6 +430,23 @@ void G_RunEvents(void) {
         }
         G_ExecuteEvent(evt);
     }
+}
+
+/* Teleporting inside an enter action queues its leave action. Complete that
+ * callback chain before the next primary advance, even when one server frame
+ * contains several5ms quanta. Preserve queue order; do not resume sleepers a
+ * second time merely because a new spatial event was authored. */
+void G_DrainRegionEvents(void) {
+    FOR_LOOP(pass,MAX_EVENT_QUEUE) {
+        bool pending=false;
+        for(uint32_t i=level.events.read;i<level.events.write;i++) {
+            EVENTTYPE type=level.events.queue[i%MAX_EVENT_QUEUE].type;
+            if(type==EVENT_GAME_ENTER_REGION || type==EVENT_GAME_LEAVE_REGION){pending=true;break;}
+        }
+        if(!pending)return;
+        G_RunEvents();jass_runnewevents(level.vm);
+    }
+    gi.error("WC3: region callback chain exceeds event queue limit (%u)",MAX_EVENT_QUEUE);
 }
 
 /* Warcraft's stock CustomVictoryDialogBJ/CustomDefeatDialogBJ pauses a

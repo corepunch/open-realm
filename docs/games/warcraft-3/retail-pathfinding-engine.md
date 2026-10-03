@@ -7496,3 +7496,77 @@ selects `wc3_movement_lifecycle_probe.j`. Both full edition suites pass2503
 tests/5,007,391 assertions each;522 Python checks and the release production
 build pass. The external `lifecycle84-validation.json` pins the commit, logs
 and fresh strict/O0/O2 reports.
+
+
+## Region callbacks observe committed movement and retain forced changes
+
+Payoff85 uses the real `wc3_region_callbacks_probe.j`, an empty64×64 fine map
+and a file-shaped17×17 flat W3E. Two complete original30-second lifetimes repeat
+all629 movement commits,628 decisions,1000 owners,318 public markers,18 event
+states and17 complete watched-cell chains. The ordinary point Move enters at
+callback tick45 and leaves at54; the second entry at135 teleports, issues a new
+Move and then leaves; entry234 removes the unit. No later original commit
+belongs to the removed mover.
+
+Ghidra's16bc10 prepass samples each member's predicted fine position for16fa00
+region transitions before routing/decisions. Actions remain queued: the
+same-clock owner commits occupancy first, authored timer callbacks run, then
+enter/leave actions observe the published pose. The original05fcf0 registration
+and05fa10 public query share the world-to-fine transform and floor. Rectangle
+endpoints include their containing cells; they are not continuous world bounds.
+Eighteen executed original05fcf0 controls freeze negative/fractional endpoints,
+three world origins and both record selectors through the actual scalar/floor
+routines. Only the terminal record consumer is observed in those controls;
+original region allocation and lazy stamp lifetime are not emulated by them.
+
+The engine's old continuous rectangle and presentation-frame baseline reproduced
+86 movement/event-state failures, including a callback teleport before the
+corresponding original commit. Move now retains its independent region sample,
+publishes transitions from the physical owner and uses fine-cell region
+membership. Occupancy and support height are published before actions; explicit
+position writers retain the same region baseline and callback-produced new
+orders. Save94 serializes the region sample/valid bit. Predicted presentation
+poses do not consume region transitions between owner passes. The literal
+regression compares all public strings, raw committed words, public world/support
+queries, event primary clocks and watched-cell occupancy, then repeats saved
+continuations around enter, teleport and removal.
+
+The native map's flat support is level2/height8192, producing world Z0. The test
+constructs that actual W3E shape; the generic harness's level0 terrain has a
+separate negative height and is not this scene's geometry. Bridge/water support
+transitions with UI clamps remain MOVE-03.3. Region geometry mutation, original
+allocation/stamps, reentrant filters and other movement lanes retain their
+existing backlog scopes. There is no scene-dependent engine branch.
+
+Ghidra saves638 function roles,67 partial layouts/440 fields,306 explicit ABIs
+and60 globals. Region bridge/list prefixes, native scalar pointers, registration,
+query, cell producer and active-region collector are annotated so future work
+can extend the same system.
+
+The complete comparison also finds an idle axis-writer clock gap: after natural
+arrival, SetUnitX/Y still commits the original current clock even with zero
+velocity. The engine now updates that retained clock without fabricating motion.
+A second reproduced gap appears only with10/25/50ms server-frame batches:
+callback teleport's leave action was delayed by one primary quantum. The
+simulation now drains callback-produced region event chains before advancing,
+with queue order retained. Only newly started JASS actions run in that drain;
+unrelated already-yielded coroutines, including zero-duration sleeps, are not
+resumed again. The same public native journey matches every primary callback
+clock across all four frame sizes. Its eight Save94 checkpoints are4495/4540/
+13500/13540/13570/23395/23400/23430ms, with3418 saved suffix commits including
+three batched-frame continuations. Existing region tests now use independent
+fine cells rather than their old continuous-rectangle assumptions.
+
+The focused production regression is:
+
+```sh
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test wc3_movement.region_callbacks_match_original_teleport_remove_and_saved_continuations \
+  +com_frame_limit 100
+```
+
+Add `-tft` for the second edition. The complete required release suites pass
+2505 tests/5,054,904 assertions per edition and530 Python checks. Fresh region,
+movement-lifecycle and numerical corpus contracts pass3/3; the independent
+O0/O2 comparisons pass. See [corpus reproduction](retail-pathfinding-corpus.md#region-callback-lifecycle).
+The external `region85-validation.json` pins the commit and verification logs.

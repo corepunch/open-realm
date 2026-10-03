@@ -102,6 +102,7 @@ bool jass_callcoroutinebyname(jass_t *j, cstring_t name);
 bool jass_resume(jass_t *j, jasscoroutine_t *co);
 bool jass_coroutinedone(jasscoroutine_t const *co);
 void jass_runevents(jass_t *j);
+void jass_runnewevents(jass_t *j);
 void jass_sleep(jass_t *j, uint32_t msec);
 cstring_t jass_functionname(jassFunc_t const *func);
 cstring_t jass_currentfunctionname(jass_t *j);

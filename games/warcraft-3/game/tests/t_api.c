@@ -975,7 +975,7 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
         "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
         "  call TriggerRegisterEnterRegion(acceptedEvent, watchedRegion, Condition(function accept_enter_filter))\n"
         "  call TriggerRegisterEnterRegion(rejectedEvent, watchedRegion, Condition(function reject_enter_filter))\n"
-        "  call RegionAddRect(watchedRegion, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call RegionAddRect(watchedRegion, Rect(32.0, -16.0, 63.0, 16.0))\n"
         "  call TriggerAddAction(acceptedEvent, function on_enter)\n"
         "  call TriggerAddAction(rejectedEvent, function on_rejected_enter)\n"
         "endfunction\n"
@@ -1004,10 +1004,11 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     mover->health.value = 250.0f;
     mover->health.max_value = 250.0f;
     unit_stand(mover);
+    S_SetUnitMoveSpeed(mover,400); /* Cross the first32-unit region cell in this one-step test. */
     T_ASSERT(unit_issueorder(mover, "move", &destination));
 
     G_RunEntities();
-    T_ASSERT(mover->s.origin2.x > 24.0f);
+    T_ASSERT(mover->s.origin2.x >= 32.0f);
     T_ASSERT(mover->s.origin2.x < 64.0f);
     G_RunEvents();
     jass_runevents(level.vm);
@@ -1331,7 +1332,7 @@ TEST(wc3_api, set_unit_position_dispatches_region_crossings) {
         "  local trigger leaveTrigger = CreateTrigger()\n"
         "  local region r = CreateRegion()\n"
         "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
-        "  call RegionAddRect(r, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call RegionAddRect(r, Rect(32.0, -16.0, 63.0, 16.0))\n"
         "  call TriggerRegisterEnterRegion(enterTrigger, r, null)\n"
         "  call TriggerRegisterLeaveRegion(leaveTrigger, r, null)\n"
         "  call TriggerAddAction(enterTrigger, function on_enter)\n"
@@ -2103,13 +2104,13 @@ TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
     unit_stand(leaving);
     T_ASSERT(unit_issueorder(leaving, "move", &destination));
     FOR_LOOP(i, 10) {
-        if (leaving->s.origin2.x > 200.0f) break;
+        if (leaving->s.origin2.x >= 224.0f) break;
         level.time += FRAMETIME;
         G_RunEntities();
         G_RunEvents();
         jass_runevents(level.vm);
     }
-    T_ASSERT(leaving->s.origin2.x > 200.0f);
+    T_ASSERT(leaving->s.origin2.x >= 224.0f);
     jass_callbyname(level.vm, "verifyLeave", false);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));

@@ -1109,14 +1109,14 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
     return true;
 }
 
-void jass_runevents(jass_t *j) {
+static void jass_run_event_queue(jass_t *j, bool only_new) {
     jass_t *root = jass_root(j);
     jasscoroutine_t *prev = NULL;
     jasscoroutine_t *co = root->coroutines;
 
     while (co) {
         jasscoroutine_t *next;
-        jass_resume(root, co);
+        if(!only_new || !co->state->num_stack)jass_resume(root, co);
 
         next = co->next;
         if (co->done) {
@@ -1133,6 +1133,11 @@ void jass_runevents(jass_t *j) {
         co = next;
     }
 }
+
+/* A callback-produced event starts in this quantum without resuming an
+ * unrelated coroutine that has already yielded (including Sleep(0)). */
+void jass_runnewevents(jass_t *j) { jass_run_event_queue(j,true); }
+void jass_runevents(jass_t *j) { jass_run_event_queue(j,false); }
 
 /* =========================================================================
  * Trigger evaluation / execution

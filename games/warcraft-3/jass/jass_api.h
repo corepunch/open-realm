@@ -64,6 +64,7 @@ bool   jass_dobuffer_ex(jass_t *j, string_t buffer, JASSMODE mode);
 bool   jass_hasfunction(jass_t *j, cstring_t name);
 void   jass_callbyname(jass_t *j, cstring_t name, bool spawn_coroutine);
 void   jass_runevents(jass_t *j);
+void jass_runnewevents(jass_t *j);
 bool   jass_writesnapshot(jass_t *j, jassSnapshot_t *snapshot);
 bool   jass_readsnapshot(jass_t *j, jassSnapshot_t *snapshot);
 uint32_t  jass_programidentity(jass_t *j);

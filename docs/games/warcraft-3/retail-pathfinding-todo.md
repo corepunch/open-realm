@@ -8,22 +8,24 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**169 done / 336 tasks; 167 remaining.** Payoff84 closes existing MOVE-02.1
-and MOVE-02.2 without new IDs/splits. Two complete original public journeys
-repeat763 motion commits,762 steering decisions,24 event-boundary states and
-23 complete cell chains. The engine reproduces timed speed/heading changes,
-stationary turns, Stop and exact cell-boundary restarts, plus4877 suffix commits
-from eleven Save93 states. Comparing every public marker exposed the default
-R2S formatter mismatch; the native now follows original software rounding and
-large-value reduction, verified with34 original raw-word controls. Required
-full suites pass2503 tests/5,007,391 assertions per edition and522 Python checks;
-three fresh strict corpus contracts and O0/O2 comparisons pass. Ghidra retains
-631 function roles,65 layouts/437 fields,298 ABIs and60 globals. See
-[movement lifecycle payoff](retail-pathfinding-engine.md#timed-speed-changes-stationary-turns-and-boundary-restarts).
+**171 done / 336 tasks; 165 remaining.** Payoff85 closes existing MOVE-03.1
+and MOVE-03.2 without new IDs/splits. Two complete original public region
+journeys repeat629 motion commits,628 decisions,18 event states and17 complete
+cell chains. The engine publishes fine-cell region transitions from the movement
+owner, commits occupancy/support before actions and retains callback teleport,
+new orders and removal without stale commits. Save94 preserves the independent
+region sample;3418 saved suffix commits also match10/25/50ms frame batches and
+every callback's primary clock. Eighteen executed original rectangle controls
+cover endpoint cells and fractional/negative origins. Required suites pass2505
+tests/5,054,904 assertions per edition and530 Python checks; three fresh strict
+corpus contracts and O0/O2 comparisons pass. Ghidra retains638 function roles,
+67 layouts/440 fields,306 ABIs and60 globals. See
+[region callback payoff](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).
 
-Next runnable chunk is MOVE-03.1 and MOVE-03.2: actual region enter/leave
-publication during movement, then teleport/remove inside a callback, with
-exact public state, committed occupancy and engine continuation checks.
+Next runnable chunk is MOVE-04.1 and MOVE-04.2: pathing toggles during an actual
+wall route, pause/resume and forced displacement, preserving public ownership,
+exact motion and occupancy. Two complete original captures already repeat the
+trajectory; the engine port follows the recovered lifetime, not scene cases.
 No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
@@ -44,7 +46,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
 | SCHED — Scheduling and owner updates | 4 | 9 |
-| MOVE — Stepping and callbacks | 6 | 9 |
+| MOVE — Stepping and callbacks | 8 | 7 |
 | ORDER — Orders and reclamation | 12 | 24 |
 | GROUP — Shared movement groups | 35 | 12 |
 | FORM — Formation and regrouping | 4 | 9 |
@@ -628,8 +630,8 @@ publication state; it does not close the original bonus writer or other effects.
 
 ### MOVE-03 — Spatial and presentation callbacks
 
-- [ ] **MOVE-03.1** Cross a region boundary with nonzero elapsed time; assert enter/exit callback order relative to occupancy and support-height publication.
-- [ ] **MOVE-03.2** Teleport or remove the mover from a region callback; assert no stale post-callback position/occupancy commit.
+- [x] **MOVE-03.1** Cross a region boundary with nonzero elapsed time; assert enter/exit callback order relative to occupancy and support-height publication. Payoff85: complete repeated ground journeys,18 states/17 cell chains, original fine-cell registration controls and Move-owned publication; exact public world/support and primary callback clocks across5/10/25/50ms engine frames. [Evidence](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).
+- [x] **MOVE-03.2** Teleport or remove the mover from a region callback; assert no stale post-callback position/occupancy commit. Payoff85: teleport/new Move/queued leave and removal through actual native callbacks,629 literal commits and3418 Save94 suffix commits; no removed-owner commit, exact retained forced pose and same-clock event draining. [Evidence](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).
 - [ ] **MOVE-03.3** Travel over one bridge/water support transition with nonzero UI limits; assert support source, height and clamped presentation transform.
 
 ### MOVE-04 — Movement bypasses

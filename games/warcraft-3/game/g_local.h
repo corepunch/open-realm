@@ -1837,6 +1837,8 @@ struct edict_s {
         vec2_t pose_world; /* last published world pair; detects explicit external position writes */
         wc3Clock_t pose_clock; /* time origin of the retained fine pose */
         bool clock_valid;
+        vec2_t region_position; /* Last owner/explicit-writer region sample, independent of presentation prediction. */
+        bool region_valid;
         struct {
             edict_t *actor; /* Retained virtual target, including the private point task after handoff. */
             edict_t *roster_actor; /* Logical membership survives completion of the physical Move task. */
@@ -3422,6 +3424,7 @@ void G_SetEventSubject(event_t *, edict_t *);
 void G_SetPlayerEventSubject(event_t *, edict_t *);
 bool G_EventSubjectIsCurrent(event_t *);
 void G_UnitPositionChanged(edict_t *, vec2_t const *);
+void G_UnitRegionPositionChanged(edict_t *, vec2_t const *);
 void G_JassVariableChanged(cstring_t, float, float);
 bool G_LimitMatches(uint32_t, float, float);
 quest_t *G_MakeQuest(void);
@@ -3678,6 +3681,7 @@ void jass_runevents(jass_t *);
 void G_BeginEntityFrame(void);
 void G_RunEntities(void);
 void G_RunEvents(void);
+void G_DrainRegionEvents(void);
 void G_DrainPausedResultEvents(void);
 
 // g_items.c

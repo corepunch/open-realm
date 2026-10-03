@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "games/warcraft-3/common/wc3_pathing_coordinates.h"
 
 typedef struct {
     edict_t *ent;
@@ -555,11 +556,21 @@ trigger_t *G_AllocJassTrigger(void) {
     memset(trigger, 0, sizeof(*trigger)); return trigger;
 }
 
+/* Original05fcf0 registers every endpoint cell;05fa10 queries floor of the
+ * same world-to-fine transform. A region is a union of cells, not rectangles
+ * tested against the continuously predicted world position. */
 bool G_RegionContains(region_t const *region, vec2_t const *point) {
-    FOR_LOOP(i, region->num_rects) {
-        if (Box2_containsPoint(region->rects+i, point)) {
-            return true;
-        }
+    box2_t const bounds=CM_GetWorldBounds();
+    if(point->x<bounds.min.x || point->y<bounds.min.y || point->x>=bounds.max.x || point->y>=bounds.max.y)return false;
+    int32_t const x=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(point->x,bounds.min.x,32))));
+    int32_t const y=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(point->y,bounds.min.y,32))));
+    FOR_LOOP(i,region->num_rects) {
+        box2_t const *r=region->rects+i;
+        int32_t min_x=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(r->min.x,bounds.min.x,32))));
+        int32_t min_y=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(r->min.y,bounds.min.y,32))));
+        int32_t max_x=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(r->max.x,bounds.min.x,32))));
+        int32_t max_y=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(r->max.y,bounds.min.y,32))));
+        if(x>=min_x && x<=max_x && y>=min_y && y<=max_y)return true;
     }
     return false;
 }

@@ -3017,6 +3017,36 @@
           "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
         }
       ]
+    },
+    {
+      "name": "WC3JassRegionPrefix",
+      "length": 36,
+      "fields": [
+        {
+          "offset": 32,
+          "name": "spatial",
+          "type": "ptr:WC3SpatialPrefix",
+          "evidence": "05fcf0/05fa10/05fc30 bridge20 canonical region receiver"
+        }
+      ]
+    },
+    {
+      "name": "WC3RegionObjectsPrefix",
+      "length": 32,
+      "fields": [
+        {
+          "offset": 12,
+          "name": "objects",
+          "type": "ptr:ptr:WC3SpatialPrefix",
+          "evidence": "14cdf0/16fa00 pointer entries stride4"
+        },
+        {
+          "offset": 28,
+          "name": "count",
+          "type": "u32",
+          "evidence": "16fa00 saved old/current list ends"
+        }
+      ]
     }
   ],
   "methods": [
@@ -8695,6 +8725,185 @@
           "name": "precision",
           "type": "i32",
           "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f210690",
+      "name": "Jass_RegionAddRect",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "rectangle",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f205cc0",
+      "name": "Jass_IsPointInRegion",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f210630",
+      "name": "Jass_RegionAddCell",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f05fcf0",
+      "name": "Region_SetWorldRectangle",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "ptr:WC3JassRegionPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "rectangle",
+          "type": "ptr:WC3PathScalarRectangle",
+          "storage": 4
+        },
+        {
+          "name": "add",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f05fa10",
+      "name": "Region_ContainsWorldPoint",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "ptr:WC3JassRegionPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f05fc30",
+      "name": "Region_SetWorldCell",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "ptr:WC3JassRegionPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "add",
+          "type": "u32",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f14cdf0",
+      "name": "SpatialMap_CollectRegionObjects",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "map",
+          "type": "ptr:WC3PathMapHeader",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:i32",
+          "storage": 4
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3RegionObjectsPrefix",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f16fa00",
+      "name": "Mover_DispatchRegionTransitions",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "predicted",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
         }
       ]
     }

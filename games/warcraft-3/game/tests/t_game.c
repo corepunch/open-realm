@@ -2825,14 +2825,16 @@ TEST(wc3_game, region_contains_multirect_hits_second) {
     T_ASSERT(G_RegionContains(&r, &p));
 }
 
-TEST(wc3_game, region_contains_max_boundary_exclusive) {
-    /* Box2_containsPoint uses x < max.x (exclusive upper bound). */
+TEST(wc3_game, region_contains_entire_max_boundary_cell) {
+    /* Original05fcf0 includes the cell containing the authored maximum. */
     region_t r = {
         .rects[0] = { { 0.0f, 0.0f }, { 100.0f, 100.0f } },
         .num_rects = 1
     };
     vec2_t p = { 100.0f, 50.0f };   /* exactly at max.x */
-    T_ASSERT(!G_RegionContains(&r, &p));
+    T_ASSERT(G_RegionContains(&r, &p));
+    p.x=127.999f;T_ASSERT(G_RegionContains(&r,&p));
+    p.x=128;T_ASSERT(!G_RegionContains(&r,&p));
 }
 
 /* =========================================================================

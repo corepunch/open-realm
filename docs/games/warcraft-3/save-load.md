@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 93, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 94, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -1045,3 +1045,11 @@ Route revisions rebind to the loaded map lifetime rather than the legacy field
 epoch. Eight saved public terrain-edit/Move continuations retain4164 original
 commits and all observed regional classes. JSVM remains8; format92 and all older
 layouts are rejected. See [regional publication](retail-pathfinding-engine.md#fine-terrain-edits-retain-regional-hierarchy-publication).
+
+
+Pathfinding payoff85 adds the Move-owned region sample and validity bit in
+Save94. This baseline is independent of predicted presentation `old_origin`:
+a load immediately before region entry, callback teleport or callback removal
+must preserve the same next transition. The public original journey checks
+eight saved checkpoints and3418 subsequent motion commits, including10/25/50ms
+server-frame batches. See [region callback lifecycle](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).

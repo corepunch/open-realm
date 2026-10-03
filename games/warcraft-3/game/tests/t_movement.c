@@ -55,6 +55,7 @@
 #include "retail_expressions.h"
 #include "retail_terrain_cache.h"
 #include "retail_movement_lifecycle.h"
+#include "retail_region_callbacks.h"
 #include "retail_outside_goal.h"
 #include "retail_captain_home.h"
 #include "retail_captain_range_far.h"
@@ -12229,6 +12230,199 @@ TEST(wc3_movement, public_speed_turn_stop_and_boundary_restart_match_original_an
         if(pass)suffix+=steps-saved[pass-1];
     }
     fprintf(stderr,"Movement lifecycle native commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+/* Original05fcf0 controls independently freeze endpoint-cell inclusion and
+ * fractional/negative world transforms; public query uses this same union. */
+TEST(wc3_api, region_membership_matches_original_fine_rectangle_registration) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(i,sizeof(region85_geometry)/sizeof(*region85_geometry)) {
+        typeof(region85_geometry[0]) *c=region85_geometry+i;
+        vec2_t origin={wc3_float(c->origin[0]),wc3_float(c->origin[1])};
+        CM_SetupTestWorldBounds(&MAKE(box2_t,.min=origin,.max={origin.x+2048,origin.y+2048}));
+        CM_SetupTestPathmap(64,64,cells);
+        region_t region={.num_rects=1,.inuse=true};
+        region.rects[0]=(box2_t){{wc3_float(c->rectangle[0]),wc3_float(c->rectangle[1])},
+            {wc3_float(c->rectangle[2]),wc3_float(c->rectangle[3])}};
+        for(int32_t y=c->bounds[0]-1;y<=c->bounds[2];y++)for(int32_t x=c->bounds[1]-1;x<=c->bounds[3];x++) {
+            vec2_t point={wc3_add(origin.x,wc3_mul(x+0.5f,32)),wc3_add(origin.y,wc3_mul(y+0.5f,32))};
+            bool expected=x>=0 && y>=0 && x<64 && y<64 && x>=c->bounds[1] && x<c->bounds[3] && y>=c->bounds[0] && y<c->bounds[2];
+            T_EQ(G_RegionContains(&region,&point),expected);
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
+static unsigned region85_stage,region85_marker;
+
+static void region85_assert_state(cstring_t marker) {
+    if (strncmp(marker,"PATHTRACE ",10)) return;
+    unsigned index=region85_marker++;
+    T_ASSERT(index<sizeof(region85_markers)/sizeof(*region85_markers));
+    if(index<sizeof(region85_markers)/sizeof(*region85_markers))T_STREQ(marker,region85_markers[index]);
+    if (strstr(marker,"label=sample ")) return;
+    unsigned stage=region85_stage++;
+    T_ASSERT(stage<(sizeof(region85_states)/sizeof(*region85_states)));if(stage>=(sizeof(region85_states)/sizeof(*region85_states)))return;
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','V','8','0'))if(!unit)unit=ent;
+    typeof(region85_states[0]) *expected=region85_states+stage;
+    T_STREQ(marker,expected->marker);
+    uint32_t primary[]={wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,wc3_float_bits(level.pathing_clock.span)};
+    FOR_LOOP(k,3){if(primary[k]!=expected->primary[k])fprintf(stderr,"Region stage%u primary%u actual%08x expected%08x\n",stage,k,primary[k],expected->primary[k]);T_EQ(primary[k],expected->primary[k]);}
+    T_EQ(unit && !G_IsDeferredFree(unit),expected->alive);
+    if(!expected->alive) {
+        if(unit)T_EQ(wc3_spatial_rank(G_GetMoveSpatialObject(unit-g_edicts),(wc3FinePoint_t){21,22}),0);
+        return;
+    }
+    T_NOT_NULL(unit);if(!unit)return;
+    uint32_t world[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),wc3_float_bits(unit->s.origin.z)};
+    FOR_LOOP(k,3)T_EQ(world[k],expected->world[k]);
+    uint32_t state[]={wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,6) {
+        if(state[k]!=expected->state[k])fprintf(stderr,"Region callback stage%u word%u actual%08x expected%08x\n",stage,k,state[k],expected->state[k]);
+        T_EQ(state[k],expected->state[k]);
+    }
+    wc3SpatialActive_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    T_EQ(wc3_spatial_rank(links,(wc3FinePoint_t){21,22})!=0,expected->occupied);
+}
+
+TEST(wc3_movement, region_callbacks_match_original_teleport_remove_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    /* Match the captured file-shaped17x17 W3E: height8192, cliff baseline2. */
+    war3mapVertex_t vertices[17*17]={0};
+    FOR_LOOP(i,sizeof(vertices)/sizeof(*vertices)){vertices[i].accurate_height=0x2000;vertices[i].level=2;}
+    war3map_t terrain={.width=17,.height=17,.center={0,0},.vertices=vertices};world.map=&terrain;
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    region85_stage=region85_marker=0;test_preload_marker=region85_assert_state;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        " integer udg_PathProbeMode=0\n"
+        " region udg_PathProbeRegion=null\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathProbeEnter takes nothing returns nothing\n"
+        " if GetTriggerUnit()!=udg_PathProbeUnit then\n"
+        "  return\n"
+        " endif\n"
+        " call PathProbeRecord(\"region_enter_before\")\n"
+        " if udg_PathProbeMode==1 then\n"
+        "  call SetUnitPosition(udg_PathProbeUnit,1344.0,304.0)\n"
+        "  call PathProbeRecord(\"callback_teleport\")\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1568.0,1040.0)\n"
+        "  call PathProbeRecord(\"callback_new_move\")\n"
+        " elseif udg_PathProbeMode==2 then\n"
+        "  call RemoveUnit(udg_PathProbeUnit)\n"
+        "  set udg_PathProbeUnit=null\n"
+        "  call PathProbeRecord(\"callback_removed\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"region_enter_after\")\n"
+        "endfunction\n"
+        "function PathProbeLeave takes nothing returns nothing\n"
+        " if GetTriggerUnit()==udg_PathProbeUnit then\n"
+        "  call PathProbeRecord(\"region_leave\")\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==10 or udg_PathProbeTick==100 or udg_PathProbeTick==200 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1008.0,1040.0)\n"
+        "  call PathProbeRecord(\"point_move\")\n"
+        " elseif udg_PathProbeTick==85 or udg_PathProbeTick==185 then\n"
+        "  call IssueImmediateOrder(udg_PathProbeUnit,\"stop\")\n"
+        "  call SetUnitX(udg_PathProbeUnit,272.0)\n"
+        "  call SetUnitY(udg_PathProbeUnit,304.0)\n"
+        "  set udg_PathProbeMode=udg_PathProbeMode+1\n"
+        "  call PathProbeRecord(\"reset\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call Preload(\"PATHPOSE done=region_callbacks\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " local trigger enter=CreateTrigger()\n"
+        " local trigger leave=CreateTrigger()\n"
+        " call Preload(\"PATHPOSE case=region_callbacks\")\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,150.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " set udg_PathProbeRegion=CreateRegion()\n"
+        " call RegionAddRect(udg_PathProbeRegion,Rect(640.0,672.0,704.0,736.0))\n"
+        " call TriggerRegisterEnterRegion(enter,udg_PathProbeRegion,null)\n"
+        " call TriggerRegisterLeaveRegion(leave,udg_PathProbeRegion,null)\n"
+        " call TriggerAddAction(enter,function PathProbeEnter)\n"
+        " call TriggerAddAction(leave,function PathProbeLeave)\n"
+        " call PathProbeRecord(\"start_region_callbacks\")\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        " call PathProbeInit()\n"
+        "endfunction\n"
+        ));
+    G_FinishMovePathingInitialization();
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={4495,4540,13500,13540,13570,23395,23400,23430};
+    char files[8][64];unsigned saved[8]={0},saved_stage[8]={0},saved_marker[8]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"/tmp/wc3-region-callback-%u.bin",times[i]);
+    FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+4) {
+        if(mismatch)break;
+        unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
+        unsigned frame=pass<=sizeof(times)/sizeof(*times) ? 5 : (pass==9 ? 10 : pass==10 ? 25 : 50);
+        if(pass){T_ASSERT(ReadGame(files[slot]));steps=saved[slot];region85_stage=saved_stage[slot];region85_marker=saved_marker[slot];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time=MIN(31000,level.time+frame);globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<(sizeof(region85_motion)/sizeof(*region85_motion)));
+                if(steps>=(sizeof(region85_motion)/sizeof(*region85_motion))){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=region85_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Region callback commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,(sizeof(times)/sizeof(*times)))if(level.time==times[i]){saved[i]=steps;saved_stage[i]=region85_stage;saved_marker[i]=region85_marker;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,(sizeof(region85_motion)/sizeof(*region85_motion)));T_EQ(region85_stage,(sizeof(region85_states)/sizeof(*region85_states)));
+        T_EQ(region85_marker,sizeof(region85_markers)/sizeof(*region85_markers));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch)T_ASSERT(!unit->inuse || G_IsDeferredFree(unit));
+        if(pass)suffix+=steps-saved[slot];
+    }
+    fprintf(stderr,"Region callback native commits=%u saved suffix commits=%u\n",steps,suffix);
     test_preload_marker=NULL;
     FOR_LOOP(i,(sizeof(times)/sizeof(*times)))remove(files[i]);
     move_test_motion_commit=NULL;follow_commit_trace=NULL;

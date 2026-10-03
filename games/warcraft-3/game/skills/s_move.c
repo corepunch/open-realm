@@ -713,6 +713,7 @@ static void unit_commit_pose(edict_t *self, wc3GridPose_t const *pose) {
         self->movement.clock_valid = true;
     }
     G_PublishMoveSpatialObject(self);
+    M_CheckGround(self);
 }
 
 /* Release the virtual target only after logical ownership and all physical
@@ -1109,8 +1110,8 @@ void S_SetUnitAxisPosition(edict_t *self, uint32_t axis, float value) {
     unit_grid_pose(self, &pose);
     float point[2] = {pose.world[0], pose.world[1]}; point[axis] = value;
     wc3_grid_place(&pose, point); unit_commit_pose(self, &pose);
+    self->movement.pose_clock = level.pathing_clock;
     if (clocked) {
-        self->movement.pose_clock = level.pathing_clock;
         self->movement.clock_valid = true;
     }
     self->movement.worker_avoid_blocked_frames = blocked;
@@ -1190,6 +1191,7 @@ static void unit_commit_motion(edict_t *self, moveStep_t const *step) {
     float grid_y = wc3_mul(v->vel[1], wc3_float(0x3d000000));
     self->s.angle = v->speed > 0 ? wc3_velocity_heading(grid_x, grid_y, self->s.angle) : wc3_facing_angle(v->heading);
     unit_commit_pose(self, &step->pose);
+    G_UnitRegionPositionChanged(self,&self->s.origin2);
     if (self->movement.route_resume_active && self->movement.route_resume_goal &&
         self->movement.route_resume_goal->inuse) {
         self->movement.route_resume_time = level.time;
@@ -3536,6 +3538,14 @@ static void move_run_group_updates(void) {
                 unit->movement.follow_target=NULL; unit->goalentity=NULL; unit_stand(unit);
             }
             move_release_group(group); continue;
+        }
+        /* Original16bc10 samples each member's predicted region cell before
+         * route/decision work; actions dispatch after all owner commits. */
+        for(uint32_t i=group->count;i>0;i--) {
+            edict_t *unit=group->members[i-1].unit;
+            wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            vec2_t point={pose.world[0],pose.world[1]};
+            G_UnitRegionPositionChanged(unit,&point);
         }
         group->age++;
         if (group->target && !group->target_refresh) {
