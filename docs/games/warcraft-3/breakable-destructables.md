@@ -25,17 +25,23 @@ The resource lookup is data-driven: `dest_schema` maps the `pathTex` and
 formats used by WC3 pathing resources. It validates the complete header, ID
 field, dimensions, allocation size, and pixel payload before decoding.
 
-Every loaded path texture follows its entity's authored facing in
+Every destructable path texture follows its entity's authored facing in
 `entity_pathtex_transform()` in `games/warcraft-3/game/g_world.c`; the policy
-does not depend on a gate rawcode or `targType`. `DestructableData.slk` assigns
-path textures to many shapes besides gates, including the 10x2 stone wall
-(`LTw0`), the 16x4 elevator blocker (`DTep`), and Tree Bridge destructables
-(`LTt0`-`LTt5`, `ATt0`-`ATt1`) whose target type is `debris`. Square or symmetric
-textures may look unchanged under rotation, but an unrotated allowlist omits
-other authored shapes. When pathing does not match a destructable, confirm its
-`pathTex`/`pathTexDeath` resolved and check the actual stamped pathmap against
-the facing; the regression suite covers the transform and a rotated non-gate
-pathing blocker through `CM_BakeStaticObstacles()`.
+does not depend on a gate rawcode or `targType`. Unit/building path textures
+retain their existing axis-aligned behavior for now. `UnitData.slk` also
+assigns path textures to buildings, including the orientation-named
+`CityBuildingLarge_0`/`_45`/`_90`/`_135` resources; building path textures may
+also need to follow facing, but verify how map placement angles and those
+authored variants interact before changing their policy.
+`DestructableData.slk` assigns path textures to many shapes besides gates,
+including the 10x2 stone wall (`LTw0`), the 16x4 elevator blocker (`DTep`), and
+Tree Bridge destructables (`LTt0`-`LTt5`, `ATt0`-`ATt1`) whose target type is
+`debris`. Square or symmetric textures may look unchanged under rotation, but
+restricting orientation to selected rawcodes omits other authored shapes. When
+pathing does not match a destructable, confirm its `pathTex`/`pathTexDeath`
+resolved and check the actual stamped pathmap against the facing. The regression
+suite covers the transform and a rotated non-gate pathing blocker through
+`CM_BakeStaticObstacles()`.
 
 ## Walkable Model Height
 
