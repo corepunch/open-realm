@@ -352,6 +352,22 @@ The first GitHub live run on 2026-10-03 passed solo login/publication/reconnect
 in 11.9 seconds but reproduced that acceptance-driver race after the guest
 joined and both peers established direct connectivity.
 
+After fixing that race, [CI run 37130087222](https://github.com/corepunch/open-realm/actions/runs/37130087222)
+passed all jobs on 2026-10-03 at commit `521e49d1d`. The EOS-enabled full suite
+passed 38,202 assertions in 2,286 engine tests per edition. Linux x64 containers
+used distinct native Device ID guests, the same fixture map and Live deployment:
+
+| Live adapter scenario | Verified result |
+| --- | --- |
+| Solo | Guest login, public publication/search, private admission, destroy and stable-identity reconnect passed |
+| Default policy | Both peers established direct connections and verified 262,144 bytes in each direction; guest detected graceful host loss after 369 ms and public absence after 502 ms |
+| Forced relay | Both peers established relay connections and verified 262,144 bytes in each direction; graceful host loss after 399 ms and public absence after 511 ms |
+| Forced-relay host crash | Host exited without SDK teardown after the packet acknowledgement; guest detected loss after 13,288 ms and public absence after 18,587 ms, then passed cleanup |
+
+Latency starts when the guest sends its packet acknowledgement, immediately
+before host departure/crash, and includes reconnect/search for public absence.
+These timings are observations from one hosted run, not guaranteed service SLAs.
+
 Each native command has its 180-second watchdog; the runner adds a 220-second
 scenario deadline and removes surviving containers on failure. Service failures
 fail CI. Only console diagnostics are retained: no SDK, guest stores, private
@@ -445,13 +461,13 @@ row passes, keep the feature experimental and the finalization PR draft.
 
 | Check | Required observation | Current evidence |
 | --- | --- | --- |
-| Guest login, publication and public search | Both installations sign in without Epic accounts; B finds A | Earlier single-user service probe only; paired check pending |
-| Join, slots and chat | Distinct players; names, teams, races, colors and chat reach both clients | Offline server/lobby regressions; paired gameplay pending |
+| Guest login, publication and public search | Both installations sign in without Epic accounts; B finds A | Passed in separate Linux containers in GitHub CI; graphical flow pending |
+| Join, slots and chat | Distinct players; names, teams, races, colors and chat reach both clients | Real guest join passed in CI; slots/chat UI and paired gameplay pending |
 | Full and incompatible rooms | Full/private rooms do not admit new players; edition/protocol/map differences are rejected | Offline admission regressions; live CRC/full-room checks pending |
 | Map launch and sustained play | Both clients sign on; commands affect the shared world; snapshots remain current | Paired gameplay pending |
-| Forced relay | Both logs report relay; sign-on and sustained play succeed | Policy support and diagnostic command implemented; live relay pending |
-| Graceful leave and reconnect | Peers return to menus and can host/join again; room disappears | Offline lifecycle regressions; paired live check pending |
-| Host process crash | Guest recovers; public room disappears; cleanup latency recorded | Permanent-close regression; live crash check pending |
+| Forced relay | Both logs report relay; sign-on and sustained play succeed | Live 256 KiB exchange passed on both peers over relay; gameplay pending |
+| Graceful leave and reconnect | Peers return to menus and can host/join again; room disappears | Live adapter cleanup/reconnect and public absence passed; graphical return/rejoin pending |
+| Host process crash | Guest recovers; public room disappears; cleanup latency recorded | Live adapter passed: loss 13.3 s, public absence 18.6 s; gameplay/menu recovery pending |
 | Guest process crash | Host/other clients continue; guest slot becomes reusable | Host/peer isolation regression; live crash check pending |
 
 Before calling Internet play production-ready, use two separate guest
