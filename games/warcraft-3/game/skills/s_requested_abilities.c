@@ -185,9 +185,10 @@ static void whirlwind_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     thinker->think = whirlwind_think; whirlwind_think(thinker);
 }
 
-static void morph_end(edict_t *thinker) {
+void morph_end(edict_t *thinker) {
+    edict_t *owner = S_SpellChannelOwner(thinker);
     if (G_Time() < thinker->spawn_time) return;
-    if (thinker->owner && thinker->owner->inuse) G_TransformUnitType(thinker->owner, thinker->resources);
+    if (owner) G_TransformUnitType(owner, thinker->resources);
     G_FreeEdict(thinker);
 }
 
@@ -413,10 +414,11 @@ static void chain_lightning_execute(edict_t *caster, spellTarget_t st, abilityit
     chain_lightning_mark_visited(thinker, st.entity);
 }
 
-static void reincarnation_think(edict_t *thinker) {
-    if (!thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }
+void reincarnation_think(edict_t *thinker) {
+    edict_t *owner = S_SpellChannelOwner(thinker);
+    if (!owner) { G_FreeEdict(thinker); return; }
     if (G_Time() < thinker->spawn_time) return;
-    if (M_IsDead(thinker->owner)) G_ReviveHero(thinker->owner, thinker->s.origin2.x, thinker->s.origin2.y);
+    if (M_IsDead(owner)) G_ReviveHero(owner, thinker->s.origin2.x, thinker->s.origin2.y);
     G_FreeEdict(thinker);
 }
 
@@ -426,16 +428,20 @@ void S_ReincarnationOnDeath(edict_t *unit) {
     edict_t *thinker;
     FOR_LOOP(i, sizeof(codes) / sizeof(*codes)) if ((level = G_UnitAbilityLevel(unit, codes[i]))) { code = codes[i]; break; }
     if (!level || !S_SpellCooldownReady(unit, code)) return;
-    thinker = G_Spawn(); thinker->owner = unit; thinker->s.origin2 = unit->s.origin2;
+    thinker = G_Spawn(); thinker->owner = unit; thinker->class_id = code; thinker->s.origin2 = unit->s.origin2;
+    thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->owner_spawn_time = unit->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellData(code, level, 1) * 1000.0f);
     thinker->think = reincarnation_think; S_SpellStartCooldown(unit, code, level);
 }
 
-static void acid_bomb_think(edict_t *thinker) {
-    edict_t *target = thinker->goalentity;
-    if (G_Time() >= thinker->spawn_time || !target || !target->inuse || M_IsDead(target)) { G_FreeEdict(thinker); return; }
+void acid_bomb_think(edict_t *thinker) {
+    edict_t *owner = S_SpellChannelOwner(thinker);
+    edict_t *target = S_SpellChannelTarget(thinker);
+    if (G_Time() >= thinker->spawn_time || !owner || !target || M_IsDead(target)) { G_FreeEdict(thinker); return; }
     if (!thinker->freetime || G_Time() >= thinker->freetime) {
-        S_SpellDamage(target, thinker->owner, thinker->damage); thinker->freetime = G_Time() + 1000;
+        S_SpellDamage(target, owner, thinker->damage); thinker->freetime = G_Time() + 1000;
     }
 }
 
@@ -802,6 +808,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityMetamorphosis) {
     if (!form || !G_TransformUnitType(caster, form) || duration <= 0.0f) return;
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->resources = original;
+    thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->owner_spawn_time = caster->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f); thinker->think = morph_end;
 }
 /* Name=Sleep
@@ -973,7 +982,12 @@ BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
     edict_t *thinker;
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     if (buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
-    thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 3));
+    thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->class_id = spell->code;
+    thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->owner_spawn_time = caster->spawn_time;
+    thinker->channel->target_spawn_time = st.entity->spawn_time;
+    thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 3));
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f); thinker->think = acid_bomb_think;
 }
 

@@ -187,6 +187,10 @@ this helper to artillery/fixed-point attacks or add flags for unrelated missile
 policies.
 For channel thinkers, resolve the captured caster incarnation through
 `S_SpellChannelOwner()` instead of repeating `owner->inuse` / `spawn_time` checks.
+Delayed non-channel ability helpers may use the same resolver when they explicitly snapshot
+`channel->owner_spawn_time` as an identity token. Reincarnation, Flare, and timed Metamorphosis reversion use that owner
+contract, while Acid Bomb also uses `S_SpellChannelTarget()` for its saved victim incarnation. Their timing/effect semantics
+remain ability-owned.
 Save-safe ability helper thinkers that already use `channel->owner_spawn_time` as
 an incarnation token use the same resolver; this is identity plumbing only and
 does not make spell approaches, Chain Lightning markers, delayed explosions, or

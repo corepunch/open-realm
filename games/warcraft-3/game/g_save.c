@@ -150,6 +150,9 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(S_SpellTargetApproachThink),
     SAVE_CFUNCTION(land_mine_think),
     SAVE_CFUNCTION(death_damage_aoe_think),
+    SAVE_CFUNCTION(reincarnation_think),
+    SAVE_CFUNCTION(acid_bomb_think),
+    SAVE_CFUNCTION(morph_end),
 };
 
 static int SaveCFunctionIndex(void *func) {

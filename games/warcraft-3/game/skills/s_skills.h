@@ -351,6 +351,9 @@ BZ_ABILITY_PROC(CAbilityHealingSpray);
 BZ_ABILITY_PROC(CAbilityTransmute);
 
 void human_ability_think(edict_t *thinker);
+void reincarnation_think(edict_t *thinker);
+void acid_bomb_think(edict_t *thinker);
+void morph_end(edict_t *thinker);
 void divine_shield_think(edict_t *thinker);
 void rain_of_chaos_think(edict_t *thinker);
 void inferno_think(edict_t *thinker);

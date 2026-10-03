@@ -496,6 +496,14 @@ Channel cast serials, saved origins, and owner/target incarnation stamps are per
 The appended channel thinker callback roster and continuation tests are described in
 [ability verification](ability-verification-review.md#dispatch-and-persistence).
 
+Ability helper thinkers may also use the existing `channel_t` pool purely as a save-safe incarnation carrier.
+Reincarnation snapshots its Hero owner, Acid Bomb snapshots both caster and victim, Flare snapshots its caster, and the
+timed Metamorphosis reversion snapshots the transformed unit before using delayed callbacks. `reincarnation_think`,
+`acid_bomb_think`, and `morph_end` are appended to the C-callback roster so saves made while those effects are pending
+restore the live callback rather than failing on an unrecognized process pointer. This
+does not make those abilities channels and adds no save-schema fields: the existing `owner`/`goalentity` `F_EDICT` links
+and `channel->owner_spawn_time` / `channel->target_spawn_time` scalars carry the contract.
+
 Save format version 39 adds the launch-time attack type for basic projectiles.
 Version 38 added the launch-time artillery attack type, target masks, splash
 radii, and damage factors so in-flight shots retain their impact profile across

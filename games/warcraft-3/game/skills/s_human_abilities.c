@@ -398,8 +398,9 @@ void human_ability_think(edict_t *thinker) {
     uint32_t now = G_Time();
     edict_t *target;
     if (S_AbilityItem(thinker->class_id).ability->proc == CAbilityFlare) {
-        if (now >= thinker->spawn_time || !thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }
-        G_FowSetStateRadius(&(fogWrite_t){ thinker->owner->s.player, WC3_FOG_STATE_VISIBLE, true }, &thinker->s.origin2,
+        edict_t *owner = S_SpellChannelOwner(thinker);
+        if (now >= thinker->spawn_time || !owner) { G_FreeEdict(thinker); return; }
+        G_FowSetStateRadius(&(fogWrite_t){ owner->s.player, WC3_FOG_STATE_VISIBLE, true }, &thinker->s.origin2,
                             S_SpellNumber(thinker->class_id, ABILITY_NUMBER_AREA, 1));
         return;
     }
@@ -483,6 +484,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
+    thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->owner_spawn_time = caster->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->think = human_ability_think; human_ability_think(thinker);
 }
