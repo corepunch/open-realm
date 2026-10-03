@@ -20,11 +20,10 @@ The SDK lives under ignored `data/eos/SDK`; its headers, binaries and archive
 are not committed to the game repository. The restricted release player client
 and Live deployment are configured, with credentials stored in Actions secrets
 and ignored private local configuration. A compact SDK archive is stored in a
-separate private mirror. Two-installation gameplay, forced relay and host-crash
-cleanup remain separate acceptance checks.
+separate private mirror. Trusted GitHub CI runs paired gameplay, forced relay
+and host/guest process-crash acceptance in separate guest installations.
 
-Internet play remains experimental until the paired acceptance checks below
-pass. `online_force_relay=1` now selects EOS's forced-relay policy before the
+Internet play supports guest login, public discovery and server-authored gameplay. `online_force_relay=1` now selects EOS's forced-relay policy before the
 platform is first created; connection notifications report the actual direct
 or relay path. A permanent host P2P closure now leaves the guest room promptly,
 without waiting for the engine's packet timeout.
@@ -256,9 +255,13 @@ socket and active peer membership before changing state. Local close callbacks
 are ignored so delayed teardown cannot invalidate a new room. A guest's
 permanent host closure clears pending connection state and all reassembly
 buffers; `CL_Frame` then takes its existing room-closed disconnect path. A host
-losing one guest clears only that guest's partial messages and keeps serving
-other peers. EOS's interruption/reconnection handling and ordinary engine
-timeouts still cover temporary stalls.
+losing one guest marks that connection permanently closed and clears its partial
+messages. `SV_ReapZombieClients` observes `Online_ConnectionLost`, calls the
+normal `SV_DropClient` lifecycle, releases the lobby slot to Open and reclaims
+the client slot after the two-second zombie grace period. The host and other
+clients keep running. A member waiting for its first P2P connection is not
+considered lost; established/reestablished notifications clear the closed bit.
+EOS handles temporary interruptions before a permanent-close notification.
 
 Engine messages can reach 256 KiB, while EOS P2P accepts 1170-byte packets.
 `common/online_packet.c` adds a 12-byte little-endian message-ID/total/offset
@@ -273,9 +276,9 @@ Operation epochs discard old search/join/create/update callbacks; pending
 operations and departures stay busy until their callbacks complete, preventing
 a canceled operation from reviving a room. EOS lobby closure disconnects guests;
 loss of the host's service session shuts down its local server. Engine timeouts
-still handle network stalls and process crashes. Final process shutdown submits
-best-effort departure before releasing SDK handles; service crash-cleanup latency
-has not been measured.
+still handle network stalls. Final process shutdown submits best-effort departure
+before releasing SDK handles. The live CI driver separately measures host-crash
+public-directory cleanup and guest-crash server-slot cleanup.
 
 Departure callbacks retain any failure across the pending cleanup batch. An
 `EOS_NotFound` departure is logged as an already-absent lobby, which can happen
@@ -309,7 +312,7 @@ Forks with separate deployments do not share the official lobby directory.
 Epic's agreement restricts intentional credential sharing to Licensed EOS
 Developers; do not publish the credential in GitHub.
 
-## Validation and remaining acceptance
+## Validation and automated acceptance
 
 Regression coverage exercises maximum/sign-on packet fragmentation, interleaved
 peers/channels, malformed and out-of-order fragments, incomplete-message cleanup,
@@ -323,7 +326,7 @@ owner, connection request and partial packet remained live after host closure.
 The fix covers that cleanup, foreign/local close filtering, host survival when
 a guest disappears, reconnection network type, and failed departure callbacks.
 On 2026-10-03, local macOS arm64 validation passed the SDK-free full suite, the
-EOS-enabled full suite and the isolated optimized release test build. The six
+EOS-enabled full suite and the isolated optimized release test build. The original six
 offline EOS service tests passed all 66 assertions. These results establish
 code/fixture behavior, not the live acceptance rows below.
 
@@ -335,9 +338,11 @@ builds, then runs `make EOS=1 TEST_JOBS=4 test` in the published Linux CI image.
 Fork PRs retain the SDK-free jobs; they cannot access these secrets. This job
 uses ordinary `pull_request`, never privileged execution of fork code.
 
-`dist-scripts/eos/run_acceptance.py` then runs four explicit live scenarios:
+`dist-scripts/eos/run_acceptance.py` then runs eight explicit live scenarios:
 single-guest publication/reconnect, paired default-policy exchange/departure,
 paired forced-relay exchange/departure, and forced-relay host-crash cleanup.
+Four additional scenarios run real game clients: default-policy gameplay,
+forced-relay gameplay, host crash during gameplay and guest crash during gameplay.
 Host and guest run concurrently in separate disposable Docker containers with
 private writable homes/native guest stores and a read-only source/build/config
 mount. The adapter rejects identical Product User IDs. Rooms include the
@@ -382,8 +387,9 @@ python3 dist-scripts/eos/run_acceptance.py --scenario crash
 
 Runner failure/timeout/peer-isolation checks are included in `make test` through
 `test-eos-release`; they use no Docker or service credentials. Passing the live
-adapter job proves service/packet/lifecycle behavior, while the gameplay release
-gate below still requires sign-on, simulation, lobby UI and sustained play.
+adapter scenarios prove service/packet/lifecycle behavior. The additional gameplay
+scenarios run `SV_StartLobby`, `SV_Map`, `SV_Frame` and `CL_Frame` with the real
+WC3 module, client parser, menu callbacks and software-GL renderer.
 
 ### Bounded live adapter checks
 
@@ -453,28 +459,64 @@ it produced no live service acceptance result. The command now has a separate
 timer watchdog for this native blocking case. The headless command pumps the
 CoreFoundation run loop for EOS HTTP; the normal graphical client uses SDL.
 
-### Gameplay release gate
+### Paired gameplay acceptance
 
-Record installation/OS/build, matching guest identities (distinct), map,
-edition, policy, elapsed times and results in the finalization PR. Until every
-row passes, keep the feature experimental and the finalization PR draft.
+`games/warcraft-3/tests/online_gameplay.h` adds explicit `game-host`, `game-guest`,
+`game-crash-host`, `game-survivor` and `game-crash-guest` roles to the same bounded
+command. It uses the generated `Maps/Transport.w3m` nested MPQ, a 32x32-tile
+ROC-format map with two human starts and two fixture Footmen created by JASS.
+`tools/wc3fixturegen.py` writes real W3I/W3E/pathing/placement/script files;
+`make test-assets` packs them. The earlier Human02 fixture is only placeholder
+bytes for CRC tests and cannot load a game. No retail archives are required.
 
-| Check | Required observation | Current evidence |
-| --- | --- | --- |
-| Guest login, publication and public search | Both installations sign in without Epic accounts; B finds A | Passed in separate Linux containers in GitHub CI; graphical flow pending |
-| Join, slots and chat | Distinct players; names, teams, races, colors and chat reach both clients | Real guest join passed in CI; slots/chat UI and paired gameplay pending |
-| Full and incompatible rooms | Full/private rooms do not admit new players; edition/protocol/map differences are rejected | Offline admission regressions; live CRC/full-room checks pending |
-| Map launch and sustained play | Both clients sign on; commands affect the shared world; snapshots remain current | Paired gameplay pending |
-| Forced relay | Both logs report relay; sign-on and sustained play succeed | Live 256 KiB exchange passed on both peers over relay; gameplay pending |
-| Graceful leave and reconnect | Peers return to menus and can host/join again; room disappears | Live adapter cleanup/reconnect and public absence passed; graphical return/rejoin pending |
-| Host process crash | Guest recovers; public room disappears; cleanup latency recorded | Live adapter passed: loss 13.3 s, public absence 18.6 s; gameplay/menu recovery pending |
-| Guest process crash | Host/other clients continue; guest slot becomes reusable | Host/peer isolation regression; live crash check pending |
+| Scenario | Required observation |
+| --- | --- |
+| Default gameplay | Distinct guest identities discover/join; both clients receive authoritative slots, names, races, teams, colors and chat ownership; real map sign-on reaches active gameplay |
+| Admission | An incompatible discovery bucket excludes the room; a changed cached host CRC is rejected by the production join check before restoring real metadata; a full room disappears from successful public search |
+| Shared simulation | Each player selects its own Footman and issues SmartPoint/Move over the engine channel; both clients observe both moved units, their own camera-command result, matching map checksum and 100 fresh monotonic snapshots |
+| Forced relay | Both actual remote engine connections report relay; the same sign-on and shared-simulation assertions pass |
+| Graceful host leave | Guest takes the normal client disconnect path, pumps queued menu restoration, signs in again and observes public-room removal |
+| Host process crash | Host exits without engine/SDK teardown after guest gameplay acknowledgement; guest returns to menu, reconnects and measures directory cleanup |
+| Guest process crash | Guest exits after shared-simulation verification; host stays active with advancing snapshots, releases the lobby slot to Open and reclaims the server client slot |
 
-Before calling Internet play production-ready, use two separate guest
-installations to verify login, public search/create/join, full and incompatible
-rooms, slot/chat changes, map launch, graceful leave, reconnect, process crashes
-and relay-only connectivity. Record cleanup latency and queue failures. Unit
-tests cannot validate the configured Epic deployment or NAT/relay behavior.
+The gameplay container sets `SDL_VIDEODRIVER=offscreen`,
+`SDL_AUDIODRIVER=dummy` and `LIBGL_ALWAYS_SOFTWARE=1`. Mesa software rendering
+is a dependency of the shared CI Dockerfile. The EOS job builds that image so
+PR dependency changes are tested before the refreshed image is published.
+Rendering still uses the real renderer; fixture art is minimal and missing
+retail presentation resources are logged. This validates the runtime lifecycle
+and menu callback flow, not retail artwork, visual fidelity, long matches or
+cross-platform hardware/NAT combinations.
+
+A local loopback diagnostic runs the same map, real game/client/render path,
+Move/camera commands and snapshot assertions without authenticating to EOS:
+
+```sh
+make EOS=1 openwarcraft3-tests test-assets
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +online_acceptance local local-check
+# Linux Docker with prepared SDK/player config:
+python3 dist-scripts/eos/run_acceptance.py --scenario game-relay
+python3 dist-scripts/eos/run_acceptance.py --scenario game-crash
+python3 dist-scripts/eos/run_acceptance.py --scenario game-guest-crash
+```
+
+Local macOS arm64 loopback validation passed real map loading, Move/camera
+command round-trips and fresh snapshots. The new lost-guest regression first
+reproduced four failures: the server client remained connected, the lobby slot
+remained occupied, and the slot/high-water count were never reclaimed. After
+fixing transport-close observation in the normal server lifecycle, the seven
+offline EOS service tests passed 81 assertions, including reassignment of the
+released slot and isolation of the surviving host. Offline tests share one
+native SDK initialization lifetime; reinitializing it between tests fails on
+macOS even after shutdown.
+
+Growing the fixture archive exposed `mpqtool pack` silently truncating its
+argument list at 128 files. Its argument list now scales with the actual CLI
+input; the fixture archive verification checks files beyond the former cutoff.
+
+Keep deployment failures as failing CI results. Acceptance is bounded and
+explicit; ordinary unit tests never authenticate or contact the live service.
 
 ## References
 

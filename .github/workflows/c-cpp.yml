@@ -9,7 +9,7 @@ on:
 
 jobs:
   eos:
-    name: EOS regressions and live adapter checks
+    name: EOS regressions and live multiplayer checks
     # Fork PRs cannot read the licensed SDK/player credentials. Run their normal
     # SDK-free checks; never execute fork code through pull_request_target.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -49,17 +49,20 @@ jobs:
           printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GH_ACTOR" --password-stdin
           docker pull ghcr.io/corepunch/open-realm-ci:ubuntu-24.04
           docker logout ghcr.io
+          # Include PR dependency changes and software GL for the actual client.
+          # Dependency installation stays in the shared image Dockerfile.
+          docker build --tag openrealm-eos-ci .github/docker/ci
 
       - name: Run full EOS-enabled suite
         run: >-
           docker run --rm --mount "type=bind,source=$PWD,target=/workspace"
-          --workdir /workspace ghcr.io/corepunch/open-realm-ci:ubuntu-24.04
+          --workdir /workspace openrealm-eos-ci
           make EOS=1 TEST_JOBS=4 test
 
-      - name: Check live login, paired relay, graceful leave and host crash
+      - name: Check live login, gameplay, relay, graceful leave and host crash
         env:
           EOS_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
-        run: python3 dist-scripts/eos/run_acceptance.py --run-id "$EOS_RUN_ID"
+        run: python3 dist-scripts/eos/run_acceptance.py --image openrealm-eos-ci --run-id "$EOS_RUN_ID"
 
   notifications:
     name: Discord notification fixtures

@@ -503,6 +503,7 @@ typedef struct {
     bool twin_w3m;
     bool twin_w3x;
     bool overlay;
+    bool transport;
 } mapListState_t;
 
 static void count_fixture_map(cstring_t path, void *userData) {
@@ -519,22 +520,25 @@ static void count_fixture_map(cstring_t path, void *userData) {
         state->twin_w3x = true;
     } else if (!strcmp(path, "Maps\\MapOverlay.w3x")) {
         state->overlay = true;
+    } else if (!strcmp(path, "Maps\\Transport.w3m")) {
+        state->transport = true;
     }
 }
 
-/* tests.mpq packs MapOverlay.w3x under Maps/ as a nested sheet/w3a archive, so FS_ListMaps reports five maps. */
+/* Nested overlay and loadable transport archives are included in the fixture map list. */
 TEST(commands, fixture_maps_are_listed_from_mpq) {
     mapListState_t state = { 0 };
 
     setup_command_tests();
 
-    T_EQ(FS_ListMaps(count_fixture_map, &state), 5);
-    T_EQ(state.count, 5);
+    T_EQ(FS_ListMaps(count_fixture_map, &state), 6);
+    T_EQ(state.count, 6);
     T_ASSERT(state.human02);
     T_ASSERT(state.orc01);
     T_ASSERT(state.twin_w3m);
     T_ASSERT(state.twin_w3x);
     T_ASSERT(state.overlay);
+    T_ASSERT(state.transport);
 }
 
 TEST(commands, short_map_name_resolves_from_fixture_mpq) {

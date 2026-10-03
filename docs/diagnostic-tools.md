@@ -289,3 +289,5 @@ This differs from `ability_map.c`, whose rawcode relationships are manually tran
 ## Galaxy Native Coverage Audit
 
 `python3 tools/galaxy_audit.py <MapScript.galaxy> <NativeLib.galaxy> <LibertyLib.galaxy> <CampaignLib.galaxy>` inventories reachable missing bindings and obvious placeholder candidates without executing scripts. See [Galaxy native coverage](games/starcraft-2/galaxy-native-coverage.md) for exact MPQ extraction commands, audit limits, and the complete Markdown snapshot. Use [bounded runtime traces](games/starcraft-2/galaxy-scripting.md#reproducing-detailed-traces) to distinguish static coverage from executed callbacks.
+
+EOS paired gameplay diagnostics (`game-relay`, `game-crash`, `game-guest-crash`) and the no-login loopback check use the generated Transport map; see [paired gameplay acceptance](architecture/epic-online-services.md#paired-gameplay-acceptance).

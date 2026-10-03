@@ -350,6 +350,9 @@ extern struct client_state cl;
 extern struct client_static cls;
 extern refExport_t re;
 extern menuExport_t menu;
+#ifdef BZ_TESTS
+extern void (*cl_test_lobby_chat)(cstring_t text, bool own);
+#endif
 extern mouseEvent_t mouse;
 extern bool scr_initialized;
 

@@ -241,7 +241,7 @@ $(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME
 # ---------------------------------------------------------------------------
 GAME_WC3_TEST_LIB := $(LIB_DIR)/libgame-wc3-test$(LIB_EXT)
 WC3_TEST_BINARY   := $(BIN_DIR)/openwarcraft3-tests$(EXE_EXT)
-$(WC3_TEST_BINARY): tests/online_acceptance.h
+$(WC3_TEST_BINARY): tests/online_acceptance.h $(WC3_TEST_DIR)/online_gameplay.h
 
 $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game-wc3-test,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
 $(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(WC3_EOS_RUNTIME) $(EOS_BUILD_CONFIG) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WC3_TEST_DIR)/test_coordinates.c,openwarcraft3-tests,$(WC3_FDF_CFLAGS) $(WC3_EOS_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) $(WC3_EOS_LIBS) -lz,$(WC3_DIR)/common/world_w3.c $(WC3_TEST_DIR)/test_coordinates.c))
@@ -374,9 +374,13 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3a war3map.w3a \
 		$(TESTS_RES_DIR)/MapOverlay/Textures/minimap_hero.blp "Textures\\minimap_hero.blp"
 	@echo "[test-assets] packing tests.mpq"
+	@python3 tools/wc3fixturegen.py $(TESTS_RES_DIR)/TransportMap
+	@set --; for f in $(TESTS_RES_DIR)/TransportMap/*; do \
+		set -- "$$@" "$$f" "$${f##*/}"; done; \
+	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/Transport.w3m pack "$$@"
 	@set --; \
 	for f in $$(find $(TESTS_RES_DIR) -type f | sort); do \
-		rel=$${f#$(TESTS_RES_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
+		rel=$${f#$(TESTS_RES_DIR)/}; case "$$rel" in TransportMap/*) continue;; esac; set -- "$$@" "$$f" "$$rel"; \
 	done; \
 	for f in $$(find $(TESTS_SRC_DIR) -type f | sort); do \
 		rel=$${f#$(TESTS_SRC_DIR)/}; arc=$$rel; \

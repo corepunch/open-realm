@@ -215,8 +215,10 @@ void SV_LobbyRemoveClient(uint32_t clientnum) {
             if (!slot->occupied || slot->client != clientnum) continue;
             slot->occupied = false;
             slot->client = MAX_CLIENTS;
-            if (slot->type == LOBBY_SLOT_HUMAN)
-                snprintf(slot->name, sizeof(slot->name), "Player");
+            if (slot->type == LOBBY_SLOT_HUMAN) {
+                slot->type = LOBBY_SLOT_OPEN;
+                snprintf(slot->name, sizeof(slot->name), "Open");
+            }
             changed = true;
         }
     }
