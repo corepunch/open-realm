@@ -11,6 +11,7 @@ import argparse
 import collections
 import ctypes
 import hashlib
+import itertools
 import json
 import random
 import struct
@@ -20,7 +21,7 @@ from verify_wc3_pathing_grid import reference
 
 def main():
     from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE
-    from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EAX, UC_X86_REG_EBX, UC_X86_REG_EBP, UC_X86_REG_ESI, UC_X86_REG_EDI
+    from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EDX, UC_X86_REG_EAX, UC_X86_REG_EBX, UC_X86_REG_EBP, UC_X86_REG_ESI, UC_X86_REG_EDI
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
@@ -36,9 +37,14 @@ def main():
     parser.add_argument('--budget', type=int, default=100000, help='charged-pop request budget (default100000)')
     parser.add_argument('--stamp-wrap',action='store_true',help='retained32-bit metadata across all lanes and both stored sizes')
     parser.add_argument('--wrap-fixture',type=Path,help='assert frozen original adaptive wrap nodes/routes')
+    parser.add_argument('--terrain-producer',action='store_true',help='build the custom map through original fine-cell classification and padded hierarchy updates')
+    parser.add_argument('--producer-fixture',type=Path,help='assert frozen terrain-produced classification and request state')
     args = parser.parse_args()
     if args.wrap_fixture and not args.stamp_wrap: parser.error('wrap fixture requires --stamp-wrap')
     if args.stamp_wrap and (args.disable_promotion or args.force_east_boundary): parser.error('wrap requires ordinary classification policy')
+    if args.producer_fixture and not args.terrain_producer: parser.error('producer fixture requires --terrain-producer')
+    if args.terrain_producer and (not args.map_json or args.disable_promotion or args.force_east_boundary or args.stamp_wrap):
+        parser.error('terrain producer requires a custom map and ordinary traversal policy')
     if not 0 <= args.budget <= 0xffffffff:
         parser.error('--budget must fit an unsigned32-bit word')
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
@@ -87,6 +93,46 @@ def main():
         if machine.reg_read(UC_X86_REG_EIP) != stop:
             raise RuntimeError('retail adaptive operation exceeded instruction budget')
         return machine.reg_read(UC_X86_REG_EAX)
+
+    # Separate fine and adaptive owners: the base classifier follows the real
+    # global fine-system pointer, while adaptive setup consumes all four maps.
+    owner,fine_system,fine,game,cells,rectangle=0x10300000,0x10301000,0x10302000,0x10303000,0x10310000,0x10308000
+    base_width=(width*2+16)//2+1 if args.terrain_producer else width
+    sides=[base_width>>level for level in range(4)]
+    producer_inventory=[]
+    producer_classes=None
+
+    def setup_producer():
+        write(0x6fd53a48,owner);write(0x6fd3c82c,game)
+        write(owner+0x24c,fine_system);write(fine_system+0x1c,fine)
+        write(owner+0x23c,*maps);write(owner+0x250,system)
+        write(fine+0x28,cells);write(fine+0x3c,width*2,width*2)
+        write(fine+0x54,0,0,width*2,width*2)
+        for level,(tilemap,storage,side) in enumerate(zip(maps,data,sides)):
+            machine.mem_write(tilemap,bytes(0x100));machine.mem_write(storage,bytes(side*side*8))
+            write(tilemap+0x28,storage);write(tilemap+0x3c,side,side)
+            machine.mem_write(tilemap+0x64,struct.pack('<ff',2<<level,1/(2<<level)))
+            write(system+0x1c+level*4,tilemap)
+
+    if args.terrain_producer:
+        # Enumerate every ordinary four-bit fine occupancy pattern. Retain one
+        # witness for each attainable four-lane tuple, then execute the original
+        # rectangle/base/parent producers for every witness. No classifier stub.
+        masks=(6,0x80,0x40,4)
+        witnesses={}
+        for pattern in itertools.product(range(16),repeat=4):
+            flags=[sum(mask for bit,mask in enumerate((2,4,0x40,0x80)) if v&(1<<bit)) for v in pattern]
+            classes=tuple(0 if not any(v&mask for v in flags) else 1 if all(v&mask for v in flags) else 2 for mask in masks)
+            witnesses.setdefault(classes,flags)
+        setup_producer();write(cells,*([0xffffff]*(width*2)**2));write(rectangle,0,0,1,1)
+        for classes,flags in sorted(witnesses.items()):
+            for index,flag in enumerate(flags):write(cells+4*((index//2)*width*2+index%2),0xffffff|(flag<<24))
+            run(0x6f15d360,owner,rectangle,0)
+            word=read(data[0]+4)[0]
+            actual=[(word>>(30-2*lane))&3 for lane in range(4)]
+            assert actual==list(classes),(classes,flags,hex(word))
+            producer_inventory.append(dict(classes=actual,fine_flags=flags,base_word=word))
+        assert len(producer_inventory)==54
 
     graph_edges, graph_expansions, boundary_checks = [], [], []
 
@@ -155,7 +201,7 @@ def main():
             other_lanes = 0x55000000 & ~(0xc0000000 >> lane)
             machine.mem_write(system, bytes(0x400))
             for level, (tilemap, storage) in enumerate(zip(maps, data)):
-                side = width >> level
+                side = sides[level]
                 machine.mem_write(tilemap, bytes(0x100))
                 machine.mem_write(storage, bytes(side * side * 8))
                 write(tilemap + 0x28, storage)
@@ -171,6 +217,25 @@ def main():
                             run(0x6f15d1c0, 0, cell, maps[level - 1], lane, 2 * x, 2 * y)
                             if args.disable_promotion:
                                 write(cell + 4, other_lanes | (0x80000000 >> lane))
+            if args.terrain_producer:
+                setup_producer()
+                terrain=[0xffffff|((0xc6<<24) if (x//2,y//2) in blocked else 0) for y in range(width*2) for x in range(width*2)]
+                write(cells,*([0xffffff]*(width*2)**2))
+                machine.mem_write(game+0x6c,struct.pack('<ff',0,0))
+                setter_calls=0
+                for y in range(width*2):
+                    for x in range(width*2):
+                        if (x//2,y//2) not in blocked:continue
+                        machine.mem_write(source_ptr,struct.pack('<ff',(x+.25)*32,(y+.75)*32))
+                        for mask in (2,4,0x40,0x80):
+                            machine.reg_write(UC_X86_REG_EDX,source_ptr+4)
+                            run(0x6f04d870,source_ptr,mask,1)
+                            setter_calls+=1
+                assert read(cells,(width*2)**2)==terrain
+                run(0x6f15d360,owner,0,0)
+                classes=[read(storage+8*i+4)[0]>>24 for storage,side in zip(data,sides) for i in range(side*side)]
+                if producer_classes is None:producer_classes=classes
+                assert classes==producer_classes
             write(system + 0x5c, nodes)
             write(system + 0x68, 4096, 0)
             write(system + 0x7c, heap)
@@ -196,9 +261,9 @@ def main():
                 raise RuntimeError('invalid adaptive result dimensions')
             points = [struct.unpack('<ff', machine.mem_read(route_data + i * 8, 8)) for i in range(count)]
             if engine:
-                params=[width,width,args.size_input,args.budget]+list(struct.unpack('<4I',struct.pack('<4f',*source,*request_target)))
+                params=[base_width,base_width,args.size_input,args.budget]+list(struct.unpack('<4I',struct.pack('<4f',*source,*request_target)))
                 classes=[(read(storage+(y*side+x)*8+4)[0]>>(30-lane))&3
-                    for storage,side in zip(data,(width>>level for level in range(4)))
+                    for storage,side in zip(data,sides)
                     for y in range(side) for x in range(side)]
                 expected_words=[result,read(system+0x9c)[0],node_count,count]
                 expected_words+=list(struct.unpack('<'+'I'*(count*2),machine.mem_read(route_data,count*8)))
@@ -210,6 +275,14 @@ def main():
             row = dict(fixture=name, lane=lane, setup_shortcut=shortcut, result=result, reference_reached=expected is not None,
                        pops=read(system + 0x9c)[0], nodes=node_count, levels=dict(levels), points=points,
                        adjusted_target=struct.unpack('<ff', machine.mem_read(system + 0xac, 8)))
+            if args.terrain_producer:
+                row['route_words']=read(route_data,count*2)
+                row['node_state']=[[read(nodes+36*i)[0],read(nodes+36*i+4)[0],read(nodes+36*i+0x14)[0],read(nodes+36*i+0x18)[0],read(nodes+36*i+8)[0],read(nodes+36*i+0x1c)[0],
+                    0 if read(nodes+36*i+0xc)[0]==0xffffffff else 1 if read(nodes+36*i+0xc)[0]==0xfffffffe else 2,machine.mem_read(nodes+36*i+0x22,1)[0]] for i in range(node_count)]
+                if engine:
+                    state=(ctypes.c_uint32*(1+node_count*8))()
+                    engine.pathing_adaptive_node_state(state)
+                    assert list(state)==[node_count]+[v for n in row['node_state'] for v in n],'terrain-produced engine node state differs'
             if result == 0:
                 nearest_index, start_index = read(system + 0xd0)[0], read(system + 0xc4)[0]
                 nearest_xy = read(nodes + nearest_index * 36, 2)
@@ -245,6 +318,9 @@ def main():
                 print(f'{len(records)} adaptive requests; {len(failures)} differences', flush=True)
     # Exact size-2 east-boundary predicate: candidate cell itself was already
     # admitted by cell lookup. Test its seven additional cells and map bounds.
+    # These independent controls retain their historical32x32 geometry.
+    if args.terrain_producer:
+        for tilemap,level in zip(maps,range(4)):write(tilemap+0x3c,width>>level,width>>level)
     predicate_cases = 0
     offsets = ((1, 0), (0, 1), (1, 1), (0, -1), (1, -1), (-2, 1), (-1, 1))
     for lane in (0, 2, 4, 6):
@@ -301,6 +377,20 @@ def main():
                   scope='complete original adaptive requests, selected size, all lanes with other lanes blocked, no warp; original parent reducer; supplied base classifications; compare ordinary reachability against point/positive-anchored-2x2 base graph; separately verify setup shortcuts',
                   searches=records)
     report['budget']=args.budget
+    if args.terrain_producer:report['scope']='complete original terrain setters/classification and adaptive requests over supplied empty fine storage/padded headers, no warp; original selected size/lane, node state and fractional reconstruction; preserve conventional-reference differences'
+    if args.terrain_producer:
+        producer=dict(binary_sha256=digest,scope='Original04d870/054000 terrain setters,15d360/base/fine-query/parent producers and complete162cb0 requests; supplied64x64 empty fine storage and padded41/20/10/5 map headers, no objects/special edges. Four-lane classification inventory has54 original witnesses; ordinary class3 and27 ground/flight-inconsistent tuples are rejected. Full world loading and mover fallback remain separate.',
+            dimensions=[64,64],hierarchy_sides=sides,fine_flags=[(v>>24)&255 for v in terrain],class_bytes=producer_classes,
+            terrain_setter_calls=setter_calls,
+            inventory=producer_inventory,rejected_tuples=[list(c) for c in itertools.product(range(3),repeat=4) if list(c) not in [r['classes'] for r in producer_inventory]],
+            size_input=args.size_input,budget=args.budget,searches=records)
+        producer=json.loads(json.dumps(producer))
+        if args.producer_fixture:
+            assert producer==json.loads(args.producer_fixture.read_text()),'terrain-produced frozen state differs'
+        report['terrain_producer']=producer
+        report['producer_classification_cases']=len(producer_inventory)
+        report['producer_classification_rejected']=len(producer['rejected_tuples'])
+        report['producer_hierarchy_cells']=len(producer_classes)
     if engine:
         report['engine_exact_cases']=len(records)
         report['engine_library_sha256']=hashlib.sha256(args.engine_library.read_bytes()).hexdigest()

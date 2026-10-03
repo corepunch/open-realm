@@ -8,18 +8,19 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**158 done / 336 tasks; 178 remaining.** Payoff78 closes existing ACC-05.2
-without adding or splitting IDs. Eight complete adaptive requests cross DWORD
-stamp wrap, four lanes and sizes1/2; all511 final nodes/work/routes match clean
-controls, C and repeated real engine owned routes. Original no-fly-only exclusion/
-restore exposes eight stale engine source/target/parent classifications; rebuild
-now consistently uses original coarse ground6. Required RoC/TFT suites pass2490
-tests/4393170 assertions each;481 Python checks and six fresh corpus contracts pass.
-See [adaptive reuse payoff](retail-pathfinding-engine.md#adaptive-reuse-restores-the-original-ground-classifications).
+**161 done / 336 tasks; 175 remaining.** Payoff79 closes existing MAP-03.3,
+ACC-02.1 and ACC-03.2 without new IDs/splits. Actual terrain setters and complete
+padded hierarchy preserve the reduced size2 veto in all four lanes;54 ordinary
+classification witnesses and all engine map/node/route states match. Producer
+inventory maps remaining lifetime differences to existing tasks. Required
+RoC/TFT suites pass2,492 tests/4,406,232 assertions each,482 Python checks and
+three fresh corpus contracts.
+See [terrain-produced payoff](retail-pathfinding-engine.md#terrain-produced-adaptive-passages-preserve-the-retail-veto).
 
-Next runnable chunk is MAP-03.3/ACC-02.1: finish producer/classification
-inventory against current engine invalidation and link uncovered domains to
-existing IDs. No new TODO IDs.
+Next runnable chunk is ACC-03.3: run the now producer-built size2 passage
+through original mover fallback/retry to completion and preserve its complete
+engine journey. FINE-01.6 remains the next dynamic occupancy implementation.
+No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -31,10 +32,10 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | Area | Done | Remaining |
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
-| MAP — Map construction and lifetime | 14 | 8 |
+| MAP — Map construction and lifetime | 15 | 7 |
 | FOOT — Footprints and query policy | 13 | 5 |
 | FINE — Fine search | 8 | 4 |
-| ACC — Adaptive search | 4 | 9 |
+| ACC — Adaptive search | 6 | 7 |
 | NUM — Numbers and random state | 24 | 19 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
@@ -285,7 +286,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 
 - [x] **MAP-03.1** Terrain edit/rebuild/reversal corpus passes 11,664 edits, 216 compositions and 30 clipped updates. Evidence: [terrain edits][map-edits]; other invalidation producers remain separate tasks.
 - [x] **MAP-03.2** Widget rasterization covers 144 overlapping sequences and 96 paired reapply/remove lifecycles. Evidence: [widget lifecycle][widgets]; file loading, growth and full gameplay travel remain excluded.
-- [ ] **MAP-03.3** List spawn, movement, size/pathing changes, construction and removal producers with affected grids and update timing; assign uncovered producers separate IDs.
+- [x] **MAP-03.3** List spawn, movement, size/pathing changes, construction and removal producers with affected grids and update timing; assign uncovered work to existing IDs. Evidence: [producer/update inventory](retail-pathfinding-search.md#pathing-producer-and-update-inventory), concrete native call chains, actual engine owners and explicit timing differences for all producer families. FINE-01.6/FOOT-03 retain dynamic link/eligibility, E2E-02.2/06.2 public construction and invalidation timing, MAP-04 exclusions, MAP-05/06 storage/lifetime and GATE special records. Actual terrain/classification producer and owned engine regression close alongside ACC-02.1/03.2; no new IDs or complete-lifetime claim.
 - [x] **MAP-03.4** Continue one widget-produced escape order from accepted admission to arrival/failure; retain its original produced query masks/region state and assert footprint refresh and route state throughout. Evidence: [stock Footman journey](retail-pathfinding-search.md#stock-footman-mask-through-widget-escape), original rawcode/profile getters and05c7e0 bridge publish02000002 before uninterrupted admission; unchanged proposal/footprint,13 exact velocity/position ticks, frozen per-tick route indices/count/flags, arrival, queue drain and complete reclamation. Seven-tick terrain-only control remains explicit. [Idle engine admission](retail-pathfinding-engine.md#widget-escape-idle-admission) is integrated/tested. Observed profile/cache/custom radius and direct group cadence are supplied; full public constructor/notification and authored parsing remain BASE-03.1/MAP-02/03.3; inside-footprint engine integration is03.7.
 - [x] **MAP-03.5** Exercise a resource depletion/removal lifecycle; assert footprint and hierarchy changes before the next request. Evidence: [blocker lifecycle](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation), actual lumber and six-gold mine depletion repeat, preserve an overlapping tree, restore the fine patch and all four hierarchy levels before fresh point requests. Engine partial final gold extraction invalidates the cached field and warmed adaptive map; public building removal refreshes the same-callback Move and reaches its goal.
 - [x] **MAP-03.6** Exercise destructible destruction and cache invalidation through the final free; assert the next route no longer sees the dead blocker. Same [lifecycle evidence](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation): complete original collection retirement through real Storm403 free and Widget+34=NULL; gate Kill/Restore/Remove restores all observed grids before the next request. Reproduce six engine failures, then central direct/deferred free invalidates static fields/classifications while preserving independent terrain, overlap and retained nonempty death textures until actual removal.
@@ -392,13 +393,13 @@ Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fix
 
 ### ACC-02 — Classification reachability
 
-- [ ] **ACC-02.1** Map classification/flag combinations used by adaptive fixtures back to map producers; classify each as reachable, rejected or unresolved.
+- [x] **ACC-02.1** Map classification/flag combinations used by adaptive fixtures back to map producers; classify each as reachable, rejected or unresolved. Evidence: [ordinary reachability inventory](retail-pathfinding-search.md#ordinary-classification-reachability),54 original producer witnesses from16^4 ordinary fine patterns,27 ground/flight-inconsistent tuple rejections and ordinary class3 rejection. Synthetic unrelated-lane words and explicit interventions remain controls; valid selected-lane projections, full constructor/widget/terrain maps and exclusions have identified producers. Special-marker/object domains remain02.2/FOOT-03/GATE. All54 witnesses and full reduced hierarchy match actual engine classification.
 - [ ] **ACC-02.2** For each unresolved combination, provide a producer-built witness or a documented rejection proof; retain separate IDs if further work is discovered.
 
 ### ACC-03 — Size-2 east-boundary veto
 
 - [x] **ACC-03.1** The synthetic size-2 east-boundary veto is reduced and causally isolated. Evidence: [adaptive veto][adaptive-veto]; gameplay reachability remains unproven.
-- [ ] **ACC-03.2** Construct the reduced veto using real map/request producers, or prove its classification cannot be produced within scope.
+- [x] **ACC-03.2** Construct the reduced veto using real map/request producers, or prove its classification cannot be produced within scope. Evidence: [terrain-produced veto](retail-pathfinding-engine.md#terrain-produced-adaptive-passages-preserve-the-retail-veto),288 actual04d870/054000 setters then full15d360/162cb0 preserve38-pop/56-node partial in all four lanes over2,206 padded hierarchy cells. Ordinary occupancy1/boundary0 and all final nodes/routes equal C; actual owned engine requests repeat twice. Empty storage/headers are supplied explicitly; full mover retry/arrival stays03.3, with known reference difference retained.
 - [ ] **ACC-03.3** If reachable, run that mover through fallback/retry to arrival or failure; preserve the resulting retail route/outcome as a regression.
 
 ### ACC-04 — Adaptive costs
@@ -922,7 +923,7 @@ Evidence: [all contracts][ledger]. Tools/artifacts: corpus manifest/runner and n
 ### E2E-06 — Implementation specification
 
 - [ ] **E2E-06.1** Freeze structures, units, coordinate/lane/footprint and numeric/PRNG contracts with links to runnable evidence.
-- [ ] **E2E-06.2** Freeze state machines, result codes, update/event order, ownership and invalidation contracts with limits/failure behavior and evidence links.
+- [ ] **E2E-06.2** Freeze state machines, result codes, update/event order, ownership and invalidation contracts with limits/failure behavior and evidence links. Resolve the documented engine/native terrain-edit adaptive-cache timing and dynamic hierarchy publication differences from the completed MAP-03.3 inventory before freezing that contract.
 
 ### E2E-07 — OpenRealm integration design
 

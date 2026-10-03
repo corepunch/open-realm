@@ -64,4 +64,28 @@ class QueueCompositionTests(unittest.TestCase):
         self.assertEqual(self.fixture['budget_goal_route_words'][:2],[0x422e0000,0x422e0000])
         self.assertEqual(len(self.fixture['budget_goal_route_words']),100)
 
+    def test_terrain_producer_inventory_and_engine_passage_preserve_native_words(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-adaptive-terrain-producer-1.27.json').read_text())
+        source=(ROOT/'games/warcraft-3/game/tests/retail_adaptive_producer.h').read_text()
+        for name,width,expected in [
+            ('inventory',8,[v for r in fixture['inventory'] for v in r['fine_flags']+r['classes']]),
+            ('nodes',8,[v for r in fixture['searches'][0]['node_state'] for v in r]),
+            ('route',2,fixture['searches'][0]['route_words'])]:
+            table=source.split('retail_producer_'+name+'[]['+str(width)+']={',1)[1].split('};',1)[0]
+            self.assertEqual([int(v,16) for v in re.findall(r'0x([0-9a-f]+)u',table)],expected)
+        table=source.split('retail_producer_classes[]={',1)[1].split('};',1)[0]
+        self.assertEqual([int(v,16) for v in re.findall(r'0x([0-9a-f]+)',table)],fixture['class_bytes'])
+        table=source.split('retail_producer_rows[]={',1)[1].split('};',1)[0]
+        rows=[int(v,16) for v in re.findall(r'0x([0-9a-f]+)u',table)]
+        self.assertEqual([0xc6 if rows[y//2]&(1<<(x//2)) else 0 for y in range(64) for x in range(64)],fixture['fine_flags'])
+        self.assertEqual(len(fixture['inventory']),54)
+        self.assertEqual(len(fixture['rejected_tuples']),27)
+        self.assertEqual(fixture['hierarchy_sides'],[41,20,10,5])
+        for row in fixture['searches']:
+            self.assertEqual((row['result'],row['pops'],row['nodes']),(0,38,56))
+            self.assertEqual(row['node_state'],fixture['searches'][0]['node_state'])
+            self.assertEqual(row['route_words'],fixture['searches'][0]['route_words'])
+            self.assertEqual(row['east_boundary_checks'][0]['original'],0)
+            self.assertEqual(row['east_ordinary_occupancy'],1)
+
 if __name__=='__main__':unittest.main()

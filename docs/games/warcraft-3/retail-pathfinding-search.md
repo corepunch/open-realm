@@ -153,7 +153,9 @@ It selects a two-bit classification using the query's shift at `+0xd4`:
 - `0x80000000`: subdivide (`-2`) above level zero; reject at level zero.
 - Zero in the tested pair: permits promotion into a usable parent, up to level 3.
 
-Other flag combinations have not been assigned a semantic name. Cells retain
+Class3 is not emitted by an ordinary full rebuild, which clears the class byte
+before reducing each lane; see [producer reachability](#ordinary-classification-reachability).
+Cells retain
 a search stamp and a 16-bit node index; `6f163ef0` lazily creates a node for the
 current search and records its level at node `+0x22`. The adaptive cell stamp
 is a full DWORD at cell0/system2c, with ushort node index at cell4; the fine
@@ -568,7 +570,8 @@ around selected objects, then mode 0 to restore their classification.
 The base classifier `6f15d0e0` queries four fine cells with one of the masks at
 `6fce4570`: `06000006`, `80000080`, `40000040`, `04000004`. Each lane becomes
 00 when all four queries are clear, 01 when all are blocked, or 10 when mixed.
-The lane shifts are 0, 2, 4 and 6. Gameplay names for every mask are pending.
+The lane shifts are 0, 2, 4 and 6: ground, amphibious, floating and flight.
+Coarse ground uses6; ordinary fine ground uses2.
 
 Parent classifier `6f15d1c0` reduces four children. Missing children are blocked;
 a clear child with a nonzero special marker at byte `+6` becomes mixed. This
@@ -590,6 +593,9 @@ confirms stale coarse classifications through 30 simulation seconds for this seq
 The WPM load path `6f04c860` does call the full update through `6f04e0b0`.
 
 ## Terrain edit and explicit rebuild composition
+
+See [producer/update inventory](#pathing-producer-and-update-inventory) for the
+current engine owners and remaining timing/composition work.
 
 `verify_wc3_pathing_maps.py` → `maps-oracle.json`: **11,664 complete edits,
 216 edit/rebuild/reversal compositions, 30 clipped clear/restore cases**.
@@ -974,3 +980,68 @@ fine-region high bit alone does not make flyers block a flight search.
 This closes incremental engine occupancy, not the full movement-category table
 or target-exit matrix. Water/amphibious producers, public start/goal admission,
 endpoint-mode composition and group transient policy still have separate owners.
+
+## Ordinary classification reachability
+
+Payoff79 closes ACC-02.1 and ACC-03.2 without adding task IDs. The existing
+adaptive oracle's `--terrain-producer` composes original fine queries,
+`15d360 →15cf80/15d0e0 →15d470/15d1c0`, then complete `162cb0` requests.
+The frozen input/output is `retail-adaptive-terrain-producer-1.27.json`.
+The engine counterpart is `pathfinding.terrain_producers_preserve_retail_size2_passage_veto_and_partial_route`.
+
+Ordinary fine flags2/4/40/80 have16 possible per-cell combinations. Enumerating
+all16^4 four-cell patterns gives **54 reachable four-lane class tuples**; each
+has a complete original rectangle-producer witness. Of81 tuples using0/1/2,
+**27 are rejected**: ground/flight pairs(0,1),(0,2),(2,1) cannot arise because
+coarse ground6 contains flight4. Amphibious80 and floating40 are independent.
+Ordinary full base/parent rebuild clears byte7 before calling the four setters,
+so class3 cannot be emitted. Calling a setter alone on stale class3 storage is
+outside that proof. Padding starts zero; only the clipped inclusive rectangle
+is classified. Byte6 special markers and object eligibility are separate domains.
+
+| Fixture family | Producer disposition | Remaining scope |
+| --- | --- | --- |
+| Ordinary adaptive open/wall/gap/random/shortcut maps and reduced passage | Selected-lane projection reachable by filling every blocked coarse cell with four finec6 cells. Synthetic unrelated-lane constants are controls; ground-clear/flight-blocked full words are rejected | Public fallback/mover journey: ACC-03.3; public shortcut/result consumption: FINE-04 |
+| Reduced size2 east veto | Reachable through full original classification, padded41/20/10/5 maps and unchanged request. All four lanes retain38 pops/56 nodes, partial endpoint(16.5,26.5), ordinary occupancy1 and boundary predicate0 | Full mover retry/arrival remains ACC-03.3 |
+| Four-lane adaptive wrap map | Ordinary reachable projection: ground blocked set contains flight blocked set, and80/40 are independent; existing engine fixture constructs the corresponding fine masks | Seeded warm metadata/capacity limits remain ACC-05.1 |
+| Constructor/WPM/widget/terrain-rectangle maps and exclusions | Produced by original constructors, full WPM load, widget rasterization or rectangle update; clear/exclude0 and restore0/1/2 are witnessed | Dynamic producer composition and exclusion exits retain the IDs below |
+| `--disable-promotion` and `--force-east-boundary` | Explicit counterfactuals. Arbitrary mixed parents of clear unmarked children and forced predicate acceptance are rejected as ordinary execution | Similar mixed flags from real special records remain ACC-02.2/ACC-01.2/GATE-03 |
+| Special byte6, warp tag/node and nonordinary object flags | Unresolved beyond the documented Way Gate producer and supplied-object matrices; do not promote supplied storage to gameplay evidence | ACC-02.2, FOOT-03, GATE-01/02/03/04 |
+
+The produced reduced map contains72 blocked fine cells in a64×64 terrain and
+**2,206** allocated hierarchy cells. Engine owned requests compare all four
+lanes of every cell, all56 normalized node records and the six-point partial
+route twice over retained buffers. Its original destination survives the partial
+search. The known reference difference remains expected exit1; this evidence
+justifies preserving the retail veto, not changing it to a conventional A* edge.
+See [engine payoff](retail-pathfinding-engine.md#terrain-produced-adaptive-passages-preserve-the-retail-veto).
+
+## Pathing producer and update inventory
+
+MAP-03.3 is an inventory task; it does not certify every producer's complete
+engine lifetime. The table assigns remaining work to existing IDs rather than
+creating new leaves. Fine terrain, linked occupancy, coarse proximity and
+adaptive classes have distinct update contracts. A class/profile query change
+must not be confused with removing a unit's occupied region.
+
+| Producer / retail entry | Affected state and timing | OpenRealm owner / evidence and remaining ID |
+| --- | --- | --- |
+| Map initialization `04c860 →15ab60 →04e0b0` | Allocate fine/proximity/four adaptive maps; decode WPM fine high bits; full hierarchy before return. Bulk widget setup suppresses local refresh through`651160(0)`, then enables it and rebuilds in`1eab40` | `G_SpawnEntities`, `CM_BakeStaticObstacles`, `move_acc_prepare`; MAP-01/02 initialized grids match. Active reload/lifetime: MAP-06.1 |
+| Unit spawn/profile `6945a0 →05c2e0/05c7e0` | Radius and distinct category/query publication; fine and proximity rectangles become visible through mover integration. Seven stock public profile captures and public birth placement exist; broader class callbacks are not all covered | `SP_SpawnUnit`, `S_InitUnitPosition`, `G_BindEntityData`, Move occupancy snapshot; full factory/callback graph: BASE-03.1, chronology: FINE-01.6 |
+| Movement and axis/point setters `1603d0`, `05c200`, `698050` | Commit old velocity/displacement and clock, then proximity`1604d0` and fine`160590` linked rectangles synchronously; public point placement Stops first, axis setters preserve the active order | Move `unit_commit_pose`, `S_SetUnitAxisPosition`, `S_SetUnitPosition`; native fine pose is retained. Per-cell insertion/removal ordering: FINE-01.6; public cadence: NUM-02.3 |
+| Radius/type changes `15fef0`, public Chaos/profile notification | Radius write commits zero displacement immediately, updating both rectangles; path/group footprint caches have separate lifetimes | `G_ChangeUnitType`, `S_UnitAbilityEvent`, Move route radius/cache checks; moving radius and local cohort parity are covered. Bound shared/target radius producers: FOOT-01.3 |
+| `SetUnitPathing` `215540 →699200 →05c7e0` | False clears own query while preserving occupancy category; true republishes authored query/category. This is not wholesale static footprint removal | `api_unit.h` writes `no_pathing`; Move query0 and occupied rectangles remain distinct, public toggles covered. Wider object/hierarchy consumer policy: FOOT-03.1/02 |
+| Widget spawn/reapply/death/restore `6c0d90`, `6501a0/650c00/6514d0/6544f0`, `1fd3c0` | Rasterize/remove region links; gated footprint rectangle refresh before next query; overlapping objects and retained death textures survive independently | `SP_Destructable`, `G_InitializeDestructablePlacement`, Kill/Restore/Remove and static bake; MAP-02.3/03.2/03.5/03.6 complete. General category/link chronology: FOOT-03/FINE-01.6 |
+| Construction start/complete/cancel, widget notifications | Widget application and exclusion/recovery paths exist; successful public construction margin-escape producer remains unproven. Do not infer static-path removal merely from Birth animation | `G_StartConstruction`, `G_FinishConstruction`, cancellation/`unit_die` bake at their owning transitions. Repeat public building controls and settle actual producer/notification timing: E2E-02.2; freeze invalidation differences: E2E-06.2 |
+| Removal/depletion `G_FreeEdict`/`G_DeferFreeEdict` counterparts | Retire region collection/storage before next route; native tree/mine/gate lifecycles confirm remaining occupancy and hierarchy | Engine central free bakes immediately after clear/hide using `G_EntityHasStaticPathing`; MAP-03.5/03.6 complete. Spatial reuse/capacity: MAP-05.1/03; full factory teardown: BASE-03.1 |
+| Terrain writes `2148f0 →04d870 →054000` | Fine high bits change synchronously; hierarchy stays stale until explicit footprint/full refresh. Low occupancy bits survive | `G_SetTerrainPathingFlags` currently rebuilds the engine bake/field epoch and therefore its adaptive cache. This documented timing difference must be resolved in the invalidation contract, E2E-06.2; complete terrain natives and cells remain MAP-03.1/03.8 |
+| Request exclusions `15d360(mode1/0)` | Clear rounded source/target coarse rectangles, search, restore classifications/parents; fine occupancy is a separate exclusion scope | `move_acc_object_rectangle` restores coarse ground6; Payoff78 covered. Nested objects, early/reentrant exits and edits during request: MAP-04.1/02 |
+| Way Gate activation/retarget/removal | Special records/byte6 prevent promotion from hiding portal edges; identity and link updates are not ordinary terrain flags | Explicit engine Way Gate traversal exists; adaptive special-edge routing and marker collisions/lifetime: GATE-01/02/03/04 and ACC-02.2 |
+| Save/load with active owners | Engine restores terrain,27 sparse pools, native fine pose/FIFO/route buffers and rebuilds static obstacle cache | `ReadLevel`, `ReadMoveRouteBuffers`, `ReadPools`, `G_RebindSavedMoveRoutes`; current journeys retain literal native suffixes. General cross-feature lifetime: MAP-06.2/E2E-04.2 |
+
+Do not rebuild adaptive classes after every moving unit commit based solely on
+its fine/proximity update: hierarchy object eligibility in`148e90` is narrower
+than ordinary collision eligibility. Exact dynamic hierarchy publication remains
+FOOT-03/E2E-06.2. The sorted engine rectangle adapter also cannot yet preserve
+native overlapping target/blocker link chronology; that implementation remains
+FINE-01.6. These are explicit inventory outcomes, not completed behavior claims.

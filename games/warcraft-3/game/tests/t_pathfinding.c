@@ -35,6 +35,7 @@
 #include "retail_fine_queue.h"
 #include "../../common/wc3_pathing_adaptive.h"
 #include "retail_adaptive_wrap.h"
+#include "retail_adaptive_producer.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -1091,6 +1092,63 @@ TEST(pathfinding, adaptive_source_and_target_exclusion_restore_nofly_ground_clas
         point2_t size=G_TestMovePathSize(level);
         FOR_LOOP(y,size.y) FOR_LOOP(x,size.x)
             T_EQ(G_TestMovePathClass(masks[lane],level,x,y),before[lane][level][y*size.x+x]);
+    }
+    free(route.points); free(route.adaptive_points); level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+TEST(pathfinding, terrain_producers_preserve_retail_size2_passage_veto_and_partial_route) {
+    reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+    uint8_t cells[64*64]={0},masks[]={2,0x80,0x40,4};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    /* All54 attainable ordinary lane tuples have original producer witnesses.
+     * Ground hierarchy uses6, so clear ground cannot coexist with blocked air. */
+    FOR_LOOP(k,54) {
+        memset(cells,0,sizeof(cells));
+        FOR_LOOP(i,4) cells[(i/2)*64+i%2]=retail_producer_inventory[k][i];
+        CM_SetupTestPathmap(64,64,cells);
+        FOR_LOOP(lane,4) T_EQ(G_TestMovePathClass(masks[lane],0,0,0),retail_producer_inventory[k][4+lane]);
+    }
+    FOR_LOOP(y,64) FOR_LOOP(x,64)
+        cells[y*64+x]=retail_producer_rows[y/2]&(1u<<(x/2)) ? 0xc6 : 0;
+    CM_SetupTestPathmap(64,64,cells);
+    unsigned offset=0;
+    FOR_LOOP(l,4) {
+        point2_t size=G_TestMovePathSize(l);
+        T_EQ(size.x,41u>>l); T_EQ(size.y,41u>>l);
+        FOR_LOOP(y,size.y) FOR_LOOP(x,size.x) {
+            unsigned byte=retail_producer_classes[offset+y*size.x+x];
+            FOR_LOOP(lane,4) T_EQ(G_TestMovePathClass(masks[lane],l,x,y),(byte>>(6-2*lane))&3);
+        }
+        offset+=size.x*size.y;
+    }
+    T_EQ(offset,2206);
+    vec2_t source={4.25f*64,4.75f*64},target={27.25f*64,27.75f*64},selected;
+    edict_t *unit=make_unit_at(source.x,source.y);
+    unit->collision=40;
+    uint32_t old_counter=level.pathing_counter;
+    moveFineRoute_t route={0};
+    FOR_LOOP(pass,2) FOR_LOOP(lane,4) {
+        unit->aiflags=lane==3 ? AI_FLYING : 0;
+        level.pathing_counter=400+(pass*4+lane)*20; level.move_fine_budgets[0].work=0;
+        movePathQuery_t query={.geometry={&source,&target,40,masks[lane]},.units=true,.mover=unit};
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&selected));
+        wc3AccSearch_t const *search=G_TestMoveAdaptiveSearch();
+        T_EQ(search->size,2); T_EQ(search->work.pops,38); T_EQ(search->work.count,56);
+        if(search->work.count==56) FOR_LOOP(i,56) {
+            wc3FineNode_t const *n=search->work.nodes+i;
+            uint32_t words[]={n->pos.x,n->pos.y,n->g,n->h,n->gen,(uint32_t)n->parent,n->state,search->levels[i]};
+            FOR_LOOP(j,8) T_EQ(words[j],retail_producer_nodes[i][j]);
+        }
+        T_EQ(route.adaptive_count,6);
+        if(route.adaptive_count==6) FOR_LOOP(i,6) {
+            T_EQ(wc3_float_bits(route.adaptive_points[i].x),retail_producer_route[i][0]);
+            T_EQ(wc3_float_bits(route.adaptive_points[i].y),retail_producer_route[i][1]);
+        }
+        /* The issued click survives the partial search; route0 is its nearest
+         * centre. Future fine legs/retries must retain this native limitation. */
+        T_EQ(wc3_float_bits(route.adaptive_goal.x),wc3_float_bits(target.x/32));
+        T_EQ(wc3_float_bits(route.adaptive_goal.y),wc3_float_bits(target.y/32));
     }
     free(route.points); free(route.adaptive_points); level.pathing_counter=old_counter;
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();

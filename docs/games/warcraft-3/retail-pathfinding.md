@@ -675,3 +675,12 @@ stale engine ground classifications. Post-exclusion rebuild now uses original
 coarse ground6, matching initial loading. Metadata warmup and seeded counter
 history are explicit; capacity/public scheduler/special-edge producers remain
 open. See [adaptive reuse](retail-pathfinding-engine.md#adaptive-reuse-restores-the-original-ground-classifications).
+
+Payoff79 closes MAP-03.3/ACC-02.1/ACC-03.2 without new leaves. The producer
+inventory now names affected grids/timing and existing IDs for remaining engine
+lifetime differences. Actual terrain setters and full native padded hierarchy
+reproduce the reduced size2 east veto; all54 ordinary classification witnesses,
+2,206 class bytes,56 final nodes and six route points match actual engine owned
+requests. Ground/flight inclusion rejects27 ordinary tuples; special records
+remain unresolved explicitly. The reference mismatch is preserved as expected
+exit1. See [terrain-produced payoff](retail-pathfinding-engine.md#terrain-produced-adaptive-passages-preserve-the-retail-veto).

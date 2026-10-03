@@ -24,7 +24,7 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),100)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),101)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
         self.assertEqual(sum(e['id'].startswith('live-') for e in entries),75)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
@@ -34,11 +34,14 @@ class CorpusTests(unittest.TestCase):
         self.assertEqual([e['id'] for e in completed_rejections],['capture-arrival-point-first'])
         self.assertTrue(completed_rejections[0]['capture_failures'])
         native=[e for e in entries if e['expected_status']=='known-reference-difference']
-        self.assertEqual(len(native),3)
+        self.assertEqual(len(native),4)
         for entry in native:
             self.assertEqual(entry['expected_exit'],1)
             check_report(dict(binary_sha256=self.target['game_sha256'],differences=[{}]*4,
-                              stored_size=2,promotion_disabled=False,forced_east_boundary=False,engine_exact_cases=356,cases=356),entry,self.target)
+                              stored_size=2,promotion_disabled=False,forced_east_boundary=False,
+                              engine_exact_cases=4 if '--terrain-producer' in entry['command'] else 356,
+                              cases=4 if '--terrain-producer' in entry['command'] else 356,
+                              producer_classification_cases=54,producer_classification_rejected=27,producer_hierarchy_cells=2206),entry,self.target)
 
     def test_constructed_map_boundary_literals_match_original_words(self):
         frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-constructed-map-coordinates-1.27.json').read_text())

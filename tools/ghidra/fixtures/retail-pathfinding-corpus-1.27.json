@@ -25078,6 +25078,65 @@
       ],
       "scope": "Original32-bit adaptive stamp wraps naturally through FFFFFFFE/FFFFFFFF/0..5; all searchable metadata was first warmed by3451 actual lazy node lookups across all four supplied ordinary classification lanes. Eight400-work complete requests across stored sizes1/2 equal fresh metadata controls and production C final nodes/work/routes. Classification producers, public scheduler, capacity, warp and billions of historical requests excluded.",
       "exclusions": []
+    },
+    {
+      "id": "oracle-adaptive-terrain-producer-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_adaptive.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--terrain-producer",
+        "--map-json",
+        "tools/ghidra/fixtures/pathing-adaptive-size2-passage.json",
+        "--size-input",
+        "1",
+        "--budget",
+        "400",
+        "--east-boundary",
+        "18",
+        "13",
+        "--trace-graph",
+        "--producer-fixture",
+        "tools/ghidra/fixtures/retail-adaptive-terrain-producer-1.27.json",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-terrain-producer-engine.json",
+      "expected_exit": 1,
+      "expected_status": "known-reference-difference",
+      "checks": {
+        "cases": {
+          "equal": 4
+        },
+        "engine_exact_cases": {
+          "equal": 4
+        },
+        "differences": {
+          "length": 4
+        },
+        "producer_classification_cases": {
+          "equal": 54
+        },
+        "producer_classification_rejected": {
+          "equal": 27
+        },
+        "producer_hierarchy_cells": {
+          "equal": 2206
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original fine-cell/base/parent/rectangle producers build64x64 terrain and padded hierarchy.54 ordinary classification witnesses and27 rejected tuples; complete size2 reduced passage still returns38-pop56-node partial in all four lanes, exact C final state and route. Supplied headers/terrain; no public fallback/motion or special edges.",
+      "exclusions": []
     }
   ],
   "fixtures": [
@@ -25637,6 +25696,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-adaptive-stamp-wrap-1.27.json",
       "sha256": "f55dca3fbbf33a36ab1fb0193a4d550afc484c74c8660c5b4d84a73c508f7dc4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-adaptive-terrain-producer-1.27.json",
+      "sha256": "577f262c3cf1e62238d8d9e3b48a1167c37e7056c79ae5172320a6569f5dca4d"
     }
   ]
 }

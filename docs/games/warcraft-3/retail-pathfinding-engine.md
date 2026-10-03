@@ -6935,3 +6935,65 @@ public scheduler/callback composition remain separate.
 See [corpus](retail-pathfinding-corpus.md#adaptive-stamp-and-class-restoration),
 [search evidence](retail-pathfinding-search.md#complete-adaptive-request-oracle)
 and [backlog](retail-pathfinding-todo.md#acc-05--adaptive-storage-lifetime).
+
+## Terrain-produced adaptive passages preserve the retail veto
+
+Payoff79 closes existing **MAP-03.3, ACC-02.1 and ACC-03.2** together; no new
+IDs or splits. The [producer/update inventory](retail-pathfinding-search.md#pathing-producer-and-update-inventory)
+now maps spawn, movement, size/profile/pathing changes, construction,
+removal/depletion, terrain writes, exclusions, gates and save/load to their
+retail grids/timing, engine owners and remaining existing IDs. Inventory
+completion does not imply all listed lifetime differences have been ported.
+
+`verify_wc3_pathing_adaptive.py --terrain-producer` starts with an empty fine
+map and applies **288 original04d870→054000 terrain setters**. These publish
+72 fine cells with all four blocked movement flags. Full original15d360 then
+builds the padded41/20/10/5 hierarchy, including2,206 exact class bytes. The
+actual full162cb0 request still hits the reduced size2 east-boundary veto:
+**38 charged pops,56 nodes, six-point partial route** in all four native lanes.
+Ordinary occupancy at(18,13) returns1 while the east-side boundary predicate
+returns0. The full original/C node and route states match. Thus supplied
+unrelated-lane constants in the earlier synthetic fixture did not cause the
+selected-lane failure; it survives actual terrain/classification producers.
+
+The same oracle enumerates16^4 possible ordinary fine occupancy patterns,
+retains one witness for each of54 attainable four-lane tuples, and executes
+original rectangle/base/parent producers on all54. Ground6 contains flight4,
+so27 of81 class0/1/2 tuples are impossible. Class3 is not emitted by full
+ordinary rebuilding. Special markers/object eligibility and counterfactual
+mixed-parent/forced-predicate controls are classified separately; see
+[reachability inventory](retail-pathfinding-search.md#ordinary-classification-reachability).
+The frozen producer fixture is `retail-adaptive-terrain-producer-1.27.json`;
+`retail_adaptive_producer.h` stores literal original expectations.
+
+The actual engine regression checks all54 class witnesses and every lane of
+all2,206 hierarchy cells, then executes `G_BuildUnitMoveFineRoute` in all four
+lanes twice over retained map/node/heap/route backing. **12,785 assertions**
+compare every final56-node record, work, size and all six partial-route points,
+and preserve the issued goal independently of that partial centre. This extends
+the real routing regression surface without changing the retail veto or
+inventing an algorithm correction. The existing implementation already agrees.
+Public mover retries and complete native arrival/failure remain ACC-03.3;
+map headers/backing and original empty fine occupancy are supplied explicitly.
+
+Ghidra retains the class inclusion/rejection proof, producer-built veto and
+producer ownership links in its existing623 named functions. Unknown bytes,
+special records and complete gameplay branches remain untyped/unclaimed.
+The new strict corpus entry remains `known-reference-difference`, expected
+exit1, because the conventional reference graph can reach the goal.
+
+The preceding upstream merge reaches13bcc8b7 and retains all native movement
+state beside27 pooled sparse lifecycle records. Save90 writes pools before
+shared/group movement and clears transient edict fields before rebuilding route
+buffers. Combined pathfinding/save checks and full RoC/TFT runs pass2491 tests/
+4393447 assertions per edition; normal production builds. The additional
+producer fixture changes no network fields, saved state or production ABI.
+
+Required final `make BUILD=release -j4 test` passes **RoC/TFT2,492 tests and
+4,406,232 assertions each**, plus **482 Python checks**. Fresh
+`runtime/terrain-producer79-strict-pinned/corpus-results.json` passes all three
+selected contracts with149 source pins, preserving both known-difference
+entries and the prior adaptive wrap control. The producer comparison also
+passes at O0. The first repository run caught a stale expected oracle count;
+updating the inventory regression to101/four known differences and rerunning
+resolved it. No native mismatch was converted into a pass.

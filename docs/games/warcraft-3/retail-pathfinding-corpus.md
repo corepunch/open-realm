@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **296 entries**: **45** distinct original-code oracle
-scripts plus **55** declared variants, **121** archived JSONL audits and **75**
+The inventory now has **297 entries**: **45** distinct original-code oracle
+scripts plus **56** declared variants, **121** archived JSONL audits and **75**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -21,7 +21,7 @@ outside the accepted inventory unless given their own rejection contract.
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
 | 94 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
-| Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
+| Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
 | Eight rejected archives | `archive-rejected`, exit1 | Diagnostic rejection remains visible and grants no live evidence |
@@ -1321,3 +1321,28 @@ limits. Six fresh adaptive/wrap/map contracts pass in
 `runtime/adaptive-wrap-strict-final78/`; the adaptive wrap comparison also
 passes at O0. Required RoC/TFT suites pass2490 tests/4393170 assertions per
 edition and481 Python checks. See [engine payoff](retail-pathfinding-engine.md#adaptive-reuse-restores-the-original-ground-classifications).
+
+## Terrain-produced adaptive classification
+
+Payoff79 adds one composition to the existing adaptive script, not another
+oracle script or capture. `oracle-adaptive-terrain-producer-engine` executes
+288 actual terrain setters, complete padded classification and four unchanged
+size2 requests. Its54 ordinary classification witnesses,27 rejected tuples,
+2,206 class bytes and all final nodes/routes are frozen in
+`retail-adaptive-terrain-producer-1.27.json`. The reduced passage still differs
+from the ordinary reference graph; expected exit1 and four differences remain
+mandatory. Supplied empty storage/map headers, special-edge exclusions and the
+remaining public mover journey are explicit.
+
+The inventory is now297 entries/45 scripts/101 oracle contracts (56 variants)/
+121 archives/75 strict live contracts/140 fixtures. Four contracts retain native
+reference differences; deliberate controls remain three. Literal C fixtures
+and actual engine route/classification assertions keep the research synchronized
+with reimplementation. See [engine payoff](retail-pathfinding-engine.md#terrain-produced-adaptive-passages-preserve-the-retail-veto)
+and [producer inventory](retail-pathfinding-search.md#pathing-producer-and-update-inventory).
+
+The three final fresh contracts pass in `runtime/terrain-producer79-strict-pinned/`
+with149 source pins. Native/engine comparisons match at O0/O2; required complete
+RoC/TFT suites pass2,492 tests/4,406,232 assertions per edition and482 Python
+checks. These totals certify the current merged branch and this fixture chunk,
+not complete Warcraft III pathfinding fidelity.
